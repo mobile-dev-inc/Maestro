@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -eq 0 ]; then
+  ./gradlew :conductor-cli:run -q --console=plain
+else
+  ./gradlew :conductor-cli:run -q --console=plain --args="$*"
+fi

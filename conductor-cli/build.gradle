@@ -1,0 +1,30 @@
+plugins {
+    id "kotlin"
+    id 'application'
+}
+
+application {
+    mainClassName = 'conductor.cli.AppKt'
+}
+
+run {
+    standardInput = System.in
+    workingDir = rootDir
+}
+
+dependencies {
+    annotationProcessor 'info.picocli:picocli-codegen:4.5.2'
+
+    implementation project(':conductor-client')
+    implementation project(':conductor-orchestra')
+    implementation "dev.mobile:dadb:0.0.9"
+    implementation 'info.picocli:picocli:4.5.2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

@@ -1,0 +1,15 @@
+plugins {
+    id 'kotlin'
+}
+
+dependencies {
+    api project(':conductor-orchestra-models')
+    implementation project(':conductor-client')
+    implementation 'com.squareup.okio:okio:3.0.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2'
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "com.google.truth:truth:1.1.3"
+}
