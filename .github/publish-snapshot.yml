@@ -1,0 +1,33 @@
+name: Publish Snapshot
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/conductor'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install JDK 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 8
+
+      - uses: gradle/gradle-build-action@v2
+
+      - name: Retrieve version
+        run: |
+          echo "VERSION_NAME=$(cat gradle.properties | grep -w "VERSION_NAME" | cut -d'=' -f2)" >> $GITHUB_ENV
+      - name: Publish snapshot
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}

@@ -1,5 +1,7 @@
 plugins {
+    id 'maven-publish'
     id 'java'
+    id "com.vanniktech.maven.publish"
 }
 
 java {
