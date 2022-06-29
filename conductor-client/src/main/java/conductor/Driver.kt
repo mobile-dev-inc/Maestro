@@ -15,4 +15,6 @@ interface Driver {
     fun scrollVertical()
 
     fun backPress()
+
+    fun inputText(text: String)
 }

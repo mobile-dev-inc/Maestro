@@ -34,6 +34,12 @@ class BackPressCommand {
     }
 }
 
-data class TapOnElementCommand(val selector: ElementSelector)
+data class TapOnElementCommand(val selector: ElementSelector, val retryIfNoChange: Boolean? = null)
 
-data class CrawlerCommand(val maxActions: Int)
+data class AssertCommand(
+    val visible: ElementSelector? = null,
+)
+
+data class InputTextCommand(
+    val text: String
+)

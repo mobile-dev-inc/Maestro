@@ -1,19 +1,23 @@
 package conductor.orchestra.yaml
 
+import conductor.orchestra.AssertCommand
 import conductor.orchestra.BackPressCommand
 import conductor.orchestra.ConductorCommand
 import conductor.orchestra.ElementSelector
-import conductor.orchestra.CrawlerCommand
+import conductor.orchestra.InputTextCommand
 import conductor.orchestra.ScrollCommand
 import conductor.orchestra.TapOnElementCommand
 
 data class YamlFluentCommand(
     val tapOnText: String? = null,
     val tapOnId: String? = null,
+    val tapOn: YamlElementSelector? = null,
+    val assertVisible: YamlElementSelector? = null,
     val action: String? = null,
-    val maxActions: Int? = null,
+    val inputText: String? = null,
 ) {
 
+    @SuppressWarnings("ComplexMethod")
     fun toCommand(): ConductorCommand {
         return when {
             tapOnText != null -> ConductorCommand(
@@ -22,8 +26,19 @@ data class YamlFluentCommand(
             tapOnId != null -> ConductorCommand(
                 tapOnElement = TapOnElementCommand(ElementSelector(idRegex = tapOnId))
             )
-            maxActions != null -> ConductorCommand(
-                crawlerCommand = CrawlerCommand(maxActions)
+            tapOn != null -> ConductorCommand(
+                tapOnElement = TapOnElementCommand(
+                    toElementSelector(tapOn),
+                    tapOn.retryTapIfNoChange ?: true
+                )
+            )
+            assertVisible != null -> ConductorCommand(
+                assertCommand = AssertCommand(
+                    visible = toElementSelector(assertVisible),
+                )
+            )
+            inputText != null -> ConductorCommand(
+                inputTextCommand = InputTextCommand(inputText)
             )
             action != null -> when (action) {
                 "back" -> ConductorCommand(backPressCommand = BackPressCommand())
@@ -32,5 +47,24 @@ data class YamlFluentCommand(
             }
             else -> throw IllegalStateException("No mapping provided for $this")
         }
+    }
+
+    private fun toElementSelector(tapOn: YamlElementSelector): ElementSelector {
+        val size = if (tapOn.width != null || tapOn.height != null) {
+            ElementSelector.SizeSelector(
+                width = tapOn.width,
+                height = tapOn.height,
+                tolerance = tapOn.tolerance,
+            )
+        } else {
+            null
+        }
+
+        return ElementSelector(
+            textRegex = tapOn.text,
+            idRegex = tapOn.id,
+            size = size,
+            optional = tapOn.optional ?: false,
+        )
     }
 }

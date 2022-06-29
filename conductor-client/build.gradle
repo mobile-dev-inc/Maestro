@@ -48,7 +48,7 @@ dependencies {
     implementation 'io.grpc:grpc-okhttp:1.45.0'
     implementation 'com.google.protobuf:protobuf-kotlin:3.19.4'
     implementation 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
-    implementation "dev.mobile:dadb:0.0.9"
+    implementation "dev.mobile:dadb:0.0.10"
     implementation "org.slf4j:slf4j-simple:1.7.36"
 
     testImplementation "junit:junit:4.13.2"

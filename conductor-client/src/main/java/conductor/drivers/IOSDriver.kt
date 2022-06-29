@@ -11,10 +11,21 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
 ) : Driver {
 
-    override fun open() {}
+    private var widthPixels: Int? = null
+    private var heightPixels: Int? = null
+
+    override fun open() {
+        val response = iosDevice.deviceInfo().expect {}
+
+        widthPixels = response.widthPixels
+        heightPixels = response.heightPixels
+    }
 
     override fun close() {
         iosDevice.clearChannel()
+
+        widthPixels = null
+        heightPixels = null
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -57,7 +68,21 @@ class IOSDriver(
         )
     }
 
-    override fun scrollVertical() {}
+    override fun scrollVertical() {
+        val screenWidth = widthPixels ?: throw IllegalStateException("Screen width not available")
+        val screenHeight = heightPixels ?: throw IllegalStateException("Screen height not available")
+
+        iosDevice.scroll(
+            xStart = screenWidth / 2,
+            yStart = screenHeight / 4,
+            xEnd = screenWidth / 2,
+            yEnd = 0
+        ).expect {}
+    }
 
     override fun backPress() {}
+
+    override fun inputText(text: String) {
+        iosDevice.input(text).expect {}
+    }
 }

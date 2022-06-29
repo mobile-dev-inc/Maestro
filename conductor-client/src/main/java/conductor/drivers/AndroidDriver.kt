@@ -5,7 +5,6 @@ import conductor.DeviceInfo
 import conductor.Driver
 import conductor.Point
 import conductor.TreeNode
-import conductor.android.DadbForwarder
 import conductor.android.InstrumentationThread
 import conductor_android.ConductorDriverGrpc
 import conductor_android.deviceInfoRequest
@@ -36,7 +35,7 @@ class AndroidDriver(
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
     private var instrumentationThread: Thread? = null
-    private var forwarder: DadbForwarder? = null
+    private var forwarder: AutoCloseable? = null
 
     override fun open() {
         installConductorApks()
@@ -50,12 +49,10 @@ class AndroidDriver(
             return
         }
 
-        forwarder = DadbForwarder(
-            dadb,
+        forwarder = dadb.tcpForward(
             7001,
             7001
         )
-        forwarder?.start()
     }
 
     private fun awaitLaunch() {
@@ -118,6 +115,10 @@ class AndroidDriver(
 
     override fun backPress() {
         dadb.shell("input keyevent 4")
+    }
+
+    override fun inputText(text: String) {
+        dadb.shell("input text $text")
     }
 
     private fun mapHierarchy(node: Node): TreeNode {

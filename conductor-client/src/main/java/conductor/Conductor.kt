@@ -1,47 +1,80 @@
 package conductor
 
+import conductor.UiElement.Companion.toUiElement
 import conductor.drivers.AndroidDriver
 import conductor.drivers.IOSDriver
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
+import org.slf4j.LoggerFactory
 
 class Conductor(private val driver: Driver) : AutoCloseable {
 
     fun deviceInfo(): DeviceInfo {
+        LOGGER.info("Getting device info")
+
         return driver.deviceInfo()
     }
 
     fun backPress() {
+        LOGGER.info("Pressing back")
+
         driver.backPress()
+        waitForAppToSettle()
     }
 
     fun scrollVertical() {
+        LOGGER.info("Scrolling vertically")
+
         driver.scrollVertical()
+        waitForAppToSettle()
     }
 
     fun tap(element: TreeNode) {
-        tap(toUiElement(element))
+        tap(element.toUiElement())
     }
 
-    fun tap(element: UiElement) {
-        driver.tap(element.bounds.center())
+    fun tap(element: UiElement, retryIfNoChange: Boolean = true) {
+        LOGGER.info("Tapping on element: $element")
+
+        val hierarchyBeforeTap = viewHierarchy()
+
+        val retries = getNumberOfRetries(retryIfNoChange)
+        repeat(retries) {
+            driver.tap(element.bounds.center())
+            waitForAppToSettle()
+
+            val hierarchyAfterTap = viewHierarchy()
+
+            if (hierarchyBeforeTap != hierarchyAfterTap) {
+                LOGGER.info("Something have changed in the UI. Proceed.")
+                return
+            }
+
+            LOGGER.info("Nothing changed in the UI.")
+        }
+
+        if (retryIfNoChange) {
+            LOGGER.info("Attempting to tap again since there was no change in the UI")
+            tap(element, false)
+        }
+    }
+
+    private fun getNumberOfRetries(retryIfNoChange: Boolean): Int {
+        return if (retryIfNoChange) 3 else 1
     }
 
     fun findElementByText(text: String, timeoutMs: Long): UiElement {
-        return findElementWithTimeout(timeoutMs) {
-            it.attributes["text"]?.let { value ->
-                text == value
-            } ?: false
-        } ?: throw NotFoundException("No element with text: $text;  Available elements: ${driver.contentDescriptor()}")
+        LOGGER.info("Looking for element by text: $text (timeout $timeoutMs)")
+
+        return findElementWithTimeout(timeoutMs, Predicates.textMatches(text))
+            ?: throw NotFoundException("No element with text: $text;  Available elements: ${driver.contentDescriptor()}")
     }
 
     fun findElementByRegexp(regex: Regex, timeoutMs: Long): UiElement {
-        return findElementWithTimeout(timeoutMs) {
-            it.attributes["text"]?.let { value ->
-                regex.matches(value)
-            } ?: false
-        }
+        LOGGER.info("Looking for element by regex: ${regex.pattern} (timeout $timeoutMs)")
+
+        return findElementWithTimeout(timeoutMs, Predicates.textMatches(regex))
             ?: throw NotFoundException("No element that matches regex: $regex; Available elements: ${driver.contentDescriptor()}")
     }
 
@@ -50,39 +83,21 @@ class Conductor(private val driver: Driver) : AutoCloseable {
     }
 
     fun findElementByIdRegex(regex: Regex, timeoutMs: Long): UiElement {
-        return findElementWithTimeout(timeoutMs) {
-            it.attributes["resource-id"]?.let { value ->
-                regex.matches(value)
-            } ?: false
-        }
+        LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
+
+        return findElementWithTimeout(timeoutMs, Predicates.idMatches(regex))
             ?: throw NotFoundException("No element has id that matches regex $regex; Available elements: ${driver.contentDescriptor()}")
     }
 
-    private fun toUiElement(node: TreeNode): UiElement {
-        // TODO needs different impl for iOS
-        val boundsStr = node.attributes["bounds"]
-            ?: throw IllegalStateException("Node has no bounds")
+    fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
+        LOGGER.info("Looking for element by size: $width x $height (tolerance $tolerance) (timeout $timeoutMs)")
 
-        val boundsArr = boundsStr
-            .replace("][", ",")
-            .removePrefix("[")
-            .removeSuffix("]")
-            .split(",")
-            .map { it.toInt() }
-
-        return UiElement(
-            Bounds(
-                x = boundsArr[0],
-                y = boundsArr[1],
-                width = boundsArr[2] - boundsArr[0],
-                height = boundsArr[3] - boundsArr[1]
-            )
-        )
+        return findElementWithTimeout(timeoutMs, Predicates.sizeMatches(width, height, tolerance))
     }
 
-    private fun findElementWithTimeout(
+    fun findElementWithTimeout(
         timeoutMs: Long,
-        predicate: (TreeNode) -> Boolean,
+        predicate: ElementLookupPredicate,
     ): UiElement? {
         val endTime = System.currentTimeMillis() + timeoutMs
 
@@ -90,14 +105,14 @@ class Conductor(private val driver: Driver) : AutoCloseable {
             val result = findElementByPredicate(driver.contentDescriptor(), predicate)
 
             if (result != null) {
-                return toUiElement(result)
+                return result.toUiElement()
             }
         } while (System.currentTimeMillis() < endTime)
 
         return null
     }
 
-    private fun findElementByPredicate(root: TreeNode, predicate: (TreeNode) -> Boolean): TreeNode? {
+    private fun findElementByPredicate(root: TreeNode, predicate: ElementLookupPredicate): TreeNode? {
         if (predicate(root)) {
             return root
         }
@@ -110,18 +125,43 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         return null
     }
 
+    private fun waitForAppToSettle() {
+        // Time buffer for any visual effects and transitions that might occur between actions.
+        Thread.sleep(300)
+
+        val hierarchyBefore = viewHierarchy()
+        repeat(10) {
+            val hierarchyAfter = viewHierarchy()
+            if (hierarchyBefore == hierarchyAfter) {
+                return
+            }
+            Thread.sleep(200)
+        }
+    }
+
+    fun inputText(text: String) {
+        driver.inputText(text)
+        waitForAppToSettle()
+    }
+
+    override fun close() {
+        driver.close()
+    }
+
     class NotFoundException(msg: String) : Exception(msg)
 
     companion object {
+
+        private val LOGGER = LoggerFactory.getLogger(Conductor::class.java)
 
         fun ios(host: String, port: Int): Conductor {
             val channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .build()
 
-            return Conductor(
-                IOSDriver(IdbIOSDevice(channel, host))
-            )
+            val driver = IOSDriver(IdbIOSDevice(channel, "$host:$port"))
+            driver.open()
+            return Conductor(driver)
         }
 
         fun android(dadb: Dadb): Conductor {
@@ -129,9 +169,5 @@ class Conductor(private val driver: Driver) : AutoCloseable {
             driver.open()
             return Conductor(driver)
         }
-    }
-
-    override fun close() {
-        driver.close()
     }
 }

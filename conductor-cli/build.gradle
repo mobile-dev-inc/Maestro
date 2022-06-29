@@ -17,7 +17,7 @@ dependencies {
 
     implementation project(':conductor-client')
     implementation project(':conductor-orchestra')
-    implementation "dev.mobile:dadb:0.0.9"
+    implementation "dev.mobile:dadb:0.0.10"
     implementation 'info.picocli:picocli:4.5.2'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'

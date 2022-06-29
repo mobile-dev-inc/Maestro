@@ -107,6 +107,44 @@ class IdbIOSDevice(
         }
     }
 
+    override fun scroll(xStart: Int, yStart: Int, xEnd: Int, yEnd: Int): Result<Unit, Throwable> {
+        return runCatching {
+            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
+            val stream = asyncStub.hid(responseObserver)
+
+            val swipeAction = HIDEventKt.hIDSwipe {
+                this.start = point {
+                    this.x = xStart.toDouble()
+                    this.y = yStart.toDouble()
+                }
+                this.end = point {
+                    this.x = xEnd.toDouble()
+                    this.y = yEnd.toDouble()
+                }
+            }
+
+            stream.onNext(
+                hIDEvent {
+                    swipe = swipeAction
+                }
+            )
+            stream.onCompleted()
+        }
+    }
+
+    override fun input(text: String): Result<Unit, Throwable> {
+        return runCatching {
+            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
+            val stream = asyncStub.hid(responseObserver)
+
+            TextInputUtil.textToListOfEvents(text)
+                .forEach {
+                    stream.onNext(it)
+                }
+            stream.onCompleted()
+        }
+    }
+
     override fun install(stream: InputStream): Result<Unit, Throwable> {
         return runCatching {
             val responseObserver = BlockingStreamObserver<Idb.InstallResponse>()
