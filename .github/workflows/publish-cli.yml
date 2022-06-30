@@ -22,3 +22,5 @@ jobs:
 
       - name: Publish CLI
         run: ./gradlew :conductor-cli:jreleaserFullRelease --no-daemon --no-parallel
+        env:
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
