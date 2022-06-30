@@ -5,7 +5,11 @@ import conductor.ElementLookupPredicate
 import conductor.Predicates
 import conductor.UiElement
 
-class Orchestra(private val conductor: Conductor) {
+class Orchestra(
+    private val conductor: Conductor,
+    private val lookupTimeoutMs: Long = 10000L,
+    private val optionalLookupTimeoutMs: Long = 3000L
+) {
 
     fun executeCommands(commands: List<ConductorCommand>) {
         commands.forEach {
@@ -51,9 +55,9 @@ class Orchestra(private val conductor: Conductor) {
 
     private fun findElement(selector: ElementSelector): UiElement {
         val timeout = if (selector.optional) {
-            3000L
+            optionalLookupTimeoutMs
         } else {
-            10000L
+            lookupTimeoutMs
         }
 
         val predicates = mutableListOf<ElementLookupPredicate>()

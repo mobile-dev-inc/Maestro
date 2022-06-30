@@ -1,0 +1,6 @@
+- tapOn:
+    text: "Optional Element"
+    optional: true
+- assertVisible:
+    text: "Non Optional"
+    optional: false
