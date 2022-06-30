@@ -1,4 +1,4 @@
-name: Publish Snapshot
+name: Publish CLI
 
 on:
   workflow_dispatch:
