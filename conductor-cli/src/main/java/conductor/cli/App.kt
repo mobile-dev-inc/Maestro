@@ -41,13 +41,13 @@ fun main(args: Array<String>) {
             1
         }
 
-    commandLine.parseArgs(*args)
+    val exitCode = commandLine
+        .execute(*args)
+
     if (commandLine.isVersionHelpRequested) {
         printVersion()
         exitProcess(0)
     }
 
-    val exitCode = commandLine
-        .execute(*args)
     exitProcess(exitCode)
 }
