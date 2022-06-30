@@ -23,7 +23,7 @@ jobs:
       - name: Publish CLI
         run: ./gradlew :conductor-cli:jreleaserFullRelease --no-daemon --no-parallel
         env:
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
 
       - name: Print jReleaser log
         if: always()
