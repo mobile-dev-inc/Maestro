@@ -1,5 +1,5 @@
 group = "dev.mobile"
-version = "0.0.1-SNAPSHOT"
+version = "1.0.0"
 
 extra["isReleaseVersion"] = !version.toString().endsWith("SNAPSHOT")
 
