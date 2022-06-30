@@ -9,8 +9,6 @@ import conductor.orchestra.ScrollCommand
 import conductor.orchestra.TapOnElementCommand
 
 data class YamlFluentCommand(
-    val tapOnText: String? = null,
-    val tapOnId: String? = null,
     val tapOn: YamlElementSelector? = null,
     val assertVisible: YamlElementSelector? = null,
     val action: String? = null,
@@ -20,12 +18,6 @@ data class YamlFluentCommand(
     @SuppressWarnings("ComplexMethod")
     fun toCommand(): ConductorCommand {
         return when {
-            tapOnText != null -> ConductorCommand(
-                tapOnElement = TapOnElementCommand(ElementSelector(textRegex = tapOnText))
-            )
-            tapOnId != null -> ConductorCommand(
-                tapOnElement = TapOnElementCommand(ElementSelector(idRegex = tapOnId))
-            )
             tapOn != null -> ConductorCommand(
                 tapOnElement = TapOnElementCommand(
                     toElementSelector(tapOn),

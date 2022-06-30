@@ -14,6 +14,10 @@ class IOSDriver(
     private var widthPixels: Int? = null
     private var heightPixels: Int? = null
 
+    override fun name(): String {
+        return "iOS Simulator"
+    }
+
     override fun open() {
         val response = iosDevice.deviceInfo().expect {}
 
@@ -22,7 +26,7 @@ class IOSDriver(
     }
 
     override fun close() {
-        iosDevice.clearChannel()
+        iosDevice.close()
 
         widthPixels = null
         heightPixels = null

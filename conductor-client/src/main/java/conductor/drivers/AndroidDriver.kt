@@ -37,6 +37,10 @@ class AndroidDriver(
     private var instrumentationThread: Thread? = null
     private var forwarder: AutoCloseable? = null
 
+    override fun name(): String {
+        return "Android Device ($dadb)"
+    }
+
     override fun open() {
         installConductorApks()
         instrumentationThread = InstrumentationThread(dadb)

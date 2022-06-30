@@ -2,6 +2,8 @@ package conductor
 
 interface Driver {
 
+    fun name(): String
+
     fun open()
 
     fun close()

@@ -9,21 +9,23 @@ import picocli.CommandLine
 )
 class PrintHierarchyCommand : Runnable {
 
-    @CommandLine.Parameters
-    private lateinit var os: String
+    @CommandLine.Option(names = ["-t", "--target"])
+    private var target: String? = null
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     override fun run() {
-        if (os !in setOf("android", "ios")) {
+        if (target !in setOf("android", "ios", null)) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
-                "OS must be one of: android, ios"
+                "Target must be one of: android, ios"
             )
         }
 
-        ConductorFactory.createConductor(os).use {
+        ConductorFactory.createConductor(target).use {
+            println("Printing hierarchy from ${it.deviceName()}")
+
             val hierarchy = jacksonObjectMapper()
                 .writerWithDefaultPrettyPrinter()
                 .writeValueAsString(it.viewHierarchy())

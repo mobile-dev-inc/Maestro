@@ -8,7 +8,12 @@ import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
 import org.slf4j.LoggerFactory
 
+@Suppress("unused")
 class Conductor(private val driver: Driver) : AutoCloseable {
+
+    fun deviceName(): String {
+        return driver.name()
+    }
 
     fun deviceInfo(): DeviceInfo {
         LOGGER.info("Getting device info")
@@ -159,7 +164,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
                 .usePlaintext()
                 .build()
 
-            val driver = IOSDriver(IdbIOSDevice(channel, "$host:$port"))
+            val driver = IOSDriver(IdbIOSDevice(channel))
             driver.open()
             return Conductor(driver)
         }

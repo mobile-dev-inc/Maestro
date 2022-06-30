@@ -17,19 +17,19 @@ import java.util.concurrent.Callable
 class TestCommand : Callable<Int> {
 
     @CommandLine.Parameters
-    private lateinit var os: String
-
-    @CommandLine.Parameters
     private lateinit var testFile: File
+
+    @CommandLine.Option(names = ["-t", "--target"])
+    private var target: String? = null
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     override fun call(): Int {
-        if (os !in setOf("android", "ios")) {
+        if (target !in setOf("android", "ios", null)) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
-                "OS must be one of: android, ios"
+                "Target must be one of: android, ios"
             )
         }
 
@@ -42,7 +42,9 @@ class TestCommand : Callable<Int> {
 
         val commands = readCommands(testFile)
 
-        ConductorFactory.createConductor(os).use {
+        ConductorFactory.createConductor(target).use {
+            println("Running test on ${it.deviceName()}")
+
             try {
                 Orchestra(it).executeCommands(commands)
             } catch (e: Conductor.NotFoundException) {
