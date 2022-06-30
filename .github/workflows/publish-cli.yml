@@ -24,3 +24,7 @@ jobs:
         run: ./gradlew :conductor-cli:jreleaserFullRelease --no-daemon --no-parallel
         env:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Print jReleaser log
+        if: always()
+        run: cat conductor-cli/build/jreleaser/trace.log
