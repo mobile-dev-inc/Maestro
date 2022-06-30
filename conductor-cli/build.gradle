@@ -1,9 +1,11 @@
 plugins {
     id "kotlin"
     id 'application'
+    id 'org.jreleaser' version '1.0.0'
 }
 
 application {
+    applicationName = 'conductor'
     mainClassName = 'conductor.cli.AppKt'
 }
 
@@ -27,4 +29,48 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+jreleaser {
+    version = CLI_VERSION
+    gitRootSearch = true
+
+    project {
+        website = 'https://conductor.mobile.dev'
+        description = 'Conductor CLI'
+        authors = ['Dmitry Zaytsev', 'Amanjeet Singh']
+        license = 'Apache-2.0'
+    }
+
+    release {
+        github {
+            owner = 'mobile-dev-inc'
+            name = 'conductor'
+            tagName = "cli-$CLI_VERSION"
+            releaseName = "CLI $CLI_VERSION"
+            overwrite = true
+        }
+    }
+    distributions {
+        conductor {
+            artifact {
+                path = 'build/distributions/conductor-{{projectVersion}}.zip'
+            }
+            brew {
+                active = 'RELEASE'
+                formulaName = 'Conductor'
+
+                repoTap {
+                    owner = 'mobile-dev-inc'
+                    name = 'homebrew-tap'
+                }
+
+                dependencies {
+                    dependency('openjdk@11')
+                }
+
+                extraProperties.put("skipJava", true)
+            }
+        }
+    }
 }
