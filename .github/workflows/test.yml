@@ -12,13 +12,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install JDK 8
+      - name: Install JDK 11
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 8
+          java-version: 11
 
       - uses: gradle/gradle-build-action@v2
 
-      - name: Publish CLI
+      - name: Test
         run: ./gradlew test
