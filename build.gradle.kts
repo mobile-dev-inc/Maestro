@@ -10,14 +10,14 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:4.1.3")
+        classpath("com.android.tools.build:gradle:7.0.4")
     }
 }
 
 plugins {
     id("com.vanniktech.maven.publish") version "0.19.0"
     id("io.gitlab.arturbosch.detekt") version "1.19.0"
-    id("org.jetbrains.kotlin.jvm") version "1.5.31"
+    id("org.jetbrains.kotlin.jvm") version "1.6.10"
 
     `java-library`
     `maven-publish`

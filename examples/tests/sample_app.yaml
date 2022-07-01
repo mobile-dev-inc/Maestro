@@ -1,0 +1,4 @@
+- tapOn:
+    text: "View Details"
+- assertVisible:
+    text: ".*detailed content.*"
