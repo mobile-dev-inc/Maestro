@@ -1,6 +1,7 @@
 package conductor.test
 
 import conductor.Conductor
+import conductor.ConductorException
 import conductor.Point
 import conductor.orchestra.ConductorCommand
 import conductor.orchestra.Orchestra
@@ -81,7 +82,7 @@ class IntegrationTest {
         driver.assertNoInteraction()
     }
 
-    @Test(expected = Conductor.NotFoundException::class)
+    @Test(expected = ConductorException.ElementNotFound::class)
     fun `Case 004 - Assert no visible element with id`() {
         // Given
         val commands = readCommands("004_assert_no_visible_element_with_id")
@@ -102,7 +103,7 @@ class IntegrationTest {
         // Test failure
     }
 
-    @Test(expected = Conductor.NotFoundException::class)
+    @Test(expected = ConductorException.ElementNotFound::class)
     fun `Case 005 - Assert no visible element with text`() {
         // Given
         val commands = readCommands("005_assert_no_visible_element_with_text")
@@ -123,7 +124,7 @@ class IntegrationTest {
         // Test failure
     }
 
-    @Test(expected = Conductor.NotFoundException::class)
+    @Test(expected = ConductorException.ElementNotFound::class)
     fun `Case 006 - Assert no visible element with size`() {
         // Given
         val commands = readCommands("005_assert_no_visible_element_with_text")
