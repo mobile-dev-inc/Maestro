@@ -94,6 +94,15 @@ class AndroidDriver(
         )
     }
 
+    override fun launchApp(appId: String) {
+        if (!isPackageInstalled(appId)) {
+            throw IllegalArgumentException("Package $appId is not installed")
+        }
+
+        shell("am force-stop $appId")
+        shell("monkey --pct-syskeys 0 -p $appId 1")
+    }
+
     override fun tap(point: Point) {
         blockingStub.tap(
             tapRequest {

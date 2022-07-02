@@ -263,6 +263,24 @@ class IntegrationTest {
         driver.assertHasEvent(Event.InputText("Hello World"))
     }
 
+    @Test
+    fun `Case 013 - Launch app`() {
+        // Given
+        val commands = readCommands("013_launch_app")
+
+        val driver = driver {
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.LaunchApp("com.example.app"))
+    }
+
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

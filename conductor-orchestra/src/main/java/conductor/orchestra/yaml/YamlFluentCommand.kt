@@ -5,6 +5,7 @@ import conductor.orchestra.BackPressCommand
 import conductor.orchestra.ConductorCommand
 import conductor.orchestra.ElementSelector
 import conductor.orchestra.InputTextCommand
+import conductor.orchestra.LaunchAppCommand
 import conductor.orchestra.ScrollCommand
 import conductor.orchestra.TapOnElementCommand
 
@@ -13,11 +14,15 @@ data class YamlFluentCommand(
     val assertVisible: YamlElementSelector? = null,
     val action: String? = null,
     val inputText: String? = null,
+    val launchApp: String? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
     fun toCommand(): ConductorCommand {
         return when {
+            launchApp != null -> ConductorCommand(
+                launchAppCommand = LaunchAppCommand(launchApp)
+            )
             tapOn != null -> ConductorCommand(
                 tapOnElement = TapOnElementCommand(
                     toElementSelector(tapOn),

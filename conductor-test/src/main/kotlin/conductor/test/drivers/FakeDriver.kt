@@ -45,6 +45,12 @@ class FakeDriver : Driver {
         )
     }
 
+    override fun launchApp(appId: String) {
+        ensureOpen()
+
+        events.add(Event.LaunchApp(appId))
+    }
+
     override fun tap(point: Point) {
         ensureOpen()
 
@@ -115,6 +121,10 @@ class FakeDriver : Driver {
 
         data class InputText(
             val text: String
+        ) : Event()
+
+        data class LaunchApp(
+            val appId: String
         ) : Event()
 
     }

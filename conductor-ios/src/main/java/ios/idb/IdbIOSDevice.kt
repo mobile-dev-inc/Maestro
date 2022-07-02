@@ -174,7 +174,7 @@ class IdbIOSDevice(
         }
     }
 
-    override fun launch(id: String, isWarmup: Boolean): Result<Unit, Throwable> {
+    override fun launch(id: String): Result<Unit, Throwable> {
         return runCatching {
             val responseObserver = BlockingStreamObserver<Idb.LaunchResponse>()
             val stream = asyncStub.launch(responseObserver)
@@ -182,7 +182,7 @@ class IdbIOSDevice(
                 launchRequest {
                     start = idb.LaunchRequestKt.start {
                         bundleId = id
-                        foregroundIfRunning = isWarmup
+                        foregroundIfRunning = true
                     }
                 }
             )

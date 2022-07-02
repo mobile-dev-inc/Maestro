@@ -10,6 +10,8 @@ interface Driver {
 
     fun deviceInfo(): DeviceInfo
 
+    fun launchApp(appId: String)
+
     fun tap(point: Point)
 
     fun contentDescriptor(): TreeNode

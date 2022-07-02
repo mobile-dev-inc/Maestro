@@ -6,4 +6,5 @@ data class ConductorCommand(
     val backPressCommand: BackPressCommand? = null,
     val assertCommand: AssertCommand? = null,
     val inputTextCommand: InputTextCommand? = null,
+    val launchAppCommand: LaunchAppCommand? = null,
 )

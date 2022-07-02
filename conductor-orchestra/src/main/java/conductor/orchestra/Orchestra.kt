@@ -1,6 +1,7 @@
 package conductor.orchestra
 
 import conductor.Conductor
+import conductor.ConductorException
 import conductor.ElementLookupPredicate
 import conductor.Predicates
 import conductor.UiElement
@@ -26,6 +27,15 @@ class Orchestra(
             command.scrollCommand != null -> conductor.scrollVertical()
             command.assertCommand != null -> command.assertCommand?.let { assertCommand(it) }
             command.inputTextCommand != null -> command.inputTextCommand?.let { inputTextCommand(it) }
+            command.launchAppCommand != null -> command.launchAppCommand?.let { launchAppCommand(it) }
+        }
+    }
+
+    private fun launchAppCommand(it: LaunchAppCommand) {
+        try {
+            conductor.launchApp(it.appId)
+        } catch (e: Exception) {
+            throw ConductorException.UnableToLaunchApp("Unable to launch app ${it.appId}: ${e.message}")
         }
     }
 
@@ -45,7 +55,7 @@ class Orchestra(
         try {
             val element = findElement(command.selector)
             conductor.tap(element, retryIfNoChange)
-        } catch (e: Conductor.NotFoundException) {
+        } catch (e: ConductorException.ElementNotFound) {
 
             if (!command.selector.optional) {
                 throw e
@@ -88,7 +98,7 @@ class Orchestra(
         return conductor.findElementWithTimeout(
             timeoutMs = timeout,
             predicate = Predicates.allOf(predicates),
-        ) ?: throw Conductor.NotFoundException(
+        ) ?: throw ConductorException.ElementNotFound(
             "Element not found: ${descriptions.joinToString(", ")}",
         )
     }

@@ -1,3 +1,4 @@
+- launchApp: "dev.mobile.sample"
 - tapOn:
     text: "View Details"
 - assertVisible:

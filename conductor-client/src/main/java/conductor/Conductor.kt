@@ -21,6 +21,12 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         return driver.deviceInfo()
     }
 
+    fun launchApp(appId: String) {
+        LOGGER.info("Launching app $appId")
+
+        driver.launchApp(appId)
+    }
+
     fun backPress() {
         LOGGER.info("Pressing back")
 
@@ -73,14 +79,14 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Looking for element by text: $text (timeout $timeoutMs)")
 
         return findElementWithTimeout(timeoutMs, Predicates.textMatches(text))
-            ?: throw NotFoundException("No element with text: $text;  Available elements: ${driver.contentDescriptor()}")
+            ?: throw ConductorException.ElementNotFound("No element with text: $text;  Available elements: ${driver.contentDescriptor()}")
     }
 
     fun findElementByRegexp(regex: Regex, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by regex: ${regex.pattern} (timeout $timeoutMs)")
 
         return findElementWithTimeout(timeoutMs, Predicates.textMatches(regex))
-            ?: throw NotFoundException("No element that matches regex: $regex; Available elements: ${driver.contentDescriptor()}")
+            ?: throw ConductorException.ElementNotFound("No element that matches regex: $regex; Available elements: ${driver.contentDescriptor()}")
     }
 
     fun viewHierarchy(): TreeNode {
@@ -91,7 +97,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
 
         return findElementWithTimeout(timeoutMs, Predicates.idMatches(regex))
-            ?: throw NotFoundException("No element has id that matches regex $regex; Available elements: ${driver.contentDescriptor()}")
+            ?: throw ConductorException.ElementNotFound("No element has id that matches regex $regex; Available elements: ${driver.contentDescriptor()}")
     }
 
     fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
@@ -132,7 +138,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
 
     private fun waitForAppToSettle() {
         // Time buffer for any visual effects and transitions that might occur between actions.
-        Thread.sleep(300)
+        Thread.sleep(1000)
 
         val hierarchyBefore = viewHierarchy()
         repeat(10) {
@@ -152,8 +158,6 @@ class Conductor(private val driver: Driver) : AutoCloseable {
     override fun close() {
         driver.close()
     }
-
-    class NotFoundException(msg: String) : Exception(msg)
 
     companion object {
 

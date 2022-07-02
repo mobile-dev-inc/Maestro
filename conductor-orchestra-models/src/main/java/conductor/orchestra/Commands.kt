@@ -43,3 +43,7 @@ data class AssertCommand(
 data class InputTextCommand(
     val text: String
 )
+
+data class LaunchAppCommand(
+    val appId: String,
+)

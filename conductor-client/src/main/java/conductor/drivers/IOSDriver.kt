@@ -41,6 +41,11 @@ class IOSDriver(
         )
     }
 
+    override fun launchApp(appId: String) {
+        iosDevice.stop(appId)
+        iosDevice.launch(appId)
+    }
+
     override fun tap(point: Point) {
         iosDevice.tap(point.x, point.y).expect {}
     }

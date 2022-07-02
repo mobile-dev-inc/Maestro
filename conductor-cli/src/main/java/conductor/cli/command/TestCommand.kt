@@ -1,6 +1,6 @@
 package conductor.cli.command
 
-import conductor.Conductor
+import conductor.ConductorException
 import conductor.cli.util.ConductorFactory
 import conductor.orchestra.CommandReader
 import conductor.orchestra.ConductorCommand
@@ -47,8 +47,7 @@ class TestCommand : Callable<Int> {
 
             try {
                 Orchestra(it).executeCommands(commands)
-            } catch (e: Conductor.NotFoundException) {
-                println("Element not found")
+            } catch (e: ConductorException) {
                 println(e.message)
 
                 println("FAILURE")
