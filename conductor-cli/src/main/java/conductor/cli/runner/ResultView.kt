@@ -31,6 +31,7 @@ class ResultView {
 
             println(
                 Ansi.ansi()
+                    .fgDefault()
                     .render(statusSymbol)
                     .render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
                     .render(it.command.description())
