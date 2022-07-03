@@ -8,7 +8,7 @@ import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
 import org.slf4j.LoggerFactory
 
-@Suppress("unused")
+@Suppress("unused", "MemberVisibilityCanBePrivate")
 class Conductor(private val driver: Driver) : AutoCloseable {
 
     fun deviceName(): String {
@@ -134,6 +134,27 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         }
 
         return null
+    }
+
+    fun allElementsMatching(predicate: ElementLookupPredicate): List<TreeNode> {
+        return allElementsMatching(
+            driver.contentDescriptor(),
+            predicate
+        )
+    }
+
+    private fun allElementsMatching(node: TreeNode, predicate: ElementLookupPredicate): List<TreeNode> {
+        val result = mutableListOf<TreeNode>()
+
+        if (predicate(node)) {
+            result += node
+        }
+
+        node.children.forEach { child ->
+            result += allElementsMatching(child, predicate)
+        }
+
+        return result
     }
 
     private fun waitForAppToSettle() {

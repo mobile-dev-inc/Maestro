@@ -8,6 +8,11 @@
       </map>
     </option>
   </component>
+  <component name="EntryPointsManager">
+    <list size="1">
+      <item index="0" class="java.lang.String" itemvalue="picocli.CommandLine.Option" />
+    </list>
+  </component>
   <component name="ExternalStorageConfigurationManager" enabled="true" />
   <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" project-jdk-name="adopt-11" project-jdk-type="JavaSDK" />
 </project>

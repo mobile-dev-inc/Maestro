@@ -1,9 +1,8 @@
 package conductor.cli.util
 
 import conductor.Conductor
+import conductor.utils.SocketUtils.isPortInUse
 import dadb.Dadb
-import java.io.IOException
-import java.net.Socket
 
 object ConductorFactory {
 
@@ -34,7 +33,7 @@ object ConductorFactory {
             device = Conductor.android(dadb)
         }
 
-        if (isPortInUse(10882)) {
+        if (isPortInUse("localhost", 10882)) {
             if (device == null) {
                 return Conductor.ios("localhost", 10882)
             } else {
@@ -42,7 +41,7 @@ object ConductorFactory {
             }
         }
 
-        if (isPortInUse(10883)) {
+        if (isPortInUse("localhost", 10883)) {
             if (device == null) {
                 return Conductor.ios("localhost", 10883)
             } else {
@@ -53,11 +52,4 @@ object ConductorFactory {
         return device ?: throw IllegalStateException("No device found")
     }
 
-    private fun isPortInUse(port: Int): Boolean {
-        return try {
-            Socket("localhost", port).use { true }
-        } catch (ignored: IOException) {
-            false
-        }
-    }
 }
