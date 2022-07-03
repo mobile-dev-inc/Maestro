@@ -17,15 +17,20 @@ data class ElementSelector(
         val descriptions = mutableListOf<String>()
 
         textRegex?.let {
-            descriptions.add("Text matching regex: \"$it\"")
+            descriptions.add("\"$it\"")
         }
 
         idRegex?.let {
-            descriptions.add("ID matching regex: \"$it\"")
+            descriptions.add("id: $it")
         }
 
         size?.let {
-            descriptions.add("Size: ${it.width}x${it.height} (tolerance: ${it.tolerance})")
+            var description = "Size: ${it.width}x${it.height}"
+            it.tolerance?.let { tolerance ->
+                description += "(tolerance: $tolerance)"
+            }
+
+            descriptions.add(description)
         }
 
         val combined = descriptions.joinToString(", ")

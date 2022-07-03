@@ -56,7 +56,7 @@ data class TapOnElementCommand(
 ) : Command {
 
     override fun description(): String {
-        return "Tap on: ${selector.description()}"
+        return "Tap on ${selector.description()}"
     }
 
 }
@@ -67,7 +67,7 @@ data class AssertCommand(
 
     override fun description(): String {
         if (visible != null) {
-            return "Assert visible: ${visible.description()}"
+            return "Assert visible ${visible.description()}"
         }
 
         return "No op"
@@ -80,7 +80,7 @@ data class InputTextCommand(
 ) : Command {
 
     override fun description(): String {
-        return "Input text: $text"
+        return "Input text $text"
     }
 
 }
@@ -90,7 +90,7 @@ data class LaunchAppCommand(
 ) : Command {
 
     override fun description(): String {
-        return "Launch app: $appId"
+        return "Launch app \"$appId\""
     }
 
 }
