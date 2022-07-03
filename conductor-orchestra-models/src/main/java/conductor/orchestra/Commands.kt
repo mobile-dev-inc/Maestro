@@ -1,6 +1,12 @@
 package conductor.orchestra
 
-class ScrollCommand {
+interface Command {
+
+    fun description(): String
+
+}
+
+class ScrollCommand : Command {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -15,9 +21,14 @@ class ScrollCommand {
     override fun toString(): String {
         return "ScrollCommand()"
     }
+
+    override fun description(): String {
+        return "Scroll vertically"
+    }
+
 }
 
-class BackPressCommand {
+class BackPressCommand : Command {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -32,18 +43,54 @@ class BackPressCommand {
     override fun toString(): String {
         return "BackPressCommand()"
     }
+
+    override fun description(): String {
+        return "Press back"
+    }
+
 }
 
-data class TapOnElementCommand(val selector: ElementSelector, val retryIfNoChange: Boolean? = null)
+data class TapOnElementCommand(
+    val selector: ElementSelector,
+    val retryIfNoChange: Boolean? = null
+) : Command {
+
+    override fun description(): String {
+        return "Tap on: ${selector.description()}"
+    }
+
+}
 
 data class AssertCommand(
     val visible: ElementSelector? = null,
-)
+) : Command {
+
+    override fun description(): String {
+        if (visible != null) {
+            return "Assert visible: ${visible.description()}"
+        }
+
+        return "No op"
+    }
+
+}
 
 data class InputTextCommand(
     val text: String
-)
+) : Command {
+
+    override fun description(): String {
+        return "Input text: $text"
+    }
+
+}
 
 data class LaunchAppCommand(
     val appId: String,
-)
+) : Command {
+
+    override fun description(): String {
+        return "Launch app: $appId"
+    }
+
+}

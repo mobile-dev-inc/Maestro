@@ -1,13 +1,12 @@
 package conductor.cli.command
 
-import conductor.ConductorException
+import conductor.cli.runner.ContinuousTestRunner
+import conductor.cli.runner.SingleTestRunner
 import conductor.cli.util.ConductorFactory
 import conductor.orchestra.CommandReader
-import conductor.orchestra.ConductorCommand
-import conductor.orchestra.Orchestra
 import conductor.orchestra.yaml.YamlCommandReader
-import okio.source
 import picocli.CommandLine
+import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
 
@@ -19,8 +18,11 @@ class TestCommand : Callable<Int> {
     @CommandLine.Parameters
     private lateinit var testFile: File
 
-    @CommandLine.Option(names = ["-t", "--target"])
+    @Option(names = ["-t", "--target"])
     private var target: String? = null
+
+    @Option(names = ["-c", "--continuous"])
+    private var continuous: Boolean = false
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
@@ -40,31 +42,14 @@ class TestCommand : Callable<Int> {
             )
         }
 
-        val commands = readCommands(testFile)
+        val conductor = ConductorFactory.createConductor(target)
+        val commandReader = resolveCommandReader(testFile)
 
-        ConductorFactory.createConductor(target).use {
-            println("Running test on ${it.deviceName()}")
-
-            try {
-                Orchestra(it).executeCommands(commands)
-            } catch (e: ConductorException) {
-                println(e.message)
-
-                println("FAILURE")
-                return 1
-            }
-        }
-
-        println("SUCCESS")
-
-        return 0
-    }
-
-    private fun readCommands(file: File): List<ConductorCommand> {
-        val reader = resolveCommandReader(file)
-
-        return file.source().use {
-            reader.readCommands(file.source())
+        return if (continuous) {
+            ContinuousTestRunner(conductor, testFile, commandReader).run()
+            0
+        } else {
+            SingleTestRunner(conductor, testFile, commandReader).run()
         }
     }
 

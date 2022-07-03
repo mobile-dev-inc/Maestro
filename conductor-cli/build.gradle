@@ -2,11 +2,18 @@ plugins {
     id "kotlin"
     id 'application'
     id 'org.jreleaser' version '1.0.0'
+    id "com.github.johnrengelman.shadow" version "6.0.0"
 }
 
 application {
     applicationName = 'conductor'
     mainClassName = 'conductor.cli.AppKt'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'conductor.cli.AppKt'
+    }
 }
 
 run {
@@ -24,6 +31,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2'
+    implementation 'org.fusesource.jansi:jansi:2.4.0'
 }
 
 java {

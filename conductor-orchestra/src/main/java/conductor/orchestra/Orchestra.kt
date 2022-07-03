@@ -9,12 +9,22 @@ import conductor.UiElement
 class Orchestra(
     private val conductor: Conductor,
     private val lookupTimeoutMs: Long = 10000L,
-    private val optionalLookupTimeoutMs: Long = 3000L
+    private val optionalLookupTimeoutMs: Long = 3000L,
+    private val onCommandStart: (Int, ConductorCommand) -> Unit = { _, _ -> },
+    private val onCommandComplete: (Int, ConductorCommand) -> Unit = { _, _ -> },
+    private val onCommandFailed: (Int, ConductorCommand, Throwable) -> Unit = { _, _, e -> throw e },
 ) {
 
     fun executeCommands(commands: List<ConductorCommand>) {
-        commands.forEach {
-            executeCommand(it)
+        commands.forEachIndexed { index, command ->
+            onCommandStart(index, command)
+            try {
+                executeCommand(command)
+                onCommandComplete(index, command)
+            } catch (e: Throwable) {
+                onCommandFailed(index, command, e)
+                return
+            }
         }
     }
 
