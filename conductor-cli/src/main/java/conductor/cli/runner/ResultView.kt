@@ -4,6 +4,8 @@ import org.fusesource.jansi.Ansi
 
 class ResultView {
 
+    private var previousFrame: String? = null
+
     fun setState(state: UiState) {
         when (state) {
             is UiState.Running -> renderRunningState(state)
@@ -11,31 +13,20 @@ class ResultView {
         }
     }
 
-    private fun renderErrorState(state: UiState.Error) {
-        clearScreen()
-
-        println(
-            Ansi.ansi()
-                .fgRed()
-                .render(state.message)
-        )
+    private fun renderErrorState(state: UiState.Error) = renderFrame {
+        fgRed()
+        render(state.message)
     }
 
-    private fun renderRunningState(state: UiState.Running) {
-        clearScreen()
-
+    private fun renderRunningState(state: UiState.Running) = renderFrame {
         val statusColumnWidth = 3
-
         state.commands.forEach {
             val statusSymbol = status(it.status)
-
-            println(
-                Ansi.ansi()
-                    .fgDefault()
-                    .render(statusSymbol)
-                    .render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
-                    .render(it.command.description())
-            )
+            fgDefault()
+            render(statusSymbol)
+            render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
+            render(it.command.description())
+            render("\n")
         }
     }
 
@@ -48,12 +39,32 @@ class ResultView {
         }
     }
 
-    private fun clearScreen() {
-        println(
-            Ansi.ansi()
-                .eraseScreen()
-                .cursor(0, 0)
-        )
+    private fun renderFrame(block: Ansi.() -> Any) {
+        renderFrame(StringBuilder().apply {
+            val ansi = Ansi().cursor(0, 0)
+            ansi.block()
+            append(ansi)
+        }.toString())
+    }
+
+    private fun renderFrame(frame: String) {
+        // Clear previous frame
+        previousFrame?.let { previousFrame ->
+            val lines = previousFrame.lines()
+            val height = lines.size
+            val width = lines.maxOf { it.length }
+            Ansi.ansi().let { ansi ->
+                ansi.cursor(0, 0)
+                repeat(height) {
+                    ansi.render(" ".repeat(width))
+                    ansi.render("\n")
+                }
+                ansi.cursor(0, 0)
+                println(ansi)
+            }
+        }
+        println(frame)
+        previousFrame = frame
     }
 
     sealed class UiState {
