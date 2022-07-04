@@ -67,5 +67,5 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Publish release
-        run: ./gradlew closeAndReleaseRepository --no-daemon --no-parallel
+        run: ./gradlew publish --no-daemon --no-parallel && ./gradlew closeAndReleaseRepository --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
