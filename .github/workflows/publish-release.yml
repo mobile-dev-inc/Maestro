@@ -53,14 +53,14 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Upload Conductor Orchestra Models release
-        run: ./gradlew clean :conductor-client:orchestra-models:publish --no-daemon --no-parallel
+        run: ./gradlew clean :orchestra-models:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Upload Conductor Proto release
-        run: ./gradlew clean :conductor-client:proto:publish --no-daemon --no-parallel
+        run: ./gradlew clean :proto:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
