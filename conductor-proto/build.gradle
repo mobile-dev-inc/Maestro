@@ -12,3 +12,9 @@ java {
 jar {
     from "src/main/proto/conductor_android.proto"
 }
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
+}

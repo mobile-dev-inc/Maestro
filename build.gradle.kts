@@ -1,7 +1,3 @@
-import com.vanniktech.maven.publish.MavenPublishPluginExtension
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import com.vanniktech.maven.publish.SonatypeHost
-
 group = "dev.mobile"
 version = "1.0.0"
 
@@ -34,14 +30,6 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.19.0")
-
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
-}
-
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -58,11 +46,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-    }
-    pluginManager.withPlugin("com.vanniktech.maven.publish") {
-        extensions.getByType(MavenPublishPluginExtension::class.java).apply {
-            sonatypeHost = SonatypeHost.S01
-        }
     }
 }
 
