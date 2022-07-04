@@ -28,35 +28,35 @@ jobs:
           echo "VERSION_NAME=$(cat gradle.properties | grep -w "VERSION_NAME" | cut -d'=' -f2)" >> $GITHUB_ENV
 
       - name: Upload Conductor client release
-        run: cd conductor-client && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        run: ./gradlew clean :conductor-client:publish --no-daemon --no-parallel
         if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
 
       - name: Upload Conductor ios release
-        run: cd conductor-ios && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        run: ./gradlew clean :conductor-ios:publish --no-daemon --no-parallel
         if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
 
       - name: Upload Conductor orchestra release
-        run: cd conductor-orchestra && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        run: ./gradlew clean :conductor-orchestra:publish --no-daemon --no-parallel
         if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
 
       - name: Upload Conductor Orchestra Models release
-        run: cd conductor-orchestra-models && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        run: ./gradlew clean :conductor-orchestra-models:publish --no-daemon --no-parallel
         if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
 
       - name: Upload Conductor Proto release
-        run: cd conductor-proto && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        run: ./gradlew clean :conductor-proto:publish --no-daemon --no-parallel
         if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
