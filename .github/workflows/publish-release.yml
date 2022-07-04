@@ -1,6 +1,7 @@
 name: Publish Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
@@ -29,17 +30,38 @@ jobs:
       - name: Retrieve version
         run: |
           echo "VERSION_NAME=$(cat gradle.properties | grep -w "VERSION_NAME" | cut -d'=' -f2)" >> $GITHUB_ENV
-      - name: Upload release
-      - run: cd conductor-client && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
-      - run: cd conductor-ios && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
-      - run: cd conductor-orchestra && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
-      - run: cd conductor-orchestra-models && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
-      - run: cd conductor-proto && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+
+      - name: Upload Conductor client release
+        run: cd conductor-client && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
-      - name: Publish release
-        run: ./gradlew closeAndReleaseRepository --no-daemon --no-parallel
+      - name: Upload Conductor ios release
+        run: cd conductor-ios && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload Conductor orchestra release
+        run: cd conductor-orchestra && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload Conductor Orchestra Models release
+        run: cd conductor-orchestra-models && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload Conductor Proto release
+        run: cd conductor-proto && ../gradlew publish --no-daemon --no-parallel && ../gradlew closeAndReleaseRepository && cd ..
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
