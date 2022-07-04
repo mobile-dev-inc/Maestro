@@ -1,3 +1,7 @@
+import com.vanniktech.maven.publish.MavenPublishPluginExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import com.vanniktech.maven.publish.SonatypeHost
+
 group = "dev.mobile"
 version = "1.0.0"
 
@@ -54,6 +58,11 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+    pluginManager.withPlugin("com.vanniktech.maven.publish") {
+        extensions.getByType(MavenPublishPluginExtension::class.java).apply {
+            sonatypeHost = SonatypeHost.S01
+        }
     }
 }
 
