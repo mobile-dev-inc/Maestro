@@ -1,4 +1,4 @@
-# Conductor
+# Conductor 🎹
 
 Conductor is a platform-agnostic UI automation library for Android and iOS.
 
