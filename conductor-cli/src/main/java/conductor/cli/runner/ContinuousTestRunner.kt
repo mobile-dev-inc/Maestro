@@ -58,6 +58,7 @@ class ContinuousTestRunner(
         val watchService = FileSystems.getDefault().newWatchService()
 
         val pathKey = testFile
+            .absoluteFile
             .parentFile
             .toPath()
             .register(
