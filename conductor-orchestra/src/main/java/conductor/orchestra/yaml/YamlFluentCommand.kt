@@ -10,7 +10,7 @@ import conductor.orchestra.ScrollCommand
 import conductor.orchestra.TapOnElementCommand
 
 data class YamlFluentCommand(
-    val tapOn: YamlElementSelector? = null,
+    val tapOn: YamlElementSelectorUnion? = null,
     val assertVisible: YamlElementSelector? = null,
     val action: String? = null,
     val inputText: String? = null,
@@ -26,7 +26,7 @@ data class YamlFluentCommand(
             tapOn != null -> ConductorCommand(
                 tapOnElement = TapOnElementCommand(
                     toElementSelector(tapOn),
-                    tapOn.retryTapIfNoChange ?: true
+                    (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
                 )
             )
             assertVisible != null -> ConductorCommand(
@@ -46,22 +46,34 @@ data class YamlFluentCommand(
         }
     }
 
-    private fun toElementSelector(tapOn: YamlElementSelector): ElementSelector {
-        val size = if (tapOn.width != null || tapOn.height != null) {
+    private fun toElementSelector(selectorUnion: YamlElementSelectorUnion): ElementSelector {
+        return if (selectorUnion is StringElementSelector) {
+            ElementSelector(
+                textRegex = selectorUnion.value,
+            )
+        } else if (selectorUnion is YamlElementSelector) {
+            toElementSelector(selectorUnion)
+        } else {
+            throw IllegalStateException("Unknown selector type: $selectorUnion")
+        }
+    }
+
+    private fun toElementSelector(selector: YamlElementSelector): ElementSelector {
+        val size = if (selector.width != null || selector.height != null) {
             ElementSelector.SizeSelector(
-                width = tapOn.width,
-                height = tapOn.height,
-                tolerance = tapOn.tolerance,
+                width = selector.width,
+                height = selector.height,
+                tolerance = selector.tolerance,
             )
         } else {
             null
         }
 
         return ElementSelector(
-            textRegex = tapOn.text,
-            idRegex = tapOn.id,
+            textRegex = selector.text,
+            idRegex = selector.id,
             size = size,
-            optional = tapOn.optional ?: false,
+            optional = selector.optional ?: false,
         )
     }
 }
