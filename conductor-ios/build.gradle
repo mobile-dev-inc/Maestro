@@ -45,7 +45,7 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-kotlin:3.19.4'
     implementation 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
     implementation 'org.slf4j:slf4j-simple:1.7.36'
-    implementation 'com.google.code.gson:gson:2.9.0'
+    api 'com.google.code.gson:gson:2.9.0'
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "com.google.truth:truth:1.1.3"
