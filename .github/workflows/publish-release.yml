@@ -19,11 +19,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install JDK 11
+      - name: Install JDK 8
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 11
+          java-version: 8
 
       - uses: gradle/gradle-build-action@v2
 
@@ -50,7 +50,7 @@ jobs:
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPaessword: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Upload Conductor Orchestra Models release
         run: ./gradlew clean :conductor-orchestra-models:publish --no-daemon --no-parallel
@@ -61,13 +61,6 @@ jobs:
 
       - name: Upload Conductor Proto release
         run: ./gradlew clean :conductor-proto:publish --no-daemon --no-parallel
-        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
-        env:
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-
-      - name: Publish release
-        run: ./gradlew publish --no-daemon --no-parallel && ./gradlew closeAndReleaseRepository --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
