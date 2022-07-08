@@ -194,8 +194,8 @@ class Conductor(private val driver: Driver) : AutoCloseable {
             return Conductor(driver)
         }
 
-        fun android(dadb: Dadb): Conductor {
-            val driver = AndroidDriver(dadb)
+        fun android(dadb: Dadb, hostPort: Int = 7001): Conductor {
+            val driver = AndroidDriver(dadb, hostPort = hostPort)
             driver.open()
             return Conductor(driver)
         }

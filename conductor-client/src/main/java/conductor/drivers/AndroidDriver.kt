@@ -27,9 +27,10 @@ import javax.xml.parsers.DocumentBuilderFactory
 class AndroidDriver(
     private val dadb: Dadb,
     private val allowlistedAttributes: List<String> = ALLOWLISTED_ATTRS,
+    private val hostPort: Int,
 ) : Driver {
 
-    private val channel = ManagedChannelBuilder.forAddress("localhost", 7001)
+    private val channel = ManagedChannelBuilder.forAddress("localhost", hostPort)
         .usePlaintext()
         .build()
     private val blockingStub = ConductorDriverGrpc.newBlockingStub(channel)
@@ -56,7 +57,7 @@ class AndroidDriver(
 
         if (!isPortInUse("localhost", 7001)) {
             forwarder = dadb.tcpForward(
-                7001,
+                hostPort,
                 7001
             )
         }
