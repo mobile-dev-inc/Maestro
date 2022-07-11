@@ -35,6 +35,7 @@ android {
         compose true
     }
     composeOptions {
+        kotlinCompilerVersion "1.6.10"
         kotlinCompilerExtensionVersion compose_version
     }
     packagingOptions {
