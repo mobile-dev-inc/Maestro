@@ -80,6 +80,17 @@ data class TapOnElementCommand(
 
 }
 
+data class TapOnPointCommand(
+    val x: Int,
+    val y: Int,
+    val retryIfNoChange: Boolean? = null
+) : Command {
+
+    override fun description(): String {
+        return "Tap on point ($x, $y)"
+    }
+}
+
 data class AssertCommand(
     val visible: ElementSelector? = null,
 ) : Command {

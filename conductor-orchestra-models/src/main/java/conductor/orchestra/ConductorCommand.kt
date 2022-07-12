@@ -21,6 +21,7 @@ package conductor.orchestra
 
 data class ConductorCommand(
     val tapOnElement: TapOnElementCommand? = null,
+    val tapOnPoint: TapOnPointCommand? = null,
     val scrollCommand: ScrollCommand? = null,
     val backPressCommand: BackPressCommand? = null,
     val assertCommand: AssertCommand? = null,
@@ -30,6 +31,10 @@ data class ConductorCommand(
 
     fun description(): String {
         tapOnElement?.let {
+            return it.description()
+        }
+
+        tapOnPoint?.let {
             return it.description()
         }
 

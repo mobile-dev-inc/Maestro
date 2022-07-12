@@ -68,13 +68,20 @@ class Conductor(private val driver: Driver) : AutoCloseable {
     fun tap(element: UiElement, retryIfNoChange: Boolean = true) {
         LOGGER.info("Tapping on element: $element")
 
-        val hierarchyBeforeTap = viewHierarchy()
-
         waitUntilVisible(element)
+
+        val center = element.bounds.center()
+        tap(center.x, center.y, retryIfNoChange)
+    }
+
+    fun tap(x: Int, y: Int, retryIfNoChange: Boolean = true) {
+        LOGGER.info("Tapping at ($x, $y)")
+
+        val hierarchyBeforeTap = viewHierarchy()
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
-            driver.tap(element.bounds.center())
+            driver.tap(Point(x, y))
             waitForAppToSettle()
 
             val hierarchyAfterTap = viewHierarchy()
@@ -89,7 +96,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
 
         if (retryIfNoChange) {
             LOGGER.info("Attempting to tap again since there was no change in the UI")
-            tap(element, false)
+            tap(x, y, false)
         }
     }
 

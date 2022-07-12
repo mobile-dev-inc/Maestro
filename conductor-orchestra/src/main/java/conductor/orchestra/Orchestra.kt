@@ -52,6 +52,9 @@ class Orchestra(
             command.tapOnElement != null -> command.tapOnElement?.let {
                 tapOnElement(it, it.retryIfNoChange ?: true)
             }
+            command.tapOnPoint != null -> command.tapOnPoint?.let {
+                tapOnPoint(it, it.retryIfNoChange ?: true)
+            }
             command.backPressCommand != null -> conductor.backPress()
             command.scrollCommand != null -> conductor.scrollVertical()
             command.assertCommand != null -> command.assertCommand?.let { assertCommand(it) }
@@ -90,6 +93,14 @@ class Orchestra(
                 throw e
             }
         }
+    }
+
+    private fun tapOnPoint(command: TapOnPointCommand, retryIfNoChange: Boolean) {
+        conductor.tap(
+            command.x,
+            command.y,
+            retryIfNoChange,
+        )
     }
 
     private fun findElement(selector: ElementSelector): UiElement {

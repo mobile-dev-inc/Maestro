@@ -282,6 +282,24 @@ class IntegrationTest {
         driver.assertHasEvent(Event.LaunchApp("com.example.app"))
     }
 
+    @Test
+    fun `Case 014 - Tap on point`() {
+        // Given
+        val commands = readCommands("014_tap_on_point")
+
+        val driver = driver {
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(100, 200)))
+    }
+
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

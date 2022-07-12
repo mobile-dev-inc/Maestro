@@ -27,6 +27,7 @@ import conductor.orchestra.InputTextCommand
 import conductor.orchestra.LaunchAppCommand
 import conductor.orchestra.ScrollCommand
 import conductor.orchestra.TapOnElementCommand
+import conductor.orchestra.TapOnPointCommand
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
@@ -42,12 +43,7 @@ data class YamlFluentCommand(
             launchApp != null -> ConductorCommand(
                 launchAppCommand = LaunchAppCommand(launchApp)
             )
-            tapOn != null -> ConductorCommand(
-                tapOnElement = TapOnElementCommand(
-                    toElementSelector(tapOn),
-                    (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
-                )
-            )
+            tapOn != null -> tapCommand(tapOn)
             assertVisible != null -> ConductorCommand(
                 assertCommand = AssertCommand(
                     visible = toElementSelector(assertVisible),
@@ -62,6 +58,33 @@ data class YamlFluentCommand(
                 else -> throw IllegalStateException("Unknown navigation target: $action")
             }
             else -> throw IllegalStateException("No mapping provided for $this")
+        }
+    }
+
+    private fun tapCommand(tapOn: YamlElementSelectorUnion): ConductorCommand {
+        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
+        val point = (tapOn as? YamlElementSelector)?.point
+
+        return if (point != null) {
+            val points = point.split(",")
+                .map {
+                    it.trim().toInt()
+                }
+
+            ConductorCommand(
+                tapOnPoint = TapOnPointCommand(
+                    x = points[0],
+                    y = points[1],
+                    retryIfNoChange = retryIfNoChange
+                )
+            )
+        } else {
+            ConductorCommand(
+                tapOnElement = TapOnElementCommand(
+                    toElementSelector(tapOn),
+                    retryIfNoChange
+                )
+            )
         }
     }
 
