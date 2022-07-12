@@ -20,6 +20,7 @@
 package conductor
 
 data class UiElement(
+    val treeNode: TreeNode,
     val bounds: Bounds,
 ) {
 
@@ -38,12 +39,13 @@ data class UiElement(
                 .map { it.toInt() }
 
             return UiElement(
+                this,
                 Bounds(
                     x = boundsArr[0],
                     y = boundsArr[1],
                     width = boundsArr[2] - boundsArr[0],
                     height = boundsArr[3] - boundsArr[1]
-                )
+                ),
             )
         }
     }

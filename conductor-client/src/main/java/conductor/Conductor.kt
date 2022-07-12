@@ -22,6 +22,7 @@ package conductor
 import conductor.UiElement.Companion.toUiElement
 import conductor.drivers.AndroidDriver
 import conductor.drivers.IOSDriver
+import conductor.utils.ViewUtils
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
@@ -69,6 +70,8 @@ class Conductor(private val driver: Driver) : AutoCloseable {
 
         val hierarchyBeforeTap = viewHierarchy()
 
+        waitUntilVisible(element)
+
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             driver.tap(element.bounds.center())
@@ -87,6 +90,18 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         if (retryIfNoChange) {
             LOGGER.info("Attempting to tap again since there was no change in the UI")
             tap(element, false)
+        }
+    }
+
+    private fun waitUntilVisible(element: UiElement) {
+        repeat(10) {
+            if (!ViewUtils.isVisible(viewHierarchy(), element.treeNode)) {
+                LOGGER.info("Element is not visible yet. Waiting.")
+                Thread.sleep(1000)
+            } else {
+                LOGGER.info("Element became visible.")
+                return
+            }
         }
     }
 
@@ -132,7 +147,8 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         val endTime = System.currentTimeMillis() + timeoutMs
 
         do {
-            val result = findElementByPredicate(driver.contentDescriptor(), predicate)
+            val rootNode = driver.contentDescriptor()
+            val result = findElementByPredicate(rootNode, predicate)
 
             if (result != null) {
                 return result.toUiElement()
