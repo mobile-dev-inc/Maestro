@@ -135,6 +135,30 @@ class Orchestra(
                 )
             }
 
+        selector.below
+            ?.let {
+                descriptions += "Below: ${it.description()}"
+                predicates += Predicates.below(findElement(it))
+            }
+
+        selector.above
+            ?.let {
+                descriptions += "Above: ${it.description()}"
+                predicates += Predicates.above(findElement(it))
+            }
+
+        selector.leftOf
+            ?.let {
+                descriptions += "Left of: ${it.description()}"
+                predicates += Predicates.leftOf(findElement(it))
+            }
+
+        selector.rightOf
+            ?.let {
+                descriptions += "Right of: ${it.description()}"
+                predicates += Predicates.rightOf(findElement(it))
+            }
+
         return conductor.findElementWithTimeout(
             timeoutMs = timeout,
             predicate = Predicates.allOf(predicates),

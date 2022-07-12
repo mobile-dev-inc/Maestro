@@ -20,6 +20,7 @@
 package conductor
 
 import conductor.UiElement.Companion.toUiElement
+import conductor.UiElement.Companion.toUiElementOrNull
 import kotlin.math.abs
 
 typealias ElementLookupPredicate = (TreeNode) -> Boolean
@@ -86,4 +87,37 @@ object Predicates {
 
         return { predicate(it) }
     }
+
+    fun below(other: UiElement): ElementLookupPredicate {
+        return {
+            val uiElement = it.toUiElementOrNull()
+
+            uiElement != null && uiElement.bounds.y > other.bounds.y
+        }
+    }
+
+    fun above(other: UiElement): ElementLookupPredicate {
+        return {
+            val uiElement = it.toUiElementOrNull()
+
+            uiElement != null && uiElement.bounds.y < other.bounds.y
+        }
+    }
+
+    fun leftOf(other: UiElement): ElementLookupPredicate {
+        return {
+            val uiElement = it.toUiElementOrNull()
+
+            uiElement != null && uiElement.bounds.x < other.bounds.x
+        }
+    }
+
+    fun rightOf(other: UiElement): ElementLookupPredicate {
+        return {
+            val uiElement = it.toUiElementOrNull()
+
+            uiElement != null && uiElement.bounds.x > other.bounds.x
+        }
+    }
+
 }

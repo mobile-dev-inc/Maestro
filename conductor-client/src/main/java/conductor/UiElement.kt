@@ -27,9 +27,14 @@ data class UiElement(
     companion object {
 
         fun TreeNode.toUiElement(): UiElement {
+            return toUiElementOrNull()
+                ?: throw IllegalStateException("Node has no bounds")
+        }
+
+        fun TreeNode.toUiElementOrNull(): UiElement? {
             // TODO needs different impl for iOS
             val boundsStr = attributes["bounds"]
-                ?: throw IllegalStateException("Node has no bounds")
+                ?: return null
 
             val boundsArr = boundsStr
                 .replace("][", ",")

@@ -23,6 +23,10 @@ data class ElementSelector(
     val textRegex: String? = null,
     val idRegex: String? = null,
     val size: SizeSelector? = null,
+    val below: ElementSelector? = null,
+    val above: ElementSelector? = null,
+    val leftOf: ElementSelector? = null,
+    val rightOf: ElementSelector? = null,
     val optional: Boolean = false,
 ) {
 
@@ -41,6 +45,22 @@ data class ElementSelector(
 
         idRegex?.let {
             descriptions.add("id: $it")
+        }
+
+        below?.let {
+            descriptions.add("Below ${it.description()}")
+        }
+
+        above?.let {
+            descriptions.add("Above ${it.description()}")
+        }
+
+        leftOf?.let {
+            descriptions.add("Left of ${it.description()}")
+        }
+
+        rightOf?.let {
+            descriptions.add("Right of ${it.description()}")
         }
 
         size?.let {

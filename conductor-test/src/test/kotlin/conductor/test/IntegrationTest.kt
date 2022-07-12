@@ -300,6 +300,71 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Tap(Point(100, 200)))
     }
 
+    @Test
+    fun `Case 015 - Tap on element relative position`() {
+        // Given
+        val commands = readCommands("015_element_relative_position")
+
+        val driver = driver {
+            element {
+                text = "Top Left"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+            element {
+                text = "Top"
+                bounds = Bounds(100, 100, 200, 200)
+            }
+            element {
+                text = "Top Right"
+                bounds = Bounds(200, 100, 300, 200)
+            }
+            element {
+                text = "Left"
+                bounds = Bounds(0, 200, 100, 300)
+            }
+            element {
+                text = "Middle"
+                bounds = Bounds(100, 200, 200, 300)
+            }
+            element {
+                text = "Right"
+                bounds = Bounds(200, 200, 300, 300)
+            }
+            element {
+                text = "Bottom Left"
+                bounds = Bounds(0, 300, 100, 400)
+            }
+            element {
+                text = "Bottom"
+                bounds = Bounds(100, 300, 200, 400)
+            }
+            element {
+                text = "Bottom Right"
+                bounds = Bounds(200, 300, 300, 400)
+            }
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.Tap(Point(150, 150)), // Top
+                Event.Tap(Point(150, 350)), // Bottom
+                Event.Tap(Point(50, 250)), // Left
+                Event.Tap(Point(250, 250)), // Right
+                Event.Tap(Point(50, 150)), // Top Left
+                Event.Tap(Point(250, 150)), // Top Right
+                Event.Tap(Point(50, 350)), // Bottom Left
+                Event.Tap(Point(250, 350)), // Bottom Right
+            )
+        )
+    }
+
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {
