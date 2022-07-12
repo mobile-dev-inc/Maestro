@@ -10,3 +10,5 @@ include("conductor-orchestra-proto")
 include("conductor-proto")
 include("conductor-test")
 include("examples:apps:android-app")
+include("examples:samples")
+findProject(":examples:samples")?.name = "samples"
