@@ -45,7 +45,6 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class AndroidDriver(
     private val dadb: Dadb,
-    private val allowlistedAttributes: List<String> = ALLOWLISTED_ATTRS,
     private val hostPort: Int,
 ) : Driver {
 
@@ -159,15 +158,34 @@ class AndroidDriver(
 
     private fun mapHierarchy(node: Node): TreeNode {
         val attributes = if (node is Element) {
-            allowlistedAttributes
-                .mapNotNull {
-                    if (node.hasAttribute(it)) {
-                        it to node.getAttribute(it)
-                    } else {
-                        null
-                    }
+            val attributesBuilder = mutableMapOf<String, String>()
+
+            if (node.hasAttribute("text")) {
+                val text = node.getAttribute("text")
+
+                if (text.isNotBlank()) {
+                    attributesBuilder["text"] = text
+                } else if (node.hasAttribute("content-desc")) {
+                    // Using content-desc as fallback for text
+                    attributesBuilder["text"] = node.getAttribute("content-desc")
+                } else {
+                    attributesBuilder["text"] = text
                 }
-                .toMap()
+            }
+
+            if (node.hasAttribute("resource-id")) {
+                attributesBuilder["resource-id"] = node.getAttribute("resource-id")
+            }
+
+            if (node.hasAttribute("clickable")) {
+                attributesBuilder["clickable"] = node.getAttribute("clickable")
+            }
+
+            if (node.hasAttribute("bounds")) {
+                attributesBuilder["bounds"] = node.getAttribute("bounds")
+            }
+
+            attributesBuilder
         } else {
             emptyMap()
         }
@@ -256,13 +274,6 @@ class AndroidDriver(
     }
 
     companion object {
-
-        private val ALLOWLISTED_ATTRS = listOf(
-            "text",
-            "bounds",
-            "clickable",
-            "resource-id"
-        )
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 5000
     }

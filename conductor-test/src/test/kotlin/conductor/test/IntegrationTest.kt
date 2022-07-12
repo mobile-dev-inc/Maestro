@@ -365,6 +365,28 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 016 - Multiline text`() {
+        // Given
+        val commands = readCommands("016_multiline_text")
+
+        val driver = driver {
+            element {
+                text = "Hello World\nHere is a second line"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(50, 50)))
+    }
+
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

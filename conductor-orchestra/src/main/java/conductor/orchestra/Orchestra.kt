@@ -27,7 +27,7 @@ import conductor.UiElement
 
 class Orchestra(
     private val conductor: Conductor,
-    private val lookupTimeoutMs: Long = 10000L,
+    private val lookupTimeoutMs: Long = 15000L,
     private val optionalLookupTimeoutMs: Long = 3000L,
     private val onCommandStart: (Int, ConductorCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, ConductorCommand) -> Unit = { _, _ -> },
@@ -116,13 +116,13 @@ class Orchestra(
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                predicates += Predicates.textMatches(it.toRegex(RegexOption.IGNORE_CASE))
+                predicates += Predicates.textMatches(it.toRegex(REGEX_OPTIONS))
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                predicates += Predicates.idMatches(it.toRegex(RegexOption.IGNORE_CASE))
+                predicates += Predicates.idMatches(it.toRegex(REGEX_OPTIONS))
             }
 
         selector.size
@@ -165,5 +165,11 @@ class Orchestra(
         ) ?: throw ConductorException.ElementNotFound(
             "Element not found: ${descriptions.joinToString(", ")}",
         )
+    }
+
+    companion object {
+
+        val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
+
     }
 }

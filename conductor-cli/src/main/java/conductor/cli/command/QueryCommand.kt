@@ -23,6 +23,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import conductor.ElementLookupPredicate
 import conductor.Predicates
 import conductor.cli.util.ConductorFactory
+import conductor.orchestra.Orchestra
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Model
@@ -58,11 +59,11 @@ class QueryCommand : Runnable {
             val predicates = mutableListOf<ElementLookupPredicate>()
 
             text?.let {
-                predicates += Predicates.textMatches(it.toRegex())
+                predicates += Predicates.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
             }
 
             id?.let {
-                predicates += Predicates.idMatches(it.toRegex())
+                predicates += Predicates.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
             }
 
             if (predicates.isEmpty()) {
