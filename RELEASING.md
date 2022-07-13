@@ -8,7 +8,7 @@
    * b: new functionality, new features
    * c: any other small changes
 5. `git commit -am "Prepare for release X.Y.Z."` (where X.Y.Z is the new version)
-6. Submit a PR with the changes against the master branch
+6. Submit a PR with the changes against the main branch
 
 After merging the PR, tag the release:
 
@@ -18,7 +18,7 @@ After merging the PR, tag the release:
 
 After this is done, create a new branch to prepare for the next development version:
 
-1. `git checkout master && git pull && git checkout -b prepare-X.Y.Z-SNAPSHOT` (where X.Y.Z is the new development version)
+1. `git checkout main && git pull && git checkout -b prepare-X.Y.Z-SNAPSHOT` (where X.Y.Z is the new development version)
 2. Update the `gradle.properties` to the next SNAPSHOT version.
 3. `git commit -am "Prepare next development version"`
-4. Submit a PR with the changes against the master branch and merge it
+4. Submit a PR with the changes against the main branch and merge it
