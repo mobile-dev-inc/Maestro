@@ -24,13 +24,13 @@ import conductor.DeviceInfo
 import conductor.Driver
 import conductor.Point
 import conductor.TreeNode
-import conductor.android.InstrumentationThread
 import conductor.utils.SocketUtils.isPortInUse
 import conductor_android.ConductorDriverGrpc
 import conductor_android.deviceInfoRequest
 import conductor_android.tapRequest
 import conductor_android.viewHierarchyRequest
 import dadb.AdbShellResponse
+import dadb.AdbShellStream
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import okio.buffer
@@ -54,7 +54,7 @@ class AndroidDriver(
     private val blockingStub = ConductorDriverGrpc.newBlockingStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
-    private var instrumentationThread: Thread? = null
+    private var instrumentationSession: AdbShellStream? = null
     private var forwarder: AutoCloseable? = null
 
     override fun name(): String {
@@ -63,13 +63,18 @@ class AndroidDriver(
 
     override fun open() {
         installConductorApks()
-        instrumentationThread = InstrumentationThread(dadb)
-        instrumentationThread?.start()
+
+        instrumentationSession = dadb.openShell()
+        instrumentationSession?.write(
+            "am instrument -w -m -e debug false " +
+                "-e class 'dev.mobile.conductor.ConductorDriverService#grpcServer' " +
+                "dev.mobile.conductor.test/androidx.test.runner.AndroidJUnitRunner &\n"
+        )
 
         try {
             awaitLaunch()
         } catch (ignored: InterruptedException) {
-            instrumentationThread?.interrupt()
+            instrumentationSession?.close()
             return
         }
 
@@ -102,8 +107,8 @@ class AndroidDriver(
         forwarder?.close()
         forwarder = null
         uninstallConductorApks()
-        instrumentationThread?.interrupt()
-        instrumentationThread = null
+        instrumentationSession?.close()
+        instrumentationSession = null
         channel.shutdown()
     }
 
