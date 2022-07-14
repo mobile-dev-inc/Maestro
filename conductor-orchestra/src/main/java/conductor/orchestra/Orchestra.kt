@@ -164,6 +164,7 @@ class Orchestra(
             predicate = Predicates.allOf(predicates),
         ) ?: throw ConductorException.ElementNotFound(
             "Element not found: ${descriptions.joinToString(", ")}",
+            conductor.viewHierarchy(),
         )
     }
 

@@ -120,14 +120,20 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Looking for element by text: $text (timeout $timeoutMs)")
 
         return findElementWithTimeout(timeoutMs, Predicates.textMatches(text))
-            ?: throw ConductorException.ElementNotFound("No element with text: $text;  Available elements: ${driver.contentDescriptor()}")
+            ?: throw ConductorException.ElementNotFound(
+                "No element with text: $text",
+                viewHierarchy()
+            )
     }
 
     fun findElementByRegexp(regex: Regex, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by regex: ${regex.pattern} (timeout $timeoutMs)")
 
         return findElementWithTimeout(timeoutMs, Predicates.textMatches(regex))
-            ?: throw ConductorException.ElementNotFound("No element that matches regex: $regex; Available elements: ${driver.contentDescriptor()}")
+            ?: throw ConductorException.ElementNotFound(
+                "No element that matches regex: $regex",
+                viewHierarchy()
+            )
     }
 
     fun viewHierarchy(): TreeNode {
@@ -138,7 +144,10 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
 
         return findElementWithTimeout(timeoutMs, Predicates.idMatches(regex))
-            ?: throw ConductorException.ElementNotFound("No element has id that matches regex $regex; Available elements: ${driver.contentDescriptor()}")
+            ?: throw ConductorException.ElementNotFound(
+                "No element has id that matches regex $regex",
+                viewHierarchy()
+            )
     }
 
     fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
