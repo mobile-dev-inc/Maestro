@@ -14,3 +14,9 @@
 * Wait until view is not obscured by any other views before tapping on it
 * Adding tap on point command
 * Adjusted hierarchy mapping and timeouts to account for Flutter apps
+
+### 1.1.1 - 2022-07-14
+
+* Removed Uiautomator delays
+* Removed InstrumentationThread from AndroidDriver
+* Reporting view hierarchy alongside NotFound error
