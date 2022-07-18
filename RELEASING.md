@@ -1,14 +1,15 @@
-#Production Releases
+# Production Releases
 
-1. Checkout origin/main
-2. Update the CHANGELOG.md file with changes of this release.
-3. Change the version in `gradle.properties` to a non-SNAPSHOT version.
-4. Semantic versioning: a.b.c
+1. Checkout the main branch and make sure it is up to date: `git checkout main && git pull`
+2. Create a new branch
+3. Update the CHANGELOG.md file with changes of this release.
+4. Change the version in `gradle.properties` to a non-SNAPSHOT version.
+5. Semantic versioning: a.b.c
    * a: major breaking changes
    * b: new functionality, new features
    * c: any other small changes
-5. `git commit -am "Prepare for release X.Y.Z."` (where X.Y.Z is the new version)
-6. Submit a PR with the changes against the main branch
+6. `git commit -am "Prepare for release X.Y.Z."` (where X.Y.Z is the new version)
+7. Submit a PR with the changes against the main branch
 
 After merging the PR, tag the release:
 

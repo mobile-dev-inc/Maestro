@@ -20,3 +20,7 @@
 * Removed Uiautomator delays
 * Removed InstrumentationThread from AndroidDriver
 * Reporting view hierarchy alongside NotFound error
+
+### 1.2.0 - 2022-07-18
+
+* Add swipe command
