@@ -88,6 +88,12 @@ class FakeDriver : Driver {
         events += Event.Scroll
     }
 
+    override fun swipe(start: Point, end: Point) {
+        ensureOpen()
+
+        events += Event.Swipe(start, end)
+    }
+
     override fun backPress() {
         ensureOpen()
 
@@ -144,6 +150,11 @@ class FakeDriver : Driver {
 
         data class LaunchApp(
             val appId: String
+        ) : Event()
+
+        data class Swipe(
+            val start: Point,
+            val End: Point
         ) : Event()
 
     }

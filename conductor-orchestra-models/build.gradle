@@ -9,3 +9,7 @@ plugins.withId("com.vanniktech.maven.publish") {
         sonatypeHost = "S01"
     }
 }
+
+dependencies {
+    implementation project(path: ':conductor-client')
+}

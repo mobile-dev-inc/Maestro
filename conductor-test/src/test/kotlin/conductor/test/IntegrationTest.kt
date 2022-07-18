@@ -387,6 +387,24 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Tap(Point(50, 50)))
     }
 
+    @Test
+    fun `Case 017 - Swipe`() {
+        // Given
+        val commands = readCommands("017_swipe")
+
+        val driver = driver {
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Swipe(Point(100, 500), Point(100, 200)))
+    }
+
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

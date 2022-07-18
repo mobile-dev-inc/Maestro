@@ -153,6 +153,10 @@ class AndroidDriver(
         dadb.shell("input swipe 500 1000 700 -900 2000")
     }
 
+    override fun swipe(start: Point, end: Point) {
+        dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} 2000")
+    }
+
     override fun backPress() {
         dadb.shell("input keyevent 4")
     }

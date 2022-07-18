@@ -54,6 +54,14 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
+
+    fun swipe(start: Point, end: Point) {
+        LOGGER.info("Swiping from (${start.x},${start.y}) to (${end.x},${end.y})")
+
+        driver.swipe(start, end)
+        waitForAppToSettle()
+    }
+
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 

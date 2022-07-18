@@ -23,6 +23,7 @@ data class ConductorCommand(
     val tapOnElement: TapOnElementCommand? = null,
     val tapOnPoint: TapOnPointCommand? = null,
     val scrollCommand: ScrollCommand? = null,
+    val swipeCommand: SwipeCommand? = null,
     val backPressCommand: BackPressCommand? = null,
     val assertCommand: AssertCommand? = null,
     val inputTextCommand: InputTextCommand? = null,
@@ -39,6 +40,10 @@ data class ConductorCommand(
         }
 
         scrollCommand?.let {
+            return it.description()
+        }
+
+        swipeCommand?.let {
             return it.description()
         }
 

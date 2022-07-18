@@ -19,6 +19,7 @@
 
 package conductor.orchestra.yaml
 
+import conductor.Point
 import conductor.orchestra.AssertCommand
 import conductor.orchestra.BackPressCommand
 import conductor.orchestra.ConductorCommand
@@ -26,6 +27,7 @@ import conductor.orchestra.ElementSelector
 import conductor.orchestra.InputTextCommand
 import conductor.orchestra.LaunchAppCommand
 import conductor.orchestra.ScrollCommand
+import conductor.orchestra.SwipeCommand
 import conductor.orchestra.TapOnElementCommand
 import conductor.orchestra.TapOnPointCommand
 
@@ -35,6 +37,7 @@ data class YamlFluentCommand(
     val action: String? = null,
     val inputText: String? = null,
     val launchApp: String? = null,
+    val swipe: YamlElementSelectorUnion? = null
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -52,6 +55,7 @@ data class YamlFluentCommand(
             inputText != null -> ConductorCommand(
                 inputTextCommand = InputTextCommand(inputText)
             )
+            swipe != null -> swipeCommand(swipe)
             action != null -> when (action) {
                 "back" -> ConductorCommand(backPressCommand = BackPressCommand())
                 "scroll" -> ConductorCommand(scrollCommand = ScrollCommand())
@@ -86,6 +90,39 @@ data class YamlFluentCommand(
                 )
             )
         }
+    }
+
+    private fun swipeCommand(tapOn: YamlElementSelectorUnion): ConductorCommand {
+        val start = (tapOn as? YamlElementSelector)?.start
+        val end = (tapOn as? YamlElementSelector)?.end
+        val startPoint: Point?
+        val endPoint: Point?
+
+        if (start != null) {
+            val points = start.split(",")
+                .map {
+                    it.trim().toInt()
+                }
+
+            startPoint = Point(points[0], points[1])
+        } else {
+            throw IllegalStateException("No start point configured for swipe action")
+        }
+
+        if (end != null) {
+            val points = end.split(",")
+                .map {
+                    it.trim().toInt()
+                }
+
+            endPoint = Point(points[0], points[1])
+        } else {
+            throw IllegalStateException("No end point configured for swipe action")
+        }
+
+        return ConductorCommand(
+            swipeCommand = SwipeCommand(startPoint, endPoint)
+        )
     }
 
     private fun toElementSelector(selectorUnion: YamlElementSelectorUnion): ElementSelector {

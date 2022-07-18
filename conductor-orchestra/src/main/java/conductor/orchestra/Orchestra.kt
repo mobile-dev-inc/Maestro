@@ -57,6 +57,7 @@ class Orchestra(
             }
             command.backPressCommand != null -> conductor.backPress()
             command.scrollCommand != null -> conductor.scrollVertical()
+            command.swipeCommand != null -> command.swipeCommand?.let { swipeCommand(it) }
             command.assertCommand != null -> command.assertCommand?.let { assertCommand(it) }
             command.inputTextCommand != null -> command.inputTextCommand?.let { inputTextCommand(it) }
             command.launchAppCommand != null -> command.launchAppCommand?.let { launchAppCommand(it) }
@@ -166,6 +167,10 @@ class Orchestra(
             "Element not found: ${descriptions.joinToString(", ")}",
             conductor.viewHierarchy(),
         )
+    }
+
+    private fun swipeCommand(command: SwipeCommand) {
+        conductor.swipe(command.startPoint, command.endPoint)
     }
 
     companion object {

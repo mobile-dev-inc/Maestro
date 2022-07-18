@@ -37,6 +37,8 @@ interface Driver {
 
     fun scrollVertical()
 
+    fun swipe(start: Point, end: Point)
+
     fun backPress()
 
     fun inputText(text: String)

@@ -108,6 +108,36 @@ class IOSDriver(
         ).expect {}
     }
 
+    private fun validate(start: Point, end: Point) {
+        val screenWidth = widthPixels ?: throw IllegalStateException("Screen width not available")
+        val screenHeight = heightPixels ?: throw IllegalStateException("Screen height not available")
+
+        if (start.x < 0 || start.x > screenWidth) {
+            throw java.lang.IllegalArgumentException("x value of start point (${start.x}) needs to be between 0 and $screenWidth")
+        }
+        if (end.x < 0 || end.x > screenWidth) {
+            throw java.lang.IllegalArgumentException("x value of end point (${end.x}) needs to be between 0 and $screenWidth")
+        }
+
+        if (start.y < 0 || start.y > screenHeight) {
+            throw java.lang.IllegalArgumentException("y value of start point (${start.y}) needs to be between 0 and $screenHeight")
+        }
+        if (end.y < 0 || end.y > screenHeight) {
+            throw java.lang.IllegalArgumentException("y value of end point (${end.y}) needs to be between 0 and $screenHeight")
+        }
+    }
+
+    override fun swipe(start: Point, end: Point) {
+        validate(start, end)
+
+        iosDevice.scroll(
+            xStart = start.x,
+            yStart = start.y,
+            xEnd = end.x,
+            yEnd = end.y
+        ).expect {}
+    }
+
     override fun backPress() {}
 
     override fun inputText(text: String) {
