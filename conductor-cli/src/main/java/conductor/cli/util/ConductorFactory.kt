@@ -20,7 +20,7 @@
 package conductor.cli.util
 
 import conductor.Conductor
-import conductor.utils.SocketUtils.isPortInUse
+import conductor.utils.SocketUtils.isPortOpen
 import dadb.Dadb
 
 object ConductorFactory {
@@ -52,7 +52,7 @@ object ConductorFactory {
             device = Conductor.android(dadb)
         }
 
-        if (isPortInUse("localhost", 10882)) {
+        if (isPortOpen("localhost", 10882)) {
             if (device == null) {
                 return Conductor.ios("localhost", 10882)
             } else {
@@ -60,7 +60,7 @@ object ConductorFactory {
             }
         }
 
-        if (isPortInUse("localhost", 10883)) {
+        if (isPortOpen("localhost", 10883)) {
             if (device == null) {
                 return Conductor.ios("localhost", 10883)
             } else {

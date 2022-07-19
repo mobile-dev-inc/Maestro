@@ -24,7 +24,7 @@ import conductor.DeviceInfo
 import conductor.Driver
 import conductor.Point
 import conductor.TreeNode
-import conductor.utils.SocketUtils.isPortInUse
+import conductor.utils.SocketUtils.isPortOpen
 import conductor_android.ConductorDriverGrpc
 import conductor_android.deviceInfoRequest
 import conductor_android.tapRequest
@@ -78,12 +78,10 @@ class AndroidDriver(
             return
         }
 
-        if (!isPortInUse("localhost", 7001)) {
-            forwarder = dadb.tcpForward(
-                hostPort,
-                7001
-            )
-        }
+        forwarder = dadb.tcpForward(
+            hostPort,
+            7001
+        )
     }
 
     private fun awaitLaunch() {

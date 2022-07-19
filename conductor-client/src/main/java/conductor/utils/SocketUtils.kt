@@ -24,7 +24,10 @@ import java.net.Socket
 
 object SocketUtils {
 
-    fun isPortInUse(host: String, port: Int): Boolean {
+    /**
+     * Checks whether the port can be connected to.
+     */
+    fun isPortOpen(host: String, port: Int): Boolean {
         return try {
             Socket(host, port).use { true }
         } catch (ignored: IOException) {
