@@ -23,4 +23,9 @@
 
 ### 1.2.0 - 2022-07-18
 
-* Add swipe command
+* Added swipe command
+
+### 1.3.0 - 2022-07-19
+
+* Added `waitUntilVisible` flag for tap commands
+* Added `containsChild` predicate to element selectors
