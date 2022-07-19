@@ -1,0 +1,4 @@
+- tapOn:
+    text: "Button"
+    retryTapIfNoChange: false
+    waitUntilVisible: false

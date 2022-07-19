@@ -54,7 +54,6 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
-
     fun swipe(start: Point, end: Point) {
         LOGGER.info("Swiping from (${start.x},${start.y}) to (${end.x},${end.y})")
 
@@ -73,16 +72,26 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         tap(element.toUiElement())
     }
 
-    fun tap(element: UiElement, retryIfNoChange: Boolean = true) {
+    fun tap(
+        element: UiElement,
+        retryIfNoChange: Boolean = true,
+        waitUntilVisible: Boolean = true,
+    ) {
         LOGGER.info("Tapping on element: $element")
 
-        waitUntilVisible(element)
+        if (waitUntilVisible) {
+            waitUntilVisible(element)
+        }
 
         val center = element.bounds.center()
         tap(center.x, center.y, retryIfNoChange)
     }
 
-    fun tap(x: Int, y: Int, retryIfNoChange: Boolean = true) {
+    fun tap(
+        x: Int,
+        y: Int,
+        retryIfNoChange: Boolean = true,
+    ) {
         LOGGER.info("Tapping at ($x, $y)")
 
         val hierarchyBeforeTap = viewHierarchy()
@@ -112,7 +121,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
         repeat(10) {
             if (!ViewUtils.isVisible(viewHierarchy(), element.treeNode)) {
                 LOGGER.info("Element is not visible yet. Waiting.")
-                Thread.sleep(1000)
+                ConductorTimer.sleep(ConductorTimer.Reason.WAIT_UNTIL_VISIBLE, 1000)
             } else {
                 LOGGER.info("Element became visible.")
                 return
@@ -218,7 +227,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
 
     private fun waitForAppToSettle() {
         // Time buffer for any visual effects and transitions that might occur between actions.
-        Thread.sleep(1000)
+        ConductorTimer.sleep(ConductorTimer.Reason.BUFFER, 1000)
 
         val hierarchyBefore = viewHierarchy()
         repeat(10) {
@@ -226,7 +235,7 @@ class Conductor(private val driver: Driver) : AutoCloseable {
             if (hierarchyBefore == hierarchyAfter) {
                 return
             }
-            Thread.sleep(200)
+            ConductorTimer.sleep(ConductorTimer.Reason.WAIT_TO_SETTLE, 200)
         }
     }
 

@@ -67,6 +67,7 @@ data class YamlFluentCommand(
 
     private fun tapCommand(tapOn: YamlElementSelectorUnion): ConductorCommand {
         val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
+        val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: true
         val point = (tapOn as? YamlElementSelector)?.point
 
         return if (point != null) {
@@ -79,14 +80,16 @@ data class YamlFluentCommand(
                 tapOnPoint = TapOnPointCommand(
                     x = points[0],
                     y = points[1],
-                    retryIfNoChange = retryIfNoChange
+                    retryIfNoChange = retryIfNoChange,
+                    waitUntilVisible = waitUntilVisible,
                 )
             )
         } else {
             ConductorCommand(
                 tapOnElement = TapOnElementCommand(
-                    toElementSelector(tapOn),
-                    retryIfNoChange
+                    selector = toElementSelector(tapOn),
+                    retryIfNoChange = retryIfNoChange,
+                    waitUntilVisible = waitUntilVisible,
                 )
             )
         }

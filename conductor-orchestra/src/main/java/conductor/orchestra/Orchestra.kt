@@ -50,10 +50,17 @@ class Orchestra(
     private fun executeCommand(command: ConductorCommand) {
         when {
             command.tapOnElement != null -> command.tapOnElement?.let {
-                tapOnElement(it, it.retryIfNoChange ?: true)
+                tapOnElement(
+                    it,
+                    it.retryIfNoChange ?: true,
+                    it.waitUntilVisible ?: true,
+                )
             }
             command.tapOnPoint != null -> command.tapOnPoint?.let {
-                tapOnPoint(it, it.retryIfNoChange ?: true)
+                tapOnPoint(
+                    it,
+                    it.retryIfNoChange ?: true,
+                )
             }
             command.backPressCommand != null -> conductor.backPress()
             command.scrollCommand != null -> conductor.scrollVertical()
@@ -84,10 +91,18 @@ class Orchestra(
         findElement(selector) // Throws if element is not found
     }
 
-    private fun tapOnElement(command: TapOnElementCommand, retryIfNoChange: Boolean) {
+    private fun tapOnElement(
+        command: TapOnElementCommand,
+        retryIfNoChange: Boolean,
+        waitUntilVisible: Boolean,
+    ) {
         try {
             val element = findElement(command.selector)
-            conductor.tap(element, retryIfNoChange)
+            conductor.tap(
+                element,
+                retryIfNoChange,
+                waitUntilVisible
+            )
         } catch (e: ConductorException.ElementNotFound) {
 
             if (!command.selector.optional) {
@@ -96,7 +111,10 @@ class Orchestra(
         }
     }
 
-    private fun tapOnPoint(command: TapOnPointCommand, retryIfNoChange: Boolean) {
+    private fun tapOnPoint(
+        command: TapOnPointCommand,
+        retryIfNoChange: Boolean,
+    ) {
         conductor.tap(
             command.x,
             command.y,

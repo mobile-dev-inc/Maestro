@@ -98,7 +98,8 @@ class BackPressCommand : Command {
 
 data class TapOnElementCommand(
     val selector: ElementSelector,
-    val retryIfNoChange: Boolean? = null
+    val retryIfNoChange: Boolean? = null,
+    val waitUntilVisible: Boolean? = null,
 ) : Command {
 
     override fun description(): String {
@@ -110,7 +111,8 @@ data class TapOnElementCommand(
 data class TapOnPointCommand(
     val x: Int,
     val y: Int,
-    val retryIfNoChange: Boolean? = null
+    val retryIfNoChange: Boolean? = null,
+    val waitUntilVisible: Boolean? = null,
 ) : Command {
 
     override fun description(): String {

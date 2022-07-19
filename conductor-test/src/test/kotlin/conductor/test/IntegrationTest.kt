@@ -2,6 +2,7 @@ package conductor.test
 
 import conductor.Conductor
 import conductor.ConductorException
+import conductor.ConductorTimer
 import conductor.Point
 import conductor.orchestra.ConductorCommand
 import conductor.orchestra.Orchestra
@@ -10,11 +11,20 @@ import conductor.test.drivers.FakeDriver
 import conductor.test.drivers.FakeDriver.Event
 import conductor.test.drivers.FakeLayoutElement
 import conductor.test.drivers.FakeLayoutElement.Bounds
+import conductor.test.drivers.FakeTimer
 import okio.Source
 import okio.source
+import org.junit.Before
 import org.junit.Test
 
 class IntegrationTest {
+
+    val fakeTimer = FakeTimer()
+
+    @Before
+    fun setUp() {
+        ConductorTimer.setTimerFunc(fakeTimer.timer())
+    }
 
     @Test
     fun `Case 001 - Assert element visible by id`() {
@@ -429,6 +439,32 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.Tap(Point(100, 100)))
+    }
+
+    @Test
+    fun `Case 019 - Do not wait until visible`() {
+        // Given
+        val commands = readCommands("019_dont_wait_for_visibility")
+
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+            element {
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(50, 50)))
+        fakeTimer.assertNoEvent(ConductorTimer.Reason.WAIT_UNTIL_VISIBLE)
     }
 
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

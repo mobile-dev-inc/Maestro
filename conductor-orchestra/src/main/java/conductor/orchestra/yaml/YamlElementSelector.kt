@@ -30,6 +30,7 @@ data class YamlElementSelector(
     val tolerance: Int? = null,
     val optional: Boolean? = null,
     val retryTapIfNoChange: Boolean? = null,
+    val waitUntilVisible: Boolean? = null,
     val point: String? = null,
     val start: String? = null,
     val end: String? = null,
