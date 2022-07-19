@@ -25,7 +25,8 @@
 
 * Added swipe command
 
-### 1.3.0 - 2022-07-19
+### 1.3.1 - 2022-07-19
 
 * Added `waitUntilVisible` flag for tap commands
 * Added `containsChild` predicate to element selectors
+* Multiple Conductor instances running on different ports were competing for TcpForwarder
