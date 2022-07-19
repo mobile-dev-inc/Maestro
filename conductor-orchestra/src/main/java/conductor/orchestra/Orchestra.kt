@@ -160,6 +160,12 @@ class Orchestra(
                 predicates += Predicates.rightOf(findElement(it))
             }
 
+        selector.containsChild
+            ?.let {
+                descriptions += "Contains child: ${it.description()}"
+                predicates += Predicates.containsChild(findElement(it))
+            }
+
         return conductor.findElementWithTimeout(
             timeoutMs = timeout,
             predicate = Predicates.allOf(predicates),

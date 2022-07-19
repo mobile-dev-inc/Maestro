@@ -27,6 +27,7 @@ data class ElementSelector(
     val above: ElementSelector? = null,
     val leftOf: ElementSelector? = null,
     val rightOf: ElementSelector? = null,
+    val containsChild: ElementSelector? = null,
     val optional: Boolean = false,
 ) {
 

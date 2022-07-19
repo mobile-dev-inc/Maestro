@@ -120,4 +120,12 @@ object Predicates {
         }
     }
 
+    fun containsChild(other: UiElement): ElementLookupPredicate {
+        val otherNode = other.treeNode
+        return {
+            it.children
+                .any { child -> child == otherNode }
+        }
+    }
+
 }

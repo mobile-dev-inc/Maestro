@@ -405,6 +405,32 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Swipe(Point(100, 500), Point(100, 200)))
     }
 
+    @Test
+    fun `Case 018 - Contains child`() {
+        // Given
+        val commands = readCommands("018_contains_child")
+
+        val driver = driver {
+            element {
+                bounds = Bounds(0, 0, 200, 200)
+
+                element {
+                    text = "Child"
+                    bounds = Bounds(0, 0, 100, 100)
+                }
+            }
+        }
+
+        // When
+        Conductor(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(100, 100)))
+    }
+
     private fun orchestra(it: Conductor) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

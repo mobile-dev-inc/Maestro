@@ -1,0 +1,4 @@
+- tapOn:
+    retryTapIfNoChange: false
+    containsChild:
+        text: "Child"

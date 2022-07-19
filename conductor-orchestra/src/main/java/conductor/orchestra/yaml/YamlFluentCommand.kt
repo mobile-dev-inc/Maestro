@@ -156,6 +156,7 @@ data class YamlFluentCommand(
             above = selector.above?.let { toElementSelector(it) },
             leftOf = selector.leftOf?.let { toElementSelector(it) },
             rightOf = selector.rightOf?.let { toElementSelector(it) },
+            containsChild = selector.containsChild?.let { toElementSelector(it) },
             optional = selector.optional ?: false,
         )
     }
