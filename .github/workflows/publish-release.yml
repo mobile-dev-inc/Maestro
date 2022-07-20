@@ -13,7 +13,7 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.repository == 'mobile-dev-inc/conductor'
+    if: github.repository == 'mobile-dev-inc/maestro'
 
     steps:
       - name: Checkout
@@ -31,36 +31,36 @@ jobs:
         run: |
           echo "VERSION_NAME=$(cat gradle.properties | grep -w "VERSION_NAME" | cut -d'=' -f2)" >> $GITHUB_ENV
 
-      - name: Upload Conductor client release
-        run: ./gradlew clean :conductor-client:publish --no-daemon --no-parallel
+      - name: Upload Maestro client release
+        run: ./gradlew clean :maestro-client:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
-      - name: Upload Conductor ios release
-        run: ./gradlew clean :conductor-ios:publish --no-daemon --no-parallel
+      - name: Upload Maestro ios release
+        run: ./gradlew clean :maestro-ios:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
-      - name: Upload Conductor orchestra release
-        run: ./gradlew clean :conductor-orchestra:publish --no-daemon --no-parallel
+      - name: Upload Maestro orchestra release
+        run: ./gradlew clean :maestro-orchestra:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
-      - name: Upload Conductor Orchestra Models release
-        run: ./gradlew clean :conductor-orchestra-models:publish --no-daemon --no-parallel
+      - name: Upload Maestro Orchestra Models release
+        run: ./gradlew clean :maestro-orchestra-models:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
-      - name: Upload Conductor Proto release
-        run: ./gradlew clean :conductor-proto:publish --no-daemon --no-parallel
+      - name: Upload Maestro Proto release
+        run: ./gradlew clean :maestro-proto:publish --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}

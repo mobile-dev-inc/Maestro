@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -e
-
-./gradlew :conductor-cli:shadowJar
-java -jar conductor-cli/build/libs/conductor-cli-*-all.jar "$@"

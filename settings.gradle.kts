@@ -1,14 +1,14 @@
-rootProject.name = "conductor"
+rootProject.name = "maestro"
 
-include("conductor-android")
-include("conductor-cli")
-include("conductor-client")
-include("conductor-ios")
-include("conductor-orchestra")
-include("conductor-orchestra-models")
-include("conductor-orchestra-proto")
-include("conductor-proto")
-include("conductor-test")
+include("maestro-android")
+include("maestro-cli")
+include("maestro-client")
+include("maestro-ios")
+include("maestro-orchestra")
+include("maestro-orchestra-models")
+include("maestro-orchestra-proto")
+include("maestro-proto")
+include("maestro-test")
 include("examples:apps:android-app")
-include("examples:samples")
-findProject(":examples:samples")?.name = "samples"
+//include("examples:samples")
+//findProject(":examples:samples")?.name = "samples"

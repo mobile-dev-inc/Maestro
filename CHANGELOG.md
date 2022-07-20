@@ -6,8 +6,8 @@
 
 ## 1.0.1 - 2022-07-12
 
-* Publish conductor with Java 8 instead of Java 11 
-* Adding capability to configure port number for communicating conductor
+* Publish maestro with Java 8 instead of Java 11 
+* Adding capability to configure port number for communicating maestro
 
 ## 1.1.0 - 2022-07-13
 
@@ -29,4 +29,4 @@
 
 * Added `waitUntilVisible` flag for tap commands
 * Added `containsChild` predicate to element selectors
-* Multiple Conductor instances running on different ports were competing for TcpForwarder
+* Multiple Maestro instances running on different ports were competing for TcpForwarder

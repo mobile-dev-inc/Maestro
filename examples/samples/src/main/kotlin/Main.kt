@@ -1,10 +1,10 @@
-import conductor.Conductor
-import conductor.orchestra.AssertCommand
-import conductor.orchestra.ConductorCommand
-import conductor.orchestra.ElementSelector
-import conductor.orchestra.LaunchAppCommand
-import conductor.orchestra.Orchestra
-import conductor.orchestra.TapOnElementCommand
+import maestro.Maestro
+import maestro.orchestra.AssertCommand
+import maestro.orchestra.MaestroCommand
+import maestro.orchestra.ElementSelector
+import maestro.orchestra.LaunchAppCommand
+import maestro.orchestra.Orchestra
+import maestro.orchestra.TapOnElementCommand
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.IOSDevice
@@ -39,15 +39,15 @@ private fun executeAndroidCommands() {
     val dadb = Dadb.create("localhost", 5555)
     val androidApk = File("./examples/samples/src/main/resources/android-app-debug.apk")
     dadb.install(androidApk)
-    val conductor = Conductor.android(dadb)
-    val launchAppCommand = ConductorCommand(launchAppCommand = LaunchAppCommand("dev.mobile.sample"))
-    val tapViewDetailsCommand = ConductorCommand(
+    val maestro = Maestro.android(dadb)
+    val launchAppCommand = MaestroCommand(launchAppCommand = LaunchAppCommand("dev.mobile.sample"))
+    val tapViewDetailsCommand = MaestroCommand(
         tapOnElement = TapOnElementCommand(ElementSelector(textRegex = "VIEW DETAILS"))
     )
-    val assertCommand = ConductorCommand(
+    val assertCommand = MaestroCommand(
         assertCommand = AssertCommand(ElementSelector(textRegex = "Here is the detailed content"))
     )
-    conductor.use {
+    maestro.use {
         Orchestra(it).executeCommands(
             listOf(
                 launchAppCommand,
@@ -66,22 +66,22 @@ private fun executeIOSCommands() {
         .usePlaintext()
         .build()
     IdbIOSDevice(channel).use { it.install(iosArchive) }
-    val conductor = Conductor.ios(localhost, port)
-    val launchAppCommand = ConductorCommand(
+    val maestro = Maestro.ios(localhost, port)
+    val launchAppCommand = MaestroCommand(
         launchAppCommand = LaunchAppCommand("ch.admin.bag.covidcertificate.verifier.dev")
     )
-    val tapOnElementCommand = ConductorCommand(
+    val tapOnElementCommand = MaestroCommand(
         tapOnElement = TapOnElementCommand(
             ElementSelector(textRegex = "HOW IT WORKS")
         )
     )
-    val assertCommand = ConductorCommand(
+    val assertCommand = MaestroCommand(
         assertCommand = AssertCommand(
             ElementSelector(textRegex = "HOW IT WORKS")
         )
     )
-    conductor.use {
-        Orchestra(conductor).executeCommands(
+    maestro.use {
+        Orchestra(maestro).executeCommands(
             listOf(launchAppCommand, tapOnElementCommand, assertCommand)
         )
     }

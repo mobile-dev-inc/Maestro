@@ -1,0 +1,62 @@
+plugins {
+    id 'maven-publish'
+    id "kotlin"
+    id "com.google.protobuf" version "0.8.18"
+    id "idea"
+    id "com.vanniktech.maven.publish"
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.18.1"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.40.1'
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.plugins {
+                grpc {}
+            }
+            task.builtins {
+                kotlin {}
+            }
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += 'build/generated/source/proto/main/grpc'
+            srcDirs += 'build/generated/source/proto/main/java'
+            srcDirs += 'build/generated/source/proto/main/kotlin'
+        }
+    }
+}
+
+dependencies {
+    protobuf project(':maestro-proto')
+
+    implementation project(':maestro-ios')
+    api 'io.grpc:grpc-kotlin-stub:1.2.1'
+    api 'io.grpc:grpc-stub:1.45.0'
+    api 'io.grpc:grpc-netty:1.40.1'
+    api 'io.grpc:grpc-protobuf:1.45.0'
+    api 'io.grpc:grpc-okhttp:1.45.0'
+    api 'com.google.protobuf:protobuf-kotlin:3.19.4'
+    api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
+    api "dev.mobile:dadb:0.0.10"
+    api "org.slf4j:slf4j-simple:1.7.36"
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "com.google.truth:truth:1.1.3"
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
+}

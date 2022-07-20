@@ -1,6 +1,6 @@
-# Conductor 🎹
+# Maestro 🎹
 
-Conductor is a platform-agnostic UI automation library for Android and iOS.
+Maestro is a platform-agnostic UI automation library for Android and iOS.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ Get a CLI tool from homebrew
 
 ```
 brew tap mobile-dev-inc/tap
-brew install conductor
+brew install maestro
 ```
 
 Write a simple test in a YAML file 
@@ -26,14 +26,14 @@ Make sure an Android _emulator_ is running (support of testing via USB is work i
 Run it!
 
 ```
-conductor test flow.yaml
+maestro test flow.yaml
 ```
 
 ## iOS Support
 
 Only iOS Simulators are supported at the moment.
 
-For Conductor to work with iOS you would need to do few extra steps. 
+For Maestro to work with iOS you would need to do few extra steps. 
 
 Install [Facebook IDB](https://fbidb.io/) tool
 
@@ -50,7 +50,7 @@ idb_companion --udid {id of the iOS device}
 
 # Next steps
 
-- [Learn more about Conductor features](https://conductor.mobile.dev/guides/using-conductor-cli)
-- [Learn how to use Conductor programmatically](https://conductor.mobile.dev/guides/using-conductor-programmatically)
+- [Learn more about Maestro features](https://maestro.mobile.dev/guides/using-maestro-cli)
+- [Learn how to use Maestro programmatically](https://maestro.mobile.dev/guides/using-maestro-programmatically)
 
-Documentation for Conductor can be found at [conductor.mobile.dev](https://conductor.mobile.dev)
+Documentation for Maestro can be found at [maestro.mobile.dev](https://maestro.mobile.dev)

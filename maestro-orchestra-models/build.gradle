@@ -1,0 +1,15 @@
+plugins {
+    id 'maven-publish'
+    id "kotlin"
+    id "com.vanniktech.maven.publish"
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
+}
+
+dependencies {
+    implementation project(path: ':maestro-client')
+}

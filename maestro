@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+./gradlew :maestro-cli:shadowJar
+java -jar maestro-cli/build/libs/maestro-cli-*-all.jar "$@"

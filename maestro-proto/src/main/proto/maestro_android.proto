@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package maestro_android;
+
+service MaestroDriver {
+
+  rpc deviceInfo(DeviceInfoRequest) returns (DeviceInfo) {}
+
+  rpc viewHierarchy(ViewHierarchyRequest) returns (ViewHierarchyResponse) {}
+
+  rpc tap(TapRequest) returns (TapResponse) {}
+
+}
+
+// Device info
+message DeviceInfoRequest {}
+
+message DeviceInfo {
+  uint32 widthPixels = 1;
+  uint32 heightPixels = 2;
+}
+
+// View hierarchy
+message ViewHierarchyRequest {}
+
+message ViewHierarchyResponse {
+  string hierarchy = 1;
+}
+
+// Interactions
+
+message TapRequest {
+  uint32 x = 1;
+  uint32 y = 2;
+}
+
+message TapResponse {}
