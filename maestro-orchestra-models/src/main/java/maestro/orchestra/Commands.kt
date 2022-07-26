@@ -153,3 +153,12 @@ data class LaunchAppCommand(
     }
 
 }
+
+data class ApplyConfigurationCommand(
+    val config: Map<String, *>,
+) : Command {
+
+    override fun description(): String {
+        return "Apply configuration"
+    }
+}

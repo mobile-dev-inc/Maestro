@@ -28,6 +28,7 @@ data class MaestroCommand(
     val assertCommand: AssertCommand? = null,
     val inputTextCommand: InputTextCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
+    val applyConfigurationCommand: ApplyConfigurationCommand? = null,
 ) {
 
     fun description(): String {
@@ -60,6 +61,10 @@ data class MaestroCommand(
         }
 
         launchAppCommand?.let {
+            return it.description()
+        }
+
+        applyConfigurationCommand?.let {
             return it.description()
         }
 

@@ -1,9 +1,11 @@
 package maestro.test
 
+import com.google.common.truth.Truth.assertThat
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
 import maestro.Point
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
@@ -465,6 +467,32 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.Tap(Point(50, 50)))
         fakeTimer.assertNoEvent(MaestroTimer.Reason.WAIT_UNTIL_VISIBLE)
+    }
+
+    @Test
+    fun `Case 020 - Parse config`() {
+        // When
+        val commands = readCommands("020_parse_config")
+
+        // Then
+        assertThat(commands).isEqualTo(
+            listOf(
+                MaestroCommand(
+                    applyConfigurationCommand = ApplyConfigurationCommand(
+                        config = mapOf(
+                            "configKey" to "configValue",
+                            "namespace" to mapOf(
+                                "topLevel" to "topLevelValue",
+                                "complex" to mapOf(
+                                    "nestedKey" to "nestedValue",
+                                ),
+                                "list" to listOf("listValue1", "listValue2"),
+                            )
+                        )
+                    ),
+                )
+            )
+        )
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

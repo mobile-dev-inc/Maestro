@@ -1,0 +1,9 @@
+- config:
+    configKey: "configValue"
+    namespace:
+        topLevel: "topLevelValue"
+        complex:
+            nestedKey: "nestedValue"
+        list:
+            - "listValue1"
+            - "listValue2"
