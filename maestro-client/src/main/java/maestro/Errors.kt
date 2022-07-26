@@ -25,7 +25,7 @@ sealed class MaestroException(message: String) : RuntimeException(message) {
 
     class ElementNotFound(
         message: String,
-        hierarchyRoot: TreeNode,
+        val hierarchyRoot: TreeNode,
     ) : MaestroException(message)
 
 }
