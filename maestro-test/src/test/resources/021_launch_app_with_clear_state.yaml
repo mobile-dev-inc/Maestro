@@ -1,0 +1,3 @@
+- launchApp:
+    appId: "com.example.app"
+    clearState: true

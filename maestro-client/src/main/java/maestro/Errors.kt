@@ -23,6 +23,8 @@ sealed class MaestroException(message: String) : RuntimeException(message) {
 
     class UnableToLaunchApp(message: String) : MaestroException(message)
 
+    class UnableToClearState(message: String) : MaestroException(message)
+
     class ElementNotFound(
         message: String,
         val hierarchyRoot: TreeNode,

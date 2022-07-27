@@ -73,6 +73,14 @@ class Orchestra(
 
     private fun launchAppCommand(it: LaunchAppCommand) {
         try {
+            if (it.clearState == true) {
+                maestro.clearAppState(it.appId)
+            }
+        } catch (e: Exception) {
+            throw MaestroException.UnableToClearState("Unable to clear state for app ${it.appId}")
+        }
+
+        try {
             maestro.launchApp(it.appId)
         } catch (e: Exception) {
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${it.appId}: ${e.message}")

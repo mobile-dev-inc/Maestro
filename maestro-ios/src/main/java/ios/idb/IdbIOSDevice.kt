@@ -27,11 +27,13 @@ import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
 import idb.accessibilityInfoRequest
+import idb.fileContainer
 import idb.hIDEvent
 import idb.installRequest
 import idb.launchRequest
 import idb.payload
 import idb.point
+import idb.rmRequest
 import idb.targetDescriptionRequest
 import idb.terminateRequest
 import idb.uninstallRequest
@@ -190,6 +192,18 @@ class IdbIOSDevice(
                     throw e
                 }
             }
+        }
+    }
+
+    override fun clearAppState(id: String): Result<Unit, Throwable> {
+        return runCatching {
+            blockingStub.rm(rmRequest {
+                container = fileContainer {
+                    kind = Idb.FileContainer.Kind.APPLICATION
+                    bundleId = id
+                }
+                paths.add("/")
+            })
         }
     }
 

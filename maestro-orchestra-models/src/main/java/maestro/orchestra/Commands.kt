@@ -146,10 +146,15 @@ data class InputTextCommand(
 
 data class LaunchAppCommand(
     val appId: String,
+    val clearState: Boolean? = null,
 ) : Command {
 
     override fun description(): String {
-        return "Launch app \"$appId\""
+        return if (clearState != true) {
+            "Launch app \"$appId\""
+        } else {
+            "Launch app \"$appId\" with clear state"
+        }
     }
 
 }

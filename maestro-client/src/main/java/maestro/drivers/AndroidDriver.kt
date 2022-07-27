@@ -24,7 +24,6 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.Point
 import maestro.TreeNode
-import maestro.utils.SocketUtils.isPortOpen
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
 import maestro_android.tapRequest
@@ -126,6 +125,14 @@ class AndroidDriver(
 
         shell("am force-stop $appId")
         shell("monkey --pct-syskeys 0 -p $appId 1")
+    }
+
+    override fun clearAppState(appId: String) {
+        if (!isPackageInstalled(appId)) {
+            return
+        }
+
+        shell("pm clear $appId")
     }
 
     override fun tap(point: Point) {

@@ -37,7 +37,7 @@ data class YamlFluentCommand(
     val assertVisible: YamlElementSelector? = null,
     val action: String? = null,
     val inputText: String? = null,
-    val launchApp: String? = null,
+    val launchApp: YamlLaunchAppUnion? = null,
     val swipe: YamlElementSelectorUnion? = null,
     val config: Map<String, *>? = null,
 ) {
@@ -45,9 +45,7 @@ data class YamlFluentCommand(
     @SuppressWarnings("ComplexMethod")
     fun toCommand(): MaestroCommand {
         return when {
-            launchApp != null -> MaestroCommand(
-                launchAppCommand = LaunchAppCommand(launchApp)
-            )
+            launchApp != null -> launchApp(launchApp)
             tapOn != null -> tapCommand(tapOn)
             assertVisible != null -> MaestroCommand(
                 assertCommand = AssertCommand(
@@ -67,6 +65,22 @@ data class YamlFluentCommand(
                 applyConfigurationCommand = ApplyConfigurationCommand(config),
             )
             else -> throw IllegalStateException("No mapping provided for $this")
+        }
+    }
+
+    private fun launchApp(command: YamlLaunchAppUnion): MaestroCommand {
+        return when (command) {
+            is StringLaunchApp -> MaestroCommand(
+                launchAppCommand = LaunchAppCommand(
+                    appId = command.appId,
+                )
+            )
+            is YamlLaunchApp -> MaestroCommand(
+                launchAppCommand = LaunchAppCommand(
+                    appId = command.appId,
+                    clearState = command.clearState,
+                )
+            )
         }
     }
 

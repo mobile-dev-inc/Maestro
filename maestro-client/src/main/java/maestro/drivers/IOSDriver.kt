@@ -20,11 +20,13 @@
 package maestro.drivers
 
 import com.github.michaelbull.result.expect
+import com.github.michaelbull.result.getOrThrow
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.Point
 import maestro.TreeNode
 import ios.IOSDevice
+import maestro.MaestroException
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
@@ -63,6 +65,13 @@ class IOSDriver(
     override fun launchApp(appId: String) {
         iosDevice.stop(appId)
         iosDevice.launch(appId)
+            .getOrThrow {
+                MaestroException.UnableToLaunchApp("Unable to launch app $appId")
+            }
+    }
+
+    override fun clearAppState(appId: String) {
+        iosDevice.clearAppState(appId)
     }
 
     override fun tap(point: Point) {

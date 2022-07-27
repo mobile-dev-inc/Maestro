@@ -21,6 +21,7 @@ package maestro.test.drivers
 
 import maestro.DeviceInfo
 import maestro.Driver
+import maestro.MaestroException
 import maestro.Point
 import maestro.TreeNode
 
@@ -28,6 +29,7 @@ class FakeDriver : Driver {
 
     private var state: State = State.NOT_INITIALIZED
     private var layout: FakeLayoutElement = FakeLayoutElement()
+    private var installedApps = mutableSetOf<String>()
 
     private val events = mutableListOf<Event>()
 
@@ -67,7 +69,21 @@ class FakeDriver : Driver {
     override fun launchApp(appId: String) {
         ensureOpen()
 
+        if (appId !in installedApps) {
+            throw MaestroException.UnableToLaunchApp("App $appId is not installed")
+        }
+
         events.add(Event.LaunchApp(appId))
+    }
+
+    override fun clearAppState(appId: String) {
+        ensureOpen()
+
+        if (appId !in installedApps) {
+            println("App $appId not installed. Skipping clearAppState.")
+            return
+        }
+        events.add(Event.ClearState(appId))
     }
 
     override fun tap(point: Point) {
@@ -110,6 +126,10 @@ class FakeDriver : Driver {
         this.layout = layout
     }
 
+    fun addInstalledApp(appId: String) {
+        installedApps.add(appId)
+    }
+
     fun assertEvents(expected: List<Event>) {
         if (events != expected) {
             throw AssertionError("Expected events: $expected\nActual events: $events")
@@ -149,6 +169,10 @@ class FakeDriver : Driver {
         ) : Event()
 
         data class LaunchApp(
+            val appId: String
+        ) : Event()
+
+        data class ClearState(
             val appId: String
         ) : Event()
 

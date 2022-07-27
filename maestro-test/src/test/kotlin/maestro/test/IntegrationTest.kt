@@ -283,6 +283,7 @@ class IntegrationTest {
 
         val driver = driver {
         }
+        driver.addInstalledApp("com.example.app")
 
         // When
         Maestro(driver).use {
@@ -493,6 +494,43 @@ class IntegrationTest {
                 )
             )
         )
+    }
+
+    @Test
+    fun `Case 021 - Launch app with clear state`() {
+        // Given
+        val commands = readCommands("021_launch_app_with_clear_state")
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.ClearState("com.example.app"))
+        driver.assertHasEvent(Event.LaunchApp("com.example.app"))
+    }
+
+    @Test(expected = MaestroException.UnableToLaunchApp::class)
+    fun `Case 022 - Launch app that is not installed`() {
+        // Given
+        val commands = readCommands("022_launch_app_that_is_not_installed")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).executeCommands(commands)
+        }
+
+        // Then
+        // Test failure
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

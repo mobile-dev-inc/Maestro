@@ -31,6 +31,8 @@ interface Driver {
 
     fun launchApp(appId: String)
 
+    fun clearAppState(appId: String)
+
     fun tap(point: Point)
 
     fun contentDescriptor(): TreeNode
