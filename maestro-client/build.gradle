@@ -40,7 +40,6 @@ sourceSets {
 dependencies {
     protobuf project(':maestro-proto')
 
-    implementation project(':maestro-ios')
     api 'io.grpc:grpc-kotlin-stub:1.2.1'
     api 'io.grpc:grpc-stub:1.45.0'
     api 'io.grpc:grpc-netty:1.40.1'
@@ -50,6 +49,10 @@ dependencies {
     api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
     api "dev.mobile:dadb:0.0.10"
     api "org.slf4j:slf4j-simple:1.7.36"
+
+    implementation project(':maestro-ios')
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation 'de.upb.cs.swt:axml:2.1.2'
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "com.google.truth:truth:1.1.3"
