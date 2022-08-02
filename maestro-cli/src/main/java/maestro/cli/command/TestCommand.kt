@@ -19,11 +19,8 @@
 
 package maestro.cli.command
 
-import maestro.cli.runner.ContinuousTestRunner
-import maestro.cli.runner.SingleTestRunner
+import maestro.cli.runner.TestRunner
 import maestro.cli.util.MaestroFactory
-import maestro.orchestra.CommandReader
-import maestro.orchestra.yaml.YamlCommandReader
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
@@ -35,7 +32,7 @@ import java.util.concurrent.Callable
 class TestCommand : Callable<Int> {
 
     @CommandLine.Parameters
-    private lateinit var testFile: File
+    private lateinit var flowFile: File
 
     @Option(names = ["-t", "--target"])
     private var target: String? = null
@@ -54,32 +51,17 @@ class TestCommand : Callable<Int> {
             )
         }
 
-        if (!testFile.exists()) {
+        if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
-                "File not found: $testFile"
+                "File not found: $flowFile"
             )
         }
 
         val maestro = MaestroFactory.createMaestro(target)
-        val commandReader = resolveCommandReader(testFile)
 
-        return if (continuous) {
-            ContinuousTestRunner(maestro, testFile, commandReader).run()
-            0
-        } else {
-            SingleTestRunner(maestro, testFile, commandReader).run()
-        }
-    }
+        if (!continuous) return TestRunner.runSingle(maestro, flowFile)
 
-    private fun resolveCommandReader(file: File): CommandReader {
-        if (file.extension == "yaml") {
-            return YamlCommandReader()
-        }
-
-        throw CommandLine.ParameterException(
-            commandSpec.commandLine(),
-            "Test file extension is not supported: ${file.extension}"
-        )
+        TestRunner.runContinuous(maestro, flowFile)
     }
 }

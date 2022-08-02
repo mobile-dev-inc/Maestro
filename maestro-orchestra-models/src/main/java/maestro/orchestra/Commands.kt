@@ -27,24 +27,10 @@ interface Command {
 
 }
 
-class SwipeCommand(
+data class SwipeCommand(
     val startPoint: Point,
     val endPoint: Point,
 ) : Command {
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return javaClass.hashCode()
-    }
-
-    override fun toString(): String {
-        return "SwipeCommand()"
-    }
 
     override fun description(): String {
         return "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y})"

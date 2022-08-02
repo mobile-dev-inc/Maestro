@@ -56,7 +56,7 @@ fun main(args: Array<String>) {
     val commandLine = CommandLine(App())
         .setExecutionExceptionHandler { ex, cmd, parseResult ->
             cmd.err.println(
-                cmd.colorScheme.errorText(ex.message ?: ex.toString())
+                cmd.colorScheme.errorText(ex.stackTraceToString())
             )
 
             1

@@ -20,55 +20,39 @@
 package maestro.cli.runner
 
 import maestro.Maestro
-import maestro.orchestra.CommandReader
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
-import okio.source
-import java.io.File
+import java.util.IdentityHashMap
 
-class MaestroCommandRunner(
-    private val maestro: Maestro,
-    private val view: ResultView,
-    private val commandReader: CommandReader,
-) {
+object MaestroCommandRunner {
 
-    fun run(testFile: File): Boolean {
-        val commands = try {
-            testFile.source().use {
-                commandReader.readCommands(it)
-            }
-        } catch (e: Exception) {
-            val message = when {
-                e is CommandReader.SyntaxError -> "Syntax error"
-                e is CommandReader.NoInputException -> "No commands in the file"
-                e.message != null -> e.message!!
-                else -> "Failed to read commands"
-            }
-
-            view.setState(
-                ResultView.UiState.Error(
-                    message = message
-                )
-            )
-            return false
-        }
-
-        return runCommands(commands)
-    }
-
-    private fun runCommands(
+    fun runCommands(
+        maestro: Maestro,
+        view: ResultView,
+        initCommands: List<MaestroCommand>,
         commands: List<MaestroCommand>,
-    ): Boolean {
-        val indexToStatus = Array(commands.size) { CommandStatus.PENDING }
+        skipInitFlow: Boolean,
+    ): Result {
+        val initCommandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
+        val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
 
         fun refreshUi() {
             view.setState(
                 ResultView.UiState.Running(
-                    commands = commands
-                        .mapIndexed { idx, command ->
+                    initCommands = initCommands
+                        .mapIndexed { _, command ->
                             CommandState(
                                 command = command,
-                                status = indexToStatus[idx]
+                                status = initCommandStatuses[command] ?: CommandStatus.PENDING
+                            )
+                        },
+                    commands = commands
+                        // Don't render configuration commands
+                        .filter { it.applyConfigurationCommand == null }
+                        .mapIndexed { _, command ->
+                            CommandState(
+                                command = command,
+                                status = commandStatuses[command] ?: CommandStatus.PENDING
                             )
                         },
                 )
@@ -78,24 +62,41 @@ class MaestroCommandRunner(
         refreshUi()
 
         var success = true
-        Orchestra(
-            maestro,
-            onCommandStart = { idx, _ ->
-                indexToStatus[idx] = CommandStatus.RUNNING
-                refreshUi()
-            },
-            onCommandComplete = { idx, _ ->
-                indexToStatus[idx] = CommandStatus.COMPLETED
-                refreshUi()
-            },
-            onCommandFailed = { idx, _, _ ->
-                indexToStatus[idx] = CommandStatus.FAILED
-                refreshUi()
-                success = false
-            },
-        ).executeCommands(commands)
 
-        return success
+        fun executeCommands(commands: List<MaestroCommand>, statuses: MutableMap<MaestroCommand, CommandStatus>) {
+            Orchestra(
+                maestro,
+                onCommandStart = { _, command ->
+                    statuses[command] = CommandStatus.RUNNING
+                    refreshUi()
+                },
+                onCommandComplete = { _, command ->
+                    statuses[command] = CommandStatus.COMPLETED
+                    refreshUi()
+                },
+                onCommandFailed = { _, command, _ ->
+                    statuses[command] = CommandStatus.FAILED
+                    refreshUi()
+                    success = false
+                },
+            ).executeCommands(commands)
+        }
+
+        if (skipInitFlow) {
+            initCommands.forEach { initCommandStatuses[it] = CommandStatus.COMPLETED }
+        } else {
+            executeCommands(initCommands, initCommandStatuses)
+        }
+
+        if (!success) return Result(initFlowSuccess = false, flowSuccess = false)
+
+        executeCommands(commands, commandStatuses)
+
+        return Result(initFlowSuccess = true, flowSuccess = success)
     }
 
+    data class Result(
+        val initFlowSuccess: Boolean,
+        val flowSuccess: Boolean
+    )
 }

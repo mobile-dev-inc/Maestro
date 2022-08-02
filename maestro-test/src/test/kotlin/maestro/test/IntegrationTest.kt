@@ -14,10 +14,9 @@ import maestro.test.drivers.FakeDriver.Event
 import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
-import okio.Source
-import okio.source
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 class IntegrationTest {
 
@@ -543,13 +542,8 @@ class IntegrationTest {
     }
 
     private fun readCommands(caseName: String): List<MaestroCommand> {
-        return YamlCommandReader().readCommands(openFile("$caseName.yaml"))
+        val resource = javaClass.classLoader.getResource("$caseName.yaml")
+            ?: throw IllegalArgumentException("File $caseName.yaml not found")
+        return YamlCommandReader.readCommands(File(resource.toURI()))
     }
-
-    private fun openFile(path: String): Source {
-        return javaClass.classLoader.getResourceAsStream(path)
-            ?.source()
-            ?: throw IllegalArgumentException("File $path not found")
-    }
-
 }

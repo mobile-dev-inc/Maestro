@@ -2,5 +2,5 @@
 
 set -e
 
-./gradlew :maestro-cli:shadowJar
-java -jar maestro-cli/build/libs/maestro-cli-*-all.jar "$@"
+./gradlew :maestro-cli:installDist -q
+./maestro-cli/build/install/maestro/bin/maestro $*

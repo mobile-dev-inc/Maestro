@@ -20,10 +20,16 @@
 package maestro.cli.runner
 
 import org.fusesource.jansi.Ansi
+import org.fusesource.jansi.AnsiConsole
 
 class ResultView {
 
     private var previousFrame: String? = null
+
+    init {
+        AnsiConsole.systemInstall()
+        println(Ansi.ansi().eraseScreen())
+    }
 
     fun setState(state: UiState) {
         when (state) {
@@ -38,10 +44,25 @@ class ResultView {
     }
 
     private fun renderRunningState(state: UiState.Running) = renderFrame {
+        if (state.initCommands.isNotEmpty()) {
+            render(" ║\n")
+            render(" ║  Init Flow\n")
+            render(" ║\n")
+            renderCommands(state.initCommands)
+        }
+        render(" ║\n")
+        render(" ║  Flow\n")
+        render(" ║\n")
+        renderCommands(state.commands)
+        render(" ║\n")
+    }
+
+    private fun Ansi.renderCommands(commands: List<CommandState>) {
         val statusColumnWidth = 3
-        state.commands.forEach {
+        commands.forEach {
             val statusSymbol = status(it.status)
             fgDefault()
+            render(" ║    ")
             render(statusSymbol)
             render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
             render(it.command.description())
@@ -91,6 +112,7 @@ class ResultView {
         data class Error(val message: String) : UiState()
 
         data class Running(
+            val initCommands: List<CommandState>,
             val commands: List<CommandState>,
         ) : UiState()
 
