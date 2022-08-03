@@ -40,6 +40,8 @@ object MaestroCommandRunner {
             view.setState(
                 ResultView.UiState.Running(
                     initCommands = initCommands
+                        // Don't render configuration commands
+                        .filter { it.applyConfigurationCommand == null }
                         .mapIndexed { _, command ->
                             CommandState(
                                 command = command,

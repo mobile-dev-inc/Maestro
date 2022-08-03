@@ -1,3 +1,5 @@
+appId: com.example.app
+---
 - tapOn:
     retryTapIfNoChange: false
     above:

@@ -9,8 +9,9 @@
     </option>
   </component>
   <component name="EntryPointsManager">
-    <list size="1">
-      <item index="0" class="java.lang.String" itemvalue="picocli.CommandLine.Option" />
+    <list size="2">
+      <item index="0" class="java.lang.String" itemvalue="com.fasterxml.jackson.annotation.JsonAnySetter" />
+      <item index="1" class="java.lang.String" itemvalue="picocli.CommandLine.Option" />
     </list>
   </component>
   <component name="ExternalStorageConfigurationManager" enabled="true" />

@@ -18,7 +18,7 @@ object TestRunner {
         val view = ResultView()
         val result = runCatching(view) {
             val commands = YamlCommandReader.readCommands(flowFile)
-            val initCommands = YamlCommandReader.parseInitFlowCommands(commands)
+            val initCommands = getInitCommands(commands)
             MaestroCommandRunner.runCommands(maestro, view, initCommands, commands, skipInitFlow = false)
         }
         return if (result?.flowSuccess == true) 0 else 1
@@ -43,12 +43,12 @@ object TestRunner {
                 ongoingTest.join()
             }
 
-            ongoingTest = thread {
-                runCatching(view) {
-                    val commands = YamlCommandReader.readCommands(flowFile)
-                    val initCommands = YamlCommandReader.parseInitFlowCommands(commands)
+            runCatching(view) {
+                val commands = YamlCommandReader.readCommands(flowFile)
+                val initCommands = getInitCommands(commands)
 
-                    if (previousCommands == commands && initCommands == previousInitCommands) return@runCatching
+                ongoingTest = thread {
+                    if (previousCommands == commands && initCommands == previousInitCommands) return@thread
 
                     previousResult = MaestroCommandRunner.runCommands(
                         maestro,
@@ -70,6 +70,10 @@ object TestRunner {
 
             fileWatcher.waitForChange(watchFiles)
         } while (true)
+    }
+
+    private fun getInitCommands(commands: List<MaestroCommand>): List<MaestroCommand> {
+        return YamlCommandReader.getConfig(commands)?.initFlow ?: emptyList()
     }
 
     private fun <T> runCatching(

@@ -6,7 +6,9 @@ import maestro.MaestroException
 import maestro.MaestroTimer
 import maestro.Point
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.test.drivers.FakeDriver
@@ -479,17 +481,21 @@ class IntegrationTest {
             listOf(
                 MaestroCommand(
                     applyConfigurationCommand = ApplyConfigurationCommand(
-                        config = mapOf(
-                            "configKey" to "configValue",
-                            "namespace" to mapOf(
-                                "topLevel" to "topLevelValue",
-                                "complex" to mapOf(
-                                    "nestedKey" to "nestedValue",
-                                ),
-                                "list" to listOf("listValue1", "listValue2"),
+                        config = MaestroConfig(
+                            initFlow = listOf(
+                                MaestroCommand(
+                                    launchAppCommand = LaunchAppCommand(
+                                        appId = "com.example.app"
+                                    )
+                                )
                             )
                         )
                     ),
+                ),
+                MaestroCommand(
+                    launchAppCommand = LaunchAppCommand(
+                        appId = "com.example.app"
+                    )
                 )
             )
         )

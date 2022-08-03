@@ -1,3 +1,5 @@
+appId: com.example.app
+---
 - swipe:
     start: 100,500
     end: 100,200

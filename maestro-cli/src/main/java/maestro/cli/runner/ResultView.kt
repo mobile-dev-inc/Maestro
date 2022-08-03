@@ -44,6 +44,7 @@ class ResultView {
     }
 
     private fun renderRunningState(state: UiState.Running) = renderFrame {
+        render("\n")
         if (state.initCommands.isNotEmpty()) {
             render(" ║\n")
             render(" ║  Init Flow\n")

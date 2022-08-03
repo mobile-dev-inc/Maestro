@@ -19,8 +19,8 @@
 
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.annotation.JsonCreator
 import maestro.Point
-import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ElementSelector
@@ -29,6 +29,7 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.SwipeCommand
+import maestro.orchestra.SyntaxError
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
 
@@ -37,15 +38,14 @@ data class YamlFluentCommand(
     val assertVisible: YamlElementSelector? = null,
     val action: String? = null,
     val inputText: String? = null,
-    val launchApp: YamlLaunchAppUnion? = null,
+    val launchApp: YamlLaunchApp? = null,
     val swipe: YamlElementSelectorUnion? = null,
-    val config: Map<String, *>? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
-    fun toCommand(): MaestroCommand {
+    fun toCommand(appId: String): MaestroCommand {
         return when {
-            launchApp != null -> launchApp(launchApp)
+            launchApp != null -> launchApp(launchApp, appId)
             tapOn != null -> tapCommand(tapOn)
             assertVisible != null -> MaestroCommand(
                 assertCommand = AssertCommand(
@@ -61,27 +61,17 @@ data class YamlFluentCommand(
                 "scroll" -> MaestroCommand(scrollCommand = ScrollCommand())
                 else -> throw IllegalStateException("Unknown navigation target: $action")
             }
-            config != null -> MaestroCommand(
-                applyConfigurationCommand = ApplyConfigurationCommand(config),
-            )
-            else -> throw IllegalStateException("No mapping provided for $this")
+            else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
 
-    private fun launchApp(command: YamlLaunchAppUnion): MaestroCommand {
-        return when (command) {
-            is StringLaunchApp -> MaestroCommand(
-                launchAppCommand = LaunchAppCommand(
-                    appId = command.appId,
-                )
+    private fun launchApp(command: YamlLaunchApp, appId: String): MaestroCommand {
+        return MaestroCommand(
+            launchAppCommand = LaunchAppCommand(
+                appId = command.appId ?: appId,
+                clearState = command.clearState,
             )
-            is YamlLaunchApp -> MaestroCommand(
-                launchAppCommand = LaunchAppCommand(
-                    appId = command.appId,
-                    clearState = command.clearState,
-                )
-            )
-        }
+        )
     }
 
     private fun tapCommand(tapOn: YamlElementSelectorUnion): MaestroCommand {
@@ -181,5 +171,29 @@ data class YamlFluentCommand(
             containsChild = selector.containsChild?.let { toElementSelector(it) },
             optional = selector.optional ?: false,
         )
+    }
+
+    companion object {
+
+        @Suppress("unused")
+        @JvmStatic
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        fun parse(stringCommand: String): YamlFluentCommand {
+            return when (stringCommand) {
+                "launchApp" -> YamlFluentCommand(
+                    launchApp = YamlLaunchApp(appId = null, clearState = null)
+                )
+
+                "back" -> YamlFluentCommand(
+                    action = "back"
+                )
+
+                "scroll" -> YamlFluentCommand(
+                    action = "scroll"
+                )
+
+                else -> throw SyntaxError("Invalid command: \"$stringCommand\"")
+            }
+        }
     }
 }

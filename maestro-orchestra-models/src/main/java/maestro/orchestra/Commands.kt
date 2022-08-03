@@ -146,7 +146,7 @@ data class LaunchAppCommand(
 }
 
 data class ApplyConfigurationCommand(
-    val config: Map<String, *>,
+    val config: MaestroConfig,
 ) : Command {
 
     override fun description(): String {

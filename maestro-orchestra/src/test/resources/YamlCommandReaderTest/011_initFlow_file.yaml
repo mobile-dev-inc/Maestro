@@ -1,5 +1,4 @@
 appId: com.example.app
-initFlow:
-    - launchApp
+initFlow: 002_launchApp.yaml
 ---
 - launchApp

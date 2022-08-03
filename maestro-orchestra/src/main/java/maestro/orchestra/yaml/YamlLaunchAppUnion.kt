@@ -19,38 +19,22 @@
 
 package maestro.orchestra.yaml
 
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.TreeNode
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonDeserializer
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.node.TextNode
+import com.fasterxml.jackson.annotation.JsonCreator
 
-@JsonDeserialize(using = YamlLaunchAppDeserializer::class)
-sealed class YamlLaunchAppUnion
-
-@JsonDeserialize(`as` = YamlLaunchApp::class)
 data class YamlLaunchApp(
-    val appId: String,
-    val clearState: Boolean? = null,
-) : YamlLaunchAppUnion()
+    val appId: String?,
+    val clearState: Boolean?,
+) {
 
-data class StringLaunchApp(
-    val appId: String,
-) : YamlLaunchAppUnion()
+    companion object {
 
-class YamlLaunchAppDeserializer : JsonDeserializer<YamlLaunchAppUnion>() {
-
-    override fun deserialize(parser: JsonParser, ctxt: DeserializationContext): YamlLaunchAppUnion {
-        val mapper = parser.codec as ObjectMapper
-        val root: TreeNode = mapper.readTree(parser)
-
-        return if (root is TextNode) {
-            StringLaunchApp(root.textValue())
-        } else {
-            mapper.convertValue(root, YamlLaunchApp::class.java)
+        @JvmStatic
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        fun parse(appId: String): YamlLaunchApp {
+            return YamlLaunchApp(
+                appId = appId,
+                clearState = null,
+            )
         }
     }
-
 }

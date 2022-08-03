@@ -1,4 +1,4 @@
 appId: com.example.app
+initFlow:
 ---
-- tapOn:
-    point: 100,200
+- launchApp
