@@ -19,6 +19,8 @@
 
 package maestro
 
+import java.io.File
+
 interface Driver {
 
     fun name(): String
@@ -31,7 +33,13 @@ interface Driver {
 
     fun launchApp(appId: String)
 
+    fun stopApp(appId: String)
+
     fun clearAppState(appId: String)
+
+    fun pullAppState(appId: String, outFile: File)
+
+    fun pushAppState(appId: String, stateFile: File)
 
     fun tap(point: Point)
 

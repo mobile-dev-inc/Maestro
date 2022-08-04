@@ -41,8 +41,7 @@ object AndroidAppFiles {
         val remoteZip = "/data/local/tmp/app.zip"
         dadb.push(appFilesZip, remoteZip)
         try {
-            val output = shell(dadb, "run-as $packageName unzip -o -d / $remoteZip")
-            println(output)
+            shell(dadb, "run-as $packageName unzip -o -d / $remoteZip")
         } finally {
             shell(dadb, "rm $remoteZip")
         }

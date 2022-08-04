@@ -22,7 +22,9 @@ package maestro.cli.runner
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.AnsiConsole
 
-class ResultView {
+class ResultView(
+    private val prompt: String? = null
+) {
 
     private var previousFrame: String? = null
 
@@ -41,21 +43,30 @@ class ResultView {
     private fun renderErrorState(state: UiState.Error) = renderFrame {
         fgRed()
         render(state.message)
+        renderPrompt()
     }
 
     private fun renderRunningState(state: UiState.Running) = renderFrame {
         render("\n")
         if (state.initCommands.isNotEmpty()) {
             render(" ║\n")
-            render(" ║  Init Flow\n")
+            render(" ║  > Init Flow\n")
             render(" ║\n")
             renderCommands(state.initCommands)
         }
         render(" ║\n")
-        render(" ║  Flow\n")
+        render(" ║  > Flow\n")
         render(" ║\n")
         renderCommands(state.commands)
         render(" ║\n")
+        renderPrompt()
+    }
+
+    private fun Ansi.renderPrompt() {
+        prompt?.let {
+            render(" ║\n")
+            render(" ║  $prompt\n")
+        }
     }
 
     private fun Ansi.renderCommands(commands: List<CommandState>) {
@@ -104,7 +115,7 @@ class ResultView {
                 println(ansi)
             }
         }
-        println(frame)
+        print(frame)
         previousFrame = frame
     }
 

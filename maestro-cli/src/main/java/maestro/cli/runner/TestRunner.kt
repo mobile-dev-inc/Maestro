@@ -3,6 +3,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.orchestra.InvalidInitFlowFile
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.NoInputException
 import maestro.orchestra.SyntaxError
 import maestro.orchestra.yaml.YamlCommandReader
@@ -18,8 +19,8 @@ object TestRunner {
         val view = ResultView()
         val result = runCatching(view) {
             val commands = YamlCommandReader.readCommands(flowFile)
-            val initCommands = getInitCommands(commands)
-            MaestroCommandRunner.runCommands(maestro, view, initCommands, commands, skipInitFlow = false)
+            val initFlow = getInitFlow(commands)
+            MaestroCommandRunner.runCommands(maestro, view, initFlow, commands, cachedAppState = null)
         }
         return if (result?.flowSuccess == true) 0 else 1
     }
@@ -28,39 +29,47 @@ object TestRunner {
         maestro: Maestro,
         flowFile: File,
     ): Nothing {
-        val view = ResultView()
+        val view = ResultView("> Press [ENTER] to restart the Flow\n\n")
 
         val fileWatcher = FileWatcher()
 
         var previousCommands: List<MaestroCommand>? = null
-        var previousInitCommands: List<MaestroCommand>? = null
+        var previousInitFlow: MaestroInitFlow? = null
         var previousResult: MaestroCommandRunner.Result? = null
 
         var ongoingTest: Thread? = null
         do {
-            if (ongoingTest != null) {
-                ongoingTest.interrupt()
-                ongoingTest.join()
-            }
+            val commands = YamlCommandReader.readCommands(flowFile)
+            val initFlow = getInitFlow(commands)
 
-            runCatching(view) {
-                val commands = YamlCommandReader.readCommands(flowFile)
-                val initCommands = getInitCommands(commands)
+            // Restart the flow if anything has changed
+            if (commands != previousCommands || initFlow != previousInitFlow) {
+                if (ongoingTest != null) {
+                    ongoingTest.interrupt()
+                    ongoingTest.join()
+                }
 
-                ongoingTest = thread {
-                    if (previousCommands == commands && initCommands == previousInitCommands) return@thread
+                runCatching(view) {
+                    ongoingTest = thread {
+                        // If previous init flow was successful and there were no changes to the init flow,
+                        // then reuse cached app state (and skip the init commands)
+                        val cachedAppState: File? = if (initFlow == previousInitFlow) {
+                            previousResult?.cachedAppState
+                        } else {
+                            null
+                        }
 
-                    previousResult = MaestroCommandRunner.runCommands(
-                        maestro,
-                        view,
-                        initCommands,
-                        commands,
-                        // Skip init flow if previous init flow was successful and there were no changes to the init flow
-                        skipInitFlow = previousResult?.initFlowSuccess == true && initCommands == previousInitCommands,
-                    )
+                        previousCommands = commands
+                        previousInitFlow = initFlow
 
-                    previousCommands = commands
-                    previousInitCommands = initCommands
+                        previousResult = MaestroCommandRunner.runCommands(
+                            maestro,
+                            view,
+                            initFlow,
+                            commands,
+                            cachedAppState = cachedAppState,
+                        )
+                    }
                 }
             }
 
@@ -68,12 +77,15 @@ object TestRunner {
                 YamlCommandReader.getWatchFiles(flowFile)
             } ?: listOf(flowFile)
 
-            fileWatcher.waitForChange(watchFiles)
+            if (CliWatcher.waitForFileChangeOrEnter(fileWatcher, watchFiles) == CliWatcher.SignalType.ENTER) {
+                // On ENTER force re-run of flow even if commands have not changed
+                previousCommands = null
+            }
         } while (true)
     }
 
-    private fun getInitCommands(commands: List<MaestroCommand>): List<MaestroCommand> {
-        return YamlCommandReader.getConfig(commands)?.initFlow ?: emptyList()
+    private fun getInitFlow(commands: List<MaestroCommand>): MaestroInitFlow? {
+        return YamlCommandReader.getConfig(commands)?.initFlow
     }
 
     private fun <T> runCatching(

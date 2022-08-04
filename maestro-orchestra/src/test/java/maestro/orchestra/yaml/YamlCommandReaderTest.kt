@@ -9,6 +9,7 @@ import maestro.orchestra.InvalidInitFlowFile
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.SyntaxError
 import org.junit.Rule
@@ -63,11 +64,14 @@ internal class YamlCommandReaderTest {
     @Test
     fun T007_initFlow() = expectCommands(
         ApplyConfigurationCommand(MaestroConfig(
-            initFlow = commands(
-                LaunchAppCommand(
-                    appId = "com.example.app",
-                    clearState = true,
-                )
+            initFlow = MaestroInitFlow(
+                appId = "com.example.app",
+                commands = commands(
+                    LaunchAppCommand(
+                        appId = "com.example.app",
+                        clearState = true,
+                    )
+                ),
             )
         )),
         LaunchAppCommand(
@@ -104,14 +108,17 @@ internal class YamlCommandReaderTest {
     @Test
     fun T011_initFlow_file() = expectCommands(
         ApplyConfigurationCommand(MaestroConfig(
-            initFlow = commands(
-                ApplyConfigurationCommand(
-                    config = MaestroConfig()
+            initFlow = MaestroInitFlow(
+                appId = "com.example.app",
+                commands = commands(
+                    ApplyConfigurationCommand(
+                        config = MaestroConfig()
+                    ),
+                    LaunchAppCommand(
+                        appId = "com.example.app",
+                    )
                 ),
-                LaunchAppCommand(
-                    appId = "com.example.app",
-                )
-            )
+            ),
         )),
         LaunchAppCommand(
             appId = "com.example.app",

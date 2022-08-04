@@ -5,6 +5,7 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.InvalidInitFlowFile
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroInitFlow
 import java.io.File
 
 data class YamlConfig(
@@ -35,18 +36,23 @@ data class YamlConfig(
         }
     }
 
-    private fun initFlow(flowFile: File): List<MaestroCommand>? {
+    private fun initFlow(flowFile: File): MaestroInitFlow? {
         if (initFlow == null) return null
 
-        return when (initFlow) {
-            is StringInitFlow -> stringInitFlow(initFlow, flowFile)
+        val initCommands = when (initFlow) {
+            is StringInitFlow -> stringInitCommands(initFlow, flowFile)
             is YamlInitFlow -> initFlow.commands.map { it.toCommand(appId) }
         }
+
+        return MaestroInitFlow(
+            appId = appId,
+            commands = initCommands,
+        )
     }
 
     companion object {
 
-        private fun stringInitFlow(initFlow: StringInitFlow, flowFile: File): List<MaestroCommand> {
+        private fun stringInitCommands(initFlow: StringInitFlow, flowFile: File): List<MaestroCommand> {
             val initFlowFile = getInitFlowFile(flowFile, initFlow.path)
             return YamlCommandReader.readCommands(initFlowFile)
         }

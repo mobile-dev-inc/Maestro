@@ -9,6 +9,7 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.test.drivers.FakeDriver
@@ -482,12 +483,15 @@ class IntegrationTest {
                 MaestroCommand(
                     applyConfigurationCommand = ApplyConfigurationCommand(
                         config = MaestroConfig(
-                            initFlow = listOf(
-                                MaestroCommand(
-                                    launchAppCommand = LaunchAppCommand(
-                                        appId = "com.example.app"
+                            initFlow = MaestroInitFlow(
+                                appId = "com.example.app",
+                                commands = listOf(
+                                    MaestroCommand(
+                                        launchAppCommand = LaunchAppCommand(
+                                            appId = "com.example.app"
+                                        )
                                     )
-                                )
+                                ),
                             )
                         )
                     ),
