@@ -1,5 +1,7 @@
 # Production Releases
 
+## Maven
+
 1. Checkout the main branch and make sure it is up to date: `git checkout main && git pull`
 2. Create a new branch
 3. Update the CHANGELOG.md file with changes of this release.
@@ -23,3 +25,9 @@ After this is done, create a new branch to prepare for the next development vers
 2. Update the `gradle.properties` to the next SNAPSHOT version.
 3. `git commit -am "Prepare next development version"`
 4. Submit a PR with the changes against the main branch and merge it
+
+## CLI
+
+- Update version in `maestro-cli/gradle.properties`
+- Merge the change
+- Trigger Publish CLI Github action
