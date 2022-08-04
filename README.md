@@ -15,6 +15,7 @@ Write a simple test in a YAML file
 
 ```
 # flow.yaml
+
 appId: your.package.name
 ---
 - launchApp
