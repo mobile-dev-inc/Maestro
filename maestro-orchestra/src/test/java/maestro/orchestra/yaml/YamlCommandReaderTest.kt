@@ -169,6 +169,16 @@ internal class YamlCommandReaderTest {
         ScrollCommand(),
     )
 
+    @Test
+    fun T020_config_name() = expectCommands(
+        ApplyConfigurationCommand(MaestroConfig(
+            name = "Example Flow"
+        )),
+        LaunchAppCommand(
+            appId = "com.example.app"
+        ),
+    )
+
     private inline fun <reified T : Throwable> expectException(block: (e: T) -> Unit = {}) {
         try {
             parseCommands()

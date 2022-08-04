@@ -9,6 +9,7 @@ import maestro.orchestra.MaestroInitFlow
 import java.io.File
 
 data class YamlConfig(
+    val name: String?,
     val appId: String,
     val initFlow: YamlInitFlowUnion?,
 ) {
@@ -22,6 +23,7 @@ data class YamlConfig(
 
     fun toCommand(flowFile: File): MaestroCommand {
         val config = MaestroConfig(
+            name = name,
             initFlow = initFlow(flowFile),
             ext = ext.toMap()
         )
