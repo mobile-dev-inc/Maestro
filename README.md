@@ -15,10 +15,10 @@ Write a simple test in a YAML file
 
 ```
 # flow.yaml
-
-- launchApp: your.package.name
-- tapOn:
-    text: "Text on the screen"
+appId: your.package.name
+---
+- launchApp
+- tapOn: "Text on the screen"
 ```
 
 Make sure an Android _emulator_ is running (support of testing via USB is work in progress).
