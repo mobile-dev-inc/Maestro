@@ -15,3 +15,8 @@
 * Config is now defined via a document separator
 * launchApp no longer requires and appId
 * initFlow config implemented
+
+## 1.2.1 - 2022-08-04
+
+* Update YamlCommandReader to accept Paths instead of Files to support zip Filesystems
+
