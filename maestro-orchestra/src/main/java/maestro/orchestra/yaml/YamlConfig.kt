@@ -6,7 +6,10 @@ import maestro.orchestra.InvalidInitFlowFile
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroInitFlow
-import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
+import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 
 data class YamlConfig(
     val name: String?,
@@ -21,28 +24,28 @@ data class YamlConfig(
         ext[key] = other
     }
 
-    fun toCommand(flowFile: File): MaestroCommand {
+    fun toCommand(flowPath: Path): MaestroCommand {
         val config = MaestroConfig(
             name = name,
-            initFlow = initFlow(flowFile),
+            initFlow = initFlow(flowPath),
             ext = ext.toMap()
         )
         return MaestroCommand(applyConfigurationCommand = ApplyConfigurationCommand(config))
     }
 
-    fun getInitFlowFile(flowFile: File): File? {
+    fun getInitFlowPath(flowPath: Path): Path? {
         if (initFlow == null) return null
         return when (initFlow) {
-            is StringInitFlow -> getInitFlowFile(flowFile, initFlow.path)
+            is StringInitFlow -> getInitFlowPath(flowPath, initFlow.path)
             is YamlInitFlow -> null
         }
     }
 
-    private fun initFlow(flowFile: File): MaestroInitFlow? {
+    private fun initFlow(flowPath: Path): MaestroInitFlow? {
         if (initFlow == null) return null
 
         val initCommands = when (initFlow) {
-            is StringInitFlow -> stringInitCommands(initFlow, flowFile)
+            is StringInitFlow -> stringInitCommands(initFlow, flowPath)
             is YamlInitFlow -> initFlow.commands.map { it.toCommand(appId) }
         }
 
@@ -54,28 +57,28 @@ data class YamlConfig(
 
     companion object {
 
-        private fun stringInitCommands(initFlow: StringInitFlow, flowFile: File): List<MaestroCommand> {
-            val initFlowFile = getInitFlowFile(flowFile, initFlow.path)
-            return YamlCommandReader.readCommands(initFlowFile)
+        private fun stringInitCommands(initFlow: StringInitFlow, flowPath: Path): List<MaestroCommand> {
+            val initFlowPath = getInitFlowPath(flowPath, initFlow.path)
+            return YamlCommandReader.readCommands(initFlowPath)
         }
 
-        private fun getInitFlowFile(flowFile: File, initFlowPath: String): File {
-            val initFlowFile = File(initFlowPath)
-            val absoluteInitFlowFile = if (initFlowFile.isAbsolute) {
-                initFlowFile
+        private fun getInitFlowPath(flowPath: Path, initFlowPathString: String): Path {
+            val initFlowPath = flowPath.fileSystem.getPath(initFlowPathString)
+            val resolvedInitFlowPath = if (initFlowPath.isAbsolute) {
+                initFlowPath
             } else {
-                flowFile.parentFile.resolve(initFlowFile)
+                flowPath.resolveSibling(initFlowPath).toAbsolutePath()
             }
-            if (absoluteInitFlowFile.compareTo(flowFile.absoluteFile) == 0) {
-                throw InvalidInitFlowFile("initFlow file can't be the same as the Flow file", absoluteInitFlowFile)
+            if (resolvedInitFlowPath.equals(flowPath.toAbsolutePath())) {
+                throw InvalidInitFlowFile("initFlow file can't be the same as the Flow file: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
             }
-            if (!absoluteInitFlowFile.exists()) {
-                throw InvalidInitFlowFile("initFlow file does not exist", absoluteInitFlowFile)
+            if (!resolvedInitFlowPath.exists()) {
+                throw InvalidInitFlowFile("initFlow file does not exist: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
             }
-            if (absoluteInitFlowFile.isDirectory) {
-                throw InvalidInitFlowFile("initFlow file can't be a directory", absoluteInitFlowFile)
+            if (resolvedInitFlowPath.isDirectory()) {
+                throw InvalidInitFlowFile("initFlow file can't be a directory: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
             }
-            return absoluteInitFlowFile
+            return resolvedInitFlowPath
         }
     }
 }

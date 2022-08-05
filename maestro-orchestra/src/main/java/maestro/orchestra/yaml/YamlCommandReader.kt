@@ -30,6 +30,9 @@ import maestro.orchestra.MaestroConfig
 import maestro.orchestra.NoInputException
 import maestro.orchestra.SyntaxError
 import java.io.File
+import java.nio.file.Path
+import kotlin.io.path.inputStream
+import kotlin.io.path.isDirectory
 
 object YamlCommandReader {
 
@@ -40,28 +43,27 @@ object YamlCommandReader {
     }
 
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
-    fun readCommands(flowFile: File): List<MaestroCommand> = mapParsingErrors {
-        val (config, commands) = readConfigAndCommands(flowFile)
+    fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors {
+        val (config, commands) = readConfigAndCommands(flowPath)
         val maestroCommands = commands.map { it.toCommand(config.appId) }
-        listOfNotNull(config.toCommand(flowFile), *maestroCommands.toTypedArray())
+        listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
     }
 
     // Files to watch for changes. Includes any referenced files.
-    fun getWatchFiles(flowFile: File): List<File> = mapParsingErrors{
-        val (config, _) = readConfigAndCommands(flowFile)
-        val initFlowFile = config.getInitFlowFile(flowFile)
-        listOfNotNull(
-            flowFile,
-            initFlowFile,
-        ).filter { it.parentFile.isDirectory }
+    fun getWatchFiles(flowPath: Path): List<File> = mapParsingErrors{
+        val (config, _) = readConfigAndCommands(flowPath)
+        val initFlowFile = config.getInitFlowPath(flowPath)
+        listOfNotNull(flowPath, initFlowFile,)
+            .filter { it.parent.isDirectory() }
+            .map { it.toFile() }
     }
 
     fun getConfig(commands: List<MaestroCommand>): MaestroConfig? {
         return commands.firstNotNullOfOrNull { it.applyConfigurationCommand }?.config
     }
 
-    private fun readConfigAndCommands(flowFile: File): Pair<YamlConfig, List<YamlFluentCommand>> {
-        val parser = YAML.createParser(flowFile)
+    private fun readConfigAndCommands(flowPath: Path): Pair<YamlConfig, List<YamlFluentCommand>> {
+        val parser = YAML.createParser(flowPath.inputStream())
         val nodes = parser.readValuesAs(JsonNode::class.java)
             .asSequence()
             .toList()
@@ -69,7 +71,7 @@ object YamlCommandReader {
         if (nodes.size != 2) {
             throw SyntaxError(
                 "Flow files must contain a config section and a commands section. " +
-                    "Found ${nodes.size} section${if (nodes.size == 1) "" else "s"}: $flowFile"
+                    "Found ${nodes.size} section${if (nodes.size == 1) "" else "s"}: $flowPath"
             )
         }
         val config: YamlConfig = MAPPER.convertValue(nodes[0], YamlConfig::class.java)

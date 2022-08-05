@@ -19,7 +19,7 @@ import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
 import org.junit.Before
 import org.junit.Test
-import java.io.File
+import java.nio.file.Paths
 
 class IntegrationTest {
 
@@ -554,6 +554,6 @@ class IntegrationTest {
     private fun readCommands(caseName: String): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
-        return YamlCommandReader.readCommands(File(resource.toURI()))
+        return YamlCommandReader.readCommands(Paths.get(resource.toURI()))
     }
 }

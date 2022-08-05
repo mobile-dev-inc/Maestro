@@ -1,8 +1,8 @@
 package maestro.orchestra
 
-import java.io.File
+import java.nio.file.Path
 
 class InvalidInitFlowFile(
     override val message: String,
-    val initFlowFile: File
+    val initFlowPath: Path
 ) : RuntimeException()

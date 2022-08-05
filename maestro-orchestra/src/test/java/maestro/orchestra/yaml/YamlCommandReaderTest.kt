@@ -16,6 +16,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
 import java.io.File
+import java.nio.file.FileSystems
+import java.nio.file.Paths
+import kotlin.io.path.isSameFileAs
 
 @Suppress("TestFunctionName")
 internal class YamlCommandReaderTest {
@@ -179,6 +182,39 @@ internal class YamlCommandReaderTest {
         ),
     )
 
+    // Misc. tests
+
+    @Test
+    fun readFromZip() {
+        val resource = this::class.java.getResource("/YamlCommandReaderTest/flow.zip")!!.toURI()
+        assertThat(resource.scheme).isEqualTo("file")
+
+        val commands = FileSystems.newFileSystem(Paths.get(resource), null).use { fs ->
+            YamlCommandReader.readCommands(fs.getPath("flow.yaml"))
+        }
+
+        assertThat(commands).isEqualTo(commands(
+            ApplyConfigurationCommand(
+                config = MaestroConfig(
+                    initFlow = MaestroInitFlow(
+                        appId = "com.example.app",
+                        commands = commands(
+                            ApplyConfigurationCommand(
+                                config = MaestroConfig()
+                            ),
+                            LaunchAppCommand(
+                                appId = "com.example.app"
+                            ),
+                        )
+                    )
+                )
+            ),
+            LaunchAppCommand(
+                appId = "com.example.app"
+            )
+        ))
+    }
+
     private inline fun <reified T : Throwable> expectException(block: (e: T) -> Unit = {}) {
         try {
             parseCommands()
@@ -217,7 +253,7 @@ internal class YamlCommandReaderTest {
     private fun parseCommands(): List<MaestroCommand> {
         val resourceName = name.methodName.removePrefix("T") + ".yaml"
         val resource = this::class.java.getResource("/YamlCommandReaderTest/$resourceName")!!
-        val resourceFile = File(resource.toURI())
+        val resourceFile = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(resourceFile)
     }
 }

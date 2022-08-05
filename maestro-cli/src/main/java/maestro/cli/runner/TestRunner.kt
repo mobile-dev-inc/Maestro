@@ -8,6 +8,7 @@ import maestro.orchestra.NoInputException
 import maestro.orchestra.SyntaxError
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
+import java.nio.file.Path
 import kotlin.concurrent.thread
 
 object TestRunner {
@@ -18,7 +19,7 @@ object TestRunner {
     ): Int {
         val view = ResultView()
         val result = runCatching(view) {
-            val commands = YamlCommandReader.readCommands(flowFile)
+            val commands = YamlCommandReader.readCommands(flowFile.toPath())
             val initFlow = getInitFlow(commands)
             MaestroCommandRunner.runCommands(maestro, view, initFlow, commands, cachedAppState = null)
         }
@@ -39,7 +40,7 @@ object TestRunner {
 
         var ongoingTest: Thread? = null
         do {
-            val commands = YamlCommandReader.readCommands(flowFile)
+            val commands = YamlCommandReader.readCommands(flowFile.toPath())
             val initFlow = getInitFlow(commands)
 
             // Restart the flow if anything has changed
@@ -74,7 +75,7 @@ object TestRunner {
             }
 
             val watchFiles = runCatching(view) {
-                YamlCommandReader.getWatchFiles(flowFile)
+                YamlCommandReader.getWatchFiles(flowFile.toPath())
             } ?: listOf(flowFile)
 
             if (CliWatcher.waitForFileChangeOrEnter(fileWatcher, watchFiles) == CliWatcher.SignalType.ENTER) {
@@ -98,7 +99,7 @@ object TestRunner {
             val message = when (e) {
                 is SyntaxError -> "Could not parse Flow file:\n\n${e.message}"
                 is NoInputException -> "No commands found in Flow file"
-                is InvalidInitFlowFile -> "initFlow file is invalid: ${e.initFlowFile}"
+                is InvalidInitFlowFile -> "initFlow file is invalid: ${e.initFlowPath}"
                 else -> e.stackTraceToString()
             }
 
