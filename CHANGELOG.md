@@ -18,5 +18,9 @@
 
 ## 1.2.1 - 2022-08-04
 
-* Update YamlCommandReader to accept Paths instead of Files to support zip Filesystems
+* Update `YamlCommandReader` to accept Paths instead of Files to support zip Filesystems
+
+## 1.2.2 - 2022-08-08
+
+* Update `Orchestra` to support state restoration
 
