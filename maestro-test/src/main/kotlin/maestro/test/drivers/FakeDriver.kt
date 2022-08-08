@@ -19,6 +19,9 @@
 
 package maestro.test.drivers
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.common.truth.Truth.assertThat
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.MaestroException
@@ -32,6 +35,7 @@ class FakeDriver : Driver {
     private var layout: FakeLayoutElement = FakeLayoutElement()
     private var installedApps = mutableSetOf<String>()
 
+    private var pushedState: String? = null
     private val events = mutableListOf<Event>()
 
     override fun name(): String {
@@ -96,11 +100,16 @@ class FakeDriver : Driver {
     override fun pullAppState(appId: String, outFile: File) {
         ensureOpen()
 
+        val userInteractions = events.filterIsInstance<UserInteraction>()
+        outFile.writeBytes(MAPPER.writeValueAsBytes(userInteractions))
+
         events.add(Event.PullAppState(appId, outFile))
     }
 
     override fun pushAppState(appId: String, stateFile: File) {
         ensureOpen()
+
+        pushedState = stateFile.readText()
 
         events.add(Event.PushAppState(appId, stateFile))
     }
@@ -167,6 +176,13 @@ class FakeDriver : Driver {
         }
     }
 
+    fun assertPushedAppState(expected: List<UserInteraction>) {
+        val expectedJson = MAPPER.writeValueAsString(expected)
+
+        assertThat(pushedState).isNotNull()
+        assertThat(pushedState!!).isEqualTo(expectedJson)
+    }
+
     private fun ensureOpen() {
         if (state != State.OPEN) {
             throw IllegalStateException("Driver is not opened yet")
@@ -177,19 +193,24 @@ class FakeDriver : Driver {
 
         data class Tap(
             val point: Point
-        ) : Event()
+        ) : Event(), UserInteraction
 
-        object Scroll : Event()
+        object Scroll : Event(), UserInteraction
 
-        object BackPress : Event()
+        object BackPress : Event(), UserInteraction
 
         data class InputText(
             val text: String
-        ) : Event()
+        ) : Event(), UserInteraction
+
+        data class Swipe(
+            val start: Point,
+            val End: Point
+        ) : Event(), UserInteraction
 
         data class LaunchApp(
             val appId: String
-        ) : Event()
+        ) : Event(), UserInteraction
 
         data class StopApp(
             val appId: String
@@ -209,12 +230,9 @@ class FakeDriver : Driver {
             val stateFile: File,
         ) : Event()
 
-        data class Swipe(
-            val start: Point,
-            val End: Point
-        ) : Event()
-
     }
+
+    interface UserInteraction
 
     private enum class State {
         CLOSED,
@@ -222,4 +240,8 @@ class FakeDriver : Driver {
         NOT_INITIALIZED,
     }
 
+    companion object {
+
+        private val MAPPER = jacksonObjectMapper()
+    }
 }

@@ -43,7 +43,7 @@ class ResultView(
     private fun renderErrorState(state: UiState.Error) = renderFrame {
         fgRed()
         render(state.message)
-        renderPrompt()
+        render("\n")
     }
 
     private fun renderRunningState(state: UiState.Running) = renderFrame {

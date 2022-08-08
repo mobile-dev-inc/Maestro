@@ -44,7 +44,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -66,7 +66,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -88,7 +88,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -110,7 +110,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -131,7 +131,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -152,7 +152,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -173,7 +173,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -195,7 +195,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -217,7 +217,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -234,7 +234,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -252,7 +252,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -270,7 +270,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -289,7 +289,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -307,7 +307,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -361,7 +361,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -394,7 +394,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -412,7 +412,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -438,7 +438,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -463,7 +463,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -516,7 +516,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
@@ -535,11 +535,77 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).executeCommands(commands)
+            orchestra(it).runFlow(commands)
         }
 
         // Then
         // Test failure
+    }
+
+    @Test
+    fun `Case 023 - runFlow with initFlow`() {
+        // Given
+        val commands = readCommands("024_init_flow_init_state")
+        val initFlow = YamlCommandReader.getConfig(commands)!!.initFlow!!
+
+        val driver = driver {
+            element {
+                text = "Hello"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        driver.addInstalledApp("com.example.app")
+
+        val otherDriver = driver {
+            element {
+                text = "Hello"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        otherDriver.addInstalledApp("com.example.app")
+
+
+        // When
+        val state = Maestro(driver).use {
+            orchestra(it).runInitFlow(initFlow)
+        }!!
+
+        Maestro(otherDriver).use {
+            orchestra(it).runFlow(commands, state)
+        }
+
+        // Then
+        // No test failure
+        otherDriver.assertPushedAppState(listOf(
+            Event.LaunchApp("com.example.app"),
+        ))
+        otherDriver.assertHasEvent(Event.Tap(Point(50, 50)))
+    }
+
+    @Test
+    fun `Case 024 - runFlow with initState`() {
+        // Given
+        val commands = readCommands("023_init_flow")
+
+        val driver = driver {
+            element {
+                text = "Hello"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertPushedAppState(listOf(
+            Event.LaunchApp("com.example.app"),
+        ))
+        driver.assertHasEvent(Event.Tap(Point(50, 50)))
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

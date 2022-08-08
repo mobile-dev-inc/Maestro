@@ -23,6 +23,8 @@ import maestro.Maestro
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.Orchestra
+import maestro.orchestra.OrchestraAppState
+import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import java.util.IdentityHashMap
 
@@ -31,13 +33,12 @@ object MaestroCommandRunner {
     fun runCommands(
         maestro: Maestro,
         view: ResultView,
-        initFlow: MaestroInitFlow?,
         commands: List<MaestroCommand>,
-        cachedAppState: File?,
+        cachedAppState: OrchestraAppState?,
     ): Result {
-        val initCommandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
-        val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
+        val initFlow = YamlCommandReader.getConfig(commands)?.initFlow
 
+        val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
         fun refreshUi() {
             view.setState(
                 ResultView.UiState.Running(
@@ -47,7 +48,7 @@ object MaestroCommandRunner {
                         .mapIndexed { _, command ->
                             CommandState(
                                 command = command,
-                                status = initCommandStatuses[command] ?: CommandStatus.PENDING
+                                status = commandStatuses[command] ?: CommandStatus.PENDING
                             )
                         },
                     commands = commands
@@ -65,57 +66,38 @@ object MaestroCommandRunner {
 
         refreshUi()
 
-        fun executeCommands(commands: List<MaestroCommand>, statuses: MutableMap<MaestroCommand, CommandStatus>): Boolean {
-            var success = true
-            Orchestra(
-                maestro,
-                onCommandStart = { _, command ->
-                    statuses[command] = CommandStatus.RUNNING
-                    refreshUi()
-                },
-                onCommandComplete = { _, command ->
-                    statuses[command] = CommandStatus.COMPLETED
-                    refreshUi()
-                },
-                onCommandFailed = { _, command, _ ->
-                    statuses[command] = CommandStatus.FAILED
-                    refreshUi()
-                    success = false
-                },
-            ).executeCommands(commands)
-            return success
-        }
+        val orchestra = Orchestra(
+            maestro,
+            onCommandStart = { _, command ->
+                commandStatuses[command] = CommandStatus.RUNNING
+                refreshUi()
+            },
+            onCommandComplete = { _, command ->
+                commandStatuses[command] = CommandStatus.COMPLETED
+                refreshUi()
+            },
+            onCommandFailed = { _, command, _ ->
+                commandStatuses[command] = CommandStatus.FAILED
+                refreshUi()
+            },
+        )
 
-        val initAppState: File? = if (initFlow == null) {
-            null
-        } else {
-            val state = if (cachedAppState == null) {
-                val initFlowSuccess = executeCommands(initFlow.commands, initCommandStatuses)
-                if (!initFlowSuccess) return Result(flowSuccess = false, cachedAppState = null)
-
-                val appStateFile = File("/Users/leland/Downloads/state.zip")
-                maestro.stopApp(initFlow.appId)
-                maestro.pullAppState(initFlow.appId, appStateFile)
-                appStateFile
-            } else {
-                cachedAppState
+        val cachedState = if (cachedAppState == null) {
+            initFlow?.let {
+                orchestra.runInitFlow(it) ?: return Result(flowSuccess = false, cachedAppState = null)
             }
-
-            initFlow.commands.forEach { initCommandStatuses[it] = CommandStatus.COMPLETED }
-
-            maestro.clearAppState(initFlow.appId)
-            maestro.pushAppState(initFlow.appId, state)
-
-            state
+        } else {
+            initFlow?.commands?.forEach { commandStatuses[it] = CommandStatus.COMPLETED }
+            cachedAppState
         }
 
-        val flowSuccess = executeCommands(commands, commandStatuses)
+        val flowSuccess = orchestra.runFlow(commands, cachedState)
 
-        return Result(flowSuccess = flowSuccess, cachedAppState = initAppState)
+        return Result(flowSuccess = flowSuccess, cachedAppState = cachedState)
     }
 
     data class Result(
         val flowSuccess: Boolean,
-        val cachedAppState: File?,
+        val cachedAppState: OrchestraAppState?,
     )
 }

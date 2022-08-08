@@ -24,17 +24,64 @@ import maestro.MaestroException
 import maestro.ElementLookupPredicate
 import maestro.Predicates
 import maestro.UiElement
+import maestro.orchestra.yaml.YamlCommandReader
+import java.io.File
+import java.nio.file.Files
 
 class Orchestra(
     private val maestro: Maestro,
+    private val stateDir: File? = null,
     private val lookupTimeoutMs: Long = 15000L,
     private val optionalLookupTimeoutMs: Long = 3000L,
+    private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandFailed: (Int, MaestroCommand, Throwable) -> Unit = { _, _, e -> throw e },
 ) {
 
-    fun executeCommands(commands: List<MaestroCommand>) {
+    /**
+     * If initState is provided, initialize app disk state with the provided OrchestraAppState and skip
+     * any initFlow execution. Otherwise, initialize app state with initFlow if defined.
+     */
+    fun runFlow(commands: List<MaestroCommand>, initState: OrchestraAppState? = null): Boolean {
+        val config = YamlCommandReader.getConfig(commands)
+        val state = initState ?: config?.initFlow?.let {
+            runInitFlow(it) ?: return false
+        }
+
+        if (state != null) {
+            maestro.clearAppState(state.appId)
+            maestro.pushAppState(state.appId, state.file)
+        }
+
+        onFlowStart(commands)
+        return executeCommands(commands)
+    }
+
+    /**
+     * Run the initFlow and return the resulting app OrchestraAppState which can be used to initialize
+     * app disk state when past into Orchestra.runFlow.
+     */
+    fun runInitFlow(initFlow: MaestroInitFlow): OrchestraAppState? {
+        val success = runFlow(initFlow.commands, initState = null)
+        if (!success) return null
+
+        maestro.stopApp(initFlow.appId)
+
+        val stateFile = if (stateDir == null) {
+            Files.createTempFile(null, ".state")
+        } else {
+            Files.createTempFile(stateDir.toPath(), null, ".state")
+        }
+        maestro.pullAppState(initFlow.appId, stateFile.toFile())
+
+        return OrchestraAppState(
+            appId = initFlow.appId,
+            file = stateFile.toFile(),
+        )
+    }
+
+    private fun executeCommands(commands: List<MaestroCommand>): Boolean {
         commands.forEachIndexed { index, command ->
             onCommandStart(index, command)
             try {
@@ -42,9 +89,10 @@ class Orchestra(
                 onCommandComplete(index, command)
             } catch (e: Throwable) {
                 onCommandFailed(index, command, e)
-                return
+                return false
             }
         }
+        return true
     }
 
     private fun executeCommand(command: MaestroCommand) {
@@ -211,3 +259,8 @@ class Orchestra(
 
     }
 }
+
+data class OrchestraAppState(
+    val appId: String,
+    val file: File,
+)
