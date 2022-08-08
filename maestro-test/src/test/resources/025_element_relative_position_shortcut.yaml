@@ -1,0 +1,34 @@
+appId: com.example.app
+---
+- tapOn:
+    retryTapIfNoChange: false
+    above: "Middle"
+    rightOf: "Top Left"
+- tapOn:
+    retryTapIfNoChange: false
+    below: "Middle"
+    rightOf: "Bottom Left"
+- tapOn:
+    retryTapIfNoChange: false
+    leftOf: "Middle"
+    below: "Top Left"
+- tapOn:
+    retryTapIfNoChange: false
+    rightOf: "Middle"
+    below: "Top Right"
+- tapOn:
+    retryTapIfNoChange: false
+    above: "Middle"
+    leftOf: "Middle"
+- tapOn:
+    retryTapIfNoChange: false
+    above: "Middle"
+    rightOf: "Middle"
+- tapOn:
+    retryTapIfNoChange: false
+    below: "Middle"
+    leftOf: "Middle"
+- tapOn:
+    retryTapIfNoChange: false
+    below: "Middle"
+    rightOf: "Middle"
