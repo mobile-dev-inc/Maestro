@@ -24,3 +24,7 @@
 
 * Update `Orchestra` to support state restoration
 
+## 1.2.3 - 2022-08-15
+
+* Added support of iOS state restoration
+* Exposing `appId` field as part of `MaestroConfig`
