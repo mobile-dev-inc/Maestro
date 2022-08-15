@@ -483,6 +483,7 @@ class IntegrationTest {
                 MaestroCommand(
                     applyConfigurationCommand = ApplyConfigurationCommand(
                         config = MaestroConfig(
+                            appId = "com.example.app",
                             initFlow = MaestroInitFlow(
                                 appId = "com.example.app",
                                 commands = listOf(

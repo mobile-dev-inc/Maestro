@@ -26,6 +26,7 @@ data class YamlConfig(
 
     fun toCommand(flowPath: Path): MaestroCommand {
         val config = MaestroConfig(
+            appId = appId,
             name = name,
             initFlow = initFlow(flowPath),
             ext = ext.toMap()

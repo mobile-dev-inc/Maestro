@@ -34,7 +34,9 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun T002_launchApp() = expectCommands(
-        ApplyConfigurationCommand(MaestroConfig()),
+        ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
+        )),
         LaunchAppCommand(
             appId = "com.example.app"
         ),
@@ -42,7 +44,9 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun T003_launchApp_withClearState() = expectCommands(
-        ApplyConfigurationCommand(MaestroConfig()),
+        ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
+        )),
         LaunchAppCommand(
             appId = "com.example.app",
             clearState = true,
@@ -67,6 +71,7 @@ internal class YamlCommandReaderTest {
     @Test
     fun T007_initFlow() = expectCommands(
         ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
             initFlow = MaestroInitFlow(
                 appId = "com.example.app",
                 commands = commands(
@@ -85,6 +90,7 @@ internal class YamlCommandReaderTest {
     @Test
     fun T008_config_unknownKeys() = expectCommands(
         ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
             ext = mapOf(
                 "extra" to true,
                 "extraMap" to mapOf(
@@ -111,11 +117,14 @@ internal class YamlCommandReaderTest {
     @Test
     fun T011_initFlow_file() = expectCommands(
         ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
             initFlow = MaestroInitFlow(
                 appId = "com.example.app",
                 commands = commands(
                     ApplyConfigurationCommand(
-                        config = MaestroConfig()
+                        config = MaestroConfig(
+                            appId = "com.example.app",
+                        )
                     ),
                     LaunchAppCommand(
                         appId = "com.example.app",
@@ -130,7 +139,9 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun T012_initFlow_emptyString() = expectCommands(
-        ApplyConfigurationCommand(MaestroConfig()),
+        ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
+        )),
         LaunchAppCommand(
             appId = "com.example.app",
         ),
@@ -154,7 +165,9 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun T017_launchApp_otherPackage() = expectCommands(
-        ApplyConfigurationCommand(MaestroConfig()),
+        ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
+        )),
         LaunchAppCommand(
             appId = "com.other.app"
         ),
@@ -162,19 +175,24 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun T018_backPress_string() = expectCommands(
-        ApplyConfigurationCommand(MaestroConfig()),
+        ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
+        )),
         BackPressCommand(),
     )
 
     @Test
     fun T019_scroll_string() = expectCommands(
-        ApplyConfigurationCommand(MaestroConfig()),
+        ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
+        )),
         ScrollCommand(),
     )
 
     @Test
     fun T020_config_name() = expectCommands(
         ApplyConfigurationCommand(MaestroConfig(
+            appId = "com.example.app",
             name = "Example Flow"
         )),
         LaunchAppCommand(
@@ -196,11 +214,14 @@ internal class YamlCommandReaderTest {
         assertThat(commands).isEqualTo(commands(
             ApplyConfigurationCommand(
                 config = MaestroConfig(
+                    appId = "com.example.app",
                     initFlow = MaestroInitFlow(
                         appId = "com.example.app",
                         commands = commands(
                             ApplyConfigurationCommand(
-                                config = MaestroConfig()
+                                config = MaestroConfig(
+                                    appId = "com.example.app",
+                                )
                             ),
                             LaunchAppCommand(
                                 appId = "com.example.app"
