@@ -21,13 +21,16 @@ package maestro.drivers
 
 import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOrThrow
+import ios.IOSDevice
 import maestro.DeviceInfo
 import maestro.Driver
+import maestro.MaestroException
 import maestro.Point
 import maestro.TreeNode
-import ios.IOSDevice
-import maestro.MaestroException
+import maestro.utils.FileUtils
 import java.io.File
+import java.nio.file.Files
+import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
@@ -79,13 +82,28 @@ class IOSDriver(
         iosDevice.clearAppState(appId)
     }
 
-    // TODO Implement pullAppState for iOS
     override fun pullAppState(appId: String, outFile: File) {
         if (!outFile.exists()) outFile.createNewFile()
+        val tmpDir = Files.createTempDirectory("maestro_state_")
+
+        iosDevice.pullAppState(appId, tmpDir.toFile()).getOrThrow {
+            MaestroException.UnableToPullState("Unable to pull state for $appId. ${it.message}")
+        }
+
+        FileUtils.zipDir(tmpDir, outFile.toPath())
+        FileUtils.deleteDir(tmpDir)
     }
 
-    // TODO Implement pushAppState for iOS
-    override fun pushAppState(appId: String, stateFile: File) {}
+    override fun pushAppState(appId: String, stateFile: File) {
+        val tmpDir = Files.createTempDirectory("maestro_state_")
+        FileUtils.unzip(stateFile.toPath(), tmpDir)
+
+        iosDevice.pushAppState(appId, tmpDir.toFile()).getOrThrow {
+            MaestroException.UnableToPushState("Unable to push state for $appId. ${it.message}")
+        }
+
+        FileUtils.deleteDir(tmpDir)
+    }
 
     override fun tap(point: Point) {
         iosDevice.tap(point.x, point.y).expect {}

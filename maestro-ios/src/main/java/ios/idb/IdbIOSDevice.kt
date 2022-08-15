@@ -26,13 +26,17 @@ import com.google.protobuf.ByteString
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
+import idb.PushRequestKt.inner
 import idb.accessibilityInfoRequest
 import idb.fileContainer
 import idb.hIDEvent
 import idb.installRequest
 import idb.launchRequest
+import idb.mkdirRequest
 import idb.payload
 import idb.point
+import idb.pullRequest
+import idb.pushRequest
 import idb.rmRequest
 import idb.targetDescriptionRequest
 import idb.terminateRequest
@@ -43,6 +47,7 @@ import ios.IOSDevice
 import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
+import java.io.File
 import java.io.InputStream
 
 class IdbIOSDevice(
@@ -195,8 +200,61 @@ class IdbIOSDevice(
         }
     }
 
-    override fun clearAppState(id: String): Result<Unit, Throwable> {
+    override fun pullAppState(id: String, file: File): Result<Idb.PullResponse, Throwable> {
         return runCatching {
+            val observer = BlockingStreamObserver<Idb.PullResponse>()
+            asyncStub.pull(pullRequest {
+                container = fileContainer {
+                    kind = Idb.FileContainer.Kind.APPLICATION
+                    bundleId = id
+                }
+                srcPath = "/"
+                dstPath = file.absolutePath
+            }, observer)
+            observer.awaitResult()
+        }
+    }
+
+    override fun pushAppState(id: String, file: File): Result<Unit, Throwable> {
+        return runCatching {
+            val observer = BlockingStreamObserver<Idb.PushResponse>()
+            val stream = asyncStub.push(observer)
+
+            stream.onNext(pushRequest {
+                inner = inner {
+                    container = fileContainer {
+                        kind = Idb.FileContainer.Kind.APPLICATION
+                        bundleId = id
+                    }
+                    dstPath = "/"
+                }
+            })
+
+            if (file.isDirectory) {
+                file.listFiles()?.map { it.absolutePath }?.forEach {
+                    stream.onNext(pushRequest {
+                        payload = payload {
+                            filePath = it
+                        }
+                    })
+                }
+            } else {
+                stream.onNext(pushRequest {
+                    payload = payload {
+                        filePath = file.absolutePath
+                    }
+                })
+            }
+
+            stream.onCompleted()
+            observer.awaitResult()
+        }
+    }
+
+    override fun clearAppState(id: String): Result<Idb.RmResponse, Throwable> {
+
+        // deletes app data, including container folder
+        val result = runCatching {
             blockingStub.rm(rmRequest {
                 container = fileContainer {
                     kind = Idb.FileContainer.Kind.APPLICATION
@@ -205,6 +263,18 @@ class IdbIOSDevice(
                 paths.add("/")
             })
         }
+
+        // forces app container folder to be re-created
+        runCatching {
+            blockingStub.mkdir(mkdirRequest {
+                container = fileContainer {
+                    kind = Idb.FileContainer.Kind.APPLICATION
+                    bundleId = id
+                }
+                path = "tmp"
+            })
+        }
+        return result
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {

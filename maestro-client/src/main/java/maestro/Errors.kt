@@ -25,6 +25,10 @@ sealed class MaestroException(message: String) : RuntimeException(message) {
 
     class UnableToClearState(message: String) : MaestroException(message)
 
+    class UnableToPullState(message: String) : MaestroException(message)
+
+    class UnableToPushState(message: String) : MaestroException(message)
+
     class ElementNotFound(
         message: String,
         val hierarchyRoot: TreeNode,
