@@ -25,20 +25,24 @@ import dadb.Dadb
 
 object MaestroFactory {
 
+    @Suppress("NAME_SHADOWING")
     fun createMaestro(platform: String?, host: String?, port: Int?): Maestro {
+        val host = host ?: "localhost"
+        val port = port ?: 10882
+
         return when (platform) {
             null -> {
                 try {
-                    connectAndroid(host ?: "localhost")
+                    connectAndroid(host)
                 } catch (e: Exception) {
-                    connectIos(host ?: "localhost", port ?: 10882)
+                    connectIos(host, port)
                 }
             }
             "android" -> {
-                connectAndroid(host ?: "localhost")
+                connectAndroid(host)
             }
             "ios" -> {
-                connectIos(host ?: "localhost", port ?: 10882)
+                connectIos(host, port)
             }
             else -> {
                 throw IllegalStateException("Unknown platform: $platform")
@@ -59,32 +63,4 @@ object MaestroFactory {
     private fun connectIos(host: String, port: Int): Maestro {
         return Maestro.ios(host, port)
     }
-
-    private fun findDevice(): Maestro {
-        var device: Maestro? = null
-
-        val dadb = Dadb.discover("localhost")
-        if (dadb != null) {
-            device = Maestro.android(dadb)
-        }
-
-        if (isPortOpen("localhost", 10882)) {
-            if (device == null) {
-                return Maestro.ios("localhost", 10882)
-            } else {
-                throw IllegalStateException("Multiple devices found. Specify one with --target")
-            }
-        }
-
-        if (isPortOpen("localhost", 10883)) {
-            if (device == null) {
-                return Maestro.ios("localhost", 10883)
-            } else {
-                throw IllegalStateException("Multiple devices found. Specify one with --target")
-            }
-        }
-
-        return device ?: throw IllegalStateException("No device found")
-    }
-
 }
