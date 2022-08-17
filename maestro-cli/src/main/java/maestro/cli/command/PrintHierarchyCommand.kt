@@ -28,21 +28,14 @@ import picocli.CommandLine
 )
 class PrintHierarchyCommand : Runnable {
 
-    @CommandLine.Option(names = ["-t", "--target"])
-    private var target: String? = null
+    @CommandLine.ParentCommand
+    private val parent: MaestroParentCommand? = null
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     override fun run() {
-        if (target !in setOf("android", "ios", null)) {
-            throw CommandLine.ParameterException(
-                commandSpec.commandLine(),
-                "Target must be one of: android, ios"
-            )
-        }
-
-        MaestroFactory.createMaestro(target).use {
+        MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use {
             println("Printing hierarchy from ${it.deviceName()}")
 
             val hierarchy = jacksonObjectMapper()

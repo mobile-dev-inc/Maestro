@@ -31,11 +31,11 @@ import java.util.concurrent.Callable
 )
 class TestCommand : Callable<Int> {
 
+    @CommandLine.ParentCommand
+    private val parent: MaestroParentCommand? = null
+
     @CommandLine.Parameters
     private lateinit var flowFile: File
-
-    @Option(names = ["-t", "--target"])
-    private var target: String? = null
 
     @Option(names = ["-c", "--continuous"])
     private var continuous: Boolean = false
@@ -44,13 +44,6 @@ class TestCommand : Callable<Int> {
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     override fun call(): Int {
-        if (target !in setOf("android", "ios", null)) {
-            throw CommandLine.ParameterException(
-                commandSpec.commandLine(),
-                "Target must be one of: android, ios"
-            )
-        }
-
         if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
@@ -58,7 +51,7 @@ class TestCommand : Callable<Int> {
             )
         }
 
-        val maestro = MaestroFactory.createMaestro(target)
+        val maestro = MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port)
 
         if (!continuous) return TestRunner.runSingle(maestro, flowFile)
 

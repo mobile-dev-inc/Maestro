@@ -35,8 +35,8 @@ import picocli.CommandLine.Spec
 )
 class QueryCommand : Runnable {
 
-    @Option(names = ["-t", "--target"])
-    private var target: String? = null
+    @CommandLine.ParentCommand
+    private val parent: MaestroParentCommand? = null
 
     @Option(names = ["text"])
     private var text: String? = null
@@ -48,14 +48,8 @@ class QueryCommand : Runnable {
     lateinit var commandSpec: Model.CommandSpec
 
     override fun run() {
-        if (target !in setOf("android", "ios", null)) {
-            throw CommandLine.ParameterException(
-                commandSpec.commandLine(),
-                "Target must be one of: android, ios"
-            )
-        }
 
-        MaestroFactory.createMaestro(target).use { maestro ->
+        MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use { maestro ->
             val predicates = mutableListOf<ElementLookupPredicate>()
 
             text?.let {
