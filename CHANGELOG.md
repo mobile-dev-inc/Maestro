@@ -28,3 +28,7 @@
 
 * Added support of iOS state restoration
 * Exposing `appId` field as part of `MaestroConfig`
+
+## 1.2.4 - 2022-08-17
+
+* Add support for cli to specify what platform, host and port to connect to

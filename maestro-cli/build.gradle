@@ -60,7 +60,7 @@ jreleaser {
     project {
         website = 'https://maestro.mobile.dev'
         description = 'Maestro CLI'
-        authors = ['Dmitry Zaytsev', 'Amanjeet Singh', 'Leland Takamine', 'Arthur Saveliev', 'Axel Niklasson']
+        authors = ['Dmitry Zaytsev', 'Amanjeet Singh', 'Leland Takamine', 'Arthur Saveliev', 'Axel Niklasson', 'Berik Visschers']
         license = 'Apache-2.0'
     }
 
