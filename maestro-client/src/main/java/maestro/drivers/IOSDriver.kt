@@ -70,7 +70,7 @@ class IOSDriver(
         iosDevice.stop(appId)
         iosDevice.launch(appId)
             .getOrThrow {
-                MaestroException.UnableToLaunchApp("Unable to launch app $appId")
+                MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")
             }
     }
 
