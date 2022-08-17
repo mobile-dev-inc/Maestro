@@ -22,6 +22,7 @@ package maestro.cli.command
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ElementLookupPredicate
 import maestro.Predicates
+import maestro.cli.App
 import maestro.cli.util.MaestroFactory
 import maestro.orchestra.Orchestra
 import picocli.CommandLine
@@ -36,7 +37,7 @@ import picocli.CommandLine.Spec
 class QueryCommand : Runnable {
 
     @CommandLine.ParentCommand
-    private val parent: MaestroParentCommand? = null
+    private val parent: App? = null
 
     @Option(names = ["text"])
     private var text: String? = null

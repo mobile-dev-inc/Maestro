@@ -41,6 +41,14 @@ class App {
     @Option(names = ["-v", "--version"], versionHelp = true)
     var requestedVersion: Boolean? = false
 
+    @Option(names = ["-p", "--platform"])
+    var platform: String? = null
+
+    @Option(names = ["--host"])
+    var host: String = "localhost"
+
+    @Option(names = ["--port"])
+    var port: Int? = null
 }
 
 private fun printVersion() {

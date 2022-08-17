@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import maestro.cli.App
 import maestro.cli.runner.TestRunner
 import maestro.cli.util.MaestroFactory
 import picocli.CommandLine
@@ -32,7 +33,7 @@ import java.util.concurrent.Callable
 class TestCommand : Callable<Int> {
 
     @CommandLine.ParentCommand
-    private val parent: MaestroParentCommand? = null
+    private val parent: App? = null
 
     @CommandLine.Parameters
     private lateinit var flowFile: File

@@ -20,6 +20,7 @@
 package maestro.cli.command
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import maestro.cli.App
 import maestro.cli.util.MaestroFactory
 import picocli.CommandLine
 
@@ -29,7 +30,7 @@ import picocli.CommandLine
 class PrintHierarchyCommand : Runnable {
 
     @CommandLine.ParentCommand
-    private val parent: MaestroParentCommand? = null
+    private val parent: App? = null
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
