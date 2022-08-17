@@ -2,6 +2,8 @@
 
 Maestro is a platform-agnostic UI automation library for Android and iOS.
 
+Documentation for Maestro can be found at [maestro.mobile.dev](https://maestro.mobile.dev)
+
 ## Quick Start
 
 Get a CLI tool from homebrew
@@ -54,4 +56,3 @@ idb_companion --udid {id of the iOS device}
 - [Learn more about Maestro features](https://maestro.mobile.dev/guides/using-maestro-cli)
 - [Learn how to use Maestro programmatically](https://maestro.mobile.dev/guides/using-maestro-programmatically)
 
-Documentation for Maestro can be found at [maestro.mobile.dev](https://maestro.mobile.dev)
