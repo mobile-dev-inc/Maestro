@@ -24,25 +24,18 @@ import maestro.utils.SocketUtils.isPortOpen
 import dadb.Dadb
 
 object MaestroFactory {
+    private const val defaultHost = "localhost"
+    private const val idbPort = 10882
 
-    @Suppress("NAME_SHADOWING")
     fun createMaestro(platform: String?, host: String?, port: Int?): Maestro {
-        val host = host ?: "localhost"
-        val port = port ?: 10882
 
         return when (platform) {
-            null -> {
-                try {
-                    connectAndroid(host)
-                } catch (e: Exception) {
-                    connectIos(host, port)
-                }
-            }
+            null -> { autoDetectPlatform(host, port) }
             "android" -> {
-                connectAndroid(host)
+                createAndroid(host, port)
             }
             "ios" -> {
-                connectIos(host, port)
+                createIos(host, port)
             }
             else -> {
                 throw IllegalStateException("Unknown platform: $platform")
@@ -50,17 +43,30 @@ object MaestroFactory {
         }
     }
 
-    private fun connectAndroid(host: String): Maestro {
-        val dadb = Dadb.discover(host)
-        return if (dadb != null) {
-            Maestro.android(dadb)
+    private fun createAndroid(host: String?, port: Int?): Maestro {
+        val dadb = if (port != null) {
+            Dadb.create(host ?: defaultHost, port)
         } else {
-            println("No Android devices found")
-            throw IllegalStateException()
+            Dadb.discover(host ?: defaultHost)
+                ?: throw IllegalStateException("No android devices found.")
         }
+
+        return Maestro.android(dadb)
     }
 
-    private fun connectIos(host: String, port: Int): Maestro {
-        return Maestro.ios(host, port)
+    private fun createIos(host: String?, port: Int?): Maestro {
+        return Maestro.ios(host ?: defaultHost, port ?: idbPort)
+    }
+
+    private fun autoDetectPlatform(host: String?, port: Int?): Maestro {
+        return try {
+            createAndroid(host, port)
+        } catch (_: Exception) {
+            try {
+                createIos(host, port)
+            } catch (_: Exception) {
+                throw IllegalStateException("No devices found. Select a platform by passing --platform <android|ios> for more details")
+            }
+        }
     }
 }
