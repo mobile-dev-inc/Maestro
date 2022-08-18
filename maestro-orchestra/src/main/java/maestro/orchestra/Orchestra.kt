@@ -19,9 +19,10 @@
 
 package maestro.orchestra
 
+import maestro.ElementLookupPredicate
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.ElementLookupPredicate
+import maestro.MaestroTimer
 import maestro.Predicates
 import maestro.UiElement
 import maestro.orchestra.yaml.YamlCommandReader
@@ -146,6 +147,30 @@ class Orchestra(
 
     private fun assertCommand(command: AssertCommand) {
         command.visible?.let { assertVisible(it) }
+        command.notVisible?.let { assertNotVisible(it) }
+    }
+
+    private fun assertNotVisible(selector: ElementSelector, timeoutMs: Long = lookupTimeoutMs) {
+        val result = MaestroTimer.withTimeout(timeoutMs) {
+            try {
+                findElement(selector, timeoutMs = 2000L)
+
+                // If we got to that point, the element is still visible.
+                // Returning null to keep waiting.
+                null
+            } catch (ignored: MaestroException.ElementNotFound) {
+                // Element was not visible, as we expected
+                true
+            }
+        }
+
+        if (result != true) {
+            // If we got to this point, it means that element is actually visible
+            throw MaestroException.AssertionFailure(
+                "${selector.description()} is visible",
+                maestro.viewHierarchy(),
+            )
+        }
     }
 
     private fun assertVisible(selector: ElementSelector) {
@@ -183,12 +208,13 @@ class Orchestra(
         )
     }
 
-    private fun findElement(selector: ElementSelector): UiElement {
-        val timeout = if (selector.optional) {
-            optionalLookupTimeoutMs
-        } else {
-            lookupTimeoutMs
-        }
+    private fun findElement(selector: ElementSelector, timeoutMs: Long? = null): UiElement {
+        val timeout = timeoutMs
+            ?: if (selector.optional) {
+                optionalLookupTimeoutMs
+            } else {
+                lookupTimeoutMs
+            }
 
         val predicates = mutableListOf<ElementLookupPredicate>()
         val descriptions = mutableListOf<String>()

@@ -29,9 +29,14 @@ sealed class MaestroException(message: String) : RuntimeException(message) {
 
     class UnableToPushState(message: String) : MaestroException(message)
 
-    class ElementNotFound(
+    open class AssertionFailure(
         message: String,
         val hierarchyRoot: TreeNode,
     ) : MaestroException(message)
+
+    class ElementNotFound(
+        message: String,
+        hierarchyRoot: TreeNode,
+    ) : AssertionFailure(message, hierarchyRoot)
 
 }

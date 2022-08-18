@@ -19,14 +19,14 @@
 
 package maestro
 
+import dadb.Dadb
+import io.grpc.ManagedChannelBuilder
+import ios.idb.IdbIOSDevice
 import maestro.UiElement.Companion.toUiElement
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.utils.ViewUtils
-import dadb.Dadb
 import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
-import ios.idb.IdbIOSDevice
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -203,18 +203,11 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         timeoutMs: Long,
         predicate: ElementLookupPredicate,
     ): UiElement? {
-        val endTime = System.currentTimeMillis() + timeoutMs
-
-        do {
+        return MaestroTimer.withTimeout(timeoutMs) {
             val rootNode = driver.contentDescriptor()
-            val result = findElementByPredicate(rootNode, predicate)
 
-            if (result != null) {
-                return result.toUiElement()
-            }
-        } while (System.currentTimeMillis() < endTime)
-
-        return null
+            findElementByPredicate(rootNode, predicate)
+        }?.toUiElement()
     }
 
     private fun findElementByPredicate(root: TreeNode, predicate: ElementLookupPredicate): TreeNode? {

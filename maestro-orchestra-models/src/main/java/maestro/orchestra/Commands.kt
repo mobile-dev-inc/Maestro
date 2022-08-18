@@ -108,11 +108,16 @@ data class TapOnPointCommand(
 
 data class AssertCommand(
     val visible: ElementSelector? = null,
+    val notVisible: ElementSelector? = null,
 ) : Command {
 
     override fun description(): String {
         if (visible != null) {
             return "Assert visible ${visible.description()}"
+        }
+
+        if (notVisible != null) {
+            return "Assert not visible ${notVisible.description()}"
         }
 
         return "No op"
