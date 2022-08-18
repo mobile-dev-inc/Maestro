@@ -24,6 +24,7 @@ import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.utils.ViewUtils
 import dadb.Dadb
+import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
 import org.slf4j.LoggerFactory
@@ -287,6 +288,10 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 .usePlaintext()
                 .build()
 
+            return ios(channel)
+        }
+
+        fun ios(channel: ManagedChannel): Maestro {
             val driver = IOSDriver(IdbIOSDevice(channel))
             driver.open()
             return Maestro(driver)
