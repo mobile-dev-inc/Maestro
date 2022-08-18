@@ -44,10 +44,14 @@ class Orchestra(
      * If initState is provided, initialize app disk state with the provided OrchestraAppState and skip
      * any initFlow execution. Otherwise, initialize app state with initFlow if defined.
      */
-    fun runFlow(commands: List<MaestroCommand>, initState: OrchestraAppState? = null): Boolean {
+    fun runFlow(
+        commands: List<MaestroCommand>,
+        initState: OrchestraAppState? = null,
+        env: Map<String, String> = emptyMap(),
+    ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val state = initState ?: config?.initFlow?.let {
-            runInitFlow(it) ?: return false
+            runInitFlow(it, env = env) ?: return false
         }
 
         if (state != null) {
@@ -56,15 +60,22 @@ class Orchestra(
         }
 
         onFlowStart(commands)
-        return executeCommands(commands)
+        return executeCommands(commands, env)
     }
 
     /**
      * Run the initFlow and return the resulting app OrchestraAppState which can be used to initialize
      * app disk state when past into Orchestra.runFlow.
      */
-    fun runInitFlow(initFlow: MaestroInitFlow): OrchestraAppState? {
-        val success = runFlow(initFlow.commands, initState = null)
+    fun runInitFlow(
+        initFlow: MaestroInitFlow,
+        env: Map<String, String> = emptyMap(),
+    ): OrchestraAppState? {
+        val success = runFlow(
+            initFlow.commands,
+            initState = null,
+            env = env,
+        )
         if (!success) return null
 
         maestro.stopApp(initFlow.appId)
@@ -82,11 +93,14 @@ class Orchestra(
         )
     }
 
-    private fun executeCommands(commands: List<MaestroCommand>): Boolean {
+    private fun executeCommands(
+        commands: List<MaestroCommand>,
+        env: Map<String, String>
+    ): Boolean {
         commands.forEachIndexed { index, command ->
             onCommandStart(index, command)
             try {
-                executeCommand(command)
+                executeCommand(command, env)
                 onCommandComplete(index, command)
             } catch (e: Throwable) {
                 onCommandFailed(index, command, e)
@@ -96,28 +110,45 @@ class Orchestra(
         return true
     }
 
-    private fun executeCommand(command: MaestroCommand) {
+    private fun executeCommand(
+        command: MaestroCommand,
+        env: Map<String, String>
+    ) {
         when {
-            command.tapOnElement != null -> command.tapOnElement?.let {
-                tapOnElement(
-                    it,
-                    it.retryIfNoChange ?: true,
-                    it.waitUntilVisible ?: true,
-                )
-            }
-            command.tapOnPoint != null -> command.tapOnPoint?.let {
-                tapOnPoint(
-                    it,
-                    it.retryIfNoChange ?: true,
-                )
-            }
+            command.tapOnElement != null -> command.tapOnElement
+                ?.injectEnv(env)
+                ?.let {
+                    tapOnElement(
+                        it,
+                        it.retryIfNoChange ?: true,
+                        it.waitUntilVisible ?: true,
+                    )
+                }
+            command.tapOnPoint != null -> command.tapOnPoint
+                ?.injectEnv(env)
+                ?.let {
+                    tapOnPoint(
+                        it,
+                        it.retryIfNoChange ?: true,
+                    )
+                }
             command.backPressCommand != null -> maestro.backPress()
             command.scrollCommand != null -> maestro.scrollVertical()
-            command.swipeCommand != null -> command.swipeCommand?.let { swipeCommand(it) }
-            command.assertCommand != null -> command.assertCommand?.let { assertCommand(it) }
-            command.inputTextCommand != null -> command.inputTextCommand?.let { inputTextCommand(it) }
-            command.launchAppCommand != null -> command.launchAppCommand?.let { launchAppCommand(it) }
-            command.openLinkCommand != null -> command.openLinkCommand?.let { openLinkCommand(it) }
+            command.swipeCommand != null -> command.swipeCommand
+                ?.injectEnv(env)
+                ?.let { swipeCommand(it) }
+            command.assertCommand != null -> command.assertCommand
+                ?.injectEnv(env)
+                ?.let { assertCommand(it) }
+            command.inputTextCommand != null -> command.inputTextCommand
+                ?.injectEnv(env)
+                ?.let { inputTextCommand(it) }
+            command.launchAppCommand != null -> command.launchAppCommand
+                ?.injectEnv(env)
+                ?.let { launchAppCommand(it) }
+            command.openLinkCommand != null -> command.openLinkCommand
+                ?.injectEnv(env)
+                ?.let { openLinkCommand(it) }
         }
     }
 

@@ -1,0 +1,18 @@
+appId: com.example.app
+---
+- tapOn:
+    id: .*${BUTTON_ID}.*
+    retryTapIfNoChange: false
+- tapOn:
+    text: .*${BUTTON_TEXT}.*
+    retryTapIfNoChange: false
+- assertVisible:
+    text: .*${BUTTON_TEXT}.*
+- assertVisible:
+    id: .*${BUTTON_ID}.*
+- assertNotVisible:
+    text: .*${NON_EXISTENT_TEXT}.*
+- assertNotVisible:
+    id: .*${NON_EXISTENT_ID}.*
+- inputText: \${PASSWORD} is ${PASSWORD}
+- openLink: https://example.com/${URL}

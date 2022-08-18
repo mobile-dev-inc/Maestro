@@ -41,6 +41,9 @@ class TestCommand : Callable<Int> {
     @Option(names = ["-c", "--continuous"])
     private var continuous: Boolean = false
 
+    @Option(names = ["-e", "--env"])
+    private var env: Map<String, String> = emptyMap()
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -54,8 +57,8 @@ class TestCommand : Callable<Int> {
 
         val maestro = MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port)
 
-        if (!continuous) return TestRunner.runSingle(maestro, flowFile)
+        if (!continuous) return TestRunner.runSingle(maestro, flowFile, env)
 
-        TestRunner.runContinuous(maestro, flowFile)
+        TestRunner.runContinuous(maestro, flowFile, env)
     }
 }

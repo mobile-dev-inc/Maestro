@@ -20,10 +20,13 @@
 package maestro.orchestra
 
 import maestro.Point
+import maestro.orchestra.util.Env.injectEnv
 
 interface Command {
 
     fun description(): String
+
+    fun injectEnv(env: Map<String, String>): Command
 
 }
 
@@ -34,6 +37,10 @@ data class SwipeCommand(
 
     override fun description(): String {
         return "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y})"
+    }
+
+    override fun injectEnv(env: Map<String, String>): SwipeCommand {
+        return this
     }
 
 }
@@ -58,6 +65,10 @@ class ScrollCommand : Command {
         return "Scroll vertically"
     }
 
+    override fun injectEnv(env: Map<String, String>): ScrollCommand {
+        return this
+    }
+
 }
 
 class BackPressCommand : Command {
@@ -80,6 +91,9 @@ class BackPressCommand : Command {
         return "Press back"
     }
 
+    override fun injectEnv(env: Map<String, String>): BackPressCommand {
+        return this
+    }
 }
 
 data class TapOnElementCommand(
@@ -92,6 +106,11 @@ data class TapOnElementCommand(
         return "Tap on ${selector.description()}"
     }
 
+    override fun injectEnv(env: Map<String, String>): TapOnElementCommand {
+        return copy(
+            selector = selector.injectSecrets(env),
+        )
+    }
 }
 
 data class TapOnPointCommand(
@@ -103,6 +122,10 @@ data class TapOnPointCommand(
 
     override fun description(): String {
         return "Tap on point ($x, $y)"
+    }
+
+    override fun injectEnv(env: Map<String, String>): TapOnPointCommand {
+        return this
     }
 }
 
@@ -123,6 +146,12 @@ data class AssertCommand(
         return "No op"
     }
 
+    override fun injectEnv(env: Map<String, String>): AssertCommand {
+        return copy(
+            visible = visible?.injectSecrets(env),
+            notVisible = notVisible?.injectSecrets(env),
+        )
+    }
 }
 
 data class InputTextCommand(
@@ -133,6 +162,11 @@ data class InputTextCommand(
         return "Input text $text"
     }
 
+    override fun injectEnv(env: Map<String, String>): InputTextCommand {
+        return copy(
+            text = text.injectEnv(env)
+        )
+    }
 }
 
 data class LaunchAppCommand(
@@ -148,6 +182,9 @@ data class LaunchAppCommand(
         }
     }
 
+    override fun injectEnv(env: Map<String, String>): LaunchAppCommand {
+        return this
+    }
 }
 
 data class ApplyConfigurationCommand(
@@ -157,6 +194,10 @@ data class ApplyConfigurationCommand(
     override fun description(): String {
         return "Apply configuration"
     }
+
+    override fun injectEnv(env: Map<String, String>): ApplyConfigurationCommand {
+        return this
+    }
 }
 
 data class OpenLinkCommand(
@@ -165,5 +206,11 @@ data class OpenLinkCommand(
 
     override fun description(): String {
         return "Open $link"
+    }
+
+    override fun injectEnv(env: Map<String, String>): OpenLinkCommand {
+        return copy(
+            link = link.injectEnv(env),
+        )
     }
 }

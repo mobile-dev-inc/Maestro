@@ -21,11 +21,9 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.orchestra.MaestroCommand
-import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.Orchestra
 import maestro.orchestra.OrchestraAppState
 import maestro.orchestra.yaml.YamlCommandReader
-import java.io.File
 import java.util.IdentityHashMap
 
 object MaestroCommandRunner {
@@ -34,6 +32,7 @@ object MaestroCommandRunner {
         maestro: Maestro,
         view: ResultView,
         commands: List<MaestroCommand>,
+        env: Map<String, String>,
         cachedAppState: OrchestraAppState?,
     ): Result {
         val initFlow = YamlCommandReader.getConfig(commands)?.initFlow
@@ -84,14 +83,14 @@ object MaestroCommandRunner {
 
         val cachedState = if (cachedAppState == null) {
             initFlow?.let {
-                orchestra.runInitFlow(it) ?: return Result(flowSuccess = false, cachedAppState = null)
+                orchestra.runInitFlow(it, env = env) ?: return Result(flowSuccess = false, cachedAppState = null)
             }
         } else {
             initFlow?.commands?.forEach { commandStatuses[it] = CommandStatus.COMPLETED }
             cachedAppState
         }
 
-        val flowSuccess = orchestra.runFlow(commands, cachedState)
+        val flowSuccess = orchestra.runFlow(commands, cachedState, env = env)
 
         return Result(flowSuccess = flowSuccess, cachedAppState = cachedState)
     }

@@ -16,11 +16,18 @@ object TestRunner {
     fun runSingle(
         maestro: Maestro,
         flowFile: File,
+        env: Map<String, String>,
     ): Int {
         val view = ResultView()
         val result = runCatching(view) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-            MaestroCommandRunner.runCommands(maestro, view, commands, cachedAppState = null)
+            MaestroCommandRunner.runCommands(
+                maestro,
+                view,
+                commands,
+                env,
+                cachedAppState = null
+            )
         }
         return if (result?.flowSuccess == true) 0 else 1
     }
@@ -28,6 +35,7 @@ object TestRunner {
     fun runContinuous(
         maestro: Maestro,
         flowFile: File,
+        env: Map<String, String>,
     ): Nothing {
         val view = ResultView("> Press [ENTER] to restart the Flow\n\n")
 
@@ -67,6 +75,7 @@ object TestRunner {
                                 maestro,
                                 view,
                                 commands,
+                                env,
                                 cachedAppState = cachedAppState,
                             )
                         }
