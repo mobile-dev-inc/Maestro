@@ -1,5 +1,7 @@
-- launchApp: "dev.mobile.sample"
+appId: dev.mobile.sample
+---
+- launchApp
 - tapOn:
-    text: "View Details"
+    text: View Details
 - assertVisible:
-    text: ".*detailed content.*"
+    text: .*detailed content.*
