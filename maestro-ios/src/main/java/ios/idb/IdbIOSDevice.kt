@@ -286,7 +286,6 @@ class IdbIOSDevice(
                 launchRequest {
                     start = idb.LaunchRequestKt.start {
                         bundleId = id
-                        foregroundIfRunning = true
                     }
                 }
             )
