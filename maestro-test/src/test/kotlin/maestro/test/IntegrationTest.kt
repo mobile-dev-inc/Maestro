@@ -565,7 +565,6 @@ class IntegrationTest {
         }
         otherDriver.addInstalledApp("com.example.app")
 
-
         // When
         val state = Maestro(driver).use {
             orchestra(it).runInitFlow(initFlow)
@@ -577,9 +576,11 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        otherDriver.assertPushedAppState(listOf(
-            Event.LaunchApp("com.example.app"),
-        ))
+        otherDriver.assertPushedAppState(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+            )
+        )
         otherDriver.assertHasEvent(Event.Tap(Point(50, 50)))
     }
 
@@ -603,14 +604,16 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertPushedAppState(listOf(
-            Event.LaunchApp("com.example.app"),
-        ))
+        driver.assertPushedAppState(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+            )
+        )
         driver.assertHasEvent(Event.Tap(Point(50, 50)))
     }
 
     @Test
-    fun `Case 215 - Tap on element relative position using shortcut`() {
+    fun `Case 025 - Tap on element relative position using shortcut`() {
         // Given
         val commands = readCommands("025_element_relative_position_shortcut")
 
@@ -670,6 +673,27 @@ class IntegrationTest {
                 Event.Tap(Point(250, 150)), // Top Right
                 Event.Tap(Point(50, 350)), // Bottom Left
                 Event.Tap(Point(250, 350)), // Bottom Right
+            )
+        )
+    }
+
+    @Test
+    fun `Case 027 - Open link`() {
+        // Given
+        val commands = readCommands("027_open_link")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.OpenLink("https://example.com")
             )
         )
     }

@@ -48,7 +48,6 @@ interface IOSDevice : AutoCloseable {
      */
     fun install(stream: InputStream): Result<Unit, Throwable>
 
-
     /**
      * Uninstalls the app.
      *
@@ -57,7 +56,6 @@ interface IOSDevice : AutoCloseable {
      * @param id = bundle id of the app to uninstall
      */
     fun uninstall(id: String): Result<Unit, Throwable>
-
 
     /**
      * Pulls files from app container
@@ -96,5 +94,12 @@ interface IOSDevice : AutoCloseable {
      * @param id - bundle id of the app to terminate
      */
     fun stop(id: String): Result<Unit, Throwable>
+
+    /**
+     * Opens a link
+     *
+     * @param link - link to open
+     */
+    fun openLink(link: String): Result<Unit, Throwable>
 
 }

@@ -116,7 +116,12 @@ class Orchestra(
             command.assertCommand != null -> command.assertCommand?.let { assertCommand(it) }
             command.inputTextCommand != null -> command.inputTextCommand?.let { inputTextCommand(it) }
             command.launchAppCommand != null -> command.launchAppCommand?.let { launchAppCommand(it) }
+            command.openLinkCommand != null -> command.openLinkCommand?.let { openLinkCommand(it) }
         }
+    }
+
+    private fun openLinkCommand(command: OpenLinkCommand) {
+        maestro.openLink(command.link)
     }
 
     private fun launchAppCommand(it: LaunchAppCommand) {

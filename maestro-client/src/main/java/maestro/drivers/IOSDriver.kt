@@ -183,4 +183,8 @@ class IOSDriver(
     override fun inputText(text: String) {
         iosDevice.input(text).expect {}
     }
+
+    override fun openLink(link: String) {
+        iosDevice.openLink(link).expect {}
+    }
 }

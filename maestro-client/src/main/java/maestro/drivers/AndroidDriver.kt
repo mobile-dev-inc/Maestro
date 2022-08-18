@@ -184,6 +184,10 @@ class AndroidDriver(
         dadb.shell("input text $text")
     }
 
+    override fun openLink(link: String) {
+        dadb.shell("am start -d $link")
+    }
+
     private fun mapHierarchy(node: Node): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()

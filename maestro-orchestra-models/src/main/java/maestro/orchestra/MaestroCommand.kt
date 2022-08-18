@@ -29,6 +29,7 @@ data class MaestroCommand(
     val inputTextCommand: InputTextCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
     val applyConfigurationCommand: ApplyConfigurationCommand? = null,
+    val openLinkCommand: OpenLinkCommand? = null,
 ) {
 
     fun description(): String {
@@ -65,6 +66,10 @@ data class MaestroCommand(
         }
 
         applyConfigurationCommand?.let {
+            return it.description()
+        }
+
+        openLinkCommand?.let {
             return it.description()
         }
 

@@ -52,4 +52,7 @@ interface Driver {
     fun backPress()
 
     fun inputText(text: String)
+
+    fun openLink(link: String)
+
 }

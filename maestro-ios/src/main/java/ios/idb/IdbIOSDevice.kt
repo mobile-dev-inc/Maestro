@@ -33,6 +33,7 @@ import idb.hIDEvent
 import idb.installRequest
 import idb.launchRequest
 import idb.mkdirRequest
+import idb.openUrlRequest
 import idb.payload
 import idb.point
 import idb.pullRequest
@@ -306,6 +307,14 @@ class IdbIOSDevice(
             )
 
             responseObserver.awaitResult()
+        }
+    }
+
+    override fun openLink(link: String): Result<Unit, Throwable> {
+        return runCatching {
+            blockingStub.openUrl(openUrlRequest {
+                url = link
+            })
         }
     }
 

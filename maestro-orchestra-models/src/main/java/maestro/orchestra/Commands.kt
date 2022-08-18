@@ -153,3 +153,12 @@ data class ApplyConfigurationCommand(
         return "Apply configuration"
     }
 }
+
+data class OpenLinkCommand(
+    val link: String
+) : Command {
+
+    override fun description(): String {
+        return "Open $link"
+    }
+}

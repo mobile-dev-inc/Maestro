@@ -150,6 +150,12 @@ class FakeDriver : Driver {
         events += Event.InputText(text)
     }
 
+    override fun openLink(link: String) {
+        ensureOpen()
+
+        events += Event.OpenLink(link)
+    }
+
     fun setLayout(layout: FakeLayoutElement) {
         this.layout = layout
     }
@@ -228,6 +234,10 @@ class FakeDriver : Driver {
         data class PushAppState(
             val appId: String,
             val stateFile: File,
+        ) : Event()
+
+        data class OpenLink(
+            val link: String,
         ) : Event()
 
     }

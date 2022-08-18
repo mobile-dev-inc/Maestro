@@ -27,6 +27,7 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.SyntaxError
@@ -40,6 +41,7 @@ data class YamlFluentCommand(
     val inputText: String? = null,
     val launchApp: YamlLaunchApp? = null,
     val swipe: YamlElementSelectorUnion? = null,
+    val openLink: String? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -56,6 +58,9 @@ data class YamlFluentCommand(
                 inputTextCommand = InputTextCommand(inputText)
             )
             swipe != null -> swipeCommand(swipe)
+            openLink != null -> MaestroCommand(
+                openLinkCommand = OpenLinkCommand(openLink)
+            )
             action != null -> when (action) {
                 "back" -> MaestroCommand(backPressCommand = BackPressCommand())
                 "scroll" -> MaestroCommand(scrollCommand = ScrollCommand())
