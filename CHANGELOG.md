@@ -8,7 +8,7 @@
 
 * `launchApp` command now can optionally clear app state
 * `config` command to allow Orchestra consumers a higher degree of customization
-* Fixed a bug where `ElementNotFound` hierarchy field was not declared as public 
+* Fixed a bug where `ElementNotFound` hierarchy field was not declared as public
 
 ## 1.2.0 - 2022-08-04
 
@@ -36,4 +36,3 @@
 ## 1.2.6 - 2022-08-18
 
 * Fail launching an iOS app if the app is already running
-
