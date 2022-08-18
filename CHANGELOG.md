@@ -32,3 +32,8 @@
 ## 1.2.4 - 2022-08-17
 
 * Add support for cli to specify what platform, host and port to connect to
+
+## 1.2.6 - 2022-08-18
+
+* Fail launching an iOS app if the app is already running
+
