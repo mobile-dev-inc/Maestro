@@ -32,6 +32,21 @@ data class MaestroCommand(
     val openLinkCommand: OpenLinkCommand? = null,
 ) {
 
+    fun injectEnv(envParameters: Map<String, String>): MaestroCommand {
+        return copy(
+            tapOnElement = tapOnElement?.injectEnv(envParameters),
+            tapOnPoint = tapOnPoint?.injectEnv(envParameters),
+            scrollCommand = scrollCommand?.injectEnv(envParameters),
+            swipeCommand = swipeCommand?.injectEnv(envParameters),
+            backPressCommand = backPressCommand?.injectEnv(envParameters),
+            assertCommand = assertCommand?.injectEnv(envParameters),
+            inputTextCommand = inputTextCommand?.injectEnv(envParameters),
+            launchAppCommand = launchAppCommand?.injectEnv(envParameters),
+            applyConfigurationCommand = applyConfigurationCommand?.injectEnv(envParameters),
+            openLinkCommand = openLinkCommand?.injectEnv(envParameters),
+        )
+    }
+
     fun description(): String {
         tapOnElement?.let {
             return it.description()

@@ -97,26 +97,24 @@ class Orchestra(
         commands: List<MaestroCommand>,
         env: Map<String, String>
     ): Boolean {
-        commands.forEachIndexed { index, command ->
-            onCommandStart(index, command)
-            try {
-                executeCommand(command, env)
-                onCommandComplete(index, command)
-            } catch (e: Throwable) {
-                onCommandFailed(index, command, e)
-                return false
+        commands
+            .map { it.injectEnv(env) }
+            .forEachIndexed { index, command ->
+                onCommandStart(index, command)
+                try {
+                    executeCommand(command)
+                    onCommandComplete(index, command)
+                } catch (e: Throwable) {
+                    onCommandFailed(index, command, e)
+                    return false
+                }
             }
-        }
         return true
     }
 
-    private fun executeCommand(
-        command: MaestroCommand,
-        env: Map<String, String>
-    ) {
+    private fun executeCommand(command: MaestroCommand) {
         when {
             command.tapOnElement != null -> command.tapOnElement
-                ?.injectEnv(env)
                 ?.let {
                     tapOnElement(
                         it,
@@ -125,7 +123,6 @@ class Orchestra(
                     )
                 }
             command.tapOnPoint != null -> command.tapOnPoint
-                ?.injectEnv(env)
                 ?.let {
                     tapOnPoint(
                         it,
@@ -135,19 +132,14 @@ class Orchestra(
             command.backPressCommand != null -> maestro.backPress()
             command.scrollCommand != null -> maestro.scrollVertical()
             command.swipeCommand != null -> command.swipeCommand
-                ?.injectEnv(env)
                 ?.let { swipeCommand(it) }
             command.assertCommand != null -> command.assertCommand
-                ?.injectEnv(env)
                 ?.let { assertCommand(it) }
             command.inputTextCommand != null -> command.inputTextCommand
-                ?.injectEnv(env)
                 ?.let { inputTextCommand(it) }
             command.launchAppCommand != null -> command.launchAppCommand
-                ?.injectEnv(env)
                 ?.let { launchAppCommand(it) }
             command.openLinkCommand != null -> command.openLinkCommand
-                ?.injectEnv(env)
                 ?.let { openLinkCommand(it) }
         }
     }
