@@ -36,3 +36,8 @@
 ## 1.2.6 - 2022-08-18
 
 * Fail launching an iOS app if the app is already running
+
+## 1.3.1 - 2022-08-19
+
+* Added support for externally supplied parameters
+* Added `openLink` command
