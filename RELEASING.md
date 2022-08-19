@@ -36,7 +36,7 @@ EOT
 # Update the version number in gradle.properties
 sed -i '' "s/VERSION_NAME=.*/VERSION_NAME=$VERSION/" gradle.properties
 
-git add gradle.propertiese
+git add gradle.properties CHANGELOG.md
 git commit -am "Prepare for release $VERSION"
 
 # Push branch to origin
