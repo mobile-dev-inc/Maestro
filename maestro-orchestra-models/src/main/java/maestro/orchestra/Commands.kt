@@ -196,7 +196,9 @@ data class ApplyConfigurationCommand(
     }
 
     override fun injectEnv(env: Map<String, String>): ApplyConfigurationCommand {
-        return this
+        return copy(
+            config = config.injectEnv(env),
+        )
     }
 }
 
