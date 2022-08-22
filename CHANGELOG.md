@@ -41,3 +41,7 @@
 
 * Added support for externally supplied parameters
 * Added `openLink` command
+
+## 1.3.2 - 2022-08-22
+
+* Fix: env parameters did not work with init flows when using `Maestro` programmatically
