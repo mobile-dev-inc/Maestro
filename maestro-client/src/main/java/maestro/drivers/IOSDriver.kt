@@ -120,6 +120,10 @@ class IOSDriver(
                     attributes["text"] = it
                 }
 
+                (node.axUniqueId)?.let {
+                    attributes["resource-id"] = it
+                }
+
                 node.frame?.let {
                     val left = it.x.toInt()
                     val top = it.y.toInt()
