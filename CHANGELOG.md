@@ -45,3 +45,7 @@
 ## 1.3.2 - 2022-08-22
 
 * Fix: env parameters did not work with init flows when using `Maestro` programmatically
+
+## 1.3.3 - 2022-08-23
+
+* Fix: iOS accessibility was not propagated to Maestro
