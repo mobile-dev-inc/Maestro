@@ -744,6 +744,18 @@ class IntegrationTest {
     fun `Case 028 - Env`() {
         // Given
         val commands = readCommands("028_env")
+            .map {
+                it.injectEnv(
+                    envParameters = mapOf(
+                        "BUTTON_ID" to "button_id",
+                        "BUTTON_TEXT" to "button_text",
+                        "PASSWORD" to "testPassword",
+                        "NON_EXISTENT_TEXT" to "nonExistentText",
+                        "NON_EXISTENT_ID" to "nonExistentId",
+                        "URL" to "secretUrl",
+                    )
+                )
+            }
 
         val driver = driver {
 
@@ -757,17 +769,7 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(
-                commands,
-                env = mapOf(
-                    "BUTTON_ID" to "button_id",
-                    "BUTTON_TEXT" to "button_text",
-                    "PASSWORD" to "testPassword",
-                    "NON_EXISTENT_TEXT" to "nonExistentText",
-                    "NON_EXISTENT_ID" to "nonExistentId",
-                    "URL" to "secretUrl",
-                )
-            )
+            orchestra(it).runFlow(commands)
         }
 
         // Then

@@ -21,11 +21,11 @@ object TestRunner {
         val view = ResultView()
         val result = runCatching(view) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
+                .map { it.injectEnv(env) }
             MaestroCommandRunner.runCommands(
                 maestro,
                 view,
                 commands,
-                env,
                 cachedAppState = null
             )
         }
@@ -49,6 +49,7 @@ object TestRunner {
         do {
             val watchFiles = runCatching(view) {
                 val commands = YamlCommandReader.readCommands(flowFile.toPath())
+                    .map { it.injectEnv(env) }
                 val initFlow = getInitFlow(commands)
 
                 // Restart the flow if anything has changed
@@ -75,7 +76,6 @@ object TestRunner {
                                 maestro,
                                 view,
                                 commands,
-                                env,
                                 cachedAppState = cachedAppState,
                             )
                         }

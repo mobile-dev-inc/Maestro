@@ -47,11 +47,10 @@ class Orchestra(
     fun runFlow(
         commands: List<MaestroCommand>,
         initState: OrchestraAppState? = null,
-        env: Map<String, String> = emptyMap(),
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val state = initState ?: config?.initFlow?.let {
-            runInitFlow(it, env = env) ?: return false
+            runInitFlow(it) ?: return false
         }
 
         if (state != null) {
@@ -60,7 +59,7 @@ class Orchestra(
         }
 
         onFlowStart(commands)
-        return executeCommands(commands, env)
+        return executeCommands(commands)
     }
 
     /**
@@ -69,12 +68,10 @@ class Orchestra(
      */
     fun runInitFlow(
         initFlow: MaestroInitFlow,
-        env: Map<String, String> = emptyMap(),
     ): OrchestraAppState? {
         val success = runFlow(
             initFlow.commands,
             initState = null,
-            env = env,
         )
         if (!success) return null
 
@@ -95,10 +92,8 @@ class Orchestra(
 
     private fun executeCommands(
         commands: List<MaestroCommand>,
-        env: Map<String, String>
     ): Boolean {
         commands
-            .map { it.injectEnv(env) }
             .forEachIndexed { index, command ->
                 onCommandStart(index, command)
                 try {
