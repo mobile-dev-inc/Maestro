@@ -20,13 +20,14 @@
 package maestro
 
 import dadb.Dadb
+import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
 import maestro.UiElement.Companion.toUiElement
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.utils.ViewUtils
-import io.grpc.ManagedChannel
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -105,12 +106,35 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     ) {
         LOGGER.info("Tapping on element: $element")
 
-        if (waitUntilVisible) {
-            waitUntilVisible(element)
-        }
+        waitForAppToSettle()
 
-        val center = element.bounds.center()
+        val hierarchyBeforeTap = viewHierarchy()
+
+        val center = (
+            ViewUtils
+                .refreshElement(hierarchyBeforeTap, element.treeNode)
+                ?.also { LOGGER.info("Refreshed element") }
+                ?.toUiElementOrNull()
+                ?: element
+            ).bounds
+            .center()
         tap(center.x, center.y, retryIfNoChange)
+
+        val hierarchyAfterTap = viewHierarchy()
+
+        if (waitUntilVisible
+            && hierarchyBeforeTap == hierarchyAfterTap
+            && !ViewUtils.isVisible(hierarchyAfterTap, element.treeNode)
+        ) {
+            LOGGER.info("Still no change in hierarchy. Wait until element is visible and try again.")
+
+            waitUntilVisible(element)
+            tap(
+                element,
+                retryIfNoChange = false,
+                waitUntilVisible = false
+            )
+        }
     }
 
     fun tap(
@@ -246,7 +270,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
     private fun waitForAppToSettle() {
         // Time buffer for any visual effects and transitions that might occur between actions.
-        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000)
+        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 300)
 
         val hierarchyBefore = viewHierarchy()
         repeat(10) {

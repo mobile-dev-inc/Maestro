@@ -32,13 +32,8 @@ class PrintHierarchyCommand : Runnable {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
-    @CommandLine.Spec
-    lateinit var commandSpec: CommandLine.Model.CommandSpec
-
     override fun run() {
         MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use {
-            println("Printing hierarchy from ${it.deviceName()}")
-
             val hierarchy = jacksonObjectMapper()
                 .writerWithDefaultPrettyPrinter()
                 .writeValueAsString(it.viewHierarchy())

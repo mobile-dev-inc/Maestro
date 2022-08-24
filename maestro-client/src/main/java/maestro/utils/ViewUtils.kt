@@ -36,6 +36,18 @@ object ViewUtils {
         return node == elementAtPosition
     }
 
+    fun refreshElement(root: TreeNode, node: TreeNode): TreeNode? {
+        if((root.attributes - "bounds") == (node.attributes - "bounds")) {
+            return root
+        }
+
+        return root
+            .children
+            .firstNotNullOfOrNull {
+                refreshElement(it, node)
+            }
+    }
+
     private fun getElementAt(
         node: TreeNode,
         x: Int,
