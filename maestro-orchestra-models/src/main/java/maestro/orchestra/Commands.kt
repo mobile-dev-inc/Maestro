@@ -100,6 +100,7 @@ data class TapOnElementCommand(
     val selector: ElementSelector,
     val retryIfNoChange: Boolean? = null,
     val waitUntilVisible: Boolean? = null,
+    val longPress: Boolean? = null,
 ) : Command {
 
     override fun description(): String {
@@ -118,6 +119,7 @@ data class TapOnPointCommand(
     val y: Int,
     val retryIfNoChange: Boolean? = null,
     val waitUntilVisible: Boolean? = null,
+    val longPress: Boolean? = null,
 ) : Command {
 
     override fun description(): String {

@@ -80,6 +80,18 @@ class IdbIOSDevice(
     }
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
+        return press(x, y, holdDelay = 50)
+    }
+
+    override fun longPress(x: Int, y: Int): Result<Unit, Throwable> {
+        return press(x, y, holdDelay = 3000)
+    }
+
+    private fun press(
+        x: Int,
+        y: Int,
+        holdDelay: Long
+    ): Result<Unit, Throwable> {
         return runCatching {
             val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
             val stream = asyncStub.hid(responseObserver)
@@ -101,7 +113,7 @@ class IdbIOSDevice(
                     }
                 }
             )
-            Thread.sleep(50)
+            Thread.sleep(holdDelay)
             stream.onNext(
                 hIDEvent {
                     press = HIDEventKt.hIDPress {

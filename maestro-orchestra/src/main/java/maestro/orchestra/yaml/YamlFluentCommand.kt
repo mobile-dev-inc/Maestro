@@ -36,6 +36,7 @@ import maestro.orchestra.TapOnPointCommand
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
+    val longPressOn: YamlElementSelectorUnion? = null,
     val assertVisible: YamlElementSelectorUnion? = null,
     val assertNotVisible: YamlElementSelectorUnion? = null,
     val action: String? = null,
@@ -50,6 +51,7 @@ data class YamlFluentCommand(
         return when {
             launchApp != null -> launchApp(launchApp, appId)
             tapOn != null -> tapCommand(tapOn)
+            longPressOn != null -> tapCommand(longPressOn, longPress = true)
             assertVisible != null -> MaestroCommand(
                 assertCommand = AssertCommand(
                     visible = toElementSelector(assertVisible),
@@ -85,7 +87,42 @@ data class YamlFluentCommand(
         )
     }
 
-    private fun tapCommand(tapOn: YamlElementSelectorUnion): MaestroCommand {
+    private fun tapCommand(
+        tapOn: YamlElementSelectorUnion,
+        longPress: Boolean = false,
+    ): MaestroCommand {
+        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
+        val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: true
+        val point = (tapOn as? YamlElementSelector)?.point
+
+        return if (point != null) {
+            val points = point.split(",")
+                .map {
+                    it.trim().toInt()
+                }
+
+            MaestroCommand(
+                tapOnPoint = TapOnPointCommand(
+                    x = points[0],
+                    y = points[1],
+                    retryIfNoChange = retryIfNoChange,
+                    waitUntilVisible = waitUntilVisible,
+                    longPress = longPress,
+                )
+            )
+        } else {
+            MaestroCommand(
+                tapOnElement = TapOnElementCommand(
+                    selector = toElementSelector(tapOn),
+                    retryIfNoChange = retryIfNoChange,
+                    waitUntilVisible = waitUntilVisible,
+                    longPress = longPress,
+                )
+            )
+        }
+    }
+
+    private fun longPressCommand(tapOn: YamlElementSelectorUnion): MaestroCommand {
         val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
         val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: true
         val point = (tapOn as? YamlElementSelector)?.point

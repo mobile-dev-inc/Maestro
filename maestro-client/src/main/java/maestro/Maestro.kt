@@ -103,6 +103,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         element: UiElement,
         retryIfNoChange: Boolean = true,
         waitUntilVisible: Boolean = true,
+        longPress: Boolean = false,
     ) {
         LOGGER.info("Tapping on element: $element")
 
@@ -118,7 +119,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 ?: element
             ).bounds
             .center()
-        tap(center.x, center.y, retryIfNoChange)
+        tap(center.x, center.y, retryIfNoChange, longPress)
 
         val hierarchyAfterTap = viewHierarchy()
 
@@ -132,7 +133,8 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             tap(
                 element,
                 retryIfNoChange = false,
-                waitUntilVisible = false
+                waitUntilVisible = false,
+                longPress = longPress,
             )
         }
     }
@@ -141,6 +143,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = true,
+        longPress: Boolean = false,
     ) {
         LOGGER.info("Tapping at ($x, $y)")
 
@@ -148,7 +151,11 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
-            driver.tap(Point(x, y))
+            if (longPress) {
+                driver.longPress(Point(x, y))
+            } else {
+                driver.tap(Point(x, y))
+            }
             waitForAppToSettle()
 
             val hierarchyAfterTap = viewHierarchy()
@@ -163,7 +170,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
         if (retryIfNoChange) {
             LOGGER.info("Attempting to tap again since there was no change in the UI")
-            tap(x, y, false)
+            tap(x, y, false, longPress)
         }
     }
 

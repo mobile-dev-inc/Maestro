@@ -120,6 +120,12 @@ class FakeDriver : Driver {
         events += Event.Tap(point)
     }
 
+    override fun longPress(point: Point) {
+        ensureOpen()
+
+        events += Event.LongPress(point)
+    }
+
     override fun contentDescriptor(): TreeNode {
         ensureOpen()
 
@@ -198,6 +204,10 @@ class FakeDriver : Driver {
     sealed class Event {
 
         data class Tap(
+            val point: Point
+        ) : Event(), UserInteraction
+
+        data class LongPress(
             val point: Point
         ) : Event(), UserInteraction
 

@@ -158,6 +158,10 @@ class AndroidDriver(
         ) ?: throw IllegalStateException("Response can't be null")
     }
 
+    override fun longPress(point: Point) {
+        dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+    }
+
     override fun contentDescriptor(): TreeNode {
         val response = blockingStub.viewHierarchy(viewHierarchyRequest {})
 

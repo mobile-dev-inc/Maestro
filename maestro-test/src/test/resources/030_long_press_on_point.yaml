@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- longPressOn:
+    point: 100,200

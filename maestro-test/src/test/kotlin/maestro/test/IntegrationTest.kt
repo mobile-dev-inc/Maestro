@@ -784,6 +784,46 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 029 - Long press on element`() {
+        // Given
+        val commands = readCommands("029_long_press_on_element")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.LongPress(Point(50, 50)))
+    }
+
+    @Test
+    fun `Case 030 - Long press on point`() {
+        // Given
+        val commands = readCommands("030_long_press_on_point")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.LongPress(Point(100, 200)))
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

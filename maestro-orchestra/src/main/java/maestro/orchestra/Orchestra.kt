@@ -205,7 +205,8 @@ class Orchestra(
             maestro.tap(
                 element,
                 retryIfNoChange,
-                waitUntilVisible
+                waitUntilVisible,
+                command.longPress ?: false,
             )
         } catch (e: MaestroException.ElementNotFound) {
 
@@ -223,6 +224,7 @@ class Orchestra(
             command.x,
             command.y,
             retryIfNoChange,
+            command.longPress ?: false,
         )
     }
 

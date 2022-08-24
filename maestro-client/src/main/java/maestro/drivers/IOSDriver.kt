@@ -109,6 +109,10 @@ class IOSDriver(
         iosDevice.tap(point.x, point.y).expect {}
     }
 
+    override fun longPress(point: Point) {
+        iosDevice.longPress(point.x, point.y).expect {}
+    }
+
     override fun contentDescriptor(): TreeNode {
         val accessibilityNodes = iosDevice.contentDescriptor().expect {}
 

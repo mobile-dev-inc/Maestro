@@ -43,6 +43,8 @@ interface Driver {
 
     fun tap(point: Point)
 
+    fun longPress(point: Point)
+
     fun contentDescriptor(): TreeNode
 
     fun scrollVertical()
