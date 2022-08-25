@@ -49,3 +49,9 @@
 ## 1.3.3 - 2022-08-23
 
 * Fix: iOS accessibility was not propagated to Maestro
+
+## 1.3.6 - 2022-08-25
+
+* Added `longPressOn` command
+* Decreased wait time in apps that have a screen overlay
+* Fixed CLI issue where status updates would not propagate correctly
