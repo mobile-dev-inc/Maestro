@@ -2,7 +2,7 @@
 
 Maestro is a declarative UI automation library for Android and iOS.
 
-Documentation for Maestro can be found at [maestro.mobile.dev](https://maestro.mobile.dev)
+Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
 
 ### Examples
 Create a flow for any app on Android and iOS, with just a few lines of YAML.
