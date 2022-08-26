@@ -1,6 +1,6 @@
 # Maestro 🎹
 
-Maestro is easiest way to automate UI flows for your mobile app.
+Maestro is the easiest way to automate UI flows for your mobile app.
 
 Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
 
