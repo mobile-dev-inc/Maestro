@@ -1,6 +1,6 @@
 # Maestro 🎹
 
-Maestro is a declarative UI automation library for Android and iOS.
+Maestro is the simplest mobile UI automation framework.
 
 Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
 
