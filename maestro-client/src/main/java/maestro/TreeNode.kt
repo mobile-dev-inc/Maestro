@@ -23,4 +23,10 @@ data class TreeNode(
     val attributes: Map<String, String> = emptyMap(),
     val children: List<TreeNode> = emptyList(),
     val clickable: Boolean? = null,
-)
+) {
+
+    fun aggregate(): List<TreeNode> {
+        return listOf(this) + children.flatMap { it.aggregate() }
+    }
+
+}

@@ -19,7 +19,18 @@
 
 package maestro
 
+import kotlin.math.pow
+import kotlin.math.sqrt
+
 data class Point(
     val x: Int,
     val y: Int
-)
+) {
+
+    fun distance(other: Point): Float {
+        return sqrt(
+            (other.x - x.toDouble()).pow(2.0) + (other.y - y.toDouble()).pow(2.0)
+        ).toFloat()
+    }
+
+}

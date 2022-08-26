@@ -33,6 +33,10 @@ data class Bounds(
         )
     }
 
+    fun area(): Int {
+        return width * height
+    }
+
     fun contains(x: Int, y: Int): Boolean {
         return x in this.x until this.x + width
             && y in this.y until this.y + height

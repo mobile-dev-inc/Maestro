@@ -24,6 +24,10 @@ data class UiElement(
     val bounds: Bounds,
 ) {
 
+    fun distanceTo(other: UiElement): Float {
+        return bounds.center().distance(other.bounds.center())
+    }
+
     companion object {
 
         fun TreeNode.toUiElement(): UiElement {

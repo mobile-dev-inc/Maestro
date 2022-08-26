@@ -19,12 +19,15 @@
 
 package maestro.orchestra
 
-import maestro.ElementLookupPredicate
+import maestro.ElementFilter
+import maestro.Filters
+import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
-import maestro.Predicates
 import maestro.UiElement
+import maestro.orchestra.filter.FilterWithDescription
+import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import java.nio.file.Files
@@ -228,7 +231,10 @@ class Orchestra(
         )
     }
 
-    private fun findElement(selector: ElementSelector, timeoutMs: Long? = null): UiElement {
+    private fun findElement(
+        selector: ElementSelector,
+        timeoutMs: Long? = null
+    ): UiElement {
         val timeout = timeoutMs
             ?: if (selector.optional) {
                 optionalLookupTimeoutMs
@@ -236,67 +242,87 @@ class Orchestra(
                 lookupTimeoutMs
             }
 
-        val predicates = mutableListOf<ElementLookupPredicate>()
+        val (description, filterFunc) = buildFilter(selector)
+
+        return maestro.findElementWithTimeout(
+            timeoutMs = timeout,
+            filter = filterFunc,
+        ) ?: throw MaestroException.ElementNotFound(
+            "Element not found: $description",
+            maestro.viewHierarchy(),
+        )
+    }
+
+    private fun buildFilter(
+        selector: ElementSelector,
+    ): FilterWithDescription {
+        val filters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
 
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                predicates += Predicates.textMatches(it.toRegex(REGEX_OPTIONS))
+                filters += Filters.textMatches(it.toRegex(REGEX_OPTIONS)).asFilter()
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                predicates += Predicates.idMatches(it.toRegex(REGEX_OPTIONS))
+                filters += Filters.idMatches(it.toRegex(REGEX_OPTIONS)).asFilter()
             }
 
         selector.size
             ?.let {
                 descriptions += "Size: $it"
-                predicates += Predicates.sizeMatches(
+                filters += Filters.sizeMatches(
                     width = it.width,
                     height = it.height,
                     tolerance = it.tolerance,
-                )
+                ).asFilter()
             }
 
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                predicates += Predicates.below(findElement(it))
+                filters += Filters.below(buildFilter(it).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                predicates += Predicates.above(findElement(it))
+                filters += Filters.above(buildFilter(it).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                predicates += Predicates.leftOf(findElement(it))
+                filters += Filters.leftOf(buildFilter(it).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                predicates += Predicates.rightOf(findElement(it))
+                filters += Filters.rightOf(buildFilter(it).filterFunc)
             }
 
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                predicates += Predicates.containsChild(findElement(it))
+                filters += Filters.containsChild(findElement(it)).asFilter()
             }
 
-        return maestro.findElementWithTimeout(
-            timeoutMs = timeout,
-            predicate = Predicates.allOf(predicates),
-        ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: ${descriptions.joinToString(", ")}",
-            maestro.viewHierarchy(),
+        selector.traits
+            ?.map {
+                TraitFilters.buildFilter(it)
+            }
+            ?.forEach { (description, filter) ->
+                descriptions += description
+                filters += filter
+            }
+
+        return FilterWithDescription(
+            descriptions.joinToString(", "),
+            Filters.intersect(filters),
         )
     }
 

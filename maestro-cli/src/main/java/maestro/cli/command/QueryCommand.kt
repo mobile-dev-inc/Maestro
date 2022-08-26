@@ -20,8 +20,9 @@
 package maestro.cli.command
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.ElementLookupPredicate
-import maestro.Predicates
+import maestro.ElementFilter
+import maestro.Filters
+import maestro.Filters.asFilter
 import maestro.cli.App
 import maestro.cli.util.MaestroFactory
 import maestro.orchestra.Orchestra
@@ -51,17 +52,17 @@ class QueryCommand : Runnable {
     override fun run() {
 
         MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use { maestro ->
-            val predicates = mutableListOf<ElementLookupPredicate>()
+            val filters = mutableListOf<ElementFilter>()
 
             text?.let {
-                predicates += Predicates.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
+                filters += Filters.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
             }
 
             id?.let {
-                predicates += Predicates.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
+                filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
             }
 
-            if (predicates.isEmpty()) {
+            if (filters.isEmpty()) {
                 throw CommandLine.ParameterException(
                     commandSpec.commandLine(),
                     "Must specify at least one search criteria"
@@ -69,7 +70,7 @@ class QueryCommand : Runnable {
             }
 
             val elements = maestro.allElementsMatching(
-                Predicates.allOf(predicates)
+                Filters.intersect(filters)
             )
 
             val mapper = jacksonObjectMapper()

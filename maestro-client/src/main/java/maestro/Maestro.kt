@@ -23,6 +23,7 @@ import dadb.Dadb
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
+import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
@@ -193,7 +194,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun findElementByText(text: String, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by text: $text (timeout $timeoutMs)")
 
-        return findElementWithTimeout(timeoutMs, Predicates.textMatches(text))
+        return findElementWithTimeout(timeoutMs, Filters.textMatches(text).asFilter())
             ?: throw MaestroException.ElementNotFound(
                 "No element with text: $text",
                 viewHierarchy()
@@ -203,7 +204,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun findElementByRegexp(regex: Regex, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by regex: ${regex.pattern} (timeout $timeoutMs)")
 
-        return findElementWithTimeout(timeoutMs, Predicates.textMatches(regex))
+        return findElementWithTimeout(timeoutMs, Filters.textMatches(regex).asFilter())
             ?: throw MaestroException.ElementNotFound(
                 "No element that matches regex: $regex",
                 viewHierarchy()
@@ -217,7 +218,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun findElementByIdRegex(regex: Regex, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
 
-        return findElementWithTimeout(timeoutMs, Predicates.idMatches(regex))
+        return findElementWithTimeout(timeoutMs, Filters.idMatches(regex).asFilter())
             ?: throw MaestroException.ElementNotFound(
                 "No element has id that matches regex $regex",
                 viewHierarchy()
@@ -227,52 +228,23 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
         LOGGER.info("Looking for element by size: $width x $height (tolerance $tolerance) (timeout $timeoutMs)")
 
-        return findElementWithTimeout(timeoutMs, Predicates.sizeMatches(width, height, tolerance))
+        return findElementWithTimeout(timeoutMs, Filters.sizeMatches(width, height, tolerance).asFilter())
     }
 
     fun findElementWithTimeout(
         timeoutMs: Long,
-        predicate: ElementLookupPredicate,
+        filter: ElementFilter,
     ): UiElement? {
         return MaestroTimer.withTimeout(timeoutMs) {
             val rootNode = driver.contentDescriptor()
 
-            findElementByPredicate(rootNode, predicate)
-        }?.toUiElement()
+            filter(rootNode.aggregate())
+                .firstOrNull()
+        }?.toUiElementOrNull()
     }
 
-    private fun findElementByPredicate(root: TreeNode, predicate: ElementLookupPredicate): TreeNode? {
-        if (predicate(root)) {
-            return root
-        }
-
-        root.children.forEach { node ->
-            findElementByPredicate(node, predicate)
-                ?.let { return@findElementByPredicate it }
-        }
-
-        return null
-    }
-
-    fun allElementsMatching(predicate: ElementLookupPredicate): List<TreeNode> {
-        return allElementsMatching(
-            driver.contentDescriptor(),
-            predicate
-        )
-    }
-
-    private fun allElementsMatching(node: TreeNode, predicate: ElementLookupPredicate): List<TreeNode> {
-        val result = mutableListOf<TreeNode>()
-
-        if (predicate(node)) {
-            result += node
-        }
-
-        node.children.forEach { child ->
-            result += allElementsMatching(child, predicate)
-        }
-
-        return result
+    fun allElementsMatching(filter: ElementFilter): List<TreeNode> {
+        return filter(viewHierarchy().aggregate())
     }
 
     private fun waitForAppToSettle() {

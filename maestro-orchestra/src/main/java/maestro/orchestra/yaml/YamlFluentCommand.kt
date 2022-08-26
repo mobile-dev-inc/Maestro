@@ -24,6 +24,7 @@ import maestro.Point
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.ElementTrait
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
@@ -217,6 +218,9 @@ data class YamlFluentCommand(
             leftOf = selector.leftOf?.let { toElementSelector(it) },
             rightOf = selector.rightOf?.let { toElementSelector(it) },
             containsChild = selector.containsChild?.let { toElementSelector(it) },
+            traits = selector.traits
+                ?.split(" ")
+                ?.map { ElementTrait.valueOf(it.replace('-', '_').uppercase()) },
             optional = selector.optional ?: false,
         )
     }

@@ -824,6 +824,42 @@ class IntegrationTest {
         driver.assertHasEvent(Event.LongPress(Point(100, 200)))
     }
 
+    @Test
+    fun `Case 031 - Traits`() {
+        // Given
+        val commands = readCommands("031_traits")
+
+        val driver = driver {
+            element {
+                text = "Text"
+                bounds = Bounds(0, 0, 200, 100)
+            }
+            element {
+                text = "Square"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+            element {
+                text = String(CharArray(500))   // Long text
+                bounds = Bounds(0, 200, 200, 400)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.Tap(Point(100, 50)),  // Text
+                Event.Tap(Point(50, 150)),  // Square
+                Event.Tap(Point(100, 300)),  // Long text
+            )
+        )
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {
