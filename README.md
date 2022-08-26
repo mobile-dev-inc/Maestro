@@ -87,7 +87,7 @@ appId: your.package.name
 - tapOn: "Text on the screen"
 ```
 
-Make sure an Android _emulator_ is running (support of testing via USB is work in progress).
+Make sure an Android emulator is running. Check out the [docs](https://maestro.mobile.dev/getting-started/installing-maestro#android) for physical device support.
 
 Run it!
 
