@@ -32,6 +32,7 @@ data class ElementSelector(
     val containsChild: ElementSelector? = null,
     val optional: Boolean = false,
     val traits: List<ElementTrait>? = null,
+    val index: Int? = null,
 ) {
 
     data class SizeSelector(
@@ -96,6 +97,10 @@ data class ElementSelector(
             descriptions.add(
                 "Has traits: ${traits.joinToString(", ") { it.description }}"
             )
+        }
+
+        index?.let {
+            descriptions.add("Index: $it")
         }
 
         val combined = descriptions.joinToString(", ")

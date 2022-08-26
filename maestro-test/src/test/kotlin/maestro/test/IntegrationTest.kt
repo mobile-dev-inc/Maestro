@@ -860,6 +860,37 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 032 - Element index`() {
+        // Given
+        val commands = readCommands("032_element_index")
+
+        val driver = driver {
+            element {
+                text = "Item 2"
+                bounds = Bounds(0, 200, 100, 300)
+            }
+            element {
+                text = "Item 1"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.Tap(Point(50, 150)),  // Item 1
+                Event.Tap(Point(50, 250)),  // Item 2
+            )
+        )
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

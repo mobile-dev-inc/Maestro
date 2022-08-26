@@ -19,12 +19,14 @@
 
 package maestro.orchestra
 
+import maestro.DeviceInfo
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
+import maestro.TreeNode
 import maestro.UiElement
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -242,7 +244,11 @@ class Orchestra(
                 lookupTimeoutMs
             }
 
-        val (description, filterFunc) = buildFilter(selector)
+        val (description, filterFunc) = buildFilter(
+            selector,
+            maestro.deviceInfo(),
+            maestro.viewHierarchy().aggregate(),
+        )
 
         return maestro.findElementWithTimeout(
             timeoutMs = timeout,
@@ -255,6 +261,8 @@ class Orchestra(
 
     private fun buildFilter(
         selector: ElementSelector,
+        deviceInfo: DeviceInfo,
+        allNodes: List<TreeNode>,
     ): FilterWithDescription {
         val filters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
@@ -284,25 +292,25 @@ class Orchestra(
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                filters += Filters.below(buildFilter(it).filterFunc)
+                filters += Filters.below(buildFilter(it, deviceInfo, allNodes).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                filters += Filters.above(buildFilter(it).filterFunc)
+                filters += Filters.above(buildFilter(it, deviceInfo, allNodes).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                filters += Filters.leftOf(buildFilter(it).filterFunc)
+                filters += Filters.leftOf(buildFilter(it, deviceInfo, allNodes).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                filters += Filters.rightOf(buildFilter(it).filterFunc)
+                filters += Filters.rightOf(buildFilter(it, deviceInfo, allNodes).filterFunc)
             }
 
         selector.containsChild
@@ -320,9 +328,19 @@ class Orchestra(
                 filters += filter
             }
 
+        val finalFilter = selector.index
+            ?.let {
+                Filters.compose(
+                    listOf(
+                        Filters.intersect(filters),
+                        Filters.index(it),
+                    )
+                )
+            } ?: Filters.intersect(filters)
+
         return FilterWithDescription(
             descriptions.joinToString(", "),
-            Filters.intersect(filters),
+            finalFilter,
         )
     }
 

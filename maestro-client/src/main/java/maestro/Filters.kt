@@ -36,6 +36,13 @@ object Filters {
             ?.toList() ?: emptyList()
     }
 
+    fun compose(filters: List<ElementFilter>): ElementFilter = { nodes ->
+        filters
+            .fold(nodes) { acc, filter ->
+                filter(acc)
+            }
+    }
+
     fun ElementLookupPredicate.asFilter(): ElementFilter = { nodes ->
         nodes.filter { this(it) }
     }
@@ -154,6 +161,16 @@ object Filters {
     fun hasLongText(): ElementLookupPredicate {
         return {
             (it.attributes["text"]?.length ?: 0) > 200
+        }
+    }
+
+    fun index(idx: Int): ElementFilter {
+        return { nodes ->
+            listOfNotNull(
+                nodes
+                    .sortedBy { it.toUiElementOrNull()?.bounds?.y ?: Int.MAX_VALUE }
+                    .getOrNull(idx)
+            )
         }
     }
 

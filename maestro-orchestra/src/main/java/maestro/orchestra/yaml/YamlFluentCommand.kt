@@ -221,6 +221,7 @@ data class YamlFluentCommand(
             traits = selector.traits
                 ?.split(" ")
                 ?.map { ElementTrait.valueOf(it.replace('-', '_').uppercase()) },
+            index = selector.index,
             optional = selector.optional ?: false,
         )
     }
