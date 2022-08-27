@@ -1,0 +1,19 @@
+# Gets user all the way up to OTP step in Twitter signup
+
+appId: com.twitter.android
+name: Create Account
+---
+- launchApp:
+    clearState: true
+- tapOn: Create account
+- tapOn: Skip for now
+- inputText: ${NAME}
+- tapOn:
+    id: com.twitter.android:id/phone_or_email_field
+- tapOn: Use email instead
+- inputText: ${EMAIL}
+- tapOn: Date of birth
+- longPressOn: 2021
+- tapOn: Next
+- tapOn: Next
+- tapOn: Sign up

@@ -891,6 +891,28 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 033 - Text with number`() {
+        // Given
+        val commands = readCommands("033_int_text")
+
+        val driver = driver {
+            element {
+                text = "2022"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(50, 50)))
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

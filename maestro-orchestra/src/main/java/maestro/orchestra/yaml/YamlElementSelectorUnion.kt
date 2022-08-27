@@ -25,7 +25,8 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.node.TextNode
+import com.fasterxml.jackson.databind.node.POJONode
+import com.fasterxml.jackson.databind.node.ValueNode
 
 @JsonDeserialize(using = YamlElementSelectorDeserializer::class)
 interface YamlElementSelectorUnion
@@ -38,8 +39,8 @@ class YamlElementSelectorDeserializer : JsonDeserializer<YamlElementSelectorUnio
         val mapper = parser.codec as ObjectMapper
         val root: TreeNode = mapper.readTree(parser)
 
-        return if (root is TextNode) {
-            StringElementSelector(root.textValue())
+        return if (root is ValueNode && root !is POJONode) {
+            StringElementSelector(root.asText())
         } else {
             mapper.convertValue(root, YamlElementSelector::class.java)
         }
