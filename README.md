@@ -4,7 +4,7 @@ Maestro is the easiest way to automate UI flows for your mobile app.
 
 Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
 
-<img src="https://user-images.githubusercontent.com/847683/187275009-ddbdf963-ce1d-4e07-ac08-b10f145e8894.gif" width="750" />
+<img src="https://user-images.githubusercontent.com/847683/187275009-ddbdf963-ce1d-4e07-ac08-b10f145e8894.gif" />
 
 ### Examples
 Create a flow for any app on Android and iOS, with just a few lines of YAML.
