@@ -19,23 +19,25 @@
 
 package maestro.drivers
 
-import maestro.Maestro
-import maestro.DeviceInfo
-import maestro.Driver
-import maestro.Point
-import maestro.TreeNode
-import maestro_android.MaestroDriverGrpc
-import maestro_android.deviceInfoRequest
-import maestro_android.tapRequest
-import maestro_android.viewHierarchyRequest
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
+import maestro.DeviceInfo
+import maestro.Driver
+import maestro.Maestro
+import maestro.MaestroTimer
+import maestro.Point
+import maestro.TreeNode
 import maestro.android.AndroidAppFiles
+import maestro_android.MaestroDriverGrpc
+import maestro_android.deviceInfoRequest
+import maestro_android.tapRequest
+import maestro_android.viewHierarchyRequest
 import okio.buffer
 import okio.sink
 import okio.source
+import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
@@ -163,7 +165,15 @@ class AndroidDriver(
     }
 
     override fun contentDescriptor(): TreeNode {
-        val response = blockingStub.viewHierarchy(viewHierarchyRequest {})
+        val response = try {
+            blockingStub.viewHierarchy(viewHierarchyRequest {})
+        } catch (ignored: Exception) {
+            // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
+            // Trying to recover once by giving it a bit of time to settle.
+
+            MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
+            blockingStub.viewHierarchy(viewHierarchyRequest {})
+        }
 
         val document = documentBuilderFactory
             .newDocumentBuilder()
