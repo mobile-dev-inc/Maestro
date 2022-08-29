@@ -4,13 +4,16 @@ Maestro is the easiest way to automate UI flows for your mobile app.
 
 Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
 
+<img src="https://user-images.githubusercontent.com/847683/187275009-ddbdf963-ce1d-4e07-ac08-b10f145e8894.gif" width="750" />
+
 ### Examples
 Create a flow for any app on Android and iOS, with just a few lines of YAML.
+
 
 <table>
 <tr>
 <th>Android</th>
-<th></th>
+<th>iOS</th>
 </tr>
 <tr>
 <td>
@@ -32,17 +35,6 @@ appId: com.android.contacts
 </td>
 <td>
 
-<img src='./assets/add_contact_android.gif' height='400'>
-
-</td>
-</tr>
-<tr>
-<th>iOS</th>
-<th></th>
-</tr>
-<tr>
-<td>
-
 ```yaml
 # flow_contacts_ios.yaml
 
@@ -57,13 +49,7 @@ appId: com.apple.MobileAddressBook
 ```
 
 </td>
-<td>
-
-<img src='./assets/edit_contacts_ios.gif' height='400'>
-
-</td>
 </tr>
-
 </table>
 
 
