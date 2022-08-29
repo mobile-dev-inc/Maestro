@@ -55,3 +55,11 @@
 * Added `longPressOn` command
 * Decreased wait time in apps that have a screen overlay
 * Fixed CLI issue where status updates would not propagate correctly
+
+## 1.4.0 - 2022-08-29
+
+* Added `traits` selector.
+* Relative selectors (such as `above`, `below`, etc.) are now picking the closest element.
+* Fix: continuous mode did not work for paths without a parent directory
+* Fix: workaround for UiAutomator content descriptor crash
+* Fix: `tapOn: {int}` did not work
