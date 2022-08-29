@@ -31,6 +31,7 @@ import maestro.orchestra.NoInputException
 import maestro.orchestra.SyntaxError
 import java.io.File
 import java.nio.file.Path
+import kotlin.io.path.absolute
 import kotlin.io.path.inputStream
 import kotlin.io.path.isDirectory
 
@@ -54,7 +55,7 @@ object YamlCommandReader {
         val (config, _) = readConfigAndCommands(flowPath)
         val initFlowFile = config.getInitFlowPath(flowPath)
         listOfNotNull(flowPath, initFlowFile,)
-            .filter { it.parent.isDirectory() }
+            .filter { it.absolute().parent?.isDirectory() ?: false }
             .map { it.toFile() }
     }
 
