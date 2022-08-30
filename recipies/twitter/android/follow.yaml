@@ -1,0 +1,9 @@
+appId: com.twitter.android
+---
+- launchApp
+- tapOn: Search and Explore
+- tapOn: Search Twitter
+- inputText: "@mobile__dev"
+- tapOn: mobile.dev
+- tapOn: Follow
+- assertVisible: Following
