@@ -1,0 +1,17 @@
+appId: com.squareup
+name: Sign Up
+---
+- launchApp
+- tapOn: Create account
+- tapOn:
+    text: Accept all cookies
+    optional: true
+- inputText: ${EMAIL}
+- tapOn: Continue
+- inputText: ${PASSWORD}
+- tapOn: Continue
+- tapOn:
+    rightOf: I agree to.*
+    retryTapIfNoChange: false
+- tapOn: Continue
+- tapOn: Confirm
