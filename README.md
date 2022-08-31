@@ -113,6 +113,6 @@ Maestro is built on learnings from its predecessors (Appium, Espresso, UIAutomat
 
 # Next steps
 
-- [Learn more about Maestro features](https://maestro.mobile.dev/guides/using-maestro-cli](https://maestro.mobile.dev/)
+- [Learn more about Maestro features](https://maestro.mobile.dev/)
 - [Learn about Maestro commands](https://maestro.mobile.dev/reference/tap-on-view)
 
