@@ -106,7 +106,7 @@ idb_companion --udid {id of the iOS device}
 Maestro is built on learnings from its predecessors (Appium, Espresso, UIAutomator, XCTest)
 
 - Built-in tolerance to flakiness. UI elements will not always be where you expect them, screen tap will not always go through, etc. Maestro embraces the instability of mobile applications and devices and tries to counter it.
-- Built-in tolerance to delays. No need to pepper your tests with `sleep()` calls. Maestro knows that it might take time to load the content (i.e. over the network) and automaitcally waits for it (but no longer than required).
+- Built-in tolerance to delays. No need to pepper your tests with `sleep()` calls. Maestro knows that it might take time to load the content (i.e. over the network) and automatically waits for it (but no longer than required).
 - Blazingly fast iteration. Tests are interpreted, no need to compile anything. Maestro is able to continuously monitor your test files and rerun them as they change.
 - Declarative yet powerful syntax. Define your tests in a `yaml` file.
 - Simple setup. Maestro is a single binary that works anywhere.
