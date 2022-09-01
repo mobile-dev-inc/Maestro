@@ -2,7 +2,8 @@
 
 Maestro is the easiest way to automate UI testing for your mobile app.
 
-Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
+* Blog Post: [**Introducing: Maestro — Painless Mobile UI Automation**](https://blog.mobile.dev/introducing-maestro-painless-mobile-ui-automation-bee4992d13c1)
+* Full documentation for Maestro can be found at [**maestro.mobile.dev**](https://maestro.mobile.dev)
 
 <img src="https://user-images.githubusercontent.com/847683/187275009-ddbdf963-ce1d-4e07-ac08-b10f145e8894.gif" />
 
