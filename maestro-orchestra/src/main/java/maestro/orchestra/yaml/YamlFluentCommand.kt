@@ -20,6 +20,7 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
@@ -29,11 +30,12 @@ import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.OpenLinkCommand
+import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.SwipeCommand
-import maestro.orchestra.SyntaxError
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
+import maestro.orchestra.error.SyntaxError
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
@@ -45,6 +47,7 @@ data class YamlFluentCommand(
     val launchApp: YamlLaunchApp? = null,
     val swipe: YamlElementSelectorUnion? = null,
     val openLink: String? = null,
+    val pressKey: String? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -69,6 +72,11 @@ data class YamlFluentCommand(
             swipe != null -> swipeCommand(swipe)
             openLink != null -> MaestroCommand(
                 openLinkCommand = OpenLinkCommand(openLink)
+            )
+            pressKey != null -> MaestroCommand(
+                pressKeyCommand = PressKeyCommand(
+                    code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey")
+                )
             )
             action != null -> when (action) {
                 "back" -> MaestroCommand(backPressCommand = BackPressCommand())

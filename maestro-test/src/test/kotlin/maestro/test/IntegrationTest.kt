@@ -1,6 +1,7 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
+import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
@@ -911,6 +912,29 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.Tap(Point(50, 50)))
+    }
+
+    @Test
+    fun `Case 034 - Press key`() {
+        // Given
+        val commands = readCommands("034_press_key")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.PressKey(KeyCode.ENTER))
+        driver.assertHasEvent(Event.PressKey(KeyCode.BACKSPACE))
+        driver.assertHasEvent(Event.PressKey(KeyCode.HOME))
+        driver.assertHasEvent(Event.PressKey(KeyCode.BACK))
+        driver.assertHasEvent(Event.PressKey(KeyCode.VOLUME_UP))
+        driver.assertHasEvent(Event.PressKey(KeyCode.VOLUME_DOWN))
+        driver.assertHasEvent(Event.PressKey(KeyCode.LOCK))
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

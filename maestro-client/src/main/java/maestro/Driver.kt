@@ -45,6 +45,8 @@ interface Driver {
 
     fun longPress(point: Point)
 
+    fun pressKey(code: KeyCode)
+
     fun contentDescriptor(): TreeNode
 
     fun scrollVertical()

@@ -39,7 +39,7 @@ internal object TextInputUtil {
             .flatten()
     }
 
-    private fun pressWithDuration(
+    fun pressWithDuration(
         action: HIDEvent.HIDPressAction,
     ): List<HIDEvent> {
         return listOf(
@@ -58,7 +58,7 @@ internal object TextInputUtil {
         )
     }
 
-    private fun keyPressToEvents(keycode: Long): List<HIDEvent> {
+    fun keyPressToEvents(keycode: Long): List<HIDEvent> {
         return pressWithDuration(
             HIDEventKt.hIDPressAction {
                 this.key = HIDEventKt.hIDKey {

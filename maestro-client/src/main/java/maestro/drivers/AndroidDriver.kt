@@ -25,6 +25,7 @@ import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import maestro.DeviceInfo
 import maestro.Driver
+import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroTimer
 import maestro.Point
@@ -37,7 +38,6 @@ import maestro_android.viewHierarchyRequest
 import okio.buffer
 import okio.sink
 import okio.source
-import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
@@ -162,6 +162,20 @@ class AndroidDriver(
 
     override fun longPress(point: Point) {
         dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+    }
+
+    override fun pressKey(code: KeyCode) {
+        val intCode: Int = when (code) {
+            KeyCode.ENTER -> 66
+            KeyCode.BACKSPACE -> 67
+            KeyCode.BACK -> 4
+            KeyCode.VOLUME_UP -> 24
+            KeyCode.VOLUME_DOWN -> 25
+            KeyCode.HOME -> 3
+            KeyCode.LOCK -> 276
+        }
+
+        dadb.shell("input keyevent $intCode")
     }
 
     override fun contentDescriptor(): TreeNode {

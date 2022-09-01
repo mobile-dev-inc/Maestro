@@ -141,7 +141,13 @@ class Orchestra(
                 ?.let { launchAppCommand(it) }
             command.openLinkCommand != null -> command.openLinkCommand
                 ?.let { openLinkCommand(it) }
+            command.pressKeyCommand != null -> command.pressKeyCommand
+                ?.let { pressKeyCommand(it) }
         }
+    }
+
+    private fun pressKeyCommand(command: PressKeyCommand) {
+        maestro.pressKey(command.code)
     }
 
     private fun openLinkCommand(command: OpenLinkCommand) {

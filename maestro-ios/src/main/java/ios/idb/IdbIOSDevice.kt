@@ -26,6 +26,7 @@ import com.google.protobuf.ByteString
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
+import idb.Idb.HIDEvent.HIDButtonType
 import idb.PushRequestKt.inner
 import idb.accessibilityInfoRequest
 import idb.fileContainer
@@ -85,6 +86,36 @@ class IdbIOSDevice(
 
     override fun longPress(x: Int, y: Int): Result<Unit, Throwable> {
         return press(x, y, holdDelay = 3000)
+    }
+
+    override fun pressKey(code: Int): Result<Unit, Throwable> {
+        return runCatching {
+            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
+            val stream = asyncStub.hid(responseObserver)
+
+            TextInputUtil.keyPressToEvents(code.toLong())
+                .forEach {
+                    stream.onNext(it)
+                }
+            stream.onCompleted()
+        }
+    }
+
+    override fun pressButton(code: Int): Result<Unit, Throwable> {
+        return runCatching {
+            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
+            val stream = asyncStub.hid(responseObserver)
+
+            TextInputUtil.pressWithDuration(
+                HIDEventKt.hIDPressAction {
+                    this.button = HIDEventKt.hIDButton {
+                        this.button = HIDButtonType.forNumber(code)
+                    }
+                }
+            ).forEach { stream.onNext(it) }
+
+            stream.onCompleted()
+        }
     }
 
     private fun press(

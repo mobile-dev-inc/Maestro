@@ -27,8 +27,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
-import maestro.orchestra.NoInputException
-import maestro.orchestra.SyntaxError
+import maestro.orchestra.error.NoInputException
+import maestro.orchestra.error.SyntaxError
 import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.absolute

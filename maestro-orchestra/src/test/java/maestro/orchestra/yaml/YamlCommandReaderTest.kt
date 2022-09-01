@@ -5,20 +5,18 @@ import com.google.common.truth.Truth.assertWithMessage
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.Command
-import maestro.orchestra.InvalidInitFlowFile
+import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.ScrollCommand
-import maestro.orchestra.SyntaxError
+import maestro.orchestra.error.SyntaxError
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
-import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Paths
-import kotlin.io.path.isSameFileAs
 
 @Suppress("TestFunctionName")
 internal class YamlCommandReaderTest {

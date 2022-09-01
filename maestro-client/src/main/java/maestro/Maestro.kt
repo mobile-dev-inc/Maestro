@@ -191,6 +191,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return if (retryIfNoChange) 3 else 1
     }
 
+    fun pressKey(code: KeyCode) {
+        LOGGER.info("Pressing key $code")
+
+        driver.pressKey(code)
+        waitForAppToSettle()
+    }
+
     fun findElementByText(text: String, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by text: $text (timeout $timeoutMs)")
 

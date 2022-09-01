@@ -6,14 +6,13 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import maestro.Maestro
-import maestro.orchestra.InvalidInitFlowFile
+import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
-import maestro.orchestra.NoInputException
+import maestro.orchestra.error.NoInputException
 import maestro.orchestra.OrchestraAppState
-import maestro.orchestra.SyntaxError
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import kotlin.concurrent.thread

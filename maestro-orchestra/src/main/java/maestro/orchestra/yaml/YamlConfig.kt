@@ -2,12 +2,11 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonAnySetter
 import maestro.orchestra.ApplyConfigurationCommand
-import maestro.orchestra.InvalidInitFlowFile
+import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroInitFlow
 import java.nio.file.Path
-import java.nio.file.Paths
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 

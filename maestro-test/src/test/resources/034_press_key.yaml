@@ -1,0 +1,9 @@
+appId: com.example.app
+---
+- pressKey: Enter
+- pressKey: Backspace
+- pressKey: Home
+- pressKey: back
+- pressKey: Volume Up
+- pressKey: volume Down
+- pressKey: lOcK

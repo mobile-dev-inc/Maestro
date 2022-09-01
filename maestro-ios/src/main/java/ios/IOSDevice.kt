@@ -36,6 +36,10 @@ interface IOSDevice : AutoCloseable {
 
     fun longPress(x: Int, y: Int): Result<Unit, Throwable>
 
+    fun pressKey(code: Int): Result<Unit, Throwable>
+
+    fun pressButton(code: Int): Result<Unit, Throwable>
+
     fun scroll(xStart: Int, yStart: Int, xEnd: Int, yEnd: Int): Result<Unit, Throwable>
 
     /**

@@ -24,6 +24,7 @@ import com.github.michaelbull.result.getOrThrow
 import ios.IOSDevice
 import maestro.DeviceInfo
 import maestro.Driver
+import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
 import maestro.TreeNode
@@ -111,6 +112,26 @@ class IOSDriver(
 
     override fun longPress(point: Point) {
         iosDevice.longPress(point.x, point.y).expect {}
+    }
+
+    override fun pressKey(code: KeyCode) {
+        return when (code) {
+            KeyCode.ENTER -> pressKey(40)  // keyboardReturnOrEnter
+            KeyCode.BACKSPACE -> pressKey(42)   // keyboardDeleteOrBackspace
+            KeyCode.VOLUME_UP -> pressKey(128)  // keyboardVolumeUp
+            KeyCode.VOLUME_DOWN -> pressKey(129)    // keyboardVolumeDown
+            KeyCode.HOME -> pressButton(1)  // idb.HIDButtonType.HOME
+            KeyCode.LOCK -> pressButton(2)  // idb.HIDButtonType.LOCK
+            KeyCode.BACK -> Unit // Do nothing, back key is not available on iOS
+        }
+    }
+
+    private fun pressKey(code: Int) {
+        iosDevice.pressKey(code).expect {}
+    }
+
+    private fun pressButton(code: Int) {
+        iosDevice.pressButton(code).expect {}
     }
 
     override fun contentDescriptor(): TreeNode {

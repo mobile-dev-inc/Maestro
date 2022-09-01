@@ -1,4 +1,4 @@
-package maestro.orchestra
+package maestro.orchestra.error
 
 import java.nio.file.Path
 

@@ -19,11 +19,11 @@
 
 package maestro.test.drivers
 
-import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.DeviceInfo
 import maestro.Driver
+import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
 import maestro.TreeNode
@@ -124,6 +124,12 @@ class FakeDriver : Driver {
         ensureOpen()
 
         events += Event.LongPress(point)
+    }
+
+    override fun pressKey(code: KeyCode) {
+        ensureOpen()
+
+        events += Event.PressKey(code)
     }
 
     override fun contentDescriptor(): TreeNode {
@@ -248,6 +254,10 @@ class FakeDriver : Driver {
 
         data class OpenLink(
             val link: String,
+        ) : Event()
+
+        data class PressKey(
+            val code: KeyCode,
         ) : Event()
 
     }

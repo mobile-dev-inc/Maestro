@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.util.Env.injectEnv
 
@@ -218,3 +219,17 @@ data class OpenLinkCommand(
         )
     }
 }
+
+data class PressKeyCommand(
+    val code: KeyCode,
+) : Command {
+    override fun description(): String {
+        return "Press ${code.description} key"
+    }
+
+    override fun injectEnv(env: Map<String, String>): PressKeyCommand {
+        return this
+    }
+
+}
+

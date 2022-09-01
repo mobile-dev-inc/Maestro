@@ -30,6 +30,7 @@ data class MaestroCommand(
     val launchAppCommand: LaunchAppCommand? = null,
     val applyConfigurationCommand: ApplyConfigurationCommand? = null,
     val openLinkCommand: OpenLinkCommand? = null,
+    val pressKeyCommand: PressKeyCommand? = null,
 ) {
 
     fun injectEnv(envParameters: Map<String, String>): MaestroCommand {
@@ -44,6 +45,7 @@ data class MaestroCommand(
             launchAppCommand = launchAppCommand?.injectEnv(envParameters),
             applyConfigurationCommand = applyConfigurationCommand?.injectEnv(envParameters),
             openLinkCommand = openLinkCommand?.injectEnv(envParameters),
+            pressKeyCommand = pressKeyCommand?.injectEnv(envParameters),
         )
     }
 
@@ -85,6 +87,10 @@ data class MaestroCommand(
         }
 
         openLinkCommand?.let {
+            return it.description()
+        }
+
+        pressKeyCommand?.let {
             return it.description()
         }
 
