@@ -63,3 +63,10 @@
 * Fix: continuous mode did not work for paths without a parent directory
 * Fix: workaround for UiAutomator content descriptor crash
 * Fix: `tapOn: {int}` did not work
+
+## 1.4.1 - 2022-09-05
+
+* Fix: relative position selectors (i.e. `below`) were sometimes picking a wrong view
+* Fix: await channel termination when closing a gRPC ManagedChannel
+* Fix: Android `inputText` did not work properly when a string had whitespaces in it
+* Fix: race condition in iOS `inputText`
