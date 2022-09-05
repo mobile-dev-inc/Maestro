@@ -937,6 +937,39 @@ class IntegrationTest {
         driver.assertHasEvent(Event.PressKey(KeyCode.LOCK))
     }
 
+    @Test
+    fun `Case 035 - Ignore duplicates when refreshing item position`() {
+        // Given
+        val commands = readCommands("035_refresh_position_ignore_duplicates")
+
+        val driver = driver {
+
+            element {
+                id = "icon"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+
+            element {
+                text = "Item"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+
+            element {
+                id = "icon"
+                bounds = Bounds(0, 200, 100, 300)
+            }
+
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.Tap(Point(50, 250)))
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

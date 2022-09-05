@@ -37,15 +37,16 @@ object ViewUtils {
     }
 
     fun refreshElement(root: TreeNode, node: TreeNode): TreeNode? {
-        if((root.attributes - "bounds") == (node.attributes - "bounds")) {
-            return root
+        val matches = root.aggregate()
+            .filter {
+                (it.attributes - "bounds") == (node.attributes - "bounds")
+            }
+
+        if (matches.size != 1) {
+            return null
         }
 
-        return root
-            .children
-            .firstNotNullOfOrNull {
-                refreshElement(it, node)
-            }
+        return matches[0]
     }
 
     private fun getElementAt(
