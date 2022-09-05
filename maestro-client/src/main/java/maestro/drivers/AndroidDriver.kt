@@ -42,6 +42,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -110,6 +111,10 @@ class AndroidDriver(
         instrumentationSession?.close()
         instrumentationSession = null
         channel.shutdown()
+
+        if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+            throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
+        }
     }
 
     override fun deviceInfo(): DeviceInfo {

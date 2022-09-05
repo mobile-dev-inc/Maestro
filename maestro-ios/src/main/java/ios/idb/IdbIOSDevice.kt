@@ -51,6 +51,8 @@ import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
 import java.io.File
 import java.io.InputStream
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 class IdbIOSDevice(
     private val channel: ManagedChannel,
@@ -363,6 +365,10 @@ class IdbIOSDevice(
 
     override fun close() {
         channel.shutdown()
+
+        if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+            throw TimeoutException("Couldn't close Maestro iOS driver due to gRPC timeout")
+        }
     }
 
     companion object {
