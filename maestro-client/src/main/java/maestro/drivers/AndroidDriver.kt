@@ -209,7 +209,7 @@ class AndroidDriver(
     }
 
     override fun inputText(text: String) {
-        dadb.shell("input text $text")
+        dadb.shell("input text \"$text\"")
     }
 
     override fun openLink(link: String) {
