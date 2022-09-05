@@ -190,6 +190,7 @@ class IdbIOSDevice(
             TextInputUtil.textToListOfEvents(text)
                 .forEach {
                     stream.onNext(it)
+                    Thread.sleep(25)
                 }
             stream.onCompleted()
         }
