@@ -70,3 +70,7 @@
 * Fix: await channel termination when closing a gRPC ManagedChannel
 * Fix: Android `inputText` did not work properly when a string had whitespaces in it
 * Fix: race condition in iOS `inputText`
+
+## 1.4.2 - 2022-09-06
+
+* Fix: Android devices were not discoverable in some cases
