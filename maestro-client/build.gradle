@@ -47,7 +47,7 @@ dependencies {
     api 'io.grpc:grpc-okhttp:1.45.0'
     api 'com.google.protobuf:protobuf-kotlin:3.19.4'
     api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
-    api "dev.mobile:dadb:0.0.10"
+    api "dev.mobile:dadb:1.0.0"
     api "org.slf4j:slf4j-simple:1.7.36"
 
     implementation project(':maestro-ios')
