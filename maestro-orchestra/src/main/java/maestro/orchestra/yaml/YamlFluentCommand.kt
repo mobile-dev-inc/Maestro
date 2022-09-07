@@ -26,6 +26,7 @@ import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
+import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
@@ -48,6 +49,7 @@ data class YamlFluentCommand(
     val swipe: YamlElementSelectorUnion? = null,
     val openLink: String? = null,
     val pressKey: String? = null,
+    val eraseText: YamlEraseText? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -78,10 +80,15 @@ data class YamlFluentCommand(
                     code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey")
                 )
             )
+            eraseText != null -> MaestroCommand(
+                eraseTextCommand = EraseTextCommand(
+                    charactersToErase = eraseText.charactersToErase
+                )
+            )
             action != null -> when (action) {
                 "back" -> MaestroCommand(backPressCommand = BackPressCommand())
                 "scroll" -> MaestroCommand(scrollCommand = ScrollCommand())
-                else -> throw IllegalStateException("Unknown navigation target: $action")
+                else -> error("Unknown navigation target: $action")
             }
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
@@ -243,6 +250,10 @@ data class YamlFluentCommand(
             return when (stringCommand) {
                 "launchApp" -> YamlFluentCommand(
                     launchApp = YamlLaunchApp(appId = null, clearState = null)
+                )
+
+                "eraseText" -> YamlFluentCommand(
+                    eraseText = YamlEraseText(charactersToErase = 50)
                 )
 
                 "back" -> YamlFluentCommand(

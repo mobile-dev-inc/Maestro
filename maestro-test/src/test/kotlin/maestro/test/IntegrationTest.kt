@@ -277,6 +277,7 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.InputText("Hello World"))
+        driver.assertCurrentTextInput("Hello World")
     }
 
     @Test
@@ -968,6 +969,23 @@ class IntegrationTest {
 
         // Then
         driver.assertHasEvent(Event.Tap(Point(50, 250)))
+    }
+
+    @Test
+    fun `Case 036 - Erase text`() {
+        // Given
+        val commands = readCommands("036_erase_text")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertCurrentTextInput("Hello")
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

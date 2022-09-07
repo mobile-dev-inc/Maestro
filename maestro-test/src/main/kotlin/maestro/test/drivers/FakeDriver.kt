@@ -38,6 +38,8 @@ class FakeDriver : Driver {
     private var pushedState: String? = null
     private val events = mutableListOf<Event>()
 
+    private var currentText: String = ""
+
     override fun name(): String {
         return "Fake Device"
     }
@@ -129,6 +131,10 @@ class FakeDriver : Driver {
     override fun pressKey(code: KeyCode) {
         ensureOpen()
 
+        if (code == KeyCode.BACKSPACE) {
+            currentText = currentText.dropLast(1)
+        }
+
         events += Event.PressKey(code)
     }
 
@@ -158,6 +164,8 @@ class FakeDriver : Driver {
 
     override fun inputText(text: String) {
         ensureOpen()
+
+        currentText += text
 
         events += Event.InputText(text)
     }
@@ -199,6 +207,10 @@ class FakeDriver : Driver {
 
         assertThat(pushedState).isNotNull()
         assertThat(pushedState!!).isEqualTo(expectedJson)
+    }
+
+    fun assertCurrentTextInput(expected: String) {
+        assertThat(currentText).isEqualTo(expected)
     }
 
     private fun ensureOpen() {

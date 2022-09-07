@@ -233,3 +233,16 @@ data class PressKeyCommand(
 
 }
 
+data class EraseTextCommand(
+    val charactersToErase: Int,
+) : Command {
+
+    override fun description(): String {
+        return "Erase $charactersToErase characters"
+    }
+
+    override fun injectEnv(env: Map<String, String>): EraseTextCommand {
+        return this
+    }
+
+}

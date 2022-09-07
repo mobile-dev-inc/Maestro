@@ -23,6 +23,7 @@ import maestro.DeviceInfo
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Filters.asFilter
+import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
@@ -143,6 +144,14 @@ class Orchestra(
                 ?.let { openLinkCommand(it) }
             command.pressKeyCommand != null -> command.pressKeyCommand
                 ?.let { pressKeyCommand(it) }
+            command.eraseTextCommand != null -> command.eraseTextCommand
+                ?.let { eraseTextCommand(it) }
+        }
+    }
+
+    private fun eraseTextCommand(command: EraseTextCommand) {
+        repeat(command.charactersToErase) {
+            maestro.pressKey(KeyCode.BACKSPACE)
         }
     }
 
