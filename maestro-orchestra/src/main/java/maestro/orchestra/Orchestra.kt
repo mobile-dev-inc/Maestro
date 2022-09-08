@@ -29,6 +29,7 @@ import maestro.MaestroException
 import maestro.MaestroTimer
 import maestro.TreeNode
 import maestro.UiElement
+import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.yaml.YamlCommandReader
@@ -180,6 +181,13 @@ class Orchestra(
     }
 
     private fun inputTextCommand(command: InputTextCommand) {
+        val isAscii = Charsets.US_ASCII.newEncoder()
+            .canEncode(command.text)
+
+        if (!isAscii) {
+            throw UnicodeNotSupportedError(command.text)
+        }
+
         maestro.inputText(command.text)
     }
 

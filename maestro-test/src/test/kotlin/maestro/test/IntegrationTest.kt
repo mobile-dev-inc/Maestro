@@ -12,6 +12,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.Orchestra
+import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.test.drivers.FakeDriver
 import maestro.test.drivers.FakeDriver.Event
@@ -277,7 +278,8 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.InputText("Hello World"))
-        driver.assertCurrentTextInput("Hello World")
+        driver.assertHasEvent(Event.InputText("user@example.com"))
+        driver.assertCurrentTextInput("Hello Worlduser@example.com")
     }
 
     @Test
@@ -986,6 +988,23 @@ class IntegrationTest {
 
         // Then
         driver.assertCurrentTextInput("Hello")
+    }
+
+    @Test(expected = UnicodeNotSupportedError::class)
+    fun `Case 037 - throw exception when trying to input text with unicode characters`() {
+        // Given
+        val commands = readCommands("037_unicode_input")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // Expect exception
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

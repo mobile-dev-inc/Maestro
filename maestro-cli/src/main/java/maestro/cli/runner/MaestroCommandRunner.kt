@@ -20,6 +20,7 @@
 package maestro.cli.runner
 
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.OrchestraAppState
@@ -74,7 +75,11 @@ object MaestroCommandRunner {
                 commandStatuses[command] = CommandStatus.COMPLETED
                 refreshUi()
             },
-            onCommandFailed = { _, command, _ ->
+            onCommandFailed = { _, command, e ->
+                if (e !is MaestroException) {
+                    throw e
+                }
+
                 commandStatuses[command] = CommandStatus.FAILED
                 refreshUi()
             },
