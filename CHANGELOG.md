@@ -74,3 +74,8 @@
 ## 1.4.2 - 2022-09-06
 
 * Fix: Android devices were not discoverable in some cases
+
+## 1.5.0 - 2022-09-08
+
+* Temporary fix: showing an error when unicode characters are passed to `inputText`
+* Feature: `eraseText` command
