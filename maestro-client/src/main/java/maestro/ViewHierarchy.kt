@@ -17,14 +17,18 @@
  *
  */
 
-package maestro.utils
+package maestro
 
-import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElement
 
-object ViewUtils {
+@JvmInline
+value class ViewHierarchy(val root: TreeNode) {
+    companion object {
+        fun from(driver: Driver): ViewHierarchy =
+            ViewHierarchy(driver.contentDescriptor())
+    }
 
-    fun isVisible(root: TreeNode, node: TreeNode): Boolean {
+    fun isVisible(node: TreeNode): Boolean {
         if (!node.attributes.containsKey("bounds")) {
             return false
         }
@@ -36,7 +40,7 @@ object ViewUtils {
         return node == elementAtPosition
     }
 
-    fun refreshElement(root: TreeNode, node: TreeNode): TreeNode? {
+    fun refreshElement(node: TreeNode): TreeNode? {
         val matches = root.aggregate()
             .filter {
                 (it.attributes - "bounds") == (node.attributes - "bounds")
@@ -81,4 +85,7 @@ object ViewUtils {
             .firstOrNull()
     }
 
+    fun aggregate(): List<TreeNode> {
+        return root.aggregate()
+    }
 }

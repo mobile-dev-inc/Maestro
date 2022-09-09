@@ -214,7 +214,7 @@ class Orchestra(
             // If we got to this point, it means that element is actually visible
             throw MaestroException.AssertionFailure(
                 "${selector.description()} is visible",
-                maestro.viewHierarchy(),
+                maestro.viewHierarchy().root,
             )
         }
     }
@@ -278,7 +278,7 @@ class Orchestra(
             filter = filterFunc,
         ) ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
-            maestro.viewHierarchy(),
+            maestro.viewHierarchy().root,
         )
     }
 

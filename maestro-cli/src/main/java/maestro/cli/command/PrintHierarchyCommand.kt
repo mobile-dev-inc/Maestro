@@ -36,7 +36,7 @@ class PrintHierarchyCommand : Runnable {
         MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use {
             val hierarchy = jacksonObjectMapper()
                 .writerWithDefaultPrettyPrinter()
-                .writeValueAsString(it.viewHierarchy())
+                .writeValueAsString(it.viewHierarchy().root)
 
             println(hierarchy)
         }
