@@ -31,6 +31,7 @@ appId: com.android.contacts
 - tapOn: "Last Name"
 - inputText: "Snow"
 - tapOn: "Save"
+- assertVisible: "Add Phone Number"
 ```
 
 </td>
@@ -47,6 +48,7 @@ appId: com.apple.MobileAddressBook
 - tapOn: "Add phone"
 - inputText: "123123"
 - tapOn: "Done"
+- assertVisible: "message"
 ```
 
 </td>
