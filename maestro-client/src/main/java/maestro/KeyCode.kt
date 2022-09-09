@@ -10,7 +10,18 @@ enum class KeyCode(
     HOME("Home"),
     LOCK("Lock"),
     VOLUME_UP("Volume Up"),
-    VOLUME_DOWN("Volume Down");
+    VOLUME_DOWN("Volume Down"),
+    REMOTE_UP("Remote Dpad Up"),
+    REMOTE_DOWN("Remote Dpad Down"),
+    REMOTE_LEFT("Remote Dpad Left"),
+    REMOTE_RIGHT("Remote Dpad Right"),
+    REMOTE_CENTER("Remote Dpad Center"),
+    REMOTE_PLAY_PAUSE("Remote Media Play Pause"),
+    REMOTE_STOP("Remote Media Stop"),
+    REMOTE_NEXT("Remote Media Next"),
+    REMOTE_PREVIOUS("Remote Media Previous"),
+    REMOTE_REWIND("Remote Media Rewind"),
+    REMOTE_FAST_FORWARD("Remote Media Fast Forward");
 
     companion object {
         fun getByName(name: String): KeyCode? {

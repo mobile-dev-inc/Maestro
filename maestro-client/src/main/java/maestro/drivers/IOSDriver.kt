@@ -123,6 +123,17 @@ class IOSDriver(
             KeyCode.HOME -> pressButton(1)  // idb.HIDButtonType.HOME
             KeyCode.LOCK -> pressButton(2)  // idb.HIDButtonType.LOCK
             KeyCode.BACK -> Unit // Do nothing, back key is not available on iOS
+            KeyCode.REMOTE_UP -> pressKey(82)
+            KeyCode.REMOTE_DOWN -> pressKey(81)
+            KeyCode.REMOTE_LEFT -> pressKey(80)
+            KeyCode.REMOTE_RIGHT -> pressKey(79)
+            KeyCode.REMOTE_CENTER -> Unit
+            KeyCode.REMOTE_PLAY_PAUSE -> Unit
+            KeyCode.REMOTE_STOP -> Unit
+            KeyCode.REMOTE_NEXT -> Unit
+            KeyCode.REMOTE_PREVIOUS -> Unit
+            KeyCode.REMOTE_REWIND -> Unit
+            KeyCode.REMOTE_FAST_FORWARD -> Unit
         }
     }
 

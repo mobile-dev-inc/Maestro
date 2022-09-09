@@ -938,6 +938,17 @@ class IntegrationTest {
         driver.assertHasEvent(Event.PressKey(KeyCode.VOLUME_UP))
         driver.assertHasEvent(Event.PressKey(KeyCode.VOLUME_DOWN))
         driver.assertHasEvent(Event.PressKey(KeyCode.LOCK))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_UP))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_DOWN))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_LEFT))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_RIGHT))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_CENTER))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_PLAY_PAUSE))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_STOP))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_NEXT))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_PREVIOUS))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_REWIND))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_FAST_FORWARD))
     }
 
     @Test

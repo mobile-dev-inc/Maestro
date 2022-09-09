@@ -178,6 +178,17 @@ class AndroidDriver(
             KeyCode.VOLUME_DOWN -> 25
             KeyCode.HOME -> 3
             KeyCode.LOCK -> 276
+            KeyCode.REMOTE_UP -> 19
+            KeyCode.REMOTE_DOWN -> 20
+            KeyCode.REMOTE_LEFT -> 21
+            KeyCode.REMOTE_RIGHT -> 22
+            KeyCode.REMOTE_CENTER -> 23
+            KeyCode.REMOTE_PLAY_PAUSE -> 85
+            KeyCode.REMOTE_STOP -> 86
+            KeyCode.REMOTE_NEXT -> 87
+            KeyCode.REMOTE_PREVIOUS -> 88
+            KeyCode.REMOTE_REWIND -> 89
+            KeyCode.REMOTE_FAST_FORWARD -> 90
         }
 
         dadb.shell("input keyevent $intCode")
