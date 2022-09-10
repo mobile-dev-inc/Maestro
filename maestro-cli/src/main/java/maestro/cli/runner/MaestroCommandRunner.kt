@@ -21,6 +21,7 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.OrchestraAppState
@@ -43,7 +44,7 @@ object MaestroCommandRunner {
                 ResultView.UiState.Running(
                     initCommands = (initFlow?.commands ?: emptyList())
                         // Don't render configuration commands
-                        .filter { it.applyConfigurationCommand == null }
+                        .filter { it.command !is ApplyConfigurationCommand }
                         .mapIndexed { _, command ->
                             CommandState(
                                 command = command,
@@ -52,7 +53,7 @@ object MaestroCommandRunner {
                         },
                     commands = commands
                         // Don't render configuration commands
-                        .filter { it.applyConfigurationCommand == null }
+                        .filter { it.command !is ApplyConfigurationCommand }
                         .mapIndexed { _, command ->
                             CommandState(
                                 command = command,

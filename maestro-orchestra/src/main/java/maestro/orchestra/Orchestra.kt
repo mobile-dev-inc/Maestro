@@ -104,7 +104,7 @@ class Orchestra(
             .forEachIndexed { index, command ->
                 onCommandStart(index, command)
                 try {
-                    executeCommand(command)
+                    executeCommand(command.command)
                     onCommandComplete(index, command)
                 } catch (e: Throwable) {
                     onCommandFailed(index, command, e)
@@ -114,39 +114,22 @@ class Orchestra(
         return true
     }
 
-    private fun executeCommand(command: MaestroCommand) {
-        when {
-            command.tapOnElement != null -> command.tapOnElement
-                ?.let {
-                    tapOnElement(
-                        it,
-                        it.retryIfNoChange ?: true,
-                        it.waitUntilVisible ?: true,
-                    )
-                }
-            command.tapOnPoint != null -> command.tapOnPoint
-                ?.let {
-                    tapOnPoint(
-                        it,
-                        it.retryIfNoChange ?: true,
-                    )
-                }
-            command.backPressCommand != null -> maestro.backPress()
-            command.scrollCommand != null -> maestro.scrollVertical()
-            command.swipeCommand != null -> command.swipeCommand
-                ?.let { swipeCommand(it) }
-            command.assertCommand != null -> command.assertCommand
-                ?.let { assertCommand(it) }
-            command.inputTextCommand != null -> command.inputTextCommand
-                ?.let { inputTextCommand(it) }
-            command.launchAppCommand != null -> command.launchAppCommand
-                ?.let { launchAppCommand(it) }
-            command.openLinkCommand != null -> command.openLinkCommand
-                ?.let { openLinkCommand(it) }
-            command.pressKeyCommand != null -> command.pressKeyCommand
-                ?.let { pressKeyCommand(it) }
-            command.eraseTextCommand != null -> command.eraseTextCommand
-                ?.let { eraseTextCommand(it) }
+    private fun executeCommand(command: Command?) {
+        return when (command) {
+            is TapOnElementCommand -> {
+                tapOnElement(command, command.retryIfNoChange ?: true, command.waitUntilVisible ?: true)
+            }
+            is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: true)
+            is BackPressCommand -> maestro.backPress()
+            is ScrollCommand -> maestro.scrollVertical()
+            is SwipeCommand -> swipeCommand(command)
+            is AssertCommand -> assertCommand(command)
+            is InputTextCommand -> inputTextCommand(command)
+            is LaunchAppCommand -> launchAppCommand(command)
+            is OpenLinkCommand -> openLinkCommand(command)
+            is PressKeyCommand -> pressKeyCommand(command)
+            is EraseTextCommand -> eraseTextCommand(command)
+            is ApplyConfigurationCommand, null -> { /* no-op */ }
         }
     }
 

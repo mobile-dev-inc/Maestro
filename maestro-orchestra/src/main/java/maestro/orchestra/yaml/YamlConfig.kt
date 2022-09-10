@@ -30,7 +30,7 @@ data class YamlConfig(
             initFlow = initFlow(flowPath),
             ext = ext.toMap()
         )
-        return MaestroCommand(applyConfigurationCommand = ApplyConfigurationCommand(config))
+        return MaestroCommand(ApplyConfigurationCommand(config))
     }
 
     fun getInitFlowPath(flowPath: Path): Path? {

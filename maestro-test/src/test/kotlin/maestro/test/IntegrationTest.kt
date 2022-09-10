@@ -485,14 +485,14 @@ class IntegrationTest {
         assertThat(commands).isEqualTo(
             listOf(
                 MaestroCommand(
-                    applyConfigurationCommand = ApplyConfigurationCommand(
+                    ApplyConfigurationCommand(
                         config = MaestroConfig(
                             appId = "com.example.app",
                             initFlow = MaestroInitFlow(
                                 appId = "com.example.app",
                                 commands = listOf(
                                     MaestroCommand(
-                                        launchAppCommand = LaunchAppCommand(
+                                        LaunchAppCommand(
                                             appId = "com.example.app"
                                         )
                                     )
@@ -502,7 +502,7 @@ class IntegrationTest {
                     ),
                 ),
                 MaestroCommand(
-                    launchAppCommand = LaunchAppCommand(
+                    LaunchAppCommand(
                         appId = "com.example.app"
                     )
                 )

@@ -58,36 +58,16 @@ data class YamlFluentCommand(
             launchApp != null -> launchApp(launchApp, appId)
             tapOn != null -> tapCommand(tapOn)
             longPressOn != null -> tapCommand(longPressOn, longPress = true)
-            assertVisible != null -> MaestroCommand(
-                assertCommand = AssertCommand(
-                    visible = toElementSelector(assertVisible),
-                )
-            )
-            assertNotVisible != null -> MaestroCommand(
-                assertCommand = AssertCommand(
-                    notVisible = toElementSelector(assertNotVisible),
-                )
-            )
-            inputText != null -> MaestroCommand(
-                inputTextCommand = InputTextCommand(inputText)
-            )
+            assertVisible != null -> MaestroCommand(AssertCommand(visible = toElementSelector(assertVisible)))
+            assertNotVisible != null -> MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible),))
+            inputText != null -> MaestroCommand(InputTextCommand(inputText))
             swipe != null -> swipeCommand(swipe)
-            openLink != null -> MaestroCommand(
-                openLinkCommand = OpenLinkCommand(openLink)
-            )
-            pressKey != null -> MaestroCommand(
-                pressKeyCommand = PressKeyCommand(
-                    code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey")
-                )
-            )
-            eraseText != null -> MaestroCommand(
-                eraseTextCommand = EraseTextCommand(
-                    charactersToErase = eraseText.charactersToErase
-                )
-            )
+            openLink != null -> MaestroCommand(OpenLinkCommand(openLink))
+            pressKey != null -> MaestroCommand(PressKeyCommand(code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey")))
+            eraseText != null -> MaestroCommand(EraseTextCommand(charactersToErase = eraseText.charactersToErase))
             action != null -> when (action) {
-                "back" -> MaestroCommand(backPressCommand = BackPressCommand())
-                "scroll" -> MaestroCommand(scrollCommand = ScrollCommand())
+                "back" -> MaestroCommand(BackPressCommand())
+                "scroll" -> MaestroCommand(ScrollCommand())
                 else -> error("Unknown navigation target: $action")
             }
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
@@ -96,7 +76,7 @@ data class YamlFluentCommand(
 
     private fun launchApp(command: YamlLaunchApp, appId: String): MaestroCommand {
         return MaestroCommand(
-            launchAppCommand = LaunchAppCommand(
+            LaunchAppCommand(
                 appId = command.appId ?: appId,
                 clearState = command.clearState,
             )
@@ -118,7 +98,7 @@ data class YamlFluentCommand(
                 }
 
             MaestroCommand(
-                tapOnPoint = TapOnPointCommand(
+                TapOnPointCommand(
                     x = points[0],
                     y = points[1],
                     retryIfNoChange = retryIfNoChange,
@@ -128,7 +108,7 @@ data class YamlFluentCommand(
             )
         } else {
             MaestroCommand(
-                tapOnElement = TapOnElementCommand(
+                TapOnElementCommand(
                     selector = toElementSelector(tapOn),
                     retryIfNoChange = retryIfNoChange,
                     waitUntilVisible = waitUntilVisible,
@@ -150,7 +130,7 @@ data class YamlFluentCommand(
                 }
 
             MaestroCommand(
-                tapOnPoint = TapOnPointCommand(
+                TapOnPointCommand(
                     x = points[0],
                     y = points[1],
                     retryIfNoChange = retryIfNoChange,
@@ -159,7 +139,7 @@ data class YamlFluentCommand(
             )
         } else {
             MaestroCommand(
-                tapOnElement = TapOnElementCommand(
+                TapOnElementCommand(
                     selector = toElementSelector(tapOn),
                     retryIfNoChange = retryIfNoChange,
                     waitUntilVisible = waitUntilVisible,
@@ -196,9 +176,7 @@ data class YamlFluentCommand(
             throw IllegalStateException("No end point configured for swipe action")
         }
 
-        return MaestroCommand(
-            swipeCommand = SwipeCommand(startPoint, endPoint)
-        )
+        return MaestroCommand(SwipeCommand(startPoint, endPoint))
     }
 
     private fun toElementSelector(selectorUnion: YamlElementSelectorUnion): ElementSelector {

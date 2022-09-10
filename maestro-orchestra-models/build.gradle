@@ -12,4 +12,10 @@ plugins.withId("com.vanniktech.maven.publish") {
 
 dependencies {
     implementation project(path: ':maestro-client')
+
+    api 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
+    api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "com.google.truth:truth:1.1.3"
 }

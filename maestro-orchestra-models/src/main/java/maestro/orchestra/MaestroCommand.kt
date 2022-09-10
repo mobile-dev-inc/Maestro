@@ -19,88 +19,50 @@
 
 package maestro.orchestra
 
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.SerializerProvider
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
+
+/**
+ * The Mobile.dev platform uses this class in the backend and hence the custom
+ * serialization logic. The earlier implementation of this class had a nullable field for
+ * each command. Sometime in the future we may move this serialization logic to the backend
+ * itself, where it would be more relevant.
+ */
+@JsonSerialize(using = MaestroCommandSerializer::class)
 data class MaestroCommand(
-    val tapOnElement: TapOnElementCommand? = null,
-    val tapOnPoint: TapOnPointCommand? = null,
-    val scrollCommand: ScrollCommand? = null,
-    val swipeCommand: SwipeCommand? = null,
-    val backPressCommand: BackPressCommand? = null,
-    val assertCommand: AssertCommand? = null,
-    val inputTextCommand: InputTextCommand? = null,
-    val launchAppCommand: LaunchAppCommand? = null,
-    val applyConfigurationCommand: ApplyConfigurationCommand? = null,
-    val openLinkCommand: OpenLinkCommand? = null,
-    val pressKeyCommand: PressKeyCommand? = null,
-    val eraseTextCommand: EraseTextCommand? = null,
+    val command: Command?,
 ) {
 
     fun injectEnv(envParameters: Map<String, String>): MaestroCommand {
-        return copy(
-            tapOnElement = tapOnElement?.injectEnv(envParameters),
-            tapOnPoint = tapOnPoint?.injectEnv(envParameters),
-            scrollCommand = scrollCommand?.injectEnv(envParameters),
-            swipeCommand = swipeCommand?.injectEnv(envParameters),
-            backPressCommand = backPressCommand?.injectEnv(envParameters),
-            assertCommand = assertCommand?.injectEnv(envParameters),
-            inputTextCommand = inputTextCommand?.injectEnv(envParameters),
-            launchAppCommand = launchAppCommand?.injectEnv(envParameters),
-            applyConfigurationCommand = applyConfigurationCommand?.injectEnv(envParameters),
-            openLinkCommand = openLinkCommand?.injectEnv(envParameters),
-            pressKeyCommand = pressKeyCommand?.injectEnv(envParameters),
-            eraseTextCommand = eraseTextCommand?.injectEnv(envParameters),
-        )
+        return copy(command = command?.injectEnv(envParameters))
     }
 
     fun description(): String {
-        tapOnElement?.let {
-            return it.description()
-        }
-
-        tapOnPoint?.let {
-            return it.description()
-        }
-
-        scrollCommand?.let {
-            return it.description()
-        }
-
-        swipeCommand?.let {
-            return it.description()
-        }
-
-        backPressCommand?.let {
-            return it.description()
-        }
-
-        assertCommand?.let {
-            return it.description()
-        }
-
-        inputTextCommand?.let {
-            return it.description()
-        }
-
-        launchAppCommand?.let {
-            return it.description()
-        }
-
-        applyConfigurationCommand?.let {
-            return it.description()
-        }
-
-        openLinkCommand?.let {
-            return it.description()
-        }
-
-        pressKeyCommand?.let {
-            return it.description()
-        }
-
-        eraseTextCommand?.let {
-            return it.description()
-        }
-
-        return "No op"
+        return command?.description() ?: "No op"
     }
+}
 
+class MaestroCommandSerializer : JsonSerializer<MaestroCommand>() {
+    override fun serialize(
+        value: MaestroCommand,
+        gen: JsonGenerator,
+        serializers: SerializerProvider
+    ) {
+        val commandNameKey = value.command!!::class.java.simpleName
+            .replaceFirstChar(Char::lowercaseChar)
+
+        val commandNameKeyForServer = when (commandNameKey) {
+            "tapOnElementCommand" -> "tapOnElement"
+            "tapOnPointCommand" -> "tapOnPoint"
+            else -> commandNameKey
+        }
+
+        with(gen) {
+            writeStartObject()
+            writeObjectField(commandNameKeyForServer, value.command)
+            writeEndObject()
+        }
+    }
 }

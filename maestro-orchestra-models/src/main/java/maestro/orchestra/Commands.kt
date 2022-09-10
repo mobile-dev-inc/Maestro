@@ -23,7 +23,7 @@ import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.util.Env.injectEnv
 
-interface Command {
+sealed interface Command {
 
     fun description(): String
 

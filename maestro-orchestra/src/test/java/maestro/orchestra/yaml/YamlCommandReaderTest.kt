@@ -252,21 +252,7 @@ internal class YamlCommandReaderTest {
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> {
-        return commands.map(this::toMaestroCommand).toList()
-    }
-
-    private fun toMaestroCommand(command: Command): MaestroCommand {
-        val constructor = MaestroCommand::class.java.constructors[1]
-        val parameterIndex = constructor.parameterTypes.indexOf(command::class.java)
-        if (parameterIndex == -1) throw IllegalArgumentException("Unsupported command type: ${command::class.java}")
-        val args = constructor.parameters.map { parameter ->
-            when (parameter.type) {
-                command::class.java -> command
-                Int::class.java -> 0
-                else -> null
-            }
-        }
-        return constructor.newInstance(*args.toTypedArray()) as MaestroCommand
+        return commands.map(::MaestroCommand).toList()
     }
 
     private fun parseCommands(): List<MaestroCommand> {

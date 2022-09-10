@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.error.NoInputException
@@ -60,7 +61,12 @@ object YamlCommandReader {
     }
 
     fun getConfig(commands: List<MaestroCommand>): MaestroConfig? {
-        return commands.firstNotNullOfOrNull { it.applyConfigurationCommand }?.config
+        val configurationCommand = commands
+            .map(MaestroCommand::command)
+            .filterIsInstance<ApplyConfigurationCommand>()
+            .firstOrNull()
+
+        return configurationCommand?.config
     }
 
     private fun readConfigAndCommands(flowPath: Path): Pair<YamlConfig, List<YamlFluentCommand>> {
