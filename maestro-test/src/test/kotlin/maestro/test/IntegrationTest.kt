@@ -1049,6 +1049,24 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 039 - Hide keyboard`() {
+        // Given
+        val commands = readCommands("039_hide_keyboard")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.HideKeyboard)
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

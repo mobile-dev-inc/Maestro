@@ -59,4 +59,6 @@ interface Driver {
 
     fun openLink(link: String)
 
+    fun hideKeyboard()
+
 }

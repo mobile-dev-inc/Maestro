@@ -121,6 +121,7 @@ class Orchestra(
             }
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: true)
             is BackPressCommand -> maestro.backPress()
+            is HideKeyboardCommand -> maestro.hideKeyboard()
             is ScrollCommand -> maestro.scrollVertical()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)

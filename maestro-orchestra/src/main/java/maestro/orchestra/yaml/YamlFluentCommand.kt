@@ -24,6 +24,7 @@ import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
+import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -67,6 +68,7 @@ data class YamlFluentCommand(
             eraseText != null -> MaestroCommand(EraseTextCommand(charactersToErase = eraseText.charactersToErase))
             action != null -> when (action) {
                 "back" -> MaestroCommand(BackPressCommand())
+                "hide keyboard" -> MaestroCommand(HideKeyboardCommand())
                 "scroll" -> MaestroCommand(ScrollCommand())
                 else -> error("Unknown navigation target: $action")
             }
@@ -236,6 +238,10 @@ data class YamlFluentCommand(
 
                 "back" -> YamlFluentCommand(
                     action = "back"
+                )
+
+                "hide keyboard" -> YamlFluentCommand(
+                    action = "hide keyboard"
                 )
 
                 "scroll" -> YamlFluentCommand(

@@ -97,6 +97,31 @@ class BackPressCommand : Command {
     }
 }
 
+class HideKeyboardCommand : Command {
+
+    override fun equals(other: Any?): Boolean {
+        if (this == other) return true
+        if (javaClass != other?.javaClass) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return javaClass.hashCode()
+    }
+
+    override fun toString(): String {
+        return "HideKeyboardCommand()"
+    }
+
+    override fun description(): String {
+        return "Hide Keyboard"
+    }
+
+    override fun injectEnv(env: Map<String, String>): HideKeyboardCommand {
+        return this
+    }
+}
+
 data class TapOnElementCommand(
     val selector: ElementSelector,
     val retryIfNoChange: Boolean? = null,

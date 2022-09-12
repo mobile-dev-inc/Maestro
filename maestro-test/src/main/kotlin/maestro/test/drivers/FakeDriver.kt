@@ -162,6 +162,12 @@ class FakeDriver : Driver {
         events += Event.BackPress
     }
 
+    override fun hideKeyboard() {
+        ensureOpen()
+
+        events += Event.HideKeyboard
+    }
+
     override fun inputText(text: String) {
         ensureOpen()
 
@@ -232,6 +238,8 @@ class FakeDriver : Driver {
         object Scroll : Event(), UserInteraction
 
         object BackPress : Event(), UserInteraction
+
+        object HideKeyboard : Event(), UserInteraction
 
         data class InputText(
             val text: String

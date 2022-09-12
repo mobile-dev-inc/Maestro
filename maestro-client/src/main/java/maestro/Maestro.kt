@@ -81,6 +81,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
+    fun hideKeyboard() {
+        LOGGER.info("Hiding Keyboard")
+
+        driver.hideKeyboard()
+        waitForAppToSettle()
+    }
+
     fun swipe(start: Point, end: Point) {
         LOGGER.info("Swiping from (${start.x},${start.y}) to (${end.x},${end.y})")
 
