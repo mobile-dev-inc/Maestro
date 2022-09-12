@@ -152,9 +152,12 @@ class IOSDriver(
             children = accessibilityNodes.map { node ->
                 val attributes = mutableMapOf<String, String>()
 
-                (node.title ?: node.axLabel)?.let {
-                    attributes["text"] = it
-                }
+                (node.title
+                    ?: node.axLabel
+                    ?: node.axValue
+                    )?.let {
+                        attributes["text"] = it
+                    }
 
                 (node.axUniqueId)?.let {
                     attributes["resource-id"] = it
