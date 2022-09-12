@@ -224,7 +224,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun findElementByIdRegex(regex: Regex, timeoutMs: Long): UiElement {
         LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
 
-        return findElementWithTimeout(timeoutMs, Filters.idMatches(regex).asFilter())
+        return findElementWithTimeout(timeoutMs, Filters.idMatches(regex))
             ?: throw MaestroException.ElementNotFound(
                 "No element has id that matches regex $regex",
                 viewHierarchy().root

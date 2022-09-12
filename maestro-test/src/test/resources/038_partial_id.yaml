@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- tapOn:
+    id: "keyboard_area"
+    retryTapIfNoChange: false
+- tapOn:
+    id: ".*keyboard_area"
+    retryTapIfNoChange: false

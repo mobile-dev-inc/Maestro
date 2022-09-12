@@ -63,11 +63,27 @@ object Filters {
         }
     }
 
-    fun idMatches(regex: Regex): ElementLookupPredicate {
-        return {
-            it.attributes["resource-id"]?.let { value ->
-                regex.matches(value)
-            } ?: false
+    fun idMatches(regex: Regex): ElementFilter {
+        return { nodes ->
+            val exactMatches = nodes
+                .filter {
+                    it.attributes["resource-id"]?.let { value ->
+                        regex.matches(value)
+                    } ?: false
+                }
+                .toSet()
+
+            val idWithoutPrefixMatches = nodes
+                .filter {
+                    it.attributes["resource-id"]?.let { value ->
+                        regex.matches(value.substringAfterLast('/'))
+                    } ?: false
+                }
+                .toSet()
+
+            exactMatches
+                .union(idWithoutPrefixMatches)
+                .toList()
         }
     }
 

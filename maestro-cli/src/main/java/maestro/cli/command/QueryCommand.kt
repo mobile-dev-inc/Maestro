@@ -59,7 +59,7 @@ class QueryCommand : Runnable {
             }
 
             id?.let {
-                filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
+                filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
             }
 
             if (filters.isEmpty()) {

@@ -1002,7 +1002,7 @@ class IntegrationTest {
     }
 
     @Test(expected = UnicodeNotSupportedError::class)
-    fun `Case 037 - throw exception when trying to input text with unicode characters`() {
+    fun `Case 037 - Throw exception when trying to input text with unicode characters`() {
         // Given
         val commands = readCommands("037_unicode_input")
 
@@ -1016,6 +1016,37 @@ class IntegrationTest {
 
         // Then
         // Expect exception
+    }
+
+    @Test
+    fun `Case 038 - Partial id matching`() {
+        // Given
+        val commands = readCommands("038_partial_id")
+
+        val driver = driver {
+            element {
+                id = "com.google.android.inputmethod.latin:id/another_keyboard_area"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+
+            element {
+                id = "com.google.android.inputmethod.latin:id/keyboard_area"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                Event.Tap(Point(50, 150)),
+                Event.Tap(Point(50, 50)),
+            )
+        )
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
