@@ -1,3 +1,4 @@
 appId: com.example.app
 ---
 - action: hide keyboard
+- hideKeyboard

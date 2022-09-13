@@ -1064,7 +1064,12 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertHasEvent(Event.HideKeyboard)
+        driver.assertEvents(
+            listOf(
+                Event.HideKeyboard,
+                Event.HideKeyboard,
+            )
+        )
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)

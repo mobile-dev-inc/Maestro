@@ -240,7 +240,7 @@ data class YamlFluentCommand(
                     action = "back"
                 )
 
-                "hide keyboard" -> YamlFluentCommand(
+                "hide keyboard", "hideKeyboard" -> YamlFluentCommand(
                     action = "hide keyboard"
                 )
 
