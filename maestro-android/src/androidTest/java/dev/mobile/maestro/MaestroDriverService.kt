@@ -1,17 +1,18 @@
 package dev.mobile.maestro
 
+import android.app.UiAutomation
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
-import maestro_android.MaestroAndroid
-import maestro_android.MaestroDriverGrpc
-import maestro_android.tapResponse
-import maestro_android.viewHierarchyResponse
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
+import maestro_android.MaestroAndroid
+import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfo
+import maestro_android.tapResponse
+import maestro_android.viewHierarchyResponse
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
@@ -32,10 +33,12 @@ class MaestroDriverService {
             .setWaitForIdleTimeout(0L)
             .setWaitForSelectorTimeout(0L)
 
-        val uiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val uiDevice = UiDevice.getInstance(instrumentation)
+        val uiAutomation = instrumentation.uiAutomation
 
         NettyServerBuilder.forPort(7001)
-            .addService(Service(uiDevice))
+            .addService(Service(uiDevice, uiAutomation))
             .build()
             .start()
 
@@ -47,7 +50,8 @@ class MaestroDriverService {
 }
 
 class Service(
-    private val uiDevice: UiDevice
+    private val uiDevice: UiDevice,
+    private val uiAutomation: UiAutomation,
 ) : MaestroDriverGrpc.MaestroDriverImplBase() {
 
     override fun deviceInfo(
@@ -71,7 +75,11 @@ class Service(
 
         Log.d("Maestro", "Requesting view hierarchy")
         val ms = measureTimeMillis {
-            uiDevice.dumpWindowHierarchy(stream)
+            ViewHierarchy.dump(
+                uiDevice,
+                uiAutomation,
+                stream
+            )
         }
         Log.d("Maestro", "View hierarchy received in $ms ms")
 
