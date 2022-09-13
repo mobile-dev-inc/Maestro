@@ -79,3 +79,13 @@
 
 * Temporary fix: showing an error when unicode characters are passed to `inputText`
 * Feature: `eraseText` command
+
+## 1.6.0 - 2022-09-13
+
+* Feature: hideKeyboard command
+* Feature: add Android TV Remote navigation
+* Tweak: allowing to skip package name when searching by `id`
+* Fix: Android WebView contents were sometimes not reported as part of the view hierarchy
+* Fix: iOS inputText race condition
+* Fix: populate iOS accessibility value
+* Refactoring: simplified `MaestroCommand` serialization 
