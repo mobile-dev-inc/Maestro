@@ -225,7 +225,7 @@ class AndroidDriver(
     }
 
     override fun hideKeyboard() {
-        dadb.shell("input keyevent 111")
+        dadb.shell("input keyevent 66")
     }
 
     override fun inputText(text: String) {
