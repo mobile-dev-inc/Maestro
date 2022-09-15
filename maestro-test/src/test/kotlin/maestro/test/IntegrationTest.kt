@@ -1072,6 +1072,27 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 040 - Escape regex characters`() {
+        // Given
+        val commands = readCommands("040_escape_regex")
+
+        val driver = driver {
+            element {
+                text = "+123456"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.Tap(Point(50, 50)))
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {
