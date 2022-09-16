@@ -3,7 +3,7 @@ package maestro.utils
 import java.nio.file.Files
 import java.nio.file.Path
 
-internal object TemporaryDirectory {
+object TemporaryDirectory {
 
     fun use(block: (tmpDir: Path) -> Unit) {
         val tmpDir = Files.createTempDirectory(null)

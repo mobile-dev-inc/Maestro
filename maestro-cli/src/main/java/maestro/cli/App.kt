@@ -22,6 +22,8 @@ package maestro.cli
 import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.TestCommand
+import maestro.cli.command.UploadCommand
+import org.fusesource.jansi.AnsiConsole
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -32,6 +34,7 @@ import kotlin.system.exitProcess
     name = "maestro",
     subcommands = [
         TestCommand::class,
+        UploadCommand::class,
         PrintHierarchyCommand::class,
         QueryCommand::class,
     ]
@@ -49,6 +52,12 @@ class App {
 
     @Option(names = ["--port"])
     var port: Int? = null
+
+    companion object {
+        init {
+            AnsiConsole.systemInstall()
+        }
+    }
 }
 
 private fun printVersion() {
@@ -63,8 +72,13 @@ private fun printVersion() {
 fun main(args: Array<String>) {
     val commandLine = CommandLine(App())
         .setExecutionExceptionHandler { ex, cmd, parseResult ->
+            val message = if (ex is CliError) {
+                ex.message
+            } else {
+                ex.stackTraceToString()
+            }
             cmd.err.println(
-                cmd.colorScheme.errorText(ex.stackTraceToString())
+                cmd.colorScheme.errorText(message)
             )
 
             1
