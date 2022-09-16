@@ -89,3 +89,15 @@
 * Fix: iOS inputText race condition
 * Fix: populate iOS accessibility value
 * Refactoring: simplified `MaestroCommand` serialization 
+
+# 1.7.0 - 2022-09-16
+
+* Feature: `maestro upload` command for uploading your builds to mobile.dev
+* Feature: `takeScreenshot` command
+* Feature: `extendedWaitUntil` command
+* Fix: waiting for Android gRPC server to properly start before interacting with it
+* Fix: brought back multi-window support on Android
+* Fix: `hideKeyboard` command did not always work
+* Fix: make project buildable on Java 14
+* Refactoring: make `MaestroCommand` serializable without custom adapters
+* Refactoring: migrated to JUnit 5
