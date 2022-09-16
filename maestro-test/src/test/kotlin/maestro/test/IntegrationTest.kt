@@ -19,15 +19,16 @@ import maestro.test.drivers.FakeDriver.Event
 import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.nio.file.Paths
 
 class IntegrationTest {
 
     val fakeTimer = FakeTimer()
 
-    @Before
+    @BeforeEach
     fun setUp() {
         MaestroTimer.setTimerFunc(fakeTimer.timer())
     }
@@ -98,7 +99,7 @@ class IntegrationTest {
         driver.assertNoInteraction()
     }
 
-    @Test(expected = MaestroException.ElementNotFound::class)
+    @Test
     fun `Case 004 - Assert visible - no element with id`() {
         // Given
         val commands = readCommands("004_assert_no_visible_element_with_id")
@@ -110,16 +111,15 @@ class IntegrationTest {
             }
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        // When & Then
+        assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
-
-        // Then
-        // Test failure
     }
 
-    @Test(expected = MaestroException.ElementNotFound::class)
+    @Test
     fun `Case 005 - Assert visible - no element with text`() {
         // Given
         val commands = readCommands("005_assert_no_visible_element_with_text")
@@ -131,16 +131,15 @@ class IntegrationTest {
             }
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        // When & Then
+        assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
-
-        // Then
-        // Test failure
     }
 
-    @Test(expected = MaestroException.ElementNotFound::class)
+    @Test
     fun `Case 006 - Assert visible - no element with size`() {
         // Given
         val commands = readCommands("005_assert_no_visible_element_with_text")
@@ -152,13 +151,12 @@ class IntegrationTest {
             }
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        // When & Then
+        assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
-
-        // Then
-        // Test failure
     }
 
     @Test
@@ -530,7 +528,7 @@ class IntegrationTest {
         driver.assertHasEvent(Event.LaunchApp("com.example.app"))
     }
 
-    @Test(expected = MaestroException.UnableToLaunchApp::class)
+    @Test
     fun `Case 022 - Launch app that is not installed`() {
         // Given
         val commands = readCommands("022_launch_app_that_is_not_installed")
@@ -538,13 +536,12 @@ class IntegrationTest {
         val driver = driver {
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        // When & Then
+        assertThrows<MaestroException.UnableToLaunchApp> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
-
-        // Then
-        // Test failure
     }
 
     @Test
@@ -702,7 +699,7 @@ class IntegrationTest {
         // No test failure
     }
 
-    @Test(expected = MaestroException.AssertionFailure::class)
+    @Test
     fun `Case 026 - Assert not visible - element with id is present`() {
         // Given
         val commands = readCommands("026_assert_not_visible")
@@ -714,13 +711,12 @@ class IntegrationTest {
             }
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        // When & Then
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
-
-        // Then
-        // Test failure
     }
 
     @Test
@@ -1001,7 +997,7 @@ class IntegrationTest {
         driver.assertCurrentTextInput("Hello")
     }
 
-    @Test(expected = UnicodeNotSupportedError::class)
+    @Test
     fun `Case 037 - Throw exception when trying to input text with unicode characters`() {
         // Given
         val commands = readCommands("037_unicode_input")
@@ -1009,13 +1005,12 @@ class IntegrationTest {
         val driver = driver {
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        // When & Then
+        assertThrows<UnicodeNotSupportedError> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
-
-        // Then
-        // Expect exception
     }
 
     @Test

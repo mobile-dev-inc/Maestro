@@ -1,19 +1,19 @@
 package maestro.android
 
 import dadb.Dadb
-import org.junit.Before
-import org.junit.Ignore
-import org.junit.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import java.io.File
 
-@Ignore("Local testing only")
+@Disabled("Local testing only")
 internal class AndroidAppFilesTest {
 
     private val home = System.getenv("HOME")
 
     private lateinit var dadb: Dadb
 
-    @Before
+    @BeforeEach
     fun setUp() {
         dadb = Dadb.discover("localhost") ?: throw IllegalStateException("Could not find local emulator")
     }

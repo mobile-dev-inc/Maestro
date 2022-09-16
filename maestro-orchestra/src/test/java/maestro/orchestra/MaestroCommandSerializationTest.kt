@@ -8,7 +8,7 @@ import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
 import maestro.Point
 import org.intellij.lang.annotations.Language
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 internal class MaestroCommandSerializationTest {
     @Test

@@ -1,13 +1,13 @@
 package maestro.android
 
-import org.junit.Ignore
-import org.junit.Test
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Paths
 
-@Ignore("Local testing only")
+@Disabled("Local testing only")
 internal class ApkDebuggableTest {
 
     private val home = System.getenv("HOME")

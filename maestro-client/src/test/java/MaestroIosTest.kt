@@ -1,18 +1,17 @@
-import io.grpc.Internal
 import maestro.Maestro
-import org.junit.Before
-import org.junit.Ignore
-import org.junit.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.io.path.createDirectories
 
-@Ignore("Local testing only")
+@Disabled("Local testing only")
 internal class MaestroIosTest {
 
     private lateinit var maestro: Maestro
     private val appId = "dev.mobile.DevToolTester"
 
-    @Before
+    @BeforeEach
     fun setUp() {
         maestro = Maestro.ios("localhost", 10882)
     }
