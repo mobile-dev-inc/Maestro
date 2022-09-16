@@ -40,6 +40,7 @@ import idb.point
 import idb.pullRequest
 import idb.pushRequest
 import idb.rmRequest
+import idb.screenshotRequest
 import idb.targetDescriptionRequest
 import idb.terminateRequest
 import idb.uninstallRequest
@@ -49,6 +50,8 @@ import ios.IOSDevice
 import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
+import okio.Sink
+import okio.buffer
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
@@ -360,6 +363,18 @@ class IdbIOSDevice(
             blockingStub.openUrl(openUrlRequest {
                 url = link
             })
+        }
+    }
+
+    override fun takeScreenshot(out: Sink): Result<Unit, Throwable> {
+        return runCatching {
+            val response = blockingStub.screenshot(screenshotRequest {})
+
+            out
+                .buffer()
+                .use {
+                    it.write(response.imageData.toByteArray())
+                }
         }
     }
 

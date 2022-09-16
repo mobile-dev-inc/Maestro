@@ -39,4 +39,7 @@ sealed class MaestroException(message: String) : RuntimeException(message) {
         hierarchyRoot: TreeNode,
     ) : AssertionFailure(message, hierarchyRoot)
 
+    class UnableToTakeScreenshot(message: String) : MaestroException(message)
+
+    class DestinationIsNotWritable(message: String) : MaestroException(message)
 }

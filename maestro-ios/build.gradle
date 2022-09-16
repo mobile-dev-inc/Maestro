@@ -45,6 +45,7 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-kotlin:3.19.4'
     implementation 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
     implementation 'org.slf4j:slf4j-simple:1.7.36'
+    implementation 'com.squareup.okio:okio:3.2.0'
     api 'com.google.code.gson:gson:2.9.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'

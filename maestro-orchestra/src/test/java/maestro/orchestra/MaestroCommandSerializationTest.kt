@@ -369,6 +369,32 @@ internal class MaestroCommandSerializationTest {
             .isEqualTo(command)
     }
 
+    @Test
+    fun `serialize TakeScreenshotCommand`() {
+        // given
+        val command = MaestroCommand(
+            TakeScreenshotCommand("screenshot.png")
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "takeScreenshotCommand" : {
+                "path" : "screenshot.png"
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
     private fun MaestroCommand.toJson(): String =
         objectMapper
             .writerWithDefaultPrettyPrinter()

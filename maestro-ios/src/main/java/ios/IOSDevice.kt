@@ -23,6 +23,7 @@ import com.github.michaelbull.result.Result
 import idb.Idb
 import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
+import okio.Sink
 import java.io.File
 import java.io.InputStream
 
@@ -107,5 +108,12 @@ interface IOSDevice : AutoCloseable {
      * @param link - link to open
      */
     fun openLink(link: String): Result<Unit, Throwable>
+
+    /**
+     * Takes a screenshot and writes it into output sink
+     *
+     * @param out - output sink
+     */
+    fun takeScreenshot(out: Sink): Result<Unit, Throwable>
 
 }

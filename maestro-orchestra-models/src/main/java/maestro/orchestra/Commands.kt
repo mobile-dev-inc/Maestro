@@ -271,3 +271,18 @@ data class EraseTextCommand(
     }
 
 }
+
+data class TakeScreenshotCommand(
+    val path: String,
+) : Command {
+
+    override fun description(): String {
+        return "Take screenshot $path"
+    }
+
+    override fun injectEnv(env: Map<String, String>): TakeScreenshotCommand {
+        return copy(
+            path = path.injectEnv(env),
+        )
+    }
+}

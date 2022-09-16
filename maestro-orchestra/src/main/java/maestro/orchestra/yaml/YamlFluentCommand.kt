@@ -35,6 +35,7 @@ import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.SwipeCommand
+import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
 import maestro.orchestra.error.SyntaxError
@@ -51,6 +52,7 @@ data class YamlFluentCommand(
     val openLink: String? = null,
     val pressKey: String? = null,
     val eraseText: YamlEraseText? = null,
+    val takeScreenshot: YamlTakeScreenshot? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -72,6 +74,7 @@ data class YamlFluentCommand(
                 "scroll" -> MaestroCommand(ScrollCommand())
                 else -> error("Unknown navigation target: $action")
             }
+            takeScreenshot != null -> MaestroCommand(TakeScreenshotCommand(takeScreenshot.path))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }

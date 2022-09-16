@@ -27,6 +27,7 @@ import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
 import maestro.TreeNode
+import okio.Sink
 import java.io.File
 
 class FakeDriver : Driver {
@@ -168,6 +169,12 @@ class FakeDriver : Driver {
         events += Event.HideKeyboard
     }
 
+    override fun takeScreenshot(out: Sink) {
+        ensureOpen()
+
+        events += Event.TakeScreenshot
+    }
+
     override fun inputText(text: String) {
         ensureOpen()
 
@@ -280,6 +287,7 @@ class FakeDriver : Driver {
             val code: KeyCode,
         ) : Event()
 
+        object TakeScreenshot : Event()
     }
 
     interface UserInteraction

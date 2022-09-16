@@ -19,6 +19,7 @@
 
 package maestro
 
+import okio.Sink
 import java.io.File
 
 interface Driver {
@@ -60,5 +61,7 @@ interface Driver {
     fun openLink(link: String)
 
     fun hideKeyboard()
+
+    fun takeScreenshot(out: Sink)
 
 }

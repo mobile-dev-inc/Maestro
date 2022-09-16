@@ -49,6 +49,7 @@ dependencies {
     api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
     api "dev.mobile:dadb:1.1.0"
     api "org.slf4j:slf4j-simple:1.7.36"
+    api 'com.squareup.okio:okio:3.2.0'
 
     implementation project(':maestro-ios')
     implementation 'com.google.code.findbugs:jsr305:3.0.2'

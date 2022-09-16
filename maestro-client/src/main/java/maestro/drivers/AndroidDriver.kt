@@ -27,6 +27,7 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
+import maestro.MaestroException.UnableToTakeScreenshot
 import maestro.MaestroTimer
 import maestro.Point
 import maestro.TreeNode
@@ -35,6 +36,7 @@ import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
 import maestro_android.tapRequest
 import maestro_android.viewHierarchyRequest
+import okio.Sink
 import okio.buffer
 import okio.sink
 import okio.source
@@ -226,6 +228,18 @@ class AndroidDriver(
 
     override fun hideKeyboard() {
         dadb.shell("input keyevent 66")
+    }
+
+    override fun takeScreenshot(out: Sink) {
+        val deviceScreenshotPath = "/sdcard/maestro-screenshot.png"
+
+        val adbShellResponse = dadb.shell("screencap -p $deviceScreenshotPath")
+        if (adbShellResponse.exitCode != 0) {
+            throw UnableToTakeScreenshot("Failed to take screenshot: ${adbShellResponse.errorOutput}")
+        }
+
+        dadb.pull(out, deviceScreenshotPath)
+        dadb.shell("rm $deviceScreenshotPath")
     }
 
     override fun inputText(text: String) {

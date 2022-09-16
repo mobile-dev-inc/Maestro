@@ -19,9 +19,11 @@ import maestro.test.drivers.FakeDriver.Event
 import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.File
 import java.nio.file.Paths
 
 class IntegrationTest {
@@ -31,6 +33,11 @@ class IntegrationTest {
     @BeforeEach
     fun setUp() {
         MaestroTimer.setTimerFunc(fakeTimer.timer())
+    }
+
+    @AfterEach
+    internal fun tearDown() {
+        File("screenshot.png").delete()
     }
 
     @Test
@@ -1086,6 +1093,28 @@ class IntegrationTest {
 
         // Then
         driver.assertHasEvent(Event.Tap(Point(50, 50)))
+    }
+
+    @Test
+    fun `Case 041 - Take screenshot`() {
+        // Given
+        val commands = readCommands("041_take_screenshot")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.TakeScreenshot,
+            )
+        )
     }
 
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
