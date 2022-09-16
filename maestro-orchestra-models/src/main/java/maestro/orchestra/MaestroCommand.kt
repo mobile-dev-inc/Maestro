@@ -19,50 +19,68 @@
 
 package maestro.orchestra
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.annotation.JsonSerialize
-
 /**
  * The Mobile.dev platform uses this class in the backend and hence the custom
  * serialization logic. The earlier implementation of this class had a nullable field for
  * each command. Sometime in the future we may move this serialization logic to the backend
  * itself, where it would be more relevant.
  */
-@JsonSerialize(using = MaestroCommandSerializer::class)
 data class MaestroCommand(
-    val command: Command?,
+    val tapOnElement: TapOnElementCommand? = null,
+    val tapOnPoint: TapOnPointCommand? = null,
+    val scrollCommand: ScrollCommand? = null,
+    val swipeCommand: SwipeCommand? = null,
+    val backPressCommand: BackPressCommand? = null,
+    val assertCommand: AssertCommand? = null,
+    val inputTextCommand: InputTextCommand? = null,
+    val launchAppCommand: LaunchAppCommand? = null,
+    val applyConfigurationCommand: ApplyConfigurationCommand? = null,
+    val openLinkCommand: OpenLinkCommand? = null,
+    val pressKeyCommand: PressKeyCommand? = null,
+    val eraseTextCommand: EraseTextCommand? = null,
+    val hideKeyboardCommand: HideKeyboardCommand? = null,
 ) {
 
+    constructor(command: Command) : this(
+        tapOnElement = command as? TapOnElementCommand,
+        tapOnPoint = command as? TapOnPointCommand,
+        scrollCommand = command as? ScrollCommand,
+        swipeCommand = command as? SwipeCommand,
+        backPressCommand = command as? BackPressCommand,
+        assertCommand = command as? AssertCommand,
+        inputTextCommand = command as? InputTextCommand,
+        launchAppCommand = command as? LaunchAppCommand,
+        applyConfigurationCommand = command as? ApplyConfigurationCommand,
+        openLinkCommand = command as? OpenLinkCommand,
+        pressKeyCommand = command as? PressKeyCommand,
+        eraseTextCommand = command as? EraseTextCommand,
+        hideKeyboardCommand = command as? HideKeyboardCommand,
+    )
+
+    fun asCommand(): Command? = when {
+        tapOnElement != null -> tapOnElement
+        tapOnPoint != null -> tapOnPoint
+        scrollCommand != null -> scrollCommand
+        swipeCommand != null -> swipeCommand
+        backPressCommand != null -> backPressCommand
+        assertCommand != null -> assertCommand
+        inputTextCommand != null -> inputTextCommand
+        launchAppCommand != null -> launchAppCommand
+        applyConfigurationCommand != null -> applyConfigurationCommand
+        openLinkCommand != null -> openLinkCommand
+        pressKeyCommand != null -> pressKeyCommand
+        eraseTextCommand != null -> eraseTextCommand
+        hideKeyboardCommand != null -> hideKeyboardCommand
+        else -> null
+    }
+
     fun injectEnv(envParameters: Map<String, String>): MaestroCommand {
-        return copy(command = command?.injectEnv(envParameters))
+        return asCommand()
+            ?.let { MaestroCommand(it.injectEnv(envParameters)) }
+            ?: MaestroCommand()
     }
 
     fun description(): String {
-        return command?.description() ?: "No op"
-    }
-}
-
-class MaestroCommandSerializer : JsonSerializer<MaestroCommand>() {
-    override fun serialize(
-        value: MaestroCommand,
-        gen: JsonGenerator,
-        serializers: SerializerProvider
-    ) {
-        val commandNameKey = value.command!!::class.java.simpleName
-            .replaceFirstChar(Char::lowercaseChar)
-
-        val commandNameKeyForServer = when (commandNameKey) {
-            "tapOnElementCommand" -> "tapOnElement"
-            "tapOnPointCommand" -> "tapOnPoint"
-            else -> commandNameKey
-        }
-
-        with(gen) {
-            writeStartObject()
-            writeObjectField(commandNameKeyForServer, value.command)
-            writeEndObject()
-        }
+        return asCommand()?.description() ?: "No op"
     }
 }

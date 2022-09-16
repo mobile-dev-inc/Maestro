@@ -29,6 +29,6 @@ class YamlCommandsExtension : ParameterResolver {
             .orElseThrow { IllegalArgumentException("No @YamlFile annotation found") }
 
         return YamlCommandReader.readCommands(YamlResourceFile(yamlFileAnnotation.name).path)
-            .map(MaestroCommand::command)
+            .map(MaestroCommand::asCommand)
     }
 }

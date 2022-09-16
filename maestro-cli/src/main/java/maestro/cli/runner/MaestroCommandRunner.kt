@@ -44,7 +44,7 @@ object MaestroCommandRunner {
                 ResultView.UiState.Running(
                     initCommands = (initFlow?.commands ?: emptyList())
                         // Don't render configuration commands
-                        .filter { it.command !is ApplyConfigurationCommand }
+                        .filter { it.asCommand() !is ApplyConfigurationCommand }
                         .mapIndexed { _, command ->
                             CommandState(
                                 command = command,
@@ -53,7 +53,7 @@ object MaestroCommandRunner {
                         },
                     commands = commands
                         // Don't render configuration commands
-                        .filter { it.command !is ApplyConfigurationCommand }
+                        .filter { it.asCommand() !is ApplyConfigurationCommand }
                         .mapIndexed { _, command ->
                             CommandState(
                                 command = command,

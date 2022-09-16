@@ -104,7 +104,7 @@ class Orchestra(
             .forEachIndexed { index, command ->
                 onCommandStart(index, command)
                 try {
-                    executeCommand(command.command)
+                    executeCommand(command.asCommand())
                     onCommandComplete(index, command)
                 } catch (e: Throwable) {
                     onCommandFailed(index, command, e)

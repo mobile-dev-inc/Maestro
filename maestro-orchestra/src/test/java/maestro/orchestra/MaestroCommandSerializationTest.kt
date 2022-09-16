@@ -2,7 +2,6 @@ package maestro.orchestra
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.ObjectWriter
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
@@ -15,7 +14,7 @@ internal class MaestroCommandSerializationTest {
     fun `serialize TapOnElementCommand`() {
         // given
         val command = MaestroCommand(
-            TapOnElementCommand(
+            command = TapOnElementCommand(
                 selector = ElementSelector(textRegex = "[A-f0-9]"),
                 retryIfNoChange = false,
                 waitUntilVisible = true,
@@ -25,6 +24,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -41,8 +41,11 @@ internal class MaestroCommandSerializationTest {
               }
             }
           """.trimIndent()
+
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -60,6 +63,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -76,6 +80,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -87,6 +93,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -97,6 +104,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -111,6 +120,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -130,6 +140,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -141,6 +153,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -151,6 +164,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -165,6 +180,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -184,6 +200,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -195,6 +213,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -207,6 +226,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -218,6 +239,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -230,6 +252,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -246,6 +270,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -262,6 +287,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -273,6 +300,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -285,6 +313,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -296,6 +326,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -308,6 +339,8 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     @Test
@@ -319,6 +352,7 @@ internal class MaestroCommandSerializationTest {
 
         // when
         val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
 
         // then
         @Language("json")
@@ -331,15 +365,16 @@ internal class MaestroCommandSerializationTest {
           """.trimIndent()
         assertThat(serializedCommandJson)
             .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
     }
 
     private fun MaestroCommand.toJson(): String =
-        objectWriter().writeValueAsString(this)
-
-    private fun objectWriter(): ObjectWriter {
-        return ObjectMapper()
-            .setSerializationInclusion(Include.NON_NULL)
-            .registerModule(KotlinModule.Builder().build())
+        objectMapper
             .writerWithDefaultPrettyPrinter()
-    }
+            .writeValueAsString(this)
+
+    private val objectMapper = ObjectMapper()
+        .setSerializationInclusion(Include.NON_NULL)
+        .registerModule(KotlinModule.Builder().build())
 }

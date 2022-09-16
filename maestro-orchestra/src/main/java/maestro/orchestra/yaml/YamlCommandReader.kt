@@ -62,7 +62,7 @@ object YamlCommandReader {
 
     fun getConfig(commands: List<MaestroCommand>): MaestroConfig? {
         val configurationCommand = commands
-            .map(MaestroCommand::command)
+            .map(MaestroCommand::asCommand)
             .filterIsInstance<ApplyConfigurationCommand>()
             .firstOrNull()
 

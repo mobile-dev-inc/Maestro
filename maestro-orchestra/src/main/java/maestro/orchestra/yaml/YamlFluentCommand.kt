@@ -110,7 +110,7 @@ data class YamlFluentCommand(
             )
         } else {
             MaestroCommand(
-                TapOnElementCommand(
+                command = TapOnElementCommand(
                     selector = toElementSelector(tapOn),
                     retryIfNoChange = retryIfNoChange,
                     waitUntilVisible = waitUntilVisible,
@@ -141,7 +141,7 @@ data class YamlFluentCommand(
             )
         } else {
             MaestroCommand(
-                TapOnElementCommand(
+                command = TapOnElementCommand(
                     selector = toElementSelector(tapOn),
                     retryIfNoChange = retryIfNoChange,
                     waitUntilVisible = waitUntilVisible,
