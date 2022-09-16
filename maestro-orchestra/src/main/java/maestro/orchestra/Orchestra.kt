@@ -188,12 +188,12 @@ class Orchestra(
     }
 
     private fun assertCommand(command: AssertCommand) {
-        command.visible?.let { assertVisible(it) }
-        command.notVisible?.let { assertNotVisible(it) }
+        command.visible?.let { assertVisible(it, command.timeout) }
+        command.notVisible?.let { assertNotVisible(it, command.timeout) }
     }
 
-    private fun assertNotVisible(selector: ElementSelector, timeoutMs: Long = lookupTimeoutMs) {
-        val result = MaestroTimer.withTimeout(timeoutMs) {
+    private fun assertNotVisible(selector: ElementSelector, timeoutMs: Long?) {
+        val result = MaestroTimer.withTimeout(timeoutMs ?: lookupTimeoutMs) {
             try {
                 findElement(selector, timeoutMs = 2000L)
 
@@ -215,8 +215,8 @@ class Orchestra(
         }
     }
 
-    private fun assertVisible(selector: ElementSelector) {
-        findElement(selector) // Throws if element is not found
+    private fun assertVisible(selector: ElementSelector, timeout: Long?) {
+        findElement(selector, timeout) // Throws if element is not found
     }
 
     private fun tapOnElement(

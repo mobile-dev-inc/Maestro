@@ -41,7 +41,7 @@ data class ElementSelector(
         val tolerance: Int? = null,
     )
 
-    fun injectSecrets(env: Map<String, String>): ElementSelector {
+    fun injectEnv(env: Map<String, String>): ElementSelector {
         if (env.isEmpty()) {
             return this
         }
@@ -49,11 +49,11 @@ data class ElementSelector(
         return copy(
             textRegex = textRegex?.injectEnv(env),
             idRegex = idRegex?.injectEnv(env),
-            below = below?.injectSecrets(env),
-            above = above?.injectSecrets(env),
-            leftOf = leftOf?.injectSecrets(env),
-            rightOf = rightOf?.injectSecrets(env),
-            containsChild = containsChild?.injectSecrets(env),
+            below = below?.injectEnv(env),
+            above = above?.injectEnv(env),
+            leftOf = leftOf?.injectEnv(env),
+            rightOf = rightOf?.injectEnv(env),
+            containsChild = containsChild?.injectEnv(env),
         )
     }
 

@@ -24,10 +24,10 @@ import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
-import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
+import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
@@ -53,6 +53,7 @@ data class YamlFluentCommand(
     val pressKey: String? = null,
     val eraseText: YamlEraseText? = null,
     val takeScreenshot: YamlTakeScreenshot? = null,
+    val extendedWaitUntil: YamlExtendedWaitUntil? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -62,7 +63,7 @@ data class YamlFluentCommand(
             tapOn != null -> tapCommand(tapOn)
             longPressOn != null -> tapCommand(longPressOn, longPress = true)
             assertVisible != null -> MaestroCommand(AssertCommand(visible = toElementSelector(assertVisible)))
-            assertNotVisible != null -> MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible),))
+            assertNotVisible != null -> MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible)))
             inputText != null -> MaestroCommand(InputTextCommand(inputText))
             swipe != null -> swipeCommand(swipe)
             openLink != null -> MaestroCommand(OpenLinkCommand(openLink))
@@ -75,8 +76,23 @@ data class YamlFluentCommand(
                 else -> error("Unknown navigation target: $action")
             }
             takeScreenshot != null -> MaestroCommand(TakeScreenshotCommand(takeScreenshot.path))
+            extendedWaitUntil != null -> extendedWait(extendedWaitUntil)
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    private fun extendedWait(command: YamlExtendedWaitUntil): MaestroCommand {
+        if (command.visible == null && command.notVisible == null) {
+            throw SyntaxError("extendedWaitUntil expects either `visible` or `notVisible` to be provided")
+        }
+
+        return MaestroCommand(
+            AssertCommand(
+                visible = command.visible?.let { toElementSelector(it) },
+                notVisible = command.notVisible?.let { toElementSelector(it) },
+                timeout = command.timeout,
+            )
+        )
     }
 
     private fun launchApp(command: YamlLaunchApp, appId: String): MaestroCommand {

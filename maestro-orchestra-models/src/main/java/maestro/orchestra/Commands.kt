@@ -135,7 +135,7 @@ data class TapOnElementCommand(
 
     override fun injectEnv(env: Map<String, String>): TapOnElementCommand {
         return copy(
-            selector = selector.injectSecrets(env),
+            selector = selector.injectEnv(env),
         )
     }
 }
@@ -160,15 +160,17 @@ data class TapOnPointCommand(
 data class AssertCommand(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
+    val timeout: Long? = null,
 ) : Command {
 
     override fun description(): String {
+        val timeoutStr = timeout?.let { " within $timeout ms" } ?: ""
         if (visible != null) {
-            return "Assert visible ${visible.description()}"
+            return "Assert visible ${visible.description()}" + timeoutStr
         }
 
         if (notVisible != null) {
-            return "Assert not visible ${notVisible.description()}"
+            return "Assert not visible ${notVisible.description()}" + timeoutStr
         }
 
         return "No op"
@@ -176,8 +178,8 @@ data class AssertCommand(
 
     override fun injectEnv(env: Map<String, String>): AssertCommand {
         return copy(
-            visible = visible?.injectSecrets(env),
-            notVisible = notVisible?.injectSecrets(env),
+            visible = visible?.injectEnv(env),
+            notVisible = notVisible?.injectEnv(env),
         )
     }
 }
