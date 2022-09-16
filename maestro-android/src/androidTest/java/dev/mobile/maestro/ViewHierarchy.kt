@@ -32,21 +32,32 @@ object ViewHierarchy {
         serializer.startTag("", "hierarchy")
         serializer.attribute("", "rotation", Integer.toString(device.displayRotation))
 
-        // This call is different from the original
-        // Original implementation contained this line
-        //
-        //   for (root in device.getWindowRoots())
-        //
-        // However, the method getWindowRoots() is package-private so we are not able to use it.
-        // Since we don't need to support multiple windows, we can just use the root of the current window.
-        // If multi-window support ever becomes a problem we could consider using reflection instead.
-        dumpNodeRec(
-            uiAutomation.rootInActiveWindow,
-            serializer,
-            0,
-            device.displayWidth,
-            device.displayHeight
-        )
+        val roots = try {
+            device.javaClass
+                .getDeclaredMethod("getWindowRoots")
+                .apply {
+                    isAccessible = true
+                }
+                .let {
+                    @Suppress("UNCHECKED_CAST")
+                    it.invoke(device) as Array<AccessibilityNodeInfo>
+                }
+                .toList()
+        } catch (e: Exception) {
+            // Falling back to a public method if reflection fails
+            Log.e(LOGTAG, "Unable to call getWindowRoots", e)
+            listOf(uiAutomation.rootInActiveWindow)
+        }
+
+        roots.forEach {
+            dumpNodeRec(
+                it,
+                serializer,
+                0,
+                device.displayWidth,
+                device.displayHeight
+            )
+        }
 
         serializer.endTag("", "hierarchy")
         serializer.endDocument()
