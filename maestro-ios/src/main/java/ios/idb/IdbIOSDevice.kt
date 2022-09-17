@@ -29,6 +29,7 @@ import idb.Idb
 import idb.Idb.HIDEvent.HIDButtonType
 import idb.PushRequestKt.inner
 import idb.accessibilityInfoRequest
+import idb.clearKeychainRequest
 import idb.fileContainer
 import idb.hIDEvent
 import idb.installRequest
@@ -325,6 +326,12 @@ class IdbIOSDevice(
             })
         }
         return result
+    }
+
+    override fun clearKeychain(): Result<Unit, Throwable> {
+        return runCatching {
+            blockingStub.clearKeychain(clearKeychainRequest {  })
+        }
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {

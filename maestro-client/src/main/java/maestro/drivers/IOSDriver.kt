@@ -84,6 +84,10 @@ class IOSDriver(
         iosDevice.clearAppState(appId)
     }
 
+    override fun clearKeychain() {
+        iosDevice.clearKeychain().expect {}
+    }
+
     override fun pullAppState(appId: String, outFile: File) {
         if (!outFile.exists()) outFile.createNewFile()
         val tmpDir = Files.createTempDirectory("maestro_state_")

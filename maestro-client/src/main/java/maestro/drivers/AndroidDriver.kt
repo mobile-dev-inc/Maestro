@@ -152,6 +152,10 @@ class AndroidDriver(
         shell("pm clear $appId")
     }
 
+    override fun clearKeychain() {
+        // No op
+    }
+
     override fun pullAppState(appId: String, outFile: File) {
         AndroidAppFiles.pull(dadb, appId, outFile)
     }

@@ -88,6 +88,11 @@ interface IOSDevice : AutoCloseable {
     fun clearAppState(id: String): Result<Idb.RmResponse, Throwable>
 
     /**
+     * Clears device keychain.
+     */
+    fun clearKeychain(): Result<Unit, Throwable>
+
+    /**
      * Launches the app.
      *
      * @param id - bundle id of the app to launch

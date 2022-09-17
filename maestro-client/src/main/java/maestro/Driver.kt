@@ -38,6 +38,8 @@ interface Driver {
 
     fun clearAppState(appId: String)
 
+    fun clearKeychain()
+
     fun pullAppState(appId: String, outFile: File)
 
     fun pushAppState(appId: String, stateFile: File)

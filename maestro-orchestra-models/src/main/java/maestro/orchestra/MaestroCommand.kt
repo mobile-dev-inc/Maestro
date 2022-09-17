@@ -40,6 +40,9 @@ data class MaestroCommand(
     val eraseTextCommand: EraseTextCommand? = null,
     val hideKeyboardCommand: HideKeyboardCommand? = null,
     val takeScreenshotCommand: TakeScreenshotCommand? = null,
+    val stopAppCommand: StopAppCommand? = null,
+    val clearStateCommand: ClearStateCommand? = null,
+    val clearKeychainCommand: ClearKeychainCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -57,6 +60,9 @@ data class MaestroCommand(
         eraseTextCommand = command as? EraseTextCommand,
         hideKeyboardCommand = command as? HideKeyboardCommand,
         takeScreenshotCommand = command as? TakeScreenshotCommand,
+        stopAppCommand = command as? StopAppCommand,
+        clearStateCommand = command as? ClearStateCommand,
+        clearKeychainCommand = command as? ClearKeychainCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -74,6 +80,9 @@ data class MaestroCommand(
         eraseTextCommand != null -> eraseTextCommand
         hideKeyboardCommand != null -> hideKeyboardCommand
         takeScreenshotCommand != null -> takeScreenshotCommand
+        stopAppCommand != null -> stopAppCommand
+        clearStateCommand != null -> clearStateCommand
+        clearKeychainCommand != null -> clearKeychainCommand
         else -> null
     }
 

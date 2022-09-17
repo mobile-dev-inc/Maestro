@@ -202,13 +202,20 @@ data class InputTextCommand(
 data class LaunchAppCommand(
     val appId: String,
     val clearState: Boolean? = null,
+    val clearKeychain: Boolean? = null,
 ) : Command {
 
     override fun description(): String {
-        return if (clearState != true) {
+        val result = if (clearState != true) {
             "Launch app \"$appId\""
         } else {
             "Launch app \"$appId\" with clear state"
+        }
+
+        return if (clearKeychain == true) {
+            "$result and clear keychain"
+        } else {
+            result
         }
     }
 
@@ -287,4 +294,56 @@ data class TakeScreenshotCommand(
             path = path.injectEnv(env),
         )
     }
+}
+
+data class StopAppCommand(
+    val appId: String,
+) : Command {
+
+    override fun description(): String {
+        return "Stop $appId"
+    }
+
+    override fun injectEnv(env: Map<String, String>): Command {
+        return copy(
+            appId = appId.injectEnv(env),
+        )
+    }
+}
+
+data class ClearStateCommand(
+    val appId: String,
+) : Command {
+
+    override fun description(): String {
+        return "Clear state of $appId"
+    }
+
+    override fun injectEnv(env: Map<String, String>): Command {
+        return copy(
+            appId = appId.injectEnv(env),
+        )
+    }
+}
+
+class ClearKeychainCommand : Command {
+
+    override fun description(): String {
+        return "Clear keychain"
+    }
+
+    override fun injectEnv(env: Map<String, String>): Command {
+        return this
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return javaClass.hashCode()
+    }
+
 }

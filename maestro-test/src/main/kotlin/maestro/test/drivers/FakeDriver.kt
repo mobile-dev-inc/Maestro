@@ -100,6 +100,12 @@ class FakeDriver : Driver {
         events.add(Event.ClearState(appId))
     }
 
+    override fun clearKeychain() {
+        ensureOpen()
+
+        events.add(Event.ClearKeychain)
+    }
+
     override fun pullAppState(appId: String, outFile: File) {
         ensureOpen()
 
@@ -288,6 +294,9 @@ class FakeDriver : Driver {
         ) : Event()
 
         object TakeScreenshot : Event()
+
+        object ClearKeychain : Event()
+
     }
 
     interface UserInteraction

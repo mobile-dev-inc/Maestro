@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- clearKeychain
+- launchApp:
+    appId: com.example.app
+    clearKeychain: true

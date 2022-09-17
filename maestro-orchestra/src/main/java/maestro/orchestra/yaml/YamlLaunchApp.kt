@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 data class YamlLaunchApp(
     val appId: String?,
     val clearState: Boolean?,
+    val clearKeychain: Boolean?,
 ) {
 
     companion object {
@@ -34,6 +35,7 @@ data class YamlLaunchApp(
             return YamlLaunchApp(
                 appId = appId,
                 clearState = null,
+                clearKeychain = null,
             )
         }
     }
