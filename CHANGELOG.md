@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.1 - 2022-09-19
+
+* Feature: `clearState` command
+* Feature: `clearKeychain` command
+* Feature: `stopApp` command
+* Tweak: Maestro now compares screenshots to decide whether screen has been updated
+* Tweak: `launchApp` command now supports env parameters
+
 ## 1.7.0 - 2022-09-16
 
 * Feature: `maestro upload` command for uploading your builds to mobile.dev
