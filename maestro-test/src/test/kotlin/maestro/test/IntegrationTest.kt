@@ -23,6 +23,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 
@@ -189,7 +190,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 008 - Tap on element`() {
+    fun `Case 008 - Tap on element - Retry if no UI change`() {
         // Given
         val commands = readCommands("008_tap_on_element")
 
@@ -207,7 +208,59 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertHasEvent(Event.Tap(Point(50, 50)))
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 4)
+    }
+
+    @Test
+    fun `Case 008 - Tap on element - Do not retry if view hierarchy changed`() {
+        // Given
+        val commands = readCommands("008_tap_on_element")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+
+                onClick = { element ->
+                    element.text = "Updated text"
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
+    }
+
+    @Test
+    fun `Case 008 - Tap on element - Do not retry if screenshot changed`() {
+        // Given
+        val commands = readCommands("008_tap_on_element")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+
+                onClick = { element ->
+                    element.color = Color.RED
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
     }
 
     @Test

@@ -19,6 +19,7 @@
 
 package maestro
 
+import com.github.romankh3.image.comparison.ImageComparison
 import dadb.Dadb
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
@@ -28,11 +29,14 @@ import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
+import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.sink
 import org.slf4j.LoggerFactory
+import java.awt.image.BufferedImage
 import java.io.File
+import javax.imageio.ImageIO
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(private val driver: Driver) : AutoCloseable {
@@ -164,6 +168,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Tapping at ($x, $y)")
 
         val hierarchyBeforeTap = viewHierarchy()
+        val screenshotBeforeTap: BufferedImage? = ImageIO.read(takeScreenshot().inputStream())
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
@@ -177,8 +182,29 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             val hierarchyAfterTap = viewHierarchy()
 
             if (hierarchyBeforeTap != hierarchyAfterTap) {
-                LOGGER.info("Something have changed in the UI. Proceed.")
+                LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
                 return
+            }
+
+            val screenshotAfterTap: BufferedImage? = ImageIO.read(takeScreenshot().inputStream())
+            if (screenshotBeforeTap != null &&
+                screenshotAfterTap != null &&
+                screenshotBeforeTap.width == screenshotAfterTap.width &&
+                screenshotBeforeTap.height == screenshotAfterTap.height
+            ) {
+                val imageDiff = ImageComparison(
+                    screenshotBeforeTap,
+                    screenshotAfterTap
+                ).compareImages().differencePercent
+
+                if (imageDiff > SCREENSHOT_DIFF_THRESHOLD) {
+                    LOGGER.info("Something have changed in the UI judging by screenshot (d=$imageDiff). Proceed.")
+                    return
+                } else {
+                    LOGGER.info("Screenshots are not different enough (d=$imageDiff)")
+                }
+            } else {
+                LOGGER.info("Skipping screenshot comparison")
             }
 
             LOGGER.info("Nothing changed in the UI.")
@@ -322,9 +348,19 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.takeScreenshot(out)
     }
 
+    fun takeScreenshot(): ByteArray {
+        LOGGER.info("Taking screenshot to byte array")
+
+        val buffer = Buffer()
+        takeScreenshot(buffer)
+
+        return buffer.readByteArray()
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)
+        private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
 
         fun ios(host: String, port: Int): Maestro {
             val channel = ManagedChannelBuilder.forAddress(host, port)

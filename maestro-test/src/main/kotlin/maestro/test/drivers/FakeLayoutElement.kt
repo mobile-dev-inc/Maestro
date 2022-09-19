@@ -20,12 +20,16 @@
 package maestro.test.drivers
 
 import maestro.TreeNode
+import java.awt.Color
+import java.awt.Graphics
 
 data class FakeLayoutElement(
     var id: String? = null,
     var text: String? = null,
     var bounds: Bounds? = null,
     var clickable: Boolean = false,
+    var color: Color = Color.BLACK,
+    var onClick: (FakeLayoutElement) -> Unit = {},
     val children: MutableList<FakeLayoutElement> = mutableListOf(),
 ) {
 
@@ -58,11 +62,54 @@ data class FakeLayoutElement(
         return child
     }
 
+    fun draw(graphics: Graphics) {
+        bounds?.let { b ->
+            val previousColor = graphics.color
+
+            graphics.color = color
+            graphics.drawRect(
+                b.left,
+                b.top,
+                b.right - b.left,
+                b.bottom - b.top
+            )
+
+            text?.let {
+                graphics.drawString(it, b.left, b.top)
+            }
+
+            graphics.color = previousColor
+        }
+
+        children.forEach { it.draw(graphics) }
+    }
+
+    fun dispatchClick(x: Int, y: Int): Boolean {
+        children.forEach {
+            if (it.dispatchClick(x, y)) {
+                return true
+            }
+        }
+
+        return if (bounds?.contains(x, y) == true) {
+            onClick(this)
+            true
+        } else {
+            false
+        }
+    }
+
     data class Bounds(
         val left: Int,
         val top: Int,
         val right: Int,
         val bottom: Int,
-    )
+    ) {
+
+        fun contains(x: Int, y: Int): Boolean {
+            return x in left..right && y in top..bottom
+        }
+
+    }
 
 }

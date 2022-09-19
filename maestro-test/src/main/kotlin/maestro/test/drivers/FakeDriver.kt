@@ -28,7 +28,10 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.TreeNode
 import okio.Sink
+import okio.buffer
+import java.awt.image.BufferedImage
 import java.io.File
+import javax.imageio.ImageIO
 
 class FakeDriver : Driver {
 
@@ -126,6 +129,8 @@ class FakeDriver : Driver {
     override fun tap(point: Point) {
         ensureOpen()
 
+        layout.dispatchClick(point.x, point.y)
+
         events += Event.Tap(point)
     }
 
@@ -178,6 +183,23 @@ class FakeDriver : Driver {
     override fun takeScreenshot(out: Sink) {
         ensureOpen()
 
+        val deviceInfo = deviceInfo()
+        val image = BufferedImage(
+            deviceInfo.widthPixels,
+            deviceInfo.heightPixels,
+            BufferedImage.TYPE_INT_ARGB,
+        )
+
+        val canvas = image.graphics
+        layout.draw(canvas)
+        canvas.dispose()
+
+        ImageIO.write(
+            image,
+            "png",
+            out.buffer().outputStream(),
+        )
+
         events += Event.TakeScreenshot
     }
 
@@ -204,9 +226,14 @@ class FakeDriver : Driver {
     }
 
     fun assertEvents(expected: List<Event>) {
-        if (events != expected) {
-            throw AssertionError("Expected events: $expected\nActual events: $events")
-        }
+        assertThat(events)
+            .containsAtLeastElementsIn(expected)
+            .inOrder()
+    }
+
+    fun assertEventCount(event: Event, expectedCount: Int) {
+        assertThat(events.count { it == event })
+            .isEqualTo(expectedCount)
     }
 
     fun assertHasEvent(event: Event) {
