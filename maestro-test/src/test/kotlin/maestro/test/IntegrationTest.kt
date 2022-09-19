@@ -754,6 +754,7 @@ class IntegrationTest {
             .map {
                 it.injectEnv(
                     envParameters = mapOf(
+                        "APP_ID" to "com.example.app",
                         "BUTTON_ID" to "button_id",
                         "BUTTON_TEXT" to "button_text",
                         "PASSWORD" to "testPassword",
@@ -773,6 +774,7 @@ class IntegrationTest {
             }
 
         }
+        driver.addInstalledApp("com.example.app")
 
         // When
         Maestro(driver).use {
@@ -783,6 +785,7 @@ class IntegrationTest {
         // No test failure
         driver.assertEvents(
             listOf(
+                Event.LaunchApp(appId = "com.example.app"),
                 Event.Tap(Point(50, 50)),
                 Event.Tap(Point(50, 50)),
                 Event.InputText("\${PASSWORD} is testPassword"),

@@ -1,5 +1,7 @@
 appId: com.example.app
 ---
+- launchApp:
+    appId: ${APP_ID}
 - tapOn:
     id: .*${BUTTON_ID}.*
     retryTapIfNoChange: false

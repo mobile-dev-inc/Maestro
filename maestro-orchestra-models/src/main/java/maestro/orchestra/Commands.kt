@@ -220,7 +220,9 @@ data class LaunchAppCommand(
     }
 
     override fun injectEnv(env: Map<String, String>): LaunchAppCommand {
-        return this
+        return copy(
+            appId = appId.injectEnv(env)
+        )
     }
 }
 
