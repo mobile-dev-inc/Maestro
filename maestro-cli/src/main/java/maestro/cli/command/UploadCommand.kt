@@ -34,6 +34,7 @@ import java.io.IOException
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.Callable
+import kotlin.io.path.absolute
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
@@ -92,7 +93,7 @@ class UploadCommand : Callable<Int> {
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
-            WorkspaceUtils.createWorkspaceZip(flowFile.toPath(), workspaceZip)
+            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
             println()
             val uploadProgress = UploadProgress(20)
             val (teamId, appId, uploadId) = client.upload(
