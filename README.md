@@ -96,7 +96,7 @@ Install [Facebook IDB](https://fbidb.io/) tool
 
 ```
 brew tap facebook/fb
-brew install idb-companion
+brew install facebook/fb/idb-companion
 ```
 
 And launch it:
