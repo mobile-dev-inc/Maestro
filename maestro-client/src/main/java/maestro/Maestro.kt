@@ -168,7 +168,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Tapping at ($x, $y)")
 
         val hierarchyBeforeTap = viewHierarchy()
-        val screenshotBeforeTap: BufferedImage? = ImageIO.read(takeScreenshot().inputStream())
+        val screenshotBeforeTap: BufferedImage? = tryTakingScreenshot()
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
@@ -186,7 +186,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 return
             }
 
-            val screenshotAfterTap: BufferedImage? = ImageIO.read(takeScreenshot().inputStream())
+            val screenshotAfterTap: BufferedImage? = tryTakingScreenshot()
             if (screenshotBeforeTap != null &&
                 screenshotAfterTap != null &&
                 screenshotBeforeTap.width == screenshotAfterTap.width &&
@@ -214,6 +214,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             LOGGER.info("Attempting to tap again since there was no change in the UI")
             tap(x, y, false, longPress)
         }
+    }
+
+    private fun tryTakingScreenshot() = try {
+        ImageIO.read(takeScreenshot().inputStream())
+    } catch (e: Exception) {
+        LOGGER.warn("Failed to take screenshot", e)
+        null
     }
 
     private fun waitUntilVisible(element: UiElement) {
