@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.2 - 2022-09-20
+
+* Fix: `tapOn` command was failing due to a failure during screenshot capture
+
 ## 1.7.1 - 2022-09-19
 
 * Feature: `clearState` command
