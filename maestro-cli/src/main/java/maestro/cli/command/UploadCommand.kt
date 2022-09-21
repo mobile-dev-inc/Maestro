@@ -1,3 +1,4 @@
+
 /*
  *
  *  Copyright (c) 2022 mobile.dev inc.
@@ -48,34 +49,37 @@ import kotlin.system.exitProcess
 )
 class UploadCommand : Callable<Int> {
 
-    @CommandLine.Parameters
+    @CommandLine.Parameters(description = ["The name of this upload"])
     private lateinit var uploadName: String
 
-    @CommandLine.Parameters
+    @CommandLine.Parameters(description = ["App binary to run your Flows against"])
     private lateinit var appFile: File
 
-    @CommandLine.Parameters
+    @CommandLine.Parameters(description = ["Flow file or directory"])
     private lateinit var flowFile: File
 
-    @Option(names = ["--apiKey"])
+    @Option(order = 0, names = ["--apiKey"], description = ["API key"])
     private var apiKey: String? = null
 
-    @Option(names = ["--apiUrl"])
+    @Option(order = 1, names = ["--apiUrl"], description = ["API base URL"])
     private var apiUrl: String = "https://api.mobile.dev"
 
-    @Option(names = ["--repoOwner"])
+    @Option(order = 2, names = ["--mapping"], description = ["dSYM file (iOS) or Proguard mapping file (Android)"])
+    private var mapping: File? = null
+
+    @Option(order = 3, names = ["--repoOwner"], description = ["Repository owner (ie: GitHub organization or user slug)"])
     private var repoOwner: String? = null
 
-    @Option(names = ["--repoName"])
+    @Option(order = 4, names = ["--repoName"], description = ["Repository name (ie: GitHub repo slug)"])
     private var repoName: String? = null
 
-    @Option(names = ["--branch"])
+    @Option(order = 5, names = ["--branch"], description = ["The branch this upload originated from"])
     private var branch: String? = null
 
-    @Option(names = ["--pullRequestId"])
+    @Option(order = 6, names = ["--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
     private var pullRequestId: String? = null
 
-    @Option(names = ["-e", "--env"])
+    @Option(order = 7, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
     private var env: Map<String, String> = emptyMap()
 
     private lateinit var client: ApiClient
@@ -84,6 +88,7 @@ class UploadCommand : Callable<Int> {
 
     override fun call(): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
+        if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping?.absolutePath}")
 
         client = ApiClient(apiUrl)
 
@@ -101,6 +106,7 @@ class UploadCommand : Callable<Int> {
                 appFile.toPath(),
                 workspaceZip,
                 uploadName,
+                mapping?.toPath(),
                 repoOwner,
                 repoName,
                 branch,

@@ -83,6 +83,7 @@ class ApiClient(
         appFile: Path,
         workspaceZip: Path,
         uploadName: String,
+        mappingFile: Path?,
         repoOwner: String?,
         repoName: String?,
         branch: String?,
@@ -99,12 +100,17 @@ class ApiClient(
         branch?.let { requestPart["branch"] = it }
         pullRequestId?.let { requestPart["pullRequestId"] = it }
 
-        val body = MultipartBody.Builder()
+        val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("app_binary", "app.zip", appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener))
             .addFormDataPart("workspace", "workspace.zip", workspaceZip.toFile().asRequestBody("application/zip".toMediaType()))
             .addFormDataPart("request", JSON.writeValueAsString(requestPart))
-            .build()
+
+        if (mappingFile != null) {
+            bodyBuilder.addFormDataPart("mapping", "mapping.txt", mappingFile.toFile().asRequestBody("text/plain".toMediaType()))
+        }
+
+        val body = bodyBuilder.build()
 
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
