@@ -47,17 +47,17 @@ object YamlCommandReader {
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
     fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors {
         val (config, commands) = readConfigAndCommands(flowPath)
-        val maestroCommands = commands.map { it.toCommand(config.appId) }
+        val maestroCommands = commands.flatMap { it.toCommands(flowPath, config.appId) }
         listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
     }
 
     // Files to watch for changes. Includes any referenced files.
-    fun getWatchFiles(flowPath: Path): List<File> = mapParsingErrors{
-        val (config, _) = readConfigAndCommands(flowPath)
-        val initFlowFile = config.getInitFlowPath(flowPath)
-        listOfNotNull(flowPath, initFlowFile,)
+    fun getWatchFiles(flowPath: Path): List<Path> = mapParsingErrors{
+        val (config, commands) = readConfigAndCommands(flowPath)
+        val configWatchFiles = config.getWatchFiles(flowPath)
+        val commandWatchFiles = commands.flatMap { it.getWatchFiles(flowPath) }
+        (listOf(flowPath) + configWatchFiles + commandWatchFiles)
             .filter { it.absolute().parent?.isDirectory() ?: false }
-            .map { it.toFile() }
     }
 
     fun getConfig(commands: List<MaestroCommand>): MaestroConfig? {

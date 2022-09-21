@@ -1,14 +1,14 @@
 package maestro.cli.runner
 
-import java.io.File
 import java.io.InputStream
+import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 internal object CliWatcher {
 
-    fun waitForFileChangeOrEnter(fileWatcher: FileWatcher, files: List<File>): SignalType {
+    fun waitForFileChangeOrEnter(fileWatcher: FileWatcher, files: List<Path>): SignalType {
         val executor = Executors.newCachedThreadPool()
 
         val fileChangeFuture = CompletableFuture.supplyAsync({

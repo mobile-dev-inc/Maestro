@@ -94,7 +94,7 @@ object TestRunner {
                 .onFailure {
                     previousCommands = null
                 }
-                .getOr(listOf(flowFile))
+                .getOr(listOf(flowFile.toPath()))
 
             if (CliWatcher.waitForFileChangeOrEnter(fileWatcher, watchFiles) == CliWatcher.SignalType.ENTER) {
                 // On ENTER force re-run of flow even if commands have not changed
@@ -120,6 +120,7 @@ object TestRunner {
                 is NoInputException -> "No commands found in Flow file"
                 is InvalidInitFlowFile -> "initFlow file is invalid: ${e.initFlowPath}"
                 is UnicodeNotSupportedError -> "Unicode character input is not supported: ${e.text}. Please use ASCII characters. Follow the issue: https://github.com/mobile-dev-inc/maestro/issues/146"
+                is InterruptedException -> "Interrupted"
                 else -> e.stackTraceToString()
             }
 

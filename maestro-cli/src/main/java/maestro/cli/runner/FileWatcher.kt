@@ -13,11 +13,11 @@ class FileWatcher {
     private val watchService = FileSystems.getDefault().newWatchService()
     private val watchKeys = mutableSetOf<WatchKey>()
 
-    fun waitForChange(files: Iterable<File>) {
+    fun waitForChange(files: Iterable<Path>) {
         watchKeys.forEach(WatchKey::cancel)
         watchKeys.clear()
 
-        val paths = files.map { it.toPath().absolute() }
+        val paths = files.map { it.absolute() }
 
         paths.forEach { path ->
             val watchKey = path.parent.register(

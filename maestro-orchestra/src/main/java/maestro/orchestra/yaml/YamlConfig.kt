@@ -33,11 +33,11 @@ data class YamlConfig(
         return MaestroCommand(ApplyConfigurationCommand(config))
     }
 
-    fun getInitFlowPath(flowPath: Path): Path? {
-        if (initFlow == null) return null
+    fun getWatchFiles(flowPath: Path): List<Path> {
+        if (initFlow == null) return emptyList()
         return when (initFlow) {
-            is StringInitFlow -> getInitFlowPath(flowPath, initFlow.path)
-            is YamlInitFlow -> null
+            is StringInitFlow -> listOf(getInitFlowPath(flowPath, initFlow.path))
+            else -> emptyList()
         }
     }
 
@@ -46,7 +46,7 @@ data class YamlConfig(
 
         val initCommands = when (initFlow) {
             is StringInitFlow -> stringInitCommands(initFlow, flowPath)
-            is YamlInitFlow -> initFlow.commands.map { it.toCommand(appId) }
+            is YamlInitFlow -> initFlow.commands.flatMap { it.toCommands(flowPath, appId) }
         }
 
         return MaestroInitFlow(

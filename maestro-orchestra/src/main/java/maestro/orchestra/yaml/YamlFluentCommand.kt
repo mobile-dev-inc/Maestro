@@ -40,7 +40,12 @@ import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
+import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
+import java.io.File
+import java.nio.file.Path
+import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
@@ -58,42 +63,86 @@ data class YamlFluentCommand(
     val extendedWaitUntil: YamlExtendedWaitUntil? = null,
     val stopApp: YamlStopApp? = null,
     val clearState: YamlClearState? = null,
+    val runFlow: YamlRunFlow? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
-    fun toCommand(appId: String): MaestroCommand {
+    fun toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
         return when {
-            launchApp != null -> launchApp(launchApp, appId)
-            tapOn != null -> tapCommand(tapOn)
-            longPressOn != null -> tapCommand(longPressOn, longPress = true)
-            assertVisible != null -> MaestroCommand(AssertCommand(visible = toElementSelector(assertVisible)))
-            assertNotVisible != null -> MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible)))
-            inputText != null -> MaestroCommand(InputTextCommand(inputText))
-            swipe != null -> swipeCommand(swipe)
-            openLink != null -> MaestroCommand(OpenLinkCommand(openLink))
-            pressKey != null -> MaestroCommand(PressKeyCommand(code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey")))
-            eraseText != null -> MaestroCommand(EraseTextCommand(charactersToErase = eraseText.charactersToErase))
-            action != null -> when (action) {
-                "back" -> MaestroCommand(BackPressCommand())
-                "hide keyboard" -> MaestroCommand(HideKeyboardCommand())
-                "scroll" -> MaestroCommand(ScrollCommand())
-                "clearKeychain" -> MaestroCommand(ClearKeychainCommand())
-                else -> error("Unknown navigation target: $action")
-            }
-            takeScreenshot != null -> MaestroCommand(TakeScreenshotCommand(takeScreenshot.path))
-            extendedWaitUntil != null -> extendedWait(extendedWaitUntil)
-            stopApp != null -> MaestroCommand(
-                StopAppCommand(
-                    appId = stopApp.appId ?: appId,
+            launchApp != null -> listOf(launchApp(launchApp, appId))
+            tapOn != null -> listOf(tapCommand(tapOn))
+            longPressOn != null -> listOf(tapCommand(longPressOn, longPress = true))
+            assertVisible != null -> listOf(MaestroCommand(AssertCommand(visible = toElementSelector(assertVisible))))
+            assertNotVisible != null -> listOf(MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible))))
+            inputText != null -> listOf(MaestroCommand(InputTextCommand(inputText)))
+            swipe != null -> listOf(swipeCommand(swipe))
+            openLink != null -> listOf(MaestroCommand(OpenLinkCommand(openLink)))
+            pressKey != null -> listOf(MaestroCommand(PressKeyCommand(code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey"))))
+            eraseText != null -> listOf(MaestroCommand(EraseTextCommand(charactersToErase = eraseText.charactersToErase)))
+            action != null -> listOf(
+                when (action) {
+                    "back" -> MaestroCommand(BackPressCommand())
+                    "hide keyboard" -> MaestroCommand(HideKeyboardCommand())
+                    "scroll" -> MaestroCommand(ScrollCommand())
+                    "clearKeychain" -> MaestroCommand(ClearKeychainCommand())
+                    else -> error("Unknown navigation target: $action")
+                }
+            )
+            takeScreenshot != null -> listOf(MaestroCommand(TakeScreenshotCommand(takeScreenshot.path)))
+            extendedWaitUntil != null -> listOf(extendedWait(extendedWaitUntil))
+            stopApp != null -> listOf(
+                MaestroCommand(
+                    StopAppCommand(
+                        appId = stopApp.appId ?: appId,
+                    )
                 )
             )
-            clearState != null -> MaestroCommand(
-                maestro.orchestra.ClearStateCommand(
-                    appId = clearState.appId ?: appId,
+            clearState != null -> listOf(
+                MaestroCommand(
+                    maestro.orchestra.ClearStateCommand(
+                        appId = clearState.appId ?: appId,
+                    )
                 )
             )
+            runFlow != null -> runFlow(flowPath, runFlow)
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    fun getWatchFiles(flowPath: Path): List<Path> {
+        return when {
+            runFlow != null -> getRunFlowWatchFiles(flowPath, runFlow)
+            else -> return emptyList()
+        }
+    }
+
+    private fun getRunFlowWatchFiles(flowPath: Path, runFlow: YamlRunFlow): List<Path> {
+        val runFlowPath = getRunFlowPath(flowPath, runFlow.path)
+        return listOf(runFlowPath) + YamlCommandReader.getWatchFiles(runFlowPath)
+    }
+
+    private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
+        val runFlowPath = getRunFlowPath(flowPath, command.path)
+        return YamlCommandReader.readCommands(runFlowPath)
+    }
+
+    private fun getRunFlowPath(flowPath: Path, runFlowPath: String): Path {
+        val initFlowPath = flowPath.fileSystem.getPath(runFlowPath)
+        val resolvedInitFlowPath = if (initFlowPath.isAbsolute) {
+            initFlowPath
+        } else {
+            flowPath.resolveSibling(initFlowPath).toAbsolutePath()
+        }
+        if (resolvedInitFlowPath.equals(flowPath.toAbsolutePath())) {
+            throw InvalidInitFlowFile("initFlow file can't be the same as the Flow file: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
+        }
+        if (!resolvedInitFlowPath.exists()) {
+            throw InvalidInitFlowFile("initFlow file does not exist: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
+        }
+        if (resolvedInitFlowPath.isDirectory()) {
+            throw InvalidInitFlowFile("initFlow file can't be a directory: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
+        }
+        return resolvedInitFlowPath
     }
 
     private fun extendedWait(command: YamlExtendedWaitUntil): MaestroCommand {

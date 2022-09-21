@@ -1278,6 +1278,71 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 046 - Run flow`() {
+        // Given
+        val commands = readCommands("046_run_flow")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        driver.addInstalledApp("com.example.app")
+        driver.addInstalledApp("com.other.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+                Event.Tap(Point(50, 50)),
+            )
+        )
+    }
+
+    @Test
+    fun `Case 047 - Nested run flow`() {
+        // Given
+        val commands = readCommands("047_run_flow_nested")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+            element {
+                text = "Secondary button"
+                bounds = Bounds(0, 0, 200, 200)
+            }
+        }
+
+        driver.addInstalledApp("com.example.app")
+        driver.addInstalledApp("com.other.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+                Event.Tap(Point(50, 50)),
+                Event.Tap(Point(100, 100)),
+            )
+        )
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

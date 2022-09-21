@@ -1,0 +1,4 @@
+appId: com.other.app
+---
+- runFlow: 013_launch_app.yaml
+- tapOn: Primary button
