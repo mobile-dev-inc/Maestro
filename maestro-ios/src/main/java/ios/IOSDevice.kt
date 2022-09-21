@@ -33,6 +33,8 @@ interface IOSDevice : AutoCloseable {
 
     fun contentDescriptor(): Result<List<AccessibilityNode>, Throwable>
 
+    fun describePoint(x: Int, y: Int): Result<List<AccessibilityNode>, Throwable>
+
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 
     fun longPress(x: Int, y: Int): Result<Unit, Throwable>

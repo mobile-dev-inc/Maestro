@@ -86,6 +86,22 @@ class IdbIOSDevice(
         }
     }
 
+    override fun describePoint(x: Int, y: Int): Result<List<AccessibilityNode>, Throwable> {
+        return runCatching {
+            val response = blockingStub.accessibilityInfo(accessibilityInfoRequest {
+                point = point {
+                    this.x = x.toDouble()
+                    this.y = y.toDouble()
+                }
+                format = Idb.AccessibilityInfoRequest.Format.NESTED
+            })
+
+            listOf(
+                GSON.fromJson(response.json, AccessibilityNode::class.java)
+            )
+        }
+    }
+
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
         return press(x, y, holdDelay = 50)
     }
@@ -330,7 +346,7 @@ class IdbIOSDevice(
 
     override fun clearKeychain(): Result<Unit, Throwable> {
         return runCatching {
-            blockingStub.clearKeychain(clearKeychainRequest {  })
+            blockingStub.clearKeychain(clearKeychainRequest { })
         }
     }
 

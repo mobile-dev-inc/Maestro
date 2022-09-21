@@ -127,9 +127,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     ) {
         LOGGER.info("Tapping on element: $element")
 
-        waitForAppToSettle()
-
-        val hierarchyBeforeTap = viewHierarchy()
+        val hierarchyBeforeTap = waitForAppToSettle()
 
         val center = (
             hierarchyBeforeTap
@@ -139,7 +137,12 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 ?: element
             ).bounds
             .center()
-        tap(center.x, center.y, retryIfNoChange, longPress)
+        tap(
+            center.x,
+            center.y,
+            retryIfNoChange,
+            longPress
+        )
 
         val hierarchyAfterTap = viewHierarchy()
 
@@ -177,9 +180,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             } else {
                 driver.tap(Point(x, y))
             }
-            waitForAppToSettle()
-
-            val hierarchyAfterTap = viewHierarchy()
+            val hierarchyAfterTap = waitForAppToSettle()
 
             if (hierarchyBeforeTap != hierarchyAfterTap) {
                 LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
@@ -236,7 +237,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     private fun getNumberOfRetries(retryIfNoChange: Boolean): Int {
-        return if (retryIfNoChange) 3 else 1
+        return if (retryIfNoChange) 2 else 1
     }
 
     fun pressKey(code: KeyCode) {
@@ -302,18 +303,23 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return filter(viewHierarchy().aggregate())
     }
 
-    private fun waitForAppToSettle() {
+    private fun waitForAppToSettle(): ViewHierarchy {
         // Time buffer for any visual effects and transitions that might occur between actions.
         MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 300)
 
         val hierarchyBefore = viewHierarchy()
+        var latestHierarchy: ViewHierarchy? = null
         repeat(10) {
             val hierarchyAfter = viewHierarchy()
             if (hierarchyBefore == hierarchyAfter) {
-                return
+                return hierarchyAfter
             }
+
+            latestHierarchy = hierarchyAfter
             MaestroTimer.sleep(MaestroTimer.Reason.WAIT_TO_SETTLE, 200)
         }
+
+        return latestHierarchy ?: hierarchyBefore
     }
 
     fun inputText(text: String) {
