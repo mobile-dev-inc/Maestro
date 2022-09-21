@@ -51,6 +51,8 @@ dependencies {
     api "org.slf4j:slf4j-simple:1.7.36"
     api 'com.squareup.okio:okio:3.2.0'
     api 'com.github.romankh3:image-comparison:4.4.0'
+    api "com.android.tools:sdk-common:30.3.0"
+    api "com.android.tools.apkparser:apkanalyzer:30.3.0"
 
     implementation project(':maestro-ios')
     implementation 'com.google.code.findbugs:jsr305:3.0.2'

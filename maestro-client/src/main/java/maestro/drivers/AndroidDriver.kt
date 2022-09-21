@@ -19,6 +19,7 @@
 
 package maestro.drivers
 
+import com.android.ide.common.xml.ManifestData
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
@@ -32,6 +33,7 @@ import maestro.MaestroTimer
 import maestro.Point
 import maestro.TreeNode
 import maestro.android.AndroidAppFiles
+import maestro.android.asManifest
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
 import maestro_android.tapRequest
@@ -42,6 +44,7 @@ import okio.sink
 import okio.source
 import org.w3c.dom.Element
 import org.w3c.dom.Node
+import org.xml.sax.SAXException
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -136,8 +139,34 @@ class AndroidDriver(
         }
 
         shell("am force-stop $appId")
-        shell("monkey --pct-syskeys 0 -p $appId 1")
+
+        try {
+            val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
+            val manifest = apkFile.asManifest()
+            if (hasThirdPartyLauncherConfigured(manifest, appId) && hasOnlyAppLauncher(manifest, appId)) {
+                val activity = manifest.activities.first { it.isHomeActivity &&
+                    it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
+                }
+                shell("am start-activity -n $appId/${activity.name}")
+            } else {
+                shell("monkey --pct-syskeys 0 -p $appId 1")
+            }
+        } catch (ioException: IOException) {
+            shell("monkey --pct-syskeys 0 -p $appId 1")
+        } catch (saxException: SAXException) {
+            shell("monkey --pct-syskeys 0 -p $appId 1")
+        }
     }
+
+    private fun hasOnlyAppLauncher(manifest: ManifestData, appId: String) =
+        manifest.activities.filter { it.isHomeActivity &&
+            it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
+        }.size == 1
+
+    private fun hasThirdPartyLauncherConfigured(manifest: ManifestData, appId: String) =
+        manifest.activities.any { it.isHomeActivity &&
+            it.name.split(".").intersect(appId.split(".").toSet()).isEmpty()
+        }
 
     override fun stopApp(appId: String) {
         // Note: If the package does not exist, this call does *not* throw an exception

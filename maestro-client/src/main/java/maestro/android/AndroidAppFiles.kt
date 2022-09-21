@@ -37,6 +37,15 @@ object AndroidAppFiles {
         }
     }
 
+    fun getApkFile(dadb: Dadb, appId: String): File {
+        val apkPath = dadb.shell("pm list packages -f | grep $appId")
+            .output.substringAfterLast("package:").substringBefore("=$appId")
+        apkPath.substringBefore("=$appId")
+        val dst = File.createTempFile("tmp", ".apk")
+        dadb.pull(dst, apkPath)
+        return dst
+    }
+
     fun push(dadb: Dadb, packageName: String, appFilesZip: File) {
         val remoteZip = "/data/local/tmp/app.zip"
         dadb.push(appFilesZip, remoteZip)
