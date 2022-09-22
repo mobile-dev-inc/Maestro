@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0 - 2022-09-22
+
+* Feature: `runFlow` command
+* Tweak: support of Tab Bar on iOS
+* Tweak: added `--mapping` option to `upload` CLI command
+* Fix: open the main launcher screen on Android instead of Leak Canary
+* Fix: input character-by-character on Android to counter adb issue where not the whole text gets transferred to the device 
+
 ## 1.7.2 - 2022-09-20
 
 * Fix: `tapOn` command was failing due to a failure during screenshot capture
