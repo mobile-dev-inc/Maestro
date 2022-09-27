@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1 - 2022-09-27
+
+* Fix: Timeout exception while opening port for tcp forwarding
+
 ## 1.8.0 - 2022-09-22
 
 * Feature: `runFlow` command
