@@ -79,33 +79,31 @@ class AndroidDriver(
                 "dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n"
         )
 
-        forwarder = dadb.tcpForward(
-            hostPort,
-            7001
-        )
-
         try {
             awaitLaunch()
         } catch (ignored: InterruptedException) {
             instrumentationSession?.close()
             return
         }
+
+        forwarder = dadb.tcpForward(
+            hostPort,
+            7001
+        )
     }
 
-    @Suppress("CheckResult")
     private fun awaitLaunch() {
         val startTime = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - startTime < SERVER_LAUNCH_TIMEOUT_MS) {
             try {
                 dadb.open("tcp:7001").close()
-                blockingStub.viewHierarchy(viewHierarchyRequest {  })
                 return
             } catch (ignored: Exception) {
                 // Continue
             }
 
-            Thread.sleep(50)
+            Thread.sleep(100)
         }
 
         throw TimeoutException("Maestro Android driver did not start up in time")
