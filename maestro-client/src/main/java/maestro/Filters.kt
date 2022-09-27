@@ -36,6 +36,8 @@ object Filters {
             ?.toList() ?: emptyList()
     }
 
+    fun compose(first: ElementFilter, second: ElementFilter): ElementFilter = compose(listOf(first, second))
+
     fun compose(filters: List<ElementFilter>): ElementFilter = { nodes ->
         filters
             .fold(nodes) { acc, filter ->
@@ -187,6 +189,12 @@ object Filters {
                     .sortedBy { it.toUiElementOrNull()?.bounds?.y ?: Int.MAX_VALUE }
                     .getOrNull(idx)
             )
+        }
+    }
+
+    fun clickableFirst(): ElementFilter {
+        return { nodes ->
+            nodes.sortedByDescending { it.clickable }
         }
     }
 

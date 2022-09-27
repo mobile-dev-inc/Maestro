@@ -353,19 +353,21 @@ class Orchestra(
                 filters += filter
             }
 
-        val finalFilter = selector.index
+        var resultFilter = Filters.intersect(filters)
+        resultFilter = selector.index
             ?.let {
                 Filters.compose(
-                    listOf(
-                        Filters.intersect(filters),
-                        Filters.index(it),
-                    )
+                    resultFilter,
+                    Filters.index(it)
                 )
-            } ?: Filters.intersect(filters)
+            } ?: Filters.compose(
+            resultFilter,
+            Filters.clickableFirst()
+        )
 
         return FilterWithDescription(
             descriptions.joinToString(", "),
-            finalFilter,
+            resultFilter,
         )
     }
 

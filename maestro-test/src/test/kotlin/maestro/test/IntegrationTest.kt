@@ -1343,6 +1343,41 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 048 - tapOn prioritises clickable elements`() {
+        // Given
+        val commands = readCommands("048_tapOn_clickable")
+
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 200, 200)
+                clickable = true
+
+                onClick = {
+                    text = "Clicked"
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.Tap(Point(100, 100)),
+            )
+        )
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {
