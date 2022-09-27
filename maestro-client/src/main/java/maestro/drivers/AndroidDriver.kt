@@ -42,6 +42,7 @@ import okio.Sink
 import okio.buffer
 import okio.sink
 import okio.source
+import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.xml.sax.SAXException
@@ -63,7 +64,6 @@ class AndroidDriver(
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
     private var instrumentationSession: AdbShellStream? = null
-    private var forwarder: AutoCloseable? = null
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -86,10 +86,20 @@ class AndroidDriver(
             return
         }
 
-        forwarder = dadb.tcpForward(
+        allocateForwarder()
+    }
+
+    private fun allocateForwarder() {
+        PORT_TO_FORWARDER[hostPort]?.close()
+        PORT_TO_ALLOCATION_POINT[hostPort]?.let {
+            LOGGER.warn("Port $hostPort was already allocated. Allocation point: $it")
+        }
+
+        PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
             hostPort,
             7001
         )
+        PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
     }
 
     private fun awaitLaunch() {
@@ -110,8 +120,9 @@ class AndroidDriver(
     }
 
     override fun close() {
-        forwarder?.close()
-        forwarder = null
+        PORT_TO_FORWARDER[hostPort]?.close()
+        PORT_TO_FORWARDER.remove(hostPort)
+        PORT_TO_ALLOCATION_POINT.remove(hostPort)
         uninstallMaestroApks()
         instrumentationSession?.close()
         instrumentationSession = null
@@ -142,8 +153,9 @@ class AndroidDriver(
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
             val manifest = apkFile.asManifest()
             if (hasThirdPartyLauncherConfigured(manifest, appId) && hasOnlyAppLauncher(manifest, appId)) {
-                val activity = manifest.activities.first { it.isHomeActivity &&
-                    it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
+                val activity = manifest.activities.first {
+                    it.isHomeActivity &&
+                        it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
                 }
                 shell("am start-activity -n $appId/${activity.name}")
             } else {
@@ -157,13 +169,15 @@ class AndroidDriver(
     }
 
     private fun hasOnlyAppLauncher(manifest: ManifestData, appId: String) =
-        manifest.activities.filter { it.isHomeActivity &&
-            it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
+        manifest.activities.filter {
+            it.isHomeActivity &&
+                it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
         }.size == 1
 
     private fun hasThirdPartyLauncherConfigured(manifest: ManifestData, appId: String) =
-        manifest.activities.any { it.isHomeActivity &&
-            it.name.split(".").intersect(appId.split(".").toSet()).isEmpty()
+        manifest.activities.any {
+            it.isHomeActivity &&
+                it.name.split(".").intersect(appId.split(".").toSet()).isEmpty()
         }
 
     override fun stopApp(appId: String) {
@@ -406,5 +420,11 @@ class AndroidDriver(
     companion object {
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 5000
+
+        private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
+
+        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
+        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
+
     }
 }
