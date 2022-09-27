@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.2 - 2022-09-27
+
+* Tweak: prioritise clickable elements over non-clickable ones
+* Fix: close TCP forwarder if it is already in use
+* Fix: hideKeyboard on Android did not always work
+
 ## 1.8.1 - 2022-09-27
 
 * Fix: Timeout exception while opening port for tcp forwarding
