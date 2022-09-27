@@ -261,6 +261,7 @@ class AndroidDriver(
 
     override fun hideKeyboard() {
         dadb.shell("input keyevent 66")
+        dadb.shell("input keyevent 111")
     }
 
     override fun takeScreenshot(out: Sink) {
