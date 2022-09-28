@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.3 - 2022-09-28
+
+* Fix: occasional crash when an iOS layout has a view group with a 0 width
+* Fix: properly mapping top-level syntax errors
+
 ## 1.8.2 - 2022-09-27
 
 * Tweak: prioritise clickable elements over non-clickable ones
