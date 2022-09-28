@@ -296,6 +296,13 @@ internal class YamlCommandReaderTest {
         ))
     }
 
+    @Test
+    fun launchAppSyntaxError(
+        @YamlFile("021_launchApp_syntaxError.yaml") e: SyntaxError,
+    ) {
+        assertThat(e.message).contains("Cannot deserialize value of type")
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }

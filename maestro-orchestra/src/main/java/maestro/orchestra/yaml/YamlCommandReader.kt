@@ -109,6 +109,7 @@ object YamlCommandReader {
                 message.contains("value failed for JSON property") -> throw SyntaxError(message)
                 message.contains("Unrecognized field") -> throw SyntaxError(message)
                 message.contains("Cannot construct instance") -> throw SyntaxError(message)
+                message.contains("Cannot deserialize") -> throw SyntaxError(message)
                 else -> throw e
             }
         }
