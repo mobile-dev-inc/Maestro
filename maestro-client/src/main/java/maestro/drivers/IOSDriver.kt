@@ -158,6 +158,7 @@ class IOSDriver(
         // We are locating such a view and then scan it for children by probing individual points on the screen
         val groupChildren = accessibilityNodes
             .filter { it.type == "Group" }
+            .filter { (it.frame?.width ?: 0F) > 50F }
             .maxByOrNull { it.frame?.y ?: 0F }
             ?.let { node ->
                 node.frame
