@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0 - 2022-09-30
+
+* Feature: USB support for Android devices
+
 ## 1.8.3 - 2022-09-28
 
 * Fix: occasional crash when an iOS layout has a view group with a 0 width
