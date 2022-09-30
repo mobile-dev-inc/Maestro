@@ -67,16 +67,36 @@ class ResultView(
         }
     }
 
-    private fun Ansi.renderCommands(commands: List<CommandState>) {
+    private fun Ansi.renderCommands(
+        commands: List<CommandState>,
+        indent: Int = 0,
+    ) {
         val statusColumnWidth = 3
         commands.forEach {
             val statusSymbol = status(it.status)
             fgDefault()
             render(" ║    ")
+            repeat(indent) {
+                render("  ")
+            }
             render(statusSymbol)
             render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
             render(it.command.description())
+
+            if (it.status == CommandStatus.SKIPPED) {
+                render(" (skipped)")
+            }
+
             render("\n")
+
+            val expand = it.status in setOf(CommandStatus.RUNNING, CommandStatus.FAILED) &&
+                (it.subCommands?.any { subCommand -> subCommand.status != CommandStatus.PENDING } ?: false)
+
+            if (expand) {
+                it.subCommands?.let { subCommands ->
+                    renderCommands(subCommands, indent + 1)
+                }
+            }
         }
     }
 
@@ -86,6 +106,7 @@ class ResultView(
             CommandStatus.FAILED -> "❌"
             CommandStatus.RUNNING -> "⏳"
             CommandStatus.PENDING -> "\uD83D\uDD32"
+            CommandStatus.SKIPPED -> "⚪️"
         }
     }
 

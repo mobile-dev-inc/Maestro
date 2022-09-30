@@ -24,4 +24,5 @@ import maestro.orchestra.MaestroCommand
 data class CommandState(
     val status: CommandStatus,
     val command: MaestroCommand,
+    val subCommands: List<CommandState>? = null,
 )

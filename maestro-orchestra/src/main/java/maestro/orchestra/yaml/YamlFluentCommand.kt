@@ -25,6 +25,7 @@ import maestro.Point
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
+import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -34,6 +35,7 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PressKeyCommand
+import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.SwipeCommand
@@ -42,7 +44,6 @@ import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
-import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -104,7 +105,15 @@ data class YamlFluentCommand(
                     )
                 )
             )
-            runFlow != null -> runFlow(flowPath, runFlow)
+            runFlow != null -> listOf(
+                MaestroCommand(
+                    RunFlowCommand(
+                        commands = runFlow(flowPath, runFlow),
+                        condition = runFlow.`when`?.toCondition(),
+                        sourceDescription = runFlow.file,
+                    )
+                )
+            )
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -117,12 +126,12 @@ data class YamlFluentCommand(
     }
 
     private fun getRunFlowWatchFiles(flowPath: Path, runFlow: YamlRunFlow): List<Path> {
-        val runFlowPath = getRunFlowPath(flowPath, runFlow.path)
+        val runFlowPath = getRunFlowPath(flowPath, runFlow.file)
         return listOf(runFlowPath) + YamlCommandReader.getWatchFiles(runFlowPath)
     }
 
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
-        val runFlowPath = getRunFlowPath(flowPath, command.path)
+        val runFlowPath = getRunFlowPath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
     }
 
@@ -302,6 +311,13 @@ data class YamlFluentCommand(
                 ?.map { ElementTrait.valueOf(it.replace('-', '_').uppercase()) },
             index = selector.index,
             optional = selector.optional ?: false,
+        )
+    }
+
+    private fun YamlCondition.toCondition(): Condition {
+        return Condition(
+            visible = visible?.let { toElementSelector(it) },
+            notVisible = notVisible?.let { toElementSelector(it) },
         )
     }
 

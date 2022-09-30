@@ -43,6 +43,7 @@ data class MaestroCommand(
     val stopAppCommand: StopAppCommand? = null,
     val clearStateCommand: ClearStateCommand? = null,
     val clearKeychainCommand: ClearKeychainCommand? = null,
+    val runFlowCommand: RunFlowCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -63,6 +64,7 @@ data class MaestroCommand(
         stopAppCommand = command as? StopAppCommand,
         clearStateCommand = command as? ClearStateCommand,
         clearKeychainCommand = command as? ClearKeychainCommand,
+        runFlowCommand = command as? RunFlowCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -83,6 +85,7 @@ data class MaestroCommand(
         stopAppCommand != null -> stopAppCommand
         clearStateCommand != null -> clearStateCommand
         clearKeychainCommand != null -> clearKeychainCommand
+        runFlowCommand != null -> runFlowCommand
         else -> null
     }
 
