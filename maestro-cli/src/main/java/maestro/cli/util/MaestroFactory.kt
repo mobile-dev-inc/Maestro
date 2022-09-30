@@ -22,6 +22,7 @@ package maestro.cli.util
 import maestro.Maestro
 import maestro.utils.SocketUtils.isPortOpen
 import dadb.Dadb
+import dadb.adbserver.AdbServerDadb
 
 object MaestroFactory {
     private const val defaultHost = "localhost"
@@ -48,10 +49,19 @@ object MaestroFactory {
             Dadb.create(host ?: defaultHost, port)
         } else {
             Dadb.discover(host ?: defaultHost)
+                ?: createAdbServerDadb()
                 ?: throw IllegalStateException("No android devices found.")
         }
 
         return Maestro.android(dadb)
+    }
+
+    private fun createAdbServerDadb(): Dadb? {
+        return try {
+            AdbServerDadb.create()
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun createIos(host: String?, port: Int?): Maestro {
