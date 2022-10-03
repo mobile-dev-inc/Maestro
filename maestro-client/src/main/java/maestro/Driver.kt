@@ -64,6 +64,8 @@ interface Driver {
 
     fun hideKeyboard()
 
+    fun clipboardPaste()
+
     fun takeScreenshot(out: Sink)
 
 }

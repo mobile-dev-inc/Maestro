@@ -255,6 +255,10 @@ class IOSDriver(
         iosDevice.pressKey(40).expect {}
     }
 
+    override fun clipboardPaste() {
+        iosDevice.pressKey(40).expect {}
+    }
+
     override fun takeScreenshot(out: Sink) {
         iosDevice.takeScreenshot(out).expect {}
     }

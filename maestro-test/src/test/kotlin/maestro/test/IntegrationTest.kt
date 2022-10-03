@@ -1408,6 +1408,29 @@ class IntegrationTest {
         driver.assertEventCount(Event.Tap(Point(50, 50)), 1)
     }
 
+    @Test
+    fun `Case 050 - Paste from Clipboard`() {
+        // Given
+        val commands = readCommands("050_clipboard_paste")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.ClipboardPaste,
+                Event.ClipboardPaste,
+            )
+        )
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

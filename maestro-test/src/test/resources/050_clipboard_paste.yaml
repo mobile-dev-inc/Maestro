@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- action: clipboard paste
+- clipboardPaste
