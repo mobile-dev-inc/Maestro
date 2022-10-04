@@ -412,3 +412,17 @@ data class RunFlowCommand(
     }
 
 }
+
+data class SetLocationCommand(
+    val latitude: Double,
+    val longitude: Double,
+) : Command {
+
+    override fun description(): String {
+        return "Set location (${latitude}, ${longitude})"
+    }
+
+    override fun injectEnv(env: Map<String, String>): SetLocationCommand {
+        return this
+    }
+}

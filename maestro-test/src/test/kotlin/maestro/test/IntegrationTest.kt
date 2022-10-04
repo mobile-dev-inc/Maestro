@@ -1431,6 +1431,31 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 051 - Set location`() {
+        // Given
+        val commands = readCommands("051_set_location")
+
+        val driver = driver {
+        }
+
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+                Event.SetLocation(12.5266, 78.2150),
+            )
+        )
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

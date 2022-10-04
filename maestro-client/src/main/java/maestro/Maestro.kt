@@ -377,6 +377,12 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return buffer.readByteArray()
     }
 
+    fun setLocation(latitude: Double, longitude: Double) {
+        LOGGER.info("Setting location: ($latitude, $longitude)")
+
+        driver.setLocation(latitude, longitude)
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

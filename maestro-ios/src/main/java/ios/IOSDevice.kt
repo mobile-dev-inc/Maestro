@@ -123,4 +123,11 @@ interface IOSDevice : AutoCloseable {
      */
     fun takeScreenshot(out: Sink): Result<Unit, Throwable>
 
+    /**
+     * Sets the geolocation
+     *
+     * @param lat - latitude
+     * @param long - longitude
+     */
+    fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable>
 }

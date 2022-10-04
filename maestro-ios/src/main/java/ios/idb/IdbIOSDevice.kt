@@ -34,6 +34,7 @@ import idb.fileContainer
 import idb.hIDEvent
 import idb.installRequest
 import idb.launchRequest
+import idb.location
 import idb.mkdirRequest
 import idb.openUrlRequest
 import idb.payload
@@ -42,6 +43,7 @@ import idb.pullRequest
 import idb.pushRequest
 import idb.rmRequest
 import idb.screenshotRequest
+import idb.setLocationRequest
 import idb.targetDescriptionRequest
 import idb.terminateRequest
 import idb.uninstallRequest
@@ -398,6 +400,14 @@ class IdbIOSDevice(
                 .use {
                     it.write(response.imageData.toByteArray())
                 }
+        }
+    }
+
+    override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
+        return runCatching {
+            blockingStub.setLocation(setLocationRequest {
+                location = location { this.latitude = latitude; this.longitude = longitude }
+            })
         }
     }
 

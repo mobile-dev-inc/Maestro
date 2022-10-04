@@ -38,6 +38,7 @@ import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.ScrollCommand
+import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
@@ -66,6 +67,7 @@ data class YamlFluentCommand(
     val stopApp: YamlStopApp? = null,
     val clearState: YamlClearState? = null,
     val runFlow: YamlRunFlow? = null,
+    val setLocation: YamlSetLocation? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -113,6 +115,14 @@ data class YamlFluentCommand(
                         commands = runFlow(flowPath, runFlow),
                         condition = runFlow.`when`?.toCondition(),
                         sourceDescription = runFlow.file,
+                    )
+                )
+            )
+            setLocation != null -> listOf(
+                MaestroCommand(
+                    SetLocationCommand(
+                        latitude = setLocation.latitude,
+                        longitude = setLocation.longitude,
                     )
                 )
             )

@@ -209,6 +209,12 @@ class FakeDriver : Driver {
         events += Event.TakeScreenshot
     }
 
+    override fun setLocation(latitude: Double, longitude: Double) {
+        ensureOpen()
+
+        events += Event.SetLocation(latitude, longitude)
+    }
+
     override fun inputText(text: String) {
         ensureOpen()
 
@@ -332,6 +338,10 @@ class FakeDriver : Driver {
 
         object ClearKeychain : Event()
 
+        data class SetLocation(
+            val latitude: Double,
+            val longitude: Double,
+        ) : Event()
     }
 
     interface UserInteraction

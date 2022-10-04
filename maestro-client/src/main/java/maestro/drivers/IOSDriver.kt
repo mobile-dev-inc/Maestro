@@ -270,4 +270,8 @@ class IOSDriver(
     override fun openLink(link: String) {
         iosDevice.openLink(link).expect {}
     }
+
+    override fun setLocation(latitude: Double, longitude: Double) {
+        iosDevice.setLocation(latitude, longitude).expect {}
+    }
 }

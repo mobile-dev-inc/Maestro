@@ -304,6 +304,10 @@ class AndroidDriver(
         dadb.shell("am start -d $link")
     }
 
+    override fun setLocation(latitude: Double, longitude: Double) {
+        TODO("Not yet implemented")
+    }
+
     private fun mapHierarchy(node: Node): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()
