@@ -132,6 +132,7 @@ class Orchestra(
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is InputTextCommand -> inputTextCommand(command)
+            is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
             is OpenLinkCommand -> openLinkCommand(command)
             is PressKeyCommand -> pressKeyCommand(command)
@@ -258,6 +259,10 @@ class Orchestra(
         }
 
         maestro.inputText(command.text)
+    }
+
+    private fun inputTextRandomCommand(command: InputRandomCommand) {
+        inputTextCommand(InputTextCommand(text = command.genRandomString()))
     }
 
     private fun assertCommand(command: AssertCommand) {

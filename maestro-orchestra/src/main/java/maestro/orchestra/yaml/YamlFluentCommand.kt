@@ -32,6 +32,8 @@ import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.ClipboardPasteCommand
 import maestro.orchestra.InputTextCommand
+import maestro.orchestra.InputRandomCommand
+import maestro.orchestra.InputRandomType
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.OpenLinkCommand
@@ -57,6 +59,10 @@ data class YamlFluentCommand(
     val assertNotVisible: YamlElementSelectorUnion? = null,
     val action: String? = null,
     val inputText: String? = null,
+    val inputRandomText: YamlInputRandomText? = null,
+    val inputRandomNumber: YamlInputRandomNumber? = null,
+    val inputRandomEmail: YamlInputRandomEmail? = null,
+    val inputRandomPersonName: YamlInputRandomPersonName? = null,
     val launchApp: YamlLaunchApp? = null,
     val swipe: YamlElementSelectorUnion? = null,
     val openLink: String? = null,
@@ -79,6 +85,10 @@ data class YamlFluentCommand(
             assertVisible != null -> listOf(MaestroCommand(AssertCommand(visible = toElementSelector(assertVisible))))
             assertNotVisible != null -> listOf(MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible))))
             inputText != null -> listOf(MaestroCommand(InputTextCommand(inputText)))
+            inputRandomText != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT, length = inputRandomText.length)))
+            inputRandomNumber != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.NUMBER, length = inputRandomNumber.length)))
+            inputRandomEmail != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_EMAIL_ADDRESS)))
+            inputRandomPersonName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_PERSON_NAME)))
             swipe != null -> listOf(swipeCommand(swipe))
             openLink != null -> listOf(MaestroCommand(OpenLinkCommand(openLink)))
             pressKey != null -> listOf(MaestroCommand(PressKeyCommand(code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey"))))
@@ -362,6 +372,26 @@ data class YamlFluentCommand(
 
                 "eraseText" -> YamlFluentCommand(
                     eraseText = YamlEraseText(charactersToErase = 50)
+                )
+
+                "inputRandomText" -> YamlFluentCommand(
+                    inputRandomText = YamlInputRandomText(length = 8),
+                )
+
+                "inputRandomText" -> YamlFluentCommand(
+                    inputRandomText = YamlInputRandomText(length = 8),
+                )
+
+                "inputRandomNumber" -> YamlFluentCommand(
+                    inputRandomNumber = YamlInputRandomNumber(length = 8),
+                )
+
+                "inputRandomEmail" -> YamlFluentCommand(
+                    inputRandomEmail = YamlInputRandomEmail(),
+                )
+
+                "inputRandomPersonName" -> YamlFluentCommand(
+                    inputRandomPersonName = YamlInputRandomPersonName(),
                 )
 
                 "back" -> YamlFluentCommand(

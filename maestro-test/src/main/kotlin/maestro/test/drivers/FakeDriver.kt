@@ -254,6 +254,14 @@ class FakeDriver : Driver {
         }
     }
 
+    fun assertAnyEvent(condition: ((event: Event) -> Boolean)) {
+        assertThat(events.any { condition(it) }).isTrue()
+    }
+
+    fun assertAllEvent(condition: ((event: Event) -> Boolean)) {
+        assertThat(events.all { condition(it) }).isTrue()
+    }
+
     fun assertNoInteraction() {
         if (events.isNotEmpty()) {
             throw AssertionError("Expected no interaction, but got: $events")

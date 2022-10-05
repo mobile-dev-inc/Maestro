@@ -22,6 +22,7 @@ package maestro.orchestra
 import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.util.Env.injectEnv
+import maestro.orchestra.util.InputRandomTextHelper
 
 sealed interface Command {
 
@@ -379,6 +380,37 @@ class ClearKeychainCommand : Command {
         return javaClass.hashCode()
     }
 
+}
+
+enum class InputRandomType {
+    NUMBER, TEXT, TEXT_EMAIL_ADDRESS, TEXT_PERSON_NAME,
+}
+
+data class InputRandomCommand(
+    val inputType: InputRandomType? = InputRandomType.TEXT,
+    val length: Int? = 8,
+) : Command {
+
+    fun genRandomString(): String {
+        val lengthNonNull = length ?: 8
+        val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
+
+        return when (inputType) {
+            InputRandomType.NUMBER -> InputRandomTextHelper.getRandomNumber(finalLength)
+            InputRandomType.TEXT -> InputRandomTextHelper.getRandomText(finalLength)
+            InputRandomType.TEXT_EMAIL_ADDRESS -> InputRandomTextHelper.randomEmail()
+            InputRandomType.TEXT_PERSON_NAME -> InputRandomTextHelper.randomPersonName()
+            else -> InputRandomTextHelper.getRandomText(finalLength)
+        }
+    }
+
+    override fun description(): String {
+        return "Input text random $inputType"
+    }
+
+    override fun injectEnv(env: Map<String, String>): InputRandomCommand {
+        return this
+    }
 }
 
 data class RunFlowCommand(
