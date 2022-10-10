@@ -1,0 +1,7 @@
+appId: com.other.app
+---
+- repeat:
+    times: 3
+    commands:
+      - tapOn: Button
+- assertVisible: "3"

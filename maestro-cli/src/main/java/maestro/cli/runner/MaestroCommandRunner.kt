@@ -40,12 +40,21 @@ object MaestroCommandRunner {
         val initFlow = YamlCommandReader.getConfig(commands)?.initFlow
 
         val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
+        val commandMetadata = IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>()
 
         fun refreshUi() {
             view.setState(
                 ResultView.UiState.Running(
-                    initCommands = toCommandStates(initFlow?.commands ?: emptyList(), commandStatuses),
-                    commands = toCommandStates(commands, commandStatuses)
+                    initCommands = toCommandStates(
+                        initFlow?.commands ?: emptyList(),
+                        commandStatuses,
+                        commandMetadata,
+                    ),
+                    commands = toCommandStates(
+                        commands,
+                        commandStatuses,
+                        commandMetadata,
+                    )
                 )
             )
         }
@@ -74,6 +83,14 @@ object MaestroCommandRunner {
                 commandStatuses[command] = CommandStatus.SKIPPED
                 refreshUi()
             },
+            onCommandReset = { command ->
+                commandStatuses[command] = CommandStatus.PENDING
+                refreshUi()
+            },
+            onCommandMetadataUpdate = { command, metadata ->
+                commandMetadata[command] = metadata
+                refreshUi()
+            },
         )
 
         val cachedState = if (cachedAppState == null) {
@@ -93,6 +110,7 @@ object MaestroCommandRunner {
     private fun toCommandStates(
         commands: List<MaestroCommand>,
         commandStatuses: MutableMap<MaestroCommand, CommandStatus>,
+        commandMetadata: IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>,
     ): List<CommandState> {
         return commands
             // Don't render configuration commands
@@ -101,9 +119,10 @@ object MaestroCommandRunner {
                 CommandState(
                     command = command,
                     status = commandStatuses[command] ?: CommandStatus.PENDING,
+                    numberOfRuns = commandMetadata[command]?.numberOfRuns,
                     subCommands = (command.asCommand() as? CompositeCommand)
                         ?.subCommands()
-                        ?.let { toCommandStates(it, commandStatuses) }
+                        ?.let { toCommandStates(it, commandStatuses, commandMetadata) }
                 )
             }
     }

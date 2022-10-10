@@ -85,6 +85,9 @@ class ResultView(
 
             if (it.status == CommandStatus.SKIPPED) {
                 render(" (skipped)")
+            } else if (it.numberOfRuns != null) {
+                val timesWord = if (it.numberOfRuns == 1) "time" else "times"
+                render(" (completed ${it.numberOfRuns} $timesWord)")
             }
 
             render("\n")
