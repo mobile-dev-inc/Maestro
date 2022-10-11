@@ -19,6 +19,7 @@
 
 package maestro.cli
 
+import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.TestCommand
@@ -37,6 +38,7 @@ import kotlin.system.exitProcess
         UploadCommand::class,
         PrintHierarchyCommand::class,
         QueryCommand::class,
+        DownloadSamplesCommand::class,
     ]
 )
 class App {
