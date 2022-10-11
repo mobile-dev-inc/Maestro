@@ -2,6 +2,8 @@ package maestro.cli.command
 
 import kotlinx.coroutines.runBlocking
 import maestro.cli.util.FileDownloader
+import maestro.cli.util.PrintUtils.err
+import maestro.cli.util.PrintUtils.message
 import org.fusesource.jansi.Ansi
 import org.rauschig.jarchivelib.ArchiverFactory
 import picocli.CommandLine
@@ -92,24 +94,6 @@ class DownloadSamplesCommand : Callable<Int> {
     companion object {
 
         private const val SAMPLES_URL = "https://storage.googleapis.com/mobile.dev/samples/samples.zip"
-
-        private fun message(message: String) {
-            println(
-                Ansi.ansi()
-                    .render("\n")
-                    .fgDefault()
-                    .render(message)
-            )
-        }
-
-        private fun err(message: String) {
-            println(
-                Ansi.ansi()
-                    .render("\n")
-                    .fgRed()
-                    .render(message)
-            )
-        }
 
     }
 
