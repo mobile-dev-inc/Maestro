@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.10.0 - 2022-10-12
+
+* Feature: `repeat` command that allows to create loops
+* Feature: conditional `runFlow` execution that allows to create if-conditions
+* Feature: `inputRandomText`, `inputRandomNumber`, `inputRandomEmail` and `inputRandomPersonName` commands (thanks @ttpho !)
+* Feature: `clipboardPaste` command (thanks @depapp !)
+* Feature: Added `enabled` property to element selector
+* Feature: Added `download-samples` command to allow quickstart without having to build your own app
+* Feature: Added `login` and `logout` commands for interacting with mobile.dev
+* **Breaking change:** `upload` now takes 1 less argument. `uploadName` parameter was replaced with `--name` optional argument
+* Tweak: `upload` command automatically zips iOS apps
+* Tweak: sending `agent: cli` value alongside `upload` and `login` commands
+* Fix: properly compare fields that contain regex special symbols
+* Fix: input text on Android was sometimes missing characters
+
 ## 1.9.0 - 2022-09-30
 
 * Feature: USB support for Android devices
