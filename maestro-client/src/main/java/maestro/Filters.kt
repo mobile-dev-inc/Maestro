@@ -198,4 +198,10 @@ object Filters {
         }
     }
 
+    fun enabled(expected: Boolean): ElementFilter {
+        return { nodes ->
+            nodes.filter { it.enabled == expected }
+        }
+    }
+
 }

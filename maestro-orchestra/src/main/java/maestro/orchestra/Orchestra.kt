@@ -468,6 +468,16 @@ class Orchestra(
                 filters += filter
             }
 
+        selector.enabled
+            ?.let {
+                descriptions += if (it) {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+                filters += Filters.enabled(it)
+            }
+
         var resultFilter = Filters.intersect(filters)
         resultFilter = selector.index
             ?.let {

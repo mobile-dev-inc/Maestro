@@ -1535,6 +1535,36 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 054 - Enabled state`() {
+        // Given
+        val commands = readCommands("054_enabled")
+
+        val driver = driver {
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                    enabled = false
+                }
+            }
+
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(
+            Event.Tap(Point(50, 50)),
+            1
+        )
+    }
+
+    @Test
     fun `Case 055 - Tap on element - Compare regex`() {
         // Given
         val commands = readCommands("055_compare_regex")

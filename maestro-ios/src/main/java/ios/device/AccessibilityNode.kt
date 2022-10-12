@@ -28,6 +28,7 @@ data class AccessibilityNode(
     @SerializedName("AXUniqueId") val axUniqueId: String?,
     @SerializedName("AXLabel") val axLabel: String?,
     @SerializedName("AXValue") val axValue: String?,
+    val enabled: Boolean?,
 ) {
 
     data class Frame(

@@ -337,6 +337,22 @@ class AndroidDriver(
                 attributesBuilder["bounds"] = node.getAttribute("bounds")
             }
 
+            if (node.hasAttribute("enabled")) {
+                attributesBuilder["enabled"] = node.getAttribute("enabled")
+            }
+
+            if (node.hasAttribute("focused")) {
+                attributesBuilder["focused"] = node.getAttribute("focused")
+            }
+
+            if (node.hasAttribute("checked")) {
+                attributesBuilder["checked"] = node.getAttribute("checked")
+            }
+
+            if (node.hasAttribute("selected")) {
+                attributesBuilder["selected"] = node.getAttribute("selected")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
@@ -351,11 +367,18 @@ class AndroidDriver(
         return TreeNode(
             attributes = attributes,
             children = children,
-            clickable = (node as? Element)
-                ?.getAttribute("clickable")
-                ?.let { it == "true" }
-                ?: false
+            clickable = node.getBoolean("clickable"),
+            enabled = node.getBoolean("enabled"),
+            focused = node.getBoolean("focused"),
+            checked = node.getBoolean("checked"),
+            selected = node.getBoolean("selected"),
         )
+    }
+
+    private fun Node.getBoolean(name: String): Boolean? {
+        return (this as? Element)
+            ?.getAttribute(name)
+            ?.let { it == "true" }
     }
 
     private fun installMaestroApks() {

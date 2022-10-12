@@ -28,6 +28,7 @@ data class FakeLayoutElement(
     var text: String? = null,
     var bounds: Bounds? = null,
     var clickable: Boolean = false,
+    var enabled: Boolean = true,
     var color: Color = Color.BLACK,
     var onClick: (FakeLayoutElement) -> Unit = {},
     val children: MutableList<FakeLayoutElement> = mutableListOf(),
@@ -51,6 +52,7 @@ data class FakeLayoutElement(
         return TreeNode(
             attributes = attributes,
             clickable = clickable,
+            enabled = enabled,
             children = children.map { it.toTreeNode() }
         )
     }

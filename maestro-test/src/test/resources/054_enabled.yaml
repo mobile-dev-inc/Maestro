@@ -1,0 +1,12 @@
+appId: com.other.app
+---
+- assertVisible:
+    text: Button
+    enabled: true
+- tapOn: Button
+- assertNotVisible:
+    text: Button
+    enabled: true
+- assertVisible:
+    text: Button
+    enabled: false

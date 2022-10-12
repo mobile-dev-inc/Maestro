@@ -33,6 +33,7 @@ data class ElementSelector(
     val optional: Boolean = false,
     val traits: List<ElementTrait>? = null,
     val index: Int? = null,
+    val enabled: Boolean? = null,
 ) {
 
     data class SizeSelector(

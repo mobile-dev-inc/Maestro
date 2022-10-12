@@ -23,6 +23,10 @@ data class TreeNode(
     val attributes: Map<String, String> = emptyMap(),
     val children: List<TreeNode> = emptyList(),
     val clickable: Boolean? = null,
+    val enabled: Boolean? = null,
+    val focused: Boolean? = null,
+    val checked: Boolean? = null,
+    val selected: Boolean? = null,
 ) {
 
     fun aggregate(): List<TreeNode> {

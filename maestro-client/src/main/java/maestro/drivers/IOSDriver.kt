@@ -201,7 +201,8 @@ class IOSDriver(
                 }
 
                 TreeNode(
-                    attributes = attributes
+                    attributes = attributes,
+                    enabled = node.enabled,
                 )
             }
         )

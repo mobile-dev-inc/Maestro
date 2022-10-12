@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.cli.App
 import maestro.cli.util.MaestroFactory
@@ -35,6 +36,7 @@ class PrintHierarchyCommand : Runnable {
     override fun run() {
         MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use {
             val hierarchy = jacksonObjectMapper()
+                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 .writerWithDefaultPrettyPrinter()
                 .writeValueAsString(it.viewHierarchy().root)
 
