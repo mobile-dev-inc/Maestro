@@ -1534,6 +1534,28 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 055 - Tap on element - Compare regex`() {
+        // Given
+        val commands = readCommands("055_compare_regex")
+
+        val driver = driver {
+            element {
+                text = "(Secondary button)"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(50, 150)))
+    }
+
     private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {

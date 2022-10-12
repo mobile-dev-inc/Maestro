@@ -60,7 +60,7 @@ object Filters {
     fun textMatches(regex: Regex): ElementLookupPredicate {
         return {
             it.attributes["text"]?.let { value ->
-                regex.matches(value)
+                regex.matches(value) || regex.pattern == value
             } ?: false
         }
     }

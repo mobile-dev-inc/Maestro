@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- tapOn:
+    text: (Secondary button)
