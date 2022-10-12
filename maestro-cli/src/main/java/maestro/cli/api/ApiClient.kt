@@ -156,11 +156,9 @@ class ApiClient(
             .build()
         val response = client.newCall(request).execute()
 
-        response.use {
-            if (!response.isSuccessful) return Err(response)
-            val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
-            return Ok(parsed)
-        }
+        if (!response.isSuccessful) return Err(response)
+        val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
+        return Ok(parsed)
     }
 
     private fun RequestBody.observable(

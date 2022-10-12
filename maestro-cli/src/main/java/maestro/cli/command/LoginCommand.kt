@@ -22,7 +22,7 @@ class LoginCommand : Callable<Int> {
         val existingToken = auth.getCachedAuthToken()
 
         if (existingToken != null) {
-            message("Already logged in")
+            message("Already logged in. Run \"maestro logout\" to logout.")
             return 0
         }
 
