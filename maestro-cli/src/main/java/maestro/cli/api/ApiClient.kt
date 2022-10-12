@@ -42,6 +42,7 @@ class ApiClient(
             "deviceId" to "",
             "email" to email,
             "redirectUrl" to redirectUrl,
+            "agent" to "cli",
         )).map { it["requestToken"].toString() }
     }
 
@@ -51,6 +52,7 @@ class ApiClient(
             "userEmail" to email,
             "teamName" to teamName,
             "redirectUrl" to redirectUrl,
+            "agent" to "cli",
         ))
     }
 
@@ -101,6 +103,7 @@ class ApiClient(
         repoName?.let { requestPart["repoName"] = it }
         branch?.let { requestPart["branch"] = it }
         pullRequestId?.let { requestPart["pullRequestId"] = it }
+        requestPart["agent"] = "cli"
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
