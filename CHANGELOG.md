@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.1 - 2022-10-12
+
+* Fix: login command fails with java.lang.IllegalStateException: closed
+
 ## 1.10.0 - 2022-10-12
 
 * Feature: `repeat` command that allows to create loops
