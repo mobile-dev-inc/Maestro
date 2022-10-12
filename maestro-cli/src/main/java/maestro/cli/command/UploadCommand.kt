@@ -22,10 +22,13 @@ package maestro.cli.command
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
+import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils.message
 import maestro.cli.util.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
 import org.fusesource.jansi.Ansi.ansi
+import org.rauschig.jarchivelib.ArchiveFormat
+import org.rauschig.jarchivelib.ArchiverFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
@@ -90,9 +93,22 @@ class UploadCommand : Callable<Int> {
             WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
             println()
             val uploadProgress = UploadProgress(20)
+
+            val appFileToSend = if (appFile.isZip()) {
+                appFile
+            } else {
+                val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
+
+                // An awkward API of Archiver that has a different behaviour depending on
+                // whether we call a vararg method or a normal method. The *arrayOf() construct
+                // forces compiler to choose vararg method.
+                @Suppress("RemoveRedundantSpreadOperator")
+                archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile))
+            }
+
             val (teamId, appId, uploadId) = client.upload(
                 authToken,
-                appFile.toPath(),
+                appFileToSend.toPath(),
                 workspaceZip,
                 uploadName,
                 mapping?.toPath(),

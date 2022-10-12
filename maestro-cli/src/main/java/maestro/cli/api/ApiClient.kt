@@ -6,7 +6,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -20,8 +19,6 @@ import okio.Buffer
 import okio.BufferedSink
 import okio.ForwardingSink
 import okio.buffer
-import okio.source
-import java.io.File
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolutePathString
@@ -38,28 +35,34 @@ class ApiClient(
         .build()
 
     fun magicLinkLogin(email: String, redirectUrl: String): Result<String, Response> {
-        return post<Map<String, Any>>("/magiclink/login", mapOf(
-            "deviceId" to "",
-            "email" to email,
-            "redirectUrl" to redirectUrl,
-            "agent" to "cli",
-        )).map { it["requestToken"].toString() }
+        return post<Map<String, Any>>(
+            "/magiclink/login", mapOf(
+                "deviceId" to "",
+                "email" to email,
+                "redirectUrl" to redirectUrl,
+                "agent" to "cli",
+            )
+        ).map { it["requestToken"].toString() }
     }
 
     fun magicLinkSignUp(email: String, teamName: String, redirectUrl: String): Result<String, Response> {
-        return post("/magiclink/signup", mapOf(
-            "deviceId" to "",
-            "userEmail" to email,
-            "teamName" to teamName,
-            "redirectUrl" to redirectUrl,
-            "agent" to "cli",
-        ))
+        return post(
+            "/magiclink/signup", mapOf(
+                "deviceId" to "",
+                "userEmail" to email,
+                "teamName" to teamName,
+                "redirectUrl" to redirectUrl,
+                "agent" to "cli",
+            )
+        )
     }
 
     fun magicLinkGetToken(requestToken: String): Result<String, Response> {
-        return post<Map<String, Any>>("/magiclink/gettoken", mapOf(
-            "requestToken" to requestToken,
-        )).map { it["authToken"].toString() }
+        return post<Map<String, Any>>(
+            "/magiclink/gettoken", mapOf(
+                "requestToken" to requestToken,
+            )
+        ).map { it["authToken"].toString() }
     }
 
     fun isAuthTokenValid(authToken: String): Boolean {
@@ -77,7 +80,10 @@ class ApiClient(
             }
         }
         val response = client.newCall(request).execute()
-        return response.isSuccessful
+
+        response.use {
+            return response.isSuccessful
+        }
     }
 
     fun upload(
@@ -90,7 +96,7 @@ class ApiClient(
         repoName: String?,
         branch: String?,
         pullRequestId: String?,
-        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = {_, _ -> },
+        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): UploadResponse {
         if (!appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
         if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
@@ -124,19 +130,22 @@ class ApiClient(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            throw CliError("Upload request failed (${response.code}): ${response.body?.string()}")
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw CliError("Upload request failed (${response.code}): ${response.body?.string()}")
+            }
+
+            val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
+
+            @Suppress("UNCHECKED_CAST")
+            val analysisRequest = responseBody["analysisRequest"] as Map<String, Any>
+            val uploadId = analysisRequest["id"] as String
+            val teamId = analysisRequest["teamId"] as String
+            val appId = responseBody["targetId"] as String
+
+            return UploadResponse(teamId, appId, uploadId)
         }
-
-        val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
-
-        @Suppress("UNCHECKED_CAST")
-        val analysisRequest = responseBody["analysisRequest"] as Map<String, Any>
-        val uploadId = analysisRequest["id"] as String
-        val teamId = analysisRequest["teamId"] as String
-        val appId = responseBody["targetId"] as String
-
-        return UploadResponse(teamId, appId, uploadId)
     }
 
     private inline fun <reified T> post(path: String, body: Any): Result<T, Response> {
@@ -146,9 +155,12 @@ class ApiClient(
             .url("$baseUrl$path")
             .build()
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return Err(response)
-        val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
-        return Ok(parsed)
+
+        response.use {
+            if (!response.isSuccessful) return Err(response)
+            val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
+            return Ok(parsed)
+        }
     }
 
     private fun RequestBody.observable(
