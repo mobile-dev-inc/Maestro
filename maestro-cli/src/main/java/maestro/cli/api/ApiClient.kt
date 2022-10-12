@@ -82,7 +82,7 @@ class ApiClient(
         authToken: String,
         appFile: Path,
         workspaceZip: Path,
-        uploadName: String,
+        uploadName: String?,
         mappingFile: Path?,
         repoOwner: String?,
         repoName: String?,
@@ -94,7 +94,9 @@ class ApiClient(
         if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
 
         val requestPart = mutableMapOf<String, String>()
-        requestPart["benchmarkName"] = uploadName
+        if (uploadName != null) {
+            requestPart["benchmarkName"] = uploadName
+        }
         repoOwner?.let { requestPart["repoOwner"] = it }
         repoName?.let { requestPart["repoName"] = it }
         branch?.let { requestPart["branch"] = it }
