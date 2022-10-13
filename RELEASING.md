@@ -1,101 +1,35 @@
 # Production Releases
 
-### About semantic version numbers
+## Maven
 
-Select a higher semantic version number.
-Semantic versioning: a.b.c
-   * a: major breaking changes
-   * b: new functionality, new features
-   * c: any other small changes
+1. Checkout the main branch and make sure it is up to date: `git checkout main && git pull`
+2. Create a new branch
+3. Update the CHANGELOG.md file with changes of this release.
+4. Change the version in `gradle.properties` to a non-SNAPSHOT version.
+5. Semantic versioning: a.b.c
+    * a: major breaking changes
+    * b: new functionality, new features
+    * c: any other small changes
+6. `git commit -am "Prepare for release X.Y.Z."` (where X.Y.Z is the new version)
+7. Submit a PR with the changes against the main branch
 
-## Publish to Maven
+After merging the PR, tag the release:
 
-0. Pick a new semantic version number, cd to the maestro repo and run
+7. `git tag -a vX.Y.Z -m "Version X.Y.Z"` (where X.Y.Z is the new version)
+8. `git push --tags`
+9. Close and release the staging repository published at [Sonatype](https://s01.oss.sonatype.org/).
 
-  `export VERSION="<version number>"`
+After this is done, create a new branch to prepare for the next development version:
 
-1. Create a release branch and add a changelog item
-
-Edit and run this script
-```
-# Create a release branch
-git stash --include-untracked
-git checkout main
-git pull
-git checkout -b release
-
-# Update CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "## $VERSION - $(date +'%Y-%m-%d')" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-cat <<EOT >> CHANGELOG.md
-* <describe a change here>
-* <describe another change here>
-EOT
-
-# Update the version number in gradle.properties
-sed -i '' "s/VERSION_NAME=.*/VERSION_NAME=$VERSION/" gradle.properties
-
-git add gradle.properties CHANGELOG.md
-git commit -am "Prepare for release $VERSION"
-
-# Push branch to origin
-git push --set-upstream origin `git rev-parse --abbrev-ref HEAD`
-```
-
-  * Click the link in the terminal and create a PR
-  * Verify that the VERSION_NAME and CHANGELOG.md are set correctly
-  * Merge the PR after approval
-
-2. Tag the release
-
-Run this script
-```
-git checkout main
-git pull
-git branch -d release
-git tag -a "v$VERSION" -m "Version $VERSION"
-git push --tags
-```
-
-3. Publish to maven
-
-  * Open [Sonatype](https://s01.oss.sonatype.org/)
-  * Login with the sonatype credentials in 1Password
-  * Go to **Staging Repositories**
-  * Wait a few minutes for the build to appear (Click the on-page Refresh button for a quick-refresh)
-    * If this takes long, check that the [Publish release GH ACtion](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-release.yml) was successful and that the VERSION_NAME was set correctly in your release PR
-  * Select the version you created, Click "Close" then "Confirm"
-  * Wait for the signatures to be created (1 minute)
-  * Select the version you created, Click "Release" then "Confirm"
-
-It'll now take 5-45 minutes for the release to become available on maven.org
-
-4. Update the version to the next SNAPSHOT
-
-Run this script
-```
-export NEXT_VERSION=$(echo $VERSION | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.)
-git checkout main
-git pull
-git checkout -b prepare-$NEXT_VERSION-SNAPSHOT
-
-sed -i '' "s/VERSION_NAME=.*/VERSION_NAME=$NEXT_VERSION-SNAPSHOT/" gradle.properties
-
-git add gradle.properties
-git commit -am "Prepare next development version"
-git push --set-upstream origin `git rev-parse --abbrev-ref HEAD`
-```
-
-  * Click the link in the terminal and create a PR
-  * Merge the PR after approval
-
-5. Always continue with releasing CLI
+1. `git checkout main && git pull && git checkout -b prepare-X.Y.Z-SNAPSHOT` (where X.Y.Z is the new development version)
+2. Update the `gradle.properties` to the next SNAPSHOT version.
+3. `git commit -am "Prepare next development version"`
+4. Submit a PR with the changes against the main branch and merge it
 
 ## CLI
 
-CLI can be released separately from Maven
+CLI can be released separately from the Maven package.
 
-- Update the version number in `maestro-cli/gradle.properties`
-- Make a PR and Merge
-- Manually trigger the [Publish CLI Github action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-cli.yml)
+- Update version in `maestro-cli/gradle.properties`
+- Merge the change
+- Trigger Publish CLI Github action
