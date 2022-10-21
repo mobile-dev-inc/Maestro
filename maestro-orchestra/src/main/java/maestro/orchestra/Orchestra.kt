@@ -45,7 +45,7 @@ class Orchestra(
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
-    private val onCommandFailed: (Int, MaestroCommand, Throwable) -> Unit = { _, _, e -> throw e },
+    private val onCommandFailed: (Int, MaestroCommand, Throwable) -> ErrorResolution = { _, _, e -> throw e },
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
@@ -114,8 +114,12 @@ class Orchestra(
                     // Swallow exception
                     onCommandSkipped(index, command)
                 } catch (e: Throwable) {
-                    onCommandFailed(index, command, e)
-                    return false
+                    when (onCommandFailed(index, command, e)) {
+                        ErrorResolution.FAIL -> return false
+                        ErrorResolution.CONTINUE -> {
+                            // Do nothing
+                        }
+                    }
                 }
             }
         return true
@@ -245,8 +249,12 @@ class Orchestra(
                     // Swallow exception
                     onCommandSkipped(index, command)
                 } catch (e: Throwable) {
-                    onCommandFailed(index, command, e)
-                    throw e
+                    when (onCommandFailed(index, command, e)) {
+                        ErrorResolution.FAIL -> throw e
+                        ErrorResolution.CONTINUE -> {
+                            // Do nothing
+                        }
+                    }
                 }
             }
     }
@@ -505,6 +513,11 @@ class Orchestra(
     data class CommandMetadata(
         val numberOfRuns: Int? = null,
     )
+
+    enum class ErrorResolution {
+        CONTINUE,
+        FAIL,
+    }
 
     companion object {
 

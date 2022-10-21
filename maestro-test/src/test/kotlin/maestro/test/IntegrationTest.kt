@@ -1586,7 +1586,52 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Tap(Point(50, 150)))
     }
 
-    private fun orchestra(it: Maestro) = Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+    @Test
+    fun `Case 056 - Ignore an error in Orchestra`() {
+        // Given
+        val commands = readCommands("056_ignore_error")
+
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(
+                maestro = it,
+                onCommandFailed = { _, command, _ ->
+                    if (command.tapOnElement?.selector?.textRegex == "Non existent text") {
+                        Orchestra.ErrorResolution.CONTINUE
+                    } else {
+                        Orchestra.ErrorResolution.FAIL
+                    }
+                },
+            ).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(50, 150)))
+    }
+
+    private fun orchestra(maestro: Maestro) = Orchestra(
+        maestro,
+        lookupTimeoutMs = 0L,
+        optionalLookupTimeoutMs = 0L
+    )
+
+    private fun orchestra(
+        maestro: Maestro,
+        onCommandFailed: (Int, MaestroCommand, Throwable) -> Orchestra.ErrorResolution,
+    ) = Orchestra(
+        maestro,
+        lookupTimeoutMs = 0L,
+        optionalLookupTimeoutMs = 0L,
+        onCommandFailed = onCommandFailed,
+    )
 
     private fun driver(builder: FakeLayoutElement.() -> Unit): FakeDriver {
         val driver = FakeDriver()
