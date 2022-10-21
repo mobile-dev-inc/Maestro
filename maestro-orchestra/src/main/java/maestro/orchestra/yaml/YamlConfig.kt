@@ -14,6 +14,7 @@ data class YamlConfig(
     val name: String?,
     val appId: String,
     val initFlow: YamlInitFlowUnion?,
+    val env: Map<String, String> = emptyMap(),
 ) {
 
     private val ext = mutableMapOf<String, Any?>()

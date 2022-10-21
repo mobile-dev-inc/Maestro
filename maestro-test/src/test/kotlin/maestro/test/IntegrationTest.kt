@@ -1622,9 +1622,11 @@ class IntegrationTest {
         // Given
         val commands = readCommands("057_runFlow_env")
             .map {
-                it.injectEnv(mapOf(
-                    "OUTER_ENV" to "Outer Parameter"
-                ))
+                it.injectEnv(
+                    mapOf(
+                        "OUTER_ENV" to "Outer Parameter"
+                    )
+                )
             }
 
         val driver = driver {
@@ -1639,6 +1641,25 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.InputText("Inner Parameter"))
         driver.assertHasEvent(Event.InputText("Outer Parameter"))
+        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+    }
+
+    @Test
+    fun `Case 058 - Inline env parameters`() {
+        // Given
+        val commands = readCommands("058_inline_env")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.InputText("Inline Parameter"))
         driver.assertHasEvent(Event.InputText("Overriden Parameter"))
     }
 

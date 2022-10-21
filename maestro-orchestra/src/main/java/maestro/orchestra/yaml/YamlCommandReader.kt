@@ -30,7 +30,6 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.SyntaxError
-import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.absolute
 import kotlin.io.path.inputStream
@@ -47,12 +46,15 @@ object YamlCommandReader {
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
     fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors {
         val (config, commands) = readConfigAndCommands(flowPath)
-        val maestroCommands = commands.flatMap { it.toCommands(flowPath, config.appId) }
+        val maestroCommands = commands
+            .flatMap { it.toCommands(flowPath, config.appId) }
+            .map { it.injectEnv(config.env) }
+
         listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
     }
 
     // Files to watch for changes. Includes any referenced files.
-    fun getWatchFiles(flowPath: Path): List<Path> = mapParsingErrors{
+    fun getWatchFiles(flowPath: Path): List<Path> = mapParsingErrors {
         val (config, commands) = readConfigAndCommands(flowPath)
         val configWatchFiles = config.getWatchFiles(flowPath)
         val commandWatchFiles = commands.flatMap { it.getWatchFiles(flowPath) }
