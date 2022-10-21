@@ -1617,6 +1617,31 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Tap(Point(50, 150)))
     }
 
+    @Test
+    fun `Case 057 - Pass inner env variables to runFlow`() {
+        // Given
+        val commands = readCommands("057_runFlow_env")
+            .map {
+                it.injectEnv(mapOf(
+                    "OUTER_ENV" to "Outer Parameter"
+                ))
+            }
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.InputText("Inner Parameter"))
+        driver.assertHasEvent(Event.InputText("Outer Parameter"))
+        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

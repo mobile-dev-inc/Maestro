@@ -166,6 +166,7 @@ data class YamlFluentCommand(
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
         val runFlowPath = getRunFlowPath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
+            .map { it.injectEnv(command.env) }
     }
 
     private fun getRunFlowPath(flowPath: Path, runFlowPath: String): Path {
