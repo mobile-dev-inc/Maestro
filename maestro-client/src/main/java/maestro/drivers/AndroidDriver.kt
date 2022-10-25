@@ -450,7 +450,7 @@ class AndroidDriver(
 
     companion object {
 
-        private const val SERVER_LAUNCH_TIMEOUT_MS = 5000
+        private const val SERVER_LAUNCH_TIMEOUT_MS = 15000
 
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
