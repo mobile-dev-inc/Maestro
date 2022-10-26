@@ -115,7 +115,8 @@ class UploadCommand : Callable<Int> {
                 repoOwner,
                 repoName,
                 branch,
-                pullRequestId
+                pullRequestId,
+                env,
             ) { totalBytes, bytesWritten ->
                 uploadProgress.set(totalBytes, bytesWritten)
             }

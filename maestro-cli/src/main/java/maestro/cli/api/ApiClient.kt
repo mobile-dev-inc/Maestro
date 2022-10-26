@@ -96,12 +96,13 @@ class ApiClient(
         repoName: String?,
         branch: String?,
         pullRequestId: String?,
+        env: Map<String, String>? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): UploadResponse {
         if (!appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
         if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
 
-        val requestPart = mutableMapOf<String, String>()
+        val requestPart = mutableMapOf<String, Any>()
         if (uploadName != null) {
             requestPart["benchmarkName"] = uploadName
         }
@@ -109,6 +110,7 @@ class ApiClient(
         repoName?.let { requestPart["repoName"] = it }
         branch?.let { requestPart["branch"] = it }
         pullRequestId?.let { requestPart["pullRequestId"] = it }
+        env?.let { requestPart["env"] = it }
         requestPart["agent"] = "cli"
 
         val bodyBuilder = MultipartBody.Builder()
