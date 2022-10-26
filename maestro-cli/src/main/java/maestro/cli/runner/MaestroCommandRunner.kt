@@ -21,6 +21,7 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.cli.device.Device
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
@@ -33,6 +34,7 @@ object MaestroCommandRunner {
 
     fun runCommands(
         maestro: Maestro,
+        device: Device?,
         view: ResultView,
         commands: List<MaestroCommand>,
         cachedAppState: OrchestraAppState?,
@@ -45,6 +47,7 @@ object MaestroCommandRunner {
         fun refreshUi() {
             view.setState(
                 ResultView.UiState.Running(
+                    device = device,
                     initCommands = toCommandStates(
                         initFlow?.commands ?: emptyList(),
                         commandStatuses,

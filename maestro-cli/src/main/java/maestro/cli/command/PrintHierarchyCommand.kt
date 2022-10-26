@@ -34,13 +34,15 @@ class PrintHierarchyCommand : Runnable {
     private val parent: App? = null
 
     override fun run() {
-        MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use {
-            val hierarchy = jacksonObjectMapper()
-                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                .writerWithDefaultPrettyPrinter()
-                .writeValueAsString(it.viewHierarchy().root)
+        MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
+            .maestro
+            .use {
+                val hierarchy = jacksonObjectMapper()
+                    .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(it.viewHierarchy().root)
 
-            println(hierarchy)
-        }
+                println(hierarchy)
+            }
     }
 }

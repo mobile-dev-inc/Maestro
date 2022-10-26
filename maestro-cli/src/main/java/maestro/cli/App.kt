@@ -54,10 +54,13 @@ class App {
     var platform: String? = null
 
     @Option(names = ["--host"])
-    var host: String = "localhost"
+    var host: String? = null
 
     @Option(names = ["--port"])
     var port: Int? = null
+
+    @Option(names = ["--device", "--udid"])
+    var deviceId: String? = null
 
     companion object {
         init {

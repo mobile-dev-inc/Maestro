@@ -7,6 +7,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
+import maestro.cli.device.Device
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.OrchestraAppState
@@ -22,6 +23,7 @@ object TestRunner {
 
     fun runSingle(
         maestro: Maestro,
+        device: Device?,
         flowFile: File,
         env: Map<String, String>,
     ): Int {
@@ -31,6 +33,7 @@ object TestRunner {
                 .map { it.injectEnv(env) }
             MaestroCommandRunner.runCommands(
                 maestro,
+                device,
                 view,
                 commands,
                 cachedAppState = null
@@ -41,6 +44,7 @@ object TestRunner {
 
     fun runContinuous(
         maestro: Maestro,
+        device: Device?,
         flowFile: File,
         env: Map<String, String>,
     ): Nothing {
@@ -81,6 +85,7 @@ object TestRunner {
                         previousResult = runCatching(view) {
                             MaestroCommandRunner.runCommands(
                                 maestro,
+                                device,
                                 view,
                                 commands,
                                 cachedAppState = cachedAppState,

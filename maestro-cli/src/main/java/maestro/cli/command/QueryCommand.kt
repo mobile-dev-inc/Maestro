@@ -50,39 +50,40 @@ class QueryCommand : Runnable {
     lateinit var commandSpec: Model.CommandSpec
 
     override fun run() {
+        MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
+            .maestro
+            .use { maestro ->
+                val filters = mutableListOf<ElementFilter>()
 
-        MaestroFactory.createMaestro(parent?.platform, parent?.host, parent?.port).use { maestro ->
-            val filters = mutableListOf<ElementFilter>()
+                text?.let {
+                    filters += Filters.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
+                }
 
-            text?.let {
-                filters += Filters.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
-            }
+                id?.let {
+                    filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
+                }
 
-            id?.let {
-                filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
-            }
+                if (filters.isEmpty()) {
+                    throw CommandLine.ParameterException(
+                        commandSpec.commandLine(),
+                        "Must specify at least one search criteria"
+                    )
+                }
 
-            if (filters.isEmpty()) {
-                throw CommandLine.ParameterException(
-                    commandSpec.commandLine(),
-                    "Must specify at least one search criteria"
+                val elements = maestro.allElementsMatching(
+                    Filters.intersect(filters)
                 )
+
+                val mapper = jacksonObjectMapper()
+                    .writerWithDefaultPrettyPrinter()
+
+                println("Matches: ${elements.size}")
+                elements.forEach {
+                    println(
+                        mapper.writeValueAsString(it)
+                    )
+                }
             }
-
-            val elements = maestro.allElementsMatching(
-                Filters.intersect(filters)
-            )
-
-            val mapper = jacksonObjectMapper()
-                .writerWithDefaultPrettyPrinter()
-
-            println("Matches: ${elements.size}")
-            elements.forEach {
-                println(
-                    mapper.writeValueAsString(it)
-                )
-            }
-        }
     }
 
 }

@@ -19,6 +19,7 @@
 
 package maestro.cli.runner
 
+import maestro.cli.device.Device
 import org.fusesource.jansi.Ansi
 
 class ResultView(
@@ -45,6 +46,9 @@ class ResultView(
     }
 
     private fun renderRunningState(state: UiState.Running) = renderFrame {
+        state.device?.let {
+            render("Running on ${state.device.description}\n")
+        }
         render("\n")
         if (state.initCommands.isNotEmpty()) {
             render(" ║\n")
@@ -146,6 +150,7 @@ class ResultView(
         data class Error(val message: String) : UiState()
 
         data class Running(
+            val device: Device?,
             val initCommands: List<CommandState>,
             val commands: List<CommandState>,
         ) : UiState()
