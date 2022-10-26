@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.11.0 - 2022-10-26
+
+* Feature: `maestro` will offer user to select a device if one is not running already
+* Feature: `env` variables can be inlined in flow file or in `runFlow` command
+* Tweak: tripled Android Driver launch timeout
+* Tweak: customisable error resolution in Orchestra
+* Fix: `maestro upload` was not ignoring `-e` parameters
+* Fix: Android API 24 support
+
 ## 1.10.1 - 2022-10-12
 
 * Fix: login command fails with java.lang.IllegalStateException: closed
