@@ -4,6 +4,8 @@
 
 * Feature: `maestro` will offer user to select a device if one is not running already
 * Feature: `env` variables can be inlined in flow file or in `runFlow` command
+* **Breaking change**: `--platform` option is deprecated. CLI now prompts user to pick a device.
+* Tweak: auto-starting `idb_companion`. No need to start it manually anymore.
 * Tweak: tripled Android Driver launch timeout
 * Tweak: customisable error resolution in Orchestra
 * Fix: `maestro upload` was not ignoring `-e` parameters
