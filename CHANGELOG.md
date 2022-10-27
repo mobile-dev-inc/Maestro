@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.1 - 2022-10-27
+
+* Fix: closing `idb_companion` after `maestro` completes
+
 ## 1.11.0 - 2022-10-26
 
 * Feature: `maestro` will offer user to select a device if one is not running already
@@ -9,7 +13,6 @@
 * Tweak: tripled Android Driver launch timeout
 * Tweak: customisable error resolution in Orchestra
 * Fix: `maestro upload` was not ignoring `-e` parameters
-* Fix: Android API 24 support
 
 ## 1.10.1 - 2022-10-12
 
