@@ -9,6 +9,7 @@ import maestro.cli.CliError
 import maestro.cli.device.ios.Simctl
 import maestro.cli.util.EnvUtils
 import java.io.File
+import kotlin.concurrent.thread
 
 object DeviceService {
 
@@ -69,10 +70,14 @@ object DeviceService {
     }
 
     private fun startIdbCompanion(device: Device.Connected) {
-        ProcessBuilder("idb_companion", "--udid", device.instanceId)
+        val idbProcess = ProcessBuilder("idb_companion", "--udid", device.instanceId)
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .redirectOutput(ProcessBuilder.Redirect.DISCARD)
             .start()
+
+        Runtime.getRuntime().addShutdownHook(thread(start = false) {
+            idbProcess.destroy()
+        })
 
         val iosDevice = IdbIOSDevice(
             ManagedChannelBuilder.forAddress("localhost", 10882)
