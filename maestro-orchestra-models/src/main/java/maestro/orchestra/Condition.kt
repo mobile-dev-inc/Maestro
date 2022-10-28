@@ -5,6 +5,13 @@ data class Condition(
     val notVisible: ElementSelector? = null,
 ) {
 
+    fun injectEnv(env: Map<String, String>): Condition {
+        return copy(
+            visible = visible?.injectEnv(env),
+            notVisible = notVisible?.injectEnv(env),
+        )
+    }
+
     fun description(): String {
         val descriptions = mutableListOf<String>()
 

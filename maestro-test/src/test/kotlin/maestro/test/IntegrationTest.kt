@@ -1382,6 +1382,13 @@ class IntegrationTest {
     fun `Case 049 - Run flow conditionally`() {
         // Given
         val commands = readCommands("049_run_flow_conditionally")
+            .map {
+                it.injectEnv(
+                    mapOf(
+                        "NOT_CLICKED" to "Not Clicked"
+                    )
+                )
+            }
 
         val driver = driver {
             val indicator = element {

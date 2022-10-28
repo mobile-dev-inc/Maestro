@@ -440,6 +440,7 @@ data class RunFlowCommand(
     override fun injectEnv(env: Map<String, String>): Command {
         return copy(
             commands = commands.map { it.injectEnv(env) },
+            condition = condition?.injectEnv(env),
         )
     }
 
@@ -488,6 +489,7 @@ data class RepeatCommand(
         return copy(
             times = times?.injectEnv(env),
             commands = commands.map { it.injectEnv(env) },
+            condition = condition?.injectEnv(env),
         )
     }
 

@@ -7,5 +7,5 @@ appId: com.other.app
 - assertVisible: Clicked
 - runFlow:
     when:
-      visible: Not Clicked
+      visible: ${NOT_CLICKED}
     file: 008_tap_on_element.yaml
