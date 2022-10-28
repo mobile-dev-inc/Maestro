@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.3 - 2022-10-29
+
+* Fix: updating to dadb 1.2.4
+
 ## 1.11.2 - 2022-10-29
 
 * Fix: updating to dadb 1.2.3 to fix an occassional device connection issue
