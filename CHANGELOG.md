@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.11.2 - 2022-10-29
+
+* Fix: updating to dadb 1.2.3 to fix an occassional device connection issue
+* Fix: injecting `env` parameters into conditions (i.e. in `runFlow`)
+
 ## 1.11.1 - 2022-10-27
 
 * Fix: closing `idb_companion` after `maestro` completes
