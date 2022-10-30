@@ -103,7 +103,7 @@ class UploadCommand : Callable<Int> {
                 // whether we call a vararg method or a normal method. The *arrayOf() construct
                 // forces compiler to choose vararg method.
                 @Suppress("RemoveRedundantSpreadOperator")
-                archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile))
+                archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
             }
 
             val (teamId, appId, uploadId) = client.upload(
