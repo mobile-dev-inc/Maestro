@@ -26,7 +26,7 @@ dependencies {
 
     implementation project(':maestro-client')
     implementation project(':maestro-orchestra')
-    implementation "dev.mobile:dadb:1.2.4"
+    implementation "dev.mobile:dadb:1.2.5"
     implementation 'info.picocli:picocli:4.5.2'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
