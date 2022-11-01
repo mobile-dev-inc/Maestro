@@ -159,7 +159,11 @@ class AndroidDriver(
                 }
                 shell("am start-activity -n $appId/${activity.name}")
             } else {
-                shell("monkey --pct-syskeys 0 -p $appId 1")
+                try {
+                    shell("am start-activity -n $appId/${manifest.launcherActivity.name}")
+                } catch (exception: Exception) {
+                    shell("monkey --pct-syskeys 0 -p $appId 1")
+                }
             }
         } catch (ioException: IOException) {
             shell("monkey --pct-syskeys 0 -p $appId 1")
