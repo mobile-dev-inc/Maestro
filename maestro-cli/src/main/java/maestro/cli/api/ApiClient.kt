@@ -34,6 +34,8 @@ class ApiClient(
         .protocols(listOf(Protocol.HTTP_1_1))
         .build()
 
+    private val knownCIEnvVars = listOf("CI", "JENKINS_HOME", "BITRISE_IO")
+
     fun magicLinkLogin(email: String, redirectUrl: String): Result<String, Response> {
         return post<Map<String, Any>>(
             "/magiclink/login", mapOf(
@@ -86,6 +88,17 @@ class ApiClient(
         }
     }
 
+    private fun getAgent(): String {
+        for (ciVar in knownCIEnvVars) {
+            try {
+                val value = System.getenv(ciVar).lowercase()
+                if (value.isNotEmpty() && value != "0" && value != "false") return "ci"
+            } catch (e: Exception) {}
+        }
+
+        return "cli"
+    }
+
     fun upload(
         authToken: String,
         appFile: Path,
@@ -111,7 +124,7 @@ class ApiClient(
         branch?.let { requestPart["branch"] = it }
         pullRequestId?.let { requestPart["pullRequestId"] = it }
         env?.let { requestPart["env"] = it }
-        requestPart["agent"] = "cli"
+        requestPart["agent"] = getAgent()
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
