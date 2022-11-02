@@ -19,6 +19,7 @@
 
 package maestro.cli
 
+import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
@@ -37,6 +38,7 @@ import kotlin.system.exitProcess
     name = "maestro",
     subcommands = [
         TestCommand::class,
+        CloudCommand::class,
         UploadCommand::class,
         PrintHierarchyCommand::class,
         QueryCommand::class,
@@ -50,16 +52,16 @@ class App {
     @Option(names = ["-v", "--version"], versionHelp = true)
     var requestedVersion: Boolean? = false
 
-    @Option(names = ["-p", "--platform"])
+    @Option(names = ["-p", "--platform"], hidden = true)
     var platform: String? = null
 
-    @Option(names = ["--host"])
+    @Option(names = ["--host"], hidden = true)
     var host: String? = null
 
-    @Option(names = ["--port"])
+    @Option(names = ["--port"], hidden = true)
     var port: Int? = null
 
-    @Option(names = ["--device", "--udid"])
+    @Option(names = ["--device", "--udid"], description = ["(Optional) Select a device to run on explicitly"])
     var deviceId: String? = null
 
     companion object {
@@ -80,6 +82,7 @@ private fun printVersion() {
 @Suppress("SpreadOperator")
 fun main(args: Array<String>) {
     val commandLine = CommandLine(App())
+        .setUsageHelpWidth(160)
         .setExecutionExceptionHandler { ex, cmd, parseResult ->
             val message = if (ex is CliError) {
                 ex.message

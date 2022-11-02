@@ -1,6 +1,6 @@
 package maestro.cli.api
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -18,8 +18,10 @@ import okhttp3.Response
 import okio.Buffer
 import okio.BufferedSink
 import okio.ForwardingSink
+import okio.IOException
 import okio.buffer
 import java.nio.file.Path
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
@@ -97,6 +99,33 @@ class ApiClient(
         }
 
         return "cli"
+    }
+
+    fun uploadStatus(
+        authToken: String,
+        uploadId: String,
+    ): UploadStatus {
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url("$baseUrl/v2/upload/$uploadId/status")
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+
+            return JSON.readValue(response.body?.bytes(), UploadStatus::class.java)
+        }
     }
 
     fun upload(
@@ -201,9 +230,13 @@ class ApiClient(
         }
     }
 
+    data class ApiException(
+        val statusCode: Int?,
+    ) : Exception("Request failed. Status code: $statusCode")
+
     companion object {
 
-        private val JSON = ObjectMapper()
+        private val JSON = jacksonObjectMapper()
     }
 }
 
@@ -212,3 +245,25 @@ data class UploadResponse(
     val appId: String,
     val uploadId: String,
 )
+
+data class UploadStatus(
+    val uploadId: UUID,
+    val status: Status,
+    val completed: Boolean,
+    val flows: List<FlowResult>,
+) {
+
+    data class FlowResult(
+        val name: String,
+        val status: Status,
+    )
+
+    enum class Status {
+        PENDING,
+        RUNNING,
+        SUCCESS,
+        ERROR,
+        CANCELED,
+        WARNING,
+    }
+}

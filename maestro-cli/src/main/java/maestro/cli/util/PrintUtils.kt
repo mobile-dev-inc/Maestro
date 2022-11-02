@@ -19,13 +19,48 @@ object PrintUtils {
         }
     }
 
-    fun err(message: String) {
+    fun success(message: String, bold: Boolean = false) {
+        println(
+            Ansi.ansi()
+                .render("\n")
+                .fgBrightGreen()
+                .bold(apply = bold)
+                .render(message)
+                .boldOff()
+                .fgDefault()
+        )
+    }
+
+    fun err(message: String, bold: Boolean = false) {
         println(
             Ansi.ansi()
                 .render("\n")
                 .fgRed()
+                .bold(apply = bold)
                 .render(message)
+                .boldOff()
+                .fgDefault()
         )
+    }
+
+    fun warn(message: String, bold: Boolean = false) {
+        println(
+            Ansi.ansi()
+                .render("\n")
+                .fgYellow()
+                .bold(apply = bold)
+                .render(message)
+                .boldOff()
+                .fgDefault()
+        )
+    }
+
+    fun Ansi.bold(apply: Boolean = true): Ansi {
+        return if (apply) {
+            bold()
+        } else {
+            this
+        }
     }
 
 }

@@ -5,9 +5,9 @@ import java.nio.file.Path
 
 object TemporaryDirectory {
 
-    fun use(block: (tmpDir: Path) -> Unit) {
+    inline fun <T> use(block: (tmpDir: Path) -> T): T {
         val tmpDir = Files.createTempDirectory(null)
-        try {
+        return try {
             block(tmpDir)
         } finally {
             tmpDir.toFile().deleteRecursively()
