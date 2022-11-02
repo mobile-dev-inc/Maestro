@@ -57,6 +57,13 @@ classes {
     dependsOn createProperties
 }
 
+distZip {
+    archiveName 'maestro.zip'
+}
+distTar {
+    archiveName 'maestro.tar'
+}
+
 jreleaser {
     version = CLI_VERSION
     gitRootSearch = true
@@ -80,7 +87,7 @@ jreleaser {
     distributions {
         maestro {
             artifact {
-                path = 'build/distributions/maestro-{{projectVersion}}.zip'
+                path = 'build/distributions/maestro.zip'
             }
             brew {
                 active = 'RELEASE'
