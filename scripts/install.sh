@@ -114,7 +114,7 @@ cp -rf "${maestro_tmp_folder}"/maestro/* "$MAESTRO_DIR"
 
 # Clean up
 echo "* Cleaning up..."
-rm -rf "$maestro_tmp_folder"/maestro-*
+rm -rf "$maestro_tmp_folder"/maestro
 rm -rf "$maestro_zip_file"
 
 echo ""
