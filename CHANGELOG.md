@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.11.4 - 2022-11-02
+
+* Fix: Use absolute path to prevent NullPointerException when .app folder is in the cwd
+* Fix: Update dadb to latest version 1.2.6
+* Fix: Opening of leak canary app
+* Tweak: send agent: ci when known CI environment variables are set
+
 ## 1.11.3 - 2022-10-29
 
 * Fix: updating to dadb 1.2.4
