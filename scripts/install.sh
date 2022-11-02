@@ -17,6 +17,17 @@ if [[ "$which_maestro" == "/usr/local"* || $which_maestro == "/opt/homebrew"* ||
   exit 1
 fi
 
+if ! command -v java > /dev/null; then
+	echo "java not found."
+	echo "======================================================================================================"
+	echo " Please install java on your system using your favourite package manager."
+	echo ""
+	echo " Restart after installing java."
+	echo "======================================================================================================"
+	echo ""
+	exit 1
+fi
+
 if ! command -v unzip > /dev/null; then
 	echo "unzip not found."
 	echo "======================================================================================================"
