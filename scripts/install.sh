@@ -110,7 +110,7 @@ unzip -qo "$maestro_zip_file" -d "$maestro_tmp_folder"
 
 # Copy in place
 echo "* Copying archive contents..."
-cp -rf "${maestro_tmp_folder}"/maestro-*/* "$MAESTRO_DIR"
+cp -rf "${maestro_tmp_folder}"/maestro/* "$MAESTRO_DIR"
 
 # Clean up
 echo "* Cleaning up..."
