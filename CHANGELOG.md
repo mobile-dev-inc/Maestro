@@ -3,7 +3,7 @@
 ## 1.11.4 - 2022-11-02
 
 * Fix: Use absolute path to prevent NullPointerException when .app folder is in the cwd
-* Fix: Update dadb to latest version 1.2.6
+* Fix: Create parent directory if not exists when generating adb key pair, updates dadb to 1.2.6
 * Fix: Opening of leak canary app
 * Tweak: send agent: ci when known CI environment variables are set
 
