@@ -7,6 +7,7 @@ import ios.idb.IdbIOSDevice
 import maestro.MaestroTimer
 import maestro.cli.CliError
 import maestro.cli.device.ios.Simctl
+import maestro.cli.device.ios.SimctlList
 import maestro.cli.util.EnvUtils
 import java.io.File
 import java.net.Socket
@@ -179,39 +180,40 @@ object DeviceService {
             return emptyList()
         }
 
-        val runtimes = simctlList
+        val runtimeNameByIdentifier = simctlList
             .runtimes
+            .associate { it.identifier to it.name }
 
-        return runtimes
+        return simctlList
+            .devices
             .flatMap { runtime ->
-                runtime.supportedDeviceTypes
-                    .flatMap { supportedDeviceType ->
-                        simctlList.devices
-                            .values
-                            .flatten()
-                            .filter {
-                                it.isAvailable &&
-                                    it.deviceTypeIdentifier == supportedDeviceType.identifier
-                            }
-                    }
-                    .map { device ->
-                        val description = "${device.name} - ${runtime.name} - ${device.udid}"
-
-                        if (device.state == "Booted") {
-                            Device.Connected(
-                                instanceId = device.udid,
-                                description = description,
-                                platform = Platform.IOS,
-                            )
-                        } else {
-                            Device.AvailableForLaunch(
-                                modelId = device.udid,
-                                description = description,
-                                platform = Platform.IOS,
-                            )
-                        }
-                    }
+                runtime.value
+                    .filter { it.isAvailable }
+                    .map { device(runtimeNameByIdentifier, runtime, it) }
             }
+    }
+
+    private fun device(
+        runtimeNameByIdentifier: Map<String, String>,
+        runtime: Map.Entry<String, List<SimctlList.Device>>,
+        device: SimctlList.Device
+    ): Device {
+        val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
+        val description = "${device.name} - $runtimeName - ${device.udid}"
+
+        return if (device.state == "Booted") {
+            Device.Connected(
+                instanceId = device.udid,
+                description = description,
+                platform = Platform.IOS,
+            )
+        } else {
+            Device.AvailableForLaunch(
+                modelId = device.udid,
+                description = description,
+                platform = Platform.IOS,
+            )
+        }
     }
 
 }
