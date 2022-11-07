@@ -9,6 +9,8 @@ import maestro.cli.CliError
 import maestro.cli.device.ios.Simctl
 import maestro.cli.util.EnvUtils
 import java.io.File
+import java.net.Socket
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 object DeviceService {
@@ -70,6 +72,9 @@ object DeviceService {
     }
 
     private fun startIdbCompanion(device: Device.Connected) {
+        val idbHost = "localhost"
+        val idbPort = 10882
+
         val idbProcess = ProcessBuilder("idb_companion", "--udid", device.instanceId)
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .redirectOutput(ProcessBuilder.Redirect.DISCARD)
@@ -79,27 +84,35 @@ object DeviceService {
             idbProcess.destroy()
         })
 
-        val iosDevice = IdbIOSDevice(
-            ManagedChannelBuilder.forAddress("localhost", 10882)
-                .usePlaintext()
-                .build()
-        )
-        try {
-            // Try to connect to the device repeatedly
-            MaestroTimer.withTimeout(10000) {
-                try {
-                    // The idea is that view hierarchy is empty while device is still booting
-                    iosDevice
-                        .contentDescriptor()
-                        .get()
-                        ?.takeIf { nodes -> nodes.any { it.frame?.width != 0F } }
-                } catch (ignored: Exception) {
-                    // Ignore
-                    null
-                }
-            } ?: error("idb_companion did not start in time")
-        } finally {
-            iosDevice.close()
+        val channel = ManagedChannelBuilder.forAddress(idbHost, idbPort)
+            .usePlaintext()
+            .build()
+
+        IdbIOSDevice(channel).use { iosDevice ->
+            MaestroTimer.retryUntilTrue(timeoutMs = 2000) {
+                Socket(idbHost, idbPort).use { true }
+            } || error("idb_companion did not start in time")
+
+            // The first time a simulator boots up, it can
+            // take 10's of seconds to complete.
+            MaestroTimer.retryUntilTrue(timeoutMs = 60000) {
+                val process = ProcessBuilder("xcrun", "simctl", "bootstatus", device.instanceId)
+                    .start()
+                process
+                    .waitFor(1000, TimeUnit.MILLISECONDS)
+                process.exitValue() == 0
+            } || error("Simulator failed to boot")
+
+            // Test if idb can get accessibility info elements with non-zero frame with
+            MaestroTimer.retryUntilTrue(timeoutMs = 20000) {
+                val nodes = iosDevice
+                    .contentDescriptor()
+                    .get()
+
+                nodes?.any { it.frame?.width != 0F } == true
+            } || error("idb_companion is not able to fetch accessibility info")
+
+            Unit // Ignore result when completed
         }
     }
 

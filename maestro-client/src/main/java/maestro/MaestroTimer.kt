@@ -23,6 +23,21 @@ object MaestroTimer {
         return null
     }
 
+    fun retryUntilTrue(timeoutMs: Long, block: () -> Boolean): Boolean {
+        val endTime = System.currentTimeMillis() + timeoutMs
+        do {
+            try {
+                if (block()) {
+                    return true
+                }
+            } catch (ignored: Exception) {
+                // Try again
+            }
+        } while (System.currentTimeMillis() < endTime)
+
+        return false
+    }
+
     enum class Reason {
         WAIT_UNTIL_VISIBLE,
         WAIT_TO_SETTLE,
