@@ -54,7 +54,9 @@ interface Driver {
 
     fun scrollVertical()
 
-    fun swipe(start: Point, end: Point)
+    fun swipe(start: Point, end: Point, durationMs: Long)
+
+    fun swipe(swipeDirection: SwipeDirection, durationMs: Long)
 
     fun backPress()
 

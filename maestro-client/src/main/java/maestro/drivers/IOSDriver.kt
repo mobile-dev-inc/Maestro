@@ -23,11 +23,13 @@ import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.getOrThrow
 import ios.IOSDevice
+import ios.idb.IdbIOSDevice
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
+import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.utils.FileUtils
 import okio.Sink
@@ -213,10 +215,12 @@ class IOSDriver(
         val screenHeight = heightPixels ?: throw IllegalStateException("Screen height not available")
 
         iosDevice.scroll(
-            xStart = screenWidth / 2,
+            xStart = screenWidth / 4,
             yStart = screenHeight / 4,
-            xEnd = screenWidth / 2,
-            yEnd = 0
+            xEnd = screenWidth / 4,
+            yEnd = 0,
+            durationMs = IdbIOSDevice.DEFAULT_SWIPE_DURATION_MILLIS,
+            scrollType = IdbIOSDevice.ScrollType.SCROLL
         ).expect {}
     }
 
@@ -239,15 +243,65 @@ class IOSDriver(
         }
     }
 
-    override fun swipe(start: Point, end: Point) {
+    override fun swipe(start: Point, end: Point, durationMs: Long) {
         validate(start, end)
 
         iosDevice.scroll(
             xStart = start.x,
             yStart = start.y,
             xEnd = end.x,
-            yEnd = end.y
+            yEnd = end.y,
+            durationMs = durationMs,
+            scrollType = IdbIOSDevice.ScrollType.SWIPE
         ).expect {}
+    }
+
+    override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
+        val width = widthPixels ?: throw IllegalStateException("Device width not available")
+        val height = heightPixels ?: throw IllegalStateException("Device height not available")
+
+        when(swipeDirection) {
+            SwipeDirection.UP -> {
+                iosDevice.scroll(
+                    xStart = width / 4,
+                    yStart = height,
+                    xEnd = width / 4 ,
+                    yEnd = height / 4,
+                    durationMs = durationMs,
+                    IdbIOSDevice.ScrollType.SWIPE
+                ).expect {}
+            }
+            SwipeDirection.DOWN -> {
+                iosDevice.scroll(
+                    xStart = width / 4,
+                    yStart = 0,
+                    xEnd = width,
+                    yEnd = height / 4,
+                    durationMs = durationMs,
+                    IdbIOSDevice.ScrollType.SWIPE
+                ).expect {}
+            }
+            SwipeDirection.RIGHT -> {
+                iosDevice.scroll(
+                    xStart =  0,
+                    yStart = height / 4,
+                    xEnd =  width / 4 ,
+                    yEnd = height / 4,
+                    durationMs = durationMs,
+                    IdbIOSDevice.ScrollType.SWIPE
+                ).expect {}
+            }
+            SwipeDirection.LEFT -> {
+                iosDevice.scroll(
+                    xStart = width / 4 ,
+                    yStart = height / 4,
+                    xEnd =  0,
+                    yEnd = height / 4,
+                    durationMs = durationMs,
+                    IdbIOSDevice.ScrollType.SWIPE
+                ).expect {}
+            }
+        }
     }
 
     override fun backPress() {}

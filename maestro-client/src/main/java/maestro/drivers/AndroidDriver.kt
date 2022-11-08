@@ -31,6 +31,7 @@ import maestro.Maestro
 import maestro.MaestroException.UnableToTakeScreenshot
 import maestro.MaestroTimer
 import maestro.Point
+import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.android.AndroidAppFiles
 import maestro.android.asManifest
@@ -269,8 +270,38 @@ class AndroidDriver(
         dadb.shell("input swipe 500 1000 700 -900 2000")
     }
 
-    override fun swipe(start: Point, end: Point) {
-        dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} 2000")
+    override fun swipe(start: Point, end: Point, durationMs: Long) {
+        dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+    }
+
+    override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
+        val deviceInfo = deviceInfo()
+        when (swipeDirection) {
+            SwipeDirection.UP -> {
+                val startX = deviceInfo.widthPixels / 2
+                val startY = deviceInfo.heightPixels
+                val endY = deviceInfo.heightPixels / 2
+                dadb.shell("input swipe $startX $startY $startX $endY $durationMs")
+            }
+            SwipeDirection.DOWN -> {
+                val startX = deviceInfo.widthPixels / 2
+                val startY = 0
+                val endY = deviceInfo.heightPixels / 2
+                dadb.shell("input swipe $startX $startY $startX $endY $durationMs")
+            }
+            SwipeDirection.RIGHT -> {
+                val startX = deviceInfo.widthPixels / 2
+                val startY = deviceInfo.heightPixels / 2
+                val endX = deviceInfo.widthPixels
+                dadb.shell("input swipe $startX $startY $endX $startY $durationMs")
+            }
+            SwipeDirection.LEFT -> {
+                val startX = deviceInfo.widthPixels / 2
+                val startY = deviceInfo.heightPixels / 2
+                val endX = 0
+                dadb.shell("input swipe $startX $startY $endX $startY $durationMs")
+            }
+        }
     }
 
     override fun backPress() {

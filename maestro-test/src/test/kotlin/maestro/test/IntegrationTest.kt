@@ -6,6 +6,7 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
 import maestro.Point
+import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
@@ -479,7 +480,7 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertHasEvent(Event.Swipe(Point(100, 500), Point(100, 200)))
+        driver.assertHasEvent(Event.Swipe(start = Point(100, 500), End = Point(100, 200), durationMs = 3000))
     }
 
     @Test
@@ -1668,6 +1669,21 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.InputText("Inline Parameter"))
         driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+    }
+
+    @Test
+    fun `Case 059 - Do a directional swipe command`() {
+        // given
+        val commands = readCommands("059_directional_swipe_command")
+        val driver = driver { }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertHasEvent(Event.SwipeWithDirection(SwipeDirection.RIGHT, 500))
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(

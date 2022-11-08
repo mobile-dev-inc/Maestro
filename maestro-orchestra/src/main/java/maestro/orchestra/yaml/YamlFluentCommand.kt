@@ -65,7 +65,7 @@ data class YamlFluentCommand(
     val inputRandomEmail: YamlInputRandomEmail? = null,
     val inputRandomPersonName: YamlInputRandomPersonName? = null,
     val launchApp: YamlLaunchApp? = null,
-    val swipe: YamlElementSelectorUnion? = null,
+    val swipe: YamlSwipe? = null,
     val openLink: String? = null,
     val pressKey: String? = null,
     val eraseText: YamlEraseText? = null,
@@ -277,35 +277,36 @@ data class YamlFluentCommand(
         }
     }
 
-    private fun swipeCommand(tapOn: YamlElementSelectorUnion): MaestroCommand {
-        val start = (tapOn as? YamlElementSelector)?.start
-        val end = (tapOn as? YamlElementSelector)?.end
-        val startPoint: Point?
-        val endPoint: Point?
+    private fun swipeCommand(swipe: YamlSwipe): MaestroCommand {
+        when (swipe) {
+            is YamlSwipeDirection -> return MaestroCommand(SwipeCommand(direction = swipe.direction, duration = swipe.duration))
+            is YamlCoordinateSwipe -> {
+                val start = swipe.start
+                val end = swipe.end
+                val startPoint: Point?
+                val endPoint: Point?
 
-        if (start != null) {
-            val points = start.split(",")
-                .map {
-                    it.trim().toInt()
-                }
+                val startPoints = start.split(",")
+                    .map {
+                        it.trim().toInt()
+                    }
+                startPoint = Point(startPoints[0], startPoints[1])
 
-            startPoint = Point(points[0], points[1])
-        } else {
-            throw IllegalStateException("No start point configured for swipe action")
+                val endPoints = end.split(",")
+                    .map {
+                        it.trim().toInt()
+                    }
+                endPoint = Point(endPoints[0], endPoints[1])
+
+                return MaestroCommand(SwipeCommand(startPoint = startPoint, endPoint = endPoint, duration = swipe.duration))
+            }
+            else -> {
+                throw IllegalStateException(
+                    "Provide swipe direction UP, DOWN, RIGHT OR LEFT or by giving explicit " +
+                        "start and end coordinates."
+                )
+            }
         }
-
-        if (end != null) {
-            val points = end.split(",")
-                .map {
-                    it.trim().toInt()
-                }
-
-            endPoint = Point(points[0], points[1])
-        } else {
-            throw IllegalStateException("No end point configured for swipe action")
-        }
-
-        return MaestroCommand(SwipeCommand(startPoint, endPoint))
     }
 
     private fun toElementSelector(selectorUnion: YamlElementSelectorUnion): ElementSelector {

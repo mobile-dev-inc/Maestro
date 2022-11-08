@@ -21,6 +21,7 @@ package maestro.orchestra
 
 import maestro.KeyCode
 import maestro.Point
+import maestro.SwipeDirection
 import maestro.orchestra.util.Env.injectEnv
 import maestro.orchestra.util.InputRandomTextHelper
 
@@ -39,18 +40,31 @@ sealed interface CompositeCommand : Command {
 }
 
 data class SwipeCommand(
-    val startPoint: Point,
-    val endPoint: Point,
+    val direction: SwipeDirection? = null,
+    val startPoint: Point? = null,
+    val endPoint: Point? = null,
+    val duration: Long = DEFAULT_DURATION_IN_MILLIS
 ) : Command {
 
     override fun description(): String {
-        return "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y})"
+        return when {
+            direction != null -> {
+                "Swiping in $direction direction in $duration ms"
+            }
+            startPoint != null && endPoint != null -> {
+                "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y}) in $duration ms"
+            }
+            else -> "Invalid input to swipe command"
+        }
     }
 
     override fun injectEnv(env: Map<String, String>): SwipeCommand {
         return this
     }
 
+    companion object {
+        const val DEFAULT_DURATION_IN_MILLIS = 2000L
+    }
 }
 
 class ScrollCommand : Command {

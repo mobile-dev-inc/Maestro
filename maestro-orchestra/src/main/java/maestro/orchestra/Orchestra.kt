@@ -505,7 +505,7 @@ class Orchestra(
     }
 
     private fun swipeCommand(command: SwipeCommand) {
-        maestro.swipe(command.startPoint, command.endPoint)
+        maestro.swipe(command.direction, command.startPoint, command.endPoint, command.duration)
     }
 
     private object CommandSkipped : Exception()
