@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.13.0 - 2022-11-08
+
+* Feature: Option to set direction and speed for swipe command
+* Fix: Fix duplicate and unavailable iOS simulators in list
+* Fix: Longer timeout for iOS simulator boot
+
+## 1.12.0 - 2022-11-06
+
+* Feature: `maestro cloud` command added
+
 ## 1.11.4 - 2022-11-02
 
 * Fix: Use absolute path to prevent NullPointerException when .app folder is in the cwd
