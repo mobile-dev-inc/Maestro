@@ -328,6 +328,14 @@ class IdbIOSDevice(
 
     override fun clearAppState(id: String): Result<Idb.RmResponse, Throwable> {
 
+        // Stop the app before clearing the file system
+        // This prevents the app from saving its state after it has been cleared
+        stop(id)
+        
+        // Wait for the app to be stopped, unfortunately idb's stop()
+        // does not wait for the process to finish
+        Thread.sleep(500)
+
         // deletes app data, including container folder
         val result = runCatching {
             blockingStub.rm(rmRequest {
