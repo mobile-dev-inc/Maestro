@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.1 - 2022-11-09
+* Fix: Fix maestro hanging with message "Waiting for idb service to start.."
+* Fix: Fix clearState operation not working on iOS 
+
 ## 1.13.0 - 2022-11-08
 
 * Feature: Option to set direction and speed for swipe command
