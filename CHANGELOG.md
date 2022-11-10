@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.13.2 - 2022-11-10
+* Fix: Fallback properly on monkey when start-activity command fails, when launching app.
+
 ## 1.13.1 - 2022-11-09
 * Fix: Fix maestro hanging with message "Waiting for idb service to start.."
 * Fix: Fix clearState operation not working on iOS 
