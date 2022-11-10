@@ -30,3 +30,27 @@ private fun getManifestData(archive: Archive): ManifestData {
         throw IOException(e)
     }
 }
+
+fun ManifestData.resolveLauncherActivity(appId: String): String {
+    return if (hasThirdPartyLauncherConfigured(this, appId) && hasOnlyAppLauncher(this, appId)) {
+        val activity = activities.first {
+            it.isHomeActivity &&
+                it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
+        }
+        activity.name
+    } else {
+        launcherActivity.name
+    }
+}
+
+private fun hasOnlyAppLauncher(manifest: ManifestData, appId: String) =
+    manifest.activities.filter {
+        it.isHomeActivity &&
+            it.name.split(".").intersect(appId.split(".").toSet()).isNotEmpty()
+    }.size == 1
+
+private fun hasThirdPartyLauncherConfigured(manifest: ManifestData, appId: String) =
+    manifest.activities.any {
+        it.isHomeActivity &&
+            it.name.split(".").intersect(appId.split(".").toSet()).isEmpty()
+    }
