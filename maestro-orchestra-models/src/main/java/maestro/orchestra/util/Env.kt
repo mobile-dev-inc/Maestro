@@ -10,7 +10,10 @@ object Env {
         return env
             .entries
             .fold(this) { acc, (key, value) ->
-                acc.replace("(?<!\\\\)\\$\\{$key}".toRegex(), value)
+                acc.replace(
+                    "(?<!\\\\)\\$\\{$key}".toRegex(),
+                    Regex.escapeReplacement(value)
+                )
             }
             .replace("\\\\\\$\\{.*}".toRegex()) { match ->
                 match.value.substringAfter('\\')

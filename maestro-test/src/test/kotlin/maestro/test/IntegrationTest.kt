@@ -1686,6 +1686,28 @@ class IntegrationTest {
         driver.assertHasEvent(Event.SwipeWithDirection(SwipeDirection.RIGHT, 500))
     }
 
+    @Test
+    fun `Case 060 - Pass env param to an env param`() {
+        // given
+        val commands = readCommands("060_pass_env_to_env")
+            .map {
+                it.injectEnv(
+                    mapOf(
+                        "PARAM" to "Value"
+                    )
+                )
+            }
+        val driver = driver { }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertEventCount(Event.InputText("Value"), expectedCount = 3)
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

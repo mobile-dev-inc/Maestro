@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- inputText: ${PARAM_FLOW}
+- inputText: ${PARAM_INLINE}
+- inputText: ${PARAM}
