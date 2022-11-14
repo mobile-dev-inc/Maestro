@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.0 - 2022-11-14
+* Fix: passing env parameters to subflows and other env params
+* Speeding up maestro flows
+* Checking in maestro sample flows and adds sample updating guide
+* Maestro is now compatible with java 8!
+* Launching app without stopping the app
+* Fixing launching app when resolving launcher activity throws `NullPointerException`
+
 ## 1.13.2 - 2022-11-10
 * Fix: Fallback properly on monkey when start-activity command fails, when launching app.
 
