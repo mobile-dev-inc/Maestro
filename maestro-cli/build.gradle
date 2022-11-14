@@ -26,6 +26,7 @@ dependencies {
 
     implementation project(':maestro-client')
     implementation project(':maestro-orchestra')
+    implementation project(':maestro-ios')
     implementation "dev.mobile:dadb:1.2.6"
     implementation 'info.picocli:picocli:4.5.2'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
@@ -97,12 +98,6 @@ jreleaser {
                     owner = 'mobile-dev-inc'
                     name = 'homebrew-tap'
                 }
-
-                dependencies {
-                    dependency('openjdk@11')
-                }
-
-                extraProperties.put("skipJava", true)
             }
         }
     }

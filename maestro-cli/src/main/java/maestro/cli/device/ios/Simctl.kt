@@ -11,7 +11,7 @@ object Simctl {
         val command = listOf("xcrun", "simctl", "list", "-j")
 
         val process = ProcessBuilder(command).start()
-        val json = String(process.inputStream.readAllBytes())
+        val json = String(process.inputStream.readBytes())
 
         return jacksonObjectMapper().readValue(json)
     }

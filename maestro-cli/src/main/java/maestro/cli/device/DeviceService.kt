@@ -16,6 +16,12 @@ import kotlin.concurrent.thread
 
 object DeviceService {
 
+    private val NULL_FILE = File(
+        if (System.getProperty("os.name")
+                .startsWith("Windows")
+        ) "NUL" else "/dev/null"
+    )
+
     fun startDevice(device: Device.AvailableForLaunch): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
@@ -77,8 +83,8 @@ object DeviceService {
         val idbPort = 10882
 
         val idbProcess = ProcessBuilder("idb_companion", "--udid", device.instanceId)
-            .redirectError(ProcessBuilder.Redirect.DISCARD)
-            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.to(NULL_FILE))
+            .redirectOutput(ProcessBuilder.Redirect.to(NULL_FILE))
             .start()
 
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
