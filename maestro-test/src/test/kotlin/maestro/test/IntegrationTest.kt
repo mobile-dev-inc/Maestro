@@ -209,7 +209,7 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 3)
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
     }
 
     @Test

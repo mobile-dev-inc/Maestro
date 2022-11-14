@@ -34,6 +34,7 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
+import java.lang.Long.max
 import java.nio.file.Files
 
 class Orchestra(
@@ -50,6 +51,9 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
 ) {
+
+    private var timeMsOfLastInteraction = 0L
+    private var deviceInfo: DeviceInfo? = null
 
     /**
      * If initState is provided, initialize app disk state with the provided OrchestraAppState and skip
@@ -125,18 +129,22 @@ class Orchestra(
         return true
     }
 
-    private fun executeCommand(maestroCommand: MaestroCommand) {
+    private fun executeCommand(maestroCommand: MaestroCommand): Boolean {
         val command = maestroCommand.asCommand()
 
         return when (command) {
             is TapOnElementCommand -> {
-                tapOnElement(command, command.retryIfNoChange ?: true, command.waitUntilVisible ?: true)
+                tapOnElement(
+                    command,
+                    command.retryIfNoChange ?: true,
+                    command.waitUntilVisible ?: false
+                )
             }
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: true)
-            is BackPressCommand -> maestro.backPress()
-            is HideKeyboardCommand -> maestro.hideKeyboard()
-            is ClipboardPasteCommand -> maestro.clipboardPaste()
-            is ScrollCommand -> maestro.scrollVertical()
+            is BackPressCommand -> backPressCommand()
+            is HideKeyboardCommand -> hideKeyboardCommand()
+            is ClipboardPasteCommand -> clipboardPasteCommand()
+            is ScrollCommand -> scrollVerticalCommand()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is InputTextCommand -> inputTextCommand(command)
@@ -146,18 +154,60 @@ class Orchestra(
             is PressKeyCommand -> pressKeyCommand(command)
             is EraseTextCommand -> eraseTextCommand(command)
             is TakeScreenshotCommand -> takeScreenshotCommand(command)
-            is StopAppCommand -> maestro.stopApp(command.appId)
-            is ClearStateCommand -> maestro.clearAppState(command.appId)
-            is ClearKeychainCommand -> maestro.clearKeychain()
+            is StopAppCommand -> stopAppCommand(command)
+            is ClearStateCommand -> clearAppStateCommand(command)
+            is ClearKeychainCommand -> clearKeychainCommand()
             is RunFlowCommand -> runFlowCommand(command)
-            is SetLocationCommand -> maestro.setLocation(command.latitude, command.longitude)
+            is SetLocationCommand -> setLocationCommand(command)
             is RepeatCommand -> repeatCommand(command, maestroCommand)
-            is ApplyConfigurationCommand, null -> { /* no-op */
+            is ApplyConfigurationCommand -> false
+            else -> true
+        }.also { mutating ->
+            if (mutating) {
+                timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
     }
 
-    private fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand) {
+    private fun setLocationCommand(command: SetLocationCommand): Boolean {
+        maestro.setLocation(command.latitude, command.longitude)
+
+        return true
+    }
+
+    private fun clearAppStateCommand(command: ClearStateCommand): Boolean {
+        maestro.clearAppState(command.appId)
+
+        return true
+    }
+
+    private fun stopAppCommand(command: StopAppCommand): Boolean {
+        maestro.stopApp(command.appId)
+
+        return true
+    }
+
+    private fun scrollVerticalCommand(): Boolean {
+        maestro.scrollVertical()
+        return true
+    }
+
+    private fun clipboardPasteCommand(): Boolean {
+        maestro.clipboardPaste()
+        return true
+    }
+
+    private fun hideKeyboardCommand(): Boolean {
+        maestro.hideKeyboard()
+        return true
+    }
+
+    private fun backPressCommand(): Boolean {
+        maestro.backPress()
+        return true
+    }
+
+    private fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand): Boolean {
         val maxRuns = command.times?.toIntOrNull() ?: Int.MAX_VALUE
 
         var counter = 0
@@ -165,12 +215,14 @@ class Orchestra(
             numberOfRuns = 0,
         )
 
+        var mutatiing = false
         while ((command.condition?.let { evaluateCondition(it) } != false) && counter < maxRuns) {
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
             }
 
-            runSubFlow(command.commands)
+            val mutated = runSubFlow(command.commands)
+            mutatiing = mutatiing || mutated
             counter++
 
             metadata = metadata.copy(
@@ -182,6 +234,8 @@ class Orchestra(
         if (counter == 0) {
             throw CommandSkipped
         }
+
+        return mutatiing
     }
 
     private fun resetCommand(command: MaestroCommand) {
@@ -194,8 +248,8 @@ class Orchestra(
         }
     }
 
-    private fun runFlowCommand(command: RunFlowCommand) {
-        if (evaluateCondition(command.condition)) {
+    private fun runFlowCommand(command: RunFlowCommand): Boolean {
+        return if (evaluateCondition(command.condition)) {
             runSubFlow(command.commands)
         } else {
             throw CommandSkipped
@@ -209,14 +263,14 @@ class Orchestra(
 
         condition.visible?.let {
             try {
-                findElement(it, timeoutMs = optionalLookupTimeoutMs)
+                findElement(it, timeoutMs = adjustedToLatestInteraction(optionalLookupTimeoutMs))
             } catch (ignored: MaestroException.ElementNotFound) {
                 return false
             }
         }
 
         condition.notVisible?.let {
-            val result = MaestroTimer.withTimeout(optionalLookupTimeoutMs) {
+            val result = MaestroTimer.withTimeout(adjustedToLatestInteraction(optionalLookupTimeoutMs)) {
                 try {
                     findElement(it, timeoutMs = 500L)
 
@@ -238,51 +292,65 @@ class Orchestra(
         return true
     }
 
-    private fun runSubFlow(commands: List<MaestroCommand>) {
-        commands
-            .forEachIndexed { index, command ->
+    private fun runSubFlow(commands: List<MaestroCommand>): Boolean {
+        return commands
+            .mapIndexed { index, command ->
                 onCommandStart(index, command)
-                try {
+                return@mapIndexed try {
                     executeCommand(command)
-                    onCommandComplete(index, command)
+                        .also {
+                            onCommandComplete(index, command)
+                        }
                 } catch (ignored: CommandSkipped) {
                     // Swallow exception
                     onCommandSkipped(index, command)
+                    false
                 } catch (e: Throwable) {
                     when (onCommandFailed(index, command, e)) {
                         ErrorResolution.FAIL -> throw e
                         ErrorResolution.CONTINUE -> {
                             // Do nothing
+                            false
                         }
                     }
                 }
             }
+            .any { it }
     }
 
-    private fun takeScreenshotCommand(command: TakeScreenshotCommand) {
+    private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val file = screenshotsDir
             ?.let { File(it, pathStr) }
             ?: File(pathStr)
 
         maestro.takeScreenshot(file)
+
+        return false
     }
 
-    private fun eraseTextCommand(command: EraseTextCommand) {
+    private fun eraseTextCommand(command: EraseTextCommand): Boolean {
         repeat(command.charactersToErase) {
-            maestro.pressKey(KeyCode.BACKSPACE)
+            maestro.pressKey(KeyCode.BACKSPACE, waitForAppToSettle = false)
         }
+        maestro.waitForAppToSettle()
+
+        return true
     }
 
-    private fun pressKeyCommand(command: PressKeyCommand) {
+    private fun pressKeyCommand(command: PressKeyCommand): Boolean {
         maestro.pressKey(command.code)
+
+        return true
     }
 
-    private fun openLinkCommand(command: OpenLinkCommand) {
+    private fun openLinkCommand(command: OpenLinkCommand): Boolean {
         maestro.openLink(command.link)
+
+        return true
     }
 
-    private fun launchAppCommand(it: LaunchAppCommand) {
+    private fun launchAppCommand(it: LaunchAppCommand): Boolean {
         try {
             if (it.clearKeychain == true) {
                 maestro.clearKeychain()
@@ -299,9 +367,17 @@ class Orchestra(
         } catch (e: Exception) {
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${it.appId}: ${e.message}")
         }
+
+        return true
     }
 
-    private fun inputTextCommand(command: InputTextCommand) {
+    private fun clearKeychainCommand(): Boolean {
+        maestro.clearKeychain()
+
+        return true
+    }
+
+    private fun inputTextCommand(command: InputTextCommand): Boolean {
         val isAscii = Charsets.US_ASCII.newEncoder()
             .canEncode(command.text)
 
@@ -310,19 +386,25 @@ class Orchestra(
         }
 
         maestro.inputText(command.text)
+
+        return true
     }
 
-    private fun inputTextRandomCommand(command: InputRandomCommand) {
+    private fun inputTextRandomCommand(command: InputRandomCommand): Boolean {
         inputTextCommand(InputTextCommand(text = command.genRandomString()))
+
+        return true
     }
 
-    private fun assertCommand(command: AssertCommand) {
+    private fun assertCommand(command: AssertCommand): Boolean {
         command.visible?.let { assertVisible(it, command.timeout) }
         command.notVisible?.let { assertNotVisible(it, command.timeout) }
+
+        return false
     }
 
     private fun assertNotVisible(selector: ElementSelector, timeoutMs: Long?) {
-        val result = MaestroTimer.withTimeout(timeoutMs ?: lookupTimeoutMs) {
+        val result = MaestroTimer.withTimeout(timeoutMs ?: adjustedToLatestInteraction(lookupTimeoutMs)) {
             try {
                 findElement(selector, timeoutMs = 2000L)
 
@@ -352,8 +434,8 @@ class Orchestra(
         command: TapOnElementCommand,
         retryIfNoChange: Boolean,
         waitUntilVisible: Boolean,
-    ) {
-        try {
+    ): Boolean {
+        return try {
             val element = findElement(command.selector)
             maestro.tap(
                 element,
@@ -361,10 +443,13 @@ class Orchestra(
                 waitUntilVisible,
                 command.longPress ?: false,
             )
-        } catch (e: MaestroException.ElementNotFound) {
 
+            true
+        } catch (e: MaestroException.ElementNotFound) {
             if (!command.selector.optional) {
                 throw e
+            } else {
+                false
             }
         }
     }
@@ -372,13 +457,15 @@ class Orchestra(
     private fun tapOnPoint(
         command: TapOnPointCommand,
         retryIfNoChange: Boolean,
-    ) {
+    ): Boolean {
         maestro.tap(
             command.x,
             command.y,
             retryIfNoChange,
             command.longPress ?: false,
         )
+
+        return true
     }
 
     private fun findElement(
@@ -386,15 +473,17 @@ class Orchestra(
         timeoutMs: Long? = null
     ): UiElement {
         val timeout = timeoutMs
-            ?: if (selector.optional) {
-                optionalLookupTimeoutMs
-            } else {
-                lookupTimeoutMs
-            }
+            ?: adjustedToLatestInteraction(
+                if (selector.optional) {
+                    optionalLookupTimeoutMs
+                } else {
+                    lookupTimeoutMs
+                }
+            )
 
         val (description, filterFunc) = buildFilter(
             selector,
-            maestro.deviceInfo(),
+            deviceInfo(),
             maestro.viewHierarchy().aggregate(),
         )
 
@@ -406,6 +495,9 @@ class Orchestra(
             maestro.viewHierarchy().root,
         )
     }
+
+    private fun deviceInfo() = deviceInfo
+        ?: maestro.deviceInfo().also { deviceInfo = it }
 
     private fun buildFilter(
         selector: ElementSelector,
@@ -504,9 +596,15 @@ class Orchestra(
         )
     }
 
-    private fun swipeCommand(command: SwipeCommand) {
+    private fun swipeCommand(command: SwipeCommand): Boolean {
         maestro.swipe(command.direction, command.startPoint, command.endPoint, command.duration)
+        return true
     }
+
+    private fun adjustedToLatestInteraction(timeMs: Long) = max(
+        0,
+        timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction)
+    )
 
     private object CommandSkipped : Exception()
 

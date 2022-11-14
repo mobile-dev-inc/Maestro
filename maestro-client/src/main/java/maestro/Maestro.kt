@@ -131,7 +131,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun tap(
         element: UiElement,
         retryIfNoChange: Boolean = true,
-        waitUntilVisible: Boolean = true,
+        waitUntilVisible: Boolean = false,
         longPress: Boolean = false,
     ) {
         LOGGER.info("Tapping on element: $element")
@@ -219,11 +219,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
             LOGGER.info("Nothing changed in the UI.")
         }
-
-        if (retryIfNoChange) {
-            LOGGER.info("Attempting to tap again since there was no change in the UI")
-            tap(x, y, false, longPress)
-        }
     }
 
     private fun tryTakingScreenshot() = try {
@@ -249,11 +244,14 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return if (retryIfNoChange) 2 else 1
     }
 
-    fun pressKey(code: KeyCode) {
+    fun pressKey(code: KeyCode, waitForAppToSettle: Boolean = true) {
         LOGGER.info("Pressing key $code")
 
         driver.pressKey(code)
-        waitForAppToSettle()
+
+        if (waitForAppToSettle) {
+            waitForAppToSettle()
+        }
     }
 
     fun findElementByText(text: String, timeoutMs: Long): UiElement {
@@ -312,7 +310,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return filter(viewHierarchy().aggregate())
     }
 
-    private fun waitForAppToSettle(): ViewHierarchy {
+    fun waitForAppToSettle(): ViewHierarchy {
         // Time buffer for any visual effects and transitions that might occur between actions.
         MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 300)
 

@@ -31,9 +31,9 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.HideKeyboardCommand
-import maestro.orchestra.InputTextCommand
 import maestro.orchestra.InputRandomCommand
 import maestro.orchestra.InputRandomType
+import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.OpenLinkCommand
@@ -217,7 +217,7 @@ data class YamlFluentCommand(
         longPress: Boolean = false,
     ): MaestroCommand {
         val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
-        val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: true
+        val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: false
         val point = (tapOn as? YamlElementSelector)?.point
 
         return if (point != null) {
@@ -242,36 +242,6 @@ data class YamlFluentCommand(
                     retryIfNoChange = retryIfNoChange,
                     waitUntilVisible = waitUntilVisible,
                     longPress = longPress,
-                )
-            )
-        }
-    }
-
-    private fun longPressCommand(tapOn: YamlElementSelectorUnion): MaestroCommand {
-        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
-        val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: true
-        val point = (tapOn as? YamlElementSelector)?.point
-
-        return if (point != null) {
-            val points = point.split(",")
-                .map {
-                    it.trim().toInt()
-                }
-
-            MaestroCommand(
-                TapOnPointCommand(
-                    x = points[0],
-                    y = points[1],
-                    retryIfNoChange = retryIfNoChange,
-                    waitUntilVisible = waitUntilVisible,
-                )
-            )
-        } else {
-            MaestroCommand(
-                command = TapOnElementCommand(
-                    selector = toElementSelector(tapOn),
-                    retryIfNoChange = retryIfNoChange,
-                    waitUntilVisible = waitUntilVisible,
                 )
             )
         }
