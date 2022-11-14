@@ -73,7 +73,6 @@ object DeviceService {
 
     fun prepareDevice(device: Device.Connected) {
         if (device.platform == Platform.IOS) {
-            killIdbCompanion()
             startIdbCompanion(device)
         }
     }
@@ -81,6 +80,14 @@ object DeviceService {
     private fun startIdbCompanion(device: Device.Connected) {
         val idbHost = "localhost"
         val idbPort = 10882
+
+        val isIdbCompanionRunning =
+            try { Socket(idbHost, idbPort).use { true } }
+            catch(_: Exception) { false }
+
+        if (isIdbCompanionRunning) {
+            error("idb_companion is already running. Stop idb_companion and run maestro again")
+        }
 
         val idbProcess = ProcessBuilder("idb_companion", "--udid", device.instanceId)
             .redirectError(ProcessBuilder.Redirect.to(NULL_FILE))
@@ -124,13 +131,6 @@ object DeviceService {
 
             println("Simulator ${device.description} ready")
         }
-    }
-
-    private fun killIdbCompanion() {
-        ProcessBuilder("killall", "idb_companion")
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-            .waitFor()
     }
 
     fun listConnectedDevices(): List<Device.Connected> {
