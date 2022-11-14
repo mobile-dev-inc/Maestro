@@ -249,20 +249,25 @@ data class LaunchAppCommand(
     val appId: String,
     val clearState: Boolean? = null,
     val clearKeychain: Boolean? = null,
+    val stopApp: Boolean? = null,
 ) : Command {
 
     override fun description(): String {
-        val result = if (clearState != true) {
+        var result = if (clearState != true) {
             "Launch app \"$appId\""
         } else {
             "Launch app \"$appId\" with clear state"
         }
 
-        return if (clearKeychain == true) {
-            "$result and clear keychain"
-        } else {
-            result
+        if (clearKeychain == true) {
+            result += " and clear keychain"
         }
+
+        if (stopApp == false) {
+            result += " without stopping app"
+        }
+
+        return result
     }
 
     override fun injectEnv(env: Map<String, String>): LaunchAppCommand {

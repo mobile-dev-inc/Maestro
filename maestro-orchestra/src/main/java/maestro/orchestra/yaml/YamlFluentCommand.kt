@@ -208,6 +208,7 @@ data class YamlFluentCommand(
                 appId = command.appId ?: appId,
                 clearState = command.clearState,
                 clearKeychain = command.clearKeychain,
+                stopApp = command.stopApp,
             )
         )
     }
@@ -339,6 +340,7 @@ data class YamlFluentCommand(
                         appId = null,
                         clearState = null,
                         clearKeychain = null,
+                        stopApp = null,
                     )
                 )
 

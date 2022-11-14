@@ -149,8 +149,6 @@ class AndroidDriver(
             throw IllegalArgumentException("Package $appId is not installed")
         }
 
-        shell("am force-stop $appId")
-
         try {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
             val manifest = apkFile.asManifest()

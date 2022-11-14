@@ -25,6 +25,7 @@ data class YamlLaunchApp(
     val appId: String?,
     val clearState: Boolean?,
     val clearKeychain: Boolean?,
+    val stopApp: Boolean?,
 ) {
 
     companion object {
@@ -36,6 +37,7 @@ data class YamlLaunchApp(
                 appId = appId,
                 clearState = null,
                 clearKeychain = null,
+                stopApp = null,
             )
         }
     }

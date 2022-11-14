@@ -357,7 +357,12 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertHasEvent(Event.LaunchApp("com.example.app"))
+        driver.assertEvents(
+            listOf(
+                Event.StopApp("com.example.app"),
+                Event.LaunchApp("com.example.app")
+            )
+        )
     }
 
     @Test
@@ -1706,6 +1711,26 @@ class IntegrationTest {
 
         // then
         driver.assertEventCount(Event.InputText("Value"), expectedCount = 3)
+    }
+
+    @Test
+    fun `Case 061 - Launch app without stopping it`() {
+        // given
+        val commands = readCommands("061_launchApp_withoutStopping")
+        val driver = driver { }
+        driver.addInstalledApp("com.example.app")
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+            )
+        )
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(
