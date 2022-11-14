@@ -22,6 +22,7 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.runner.TestRunner
+import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.util.MaestroFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -62,8 +63,32 @@ class TestCommand : Callable<Int> {
 
         val (maestro, device) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
 
-        if (!continuous) return TestRunner.runSingle(maestro, device, flowFile, env)
+        return if (flowFile.isDirectory) {
+            if (continuous) {
+                throw CommandLine.ParameterException(
+                    commandSpec.commandLine(),
+                    "Continuous mode is not supported for directories. $flowFile is a directory",
+                )
+            }
 
-        TestRunner.runContinuous(maestro, device, flowFile, env)
+            val suiteResult = TestSuiteInteractor.runTestSuite(
+                maestro,
+                device,
+                flowFile,
+                env
+            )
+
+            if (suiteResult.passed) {
+                0
+            } else {
+                1
+            }
+        } else {
+            if (continuous) {
+                TestRunner.runContinuous(maestro, device, flowFile, env)
+            } else {
+                TestRunner.runSingle(maestro, device, flowFile, env)
+            }
+        }
     }
 }

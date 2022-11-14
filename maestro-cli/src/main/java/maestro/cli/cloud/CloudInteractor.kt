@@ -4,10 +4,12 @@ import maestro.cli.CliError
 import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
-import maestro.cli.cloud.UploadStatusView.uploadUrl
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.WorkspaceUtils
+import maestro.cli.view.TestSuiteStatusView
+import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
+import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.utils.TemporaryDirectory
 import org.fusesource.jansi.Ansi.ansi
 import org.rauschig.jarchivelib.ArchiveFormat
@@ -140,13 +142,23 @@ class CloudInteractor(
                     it.name !in reportedCompletions && it.status in COMPLETED_STATUSES
                 }
                 .forEach {
-                    UploadStatusView.showFlowCompletion(it)
+                    TestSuiteStatusView.showFlowCompletion(
+                        it.toViewModel()
+                    )
 
                     reportedCompletions.add(it.name)
                 }
 
             if (upload.completed) {
-                UploadStatusView.showUploadResult(upload, teamId, appId)
+                TestSuiteStatusView.showSuiteResult(
+                    upload.toViewModel(
+                        TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
+                            uploadId = upload.uploadId,
+                            teamId = teamId,
+                            appId = appId,
+                        )
+                    )
+                )
 
                 return if (upload.status == UploadStatus.Status.ERROR) {
                     1

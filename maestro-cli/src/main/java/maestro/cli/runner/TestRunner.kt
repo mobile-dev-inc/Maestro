@@ -8,6 +8,7 @@ import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
 import maestro.cli.device.Device
+import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.OrchestraAppState
@@ -120,14 +121,7 @@ object TestRunner {
         return try {
             Ok(block())
         } catch (e: Exception) {
-            val message = when (e) {
-                is SyntaxError -> "Could not parse Flow file:\n\n${e.message}"
-                is NoInputException -> "No commands found in Flow file"
-                is InvalidInitFlowFile -> "initFlow file is invalid: ${e.initFlowPath}"
-                is UnicodeNotSupportedError -> "Unicode character input is not supported: ${e.text}. Please use ASCII characters. Follow the issue: https://github.com/mobile-dev-inc/maestro/issues/146"
-                is InterruptedException -> "Interrupted"
-                else -> e.stackTraceToString()
-            }
+            val message = ErrorViewUtils.exceptionToMessage(e)
 
             view.setState(
                 ResultView.UiState.Error(

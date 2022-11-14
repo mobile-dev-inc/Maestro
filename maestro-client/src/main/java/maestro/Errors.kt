@@ -19,7 +19,7 @@
 
 package maestro
 
-sealed class MaestroException(message: String) : RuntimeException(message) {
+sealed class MaestroException(override val message: String) : RuntimeException(message) {
 
     class UnableToLaunchApp(message: String) : MaestroException(message)
 
