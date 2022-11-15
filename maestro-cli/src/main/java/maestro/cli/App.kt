@@ -89,6 +89,7 @@ fun main(args: Array<String>) {
             } else {
                 ex.stackTraceToString()
             }
+            println()
             cmd.err.println(
                 cmd.colorScheme.errorText(message)
             )
