@@ -52,7 +52,7 @@ class Orchestra(
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
 ) {
 
-    private var timeMsOfLastInteraction = 0L
+    private var timeMsOfLastInteraction = System.currentTimeMillis()
     private var deviceInfo: DeviceInfo? = null
 
     /**
@@ -63,6 +63,8 @@ class Orchestra(
         commands: List<MaestroCommand>,
         initState: OrchestraAppState? = null,
     ): Boolean {
+        timeMsOfLastInteraction = System.currentTimeMillis()
+
         val config = YamlCommandReader.getConfig(commands)
         val state = initState ?: config?.initFlow?.let {
             runInitFlow(it) ?: return false
