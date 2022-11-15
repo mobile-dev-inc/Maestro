@@ -6,11 +6,11 @@ plugins {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.18.1"
+        artifact = "com.google.protobuf:protoc:3.21.9"
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.40.1'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.50.2'
         }
     }
     generateProtoTasks {
@@ -71,12 +71,12 @@ sourceSets {
 dependencies {
     protobuf project(':maestro-proto')
 
-    implementation 'io.grpc:grpc-kotlin-stub:1.2.1'
-    implementation 'io.grpc:grpc-netty-shaded:1.45.0'
-    implementation 'io.grpc:grpc-stub:1.45.0'
-    implementation 'io.grpc:grpc-protobuf-lite:1.45.0'
-    implementation 'io.grpc:grpc-okhttp:1.45.0'
-    implementation 'com.google.protobuf:protobuf-kotlin-lite:3.19.4'
+    implementation 'io.grpc:grpc-kotlin-stub:1.3.0'
+    implementation 'io.grpc:grpc-netty-shaded:1.50.2'
+    implementation 'io.grpc:grpc-stub:1.50.2'
+    implementation 'io.grpc:grpc-protobuf-lite:1.50.2'
+    implementation 'io.grpc:grpc-okhttp:1.50.2'
+    implementation 'com.google.protobuf:protobuf-kotlin-lite:3.21.8'
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
