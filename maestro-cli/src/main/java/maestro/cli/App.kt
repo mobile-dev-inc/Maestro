@@ -27,6 +27,7 @@ import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
+import maestro.cli.debuglog.DebugLogStore
 import org.fusesource.jansi.AnsiConsole
 import picocli.CommandLine
 import picocli.CommandLine.Command
@@ -99,6 +100,8 @@ fun main(args: Array<String>) {
 
     val exitCode = commandLine
         .execute(*args)
+
+    DebugLogStore.finalizeRun()
 
     if (commandLine.isVersionHelpRequested) {
         printVersion()

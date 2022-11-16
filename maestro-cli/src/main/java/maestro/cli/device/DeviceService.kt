@@ -6,12 +6,14 @@ import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
 import maestro.MaestroTimer
 import maestro.cli.CliError
+import maestro.cli.debuglog.DebugLogStore
 import maestro.cli.device.ios.Simctl
 import maestro.cli.device.ios.SimctlList
 import maestro.cli.util.EnvUtils
 import java.io.File
 import java.net.Socket
 import java.util.concurrent.TimeUnit
+import java.util.logging.Logger
 import kotlin.concurrent.thread
 
 object DeviceService {
@@ -21,6 +23,8 @@ object DeviceService {
                 .startsWith("Windows")
         ) "NUL" else "/dev/null"
     )
+
+    private val logger = DebugLogStore.loggerFor(DeviceService::class.java)
 
     fun startDevice(device: Device.AvailableForLaunch): Device.Connected {
         when (device.platform) {
@@ -78,6 +82,8 @@ object DeviceService {
     }
 
     private fun startIdbCompanion(device: Device.Connected) {
+        logger.info("startIDBCompanion on $device")
+
         val idbHost = "localhost"
         val idbPort = 10882
 
@@ -89,10 +95,9 @@ object DeviceService {
             error("idb_companion is already running. Stop idb_companion and run maestro again")
         }
 
-        val idbProcess = ProcessBuilder("idb_companion", "--udid", device.instanceId)
-            .redirectError(ProcessBuilder.Redirect.to(NULL_FILE))
-            .redirectOutput(ProcessBuilder.Redirect.to(NULL_FILE))
-            .start()
+        val idbProcessBuilder = ProcessBuilder("idb_companion", "--udid", device.instanceId)
+        DebugLogStore.logOutputOf(idbProcessBuilder)
+        val idbProcess = idbProcessBuilder.start()
 
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             idbProcess.destroy()
