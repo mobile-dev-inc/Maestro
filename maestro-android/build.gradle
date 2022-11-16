@@ -26,6 +26,11 @@ protobuf {
     }
 }
 
+kotlin.sourceSets.all {
+    // Prevent build warnings for grpc's generated opt-in code
+    languageSettings.optIn("kotlin.RequiresOptIn")
+}
+
 android {
     compileSdk 31
 
