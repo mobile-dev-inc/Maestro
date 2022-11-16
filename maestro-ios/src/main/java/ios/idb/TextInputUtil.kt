@@ -195,7 +195,7 @@ internal object TextInputUtil {
         '*' to keyPressShiftedToEvents(37),
         '(' to keyPressShiftedToEvents(38),
         ')' to keyPressShiftedToEvents(39),
-        '"' to keyPressShiftedToEvents(45),
+        '_' to keyPressShiftedToEvents(45),
         '+' to keyPressShiftedToEvents(46),
         '{' to keyPressShiftedToEvents(47),
         '}' to keyPressShiftedToEvents(48),
