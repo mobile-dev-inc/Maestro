@@ -91,6 +91,7 @@ jreleaser {
                 path = 'build/distributions/maestro.zip'
             }
             brew {
+                extraProperties.put('skipJava', 'true')
                 active = 'RELEASE'
                 formulaName = 'Maestro'
 
