@@ -84,6 +84,7 @@ private fun printVersion() {
 fun main(args: Array<String>) {
     val commandLine = CommandLine(App())
         .setUsageHelpWidth(160)
+        .setCaseInsensitiveEnumValuesAllowed(true)
         .setExecutionExceptionHandler { ex, cmd, parseResult ->
             val message = if (ex is CliError) {
                 ex.message

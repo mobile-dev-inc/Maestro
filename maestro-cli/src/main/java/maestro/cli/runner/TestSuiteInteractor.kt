@@ -3,24 +3,33 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.model.FlowStatus
+import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
+import okio.Sink
 import java.io.File
 
-object TestSuiteInteractor {
+class TestSuiteInteractor(
+    private val maestro: Maestro,
+    private val device: Device? = null,
+    private val reporter: TestSuiteReporter,
+) {
 
     fun runTestSuite(
-        maestro: Maestro,
-        device: Device?,
         input: File,
+        reportOut: Sink?,
         env: Map<String, String>,
-    ): SuiteResult {
+    ): TestExecutionSummary {
         return if (input.isFile) {
             runTestSuite(
-                maestro, device, listOf(input), env
+                listOf(input),
+                reportOut,
+                env,
             )
         } else {
             val flowFiles = input
@@ -33,18 +42,19 @@ object TestSuiteInteractor {
                 .toList()
 
             runTestSuite(
-                maestro, device, flowFiles, env
+                flowFiles,
+                reportOut,
+                env,
             )
         }
     }
 
     fun runTestSuite(
-        maestro: Maestro,
-        device: Device?,
         flows: List<File>,
+        reportOut: Sink?,
         env: Map<String, String>,
-    ): SuiteResult {
-        val flowResults = mutableListOf<SuiteResult.FlowResult>()
+    ): TestExecutionSummary {
+        val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
 
         PrintUtils.message("Waiting for flows to complete...")
         println()
@@ -59,7 +69,6 @@ object TestSuiteInteractor {
 
             // TODO accumulate extra information
             // - Command statuses
-            // - Errors
             // - View hierarchies
             flowResults.add(result)
         }
@@ -77,20 +86,35 @@ object TestSuiteInteractor {
             )
         )
 
-        return SuiteResult(
+        val summary = TestExecutionSummary(
             passed = passed,
-            flows = flowResults,
-            device = device,
+            deviceName = device?.description,
+            suites = listOf(
+                TestExecutionSummary.SuiteResult(
+                    passed = passed,
+                    flows = flowResults
+                )
+            )
         )
+
+        if (reportOut != null) {
+            reporter.report(
+                summary,
+                reportOut
+            )
+        }
+
+        return summary
     }
 
     private fun runFlow(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,
-    ): SuiteResult.FlowResult {
+    ): TestExecutionSummary.FlowResult {
         var flowName: String = flowFile.nameWithoutExtension
         var flowStatus: FlowStatus
+        var errorMessage: String? = null
 
         try {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
@@ -111,7 +135,7 @@ object TestSuiteInteractor {
         } catch (e: Exception) {
             flowStatus = FlowStatus.ERROR
 
-            // TODO preserve error for report
+            errorMessage = ErrorViewUtils.exceptionToMessage(e)
         }
 
         TestSuiteStatusView.showFlowCompletion(
@@ -121,23 +145,16 @@ object TestSuiteInteractor {
             )
         )
 
-        return SuiteResult.FlowResult(
+        return TestExecutionSummary.FlowResult(
             name = flowName,
+            fileName = flowFile.nameWithoutExtension,
             status = flowStatus,
+            failure = if (flowStatus == FlowStatus.ERROR) {
+                TestExecutionSummary.Failure(
+                    message = errorMessage ?: "Unknown error",
+                )
+            } else null,
         )
-    }
-
-    data class SuiteResult(
-        val passed: Boolean,
-        val flows: List<FlowResult>,
-        val device: Device? = null,
-    ) {
-
-        data class FlowResult(
-            val name: String,
-            val status: FlowStatus,  // TODO do not depend on view model
-        )
-
     }
 
 }
