@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.15.0 - 2022-11-17
+* Feature: run all tests in a folder as a suite
+* Feature: XML test report in JUnit-compatible format
+* Feature: `copyTextFrom` command for copying text from a view
+* Feature: `maestro bugreport` command for capturing Maestro logs
+* **Breaking change**: Removed `clipboardPaste` command in favour of new `pasteText` command 
+* Fix: Java 8 compatibility issue for M1 users
+* Fix: `_` character was mapped incorrectly on iOS
+* Fix: first `tapOn` command was failing unless it was preceeded by `launchApp` or `openLink`
+* Tweak: Maestro no longer kills running `idb_companion` processes
+* Tweak: updated gRPC version to 1.52.0
+
 ## 1.14.0 - 2022-11-14
 * Fix: passing env parameters to subflows and other env params
 * Speeding up maestro flows
