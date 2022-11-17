@@ -8,6 +8,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Properties
+import java.util.logging.ConsoleHandler
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.LogRecord
@@ -23,7 +24,9 @@ object DebugLogStore {
     val logDirectory = File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR))
 
     private val currentRunLogDirectory: File
-    private val maestroLogFile: File
+    private val consoleHandler: ConsoleHandler
+    private val fileHandler: FileHandler
+
     init {
         val dateFormatter = DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT)
         val date = dateFormatter.format(LocalDateTime.now())
@@ -32,25 +35,18 @@ object DebugLogStore {
         currentRunLogDirectory.mkdirs()
         removeOldLogs(logDirectory)
 
-        val console = Logger.getLogger("")
-        console.level = Level.WARNING
-        console.handlers.map {
-            it.formatter = object : SimpleFormatter() {
-                override fun format(record: LogRecord): String {
-                    val level = if (record.level.intValue() > 900) "Error: " else ""
-                    return "$level${record.message}\n"
-                }
+        consoleHandler = ConsoleHandler()
+        consoleHandler.level = Level.WARNING
+        consoleHandler.formatter = object : SimpleFormatter() {
+            override fun format(record: LogRecord): String {
+                val level = if (record.level.intValue() > 900) "Error: " else ""
+                return "$level${record.message}\n"
             }
         }
 
-        maestroLogFile = logFile("maestro")
-        logSystemInfo()
-    }
-
-    fun loggerFor(clazz: Class<*>): Logger {
-        val logger = Logger.getLogger(clazz.name)
-
-        val fileHandler = FileHandler(maestroLogFile.absolutePath)
+        val maestroLogFile = logFile("maestro")
+        fileHandler = FileHandler(maestroLogFile.absolutePath)
+        fileHandler.level = Level.ALL
         fileHandler.formatter = object : SimpleFormatter() {
             private val format = "[%1\$tF %1\$tT] [%2$-7s] %3\$s %n"
 
@@ -66,6 +62,13 @@ object DebugLogStore {
             }
         }
 
+        logSystemInfo()
+    }
+
+    fun loggerFor(clazz: Class<*>): Logger {
+        val logger = Logger.getLogger(clazz.name)
+        logger.useParentHandlers = false
+        logger.addHandler(consoleHandler)
         logger.addHandler(fileHandler)
         return logger
     }
@@ -80,6 +83,7 @@ object DebugLogStore {
     }
 
     fun finalizeRun() {
+        fileHandler.close()
         val output = File(currentRunLogDirectory.parent, "${currentRunLogDirectory.name}.zip")
         FileUtils.zipDir(currentRunLogDirectory.toPath(), output.toPath())
         currentRunLogDirectory.deleteRecursively()

@@ -21,6 +21,7 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.cli.debuglog.DebugLogStore
 import maestro.cli.device.Device
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
@@ -31,6 +32,8 @@ import maestro.orchestra.yaml.YamlCommandReader
 import java.util.IdentityHashMap
 
 object MaestroCommandRunner {
+
+    private val logger = DebugLogStore.loggerFor(MaestroCommand::class.java)
 
     fun runCommands(
         maestro: Maestro,
@@ -67,10 +70,12 @@ object MaestroCommandRunner {
         val orchestra = Orchestra(
             maestro,
             onCommandStart = { _, command ->
+                logger.info("${command.description()} RUNNING")
                 commandStatuses[command] = CommandStatus.RUNNING
                 refreshUi()
             },
             onCommandComplete = { _, command ->
+                logger.info("${command.description()} COMPLETED")
                 commandStatuses[command] = CommandStatus.COMPLETED
                 refreshUi()
             },
@@ -79,19 +84,23 @@ object MaestroCommandRunner {
                     throw e
                 }
 
+                logger.info("${command.description()} FAILED")
                 commandStatuses[command] = CommandStatus.FAILED
                 refreshUi()
                 Orchestra.ErrorResolution.FAIL
             },
             onCommandSkipped = { _, command ->
+                logger.info("${command.description()} SKIPPED")
                 commandStatuses[command] = CommandStatus.SKIPPED
                 refreshUi()
             },
             onCommandReset = { command ->
+                logger.info("${command.description()} PENDING")
                 commandStatuses[command] = CommandStatus.PENDING
                 refreshUi()
             },
             onCommandMetadataUpdate = { command, metadata ->
+                logger.info("${command.description()} metadata $metadata")
                 commandMetadata[command] = metadata
                 refreshUi()
             },

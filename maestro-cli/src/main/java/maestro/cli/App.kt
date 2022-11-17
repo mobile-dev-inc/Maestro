@@ -84,15 +84,19 @@ private fun printVersion() {
 
 @Suppress("SpreadOperator")
 fun main(args: Array<String>) {
+    val logger = DebugLogStore.loggerFor(App::class.java)
+
     val commandLine = CommandLine(App())
         .setUsageHelpWidth(160)
         .setCaseInsensitiveEnumValuesAllowed(true)
-        .setExecutionExceptionHandler { ex, cmd, parseResult ->
+        .setExecutionExceptionHandler { ex, cmd, _ ->
             val message = if (ex is CliError) {
                 ex.message
             } else {
                 ex.stackTraceToString()
             }
+
+            logger.info(message)
             println()
             cmd.err.println(
                 cmd.colorScheme.errorText(message)
