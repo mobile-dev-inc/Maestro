@@ -375,10 +375,6 @@ data class YamlFluentCommand(
                     inputRandomText = YamlInputRandomText(length = 8),
                 )
 
-                "inputRandomText" -> YamlFluentCommand(
-                    inputRandomText = YamlInputRandomText(length = 8),
-                )
-
                 "inputRandomNumber" -> YamlFluentCommand(
                     inputRandomNumber = YamlInputRandomNumber(length = 8),
                 )
