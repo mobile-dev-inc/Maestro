@@ -23,15 +23,13 @@ object DebugLogStore {
     private val logDirectory: File
     private val maestroLogFile: File
     init {
-        System.setProperty("java.util.logging.SimpleFormatter.format", "[%1\$tF %1\$tT] [%4$-7s] %5\$s %n")
-
         val dateFormatter = DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT)
         val date = dateFormatter.format(LocalDateTime.now())
         val baseDir = File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR))
         logDirectory = File(baseDir, date)
         logDirectory.mkdirs()
         removeOldLogs(baseDir)
-        println("Debug logs are stored in $logDirectory")
+        println("Debug log store $logDirectory.zip")
 
         maestroLogFile = logFile("maestro")
         logSystemInfo()
