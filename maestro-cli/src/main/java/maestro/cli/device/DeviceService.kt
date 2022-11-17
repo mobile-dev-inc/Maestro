@@ -108,14 +108,14 @@ object DeviceService {
             .build()
 
         IdbIOSDevice(channel).use { iosDevice ->
-            println("Waiting for idb service to start..")
+            logger.warning("Waiting for idb service to start..")
             MaestroTimer.retryUntilTrue(timeoutMs = 60000, delayMs = 100) {
                 Socket(idbHost, idbPort).use { true }
             } || error("idb_companion did not start in time")
 
             // The first time a simulator boots up, it can
             // take 10's of seconds to complete.
-            println("Waiting for Simulator to boot..")
+            logger.warning("Waiting for Simulator to boot..")
             MaestroTimer.retryUntilTrue(timeoutMs = 120000, delayMs = 100) {
                 val process = ProcessBuilder("xcrun", "simctl", "bootstatus", device.instanceId)
                     .start()
@@ -125,7 +125,7 @@ object DeviceService {
             } || error("Simulator failed to boot")
 
             // Test if idb can get accessibility info elements with non-zero frame with
-            println("Waiting for Accessibility info to become available..")
+            logger.warning("Waiting for Accessibility info to become available..")
             MaestroTimer.retryUntilTrue(timeoutMs = 20000, delayMs = 100) {
                 val nodes = iosDevice
                     .contentDescriptor()
@@ -134,7 +134,7 @@ object DeviceService {
                 nodes?.any { it.frame?.width != 0F } == true
             } || error("idb_companion is not able to fetch accessibility info")
 
-            println("Simulator ${device.description} ready")
+            logger.warning("Simulator ready")
         }
     }
 

@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Properties
 import java.util.logging.FileHandler
+import java.util.logging.Level
 import java.util.logging.LogRecord
 import java.util.logging.Logger
 import java.util.logging.SimpleFormatter
@@ -30,6 +31,17 @@ object DebugLogStore {
         currentRunLogDirectory = File(logDirectory, date)
         currentRunLogDirectory.mkdirs()
         removeOldLogs(logDirectory)
+
+        val console = Logger.getLogger("")
+        console.level = Level.WARNING
+        console.handlers.map {
+            it.formatter = object : SimpleFormatter() {
+                override fun format(record: LogRecord): String {
+                    val level = if (record.level.intValue() > 900) "Error: " else ""
+                    return "$level${record.message}\n"
+                }
+            }
+        }
 
         maestroLogFile = logFile("maestro")
         logSystemInfo()
