@@ -259,12 +259,12 @@ class IOSDriver(
         val width = widthPixels ?: throw IllegalStateException("Device width not available")
         val height = heightPixels ?: throw IllegalStateException("Device height not available")
 
-        when(swipeDirection) {
+        when (swipeDirection) {
             SwipeDirection.UP -> {
                 iosDevice.scroll(
                     xStart = width / 4,
                     yStart = height,
-                    xEnd = width / 4 ,
+                    xEnd = width / 4,
                     yEnd = height / 4,
                     durationMs = durationMs,
                     IdbIOSDevice.ScrollType.SWIPE
@@ -282,9 +282,9 @@ class IOSDriver(
             }
             SwipeDirection.RIGHT -> {
                 iosDevice.scroll(
-                    xStart =  0,
+                    xStart = 0,
                     yStart = height / 4,
-                    xEnd =  width / 4 ,
+                    xEnd = width / 4,
                     yEnd = height / 4,
                     durationMs = durationMs,
                     IdbIOSDevice.ScrollType.SWIPE
@@ -292,9 +292,9 @@ class IOSDriver(
             }
             SwipeDirection.LEFT -> {
                 iosDevice.scroll(
-                    xStart = width / 4 ,
+                    xStart = width / 4,
                     yStart = height / 4,
-                    xEnd =  0,
+                    xEnd = 0,
                     yEnd = height / 4,
                     durationMs = durationMs,
                     IdbIOSDevice.ScrollType.SWIPE
@@ -307,10 +307,6 @@ class IOSDriver(
 
     override fun hideKeyboard() {
         iosDevice.pressKey(40).expect {}
-    }
-
-    override fun clipboardPaste() {
-        iosDevice.pressKey(125).expect {}
     }
 
     override fun takeScreenshot(out: Sink) {

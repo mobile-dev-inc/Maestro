@@ -104,13 +104,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
-    fun clipboardPaste() {
-        LOGGER.info("Paste from Clipboard")
-
-        driver.clipboardPaste()
-        waitForAppToSettle()
-    }
-
     fun swipe(swipeDirection: SwipeDirection? = null, start: Point? = null, end: Point? = null, duration: Long) {
         when {
             swipeDirection != null -> driver.swipe(swipeDirection, duration)

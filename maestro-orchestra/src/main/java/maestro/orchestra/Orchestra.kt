@@ -145,7 +145,6 @@ class Orchestra(
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: true)
             is BackPressCommand -> backPressCommand()
             is HideKeyboardCommand -> hideKeyboardCommand()
-            is ClipboardPasteCommand -> clipboardPasteCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
@@ -191,11 +190,6 @@ class Orchestra(
 
     private fun scrollVerticalCommand(): Boolean {
         maestro.scrollVertical()
-        return true
-    }
-
-    private fun clipboardPasteCommand(): Boolean {
-        maestro.clipboardPaste()
         return true
     }
 

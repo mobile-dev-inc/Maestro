@@ -187,12 +187,6 @@ class FakeDriver : Driver {
         events += Event.HideKeyboard
     }
 
-    override fun clipboardPaste() {
-        ensureOpen()
-
-        events += Event.ClipboardPaste
-    }
-
     override fun takeScreenshot(out: Sink) {
         ensureOpen()
 
@@ -307,8 +301,6 @@ class FakeDriver : Driver {
         object BackPress : Event(), UserInteraction
 
         object HideKeyboard : Event(), UserInteraction
-        
-        object ClipboardPaste : Event(), UserInteraction
 
         data class InputText(
             val text: String
@@ -320,7 +312,7 @@ class FakeDriver : Driver {
             val durationMs: Long
         ) : Event(), UserInteraction
 
-        data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long): Event(), UserInteraction
+        data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(), UserInteraction
 
         data class LaunchApp(
             val appId: String

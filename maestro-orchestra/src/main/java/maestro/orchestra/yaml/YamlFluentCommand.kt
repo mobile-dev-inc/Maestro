@@ -25,7 +25,6 @@ import maestro.Point
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
-import maestro.orchestra.ClipboardPasteCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
@@ -99,7 +98,6 @@ data class YamlFluentCommand(
                 when (action) {
                     "back" -> MaestroCommand(BackPressCommand())
                     "hide keyboard" -> MaestroCommand(HideKeyboardCommand())
-                    "clipboard paste" -> MaestroCommand(ClipboardPasteCommand())
                     "scroll" -> MaestroCommand(ScrollCommand())
                     "clearKeychain" -> MaestroCommand(ClearKeychainCommand())
                     else -> error("Unknown navigation target: $action")
@@ -386,10 +384,6 @@ data class YamlFluentCommand(
 
                 "hide keyboard", "hideKeyboard" -> YamlFluentCommand(
                     action = "hide keyboard"
-                )
-
-                "clipboard paste", "clipboardPaste" -> YamlFluentCommand(
-                    action = "clipboard paste"
                 )
 
                 "scroll" -> YamlFluentCommand(

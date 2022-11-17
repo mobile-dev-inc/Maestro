@@ -143,31 +143,6 @@ class HideKeyboardCommand : Command {
     }
 }
 
-class ClipboardPasteCommand : Command {
-
-    override fun equals(other: Any?): Boolean {
-        if (this == other) return true
-        if (javaClass != other?.javaClass) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return javaClass.hashCode()
-    }
-
-    override fun toString(): String {
-        return "ClipboardPasteCommand()"
-    }
-
-    override fun description(): String {
-        return "Paste from Clipboard"
-    }
-
-    override fun injectEnv(env: Map<String, String>): ClipboardPasteCommand {
-        return this
-    }
-}
-
 data class TapOnElementCommand(
     val selector: ElementSelector,
     val retryIfNoChange: Boolean? = null,

@@ -66,8 +66,6 @@ interface Driver {
 
     fun hideKeyboard()
 
-    fun clipboardPaste()
-
     fun takeScreenshot(out: Sink)
 
     fun setLocation(latitude: Double, longitude: Double)
