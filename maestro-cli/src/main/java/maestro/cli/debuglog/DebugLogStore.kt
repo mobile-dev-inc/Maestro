@@ -19,17 +19,17 @@ object DebugLogStore {
     private const val APP_AUTHOR = "mobile_dev"
     private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private const val KEEP_LOG_COUNT = 5
+    val logDirectory = File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR))
 
-    private val logDirectory: File
+    private val currentRunLogDirectory: File
     private val maestroLogFile: File
     init {
         val dateFormatter = DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT)
         val date = dateFormatter.format(LocalDateTime.now())
-        val baseDir = File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR))
-        logDirectory = File(baseDir, date)
-        logDirectory.mkdirs()
-        removeOldLogs(baseDir)
-        println("Debug log store $logDirectory.zip")
+
+        currentRunLogDirectory = File(logDirectory, date)
+        currentRunLogDirectory.mkdirs()
+        removeOldLogs(logDirectory)
 
         maestroLogFile = logFile("maestro")
         logSystemInfo()
@@ -68,13 +68,13 @@ object DebugLogStore {
     }
 
     fun finalizeRun() {
-        val output = File(logDirectory.parent, "${logDirectory.name}.zip")
-        FileUtils.zipDir(logDirectory.toPath(), output.toPath())
-        logDirectory.deleteRecursively()
+        val output = File(currentRunLogDirectory.parent, "${currentRunLogDirectory.name}.zip")
+        FileUtils.zipDir(currentRunLogDirectory.toPath(), output.toPath())
+        currentRunLogDirectory.deleteRecursively()
     }
 
     private fun logFile(named: String): File {
-        return File(logDirectory, "$named.log")
+        return File(currentRunLogDirectory, "$named.log")
     }
 
     private fun removeOldLogs(baseDir: File) {

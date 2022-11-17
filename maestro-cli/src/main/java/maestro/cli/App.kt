@@ -19,6 +19,7 @@
 
 package maestro.cli
 
+import maestro.cli.command.BugReportCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.LoginCommand
@@ -46,6 +47,7 @@ import kotlin.system.exitProcess
         DownloadSamplesCommand::class,
         LoginCommand::class,
         LogoutCommand::class,
+        BugReportCommand::class,
     ]
 )
 class App {
