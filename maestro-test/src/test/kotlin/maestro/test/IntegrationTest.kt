@@ -1710,6 +1710,32 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 062 - Copy paste text`() {
+
+        // Given
+        val commands = readCommands("062_copy_paste_text")
+
+        val myCopiedText = "Some text to copy"
+
+        val driver = driver {
+            element {
+                id = "com.google.android.inputmethod.latin:id/myId"
+                text = myCopiedText
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertCurrentTextInput(myCopiedText)
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

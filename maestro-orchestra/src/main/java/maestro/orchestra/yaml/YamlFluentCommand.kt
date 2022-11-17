@@ -26,6 +26,7 @@ import maestro.orchestra.AssertCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.Condition
+import maestro.orchestra.CopyTextFromCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -36,6 +37,7 @@ import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.OpenLinkCommand
+import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
@@ -75,6 +77,7 @@ data class YamlFluentCommand(
     val runFlow: YamlRunFlow? = null,
     val setLocation: YamlSetLocation? = null,
     val repeat: YamlRepeatCommand? = null,
+    val copyTextFrom: YamlElementSelectorUnion? = null
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -100,6 +103,7 @@ data class YamlFluentCommand(
                     "hide keyboard" -> MaestroCommand(HideKeyboardCommand())
                     "scroll" -> MaestroCommand(ScrollCommand())
                     "clearKeychain" -> MaestroCommand(ClearKeychainCommand())
+                    "pasteText" -> MaestroCommand(PasteTextCommand())
                     else -> error("Unknown navigation target: $action")
                 }
             )
@@ -145,6 +149,7 @@ data class YamlFluentCommand(
                     )
                 )
             )
+            copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -319,6 +324,14 @@ data class YamlFluentCommand(
         )
     }
 
+    private fun copyTextFromCommand(
+        copyText: YamlElementSelectorUnion
+    ): MaestroCommand {
+        return MaestroCommand(CopyTextFromCommand(
+            selector = toElementSelector(copyText)
+        ))
+    }
+
     private fun YamlCondition.toCondition(): Condition {
         return Condition(
             visible = visible?.let { toElementSelector(it) },
@@ -384,6 +397,10 @@ data class YamlFluentCommand(
 
                 "hide keyboard", "hideKeyboard" -> YamlFluentCommand(
                     action = "hide keyboard"
+                )
+
+                "pasteText" -> YamlFluentCommand(
+                    action = "pasteText"
                 )
 
                 "scroll" -> YamlFluentCommand(

@@ -52,6 +52,8 @@ class Orchestra(
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
 ) {
 
+    private var copiedText: String? = null
+
     private var timeMsOfLastInteraction = System.currentTimeMillis()
     private var deviceInfo: DeviceInfo? = null
 
@@ -146,6 +148,8 @@ class Orchestra(
             is BackPressCommand -> backPressCommand()
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
+            is CopyTextFromCommand -> copyTextFromCommand(command)
+            is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is InputTextCommand -> inputTextCommand(command)
@@ -601,6 +605,18 @@ class Orchestra(
         0,
         timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction)
     )
+
+    private fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
+        val element = findElement(command.selector)
+        copiedText = element.treeNode.attributes["text"]
+            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: $element")
+        return true
+    }
+
+    private fun pasteText(): Boolean {
+        copiedText?.let { maestro.inputText(it) }
+        return true
+    }
 
     private object CommandSkipped : Exception()
 

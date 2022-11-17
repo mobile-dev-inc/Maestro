@@ -47,6 +47,8 @@ data class MaestroCommand(
     val runFlowCommand: RunFlowCommand? = null,
     val setLocationCommand: SetLocationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
+    val copyTextCommand: CopyTextFromCommand? = null,
+    val pasteTextCommand: PasteTextCommand? = null
 ) {
 
     constructor(command: Command) : this(
@@ -71,6 +73,8 @@ data class MaestroCommand(
         runFlowCommand = command as? RunFlowCommand,
         setLocationCommand = command as? SetLocationCommand,
         repeatCommand = command as? RepeatCommand,
+        copyTextCommand = command as? CopyTextFromCommand,
+        pasteTextCommand = command as? PasteTextCommand
     )
 
     fun asCommand(): Command? = when {
@@ -95,6 +99,8 @@ data class MaestroCommand(
         runFlowCommand != null -> runFlowCommand
         setLocationCommand != null -> setLocationCommand
         repeatCommand != null -> repeatCommand
+        copyTextCommand != null -> copyTextCommand
+        pasteTextCommand != null -> pasteTextCommand
         else -> null
     }
 

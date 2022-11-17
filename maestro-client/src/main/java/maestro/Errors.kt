@@ -42,4 +42,6 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
     class UnableToTakeScreenshot(message: String) : MaestroException(message)
 
     class DestinationIsNotWritable(message: String) : MaestroException(message)
+
+    class UnableToCopyTextFromElement(message: String): MaestroException(message)
 }

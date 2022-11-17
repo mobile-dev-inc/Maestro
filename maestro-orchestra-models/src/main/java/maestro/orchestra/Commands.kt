@@ -143,6 +143,33 @@ class HideKeyboardCommand : Command {
     }
 }
 
+
+data class CopyTextFromCommand(
+    val selector: ElementSelector,
+) : Command {
+
+    override fun description(): String {
+        return "Copy text from element with ${selector.description()}"
+    }
+
+    override fun injectEnv(env: Map<String, String>): CopyTextFromCommand {
+        return copy(
+            selector = selector.injectEnv(env)
+        )
+    }
+}
+
+class PasteTextCommand : Command {
+
+    override fun description(): String {
+        return "Paste text"
+    }
+
+    override fun injectEnv(env: Map<String, String>): PasteTextCommand {
+        return this
+    }
+}
+
 data class TapOnElementCommand(
     val selector: ElementSelector,
     val retryIfNoChange: Boolean? = null,
