@@ -72,6 +72,9 @@ class CloudCommand : Callable<Int> {
     @Option(order = 9, names = ["--async"], description = ["Run the upload asynchronously"])
     private var async: Boolean = false
 
+    @Option(order = 10, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
+    private var androidApiLevel: Int? = null
+
     override fun call(): Int {
         return CloudInteractor(
             client = ApiClient(apiUrl),
@@ -87,6 +90,7 @@ class CloudCommand : Callable<Int> {
             branch = branch,
             pullRequestId = pullRequestId,
             apiKey = apiKey,
+            androidApiLevel = androidApiLevel,
         )
     }
 

@@ -65,6 +65,9 @@ class UploadCommand : Callable<Int> {
     @Option(order = 8, names = ["--name"], description = ["Name of the upload"])
     private var uploadName: String? = null
 
+    @Option(order = 9, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
+    private var androidApiLevel: Int? = null
+
     override fun call(): Int {
         println(
             ansi()
@@ -87,6 +90,7 @@ class UploadCommand : Callable<Int> {
             branch = branch,
             pullRequestId = pullRequestId,
             apiKey = apiKey,
+            androidApiLevel = androidApiLevel,
         )
     }
 

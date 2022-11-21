@@ -39,6 +39,7 @@ class CloudInteractor(
         branch: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
+        androidApiLevel: Int? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -78,6 +79,7 @@ class CloudInteractor(
                 branch,
                 pullRequestId,
                 env,
+                androidApiLevel,
             ) { totalBytes, bytesWritten ->
                 uploadProgress.set(totalBytes, bytesWritten)
             }

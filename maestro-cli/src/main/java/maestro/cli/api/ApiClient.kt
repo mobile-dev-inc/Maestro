@@ -139,6 +139,7 @@ class ApiClient(
         branch: String?,
         pullRequestId: String?,
         env: Map<String, String>? = null,
+        androidApiLevel: Int?,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): UploadResponse {
         if (!appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -154,6 +155,7 @@ class ApiClient(
         pullRequestId?.let { requestPart["pullRequestId"] = it }
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
+        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
