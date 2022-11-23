@@ -12,10 +12,7 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.OrchestraAppState
-import maestro.orchestra.error.InvalidInitFlowFile
-import maestro.orchestra.error.NoInputException
-import maestro.orchestra.error.SyntaxError
-import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import kotlin.concurrent.thread
@@ -31,7 +28,8 @@ object TestRunner {
         val view = ResultView()
         val result = runCatching(view) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .map { it.injectEnv(env) }
+                .withEnv(env)
+
             MaestroCommandRunner.runCommands(
                 maestro,
                 device,
@@ -66,7 +64,7 @@ object TestRunner {
                 }
 
                 val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                    .map { it.injectEnv(env) }
+                    .withEnv(env)
                 val initFlow = getInitFlow(commands)
 
                 // Restart the flow if anything has changed

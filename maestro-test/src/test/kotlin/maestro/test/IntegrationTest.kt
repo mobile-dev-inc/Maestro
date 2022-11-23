@@ -14,6 +14,7 @@ import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.Orchestra
 import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.test.drivers.FakeDriver
 import maestro.test.drivers.FakeDriver.Event
@@ -810,19 +811,17 @@ class IntegrationTest {
     fun `Case 028 - Env`() {
         // Given
         val commands = readCommands("028_env")
-            .map {
-                it.injectEnv(
-                    envParameters = mapOf(
-                        "APP_ID" to "com.example.app",
-                        "BUTTON_ID" to "button_id",
-                        "BUTTON_TEXT" to "button_text",
-                        "PASSWORD" to "testPassword",
-                        "NON_EXISTENT_TEXT" to "nonExistentText",
-                        "NON_EXISTENT_ID" to "nonExistentId",
-                        "URL" to "secretUrl",
-                    )
+            .withEnv(
+                mapOf(
+                    "APP_ID" to "com.example.app",
+                    "BUTTON_ID" to "button_id",
+                    "BUTTON_TEXT" to "button_text",
+                    "PASSWORD" to "testPassword",
+                    "NON_EXISTENT_TEXT" to "nonExistentText",
+                    "NON_EXISTENT_ID" to "nonExistentId",
+                    "URL" to "secretUrl",
                 )
-            }
+            )
 
         val driver = driver {
 
@@ -1388,13 +1387,11 @@ class IntegrationTest {
     fun `Case 049 - Run flow conditionally`() {
         // Given
         val commands = readCommands("049_run_flow_conditionally")
-            .map {
-                it.injectEnv(
-                    mapOf(
-                        "NOT_CLICKED" to "Not Clicked"
-                    )
+            .withEnv(
+                mapOf(
+                    "NOT_CLICKED" to "Not Clicked"
                 )
-            }
+            )
 
         val driver = driver {
             val indicator = element {
@@ -1611,13 +1608,11 @@ class IntegrationTest {
     fun `Case 057 - Pass inner env variables to runFlow`() {
         // Given
         val commands = readCommands("057_runFlow_env")
-            .map {
-                it.injectEnv(
-                    mapOf(
-                        "OUTER_ENV" to "Outer Parameter"
-                    )
+            .withEnv(
+                mapOf(
+                    "OUTER_ENV" to "Outer Parameter"
                 )
-            }
+            )
 
         val driver = driver {
         }
@@ -1672,13 +1667,11 @@ class IntegrationTest {
     fun `Case 060 - Pass env param to an env param`() {
         // given
         val commands = readCommands("060_pass_env_to_env")
-            .map {
-                it.injectEnv(
-                    mapOf(
-                        "PARAM" to "Value"
-                    )
+            .withEnv(
+                mapOf(
+                    "PARAM" to "Value"
                 )
-            }
+            )
         val driver = driver { }
 
         // when
@@ -1734,6 +1727,28 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertCurrentTextInput(myCopiedText)
+    }
+
+    @Test
+    fun `Case 063 - Javascript injection`() {
+        // given
+        val commands = readCommands("063_js_injection")
+        val driver = driver { }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertEvents(
+            listOf(
+                Event.InputText("1"),
+                Event.InputText("2"),
+                Event.InputText("12"),
+                Event.InputText("3.0"),
+            )
+        )
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(

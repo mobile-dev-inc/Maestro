@@ -10,6 +10,7 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
+import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
 import java.io.File
@@ -118,7 +119,7 @@ class TestSuiteInteractor(
 
         try {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .map { it.injectEnv(env) }
+                .withEnv(env)
 
             val config = YamlCommandReader.getConfig(commands)
 

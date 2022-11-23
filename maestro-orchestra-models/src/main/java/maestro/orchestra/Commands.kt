@@ -22,14 +22,17 @@ package maestro.orchestra
 import maestro.KeyCode
 import maestro.Point
 import maestro.SwipeDirection
-import maestro.orchestra.util.Env.injectEnv
+import maestro.js.JsEngine
+import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.util.InputRandomTextHelper
 
 sealed interface Command {
 
     fun description(): String
 
-    fun injectEnv(env: Map<String, String>): Command
+    fun evaluateScripts(jsEngine: JsEngine): Command
+
+    fun visible(): Boolean = true
 
 }
 
@@ -58,7 +61,7 @@ data class SwipeCommand(
         }
     }
 
-    override fun injectEnv(env: Map<String, String>): SwipeCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): SwipeCommand {
         return this
     }
 
@@ -87,10 +90,9 @@ class ScrollCommand : Command {
         return "Scroll vertically"
     }
 
-    override fun injectEnv(env: Map<String, String>): ScrollCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): ScrollCommand {
         return this
     }
-
 }
 
 class BackPressCommand : Command {
@@ -113,7 +115,7 @@ class BackPressCommand : Command {
         return "Press back"
     }
 
-    override fun injectEnv(env: Map<String, String>): BackPressCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): BackPressCommand {
         return this
     }
 }
@@ -121,7 +123,7 @@ class BackPressCommand : Command {
 class HideKeyboardCommand : Command {
 
     override fun equals(other: Any?): Boolean {
-        if (this == other) return true
+        if (this === other) return true
         if (javaClass != other?.javaClass) return false
         return true
     }
@@ -138,11 +140,10 @@ class HideKeyboardCommand : Command {
         return "Hide Keyboard"
     }
 
-    override fun injectEnv(env: Map<String, String>): HideKeyboardCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): HideKeyboardCommand {
         return this
     }
 }
-
 
 data class CopyTextFromCommand(
     val selector: ElementSelector,
@@ -152,9 +153,9 @@ data class CopyTextFromCommand(
         return "Copy text from element with ${selector.description()}"
     }
 
-    override fun injectEnv(env: Map<String, String>): CopyTextFromCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): CopyTextFromCommand {
         return copy(
-            selector = selector.injectEnv(env)
+            selector = selector.evaluateScripts(jsEngine)
         )
     }
 }
@@ -165,7 +166,7 @@ class PasteTextCommand : Command {
         return "Paste text"
     }
 
-    override fun injectEnv(env: Map<String, String>): PasteTextCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): PasteTextCommand {
         return this
     }
 }
@@ -181,9 +182,9 @@ data class TapOnElementCommand(
         return "Tap on ${selector.description()}"
     }
 
-    override fun injectEnv(env: Map<String, String>): TapOnElementCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
         return copy(
-            selector = selector.injectEnv(env),
+            selector = selector.evaluateScripts(jsEngine),
         )
     }
 }
@@ -200,7 +201,7 @@ data class TapOnPointCommand(
         return "Tap on point ($x, $y)"
     }
 
-    override fun injectEnv(env: Map<String, String>): TapOnPointCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): TapOnPointCommand {
         return this
     }
 }
@@ -224,10 +225,10 @@ data class AssertCommand(
         return "No op"
     }
 
-    override fun injectEnv(env: Map<String, String>): AssertCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): AssertCommand {
         return copy(
-            visible = visible?.injectEnv(env),
-            notVisible = notVisible?.injectEnv(env),
+            visible = visible?.evaluateScripts(jsEngine),
+            notVisible = notVisible?.evaluateScripts(jsEngine),
         )
     }
 }
@@ -240,9 +241,9 @@ data class InputTextCommand(
         return "Input text $text"
     }
 
-    override fun injectEnv(env: Map<String, String>): InputTextCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): InputTextCommand {
         return copy(
-            text = text.injectEnv(env)
+            text = text.evaluateScripts(jsEngine)
         )
     }
 }
@@ -272,9 +273,9 @@ data class LaunchAppCommand(
         return result
     }
 
-    override fun injectEnv(env: Map<String, String>): LaunchAppCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
-            appId = appId.injectEnv(env)
+            appId = appId.evaluateScripts(jsEngine)
         )
     }
 }
@@ -287,11 +288,13 @@ data class ApplyConfigurationCommand(
         return "Apply configuration"
     }
 
-    override fun injectEnv(env: Map<String, String>): ApplyConfigurationCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): ApplyConfigurationCommand {
         return copy(
-            config = config.injectEnv(env),
+            config = config.evaluateScripts(jsEngine),
         )
     }
+
+    override fun visible(): Boolean = false
 }
 
 data class OpenLinkCommand(
@@ -302,9 +305,9 @@ data class OpenLinkCommand(
         return "Open $link"
     }
 
-    override fun injectEnv(env: Map<String, String>): OpenLinkCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): OpenLinkCommand {
         return copy(
-            link = link.injectEnv(env),
+            link = link.evaluateScripts(jsEngine),
         )
     }
 }
@@ -316,7 +319,7 @@ data class PressKeyCommand(
         return "Press ${code.description} key"
     }
 
-    override fun injectEnv(env: Map<String, String>): PressKeyCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): PressKeyCommand {
         return this
     }
 
@@ -330,7 +333,7 @@ data class EraseTextCommand(
         return "Erase $charactersToErase characters"
     }
 
-    override fun injectEnv(env: Map<String, String>): EraseTextCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): EraseTextCommand {
         return this
     }
 
@@ -344,9 +347,9 @@ data class TakeScreenshotCommand(
         return "Take screenshot $path"
     }
 
-    override fun injectEnv(env: Map<String, String>): TakeScreenshotCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
         return copy(
-            path = path.injectEnv(env),
+            path = path.evaluateScripts(jsEngine),
         )
     }
 }
@@ -359,9 +362,9 @@ data class StopAppCommand(
         return "Stop $appId"
     }
 
-    override fun injectEnv(env: Map<String, String>): Command {
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            appId = appId.injectEnv(env),
+            appId = appId.evaluateScripts(jsEngine),
         )
     }
 }
@@ -374,9 +377,9 @@ data class ClearStateCommand(
         return "Clear state of $appId"
     }
 
-    override fun injectEnv(env: Map<String, String>): Command {
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            appId = appId.injectEnv(env),
+            appId = appId.evaluateScripts(jsEngine),
         )
     }
 }
@@ -387,7 +390,7 @@ class ClearKeychainCommand : Command {
         return "Clear keychain"
     }
 
-    override fun injectEnv(env: Map<String, String>): Command {
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
         return this
     }
 
@@ -429,7 +432,7 @@ data class InputRandomCommand(
         return "Input text random $inputType"
     }
 
-    override fun injectEnv(env: Map<String, String>): InputRandomCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): InputRandomCommand {
         return this
     }
 }
@@ -458,10 +461,9 @@ data class RunFlowCommand(
         }
     }
 
-    override fun injectEnv(env: Map<String, String>): Command {
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            commands = commands.map { it.injectEnv(env) },
-            condition = condition?.injectEnv(env),
+            condition = condition?.evaluateScripts(jsEngine),
         )
     }
 
@@ -476,7 +478,7 @@ data class SetLocationCommand(
         return "Set location (${latitude}, ${longitude})"
     }
 
-    override fun injectEnv(env: Map<String, String>): SetLocationCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): SetLocationCommand {
         return this
     }
 }
@@ -506,12 +508,31 @@ data class RepeatCommand(
         }
     }
 
-    override fun injectEnv(env: Map<String, String>): Command {
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            times = times?.injectEnv(env),
-            commands = commands.map { it.injectEnv(env) },
-            condition = condition?.injectEnv(env),
+            times = times?.evaluateScripts(jsEngine),
+            condition = condition?.evaluateScripts(jsEngine),
         )
     }
+
+}
+
+data class DefineVariablesCommand(
+    val env: Map<String, String>,
+) : Command {
+
+    override fun description(): String {
+        return "Define variables"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): DefineVariablesCommand {
+        return copy(
+            env = env.mapValues { (key, value) ->
+                value.evaluateScripts(jsEngine)
+            }
+        )
+    }
+
+    override fun visible(): Boolean = false
 
 }

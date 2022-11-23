@@ -76,35 +76,42 @@ class ResultView(
         indent: Int = 0,
     ) {
         val statusColumnWidth = 3
-        commands.forEach {
-            val statusSymbol = status(it.status)
-            fgDefault()
-            render(" ║    ")
-            repeat(indent) {
-                render("  ")
-            }
-            render(statusSymbol)
-            render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
-            render(it.command.description())
+        commands
+            .filter { it.command.asCommand()?.visible() ?: true }
+            .forEach {
+                val statusSymbol = status(it.status)
+                fgDefault()
+                render(" ║    ")
+                repeat(indent) {
+                    render("  ")
+                }
+                render(statusSymbol)
+                render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
+                render(
+                    it.command.description()
+                        .replace("(?<!\\\\)\\\$\\{.*}".toRegex()) { match ->
+                            "@|cyan ${match.value} |@"
+                        }
+                )
 
-            if (it.status == CommandStatus.SKIPPED) {
-                render(" (skipped)")
-            } else if (it.numberOfRuns != null) {
-                val timesWord = if (it.numberOfRuns == 1) "time" else "times"
-                render(" (completed ${it.numberOfRuns} $timesWord)")
-            }
+                if (it.status == CommandStatus.SKIPPED) {
+                    render(" (skipped)")
+                } else if (it.numberOfRuns != null) {
+                    val timesWord = if (it.numberOfRuns == 1) "time" else "times"
+                    render(" (completed ${it.numberOfRuns} $timesWord)")
+                }
 
-            render("\n")
+                render("\n")
 
-            val expand = it.status in setOf(CommandStatus.RUNNING, CommandStatus.FAILED) &&
-                (it.subCommands?.any { subCommand -> subCommand.status != CommandStatus.PENDING } ?: false)
+                val expand = it.status in setOf(CommandStatus.RUNNING, CommandStatus.FAILED) &&
+                    (it.subCommands?.any { subCommand -> subCommand.status != CommandStatus.PENDING } ?: false)
 
-            if (expand) {
-                it.subCommands?.let { subCommands ->
-                    renderCommands(subCommands, indent + 1)
+                if (expand) {
+                    it.subCommands?.let { subCommands ->
+                        renderCommands(subCommands, indent + 1)
+                    }
                 }
             }
-        }
     }
 
     private fun status(status: CommandStatus): String {

@@ -19,6 +19,8 @@
 
 package maestro.orchestra
 
+import maestro.js.JsEngine
+
 /**
  * The Mobile.dev platform uses this class in the backend and hence the custom
  * serialization logic. The earlier implementation of this class had a nullable field for
@@ -48,7 +50,8 @@ data class MaestroCommand(
     val setLocationCommand: SetLocationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
     val copyTextCommand: CopyTextFromCommand? = null,
-    val pasteTextCommand: PasteTextCommand? = null
+    val pasteTextCommand: PasteTextCommand? = null,
+    val defineVariablesCommand: DefineVariablesCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -74,7 +77,8 @@ data class MaestroCommand(
         setLocationCommand = command as? SetLocationCommand,
         repeatCommand = command as? RepeatCommand,
         copyTextCommand = command as? CopyTextFromCommand,
-        pasteTextCommand = command as? PasteTextCommand
+        pasteTextCommand = command as? PasteTextCommand,
+        defineVariablesCommand = command as? DefineVariablesCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -101,12 +105,13 @@ data class MaestroCommand(
         repeatCommand != null -> repeatCommand
         copyTextCommand != null -> copyTextCommand
         pasteTextCommand != null -> pasteTextCommand
+        defineVariablesCommand != null -> defineVariablesCommand
         else -> null
     }
 
-    fun injectEnv(envParameters: Map<String, String>): MaestroCommand {
+    fun evaluateScripts(jsEngine: JsEngine): MaestroCommand {
         return asCommand()
-            ?.let { MaestroCommand(it.injectEnv(envParameters)) }
+            ?.let { MaestroCommand(it.evaluateScripts(jsEngine)) }
             ?: MaestroCommand()
     }
 

@@ -1,6 +1,7 @@
 package maestro.orchestra
 
-import maestro.orchestra.util.Env.injectEnv
+import maestro.js.JsEngine
+import maestro.orchestra.util.Env.evaluateScripts
 
 // Note: The appId config is only a yaml concept for now. It'll be a larger migration to get to a point
 // where appId is part of MaestroConfig (and factored out of MaestroCommands - eg: LaunchAppCommand).
@@ -11,11 +12,11 @@ data class MaestroConfig(
     val ext: Map<String, Any?> = emptyMap(),
 ) {
 
-    fun injectEnv(env: Map<String, String>): MaestroConfig {
+    fun evaluateScripts(jsEngine: JsEngine): MaestroConfig {
         return copy(
-            appId = appId?.injectEnv(env),
-            name = name?.injectEnv(env),
-            initFlow = initFlow?.injectEnv(env),
+            appId = appId?.evaluateScripts(jsEngine),
+            name = name?.evaluateScripts(jsEngine),
+            initFlow = initFlow?.evaluateScripts(jsEngine),
         )
     }
 
@@ -26,10 +27,9 @@ data class MaestroInitFlow(
     val commands: List<MaestroCommand>,
 ) {
 
-    fun injectEnv(env: Map<String, String>): MaestroInitFlow {
+    fun evaluateScripts(jsEngine: JsEngine): MaestroInitFlow {
         return copy(
-            appId = appId.injectEnv(env),
-            commands = commands.map { it.injectEnv(env) },
+            appId = appId.evaluateScripts(jsEngine),
         )
     }
 

@@ -50,6 +50,7 @@ import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
+import maestro.orchestra.util.Env.withEnv
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -169,7 +170,7 @@ data class YamlFluentCommand(
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
         val runFlowPath = getRunFlowPath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
-            .map { it.injectEnv(command.env) }
+            .withEnv(command.env)
     }
 
     private fun getRunFlowPath(flowPath: Path, runFlowPath: String): Path {
@@ -327,9 +328,11 @@ data class YamlFluentCommand(
     private fun copyTextFromCommand(
         copyText: YamlElementSelectorUnion
     ): MaestroCommand {
-        return MaestroCommand(CopyTextFromCommand(
-            selector = toElementSelector(copyText)
-        ))
+        return MaestroCommand(
+            CopyTextFromCommand(
+                selector = toElementSelector(copyText)
+            )
+        )
     }
 
     private fun YamlCondition.toCondition(): Condition {

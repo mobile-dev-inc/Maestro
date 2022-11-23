@@ -1,14 +1,16 @@
 package maestro.orchestra
 
+import maestro.js.JsEngine
+
 data class Condition(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
 ) {
 
-    fun injectEnv(env: Map<String, String>): Condition {
+    fun evaluateScripts(jsEngine: JsEngine): Condition {
         return copy(
-            visible = visible?.injectEnv(env),
-            notVisible = notVisible?.injectEnv(env),
+            visible = visible?.evaluateScripts(jsEngine),
+            notVisible = notVisible?.evaluateScripts(jsEngine),
         )
     }
 

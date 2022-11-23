@@ -130,7 +130,7 @@ object MaestroCommandRunner {
             .filter { it.asCommand() !is ApplyConfigurationCommand }
             .mapIndexed { _, command ->
                 CommandState(
-                    command = command,
+                    command = commandMetadata[command]?.evaluatedCommand ?: command,
                     status = commandStatuses[command] ?: CommandStatus.PENDING,
                     numberOfRuns = commandMetadata[command]?.numberOfRuns,
                     subCommands = (command.asCommand() as? CompositeCommand)

@@ -62,6 +62,8 @@ dependencies {
     api 'com.github.romankh3:image-comparison:4.4.0'
     api "com.android.tools:sdk-common:30.3.0"
     api "com.android.tools.apkparser:apkanalyzer:30.3.0"
+    api 'org.mozilla:rhino:1.7.14'
+    api 'org.jsoup:jsoup:1.15.3'
 
     implementation project(':maestro-ios')
     implementation 'com.google.code.findbugs:jsr305:3.0.2'

@@ -5,6 +5,7 @@ import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.error.UnicodeNotSupportedError
+import org.mozilla.javascript.EcmaError
 
 object ErrorViewUtils {
 
@@ -16,6 +17,7 @@ object ErrorViewUtils {
             is UnicodeNotSupportedError -> "Unicode character input is not supported: ${e.text}. Please use ASCII characters. Follow the issue: https://github.com/mobile-dev-inc/maestro/issues/146"
             is InterruptedException -> "Interrupted"
             is MaestroException -> e.message
+            is EcmaError -> "${e.name}: ${e.message}}"
             else -> e.stackTraceToString()
         }
     }

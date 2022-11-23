@@ -19,7 +19,8 @@
 
 package maestro.orchestra
 
-import maestro.orchestra.util.Env.injectEnv
+import maestro.js.JsEngine
+import maestro.orchestra.util.Env.evaluateScripts
 
 data class ElementSelector(
     val textRegex: String? = null,
@@ -42,19 +43,15 @@ data class ElementSelector(
         val tolerance: Int? = null,
     )
 
-    fun injectEnv(env: Map<String, String>): ElementSelector {
-        if (env.isEmpty()) {
-            return this
-        }
-
+    fun evaluateScripts(jsEngine: JsEngine): ElementSelector {
         return copy(
-            textRegex = textRegex?.injectEnv(env),
-            idRegex = idRegex?.injectEnv(env),
-            below = below?.injectEnv(env),
-            above = above?.injectEnv(env),
-            leftOf = leftOf?.injectEnv(env),
-            rightOf = rightOf?.injectEnv(env),
-            containsChild = containsChild?.injectEnv(env),
+            textRegex = textRegex?.evaluateScripts(jsEngine),
+            idRegex = idRegex?.evaluateScripts(jsEngine),
+            below = below?.evaluateScripts(jsEngine),
+            above = above?.evaluateScripts(jsEngine),
+            leftOf = leftOf?.evaluateScripts(jsEngine),
+            rightOf = rightOf?.evaluateScripts(jsEngine),
+            containsChild = containsChild?.evaluateScripts(jsEngine),
         )
     }
 

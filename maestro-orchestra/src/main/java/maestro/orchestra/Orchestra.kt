@@ -29,10 +29,13 @@ import maestro.MaestroException
 import maestro.MaestroTimer
 import maestro.TreeNode
 import maestro.UiElement
+import maestro.js.JsEngine
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.yaml.YamlCommandReader
+import org.jsoup.Jsoup
+import org.jsoup.safety.Safelist
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Files
@@ -52,10 +55,14 @@ class Orchestra(
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
 ) {
 
+    private val jsEngine = JsEngine()
+
     private var copiedText: String? = null
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
     private var deviceInfo: DeviceInfo? = null
+
+    private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
     /**
      * If initState is provided, initialize app disk state with the provided OrchestraAppState and skip
@@ -65,6 +72,8 @@ class Orchestra(
         commands: List<MaestroCommand>,
         initState: OrchestraAppState? = null,
     ): Boolean {
+        jsEngine.init()
+
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -115,8 +124,16 @@ class Orchestra(
         commands
             .forEachIndexed { index, command ->
                 onCommandStart(index, command)
+
+                val evaluatedCommand = command.evaluateScripts(jsEngine)
+                val metadata = getMetadata(command)
+                    .copy(
+                        evaluatedCommand = evaluatedCommand,
+                    )
+                updateMetadata(command, metadata)
+
                 try {
-                    executeCommand(command)
+                    executeCommand(evaluatedCommand)
                     onCommandComplete(index, command)
                 } catch (ignored: CommandSkipped) {
                     // Swallow exception
@@ -165,6 +182,7 @@ class Orchestra(
             is RunFlowCommand -> runFlowCommand(command)
             is SetLocationCommand -> setLocationCommand(command)
             is RepeatCommand -> repeatCommand(command, maestroCommand)
+            is DefineVariablesCommand -> defineVariablesCommand(command)
             is ApplyConfigurationCommand -> false
             else -> true
         }.also { mutating ->
@@ -172,6 +190,15 @@ class Orchestra(
                 timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
+    }
+
+    private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
+        command.env.forEach { (name, value) ->
+            val cleanValue = Jsoup.clean(value, Safelist.none())
+            jsEngine.evaluateScript("var $name = '$cleanValue'")
+        }
+
+        return false
     }
 
     private fun setLocationCommand(command: SetLocationCommand): Boolean {
@@ -211,7 +238,8 @@ class Orchestra(
         val maxRuns = command.times?.toIntOrNull() ?: Int.MAX_VALUE
 
         var counter = 0
-        var metadata = CommandMetadata(
+        var metadata = getMetadata(maestroCommand)
+        metadata = metadata.copy(
             numberOfRuns = 0,
         )
 
@@ -228,7 +256,7 @@ class Orchestra(
             metadata = metadata.copy(
                 numberOfRuns = counter,
             )
-            onCommandMetadataUpdate(maestroCommand, metadata)
+            updateMetadata(maestroCommand, metadata)
         }
 
         if (counter == 0) {
@@ -236,6 +264,15 @@ class Orchestra(
         }
 
         return mutatiing
+    }
+
+    private fun updateMetadata(rawCommand: MaestroCommand, metadata: CommandMetadata) {
+        rawCommandToMetadata[rawCommand] = metadata
+        onCommandMetadataUpdate(rawCommand, metadata)
+    }
+
+    private fun getMetadata(rawCommand: MaestroCommand) = rawCommandToMetadata.getOrPut(rawCommand) {
+        CommandMetadata()
     }
 
     private fun resetCommand(command: MaestroCommand) {
@@ -293,29 +330,43 @@ class Orchestra(
     }
 
     private fun runSubFlow(commands: List<MaestroCommand>): Boolean {
-        return commands
-            .mapIndexed { index, command ->
-                onCommandStart(index, command)
-                return@mapIndexed try {
-                    executeCommand(command)
-                        .also {
-                            onCommandComplete(index, command)
-                        }
-                } catch (ignored: CommandSkipped) {
-                    // Swallow exception
-                    onCommandSkipped(index, command)
-                    false
-                } catch (e: Throwable) {
-                    when (onCommandFailed(index, command, e)) {
-                        ErrorResolution.FAIL -> throw e
-                        ErrorResolution.CONTINUE -> {
-                            // Do nothing
-                            false
+        jsEngine.enterScope()
+
+        return try {
+            commands
+                .mapIndexed { index, command ->
+                    onCommandStart(index, command)
+
+                    val evaluatedCommand = command.evaluateScripts(jsEngine)
+                    val metadata = getMetadata(command)
+                        .copy(
+                            evaluatedCommand = evaluatedCommand,
+                        )
+                    updateMetadata(command, metadata)
+
+                    return@mapIndexed try {
+                        executeCommand(evaluatedCommand)
+                            .also {
+                                onCommandComplete(index, command)
+                            }
+                    } catch (ignored: CommandSkipped) {
+                        // Swallow exception
+                        onCommandSkipped(index, command)
+                        false
+                    } catch (e: Throwable) {
+                        when (onCommandFailed(index, command, e)) {
+                            ErrorResolution.FAIL -> throw e
+                            ErrorResolution.CONTINUE -> {
+                                // Do nothing
+                                false
+                            }
                         }
                     }
                 }
-            }
-            .any { it }
+                .any { it }
+        } finally {
+            jsEngine.leaveScope()
+        }
     }
 
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
@@ -622,6 +673,7 @@ class Orchestra(
 
     data class CommandMetadata(
         val numberOfRuns: Int? = null,
+        val evaluatedCommand: MaestroCommand? = null,
     )
 
     enum class ErrorResolution {

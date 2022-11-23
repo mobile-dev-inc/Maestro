@@ -30,6 +30,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.SyntaxError
+import maestro.orchestra.util.Env.withEnv
 import java.nio.file.Path
 import kotlin.io.path.absolute
 import kotlin.io.path.inputStream
@@ -48,7 +49,7 @@ object YamlCommandReader {
         val (config, commands) = readConfigAndCommands(flowPath)
         val maestroCommands = commands
             .flatMap { it.toCommands(flowPath, config.appId) }
-            .map { it.injectEnv(config.env) }
+            .withEnv(config.env)
 
         listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
     }
