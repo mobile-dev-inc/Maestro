@@ -41,6 +41,7 @@ import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
+import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.StopAppCommand
@@ -54,6 +55,7 @@ import maestro.orchestra.util.Env.withEnv
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
+import kotlin.io.path.readText
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
@@ -78,7 +80,8 @@ data class YamlFluentCommand(
     val runFlow: YamlRunFlow? = null,
     val setLocation: YamlSetLocation? = null,
     val repeat: YamlRepeatCommand? = null,
-    val copyTextFrom: YamlElementSelectorUnion? = null
+    val copyTextFrom: YamlElementSelectorUnion? = null,
+    val runScript: YamlRunScript? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -151,6 +154,16 @@ data class YamlFluentCommand(
                 )
             )
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
+            runScript != null -> listOf(
+                MaestroCommand(
+                    RunScriptCommand(
+                        script = resolvePath(flowPath, runScript.file)
+                            .readText(),
+                        env = runScript.env,
+                        sourceDescription = runScript.file,
+                    )
+                )
+            )
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -163,33 +176,34 @@ data class YamlFluentCommand(
     }
 
     private fun getRunFlowWatchFiles(flowPath: Path, runFlow: YamlRunFlow): List<Path> {
-        val runFlowPath = getRunFlowPath(flowPath, runFlow.file)
+        val runFlowPath = resolvePath(flowPath, runFlow.file)
         return listOf(runFlowPath) + YamlCommandReader.getWatchFiles(runFlowPath)
     }
 
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
-        val runFlowPath = getRunFlowPath(flowPath, command.file)
+        val runFlowPath = resolvePath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
             .withEnv(command.env)
     }
 
-    private fun getRunFlowPath(flowPath: Path, runFlowPath: String): Path {
-        val initFlowPath = flowPath.fileSystem.getPath(runFlowPath)
-        val resolvedInitFlowPath = if (initFlowPath.isAbsolute) {
-            initFlowPath
+    private fun resolvePath(flowPath: Path, requestedPath: String): Path {
+        val path = flowPath.fileSystem.getPath(requestedPath)
+
+        val resolvedPath = if (path.isAbsolute) {
+            path
         } else {
-            flowPath.resolveSibling(initFlowPath).toAbsolutePath()
+            flowPath.resolveSibling(path).toAbsolutePath()
         }
-        if (resolvedInitFlowPath.equals(flowPath.toAbsolutePath())) {
-            throw InvalidInitFlowFile("initFlow file can't be the same as the Flow file: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
+        if (resolvedPath.equals(flowPath.toAbsolutePath())) {
+            throw InvalidInitFlowFile("initFlow file can't be the same as the Flow file: ${resolvedPath.toUri()}", resolvedPath)
         }
-        if (!resolvedInitFlowPath.exists()) {
-            throw InvalidInitFlowFile("initFlow file does not exist: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
+        if (!resolvedPath.exists()) {
+            throw InvalidInitFlowFile("initFlow file does not exist: ${resolvedPath.toUri()}", resolvedPath)
         }
-        if (resolvedInitFlowPath.isDirectory()) {
-            throw InvalidInitFlowFile("initFlow file can't be a directory: ${resolvedInitFlowPath.toUri()}", resolvedInitFlowPath)
+        if (resolvedPath.isDirectory()) {
+            throw InvalidInitFlowFile("initFlow file can't be a directory: ${resolvedPath.toUri()}", resolvedPath)
         }
-        return resolvedInitFlowPath
+        return resolvedPath
     }
 
     private fun extendedWait(command: YamlExtendedWaitUntil): MaestroCommand {

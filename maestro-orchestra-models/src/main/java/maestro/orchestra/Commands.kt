@@ -536,3 +536,20 @@ data class DefineVariablesCommand(
     override fun visible(): Boolean = false
 
 }
+
+data class RunScriptCommand(
+    val script: String,
+    val env: Map<String, String> = emptyMap(),
+    val sourceDescription: String,
+) : Command {
+
+    override fun description(): String {
+        return "Run $sourceDescription"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+
+}
+

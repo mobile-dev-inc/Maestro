@@ -52,6 +52,7 @@ data class MaestroCommand(
     val copyTextCommand: CopyTextFromCommand? = null,
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
+    val runScriptCommand: RunScriptCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -79,6 +80,7 @@ data class MaestroCommand(
         copyTextCommand = command as? CopyTextFromCommand,
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
+        runScriptCommand = command as? RunScriptCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -106,6 +108,7 @@ data class MaestroCommand(
         copyTextCommand != null -> copyTextCommand
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
+        runScriptCommand != null -> runScriptCommand
         else -> null
     }
 

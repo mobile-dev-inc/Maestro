@@ -183,6 +183,7 @@ class Orchestra(
             is SetLocationCommand -> setLocationCommand(command)
             is RepeatCommand -> repeatCommand(command, maestroCommand)
             is DefineVariablesCommand -> defineVariablesCommand(command)
+            is RunScriptCommand -> runScriptCommand(command)
             is ApplyConfigurationCommand -> false
             else -> true
         }.also { mutating ->
@@ -190,6 +191,18 @@ class Orchestra(
                 timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
+    }
+
+    private fun runScriptCommand(command: RunScriptCommand): Boolean {
+        jsEngine.evaluateScript(
+            script = command.script,
+            env = command.env,
+            sourceName = command.sourceDescription,
+            runInSubSope = true,
+        )
+
+        // We do not actually know if there were any mutations, but we assume there were
+        return true
     }
 
     private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
