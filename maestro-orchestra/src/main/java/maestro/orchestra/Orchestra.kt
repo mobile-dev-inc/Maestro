@@ -53,9 +53,8 @@ class Orchestra(
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
+    private val jsEngine: JsEngine = JsEngine(),
 ) {
-
-    private val jsEngine = JsEngine()
 
     private var copiedText: String? = null
 
