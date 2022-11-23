@@ -437,7 +437,7 @@ class AndroidDriver(
     }
 
     private fun isPackageInstalled(packageName: String): Boolean {
-        val output: String = shell("pm list packages $packageName")
+        val output: String = shell("pm list packages --user 0 $packageName")
         return output.split("\n".toRegex())
             .map { line -> line.split(":".toRegex()) }
             .filter { parts -> parts.size == 2 }
