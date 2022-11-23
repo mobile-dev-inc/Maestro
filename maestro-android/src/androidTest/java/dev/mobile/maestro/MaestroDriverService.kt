@@ -2,6 +2,30 @@ package dev.mobile.maestro
 
 import android.app.UiAutomation
 import android.util.Log
+import android.view.KeyEvent.KEYCODE_1
+import android.view.KeyEvent.KEYCODE_4
+import android.view.KeyEvent.KEYCODE_5
+import android.view.KeyEvent.KEYCODE_6
+import android.view.KeyEvent.KEYCODE_7
+import android.view.KeyEvent.KEYCODE_APOSTROPHE
+import android.view.KeyEvent.KEYCODE_AT
+import android.view.KeyEvent.KEYCODE_BACKSLASH
+import android.view.KeyEvent.KEYCODE_COMMA
+import android.view.KeyEvent.KEYCODE_EQUALS
+import android.view.KeyEvent.KEYCODE_GRAVE
+import android.view.KeyEvent.KEYCODE_LEFT_BRACKET
+import android.view.KeyEvent.KEYCODE_MINUS
+import android.view.KeyEvent.KEYCODE_NUMPAD_ADD
+import android.view.KeyEvent.KEYCODE_NUMPAD_LEFT_PAREN
+import android.view.KeyEvent.KEYCODE_NUMPAD_RIGHT_PAREN
+import android.view.KeyEvent.KEYCODE_PERIOD
+import android.view.KeyEvent.KEYCODE_POUND
+import android.view.KeyEvent.KEYCODE_RIGHT_BRACKET
+import android.view.KeyEvent.KEYCODE_SEMICOLON
+import android.view.KeyEvent.KEYCODE_SLASH
+import android.view.KeyEvent.KEYCODE_SPACE
+import android.view.KeyEvent.KEYCODE_STAR
+import android.view.KeyEvent.META_SHIFT_LEFT_ON
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
@@ -11,6 +35,7 @@ import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfo
+import maestro_android.inputTextResponse
 import maestro_android.tapResponse
 import maestro_android.viewHierarchyResponse
 import org.junit.Test
@@ -102,5 +127,73 @@ class Service(
 
         responseObserver.onNext(tapResponse {})
         responseObserver.onCompleted()
+    }
+
+    override fun inputText(
+        request: MaestroAndroid.InputTextRequest,
+        responseObserver: StreamObserver<MaestroAndroid.InputTextResponse>
+    ) {
+        Log.d("Maestro", "Inputting text")
+        setText(request.text)
+
+        responseObserver.onNext(inputTextResponse {  })
+        responseObserver.onCompleted()
+    }
+
+    private fun setText(text: String) {
+        for (element in text) {
+            Log.d("Maestro", element.code.toString())
+            when (element.code) {
+                in 48..57 -> {
+                    /** 0~9 **/
+                    uiDevice.pressKeyCode(element.code - 41)
+                }
+                in 65..90 -> {
+                    /** A~Z **/
+                    uiDevice.pressKeyCode(element.code - 36, 1)
+                }
+                in 97..121 -> {
+                    /** a~z **/
+                    uiDevice.pressKeyCode(element.code - 68)
+                }
+                ';'.code -> uiDevice.pressKeyCode(KEYCODE_SEMICOLON)
+                '='.code -> uiDevice.pressKeyCode(KEYCODE_EQUALS)
+                ','.code -> uiDevice.pressKeyCode(KEYCODE_COMMA)
+                '-'.code -> uiDevice.pressKeyCode(KEYCODE_MINUS)
+                '.'.code -> uiDevice.pressKeyCode(KEYCODE_PERIOD)
+                '/'.code -> uiDevice.pressKeyCode(KEYCODE_SLASH)
+                '`'.code -> uiDevice.pressKeyCode(KEYCODE_GRAVE)
+                '\''.code -> uiDevice.pressKeyCode(KEYCODE_APOSTROPHE)
+                '['.code -> uiDevice.pressKeyCode(KEYCODE_LEFT_BRACKET)
+                ']'.code -> uiDevice.pressKeyCode(KEYCODE_RIGHT_BRACKET)
+                '\\'.code -> uiDevice.pressKeyCode(KEYCODE_BACKSLASH)
+                ' '.code -> uiDevice.pressKeyCode(KEYCODE_SPACE)
+                '@'.code -> uiDevice.pressKeyCode(KEYCODE_AT)
+                '#'.code -> uiDevice.pressKeyCode(KEYCODE_POUND)
+                '*'.code -> uiDevice.pressKeyCode(KEYCODE_STAR)
+                '('.code -> uiDevice.pressKeyCode(KEYCODE_NUMPAD_LEFT_PAREN)
+                ')'.code -> uiDevice.pressKeyCode(KEYCODE_NUMPAD_RIGHT_PAREN)
+                '+'.code -> uiDevice.pressKeyCode(KEYCODE_NUMPAD_ADD)
+                '!'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_1)
+                '$'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_4)
+                '%'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_5)
+                '^'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_6)
+                '&'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_7)
+                '"'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_APOSTROPHE)
+                '{'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_LEFT_BRACKET)
+                '}'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_RIGHT_BRACKET)
+                ':'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_SEMICOLON)
+                '|'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_BACKSLASH)
+                '<'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_COMMA)
+                '>'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_PERIOD)
+                '?'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_SLASH)
+                '~'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_GRAVE)
+                '_'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_MINUS)
+            }
+        }
+    }
+
+    private fun keyPressShiftedToEvents(uiDevice: UiDevice, keyCode: Int) {
+        uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
     }
 }

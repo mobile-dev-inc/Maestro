@@ -37,6 +37,7 @@ import maestro.android.asManifest
 import maestro.android.resolveLauncherActivity
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
+import maestro_android.inputTextRequest
 import maestro_android.tapRequest
 import maestro_android.viewHierarchyRequest
 import okio.Sink
@@ -304,9 +305,9 @@ class AndroidDriver(
     }
 
     override fun inputText(text: String) {
-        text.chunked(3).forEach {
-            dadb.shell("input text \"$it\"")
-        }
+        blockingStub.inputText(inputTextRequest {
+            this.text = text
+        }) ?: throw IllegalStateException("Input Response can't be null")
     }
 
     override fun openLink(link: String) {

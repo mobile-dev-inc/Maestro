@@ -10,6 +10,7 @@ service MaestroDriver {
 
   rpc tap(TapRequest) returns (TapResponse) {}
 
+  rpc inputText(InputTextRequest) returns (InputTextResponse) {}
 }
 
 // Device info
@@ -35,3 +36,8 @@ message TapRequest {
 }
 
 message TapResponse {}
+
+message InputTextRequest {
+  string text = 1;
+}
+message InputTextResponse {}

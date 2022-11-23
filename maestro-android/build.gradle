@@ -49,6 +49,14 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        debug {
+            signingConfig signingConfigs.debug
+        }
+    }
+    signingConfigs {
+        debug {
+            storeFile file('../debug.keystore')
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -62,6 +70,43 @@ android {
         exclude 'META-INF/io.netty.versions.properties'
     }
 }
+
+tasks.register("copyMaestroAndroid", Copy) {
+    def maestroAndroidApkPath = "outputs/apk/debug/maestro-android-debug.apk"
+    def maestroAndroidApkDest = "../../maestro-client/src/main/resources"
+    def maestroAndroidApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug.apk"
+
+    from layout.buildDirectory.dir(maestroAndroidApkPath)
+    into layout.buildDirectory.file(maestroAndroidApkDest)
+
+    it.doLast {
+        if (!layout.buildDirectory.file(maestroAndroidApkDestPath).get().asFile.exists())
+            throw new GradleException("Error: Input source for copyMaestroAndroid doesn't exist")
+
+        new File("./maestro-client/src/main/resources/maestro-android-debug.apk")
+            .renameTo(new File("./maestro-client/src/main/resources/maestro-app.apk"))
+    }
+}
+
+tasks.register("copyMaestroServer", Copy) {
+    def maestroServerApkPath = "outputs/apk/androidTest/debug/maestro-android-debug-androidTest.apk"
+    def maestroServerApkDest = "../../maestro-client/src/main/resources"
+    def maestroServerApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug-androidTest.apk"
+
+    from layout.buildDirectory.dir(maestroServerApkPath)
+    into layout.buildDirectory.file(maestroServerApkDest)
+
+    it.doLast {
+        if (!layout.buildDirectory.file(maestroServerApkDestPath).get().asFile.exists())
+            throw new GradleException("Error: Input source for copyMaestroServer doesn't exist")
+
+        new File("./maestro-client/src/main/resources/maestro-android-debug-androidTest.apk")
+            .renameTo(new File("./maestro-client/src/main/resources/maestro-server.apk"))
+    }
+}
+
+tasks.named("assemble") { finalizedBy("copyMaestroAndroid") }
+tasks.named("assembleAndroidTest") { finalizedBy("copyMaestroServer") }
 
 sourceSets {
     generated {
