@@ -6,6 +6,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
+import maestro.cli.util.PrintUtils
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -37,6 +38,7 @@ class ApiClient(
         .build()
 
     private val knownCIEnvVars = listOf("CI", "JENKINS_HOME", "BITRISE_IO")
+    private val BASE_RETRY_DELAY_MS = 3000L
 
     fun magicLinkLogin(email: String, redirectUrl: String): Result<String, Response> {
         return post<Map<String, Any>>(
@@ -140,6 +142,8 @@ class ApiClient(
         pullRequestId: String?,
         env: Map<String, String>? = null,
         androidApiLevel: Int?,
+        maxRetryCount: Int = 3,
+        completedRetries: Int = 0,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): UploadResponse {
         if (!appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -179,7 +183,29 @@ class ApiClient(
 
         response.use {
             if (!response.isSuccessful) {
-                throw CliError("Upload request failed (${response.code}): ${response.body?.string()}")
+                if (response.code >= 500 && completedRetries < maxRetryCount) {
+                    PrintUtils.message("Request failed, retrying...")
+                    Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
+                    
+                    return upload(
+                        authToken,
+                        appFile,
+                        workspaceZip,
+                        uploadName,
+                        mappingFile,
+                        repoOwner,
+                        repoName,
+                        branch,
+                        pullRequestId,
+                        env,
+                        androidApiLevel,
+                        maxRetryCount,
+                        completedRetries + 1,
+                        progressListener,
+                    )
+                } else {
+                    throw CliError("Upload request failed (${response.code}): ${response.body?.string()}")
+                }
             }
 
             val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
