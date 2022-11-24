@@ -122,7 +122,7 @@ class IntegrationTest {
         }
 
         // When & Then
-        assertThrows<MaestroException.ElementNotFound> {
+        assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
                 orchestra(it).runFlow(commands)
             }
@@ -142,7 +142,7 @@ class IntegrationTest {
         }
 
         // When & Then
-        assertThrows<MaestroException.ElementNotFound> {
+        assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
                 orchestra(it).runFlow(commands)
             }
@@ -162,7 +162,7 @@ class IntegrationTest {
         }
 
         // When & Then
-        assertThrows<MaestroException.ElementNotFound> {
+        assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
                 orchestra(it).runFlow(commands)
             }
@@ -1800,7 +1800,6 @@ class IntegrationTest {
 
     @Test
     fun `Case 066 - Copy text into JS variable`() {
-
         // Given
         val commands = readCommands("066_copyText_jsVar")
 
@@ -1826,6 +1825,39 @@ class IntegrationTest {
                 Event.InputText("Hello, Maestro"),
             )
         )
+    }
+
+    @Test
+    fun `Case 067 - Assert True - Pass`() {
+        // Given
+        val commands = readCommands("067_assertTrue_pass")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+    }
+
+    @Test
+    fun `Case 067 - Assert True - Fail`() {
+        // Given
+        val commands = readCommands("067_assertTrue_fail")
+
+        val driver = driver {
+        }
+
+        // Then
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
+        }
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(

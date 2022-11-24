@@ -168,6 +168,7 @@ class Orchestra(
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
+            is AssertConditionCommand -> assertConditionCommand(command)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -190,6 +191,17 @@ class Orchestra(
                 timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
+    }
+
+    private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
+        if (!evaluateCondition(command.condition, timeoutMs = command.timeout ?: lookupTimeoutMs)) {
+            throw MaestroException.AssertionFailure(
+                "Assertion is false: ${command.condition.description()}",
+                maestro.viewHierarchy().root,
+            )
+        }
+
+        return false
     }
 
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
@@ -305,21 +317,24 @@ class Orchestra(
         }
     }
 
-    private fun evaluateCondition(condition: Condition?): Boolean {
+    private fun evaluateCondition(
+        condition: Condition?,
+        timeoutMs: Long? = null,
+    ): Boolean {
         if (condition == null) {
             return true
         }
 
         condition.visible?.let {
             try {
-                findElement(it, timeoutMs = adjustedToLatestInteraction(optionalLookupTimeoutMs))
+                findElement(it, timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs))
             } catch (ignored: MaestroException.ElementNotFound) {
                 return false
             }
         }
 
         condition.notVisible?.let {
-            val result = MaestroTimer.withTimeout(adjustedToLatestInteraction(optionalLookupTimeoutMs)) {
+            val result = MaestroTimer.withTimeout(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
                 try {
                     findElement(it, timeoutMs = 500L)
 
@@ -484,37 +499,9 @@ class Orchestra(
     }
 
     private fun assertCommand(command: AssertCommand): Boolean {
-        command.visible?.let { assertVisible(it, command.timeout) }
-        command.notVisible?.let { assertNotVisible(it, command.timeout) }
-
-        return false
-    }
-
-    private fun assertNotVisible(selector: ElementSelector, timeoutMs: Long?) {
-        val result = MaestroTimer.withTimeout(timeoutMs ?: adjustedToLatestInteraction(lookupTimeoutMs)) {
-            try {
-                findElement(selector, timeoutMs = 2000L)
-
-                // If we got to that point, the element is still visible.
-                // Returning null to keep waiting.
-                null
-            } catch (ignored: MaestroException.ElementNotFound) {
-                // Element was not visible, as we expected
-                true
-            }
-        }
-
-        if (result != true) {
-            // If we got to this point, it means that element is actually visible
-            throw MaestroException.AssertionFailure(
-                "${selector.description()} is visible",
-                maestro.viewHierarchy().root,
-            )
-        }
-    }
-
-    private fun assertVisible(selector: ElementSelector, timeout: Long?) {
-        findElement(selector, timeout) // Throws if element is not found
+        return assertConditionCommand(
+            command.toAssertConditionCommand()
+        )
     }
 
     private fun tapOnElement(

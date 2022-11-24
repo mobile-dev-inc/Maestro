@@ -206,6 +206,8 @@ data class TapOnPointCommand(
     }
 }
 
+// Do not delete this class. It might have been already serialized in the past and stored in DB.
+@Deprecated("Use AssertConditionCommand instead")
 data class AssertCommand(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
@@ -229,6 +231,33 @@ data class AssertCommand(
         return copy(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
+        )
+    }
+
+    fun toAssertConditionCommand(): AssertConditionCommand {
+        return AssertConditionCommand(
+            condition = Condition(
+                visible = visible,
+                notVisible = notVisible,
+            ),
+            timeout = timeout,
+        )
+    }
+
+}
+
+data class AssertConditionCommand(
+    val condition: Condition,
+    val timeout: Long? = null,
+) : Command {
+
+    override fun description(): String {
+        return "Assert that ${condition.description()}"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            condition = condition.evaluateScripts(jsEngine),
         )
     }
 }

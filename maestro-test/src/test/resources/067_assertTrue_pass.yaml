@@ -1,0 +1,3 @@
+appId: com.example.app
+---
+- assertTrue: ${1+1}

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.AssertCommand
+import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.Condition
@@ -62,6 +63,7 @@ data class YamlFluentCommand(
     val longPressOn: YamlElementSelectorUnion? = null,
     val assertVisible: YamlElementSelectorUnion? = null,
     val assertNotVisible: YamlElementSelectorUnion? = null,
+    val assertTrue: String? = null,
     val action: String? = null,
     val inputText: String? = null,
     val inputRandomText: YamlInputRandomText? = null,
@@ -90,8 +92,33 @@ data class YamlFluentCommand(
             launchApp != null -> listOf(launchApp(launchApp, appId))
             tapOn != null -> listOf(tapCommand(tapOn))
             longPressOn != null -> listOf(tapCommand(longPressOn, longPress = true))
-            assertVisible != null -> listOf(MaestroCommand(AssertCommand(visible = toElementSelector(assertVisible))))
-            assertNotVisible != null -> listOf(MaestroCommand(AssertCommand(notVisible = toElementSelector(assertNotVisible))))
+            assertVisible != null -> listOf(
+                MaestroCommand(
+                    AssertConditionCommand(
+                        Condition(
+                            visible = toElementSelector(assertVisible),
+                        )
+                    )
+                )
+            )
+            assertNotVisible != null -> listOf(
+                MaestroCommand(
+                    AssertConditionCommand(
+                        Condition(
+                            notVisible = toElementSelector(assertNotVisible),
+                        )
+                    )
+                )
+            )
+            assertTrue != null -> listOf(
+                MaestroCommand(
+                    AssertConditionCommand(
+                        Condition(
+                            scriptCondition = assertTrue,
+                        )
+                    )
+                )
+            )
             inputText != null -> listOf(MaestroCommand(InputTextCommand(inputText)))
             inputRandomText != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT, length = inputRandomText.length)))
             inputRandomNumber != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.NUMBER, length = inputRandomNumber.length)))
