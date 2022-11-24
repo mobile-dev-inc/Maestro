@@ -1798,6 +1798,36 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 066 - Copy text into JS variable`() {
+
+        // Given
+        val commands = readCommands("066_copyText_jsVar")
+
+        val myCopiedText = "Maestro"
+
+        val driver = driver {
+            element {
+                id = "Field"
+                text = myCopiedText
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.InputText("Hello, Maestro"),
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

@@ -41,6 +41,9 @@ class JsEngine(
                 }
                 
                 const output = {}
+                const maestro = {
+                    copiedText: ''
+                }
             """.trimIndent(),
             "maestro-runtime",
             1,

@@ -697,6 +697,9 @@ class Orchestra(
         val element = findElement(command.selector)
         copiedText = element.treeNode.attributes["text"]
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: $element")
+
+        jsEngine.evaluateScript("maestro.copiedText = '${Jsoup.clean(copiedText, Safelist.none())}'")
+
         return true
     }
 
