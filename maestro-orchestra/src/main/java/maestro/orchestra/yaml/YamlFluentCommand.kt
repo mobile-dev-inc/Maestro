@@ -353,6 +353,7 @@ data class YamlFluentCommand(
         return Condition(
             visible = visible?.let { toElementSelector(it) },
             notVisible = notVisible?.let { toElementSelector(it) },
+            scriptCondition = `true`?.trim(),
         )
     }
 

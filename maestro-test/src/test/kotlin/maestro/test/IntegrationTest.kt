@@ -1775,6 +1775,29 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 065 - When True condition`() {
+        // given
+        val commands = readCommands("065_when_true")
+        val driver = driver { }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertEvents(
+            listOf(
+                Event.InputText("True"),
+                Event.InputText("String"),
+                Event.InputText("Positive Int"),
+                Event.InputText("Object"),
+                Event.InputText("Array"),
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

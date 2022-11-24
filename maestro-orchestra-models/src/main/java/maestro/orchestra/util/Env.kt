@@ -30,7 +30,7 @@ object Env {
                 val script = match.groups[1]?.value ?: ""
 
                 if (script.isNotBlank()) {
-                    jsEngine.evaluateScript(script)
+                    jsEngine.evaluateScript(script).toString()
                 } else {
                     ""
                 }

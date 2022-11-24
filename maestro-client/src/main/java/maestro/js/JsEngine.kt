@@ -68,7 +68,7 @@ class JsEngine(
         env: Map<String, String> = emptyMap(),
         sourceName: String = "inline-script",
         runInSubSope: Boolean = false
-    ): String {
+    ): Any? {
         val scope = if (runInSubSope) {
             // We create a new scope for each evaluation to prevent local variables
             // from clashing with each other across multiple scripts.
@@ -97,7 +97,7 @@ class JsEngine(
             sourceName,
             1,
             null
-        ).toString()
+        )
     }
 
 }
