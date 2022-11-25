@@ -72,6 +72,9 @@ android {
 }
 
 tasks.register("copyMaestroAndroid", Copy) {
+    if(JavaVersion.current() != JavaVersion.VERSION_1_8){
+        throw new GradleException("This build must be run with java 8")
+    }
     def maestroAndroidApkPath = "outputs/apk/debug/maestro-android-debug.apk"
     def maestroAndroidApkDest = "../../maestro-client/src/main/resources"
     def maestroAndroidApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug.apk"
@@ -89,6 +92,9 @@ tasks.register("copyMaestroAndroid", Copy) {
 }
 
 tasks.register("copyMaestroServer", Copy) {
+    if(JavaVersion.current() != JavaVersion.VERSION_1_8){
+        throw new GradleException("This build must be run with java 8")
+    }
     def maestroServerApkPath = "outputs/apk/androidTest/debug/maestro-android-debug-androidTest.apk"
     def maestroServerApkDest = "../../maestro-client/src/main/resources"
     def maestroServerApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug-androidTest.apk"
