@@ -73,7 +73,7 @@ class TestCommand : Callable<Int> {
 
         val (maestro, device) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
 
-        return if (flowFile.isDirectory) {
+        return if (flowFile.isDirectory || format != ReportFormat.NOOP) {
             if (continuous) {
                 throw CommandLine.ParameterException(
                     commandSpec.commandLine(),
