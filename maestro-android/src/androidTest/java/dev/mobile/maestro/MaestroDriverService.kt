@@ -134,7 +134,10 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.InputTextResponse>
     ) {
         Log.d("Maestro", "Inputting text")
-        setText(request.text)
+        request.text.forEach {
+            setText(it.toString())
+            Thread.sleep(75)
+        }
 
         responseObserver.onNext(inputTextResponse {  })
         responseObserver.onCompleted()
