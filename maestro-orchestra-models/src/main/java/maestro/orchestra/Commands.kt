@@ -586,3 +586,15 @@ data class RunScriptCommand(
 
 }
 
+data class WaitForAnimationToEndCommand(
+    val timeout: Long?
+) : Command {
+    override fun description(): String {
+        return "Wait for animation to end"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+

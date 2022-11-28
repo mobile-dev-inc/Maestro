@@ -50,9 +50,11 @@ import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
+import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
+import org.yaml.snakeyaml.Yaml
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -84,6 +86,7 @@ data class YamlFluentCommand(
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
     val runScript: YamlRunScript? = null,
+    val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -188,6 +191,13 @@ data class YamlFluentCommand(
                             .readText(),
                         env = runScript.env,
                         sourceDescription = runScript.file,
+                    )
+                )
+            )
+            waitForAnimationToEnd != null -> listOf(
+                MaestroCommand(
+                    WaitForAnimationToEndCommand(
+                        timeout = waitForAnimationToEnd.timeout
                     )
                 )
             )
@@ -454,6 +464,10 @@ data class YamlFluentCommand(
 
                 "scroll" -> YamlFluentCommand(
                     action = "scroll"
+                )
+
+                "waitForAnimationToEnd" -> YamlFluentCommand(
+                    waitForAnimationToEnd = YamlWaitForAnimationToEndCommand(null)
                 )
 
                 else -> throw SyntaxError("Invalid command: \"$stringCommand\"")

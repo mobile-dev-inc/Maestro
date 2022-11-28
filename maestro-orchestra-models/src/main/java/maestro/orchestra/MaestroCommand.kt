@@ -54,6 +54,7 @@ data class MaestroCommand(
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
     val runScriptCommand: RunScriptCommand? = null,
+    val waitForAnimationToEndCommand: WaitForAnimationToEndCommand? = null
 ) {
 
     constructor(command: Command) : this(
@@ -83,6 +84,7 @@ data class MaestroCommand(
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
         runScriptCommand = command as? RunScriptCommand,
+        waitForAnimationToEndCommand = command as? WaitForAnimationToEndCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -112,6 +114,7 @@ data class MaestroCommand(
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
         runScriptCommand != null -> runScriptCommand
+        waitForAnimationToEndCommand != null -> waitForAnimationToEndCommand
         else -> null
     }
 

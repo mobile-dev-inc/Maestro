@@ -1875,6 +1875,28 @@ class IntegrationTest {
         driver.assertCurrentTextInput("")
     }
 
+    @Test
+    fun `Case069 - Wait for animation to end`() {
+        // given
+        val commands = readCommands("069_wait_for_animation_to_end")
+        val driver = driver {
+        }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.TakeScreenshot,
+                Event.TakeScreenshot
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,
