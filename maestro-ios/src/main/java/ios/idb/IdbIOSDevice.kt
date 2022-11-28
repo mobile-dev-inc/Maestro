@@ -124,6 +124,7 @@ class IdbIOSDevice(
                     stream.onNext(it)
                 }
             stream.onCompleted()
+            responseObserver.awaitResult()
         }
     }
 

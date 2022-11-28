@@ -432,9 +432,8 @@ class Orchestra(
     }
 
     private fun eraseTextCommand(command: EraseTextCommand): Boolean {
-        repeat(command.charactersToErase) {
-            maestro.pressKey(KeyCode.BACKSPACE, waitForAppToSettle = false)
-        }
+        val charactersToErase = command.charactersToErase
+        maestro.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
         maestro.waitForAppToSettle()
 
         return true
@@ -711,6 +710,7 @@ class Orchestra(
 
         val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
+        private const val MAX_ERASE_CHARACTERS = 50
     }
 }
 

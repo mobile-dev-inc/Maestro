@@ -379,6 +379,12 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.setLocation(latitude, longitude)
     }
 
+    fun eraseText(charactersToErase: Int) {
+        LOGGER.info("Erasing $charactersToErase characters")
+
+        driver.eraseText(charactersToErase)
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

@@ -1,6 +1,4 @@
 appId: com.example.app
 ---
 - inputText: Hello World
-- eraseText
-- inputText: Hello World
 - eraseText: 6

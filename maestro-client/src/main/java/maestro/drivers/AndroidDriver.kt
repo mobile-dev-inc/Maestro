@@ -37,6 +37,7 @@ import maestro.android.asManifest
 import maestro.android.resolveLauncherActivity
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
+import maestro_android.eraseAllTextRequest
 import maestro_android.inputTextRequest
 import maestro_android.tapRequest
 import maestro_android.viewHierarchyRequest
@@ -316,6 +317,14 @@ class AndroidDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         TODO("Not yet implemented")
+    }
+
+    override fun eraseText(charactersToErase: Int) {
+        blockingStub.eraseAllText(
+            eraseAllTextRequest {
+                this.charactersToErase = charactersToErase
+            }
+        ) ?: throw IllegalStateException("Erase Response can't be null")
     }
 
     private fun mapHierarchy(node: Node): TreeNode {

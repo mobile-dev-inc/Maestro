@@ -127,7 +127,7 @@ data class YamlFluentCommand(
             swipe != null -> listOf(swipeCommand(swipe))
             openLink != null -> listOf(MaestroCommand(OpenLinkCommand(openLink)))
             pressKey != null -> listOf(MaestroCommand(PressKeyCommand(code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey"))))
-            eraseText != null -> listOf(MaestroCommand(EraseTextCommand(charactersToErase = eraseText.charactersToErase)))
+            eraseText != null -> listOf(eraseCommand(eraseText))
             action != null -> listOf(
                 when (action) {
                     "back" -> MaestroCommand(BackPressCommand())
@@ -192,6 +192,14 @@ data class YamlFluentCommand(
                 )
             )
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
+        }
+    }
+
+    private fun eraseCommand(eraseText: YamlEraseText): MaestroCommand {
+        return if (eraseText.charactersToErase != null) {
+            MaestroCommand(EraseTextCommand(charactersToErase = eraseText.charactersToErase))
+        } else {
+            MaestroCommand(EraseTextCommand(charactersToErase = null))
         }
     }
 
@@ -413,7 +421,7 @@ data class YamlFluentCommand(
                 )
 
                 "eraseText" -> YamlFluentCommand(
-                    eraseText = YamlEraseText(charactersToErase = 50)
+                    eraseText = YamlEraseText(charactersToErase = null)
                 )
 
                 "inputRandomText" -> YamlFluentCommand(

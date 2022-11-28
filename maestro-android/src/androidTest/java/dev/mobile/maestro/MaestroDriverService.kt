@@ -35,6 +35,7 @@ import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfo
+import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
 import maestro_android.tapResponse
 import maestro_android.viewHierarchyResponse
@@ -126,6 +127,21 @@ class Service(
         )
 
         responseObserver.onNext(tapResponse {})
+        responseObserver.onCompleted()
+    }
+
+    override fun eraseAllText(
+        request: MaestroAndroid.EraseAllTextRequest,
+        responseObserver: StreamObserver<MaestroAndroid.EraseAllTextResponse>
+    ) {
+        val charactersToErase = request.charactersToErase
+        Log.d("Maestro", "Erasing text $charactersToErase")
+
+        for (i in 0..charactersToErase) {
+            uiDevice.pressDelete()
+        }
+
+        responseObserver.onNext(eraseAllTextResponse { })
         responseObserver.onCompleted()
     }
 

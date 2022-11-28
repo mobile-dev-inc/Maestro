@@ -11,6 +11,8 @@ service MaestroDriver {
   rpc tap(TapRequest) returns (TapResponse) {}
 
   rpc inputText(InputTextRequest) returns (InputTextResponse) {}
+
+  rpc eraseAllText(EraseAllTextRequest) returns (EraseAllTextResponse) {}
 }
 
 // Device info
@@ -41,3 +43,10 @@ message InputTextRequest {
   string text = 1;
 }
 message InputTextResponse {}
+
+
+message EraseAllTextRequest {
+    uint32 charactersToErase = 1;
+}
+
+message EraseAllTextResponse {}

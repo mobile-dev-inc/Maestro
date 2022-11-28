@@ -35,6 +35,7 @@ import maestro.utils.FileUtils
 import okio.Sink
 import java.io.File
 import java.nio.file.Files
+import java.security.Key
 import kotlin.collections.set
 
 class IOSDriver(
@@ -323,5 +324,11 @@ class IOSDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         iosDevice.setLocation(latitude, longitude).expect {}
+    }
+
+    override fun eraseText(charactersToErase: Int) {
+        repeat(charactersToErase) {
+            pressKey(KeyCode.BACKSPACE)
+        }
     }
 }

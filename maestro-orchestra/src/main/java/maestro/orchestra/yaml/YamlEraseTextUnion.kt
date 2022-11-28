@@ -2,9 +2,7 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
 
-data class YamlEraseText(
-    val charactersToErase: Int
-) {
+data class YamlEraseText(val charactersToErase: Int? = null) {
 
     companion object {
 

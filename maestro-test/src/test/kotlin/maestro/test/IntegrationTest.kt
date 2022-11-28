@@ -1049,7 +1049,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 036 - Erase text`() {
+    fun `Case 036 - Erase text with numbers`() {
         // Given
         val commands = readCommands("036_erase_text")
 
@@ -1858,6 +1858,21 @@ class IntegrationTest {
                 orchestra(it).runFlow(commands)
             }
         }
+    }
+
+    @Test
+    fun `Case068 - Erase all text`() {
+        // given
+        val commands = readCommands("068_erase_all_text")
+        val driver = driver {
+        }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        driver.assertCurrentTextInput("")
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(
