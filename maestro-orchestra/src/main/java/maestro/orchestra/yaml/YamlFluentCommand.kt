@@ -31,6 +31,7 @@ import maestro.orchestra.CopyTextFromCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
+import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
 import maestro.orchestra.InputRandomType
@@ -86,7 +87,8 @@ data class YamlFluentCommand(
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
     val runScript: YamlRunScript? = null,
-    val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null
+    val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
+    val evalScript: String? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -198,6 +200,13 @@ data class YamlFluentCommand(
                 MaestroCommand(
                     WaitForAnimationToEndCommand(
                         timeout = waitForAnimationToEnd.timeout
+                    )
+                )
+            )
+            evalScript != null -> listOf(
+                MaestroCommand(
+                    EvalScriptCommand(
+                        scriptString = evalScript,
                     )
                 )
             )

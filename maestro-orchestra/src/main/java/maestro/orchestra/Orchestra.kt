@@ -33,6 +33,7 @@ import maestro.js.JsEngine
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
+import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
@@ -184,6 +185,7 @@ class Orchestra(
             is RepeatCommand -> repeatCommand(command, maestroCommand)
             is DefineVariablesCommand -> defineVariablesCommand(command)
             is RunScriptCommand -> runScriptCommand(command)
+            is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
             else -> true
@@ -203,6 +205,13 @@ class Orchestra(
         }
 
         return false
+    }
+
+    private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
+        command.scriptString.evaluateScripts(jsEngine)
+
+        // We do not actually know if there were any mutations, but we assume there were
+        return true
     }
 
     private fun runScriptCommand(command: RunScriptCommand): Boolean {

@@ -598,3 +598,16 @@ data class WaitForAnimationToEndCommand(
     }
 }
 
+data class EvalScriptCommand(
+    val scriptString: String,
+) : Command {
+
+    override fun description(): String {
+        return "Run $scriptString"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+
+}

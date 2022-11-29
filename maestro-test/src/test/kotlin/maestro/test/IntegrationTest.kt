@@ -1861,7 +1861,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case068 - Erase all text`() {
+    fun `Case 068 - Erase all text`() {
         // given
         val commands = readCommands("068_erase_all_text")
         val driver = driver {
@@ -1876,7 +1876,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case069 - Wait for animation to end`() {
+    fun `Case 069 - Wait for animation to end`() {
         // given
         val commands = readCommands("069_wait_for_animation_to_end")
         val driver = driver {
@@ -1893,6 +1893,29 @@ class IntegrationTest {
             listOf(
                 Event.TakeScreenshot,
                 Event.TakeScreenshot
+            )
+        )
+    }
+
+    @Test
+    fun `Case 070 - Evaluate JS inline`() {
+        // Given
+        val commands = readCommands("070_evalScript")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.InputText("2"),
+                Event.InputText("Result is: 2"),
             )
         )
     }
