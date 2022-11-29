@@ -24,8 +24,8 @@ object TestRunner {
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
+        view: ResultView = ResultView()
     ): Int {
-        val view = ResultView()
         val result = runCatching(view) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)

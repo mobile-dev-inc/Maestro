@@ -29,6 +29,7 @@ import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
+import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.utils.FileUtils
@@ -312,6 +313,13 @@ class IOSDriver(
 
     override fun takeScreenshot(out: Sink) {
         iosDevice.takeScreenshot(out).expect {}
+    }
+
+    override fun startScreenRecording(out: Sink): ScreenRecording {
+        val iosScreenRecording = iosDevice.startScreenRecording(out).expect {}
+        return object : ScreenRecording {
+            override fun close() = iosScreenRecording.close()
+        }
     }
 
     override fun inputText(text: String) {

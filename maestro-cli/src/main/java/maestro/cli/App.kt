@@ -26,6 +26,7 @@ import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
 import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
+import maestro.cli.command.RecordCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
 import maestro.cli.debuglog.DebugLogStore
@@ -41,6 +42,7 @@ import kotlin.system.exitProcess
     subcommands = [
         TestCommand::class,
         CloudCommand::class,
+        RecordCommand::class,
         UploadCommand::class,
         PrintHierarchyCommand::class,
         QueryCommand::class,

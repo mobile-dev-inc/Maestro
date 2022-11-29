@@ -30,6 +30,7 @@ import maestro.Maestro
 import maestro.MaestroException.UnableToTakeScreenshot
 import maestro.MaestroTimer
 import maestro.Point
+import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.android.AndroidAppFiles
@@ -51,6 +52,8 @@ import org.w3c.dom.Node
 import org.xml.sax.SAXException
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
@@ -303,6 +306,23 @@ class AndroidDriver(
 
         dadb.pull(out, deviceScreenshotPath)
         dadb.shell("rm $deviceScreenshotPath")
+    }
+
+    override fun startScreenRecording(out: Sink): ScreenRecording {
+        val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
+
+        val future = CompletableFuture.runAsync({
+            shell("screenrecord --bit-rate '100000' $deviceScreenRecordingPath")
+        }, Executors.newSingleThreadExecutor())
+
+        return object : ScreenRecording {
+            override fun close() {
+                dadb.shell("killall -INT screenrecord") // Ignore exit code
+                future.get()
+                Thread.sleep(3000)
+                dadb.pull(out, deviceScreenRecordingPath)
+            }
+        }
     }
 
     override fun inputText(text: String) {

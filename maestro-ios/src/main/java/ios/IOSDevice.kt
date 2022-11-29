@@ -125,6 +125,13 @@ interface IOSDevice : AutoCloseable {
     fun takeScreenshot(out: Sink): Result<Unit, Throwable>
 
     /**
+     * Start a screen recording
+     *
+     * @param out - output sink
+     */
+    fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable>
+
+    /**
      * Sets the geolocation
      *
      * @param lat - latitude
@@ -132,3 +139,5 @@ interface IOSDevice : AutoCloseable {
      */
     fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable>
 }
+
+interface IOSScreenRecording : AutoCloseable

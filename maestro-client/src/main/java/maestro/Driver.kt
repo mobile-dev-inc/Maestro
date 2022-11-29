@@ -68,6 +68,8 @@ interface Driver {
 
     fun takeScreenshot(out: Sink)
 
+    fun startScreenRecording(out: Sink): ScreenRecording
+
     fun setLocation(latitude: Double, longitude: Double)
 
     fun eraseText(charactersToErase: Int)

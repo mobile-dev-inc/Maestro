@@ -20,7 +20,6 @@
 package ios.idb
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.runCatching
 import com.google.gson.Gson
@@ -29,6 +28,7 @@ import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
 import idb.Idb.HIDEvent.HIDButtonType
+import idb.Idb.RecordResponse
 import idb.PushRequestKt.inner
 import idb.accessibilityInfoRequest
 import idb.clearKeychainRequest
@@ -43,6 +43,7 @@ import idb.payload
 import idb.point
 import idb.pullRequest
 import idb.pushRequest
+import idb.recordRequest
 import idb.rmRequest
 import idb.screenshotRequest
 import idb.setLocationRequest
@@ -51,16 +52,22 @@ import idb.terminateRequest
 import idb.uninstallRequest
 import io.grpc.ManagedChannel
 import io.grpc.StatusRuntimeException
+import io.grpc.stub.StreamObserver
 import ios.IOSDevice
 import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
+import ios.IOSScreenRecording
+import okio.Buffer
 import okio.Sink
 import okio.buffer
+import okio.source
 import java.io.File
 import java.io.InputStream
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.zip.GZIPInputStream
 
 class IdbIOSDevice(
     private val channel: ManagedChannel,
@@ -415,6 +422,72 @@ class IdbIOSDevice(
                 .use {
                     it.write(response.imageData.toByteArray())
                 }
+        }
+    }
+
+    // Warning: This method reads all bytes into memory. This can probably be optimized if necessary.
+    override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
+        val future = CompletableFuture<Void>()
+        val bufferedOut = out.buffer()
+        val compressedData = Buffer()
+        return runCatching {
+            val request = asyncStub.record(object : StreamObserver<RecordResponse> {
+                override fun onNext(value: RecordResponse) {
+                    if (value.payload.compression == Idb.Payload.Compression.GZIP) {
+                        compressedData.write(value.payload.data.toByteArray())
+                    } else {
+                        bufferedOut.write(value.payload.data.toByteArray())
+                    }
+                }
+
+                override fun onError(t: Throwable) {
+                    try {
+                        finish()
+                    } finally {
+                        future.completeExceptionally(t)
+                    }
+                }
+
+                override fun onCompleted() {
+                    try {
+                        finish()
+                    } finally {
+                        future.complete(null)
+                    }
+                }
+
+                private fun finish() {
+                    if (compressedData.size > 0) {
+                        val gzippedInputStream = GZIPInputStream(compressedData.inputStream())
+                        gzippedInputStream.source().buffer().use { source ->
+                            source.readAll(out)
+                        }
+                    } else {
+                        bufferedOut.flush()
+                    }
+                }
+            })
+            request.onNext(recordRequest {
+                start = Idb.RecordRequest.Start.newBuilder().build()
+            })
+
+            val startTimestamp = System.currentTimeMillis()
+            object : IOSScreenRecording {
+
+                override fun close() {
+                    // Ensure minimum screen recording duration of 3 seconds.
+                    // This addresses an edge case where iOS launch command completes too quickly.
+                    val durationPadding = 3000 - (System.currentTimeMillis() - startTimestamp)
+                    if (durationPadding > 0) {
+                        Thread.sleep(durationPadding)
+                    }
+
+                    request.onNext(recordRequest {
+                        stop = Idb.RecordRequest.Stop.newBuilder().build()
+                    })
+                    future.get()
+                }
+            }
         }
     }
 

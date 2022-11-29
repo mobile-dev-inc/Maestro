@@ -361,6 +361,17 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
     }
 
+    fun startScreenRecording(out: Sink): ScreenRecording {
+        LOGGER.info("Starting screen recording")
+        val screenRecording = driver.startScreenRecording(out)
+        return object : ScreenRecording {
+            override fun close() {
+                LOGGER.info("Stopping screen recording")
+                screenRecording.close()
+            }
+        }
+    }
+
     fun takeScreenshot(out: Sink) {
         LOGGER.info("Taking screenshot to output sink")
 

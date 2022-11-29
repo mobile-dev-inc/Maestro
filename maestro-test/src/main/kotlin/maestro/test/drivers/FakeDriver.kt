@@ -26,6 +26,7 @@ import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
+import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import okio.Sink
@@ -210,6 +211,12 @@ class FakeDriver : Driver {
         )
 
         events += Event.TakeScreenshot
+    }
+
+    override fun startScreenRecording(out: Sink): ScreenRecording {
+        return object : ScreenRecording {
+            override fun close() {}
+        }
     }
 
     override fun setLocation(latitude: Double, longitude: Double) {

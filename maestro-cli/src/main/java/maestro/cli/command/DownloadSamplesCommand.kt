@@ -4,7 +4,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.cli.util.FileDownloader
 import maestro.cli.util.PrintUtils.err
 import maestro.cli.util.PrintUtils.message
-import org.fusesource.jansi.Ansi
+import maestro.cli.view.ProgressBar
 import org.rauschig.jarchivelib.ArchiverFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -42,7 +42,7 @@ class DownloadSamplesCommand : Callable<Int> {
     }
 
     private suspend fun downloadSamplesZip(file: File) {
-        val progressView = DownloadProgress(20)
+        val progressView = ProgressBar(20)
 
         FileDownloader
             .downloadFile(
@@ -72,23 +72,6 @@ class DownloadSamplesCommand : Callable<Int> {
         }
 
         return outputDir
-    }
-
-    class DownloadProgress(private val width: Int) {
-
-        private var progressWidth: Int? = null
-
-        fun set(progress: Float) {
-            val progressWidth = (progress * width).toInt()
-            if (progressWidth == this.progressWidth) return
-            this.progressWidth = progressWidth
-            val ansi = Ansi.ansi()
-            ansi.cursorToColumn(0)
-            ansi.fgCyan()
-            repeat(progressWidth) { ansi.a("█") }
-            repeat(width - progressWidth) { ansi.a("░") }
-            print(ansi)
-        }
     }
 
     companion object {

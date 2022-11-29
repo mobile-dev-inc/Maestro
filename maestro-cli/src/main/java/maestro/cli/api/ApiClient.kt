@@ -7,6 +7,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
+import maestro.cli.runner.ResultView
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -21,6 +22,7 @@ import okio.BufferedSink
 import okio.ForwardingSink
 import okio.IOException
 import okio.buffer
+import java.io.File
 import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -128,6 +130,46 @@ class ApiClient(
 
             return JSON.readValue(response.body?.bytes(), UploadStatus::class.java)
         }
+    }
+
+    fun render(
+        screenRecording: File,
+        frames: List<ResultView.Frame>,
+        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
+    ): String {
+        val baseUrl = "https://maestro-record.ngrok.io"
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("screenRecording", screenRecording.name, screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener))
+            .addFormDataPart("frames", JSON.writeValueAsString(frames))
+            .build()
+        val request = Request.Builder()
+            .url("$baseUrl/render")
+            .post(body)
+            .build()
+        val response = client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw CliError("Render request failed (${response.code}): ${response.body?.string()}")
+            }
+            JSON.readValue(response.body?.bytes(), RenderResponse::class.java)
+        }
+        return response.id
+    }
+
+    fun getRenderState(id: String): RenderState {
+        val baseUrl = "https://maestro-record.ngrok.io"
+        val request = Request.Builder()
+            .url("$baseUrl/render/$id")
+            .get()
+            .build()
+        val response = client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw CliError("Get render state request failed (${response.code}): ${response.body?.string()}")
+            }
+            JSON.readValue(response.body?.bytes(), RenderState::class.java)
+        }
+        val downloadUrl = if (response.downloadUrl == null) null else "$baseUrl${response.downloadUrl}"
+        return response.copy(downloadUrl = downloadUrl)
     }
 
     fun upload(
@@ -295,3 +337,15 @@ data class UploadStatus(
         WARNING,
     }
 }
+
+data class RenderResponse(
+    val id: String,
+)
+
+data class RenderState(
+    val status: String,
+    val positionInQueue: Int?,
+    val currentTaskProgress: Float?,
+    val error: String?,
+    val downloadUrl: String?,
+)
