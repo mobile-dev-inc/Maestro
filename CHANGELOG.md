@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.16.0 - 2022-11-29
+* Feature: Javascript injection support
+  * `runScript` and `evalScript` commands to run scripts
+  * `assertTrue` command to assert based on Javascript
+  * `runFlow` can be launched based on Javascript condition
+  * `copyTextFrom` now also stores result in `maestro.copiedText` variable
+  * Env parameters are now treated as Javascript variables 
+* Feature: HTTP(s) requests
+  * `http.request()` Javascript API that allows to make HTTP requests as part of Maestro flows
+* Feature: Maestro Cloud `--android-api-level` parameter to select API version to be used
+* Feature: `waitForAnimationToEnd` command to wait until animations/videos are finished
+* Tweak: test reports can now be generated for single test runs (and not just folders)
+* Tweak: `inputText` on Android was reworked to increase speed and input stability
+* Tweak: `eraseText` is now much faster
+* Tweak: `maestro cloud` will automatically retry upload up to 3 times
+* Fix: running on Samsung devices was sometimes failing because of wrong user being used
+
 ## 1.15.0 - 2022-11-17
 * Feature: run all tests in a folder as a suite
 * Feature: XML test report in JUnit-compatible format
