@@ -171,7 +171,7 @@ class Service(
                     /** A~Z **/
                     uiDevice.pressKeyCode(element.code - 36, 1)
                 }
-                in 97..121 -> {
+                in 97..122 -> {
                     /** a~z **/
                     uiDevice.pressKeyCode(element.code - 68)
                 }
