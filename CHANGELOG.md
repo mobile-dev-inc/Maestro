@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.16.1 - 2022-11-30
+* Fix: `z` character was not inputted correctly on Android
+
 ## 1.16.0 - 2022-11-29
 * Feature: Javascript injection support
   * `runScript` and `evalScript` commands to run scripts
