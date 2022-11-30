@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.16.1 - 2022-11-30
+* Feature: `maestro record` command
 * Fix: `z` character was not inputted correctly on Android
 
 ## 1.16.0 - 2022-11-29
