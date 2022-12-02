@@ -342,7 +342,7 @@ class IdbIOSDevice(
         
         // Wait for the app to be stopped, unfortunately idb's stop()
         // does not wait for the process to finish
-        Thread.sleep(500)
+        Thread.sleep(1500)
 
         // deletes app data, including container folder
         val result = runCatching {
