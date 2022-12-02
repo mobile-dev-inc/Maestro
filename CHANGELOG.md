@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.3 - 2022-12-02
+* Fix: Fix iOS `clearState` not working in certain cases
+* Fix: Fix `maestro record` not capturing full launch screen recording
+
 ## 1.16.2 - 2022-12-02
 * Fix: older version of Maestro Driver on Android was not always updated 
 
