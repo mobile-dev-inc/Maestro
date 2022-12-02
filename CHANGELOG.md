@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.16.4 - 2022-12-02
+* Fix: Add error message for when an Android screen recording fails
+
 ## 1.16.3 - 2022-12-02
 * Fix: Fix iOS `clearState` not working in certain cases
 * Fix: Fix `maestro record` not capturing full launch screen recording
