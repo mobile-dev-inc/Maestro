@@ -73,39 +73,41 @@ class TestCommand : Callable<Int> {
 
         val (maestro, device) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
 
-        return if (flowFile.isDirectory || format != ReportFormat.NOOP) {
-            if (continuous) {
-                throw CommandLine.ParameterException(
-                    commandSpec.commandLine(),
-                    "Continuous mode is not supported for directories. $flowFile is a directory",
+        return maestro.use {
+            if (flowFile.isDirectory || format != ReportFormat.NOOP) {
+                if (continuous) {
+                    throw CommandLine.ParameterException(
+                        commandSpec.commandLine(),
+                        "Continuous mode is not supported for directories. $flowFile is a directory",
+                    )
+                }
+
+                val suiteResult = TestSuiteInteractor(
+                    maestro = maestro,
+                    device = device,
+                    reporter = ReporterFactory.buildReporter(format)
+                ).runTestSuite(
+                    input = flowFile,
+                    env = env,
+                    reportOut = format.fileExtension
+                        ?.let { extension ->
+                            (output ?: File("report$extension"))
+                                .sink()
+                                .buffer()
+                        }
                 )
-            }
 
-            val suiteResult = TestSuiteInteractor(
-                maestro = maestro,
-                device = device,
-                reporter = ReporterFactory.buildReporter(format)
-            ).runTestSuite(
-                input = flowFile,
-                env = env,
-                reportOut = format.fileExtension
-                    ?.let { extension ->
-                        (output ?: File("report$extension"))
-                            .sink()
-                            .buffer()
-                    }
-            )
-
-            if (suiteResult.passed) {
-                0
+                if (suiteResult.passed) {
+                    0
+                } else {
+                    1
+                }
             } else {
-                1
-            }
-        } else {
-            if (continuous) {
-                TestRunner.runContinuous(maestro, device, flowFile, env)
-            } else {
-                TestRunner.runSingle(maestro, device, flowFile, env)
+                if (continuous) {
+                    TestRunner.runContinuous(maestro, device, flowFile, env)
+                } else {
+                    TestRunner.runSingle(maestro, device, flowFile, env)
+                }
             }
         }
     }
