@@ -364,9 +364,16 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun startScreenRecording(out: Sink): ScreenRecording {
         LOGGER.info("Starting screen recording")
         val screenRecording = driver.startScreenRecording(out)
+        val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
             override fun close() {
                 LOGGER.info("Stopping screen recording")
+                // Ensure minimum screen recording duration of 3 seconds.
+                // This addresses an edge case where the launch command completes too quickly.
+                val durationPadding = 3000 - (System.currentTimeMillis() - startTimestamp)
+                if (durationPadding > 0) {
+                    Thread.sleep(durationPadding)
+                }
                 screenRecording.close()
             }
         }

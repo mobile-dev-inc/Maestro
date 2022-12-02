@@ -88,7 +88,7 @@ class RecordCommand : Callable<Int> {
         val client = ApiClient("")
 
         val uploadProgress = ProgressBar(50)
-        System.err.println("Uploading...")
+        System.err.println("Uploading raw files for render...")
         val id = client.render(screenRecording, frames) { totalBytes, bytesWritten ->
             uploadProgress.set(bytesWritten.toFloat() / totalBytes)
         }

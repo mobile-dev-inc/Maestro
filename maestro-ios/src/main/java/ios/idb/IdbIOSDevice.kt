@@ -54,10 +54,10 @@ import io.grpc.ManagedChannel
 import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 import ios.IOSDevice
+import ios.IOSScreenRecording
 import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
-import ios.IOSScreenRecording
 import okio.Buffer
 import okio.Sink
 import okio.buffer
@@ -471,17 +471,9 @@ class IdbIOSDevice(
                 start = Idb.RecordRequest.Start.newBuilder().build()
             })
 
-            val startTimestamp = System.currentTimeMillis()
             object : IOSScreenRecording {
 
                 override fun close() {
-                    // Ensure minimum screen recording duration of 3 seconds.
-                    // This addresses an edge case where iOS launch command completes too quickly.
-                    val durationPadding = 3000 - (System.currentTimeMillis() - startTimestamp)
-                    if (durationPadding > 0) {
-                        Thread.sleep(durationPadding)
-                    }
-
                     request.onNext(recordRequest {
                         stop = Idb.RecordRequest.Stop.newBuilder().build()
                     })
