@@ -11,3 +11,8 @@ appId: com.example.app
     env:
       parameter: Input Parameter
 - inputText: ${output.resultWithParameters}
+- runScript:
+    file: 064_script_with_args.js
+    env:
+      parameter: ${'Evaluated Parameter'}
+- inputText: ${output.resultWithParameters}

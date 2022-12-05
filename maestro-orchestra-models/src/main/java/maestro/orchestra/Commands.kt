@@ -354,7 +354,7 @@ data class PressKeyCommand(
 
 }
 
-data class EraseTextCommand (
+data class EraseTextCommand(
     val charactersToErase: Int?,
 ) : Command {
 
@@ -560,7 +560,7 @@ data class DefineVariablesCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): DefineVariablesCommand {
         return copy(
-            env = env.mapValues { (key, value) ->
+            env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
             }
         )
@@ -581,7 +581,11 @@ data class RunScriptCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+        return copy(
+            env = env.mapValues { (_, value) ->
+                value.evaluateScripts(jsEngine)
+            }
+        )
     }
 
 }

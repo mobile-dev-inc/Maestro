@@ -1771,6 +1771,7 @@ class IntegrationTest {
                 Event.InputText("Main"),
                 Event.InputText("Sub"),
                 Event.InputText("Hello, Input Parameter!"),
+                Event.InputText("Hello, Evaluated Parameter!"),
             )
         )
     }
