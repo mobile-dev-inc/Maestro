@@ -3,7 +3,11 @@
 @tailwind utilities;
 
 body {
-  margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
 }

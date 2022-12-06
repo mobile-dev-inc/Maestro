@@ -6,6 +6,10 @@ fun String.magenta(): String {
     return "@|magenta $this|@".render()
 }
 
+fun String.red(): String {
+    return "@|red $this|@".render()
+}
+
 fun String.green(): String {
     return "@|green $this|@".render()
 }

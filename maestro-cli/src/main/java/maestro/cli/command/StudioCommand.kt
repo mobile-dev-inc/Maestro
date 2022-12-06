@@ -7,6 +7,7 @@ import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
 import maestro.cli.view.faint
+import maestro.cli.view.red
 import maestro.studio.MaestroStudio
 import picocli.CommandLine
 import java.awt.Desktop
@@ -16,6 +17,8 @@ import java.util.concurrent.Callable
 
 @CommandLine.Command(
     name = "studio",
+    hidden = true,
+    description = ["Launch Maestro Studio"],
 )
 class StudioCommand : Callable<Int> {
 
@@ -26,6 +29,10 @@ class StudioCommand : Callable<Int> {
         if (parent?.platform != null) {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
+
+        println()
+        println("\uD83D\uDEA7 THIS COMMAND IS A WIP \uD83D\uDEA7".red())
+        println()
 
         val (maestro, _) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
 
