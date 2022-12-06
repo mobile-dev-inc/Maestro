@@ -27,6 +27,7 @@ import maestro.cli.command.LogoutCommand
 import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.RecordCommand
+import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
 import maestro.cli.debuglog.DebugLogStore
@@ -50,6 +51,7 @@ import kotlin.system.exitProcess
         LoginCommand::class,
         LogoutCommand::class,
         BugReportCommand::class,
+//        StudioCommand::class,
     ]
 )
 class App {

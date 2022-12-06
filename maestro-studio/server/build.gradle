@@ -1,0 +1,35 @@
+plugins {
+    id 'maven-publish'
+    id "kotlin"
+    id 'application'
+    id "com.vanniktech.maven.publish"
+}
+
+application {
+    applicationName = 'maestro-studio'
+    mainClassName = 'maestro.studio.ServerKt'
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
+}
+
+def copyWebFiles = tasks.register("copyWebFiles", Copy.class) {
+    dependsOn(':maestro-studio:web:build')
+    from(new File(project(':maestro-studio:web').projectDir, 'build'))
+    into(new File(projectDir, 'src/main/resources/web'))
+}
+
+tasks.compileJava {
+    dependsOn(copyWebFiles)
+}
+
+dependencies {
+    implementation(project(":maestro-client"))
+    implementation platform("org.http4k:http4k-bom:4.34.2.0")
+    implementation("io.ktor:ktor-server-core:2.1.3")
+    implementation("io.ktor:ktor-server-netty:2.1.3")
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
+}

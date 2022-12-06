@@ -1,0 +1,8 @@
+tasks.register("deps", Exec.class) {
+    commandLine("npm", "install")
+}
+
+tasks.register("build", Exec.class) {
+    dependsOn(tasks.deps)
+    commandLine("npm", "run", "build")
+}
