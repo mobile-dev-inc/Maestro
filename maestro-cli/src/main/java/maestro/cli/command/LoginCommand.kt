@@ -8,6 +8,9 @@ import java.util.concurrent.Callable
 
 @CommandLine.Command(
     name = "login",
+    description = [
+        "Log into Maestro Cloud"
+    ]
 )
 class LoginCommand : Callable<Int> {
 
