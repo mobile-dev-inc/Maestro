@@ -85,6 +85,42 @@ internal class MaestroCommandSerializationTest {
     }
 
     @Test
+    fun `serialize TapOnPercentCommand`() {
+        // given
+        val command = MaestroCommand(
+            TapOnPercentCommand(
+                percentX = 20,
+                percentY = 80,
+                retryIfNoChange = false,
+                waitUntilVisible = true,
+                longPress = false,
+            )
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "tapOnPercent" : {
+                "percentX" : 20,
+                "percentY" : 80,
+                "retryIfNoChange" : false,
+                "waitUntilVisible" : true,
+                "longPress" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
     fun `serialize ScrollCommand`() {
         // given
         val command = MaestroCommand(

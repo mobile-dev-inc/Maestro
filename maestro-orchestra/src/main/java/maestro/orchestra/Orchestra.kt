@@ -23,7 +23,6 @@ import maestro.DeviceInfo
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Filters.asFilter
-import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
@@ -162,6 +161,7 @@ class Orchestra(
                 )
             }
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: true)
+            is TapOnPercentCommand -> tapOnPercent(command)
             is BackPressCommand -> backPressCommand()
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
@@ -554,6 +554,18 @@ class Orchestra(
             command.longPress ?: false,
         )
 
+        return true
+    }
+
+    private fun tapOnPercent(
+        command: TapOnPercentCommand,
+    ): Boolean {
+        maestro.tapOnPercent(
+            percentX = command.percentX,
+            percentY = command.percentY,
+            retryIfNoChange = command.retryIfNoChange ?: true,
+            longPress = command.longPress ?: false
+        )
         return true
     }
 

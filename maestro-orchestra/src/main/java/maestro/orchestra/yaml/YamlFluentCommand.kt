@@ -50,12 +50,12 @@ import maestro.orchestra.StopAppCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnPercentCommand
 import maestro.orchestra.TapOnPointCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
-import org.yaml.snakeyaml.Yaml
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
@@ -294,20 +294,33 @@ data class YamlFluentCommand(
         val point = (tapOn as? YamlElementSelector)?.point
 
         return if (point != null) {
-            val points = point.split(",")
-                .map {
-                    it.trim().toInt()
-                }
+            if (point.contains("%")) {
+                val percents = point.replace("%", "").split(",")
+                    .map { it.trim().toInt() }
 
-            MaestroCommand(
-                TapOnPointCommand(
-                    x = points[0],
-                    y = points[1],
-                    retryIfNoChange = retryIfNoChange,
-                    waitUntilVisible = waitUntilVisible,
-                    longPress = longPress,
+                // TODO: handle values outside 0-100
+                MaestroCommand(
+                    command = TapOnPercentCommand(
+                        percentX = percents[0],
+                        percentY = percents[1]
+                    )
                 )
-            )
+            } else {
+                val points = point.split(",")
+                    .map {
+                        it.trim().toInt()
+                    }
+
+                MaestroCommand(
+                    TapOnPointCommand(
+                        x = points[0],
+                        y = points[1],
+                        retryIfNoChange = retryIfNoChange,
+                        waitUntilVisible = waitUntilVisible,
+                        longPress = longPress,
+                    )
+                )
+            }
         } else {
             MaestroCommand(
                 command = TapOnElementCommand(

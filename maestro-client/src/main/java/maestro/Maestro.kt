@@ -36,9 +36,6 @@ import okio.sink
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import javax.imageio.ImageIO
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -168,6 +165,23 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 longPress = longPress,
             )
         }
+    }
+
+    fun tapOnPercent(
+        percentX: Int,
+        percentY: Int,
+        retryIfNoChange: Boolean = true,
+        longPress: Boolean = false,
+    ) {
+        val deviceInfo = deviceInfo()
+        val x = deviceInfo.widthPixels * percentX / 100
+        val y = deviceInfo.heightPixels * percentY / 100
+        tap(
+            x = x,
+            y = y,
+            retryIfNoChange = retryIfNoChange,
+            longPress = longPress,
+        )
     }
 
     fun tap(

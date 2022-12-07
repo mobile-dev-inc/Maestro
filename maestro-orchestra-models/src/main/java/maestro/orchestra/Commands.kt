@@ -206,6 +206,20 @@ data class TapOnPointCommand(
     }
 }
 
+data class TapOnPercentCommand(
+    val percentX: Int,
+    val percentY: Int,
+    val retryIfNoChange: Boolean? = null,
+    val waitUntilVisible: Boolean? = null,
+    val longPress: Boolean? = null,
+) : Command {
+    override fun description(): String {
+        return "Tap on percent ($percentX%, $percentY%)"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command = this
+}
+
 // Do not delete this class. It might have been already serialized in the past and stored in DB.
 @Deprecated("Use AssertConditionCommand instead")
 data class AssertCommand(
