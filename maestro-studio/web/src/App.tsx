@@ -1,40 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-
-type TreeNode = {
-  attributes: {[key: string]: string}
-  children: TreeNode[]
-  clickable: boolean | undefined
-  enabled: boolean | undefined
-  focused: boolean | undefined
-  checked: boolean | undefined
-  selected: boolean | undefined
-}
-
-type Hierarchy = {
-  screenshot: string
-  tree: TreeNode
-}
+import { DeviceScreen } from './models';
+import Inspect from './Inspect';
 
 function App() {
-  const [hierarchy, setHierarchy] = useState<Hierarchy>()
+  const [deviceScreen, setDeviceScreen] = useState<DeviceScreen>()
   useEffect(() => {
     (async () => {
-      const response = await fetch('/api/hierarchy')
-      const hierarchy: Hierarchy = await response.json()
-      setHierarchy(hierarchy)
+      const response = await fetch('/api/device-screen')
+      const responseJson: DeviceScreen = await response.json()
+      setDeviceScreen(responseJson)
     })()
   }, [])
-  if (!hierarchy) {
+  if (!deviceScreen) {
     return (
       <div>Loading...</div>
     )
   }
   return (
-    <div className="App flex h-full">
-      <img className="h-full" src={hierarchy.screenshot} alt="screenshot"/>
-      <p className="overflow-scroll">{JSON.stringify(hierarchy.tree)}</p>
-    </div>
+    <Inspect deviceScreen={deviceScreen} />
   );
 }
 
