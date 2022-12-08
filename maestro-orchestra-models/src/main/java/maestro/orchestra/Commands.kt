@@ -189,6 +189,7 @@ data class TapOnElementCommand(
     }
 }
 
+@Deprecated("Use TapOnPointV2Command instead")
 data class TapOnPointCommand(
     val x: Int,
     val y: Int,
@@ -206,18 +207,21 @@ data class TapOnPointCommand(
     }
 }
 
-data class TapOnPercentCommand(
-    val percentX: Int,
-    val percentY: Int,
+data class TapOnPointV2Command(
+    val point: String,
     val retryIfNoChange: Boolean? = null,
-    val waitUntilVisible: Boolean? = null,
     val longPress: Boolean? = null,
 ) : Command {
+
     override fun description(): String {
-        return "Tap on percent ($percentX%, $percentY%)"
+        return "Tap on point ($point)"
     }
 
-    override fun evaluateScripts(jsEngine: JsEngine): Command = this
+    override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
+        return copy(
+            point = point.evaluateScripts(jsEngine),
+        )
+    }
 }
 
 // Do not delete this class. It might have been already serialized in the past and stored in DB.

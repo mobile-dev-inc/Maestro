@@ -1,0 +1,15 @@
+appId: com.example.app
+env:
+  QUARTER: 25%
+  QUARTER_FLOAT: 0.25
+---
+- tapOn:
+    point: 0%,0%
+- tapOn:
+    point: 100%,100%
+- tapOn:
+    point: 50%,50%
+- tapOn:
+    point: ${QUARTER},${QUARTER}
+- tapOn:
+    point: ${relativePoint(QUARTER_FLOAT,QUARTER_FLOAT)}

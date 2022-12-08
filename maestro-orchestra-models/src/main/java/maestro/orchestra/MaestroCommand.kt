@@ -29,8 +29,8 @@ import maestro.js.JsEngine
  */
 data class MaestroCommand(
     val tapOnElement: TapOnElementCommand? = null,
-    val tapOnPoint: TapOnPointCommand? = null,
-    val tapOnPercent: TapOnPercentCommand? = null,
+    @Deprecated("Use tapOnPointV2Command") val tapOnPoint: TapOnPointCommand? = null,
+    val tapOnPointV2Command: TapOnPointV2Command? = null,
     val scrollCommand: ScrollCommand? = null,
     val swipeCommand: SwipeCommand? = null,
     val backPressCommand: BackPressCommand? = null,
@@ -62,7 +62,7 @@ data class MaestroCommand(
     constructor(command: Command) : this(
         tapOnElement = command as? TapOnElementCommand,
         tapOnPoint = command as? TapOnPointCommand,
-        tapOnPercent = command as? TapOnPercentCommand,
+        tapOnPointV2Command = command as? TapOnPointV2Command,
         scrollCommand = command as? ScrollCommand,
         swipeCommand = command as? SwipeCommand,
         backPressCommand = command as? BackPressCommand,
@@ -94,7 +94,7 @@ data class MaestroCommand(
     fun asCommand(): Command? = when {
         tapOnElement != null -> tapOnElement
         tapOnPoint != null -> tapOnPoint
-        tapOnPercent != null -> tapOnPercent
+        tapOnPointV2Command != null -> tapOnPointV2Command
         scrollCommand != null -> scrollCommand
         swipeCommand != null -> swipeCommand
         backPressCommand != null -> backPressCommand

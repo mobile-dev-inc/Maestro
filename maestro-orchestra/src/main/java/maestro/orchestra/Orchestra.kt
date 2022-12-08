@@ -161,7 +161,7 @@ class Orchestra(
                 )
             }
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: true)
-            is TapOnPercentCommand -> tapOnPercent(command)
+            is TapOnPointV2Command -> tapOnPointV2Command(command)
             is BackPressCommand -> backPressCommand()
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
@@ -557,15 +557,41 @@ class Orchestra(
         return true
     }
 
-    private fun tapOnPercent(
-        command: TapOnPercentCommand,
+    private fun tapOnPointV2Command(
+        command: TapOnPointV2Command,
     ): Boolean {
-        maestro.tapOnPercent(
-            percentX = command.percentX,
-            percentY = command.percentY,
-            retryIfNoChange = command.retryIfNoChange ?: true,
-            longPress = command.longPress ?: false
-        )
+        val point = command.point
+
+        if (point.contains("%")) {
+            val (percentX, percentY) = point
+                .replace("%", "")
+                .split(",")
+                .map { it.trim().toInt() }
+
+            if (percentX !in 0..100 || percentY !in 0..100) {
+                throw MaestroException.InvalidCommand("Invalid point: $point")
+            }
+
+            maestro.tapOnRelative(
+                percentX = percentX,
+                percentY = percentY,
+                retryIfNoChange = command.retryIfNoChange ?: true,
+                longPress = command.longPress ?: false
+            )
+        } else {
+            val (x, y) = point.split(",")
+                .map {
+                    it.trim().toInt()
+                }
+
+            maestro.tap(
+                x = x,
+                y = y,
+                retryIfNoChange = command.retryIfNoChange ?: true,
+                longPress = command.longPress ?: false
+            )
+        }
+
         return true
     }
 

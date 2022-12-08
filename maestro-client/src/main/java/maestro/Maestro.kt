@@ -41,11 +41,19 @@ import javax.imageio.ImageIO
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(private val driver: Driver) : AutoCloseable {
 
+    private val cachedDeviceInfo by lazy {
+        fetchDeviceInfo()
+    }
+
     fun deviceName(): String {
         return driver.name()
     }
 
     fun deviceInfo(): DeviceInfo {
+        return cachedDeviceInfo
+    }
+
+    private fun fetchDeviceInfo(): DeviceInfo {
         LOGGER.info("Getting device info")
 
         return driver.deviceInfo()
@@ -103,7 +111,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.hideKeyboard()
         waitForAppToSettle()
     }
-    
+
     fun swipe(swipeDirection: SwipeDirection? = null, start: Point? = null, end: Point? = null, duration: Long) {
         when {
             swipeDirection != null -> driver.swipe(swipeDirection, duration)
@@ -167,15 +175,14 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
     }
 
-    fun tapOnPercent(
+    fun tapOnRelative(
         percentX: Int,
         percentY: Int,
         retryIfNoChange: Boolean = true,
         longPress: Boolean = false,
     ) {
-        val deviceInfo = deviceInfo()
-        val x = deviceInfo.widthPixels * percentX / 100
-        val y = deviceInfo.heightPixels * percentY / 100
+        val x = cachedDeviceInfo.widthGrid * percentX / 100
+        val y = cachedDeviceInfo.heightGrid * percentY / 100
         tap(
             x = x,
             y = y,
@@ -419,7 +426,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
         driver.eraseText(charactersToErase)
     }
-    
+
     fun waitForAnimationToEnd(timeout: Long?) {
         val timeout = timeout ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")

@@ -145,7 +145,9 @@ class AndroidDriver(
 
         return DeviceInfo(
             widthPixels = response.widthPixels,
-            heightPixels = response.heightPixels
+            heightPixels = response.heightPixels,
+            widthGrid = response.widthPixels,
+            heightGrid = response.heightPixels,
         )
     }
 

@@ -78,6 +78,8 @@ class FakeDriver : Driver {
         return DeviceInfo(
             widthPixels = 1080,
             heightPixels = 1920,
+            widthGrid = 540,
+            heightGrid = 960,
         )
     }
 

@@ -50,8 +50,7 @@ import maestro.orchestra.StopAppCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
-import maestro.orchestra.TapOnPercentCommand
-import maestro.orchestra.TapOnPointCommand
+import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
@@ -294,33 +293,13 @@ data class YamlFluentCommand(
         val point = (tapOn as? YamlElementSelector)?.point
 
         return if (point != null) {
-            if (point.contains("%")) {
-                val percents = point.replace("%", "").split(",")
-                    .map { it.trim().toInt() }
-
-                // TODO: handle values outside 0-100
-                MaestroCommand(
-                    command = TapOnPercentCommand(
-                        percentX = percents[0],
-                        percentY = percents[1]
-                    )
+            MaestroCommand(
+                TapOnPointV2Command(
+                    point = point,
+                    retryIfNoChange = retryIfNoChange,
+                    longPress = longPress,
                 )
-            } else {
-                val points = point.split(",")
-                    .map {
-                        it.trim().toInt()
-                    }
-
-                MaestroCommand(
-                    TapOnPointCommand(
-                        x = points[0],
-                        y = points[1],
-                        retryIfNoChange = retryIfNoChange,
-                        waitUntilVisible = waitUntilVisible,
-                        longPress = longPress,
-                    )
-                )
-            }
+            )
         } else {
             MaestroCommand(
                 command = TapOnElementCommand(

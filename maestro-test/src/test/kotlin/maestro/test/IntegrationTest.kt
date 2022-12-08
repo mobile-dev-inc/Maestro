@@ -1922,6 +1922,34 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 071 - Tap on relative point`() {
+        // Given
+        val commands = readCommands("071_tapOnRelativePoint")
+
+        val driver = driver {
+        }
+
+        val deviceInfo = driver.deviceInfo()
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.Tap(Point(0, 0)),
+                Event.Tap(Point(deviceInfo.widthGrid, deviceInfo.heightGrid)),
+                Event.Tap(Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2)),
+                Event.Tap(Point(deviceInfo.widthGrid / 4, deviceInfo.heightGrid / 4)),
+                Event.Tap(Point(deviceInfo.widthGrid / 4, deviceInfo.heightGrid / 4)),
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

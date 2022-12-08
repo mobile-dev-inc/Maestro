@@ -69,7 +69,9 @@ class IOSDriver(
 
         return DeviceInfo(
             widthPixels = response.widthPixels,
-            heightPixels = response.heightPixels
+            heightPixels = response.heightPixels,
+            widthGrid = response.widthPoints,
+            heightGrid = response.heightPoints,
         )
     }
 

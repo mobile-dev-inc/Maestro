@@ -83,7 +83,9 @@ class IdbIOSDevice(
 
             DeviceInfo(
                 widthPixels = screenDimensions.width.toInt(),
-                heightPixels = screenDimensions.height.toInt()
+                heightPixels = screenDimensions.height.toInt(),
+                widthPoints = screenDimensions.widthPoints.toInt(),
+                heightPoints = screenDimensions.heightPoints.toInt(),
             )
         }
     }

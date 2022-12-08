@@ -35,16 +35,7 @@ class JsEngine(
 
         context.evaluateString(
             currentScope,
-            """
-                function json(text) {
-                    return JSON.parse(text)
-                }
-                
-                const output = {}
-                const maestro = {
-                    copiedText: ''
-                }
-            """.trimIndent(),
+            Js.initScript,
             "maestro-runtime",
             1,
             null
