@@ -1747,6 +1747,7 @@ class IntegrationTest {
                 Event.InputText("2"),
                 Event.InputText("12"),
                 Event.InputText("3.0"),
+                Event.InputText("\${A} \${B} 1 2"),
             )
         )
     }

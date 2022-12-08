@@ -7,4 +7,5 @@ env:
 - inputText: ${B}
 - inputText: ${A + B}
 - inputText: ${parseInt(A) + parseInt(B)}
+- inputText: \${A} \${B} ${A} ${B}
 
