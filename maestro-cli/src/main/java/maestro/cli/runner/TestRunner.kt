@@ -26,7 +26,7 @@ object TestRunner {
         env: Map<String, String>,
         view: ResultView = ResultView()
     ): Int {
-        val result = runCatching(view) {
+        val result = runCatching(view, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
 
@@ -57,7 +57,7 @@ object TestRunner {
 
         var ongoingTest: Thread? = null
         do {
-            val watchFiles = runCatching(view) {
+            val watchFiles = runCatching(view, maestro) {
                 ongoingTest?.apply {
                     interrupt()
                     join()
@@ -81,7 +81,7 @@ object TestRunner {
                         previousCommands = commands
                         previousInitFlow = initFlow
 
-                        previousResult = runCatching(view) {
+                        previousResult = runCatching(view, maestro) {
                             MaestroCommandRunner.runCommands(
                                 maestro,
                                 device,
@@ -114,6 +114,7 @@ object TestRunner {
     @Suppress("MaxLineLength")
     private fun <T> runCatching(
         view: ResultView,
+        maestro: Maestro,
         block: () -> T,
     ): Result<T, Exception> {
         return try {
@@ -121,11 +122,13 @@ object TestRunner {
         } catch (e: Exception) {
             val message = ErrorViewUtils.exceptionToMessage(e)
 
-            view.setState(
-                ResultView.UiState.Error(
-                    message = message
+            if (!maestro.isShutDown()) {
+                view.setState(
+                    ResultView.UiState.Error(
+                        message = message
+                    )
                 )
-            )
+            }
             return Err(e)
         }
     }

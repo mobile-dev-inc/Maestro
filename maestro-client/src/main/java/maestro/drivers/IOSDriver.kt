@@ -46,6 +46,8 @@ class IOSDriver(
     private var widthPixels: Int? = null
     private var heightPixels: Int? = null
 
+    private var proxySet = false
+
     override fun name(): String {
         return "iOS Simulator"
     }
@@ -58,6 +60,9 @@ class IOSDriver(
     }
 
     override fun close() {
+        if (proxySet) {
+            resetProxy()
+        }
         iosDevice.close()
 
         widthPixels = null
@@ -340,5 +345,33 @@ class IOSDriver(
         repeat(charactersToErase) {
             pressKey(KeyCode.BACKSPACE)
         }
+    }
+
+    override fun setProxy(host: String, port: Int) {
+        ProcessBuilder("networksetup", "-setwebproxy", "Wi-Fi", host, port.toString())
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+        ProcessBuilder("networksetup", "-setsecurewebproxy", "Wi-Fi", host, port.toString())
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+
+        proxySet = true
+    }
+
+    override fun resetProxy() {
+        ProcessBuilder("networksetup", "-setwebproxystate", "Wi-Fi", "off")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+        ProcessBuilder("networksetup", "-setsecurewebproxystate", "Wi-Fi", "off")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+    }
+
+    override fun isShutdown(): Boolean {
+        return iosDevice.isShutdown()
     }
 }

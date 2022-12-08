@@ -252,6 +252,22 @@ class FakeDriver : Driver {
         events += Event.OpenLink(link)
     }
 
+    override fun setProxy(host: String, port: Int) {
+        ensureOpen()
+
+        events += Event.SetProxy(host, port)
+    }
+
+    override fun resetProxy() {
+        ensureOpen()
+
+        events += Event.ResetProxy
+    }
+
+    override fun isShutdown(): Boolean {
+        return state != State.OPEN
+    }
+
     fun setLayout(layout: FakeLayoutElement) {
         this.layout = layout
     }
@@ -376,6 +392,14 @@ class FakeDriver : Driver {
         ) : Event()
 
         object EraseAllText: Event()
+
+        data class SetProxy(
+            val host: String,
+            val port: Int,
+        ) : Event()
+
+        object ResetProxy : Event()
+
     }
 
     interface UserInteraction

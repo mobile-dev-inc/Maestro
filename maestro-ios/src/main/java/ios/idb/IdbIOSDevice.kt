@@ -493,6 +493,10 @@ class IdbIOSDevice(
         }
     }
 
+    override fun isShutdown(): Boolean {
+        return channel.isShutdown
+    }
+
     override fun close() {
         channel.shutdown()
 

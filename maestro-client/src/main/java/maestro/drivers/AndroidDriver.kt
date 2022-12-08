@@ -70,6 +70,7 @@ class AndroidDriver(
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
     private var instrumentationSession: AdbShellStream? = null
+    private var proxySet = false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -127,6 +128,10 @@ class AndroidDriver(
     }
 
     override fun close() {
+        if (proxySet) {
+            resetProxy()
+        }
+
         PORT_TO_FORWARDER[hostPort]?.close()
         PORT_TO_FORWARDER.remove(hostPort)
         PORT_TO_ALLOCATION_POINT.remove(hostPort)
@@ -356,6 +361,19 @@ class AndroidDriver(
                 this.charactersToErase = charactersToErase
             }
         ) ?: throw IllegalStateException("Erase Response can't be null")
+    }
+
+    override fun setProxy(host: String, port: Int) {
+        shell("""settings put global http_proxy "${host}:${port}"""")
+        proxySet = true
+    }
+
+    override fun resetProxy() {
+        shell("settings put global http_proxy :0")
+    }
+
+    override fun isShutdown(): Boolean {
+        return channel.isShutdown
     }
 
     private fun mapHierarchy(node: Node): TreeNode {

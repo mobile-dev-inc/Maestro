@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.MaestroTimer
 import maestro.cli.CliError
 import maestro.cli.util.CommandLineUtils.runCommand
+import java.io.File
 
 object Simctl {
     fun list(): SimctlList {
@@ -28,6 +29,18 @@ object Simctl {
         } ?: throw CliError("Device $deviceId did not boot in time")
     }
 
+    fun awaitShutdown(deviceId: String) {
+        MaestroTimer.withTimeout(30000) {
+            if (list()
+                    .devices
+                    .values
+                    .flatMap { it }
+                    .find { it.udid == deviceId }
+                    ?.state != "Booted"
+            ) true else null
+        } ?: throw CliError("Device $deviceId did not boot in time")
+    }
+
     fun launchSimulator(deviceId: String) {
         runCommand("xcrun simctl boot $deviceId")
 
@@ -45,6 +58,51 @@ object Simctl {
         }
 
         exceptionToThrow?.let { throw it }
+    }
+
+    fun reboot(
+        deviceId: String,
+    ) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "shutdown",
+                deviceId
+            ),
+            waitForCompletion = true
+        )
+        awaitShutdown(deviceId)
+
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "boot",
+                deviceId
+            ),
+            waitForCompletion = true
+        )
+        awaitLaunch(deviceId)
+    }
+
+    fun addTrustedCertificate(
+        deviceId: String,
+        certificate: File,
+    ) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "keychain",
+                deviceId,
+                "add-root-cert",
+                certificate.absolutePath,
+            ),
+            waitForCompletion = true
+        )
+
+        reboot(deviceId)
     }
 
 }

@@ -20,6 +20,9 @@
 package maestro.utils
 
 import java.io.IOException
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.Socket
 
 object SocketUtils {
@@ -33,6 +36,22 @@ object SocketUtils {
         } catch (ignored: IOException) {
             false
         }
+    }
+
+    fun localIp(): String {
+        return NetworkInterface.getNetworkInterfaces()
+            .toList()
+            .firstNotNullOfOrNull { networkInterface ->
+                networkInterface.inetAddresses
+                    .toList()
+                    .find { inetAddress ->
+                        !inetAddress.isLoopbackAddress
+                            && inetAddress is Inet4Address
+                            && inetAddress.hostAddress.startsWith("192")
+                    }
+                    ?.hostAddress
+            }
+            ?: InetAddress.getLocalHost().hostAddress
     }
 
 }

@@ -33,6 +33,7 @@ import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
+import kotlin.concurrent.thread
 
 @CommandLine.Command(
     name = "record",
@@ -67,6 +68,10 @@ class RecordCommand : Callable<Int> {
         }
 
         val (maestro, device) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
+
+        Runtime.getRuntime().addShutdownHook(thread(start = false) {
+            maestro.close()
+        })
 
         if (flowFile.isDirectory) {
             throw CommandLine.ParameterException(

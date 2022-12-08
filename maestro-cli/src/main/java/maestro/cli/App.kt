@@ -30,6 +30,7 @@ import maestro.cli.command.RecordCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
+import maestro.cli.command.network.NetworkCommand
 import maestro.cli.debuglog.DebugLogStore
 import org.fusesource.jansi.AnsiConsole
 import picocli.CommandLine
@@ -50,6 +51,7 @@ import kotlin.system.exitProcess
         DownloadSamplesCommand::class,
         LoginCommand::class,
         LogoutCommand::class,
+        NetworkCommand::class,
         BugReportCommand::class,
         StudioCommand::class,
     ]

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="@raw/maestro"/>
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

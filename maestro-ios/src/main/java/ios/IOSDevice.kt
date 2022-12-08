@@ -138,6 +138,12 @@ interface IOSDevice : AutoCloseable {
      * @param long - longitude
      */
     fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable>
+
+    /**
+     * @return true if the connection to the device (not device itself) is shut down
+     */
+    fun isShutdown(): Boolean
+
 }
 
 interface IOSScreenRecording : AutoCloseable

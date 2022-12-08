@@ -29,6 +29,8 @@ import maestro.MaestroTimer
 import maestro.TreeNode
 import maestro.UiElement
 import maestro.js.JsEngine
+import maestro.networkproxy.NetworkProxy
+import maestro.networkproxy.yaml.YamlMappingRuleParser
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -46,6 +48,7 @@ class Orchestra(
     private val screenshotsDir: File? = null,
     private val lookupTimeoutMs: Long = 15000L,
     private val optionalLookupTimeoutMs: Long = 5000L,
+    private val networkProxy: NetworkProxy = NetworkProxy(port = 8085),
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
@@ -188,6 +191,7 @@ class Orchestra(
             is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
+            is MockNetworkCommand -> mockNetworkCommand(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -272,6 +276,21 @@ class Orchestra(
     private fun backPressCommand(): Boolean {
         maestro.backPress()
         return true
+    }
+
+    private fun mockNetworkCommand(command: MockNetworkCommand): Boolean {
+        maestro.setProxy(
+            port = networkProxy.port,
+        )
+
+        val rules = YamlMappingRuleParser.readRules(File(command.path).toPath())
+        if (!networkProxy.isStarted()) {
+            networkProxy.start(rules)
+        } else {
+            networkProxy.replaceRules(rules)
+        }
+
+        return false
     }
 
     private fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand): Boolean {
@@ -757,7 +776,7 @@ class Orchestra(
 
     enum class ErrorResolution {
         CONTINUE,
-        FAIL,
+        FAIL
     }
 
     companion object {

@@ -26,6 +26,7 @@ dependencies {
 
     implementation project(':maestro-client')
     implementation project(':maestro-orchestra')
+    implementation project(':maestro-network-proxy')
     implementation project(':maestro-ios')
     implementation project(':maestro-studio:server')
     implementation "dev.mobile:dadb:1.2.6"
@@ -40,6 +41,9 @@ dependencies {
     implementation 'io.ktor:ktor-client-cio:2.1.2'
     implementation 'org.rauschig:jarchivelib:1.2.0'
     implementation 'net.harawata:appdirs:1.2.1'
+
+    // Silence logs from WireMock
+    implementation 'org.slf4j:slf4j-nop:2.0.1'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'

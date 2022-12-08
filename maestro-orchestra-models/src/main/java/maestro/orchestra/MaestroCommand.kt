@@ -57,6 +57,7 @@ data class MaestroCommand(
     val runScriptCommand: RunScriptCommand? = null,
     val waitForAnimationToEndCommand: WaitForAnimationToEndCommand? = null,
     val evalScriptCommand: EvalScriptCommand? = null,
+    val mockNetworkCommand: MockNetworkCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -89,6 +90,7 @@ data class MaestroCommand(
         runScriptCommand = command as? RunScriptCommand,
         waitForAnimationToEndCommand = command as? WaitForAnimationToEndCommand,
         evalScriptCommand = command as? EvalScriptCommand,
+        mockNetworkCommand = command as? MockNetworkCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -121,6 +123,7 @@ data class MaestroCommand(
         runScriptCommand != null -> runScriptCommand
         waitForAnimationToEndCommand != null -> waitForAnimationToEndCommand
         evalScriptCommand != null -> evalScriptCommand
+        mockNetworkCommand != null -> mockNetworkCommand
         else -> null
     }
 
