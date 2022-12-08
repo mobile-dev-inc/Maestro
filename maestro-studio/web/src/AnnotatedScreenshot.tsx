@@ -1,5 +1,5 @@
 import { DeviceScreen, UIElement } from './models';
-import React, { CSSProperties, ReactNode, useEffect, useRef } from 'react';
+import React, { CSSProperties, useEffect, useRef } from 'react';
 import useMouse, { MousePosition } from '@react-hook/mouse-position';
 
 type AnnotationState = 'default' | 'hidden' | 'hovered' | 'selected'
@@ -20,7 +20,6 @@ const Annotation = ({element, deviceWidth, deviceHeight, state, onClick}: {
 
   let className = "border border-dashed border-pink-400"
   let style: CSSProperties = {}
-  let overlay: ReactNode = null
 
   if (state === 'hovered') {
     className = "border-4 border-blue-500 active:active:bg-blue-400/40 z-10"
@@ -47,7 +46,37 @@ const Annotation = ({element, deviceWidth, deviceHeight, state, onClick}: {
         }}
         onClick={onClick}
       />
-      {overlay}
+    </>
+  )
+}
+
+const TargetLines = ({ element, deviceScreen, color }: {
+  element: UIElement
+  deviceScreen: DeviceScreen
+  color: string
+}) => {
+  if (!element.bounds) return null
+  const {x, y, width, height} = element.bounds
+  const cx = (x + width / 2) / deviceScreen.width
+  const cy = (y + height / 2) / deviceScreen.height
+  return (
+    <>
+      <div
+        className={`absolute z-20 w-[1px] h-full ${color} -translate-x-1/2 pointer-events-none`}
+        style={{
+          top: 0,
+          bottom: 0,
+          left: `${cx * 100}%`,
+        }}
+      />
+      <div
+        className={`absolute z-20 h-[1px] w-full ${color} -translate-y-1/2 pointer-events-none`}
+        style={{
+          left: 0,
+          right: 0,
+          top: `${cy * 100}%`,
+        }}
+      />
     </>
   )
 }
@@ -95,6 +124,34 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
     onElementHovered(hoveredElementCandidate)
   }, [onElementHovered, hoveredElementCandidate])
 
+  const createAnnotation = (element: UIElement) => {
+    let state: AnnotationState = 'default'
+    if (selectedElement === element) {
+      state = 'selected'
+    } else if (selectedElement !== null) {
+      state = 'hidden'
+    } else if (hoveredElement === element) {
+      state = 'hovered'
+    }
+    return (
+      <Annotation
+        element={element}
+        deviceWidth={deviceScreen.width}
+        deviceHeight={deviceScreen.height}
+        state={state}
+        onClick={() => {
+          if (selectedElement) {
+            onElementSelected(null)
+          } else {
+            onElementSelected(element)
+          }
+        }}
+      />
+    )
+  }
+
+  const focusedElement = selectedElement || hoveredElement
+
   return (
     <div
       ref={ref}
@@ -103,33 +160,23 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
         aspectRatio: deviceScreen.width / deviceScreen.height,
       }}
     >
-      <img className="h-full" src={deviceScreen.screenshot} alt="screenshot"/>
-      {hoveredElement || selectedElement ? null : <div className="absolute inset-0 bg-black opacity-50"/>}
-      {deviceScreen.elements.map(element => {
-        let state: AnnotationState = 'default'
-        if (selectedElement === element) {
-          state = 'selected'
-        } else if (selectedElement !== null) {
-          state = 'hidden'
-        } else if (hoveredElement === element) {
-          state = 'hovered'
-        }
-        return (
-          <Annotation
-            element={element}
-            deviceWidth={deviceScreen.width}
-            deviceHeight={deviceScreen.height}
-            state={state}
-            onClick={() => {
-              if (selectedElement) {
-                onElementSelected(null)
-              } else {
-                onElementSelected(element)
-              }
-            }}
-          />
-        )
-      })}
+      <img
+        className="h-full"
+        src={deviceScreen.screenshot}
+        alt="screenshot"
+        onClick={() => {
+          if (selectedElement) onElementSelected(null)
+        }}
+      />
+      {focusedElement ? (
+        <TargetLines
+          element={focusedElement}
+          deviceScreen={deviceScreen}
+          color={focusedElement === selectedElement ? 'bg-pink-400' : 'bg-blue-400'}
+        />
+      ) : null}
+      {/*{focusedElement ? null : <div className="absolute inset-0 bg-black opacity-50"/>}*/}
+      {deviceScreen.elements.map(createAnnotation)}
     </div>
   );
 }

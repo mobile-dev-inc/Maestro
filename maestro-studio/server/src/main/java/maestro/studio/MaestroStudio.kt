@@ -30,7 +30,6 @@ data class DeviceScreen(
     val elements: List<UIElement>,
 )
 
-// Relative bounds (values between 0 and 1)
 data class UIElementBounds(
     val x: Int,
     val y: Int,
