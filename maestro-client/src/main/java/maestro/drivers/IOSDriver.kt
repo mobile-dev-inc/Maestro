@@ -28,6 +28,7 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
+import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
@@ -73,6 +74,7 @@ class IOSDriver(
         val response = iosDevice.deviceInfo().expect {}
 
         return DeviceInfo(
+            platform = Platform.IOS,
             widthPixels = response.widthPixels,
             heightPixels = response.heightPixels,
             widthGrid = response.widthPoints,

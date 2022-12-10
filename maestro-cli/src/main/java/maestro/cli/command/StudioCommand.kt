@@ -30,10 +30,6 @@ class StudioCommand : Callable<Int> {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
 
-        println()
-        println("\uD83D\uDEA7 THIS COMMAND IS A WIP \uD83D\uDEA7".red())
-        println()
-
         val (maestro, _) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
 
         val port = getFreePort()

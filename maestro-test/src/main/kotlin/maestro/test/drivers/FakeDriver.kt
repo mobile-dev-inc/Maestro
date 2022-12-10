@@ -25,6 +25,7 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
+import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
@@ -76,6 +77,7 @@ class FakeDriver : Driver {
         ensureOpen()
 
         return DeviceInfo(
+            platform = Platform.IOS,
             widthPixels = 1080,
             heightPixels = 1920,
             widthGrid = 540,

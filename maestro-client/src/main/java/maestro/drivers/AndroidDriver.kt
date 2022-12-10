@@ -29,6 +29,7 @@ import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException.UnableToTakeScreenshot
 import maestro.MaestroTimer
+import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
@@ -149,6 +150,7 @@ class AndroidDriver(
         val response = blockingStub.deviceInfo(deviceInfoRequest {})
 
         return DeviceInfo(
+            platform = Platform.ANDROID,
             widthPixels = response.widthPixels,
             heightPixels = response.heightPixels,
             widthGrid = response.widthPixels,

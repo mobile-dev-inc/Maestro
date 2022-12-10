@@ -1,8 +1,12 @@
 tasks.register("deps", Exec.class) {
+    inputs.file(layout.projectDirectory.file("package.json"))
+    outputs.dir(layout.projectDirectory.dir("node_modules"))
     commandLine("npm", "install")
 }
 
 tasks.register("build", Exec.class) {
+    inputs.dir(layout.projectDirectory)
+    outputs.dir(layout.projectDirectory.dir("build"))
     dependsOn(tasks.deps)
     commandLine("npm", "run", "build")
 }

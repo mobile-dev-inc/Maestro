@@ -2,6 +2,7 @@ package maestro.studio
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.http.content.files
@@ -9,10 +10,12 @@ import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.http.content.static
 import io.ktor.server.http.content.staticRootFolder
 import io.ktor.server.netty.Netty
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import maestro.Maestro
+import maestro.Platform
 import maestro.TreeNode
 import java.io.File
 import java.nio.file.Path
@@ -52,14 +55,32 @@ object MaestroStudio {
         embeddedServer(Netty, port = port) {
             routing {
                 get("/api/device-screen") {
-                    val tree = maestro.viewHierarchy().root
-                    val screenshotFile = takeScreenshot(maestro)
+                    val tree: TreeNode
+                    val screenshotFile: File
+                    synchronized(this@MaestroStudio) {
+                        tree = maestro.viewHierarchy().root
+                        screenshotFile = takeScreenshot(maestro)
+                    }
 
-                    // Using screenshot dimensions instead of Maestro.deviceInfo() since
-                    // deviceInfo() is currently inaccurate on Android
-                    val image = ImageIO.read(screenshotFile)
-                    val deviceWidth = image.width
-                    val deviceHeight = image.height
+                    val deviceInfo = maestro.deviceInfo()
+
+                    val deviceWidth: Int
+                    val deviceHeight: Int
+                    if (deviceInfo.platform == Platform.ANDROID) {
+                        // Using screenshot dimensions instead of Maestro.deviceInfo() since
+                        // deviceInfo() is currently inaccurate on Android
+                        val image = ImageIO.read(screenshotFile)
+                        if (image == null) {
+                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve screenshot")
+                            return@get
+                        }
+
+                        deviceWidth = image.width
+                        deviceHeight = image.height
+                    } else {
+                        deviceWidth = deviceInfo.widthGrid
+                        deviceHeight = deviceInfo.heightGrid
+                    }
 
                     val elements = treeToElements(tree)
                     val deviceScreen = DeviceScreen("/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements)

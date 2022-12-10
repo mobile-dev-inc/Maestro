@@ -135,6 +135,7 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
     }
     return (
       <Annotation
+        key={element.id}
         element={element}
         deviceWidth={deviceScreen.width}
         deviceHeight={deviceScreen.height}
@@ -155,7 +156,7 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
   return (
     <div
       ref={ref}
-      className="relative h-full bg-red-100 overflow-clip"
+      className="relative border h-full bg-red-100 rounded-md overflow-hidden"
       style={{
         aspectRatio: deviceScreen.width / deviceScreen.height,
       }}
@@ -175,7 +176,6 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
           color={focusedElement === selectedElement ? 'bg-pink-400' : 'bg-blue-400'}
         />
       ) : null}
-      {/*{focusedElement ? null : <div className="absolute inset-0 bg-black opacity-50"/>}*/}
       {deviceScreen.elements.map(createAnnotation)}
     </div>
   );
