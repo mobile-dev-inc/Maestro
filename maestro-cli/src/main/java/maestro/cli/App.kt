@@ -32,6 +32,8 @@ import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
 import maestro.cli.command.network.NetworkCommand
 import maestro.cli.debuglog.DebugLogStore
+import maestro.cli.update.Updates
+import maestro.cli.view.box
 import org.fusesource.jansi.AnsiConsole
 import picocli.CommandLine
 import picocli.CommandLine.Command
@@ -90,6 +92,8 @@ private fun printVersion() {
 
 @Suppress("SpreadOperator")
 fun main(args: Array<String>) {
+    Updates.fetchUpdatesAsync()
+
     val logger = DebugLogStore.loggerFor(App::class.java)
 
     val commandLine = CommandLine(App())
@@ -115,6 +119,15 @@ fun main(args: Array<String>) {
         .execute(*args)
 
     DebugLogStore.finalizeRun()
+
+    val newVersion = Updates.checkForUpdates()
+    if (newVersion != null) {
+        System.err.println()
+        System.err.println(
+            ("A new version of the Maestro CLI is available ($newVersion). Upgrade instructions:\n" +
+                "https://maestro.mobile.dev/getting-started/installing-maestro#upgrading-the-cli").box()
+        )
+    }
 
     if (commandLine.isVersionHelpRequested) {
         printVersion()

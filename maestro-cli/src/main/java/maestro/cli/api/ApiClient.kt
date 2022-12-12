@@ -6,8 +6,8 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
-import maestro.cli.util.PrintUtils
 import maestro.cli.runner.ResultView
+import maestro.cli.util.PrintUtils
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -41,6 +41,38 @@ class ApiClient(
 
     private val knownCIEnvVars = listOf("CI", "JENKINS_HOME", "BITRISE_IO")
     private val BASE_RETRY_DELAY_MS = 3000L
+
+    fun getLatestCliVersion(
+        deviceUuid: String,
+        osName: String,
+        currentVersion: CliVersion,
+        freshInstall: Boolean,
+    ): CliVersion {
+        val request = Request.Builder()
+            .header("X-UUID", deviceUuid)
+            .header("X-OS", osName)
+            .header("X-VERSION", currentVersion.toString())
+            .header("X-FRESH-INSTALL", if (freshInstall) "true" else "false")
+            .url("$baseUrl/maestro/version")
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+
+            return JSON.readValue(response.body?.bytes(), CliVersion::class.java)
+        }
+    }
 
     fun magicLinkLogin(email: String, redirectUrl: String): Result<String, Response> {
         return post<Map<String, Any>>(
@@ -349,3 +381,32 @@ data class RenderState(
     val error: String?,
     val downloadUrl: String?,
 )
+
+data class CliVersion(
+    val major: Int,
+    val minor: Int,
+    val patch: Int,
+): Comparable<CliVersion> {
+
+    override fun compareTo(other: CliVersion): Int {
+        return COMPARATOR.compare(this, other)
+    }
+
+    override fun toString(): String {
+        return "$major.$minor.$patch"
+    }
+
+    companion object {
+
+        private val COMPARATOR = compareBy<CliVersion>({it.major}, {it.minor}, {it.patch})
+
+        fun parse(versionString: String): CliVersion? {
+            val parts = versionString.split('.')
+            if (parts.size != 3) return null
+            val major = parts[0].toIntOrNull() ?: return null
+            val minor = parts[1].toIntOrNull() ?: return null
+            val patch = parts[2].toIntOrNull() ?: return null
+            return CliVersion(major, minor, patch)
+        }
+    }
+}
