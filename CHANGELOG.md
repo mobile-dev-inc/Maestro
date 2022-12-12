@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.17.0 - 2022-12-12
+* Feature: Maestro Studio
+* Feature: Print a message when an update is available
+* Feature: Support percentages for tapOn
+* Fix: Maestro commands execute faster now
+* Fix: Fix environment variable substitution in certain cases
+* Fix: Use actual android device screen size (including nav bar)
+
 ## 1.16.4 - 2022-12-02
 * Fix: Add error message for when an Android screen recording fails
 
