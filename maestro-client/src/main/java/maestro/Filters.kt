@@ -29,6 +29,11 @@ typealias ElementLookupPredicate = (TreeNode) -> Boolean
 
 object Filters {
 
+    val INDEX_COMPARATOR: Comparator<TreeNode> = compareBy(
+        { it.toUiElementOrNull()?.bounds?.y ?: Int.MAX_VALUE },
+        { it.toUiElementOrNull()?.bounds?.x ?: Int.MAX_VALUE },
+    )
+
     fun intersect(filters: List<ElementFilter>): ElementFilter = { nodes ->
         filters
             .map { it(nodes).toSet() }
@@ -186,7 +191,7 @@ object Filters {
         return { nodes ->
             listOfNotNull(
                 nodes
-                    .sortedBy { it.toUiElementOrNull()?.bounds?.y ?: Int.MAX_VALUE }
+                    .sortedWith(INDEX_COMPARATOR)
                     .getOrNull(idx)
             )
         }

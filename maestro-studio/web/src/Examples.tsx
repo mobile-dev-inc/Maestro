@@ -42,13 +42,30 @@ const Section = ({ deviceScreen, element, title, documentationUrl, codeSnippets 
   codeSnippets: string[]
 }) => {
   const toPercent = (n: number, total: number) => `${Math.round((100 * n / total))}%`
+  const elementHasResourceIdIndex = typeof element.resourceIdIndex === 'number'
+  const elementHasTextIndex = typeof element.textIndex === 'number'
   const codeSnippetComponents = codeSnippets.map(codeSnippet => {
+    // If the snippet references a resource id but the element doesn't have one, skip it
     if (codeSnippet.includes('[id]') && !element.resourceId) return null
+    // If the snippet references a resource id index but the element doesn't have one, skip it
+    if (codeSnippet.includes('[resource-id-index]') && !elementHasResourceIdIndex) return null
+    // If the snippet references text index but the element doesn't have any, skip it
     if (codeSnippet.includes('[text]') && !element.text) return null
+    // If the snippet references a text id index but the element doesn't have one, skip it
+    if (codeSnippet.includes('[text-index]') && !elementHasTextIndex) return null
+    // If the snippet references bounds but the element doesn't have any, skip it
     if (codeSnippet.includes('[bounds]') && !element.bounds) return null
+    // If the snippet references tapOn but the element doesn't have bounds, skip it
     if (codeSnippet.includes('tapOn') && isBoundsEmpty(element)) return null
+    // If the element has a resource id index, and the snippet doesn't specify one, skip it
+    if (elementHasResourceIdIndex && codeSnippet.includes('[id]') && !codeSnippet.includes('[resource-id-index]')) return null
+    // If the element has a text id index, and the snippet doesn't specify one, skip it
+    if (elementHasTextIndex && codeSnippet.includes('[text]') && !codeSnippet.includes('[text-index]')) return null
+
     const id = element.resourceId || ''
     const text = element.text || ''
+    const resourceIdIndex = `${element.resourceIdIndex}`
+    const textIndex = `${element.textIndex}`
     const bounds = element.bounds || { x: 0, y: 0, width: 0, height: 0 }
     const cx = toPercent(bounds.x + bounds.width / 2, deviceScreen.width)
     const cy = toPercent(bounds.y + bounds.height / 2, deviceScreen.height)
@@ -60,6 +77,8 @@ const Section = ({ deviceScreen, element, title, documentationUrl, codeSnippets 
             .replace('[id]', id)
             .replace('[text]', text)
             .replace('[point]', point)
+            .replace('[resource-id-index]', resourceIdIndex)
+            .replace('[text-index]', textIndex)
         }
       </CodeSnippet>
     )
@@ -153,7 +172,15 @@ Tap,https://maestro.mobile.dev/reference/tap-on-view
 - tapOn: "[text]"
 ---
 - tapOn:
+    text: "[text]"
+    index: [text-index]
+---
+- tapOn:
     id: "[id]"
+---
+- tapOn:
+    id: "[id]"
+    index: [resource-id-index]
 ---
 - tapOn:
     point: "[point]"
@@ -163,7 +190,15 @@ Assertion,https://maestro.mobile.dev/reference/assertions
 - assertVisible: "[text]"
 ---
 - assertVisible:
+    text: "[text]"
+    index: [text-index]
+---
+- assertVisible:
     id: "[id]"
+---
+- assertVisible:
+    id: "[id]"
+    index: [resource-id-index]
 ===
 Conditional,https://maestro.mobile.dev/advanced/conditions
 ---
@@ -175,7 +210,21 @@ Conditional,https://maestro.mobile.dev/advanced/conditions
 - runFlow:
     when:
       visible:
+        text: "[text]"
+        index: [text-index]
+    file: Subflow.yaml
+---
+- runFlow:
+    when:
+      visible:
         id: "[id]"
+    file: Subflow.yaml
+---
+- runFlow:
+    when:
+      visible:
+        id: "[text]"
+        index: [text-index]
     file: Subflow.yaml
 `
 

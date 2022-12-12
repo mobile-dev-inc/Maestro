@@ -14,7 +14,9 @@ export type UIElement = {
   id: string
   bounds?: UIElementBounds
   resourceId?: string
+  resourceIdIndex?: number
   text?: string
+  textIndex?: number
 }
 
 export type DeviceScreen = {
