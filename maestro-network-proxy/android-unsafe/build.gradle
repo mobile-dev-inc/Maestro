@@ -1,5 +1,7 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
+    id "com.vanniktech.maven.publish"
 }
 
 android {
@@ -19,4 +21,10 @@ android {
 
 dependencies {
     implementation project(':maestro-network-proxy:android')
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
 }

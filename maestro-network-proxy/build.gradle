@@ -1,5 +1,7 @@
 plugins {
-    id "kotlin"
+    id 'maven-publish'
+    id 'kotlin'
+    id "com.vanniktech.maven.publish"
 }
 
 dependencies {
@@ -13,4 +15,10 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
 }

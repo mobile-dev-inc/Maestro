@@ -1,5 +1,7 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
+    id "com.vanniktech.maven.publish"
 }
 
 android {
@@ -17,5 +19,8 @@ android {
     }
 }
 
-dependencies {
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
 }
