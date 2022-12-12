@@ -166,30 +166,8 @@ class IOSDriver(
     override fun contentDescriptor(): TreeNode {
         val accessibilityNodes = iosDevice.contentDescriptor().expect {}
 
-        // This is a workaround for an idb issue that doesn't return children of a Tab Bar view
-        // We are locating such a view and then scan it for children by probing individual points on the screen
-        val groupChildren = accessibilityNodes
-            .filter { it.type == "Group" }
-            .filter { (it.frame?.width ?: 0F) > 50F }
-            .maxByOrNull { it.frame?.y ?: 0F }
-            ?.let { node ->
-                node.frame
-                    ?.let { frame ->
-                        (frame.x.toInt()..(frame.x + frame.width).toInt())
-                            .step((frame.width / 5).toInt())
-                            .flatMap { x ->
-                                iosDevice
-                                    .describePoint(x, (frame.y + frame.height / 2).toInt())
-                                    .getOr(emptyList())
-                            }
-                    }
-            }
-            ?: emptyList()
-
-        val allNodes = accessibilityNodes + groupChildren
-
         return TreeNode(
-            children = allNodes.map { node ->
+            children = accessibilityNodes.map { node ->
                 val attributes = mutableMapOf<String, String>()
 
                 (node.title

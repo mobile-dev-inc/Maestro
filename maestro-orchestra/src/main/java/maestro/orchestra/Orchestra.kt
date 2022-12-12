@@ -26,7 +26,6 @@ import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.MaestroTimer
-import maestro.TreeNode
 import maestro.UiElement
 import maestro.js.JsEngine
 import maestro.networkproxy.NetworkProxy
@@ -46,8 +45,8 @@ class Orchestra(
     private val maestro: Maestro,
     private val stateDir: File? = null,
     private val screenshotsDir: File? = null,
-    private val lookupTimeoutMs: Long = 15000L,
-    private val optionalLookupTimeoutMs: Long = 5000L,
+    private val lookupTimeoutMs: Long = 17000L,
+    private val optionalLookupTimeoutMs: Long = 7000L,
     private val networkProxy: NetworkProxy = NetworkProxy(port = 8085),
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
@@ -630,7 +629,6 @@ class Orchestra(
         val (description, filterFunc) = buildFilter(
             selector,
             deviceInfo(),
-            maestro.viewHierarchy().aggregate(),
         )
 
         return maestro.findElementWithTimeout(
@@ -648,7 +646,6 @@ class Orchestra(
     private fun buildFilter(
         selector: ElementSelector,
         deviceInfo: DeviceInfo,
-        allNodes: List<TreeNode>,
     ): FilterWithDescription {
         val filters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
@@ -678,25 +675,25 @@ class Orchestra(
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                filters += Filters.below(buildFilter(it, deviceInfo, allNodes).filterFunc)
+                filters += Filters.below(buildFilter(it, deviceInfo).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                filters += Filters.above(buildFilter(it, deviceInfo, allNodes).filterFunc)
+                filters += Filters.above(buildFilter(it, deviceInfo).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                filters += Filters.leftOf(buildFilter(it, deviceInfo, allNodes).filterFunc)
+                filters += Filters.leftOf(buildFilter(it, deviceInfo).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                filters += Filters.rightOf(buildFilter(it, deviceInfo, allNodes).filterFunc)
+                filters += Filters.rightOf(buildFilter(it, deviceInfo).filterFunc)
             }
 
         selector.containsChild

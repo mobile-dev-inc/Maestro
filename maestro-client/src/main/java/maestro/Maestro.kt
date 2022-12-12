@@ -151,28 +151,30 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 ?: element
             ).bounds
             .center()
-        tap(
-            center.x,
-            center.y,
-            retryIfNoChange,
-            longPress
+        performTap(
+            x = center.x,
+            y = center.y,
+            retryIfNoChange = retryIfNoChange,
+            longPress = longPress,
+            initialHierarchy = hierarchyBeforeTap,
         )
 
-        val hierarchyAfterTap = viewHierarchy()
+        if (waitUntilVisible) {
+            val hierarchyAfterTap = viewHierarchy()
 
-        if (waitUntilVisible
-            && hierarchyBeforeTap == hierarchyAfterTap
-            && !hierarchyAfterTap.isVisible(element.treeNode)
-        ) {
-            LOGGER.info("Still no change in hierarchy. Wait until element is visible and try again.")
+            if (hierarchyBeforeTap == hierarchyAfterTap
+                && !hierarchyAfterTap.isVisible(element.treeNode)
+            ) {
+                LOGGER.info("Still no change in hierarchy. Wait until element is visible and try again.")
 
-            waitUntilVisible(element)
-            tap(
-                element,
-                retryIfNoChange = false,
-                waitUntilVisible = false,
-                longPress = longPress,
-            )
+                waitUntilVisible(element)
+                tap(
+                    element,
+                    retryIfNoChange = false,
+                    waitUntilVisible = false,
+                    longPress = longPress,
+                )
+            }
         }
     }
 
@@ -198,9 +200,24 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         retryIfNoChange: Boolean = true,
         longPress: Boolean = false,
     ) {
+        performTap(
+            x = x,
+            y = y,
+            retryIfNoChange = retryIfNoChange,
+            longPress = longPress,
+        )
+    }
+
+    private fun performTap(
+        x: Int,
+        y: Int,
+        retryIfNoChange: Boolean = true,
+        longPress: Boolean = false,
+        initialHierarchy: ViewHierarchy? = null,
+    ) {
         LOGGER.info("Tapping at ($x, $y)")
 
-        val hierarchyBeforeTap = viewHierarchy()
+        val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
         val screenshotBeforeTap: BufferedImage? = tryTakingScreenshot()
 
         val retries = getNumberOfRetries(retryIfNoChange)
@@ -332,22 +349,18 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     fun waitForAppToSettle(): ViewHierarchy {
-        // Time buffer for any visual effects and transitions that might occur between actions.
-        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 300)
-
-        val hierarchyBefore = viewHierarchy()
-        var latestHierarchy: ViewHierarchy? = null
+        var latestHierarchy = viewHierarchy()
         repeat(10) {
             val hierarchyAfter = viewHierarchy()
-            if (hierarchyBefore == hierarchyAfter) {
+            if (latestHierarchy == hierarchyAfter) {
                 return hierarchyAfter
             }
-
             latestHierarchy = hierarchyAfter
+
             MaestroTimer.sleep(MaestroTimer.Reason.WAIT_TO_SETTLE, 200)
         }
 
-        return latestHierarchy ?: hierarchyBefore
+        return latestHierarchy
     }
 
     fun inputText(text: String) {
