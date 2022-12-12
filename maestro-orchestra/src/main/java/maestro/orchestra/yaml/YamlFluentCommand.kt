@@ -53,7 +53,7 @@ import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.WaitForAnimationToEndCommand
-import maestro.orchestra.error.InvalidInitFlowFile
+import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
 import java.nio.file.Path
@@ -257,13 +257,13 @@ data class YamlFluentCommand(
             flowPath.resolveSibling(path).toAbsolutePath()
         }
         if (resolvedPath.equals(flowPath.toAbsolutePath())) {
-            throw InvalidInitFlowFile("initFlow file can't be the same as the Flow file: ${resolvedPath.toUri()}", resolvedPath)
+            throw InvalidFlowFile("Referenced Flow file can't be the same as the main Flow file: ${resolvedPath.toUri()}", resolvedPath)
         }
         if (!resolvedPath.exists()) {
-            throw InvalidInitFlowFile("initFlow file does not exist: ${resolvedPath.toUri()}", resolvedPath)
+            throw InvalidFlowFile("Flow file does not exist: ${resolvedPath.toUri()}", resolvedPath)
         }
         if (resolvedPath.isDirectory()) {
-            throw InvalidInitFlowFile("initFlow file can't be a directory: ${resolvedPath.toUri()}", resolvedPath)
+            throw InvalidFlowFile("Flow file can't be a directory: ${resolvedPath.toUri()}", resolvedPath)
         }
         return resolvedPath
     }
