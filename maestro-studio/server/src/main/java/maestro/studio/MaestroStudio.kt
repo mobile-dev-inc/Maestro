@@ -2,7 +2,6 @@ package maestro.studio
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.http.content.files
@@ -10,20 +9,16 @@ import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.http.content.static
 import io.ktor.server.http.content.staticRootFolder
 import io.ktor.server.netty.Netty
-import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import maestro.Filters
 import maestro.Maestro
-import maestro.Platform
 import maestro.TreeNode
-import maestro.UiElement
 import java.io.File
 import java.nio.file.Path
 import java.util.UUID
 import java.util.regex.Pattern
-import javax.imageio.ImageIO
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
@@ -68,23 +63,8 @@ object MaestroStudio {
 
                     val deviceInfo = maestro.deviceInfo()
 
-                    val deviceWidth: Int
-                    val deviceHeight: Int
-                    if (deviceInfo.platform == Platform.ANDROID) {
-                        // Using screenshot dimensions instead of Maestro.deviceInfo() since
-                        // deviceInfo() is currently inaccurate on Android
-                        val image = ImageIO.read(screenshotFile)
-                        if (image == null) {
-                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve screenshot")
-                            return@get
-                        }
-
-                        deviceWidth = image.width
-                        deviceHeight = image.height
-                    } else {
-                        deviceWidth = deviceInfo.widthGrid
-                        deviceHeight = deviceInfo.heightGrid
-                    }
+                    val deviceWidth = deviceInfo.widthGrid
+                    val deviceHeight = deviceInfo.heightGrid
 
                     val elements = treeToElements(tree)
                     val deviceScreen = DeviceScreen("/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements)
@@ -115,6 +95,7 @@ object MaestroStudio {
             list.add(tree)
             return list
         }
+
         fun TreeNode.attribute(key: String): String? {
             val value = attributes[key]
             if (value.isNullOrEmpty()) return null

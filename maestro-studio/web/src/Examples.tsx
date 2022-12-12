@@ -69,7 +69,7 @@ const Section = ({ deviceScreen, element, title, documentationUrl, codeSnippets 
     const bounds = element.bounds || { x: 0, y: 0, width: 0, height: 0 }
     const cx = toPercent(bounds.x + bounds.width / 2, deviceScreen.width)
     const cy = toPercent(bounds.y + bounds.height / 2, deviceScreen.height)
-    const point = `[${cx},${cy}]`
+    const point = `${cx},${cy}`
     return (
       <CodeSnippet>
         {

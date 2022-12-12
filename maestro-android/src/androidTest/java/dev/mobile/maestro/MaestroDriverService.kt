@@ -1,6 +1,9 @@
 package dev.mobile.maestro
 
 import android.app.UiAutomation
+import android.content.Context
+import android.content.res.Resources
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent.KEYCODE_1
 import android.view.KeyEvent.KEYCODE_4
@@ -26,6 +29,7 @@ import android.view.KeyEvent.KEYCODE_SLASH
 import android.view.KeyEvent.KEYCODE_SPACE
 import android.view.KeyEvent.KEYCODE_STAR
 import android.view.KeyEvent.META_SHIFT_LEFT_ON
+import android.view.WindowManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
@@ -84,10 +88,17 @@ class Service(
         request: MaestroAndroid.DeviceInfoRequest,
         responseObserver: StreamObserver<MaestroAndroid.DeviceInfo>
     ) {
+        val windowManager = InstrumentationRegistry.getInstrumentation()
+            .context
+            .getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        val displayMetrics = DisplayMetrics()
+        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+
         responseObserver.onNext(
             deviceInfo {
-                widthPixels = uiDevice.displayWidth
-                heightPixels = uiDevice.displayHeight
+                widthPixels = displayMetrics.widthPixels
+                heightPixels = displayMetrics.heightPixels
             }
         )
         responseObserver.onCompleted()
