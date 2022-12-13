@@ -4,16 +4,16 @@ import com.github.michaelbull.result.get
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
-import maestro.MaestroTimer
 import maestro.cli.CliError
 import maestro.cli.debuglog.DebugLogStore
-import maestro.cli.device.ios.Simctl
-import maestro.cli.device.ios.SimctlList
+import ios.xcrun.Simctl
+import ios.xcrun.Simctl.SimctlError
+import ios.xcrun.SimctlList
 import maestro.cli.util.EnvUtils
+import maestro.utils.MaestroTimer
 import java.io.File
 import java.net.Socket
 import java.util.concurrent.TimeUnit
-import java.util.logging.Logger
 import kotlin.concurrent.thread
 
 object DeviceService {
@@ -29,8 +29,13 @@ object DeviceService {
     fun startDevice(device: Device.AvailableForLaunch): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
-                Simctl.launchSimulator(device.modelId)
-                Simctl.awaitLaunch(device.modelId)
+                try {
+                    Simctl.launchSimulator(device.modelId)
+                    Simctl.awaitLaunch(device.modelId)
+                } catch (e: SimctlError) {
+                    throw CliError(e.message)
+                }
+
                 return Device.Connected(
                     instanceId = device.modelId,
                     description = device.description,

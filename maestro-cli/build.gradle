@@ -22,6 +22,7 @@ run {
 }
 
 dependencies {
+    implementation project(path: ':maestro-utils')
     annotationProcessor 'info.picocli:picocli-codegen:4.5.2'
 
     implementation project(':maestro-client')

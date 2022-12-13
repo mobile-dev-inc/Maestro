@@ -1,22 +1,14 @@
 plugins {
     id 'maven-publish'
-    id 'kotlin'
+    id "kotlin"
+    id "idea"
     id "com.vanniktech.maven.publish"
 }
 
-dependencies {
-    api project(':maestro-orchestra-models')
-    implementation project(':maestro-client')
-    implementation project(':maestro-network-proxy')
-    implementation project(':maestro-utils')
-    api 'com.squareup.okio:okio:3.0.0'
-    api 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
-    api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
-    api 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2'
 
+dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-
     testImplementation "com.google.truth:truth:1.1.3"
 }
 

@@ -1,5 +1,6 @@
 rootProject.name = "maestro"
 
+include("maestro-utils")
 include("maestro-android")
 include("maestro-cli")
 include("maestro-client")

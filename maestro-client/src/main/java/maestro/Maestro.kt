@@ -29,6 +29,7 @@ import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
+import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
 import okio.Buffer
 import okio.Sink

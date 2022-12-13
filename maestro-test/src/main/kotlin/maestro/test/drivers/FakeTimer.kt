@@ -1,6 +1,6 @@
 package maestro.test.drivers
 
-import maestro.MaestroTimer
+import maestro.utils.MaestroTimer
 
 class FakeTimer {
 

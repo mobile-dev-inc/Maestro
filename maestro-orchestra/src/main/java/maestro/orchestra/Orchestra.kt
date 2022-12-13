@@ -25,7 +25,6 @@ import maestro.Filters
 import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.MaestroTimer
 import maestro.UiElement
 import maestro.js.JsEngine
 import maestro.networkproxy.NetworkProxy
@@ -35,6 +34,7 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.MaestroTimer
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
 import java.io.File

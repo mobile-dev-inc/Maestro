@@ -1,13 +1,14 @@
-package maestro.cli.device.ios
+package ios.xcrun
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import maestro.MaestroTimer
-import maestro.cli.CliError
-import maestro.cli.util.CommandLineUtils.runCommand
+import ios.xcrun.CommandLineUtils.runCommand
+import maestro.utils.MaestroTimer
 import java.io.File
 
 object Simctl {
+    data class SimctlError(override val message: String): Throwable(message)
+
     fun list(): SimctlList {
         val command = listOf("xcrun", "simctl", "list", "-j")
 
@@ -22,11 +23,11 @@ object Simctl {
             if (list()
                     .devices
                     .values
-                    .flatMap { it }
+                    .flatten()
                     .find { it.udid == deviceId }
                     ?.state == "Booted"
             ) true else null
-        } ?: throw CliError("Device $deviceId did not boot in time")
+        } ?: throw SimctlError("Device $deviceId did not boot in time")
     }
 
     fun awaitShutdown(deviceId: String) {
@@ -34,11 +35,11 @@ object Simctl {
             if (list()
                     .devices
                     .values
-                    .flatMap { it }
+                    .flatten()
                     .find { it.udid == deviceId }
                     ?.state != "Booted"
             ) true else null
-        } ?: throw CliError("Device $deviceId did not boot in time")
+        } ?: throw SimctlError("Device $deviceId did not boot in time")
     }
 
     fun launchSimulator(deviceId: String) {

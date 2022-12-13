@@ -3,7 +3,9 @@ package maestro.cli.command.network
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
-import maestro.cli.device.ios.Simctl
+import ios.xcrun.Simctl
+import ios.xcrun.Simctl.SimctlError
+import maestro.cli.CliError
 import maestro.cli.view.red
 import maestro.networkproxy.NetworkProxy
 import picocli.CommandLine
@@ -47,10 +49,14 @@ class SetupForProxyCommand : Callable<Int> {
     private fun setupIOS(device: Device.Connected) {
         val certFile = NetworkProxy.unpackPemCertificates()
 
-        Simctl.addTrustedCertificate(
-            device.instanceId,
-            certFile,
-        )
+        try {
+            Simctl.addTrustedCertificate(
+                device.instanceId,
+                certFile,
+            )
+        } catch (e: SimctlError) {
+            throw CliError(e.message)
+        }
     }
 
 }

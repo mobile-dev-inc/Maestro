@@ -1,4 +1,4 @@
-package maestro
+package maestro.utils
 
 object MaestroTimer {
 

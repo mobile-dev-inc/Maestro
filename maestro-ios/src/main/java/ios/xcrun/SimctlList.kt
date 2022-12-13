@@ -1,4 +1,4 @@
-package maestro.cli.device.ios
+package ios.xcrun
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 

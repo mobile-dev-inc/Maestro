@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.MaestroTimer
 import maestro.Point
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
@@ -21,6 +20,7 @@ import maestro.test.drivers.FakeDriver.Event
 import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
+import maestro.utils.MaestroTimer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
