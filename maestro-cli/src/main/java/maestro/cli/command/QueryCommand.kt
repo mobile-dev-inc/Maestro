@@ -25,6 +25,7 @@ import maestro.Filters
 import maestro.Filters.asFilter
 import maestro.cli.App
 import maestro.cli.util.MaestroFactory
+import maestro.cli.view.red
 import maestro.orchestra.Orchestra
 import picocli.CommandLine
 import picocli.CommandLine.Command
@@ -36,7 +37,8 @@ import picocli.CommandLine.Spec
     name = "query",
     description = [
         "Find elements in the view hierarchy of the connected device"
-    ]
+    ],
+    hidden = true
 )
 class QueryCommand : Runnable {
 
@@ -87,6 +89,7 @@ class QueryCommand : Runnable {
                     )
                 }
             }
+        System.err.println("This command is deprecated. Use \"maestro studio\" instead.".red())
     }
 
 }

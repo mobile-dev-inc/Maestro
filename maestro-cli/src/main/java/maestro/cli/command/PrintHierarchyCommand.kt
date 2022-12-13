@@ -23,13 +23,15 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.cli.App
 import maestro.cli.util.MaestroFactory
+import maestro.cli.view.red
 import picocli.CommandLine
 
 @CommandLine.Command(
     name = "hierarchy",
     description = [
         "Print out the view hierarchy of the connected device"
-    ]
+    ],
+    hidden = true
 )
 class PrintHierarchyCommand : Runnable {
 
@@ -47,5 +49,6 @@ class PrintHierarchyCommand : Runnable {
 
                 println(hierarchy)
             }
+        System.err.println("This command is deprecated. Use \"maestro studio\" instead.".red())
     }
 }
