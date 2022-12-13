@@ -21,8 +21,11 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DisableAnsiMixin
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
+import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.util.MaestroFactory
@@ -41,6 +44,9 @@ import kotlin.concurrent.thread
     ]
 )
 class TestCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null
@@ -114,7 +120,8 @@ class TestCommand : Callable<Int> {
                 if (continuous) {
                     TestRunner.runContinuous(maestro, device, flowFile, env)
                 } else {
-                    TestRunner.runSingle(maestro, device, flowFile, env)
+                    val resultView = if (DisableAnsiMixin.ansiEnabled) AnsiResultView() else PlainTextResultView()
+                    TestRunner.runSingle(maestro, device, flowFile, env, resultView)
                 }
             }
         }

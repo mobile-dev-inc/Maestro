@@ -27,14 +27,13 @@ import maestro.cli.command.LogoutCommand
 import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.RecordCommand
-import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
 import maestro.cli.command.network.NetworkCommand
 import maestro.cli.debuglog.DebugLogStore
 import maestro.cli.update.Updates
 import maestro.cli.view.box
-import org.fusesource.jansi.AnsiConsole
+import maestro.cli.command.StudioCommand
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -60,6 +59,9 @@ import kotlin.system.exitProcess
 )
 class App {
 
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
+
     @Option(names = ["-v", "--version"], versionHelp = true)
     var requestedVersion: Boolean? = false
 
@@ -74,12 +76,6 @@ class App {
 
     @Option(names = ["--device", "--udid"], description = ["(Optional) Select a device to run on explicitly"])
     var deviceId: String? = null
-
-    companion object {
-        init {
-            AnsiConsole.systemInstall()
-        }
-    }
 }
 
 private fun printVersion() {
@@ -90,7 +86,6 @@ private fun printVersion() {
     println(props["version"])
 }
 
-@Suppress("SpreadOperator")
 fun main(args: Array<String>) {
     // Disable icon in Mac dock
     // https://stackoverflow.com/a/17544259
@@ -103,6 +98,7 @@ fun main(args: Array<String>) {
     val commandLine = CommandLine(App())
         .setUsageHelpWidth(160)
         .setCaseInsensitiveEnumValuesAllowed(true)
+        .setExecutionStrategy(DisableAnsiMixin::executionStrategy)
         .setExecutionExceptionHandler { ex, cmd, _ ->
             val message = if (ex is CliError) {
                 ex.message

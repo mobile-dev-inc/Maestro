@@ -17,27 +17,28 @@
  *
  */
 
-package maestro.cli.runner
+package maestro.cli.runner.resultview
 
 import io.ktor.util.encodeBase64
-import maestro.cli.device.Device
+import maestro.cli.runner.CommandState
+import maestro.cli.runner.CommandStatus
 import org.fusesource.jansi.Ansi
 
-class ResultView(
+class AnsiResultView(
     private val prompt: String? = null
-) {
+): ResultView {
 
     private val startTimestamp = System.currentTimeMillis()
 
     private val frames = mutableListOf<Frame>()
 
     private var previousFrame: String? = null
-
+    
     init {
         println(Ansi.ansi().eraseScreen())
     }
 
-    fun setState(state: UiState) {
+    override fun setState(state: UiState) {
         when (state) {
             is UiState.Running -> renderRunningState(state)
             is UiState.Error -> renderErrorState(state)
@@ -48,10 +49,12 @@ class ResultView(
         return frames.toList()
     }
 
-    private fun renderErrorState(state: UiState.Error) = renderFrame {
-        fgRed()
-        render(state.message)
-        render("\n")
+    private fun renderErrorState(state: UiState.Error) {
+        renderFrame {
+            fgRed()
+            render(state.message)
+            render("\n")
+        }
     }
 
     private fun renderRunningState(state: UiState.Running) = renderFrame {
@@ -160,18 +163,6 @@ class ResultView(
         print(frame)
         frames.add(createFrame(frame))
         previousFrame = frame
-    }
-
-    sealed class UiState {
-
-        data class Error(val message: String) : UiState()
-
-        data class Running(
-            val device: Device?,
-            val initCommands: List<CommandState>,
-            val commands: List<CommandState>,
-        ) : UiState()
-
     }
 
     private fun createFrame(frame: String): Frame {

@@ -23,6 +23,8 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.debuglog.DebugLogStore
 import maestro.cli.device.Device
+import maestro.cli.runner.resultview.ResultView
+import maestro.cli.runner.resultview.UiState
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
@@ -49,7 +51,7 @@ object MaestroCommandRunner {
 
         fun refreshUi() {
             view.setState(
-                ResultView.UiState.Running(
+                UiState.Running(
                     device = device,
                     initCommands = toCommandStates(
                         initFlow?.commands ?: emptyList(),

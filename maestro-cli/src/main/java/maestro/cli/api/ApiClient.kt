@@ -6,8 +6,8 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
-import maestro.cli.runner.ResultView
 import maestro.cli.util.PrintUtils
+import maestro.cli.runner.resultview.AnsiResultView
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -166,7 +166,7 @@ class ApiClient(
 
     fun render(
         screenRecording: File,
-        frames: List<ResultView.Frame>,
+        frames: List<AnsiResultView.Frame>,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): String {
         val baseUrl = "https://maestro-record.ngrok.io"

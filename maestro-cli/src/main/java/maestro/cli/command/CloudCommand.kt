@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import picocli.CommandLine
@@ -35,6 +36,9 @@ import java.util.concurrent.Callable
     ]
 )
 class CloudCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     @CommandLine.Parameters(description = ["App binary to run your Flows against"])
     private lateinit var appFile: File

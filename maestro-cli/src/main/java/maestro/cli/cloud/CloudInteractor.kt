@@ -7,11 +7,11 @@ import maestro.cli.auth.Auth
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.WorkspaceUtils
+import maestro.cli.view.ProgressBar
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.utils.TemporaryDirectory
-import org.fusesource.jansi.Ansi.ansi
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
@@ -54,7 +54,7 @@ class CloudInteractor(
             val workspaceZip = tmpDir.resolve("workspace.zip")
             WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
             println()
-            val uploadProgress = UploadProgress(20)
+            val progressBar = ProgressBar(20)
 
             val appFileToSend = if (appFile.isZip()) {
                 appFile
@@ -81,7 +81,7 @@ class CloudInteractor(
                 env,
                 androidApiLevel,
             ) { totalBytes, bytesWritten ->
-                uploadProgress.set(totalBytes, bytesWritten)
+                progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
             }
             println()
 
@@ -183,24 +183,6 @@ class CloudInteractor(
             PrintUtils.warn("SKIPPED")
 
             0
-        }
-    }
-
-    class UploadProgress(private val width: Int) {
-
-        private var progressWidth: Int? = null
-
-        fun set(totalBytes: Long, bytesWritten: Long) {
-            val progress = bytesWritten / totalBytes.toDouble()
-            val progressWidth = (progress * width).toInt()
-            if (progressWidth == this.progressWidth) return
-            this.progressWidth = progressWidth
-            val ansi = ansi()
-            ansi.cursorToColumn(0)
-            ansi.fgCyan()
-            repeat(progressWidth) { ansi.a("█") }
-            repeat(width - progressWidth) { ansi.a("░") }
-            print(ansi)
         }
     }
 

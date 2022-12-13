@@ -2,6 +2,7 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DisableAnsiMixin
 import maestro.cli.util.MaestroFactory
 import maestro.cli.view.blue
 import maestro.cli.view.bold
@@ -21,6 +22,9 @@ import java.util.concurrent.Callable
     description = ["Launch Maestro Studio"],
 )
 class StudioCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null

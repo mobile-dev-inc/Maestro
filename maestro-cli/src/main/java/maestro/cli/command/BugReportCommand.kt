@@ -1,9 +1,8 @@
 package maestro.cli.command
 
-import maestro.cli.App
+import maestro.cli.DisableAnsiMixin
 import maestro.cli.debuglog.DebugLogStore
 import picocli.CommandLine
-import java.io.File
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
@@ -13,6 +12,9 @@ import java.util.concurrent.Callable
     ]
 )
 class BugReportCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     override fun call(): Int {
         val message = """

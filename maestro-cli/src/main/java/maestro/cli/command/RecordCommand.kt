@@ -21,13 +21,13 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
-import maestro.cli.runner.ResultView
+import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.TestRunner
 import maestro.cli.util.MaestroFactory
 import maestro.cli.view.ProgressBar
 import okio.sink
-import okio.source
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -42,6 +42,9 @@ import kotlin.concurrent.thread
     ]
 )
 class RecordCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null
@@ -80,7 +83,7 @@ class RecordCommand : Callable<Int> {
             )
         }
 
-        val resultView = ResultView()
+        val resultView = AnsiResultView()
         val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
         val exitCode = screenRecording.sink().use { out ->
             maestro.startScreenRecording(out).use {

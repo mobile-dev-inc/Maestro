@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.cli.DisableAnsiMixin
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import java.nio.file.Path
@@ -14,6 +15,9 @@ import kotlin.io.path.deleteIfExists
     ]
 )
 class LogoutCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     private val cachedAuthTokenFile: Path = Paths.get(System.getProperty("user.home"), ".mobiledev", "authtoken")
 

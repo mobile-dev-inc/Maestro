@@ -8,6 +8,9 @@ import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
 import maestro.cli.device.Device
+import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.ResultView
+import maestro.cli.runner.resultview.UiState
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
@@ -24,16 +27,16 @@ object TestRunner {
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
-        view: ResultView = ResultView()
+        resultView: ResultView
     ): Int {
-        val result = runCatching(view, maestro) {
+        val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
 
             MaestroCommandRunner.runCommands(
                 maestro,
                 device,
-                view,
+                resultView,
                 commands,
                 cachedAppState = null
             )
@@ -47,7 +50,7 @@ object TestRunner {
         flowFile: File,
         env: Map<String, String>,
     ): Nothing {
-        val view = ResultView("> Press [ENTER] to restart the Flow\n\n")
+        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
 
         val fileWatcher = FileWatcher()
 
@@ -57,7 +60,7 @@ object TestRunner {
 
         var ongoingTest: Thread? = null
         do {
-            val watchFiles = runCatching(view, maestro) {
+            val watchFiles = runCatching(resultView, maestro) {
                 ongoingTest?.apply {
                     interrupt()
                     join()
@@ -81,11 +84,11 @@ object TestRunner {
                         previousCommands = commands
                         previousInitFlow = initFlow
 
-                        previousResult = runCatching(view, maestro) {
+                        previousResult = runCatching(resultView, maestro) {
                             MaestroCommandRunner.runCommands(
                                 maestro,
                                 device,
-                                view,
+                                resultView,
                                 commands,
                                 cachedAppState = cachedAppState,
                             )
@@ -111,7 +114,6 @@ object TestRunner {
         return YamlCommandReader.getConfig(commands)?.initFlow
     }
 
-    @Suppress("MaxLineLength")
     private fun <T> runCatching(
         view: ResultView,
         maestro: Maestro,
@@ -124,7 +126,7 @@ object TestRunner {
 
             if (!maestro.isShutDown()) {
                 view.setState(
-                    ResultView.UiState.Error(
+                    UiState.Error(
                         message = message
                     )
                 )

@@ -1,6 +1,7 @@
 package maestro.cli.command
 
 import kotlinx.coroutines.runBlocking
+import maestro.cli.DisableAnsiMixin
 import maestro.cli.util.FileDownloader
 import maestro.cli.util.PrintUtils.err
 import maestro.cli.util.PrintUtils.message
@@ -18,6 +19,9 @@ import java.util.concurrent.Callable
     ]
 )
 class DownloadSamplesCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var disableANSIMixin: DisableAnsiMixin? = null
 
     @Option(names = ["-o", "--output"], description = ["Output directory"])
     private var outputDirectory: File? = null
