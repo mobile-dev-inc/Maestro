@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.17.1 - 2022-12-12
+* Tweak: Remove Maestro Studio icon from Mac dock
+* Tweak: Prefer port 9999 for Maestro Studio app
+* Fix: Fix Maestro Studio conditional code snippet
+
 ## 1.17.0 - 2022-12-12
 * Feature: Maestro Studio
 * Feature: Print a message when an update is available
