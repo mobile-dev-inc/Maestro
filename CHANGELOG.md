@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.17.2 - 2022-12-13
+* Tweak: Deprecate hierachy and query CLI commands
+
 ## 1.17.1 - 2022-12-12
 * Tweak: Remove Maestro Studio icon from Mac dock
 * Tweak: Prefer port 9999 for Maestro Studio app
