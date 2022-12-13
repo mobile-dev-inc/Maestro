@@ -223,7 +223,7 @@ Conditional,https://maestro.mobile.dev/advanced/conditions
 - runFlow:
     when:
       visible:
-        id: "[text]"
+        id: "[id]"
         index: [text-index]
     file: Subflow.yaml
 `

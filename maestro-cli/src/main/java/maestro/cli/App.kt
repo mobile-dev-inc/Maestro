@@ -92,6 +92,10 @@ private fun printVersion() {
 
 @Suppress("SpreadOperator")
 fun main(args: Array<String>) {
+    // Disable icon in Mac dock
+    // https://stackoverflow.com/a/17544259
+    System.setProperty("apple.awt.UIElement", "true")
+
     Updates.fetchUpdatesAsync()
 
     val logger = DebugLogStore.loggerFor(App::class.java)

@@ -44,13 +44,19 @@ class StudioCommand : Callable<Int> {
         }
 
         println()
-        println("Navigate to $studioUrl in your browser to open Maestro Studio.".faint())
+        println("Note: Most Maestro CLI commands do not work while Maestro Studio is running. We will address this in an upcoming release.")
+
+        println()
+        println("Navigate to $studioUrl in your browser to open Maestro Studio. Ctrl-C to exit.".faint())
 
         Thread.currentThread().join()
         return 0
     }
 
     private fun getFreePort(): Int {
+        (9999..11000).forEach { port ->
+            ServerSocket(port).use { return it.localPort }
+        }
         ServerSocket(0).use { return it.localPort }
     }
 }
