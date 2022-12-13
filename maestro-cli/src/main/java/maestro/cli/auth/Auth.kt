@@ -34,7 +34,7 @@ class Auth(
 
     fun triggerSignInFlow(): String {
         message("No auth token found")
-        val email = PrintUtils.prompt("Sign In or Sign Up using your company email address:")
+        val email = PrintUtils.prompt("Sign In or Sign Up using your email address:")
         var isLogin = true
         val requestToken = client.magicLinkLogin(email, AUTH_SUCCESS_REDIRECT_URL).getOrElse { loginError ->
             val errorBody = try {
