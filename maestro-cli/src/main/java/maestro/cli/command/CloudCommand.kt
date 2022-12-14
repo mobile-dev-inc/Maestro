@@ -79,6 +79,9 @@ class CloudCommand : Callable<Int> {
     @Option(order = 10, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
+    @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
+    private var failOnCancellation: Boolean = false
+
     override fun call(): Int {
         return CloudInteractor(
             client = ApiClient(apiUrl),
@@ -95,6 +98,7 @@ class CloudCommand : Callable<Int> {
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             androidApiLevel = androidApiLevel,
+            failOnCancellation = failOnCancellation,
         )
     }
 

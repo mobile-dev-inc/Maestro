@@ -40,6 +40,7 @@ class CloudInteractor(
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
         androidApiLevel: Int? = null,
+        failOnCancellation: Boolean = false,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -100,6 +101,7 @@ class CloudInteractor(
                     uploadId = uploadId,
                     teamId = teamId,
                     appId = appId,
+                    failOnCancellation = failOnCancellation,
                 )
             }
         }
@@ -110,6 +112,7 @@ class CloudInteractor(
         uploadId: String,
         teamId: String,
         appId: String,
+        failOnCancellation: Boolean,
     ): Int {
         val startTime = System.currentTimeMillis()
 
@@ -161,6 +164,10 @@ class CloudInteractor(
                         )
                     )
                 )
+
+                if (upload.status == UploadStatus.Status.CANCELED && failOnCancellation) {
+                    return 1
+                }
 
                 return if (upload.status == UploadStatus.Status.ERROR) {
                     1
