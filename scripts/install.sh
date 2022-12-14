@@ -88,7 +88,13 @@ esac
 echo "* Create distribution directories..."
 mkdir -p "$maestro_tmp_folder"
 
-download_url="https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip"
+
+if [ -z "$MAESTRO_VERSION" ]; then
+    download_url="https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip"
+else
+    download_url="https://github.com/mobile-dev-inc/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
+fi
+
 maestro_zip_file="${maestro_tmp_folder}/maestro.zip"
 echo "* Downloading..."
 curl --fail --location --progress-bar "$download_url" > "$maestro_zip_file"
