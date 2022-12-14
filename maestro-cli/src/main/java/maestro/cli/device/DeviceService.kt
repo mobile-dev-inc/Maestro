@@ -43,14 +43,7 @@ object DeviceService {
                 )
             }
             Platform.ANDROID -> {
-                val androidHome = EnvUtils.androidHome()
-                    ?: throw CliError("ANDROID_HOME environment variable is not set")
-
-                val emulatorBinary = File(androidHome, "emulator/emulator")
-                    .takeIf { it.exists() }
-                    ?: File(androidHome, "tools/emulator")
-                        .takeIf { it.exists() }
-                    ?: throw CliError("Could not find emulator binary")
+                val emulatorBinary = getEmulatorBinary()  ?: throw CliError("Could not find emulator binary")
 
                 ProcessBuilder(
                     emulatorBinary.absolutePath,
@@ -167,10 +160,12 @@ object DeviceService {
                 )
             }
 
+        val emulatorBinary = getEmulatorBinary() ?: throw CliError("Could not find emulator binary")
+
         // Note that there is a possibility that AVD is actually already connected and is present in
         // connectedDevices.
         val avds = try {
-            ProcessBuilder("emulator", "-list-avds")
+            ProcessBuilder(emulatorBinary.absolutePath, "-list-avds")
                 .start()
                 .inputStream
                 .bufferedReader()
@@ -235,4 +230,9 @@ object DeviceService {
         }
     }
 
+    private fun getEmulatorBinary(): File? {
+        val androidHome = EnvUtils.androidHome() ?: return null
+        return File(androidHome, "emulator/emulator").takeIf { it.exists() }
+            ?: File(androidHome, "tools/emulator").takeIf { it.exists() }
+    }
 }
