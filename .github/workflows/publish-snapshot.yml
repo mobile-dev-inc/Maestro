@@ -69,7 +69,7 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
 
       - name: Upload Maestro Network Proxy
-        run: ./gradlew clean :maestro-network-proxy --no-daemon --no-parallel
+        run: ./gradlew clean :maestro-network-proxy:publish --no-daemon --no-parallel
         if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
