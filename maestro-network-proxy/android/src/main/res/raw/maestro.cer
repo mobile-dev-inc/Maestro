@@ -1,12 +1,3 @@
-Bag Attributes
-    friendlyName: certificate
-    localKeyID: 54 69 6D 65 20 31 36 36 39 39 39 30 31 37 38 30 36 36
-Key Attributes: <No Attributes>
-Bag Attributes
-    friendlyName: certificate
-    localKeyID: 54 69 6D 65 20 31 36 36 39 39 39 30 31 37 38 30 36 36
-subject=/CN=mitmproxy/O=mitmproxy
-issuer=/CN=mitmproxy/O=mitmproxy
 -----BEGIN CERTIFICATE-----
 MIIDNTCCAh2gAwIBAgIUJqgaPCCfFzWjRaiN7C697iTwK9UwDQYJKoZIhvcNAQEL
 BQAwKDESMBAGA1UEAwwJbWl0bXByb3h5MRIwEAYDVQQKDAltaXRtcHJveHkwHhcN

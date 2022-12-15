@@ -2,6 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:networkSecurityConfig="@xml/maestro_network_security_config"/>
+        android:networkSecurityConfig="@xml/maestro_network_security_config_unsafe"/>
 
 </manifest>
