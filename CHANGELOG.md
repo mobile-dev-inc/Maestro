@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.17.3 - 2022-12-15
+
+* Feature: no-ansi version for terminals that do not ANSI
+* Feature: Android Maven artifact for setting up network mocking
+* Fix: Android emulator was not discovered properly if it wasn't on PATH
+* Fix: missing favicon
+
 ## 1.17.2 - 2022-12-13
 * Tweak: Deprecate hierachy and query CLI commands
 
