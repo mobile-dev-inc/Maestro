@@ -72,3 +72,24 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload Maestro Network Proxy
+        run: ./gradlew clean :maestro-network-proxy --no-daemon --no-parallel
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload Maestro Android
+        run: ./gradlew clean :maestro-network-proxy:android:publish --no-daemon --no-parallel
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload Maestro Android-Unsafe
+        run: ./gradlew clean :maestro-network-proxy:android-unsafe:publish --no-daemon --no-parallel
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
