@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.17.4 - 2022-12-15
+* Fix: Maestro commands were failing if Android SDK wasn't installed
+
 ## 1.17.3 - 2022-12-15
 
 * Feature: no-ansi version for terminals that do not ANSI
