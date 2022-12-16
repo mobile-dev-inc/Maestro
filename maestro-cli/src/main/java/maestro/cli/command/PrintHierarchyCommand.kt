@@ -24,7 +24,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.util.MaestroFactory
-import maestro.cli.view.red
+import maestro.cli.view.green
 import picocli.CommandLine
 
 @CommandLine.Command(
@@ -53,6 +53,7 @@ class PrintHierarchyCommand : Runnable {
 
                 println(hierarchy)
             }
-        System.err.println("This command is deprecated. Use \"maestro studio\" instead.".red())
+
+        System.err.println("Have you tried running “maestro studio” to visually inspect your app’s UI elements?".green())
     }
 }
