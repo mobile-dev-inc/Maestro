@@ -1,7 +1,7 @@
 package maestro.orchestra.util
 
 object InputRandomTextHelper {
-    private const val CHARSET_TEXT = "ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz0123456789"
+    private const val CHARSET_TEXT = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     private const val CHARSET_NUMBER = "0123456789"
     private const val CHARSET_NUMBER_WITHOUT_ZERO = "123456789"
     private val LIST_POPULAR_LAST_NAME = arrayOf("Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez")
