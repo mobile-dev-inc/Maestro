@@ -43,7 +43,7 @@ object DeviceService {
                 )
             }
             Platform.ANDROID -> {
-                val emulatorBinary = getEmulatorBinary()  ?: throw CliError("Could not find emulator binary")
+                val emulatorBinary = requireEmulatorBinary()
 
                 ProcessBuilder(
                     emulatorBinary.absolutePath,
@@ -160,11 +160,10 @@ object DeviceService {
                 )
             }
 
-        val emulatorBinary = getEmulatorBinary() ?: throw CliError("Could not find emulator binary")
-
         // Note that there is a possibility that AVD is actually already connected and is present in
         // connectedDevices.
         val avds = try {
+            val emulatorBinary = requireEmulatorBinary()
             ProcessBuilder(emulatorBinary.absolutePath, "-list-avds")
                 .start()
                 .inputStream
@@ -230,9 +229,12 @@ object DeviceService {
         }
     }
 
-    private fun getEmulatorBinary(): File? {
-        val androidHome = EnvUtils.androidHome() ?: return null
-        return File(androidHome, "emulator/emulator").takeIf { it.exists() }
-            ?: File(androidHome, "tools/emulator").takeIf { it.exists() }
+    private fun requireEmulatorBinary(): File {
+        val androidHome = EnvUtils.androidHome()
+            ?: throw CliError("Could not detect Android home environment variable is not set. Ensure that either ANDROID_HOME or ANDROID_SDK_ROOT is set.")
+        val firstChoice = File(androidHome, "emulator/emulator")
+        val secondChoice = File(androidHome, "tools/emulator")
+        return firstChoice.takeIf { it.exists() } ?: secondChoice.takeIf { it.exists() }
+            ?: throw CliError("Could not find emulator binary at either of the following paths:\n$firstChoice\n$secondChoice")
     }
 }
