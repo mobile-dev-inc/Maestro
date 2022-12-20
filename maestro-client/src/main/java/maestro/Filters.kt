@@ -209,4 +209,16 @@ object Filters {
         }
     }
 
+    fun deepestMatchingElement(filter: ElementFilter): ElementFilter {
+        return { nodes ->
+            filter(nodes)
+                .map {
+                    val matchingChildren = deepestMatchingElement(filter)(it.children)
+
+                    matchingChildren.lastOrNull()
+                        ?: it
+                }
+        }
+    }
+
 }

@@ -66,6 +66,12 @@ dependencies {
     api 'org.mozilla:rhino:1.7.14'
     api 'org.jsoup:jsoup:1.15.3'
     api 'com.squareup.okhttp3:okhttp:4.10.0'
+    api 'org.rauschig:jarchivelib:1.2.0'
+    api 'com.fasterxml.jackson.core:jackson-databind:2.13.4'
+    api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
+    api 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.4'
+    api 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.13.4'
+    api 'net.harawata:appdirs:1.2.1'
 
     implementation project(':maestro-ios')
     implementation 'com.google.code.findbugs:jsr305:3.0.2'

@@ -21,7 +21,7 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.cli.debuglog.DebugLogStore
+import maestro.debuglog.DebugLogStore
 import maestro.cli.device.Device
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState

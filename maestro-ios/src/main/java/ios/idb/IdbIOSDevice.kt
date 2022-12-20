@@ -19,10 +19,11 @@
 
 package ios.idb
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.runCatching
-import com.google.gson.Gson
 import com.google.protobuf.ByteString
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
@@ -55,9 +56,12 @@ import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 import ios.IOSDevice
 import ios.IOSScreenRecording
-import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
+import ios.hierarchy.Error
+import ios.hierarchy.XCUIElement
+import ios.logger.IOSDriverLogger
+import ios.api.XCTestDriverClient
 import okio.Buffer
 import okio.Sink
 import okio.buffer
@@ -71,6 +75,7 @@ import java.util.zip.GZIPInputStream
 
 class IdbIOSDevice(
     private val channel: ManagedChannel,
+    override val deviceId: String?,
 ) : IOSDevice {
 
     private val blockingStub = CompanionServiceGrpc.newBlockingStub(channel)
@@ -90,28 +95,33 @@ class IdbIOSDevice(
         }
     }
 
-    override fun contentDescriptor(): Result<List<AccessibilityNode>, Throwable> {
+    override fun contentDescriptor(appId: String): Result<XCUIElement, Throwable> {
         return runCatching {
-            val response = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
-
-            GSON.fromJson(response.json, Array<AccessibilityNode>::class.java)
-                .toList()
-        }
-    }
-
-    override fun describePoint(x: Int, y: Int): Result<List<AccessibilityNode>, Throwable> {
-        return runCatching {
-            val response = blockingStub.accessibilityInfo(accessibilityInfoRequest {
-                point = point {
-                    this.x = x.toDouble()
-                    this.y = y.toDouble()
+            val xcUiElement = XCTestDriverClient.subTree(appId).use {
+                if (it.isSuccessful) {
+                    it.body?.let { response ->
+                        mapper.readValue(String(response.bytes()), XCUIElement::class.java)
+                    } ?: throw IllegalStateException("View Hierarchy not available, response body is null")
+                } else {
+                    it.body?.let { response ->
+                        val errorResponse = String(response.bytes()).trim()
+                        val error = mapper.readValue(errorResponse, Error::class.java)
+                        when (error.errorCode) {
+                            VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE -> {
+                                val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
+                                val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
+                                accessibilityNode
+                            }
+                            else -> {
+                                IOSDriverLogger.dumpDeviceLogs(deviceId)
+                                throw IllegalArgumentException("Maestro was not able to capture view hierarchy. Run maestro bugreport command and submit " +
+                                    "new github issue on https://github.com/mobile-dev-inc/maestro/issues/new with the bugreport created.")
+                            }
+                        }
+                    }
                 }
-                format = Idb.AccessibilityInfoRequest.Format.NESTED
-            })
-
-            listOf(
-                GSON.fromJson(response.json, AccessibilityNode::class.java)
-            )
+            }
+            xcUiElement as XCUIElement
         }
     }
 
@@ -508,8 +518,9 @@ class IdbIOSDevice(
     companion object {
         // 4Mb, the default max read for gRPC
         private const val CHUNK_SIZE = 1024 * 1024 * 3
-        private val GSON = Gson()
+        private val mapper = jacksonObjectMapper()
         private const val SCROLL_FACTOR = 0.07
+        private const val VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE = "illegal-argument-snapshot-failure"
         const val DEFAULT_SWIPE_DURATION_MILLIS = 1000L
     }
 

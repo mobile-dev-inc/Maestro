@@ -21,8 +21,8 @@ package ios
 
 import com.github.michaelbull.result.Result
 import idb.Idb
-import ios.device.AccessibilityNode
 import ios.device.DeviceInfo
+import ios.hierarchy.XCUIElement
 import ios.idb.IdbIOSDevice
 import okio.Sink
 import java.io.File
@@ -30,11 +30,11 @@ import java.io.InputStream
 
 interface IOSDevice : AutoCloseable {
 
+    val deviceId: String?
+
     fun deviceInfo(): Result<DeviceInfo, Throwable>
 
-    fun contentDescriptor(): Result<List<AccessibilityNode>, Throwable>
-
-    fun describePoint(x: Int, y: Int): Result<List<AccessibilityNode>, Throwable>
+    fun contentDescriptor(appId: String): Result<XCUIElement, Throwable>
 
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 

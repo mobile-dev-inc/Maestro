@@ -41,7 +41,6 @@ dependencies {
     implementation 'io.ktor:ktor-client-core:2.1.2'
     implementation 'io.ktor:ktor-client-cio:2.1.2'
     implementation 'org.rauschig:jarchivelib:1.2.0'
-    implementation 'net.harawata:appdirs:1.2.1'
 
     // Silence logs from WireMock
     implementation 'org.slf4j:slf4j-nop:2.0.1'

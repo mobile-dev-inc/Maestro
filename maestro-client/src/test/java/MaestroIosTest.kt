@@ -1,8 +1,14 @@
+import io.grpc.ManagedChannelBuilder
+import ios.IOSDevice
+import ios.idb.IdbIOSDevice
 import maestro.Maestro
+import maestro.drivers.IOSDriver
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
 import kotlin.io.path.createDirectories
 
 @Disabled("Local testing only")
@@ -13,7 +19,10 @@ internal class MaestroIosTest {
 
     @BeforeEach
     fun setUp() {
-        maestro = Maestro.ios("localhost", 10882)
+        val channel = ManagedChannelBuilder.forAddress("localhost", 10882)
+            .usePlaintext()
+            .build()
+        maestro = Maestro.ios(driver = IOSDriver(IdbIOSDevice(channel, null)))
     }
 
     @Test

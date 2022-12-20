@@ -21,10 +21,13 @@ package maestro.cli.util
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer
+import io.grpc.ManagedChannelBuilder
+import ios.idb.IdbIOSDevice
 import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
+import maestro.drivers.IOSDriver
 
 object MaestroFactory {
     private const val defaultHost = "localhost"
@@ -46,7 +49,10 @@ object MaestroFactory {
                         )
                     }
                     Platform.IOS -> {
-                        Maestro.ios(defaultHost, idbPort)
+                        val channel = ManagedChannelBuilder.forAddress(defaultHost, idbPort)
+                            .usePlaintext()
+                            .build()
+                        Maestro.ios(IOSDriver(IdbIOSDevice(channel, device.instanceId)))
                     }
                 },
                 device = device,
@@ -58,7 +64,7 @@ object MaestroFactory {
                 createAndroid(host, port)
             } catch (_: Exception) {
                 try {
-                    createIos(host, port)
+                    createIos(host, port, deviceId)
                 } catch (_: Exception) {
                     error("No devices found.")
                 }
@@ -87,8 +93,13 @@ object MaestroFactory {
         }
     }
 
-    private fun createIos(host: String?, port: Int?): Maestro {
-        return Maestro.ios(host ?: defaultHost, port ?: idbPort)
+    private fun createIos(host: String?, port: Int?, deviceId: String?): Maestro {
+        val channel = ManagedChannelBuilder.forAddress(host ?: defaultHost, port ?: idbPort)
+            .usePlaintext()
+            .build()
+        val device = PickDeviceInteractor.pickDevice(deviceId)
+        val iosDriver = IOSDriver(IdbIOSDevice(channel, device.instanceId))
+        return Maestro.ios(iosDriver)
     }
 
     data class MaestroResult(

@@ -21,14 +21,10 @@ package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
 import dadb.Dadb
-import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
-import ios.idb.IdbIOSDevice
 import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
-import maestro.drivers.IOSDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
 import okio.Buffer
@@ -492,16 +488,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
         private const val ANIMATION_TIMEOUT_MS: Long = 15000
 
-        fun ios(host: String, port: Int): Maestro {
-            val channel = ManagedChannelBuilder.forAddress(host, port)
-                .usePlaintext()
-                .build()
-
-            return ios(channel)
-        }
-
-        fun ios(channel: ManagedChannel): Maestro {
-            val driver = IOSDriver(IdbIOSDevice(channel))
+        fun ios(driver: Driver): Maestro {
             driver.open()
             return Maestro(driver)
         }

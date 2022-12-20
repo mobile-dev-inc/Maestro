@@ -653,13 +653,17 @@ class Orchestra(
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                filters += Filters.textMatches(it.toRegex(REGEX_OPTIONS)).asFilter()
+                filters += Filters.deepestMatchingElement(
+                    Filters.textMatches(it.toRegex(REGEX_OPTIONS)).asFilter()
+                )
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                filters += Filters.idMatches(it.toRegex(REGEX_OPTIONS))
+                filters += Filters.deepestMatchingElement(
+                    Filters.idMatches(it.toRegex(REGEX_OPTIONS))
+                )
             }
 
         selector.size

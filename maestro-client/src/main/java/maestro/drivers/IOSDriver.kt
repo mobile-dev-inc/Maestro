@@ -19,10 +19,15 @@
 
 package maestro.drivers
 
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.expect
-import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.getOrThrow
+import com.github.michaelbull.result.onSuccess
 import ios.IOSDevice
+import ios.hierarchy.IdbElementNode
+import ios.hierarchy.XCUIElement
+import ios.hierarchy.XCUIElementNode
 import ios.idb.IdbIOSDevice
 import maestro.DeviceInfo
 import maestro.Driver
@@ -33,11 +38,14 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
+import maestro.debuglog.DebugLogStore
+import maestro.ios.GetRunningAppIdResolver
+import maestro.ios.IOSUiTestRunner
 import maestro.utils.FileUtils
 import okio.Sink
 import java.io.File
+import java.net.ConnectException
 import java.nio.file.Files
-import java.security.Key
 import kotlin.collections.set
 
 class IOSDriver(
@@ -46,14 +54,34 @@ class IOSDriver(
 
     private var widthPixels: Int? = null
     private var heightPixels: Int? = null
-
+    private var appId: String? = null
     private var proxySet = false
+
+    private val logger by lazy { DebugLogStore.loggerFor(IOSDriver::class.java) }
 
     override fun name(): String {
         return "iOS Simulator"
     }
 
     override fun open() {
+        ensureGrpcChannel()
+        ensureXCUITestChannel()
+    }
+
+    private fun ensureXCUITestChannel() {
+        logger.info("[Start] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
+        IOSUiTestRunner.uninstall()
+        logger.info("[Done] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
+        logger.info("[Start] Installing xctest ui runner on ${iosDevice.deviceId}")
+        IOSUiTestRunner.runXCTest(iosDevice.deviceId ?: throw RuntimeException("No device selected for running UI tests"))
+        logger.info("[Done] Installing xctest ui runner on ${iosDevice.deviceId}")
+
+        logger.info("[Start] Ensuring ui test runner app is launched on ${iosDevice.deviceId}")
+        IOSUiTestRunner.ensureOpen()
+        logger.info("[Done] Ensuring ui test runner app is launched on ${iosDevice.deviceId}")
+    }
+
+    private fun ensureGrpcChannel() {
         val response = iosDevice.deviceInfo().expect {}
 
         widthPixels = response.widthPixels
@@ -65,9 +93,11 @@ class IOSDriver(
             resetProxy()
         }
         iosDevice.close()
+        IOSUiTestRunner.cleanup()
 
         widthPixels = null
         heightPixels = null
+        appId = null
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -84,6 +114,7 @@ class IOSDriver(
 
     override fun launchApp(appId: String) {
         iosDevice.launch(appId)
+            .onSuccess { this.appId = appId }
             .getOrThrow {
                 MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")
             }
@@ -164,37 +195,95 @@ class IOSDriver(
     }
 
     override fun contentDescriptor(): TreeNode {
-        val accessibilityNodes = iosDevice.contentDescriptor().expect {}
+        var resolvedAppId: String? = ""
+        for (i in 0..MAX_RETRIES) {
+            val resolvedApp = try {
+                resolvedAppId = GetRunningAppIdResolver.getRunningAppId() ?: appId
+                resolvedAppId
+            } catch (connectException: ConnectException) {
+                IOSUiTestRunner.runXCTest(iosDevice.deviceId ?: throw IllegalArgumentException())
+                IOSUiTestRunner.ensureOpen()
+                null
+            }
+            if (!resolvedApp.isNullOrEmpty()) break
+        }
+
+        logger.info("Getting view hierarchy for $resolvedAppId")
+
+        val contentDescriptorResult = iosDevice.contentDescriptor(
+            resolvedAppId ?: throw IllegalStateException("Failed to get view hierarchy, app id was not resolvedGetRunningAppRequest.kt")
+        )
+
+        return when (contentDescriptorResult) {
+            is Ok -> mapHierarchy(contentDescriptorResult.value)
+            is Err -> TreeNode()
+        }
+    }
+
+    private fun mapHierarchy(xcUiElement: XCUIElement): TreeNode {
+        return when (xcUiElement) {
+            is XCUIElementNode -> parseXCUIElementNode(xcUiElement)
+            is IdbElementNode -> parseIdbElementNode(xcUiElement)
+            else -> throw IllegalStateException("Illegal instance for parsing hierarchy")
+        }
+    }
+
+    private fun parseIdbElementNode(xcUiElement: IdbElementNode) = TreeNode(
+        children = xcUiElement.children.map {
+            val attributes = mutableMapOf<String, String>()
+
+            (it.title
+                ?: it.axLabel
+                ?: it.axValue
+                )?.let { title ->
+                    attributes["text"] = title
+                }
+
+            (it.axUniqueId)?.let { resourceId ->
+                attributes["resource-id"] = resourceId
+            }
+
+            it.frame.let { frame ->
+                val left = frame.x.toInt()
+                val top = frame.y.toInt()
+                val right = left + frame.width.toInt()
+                val bottom = top + frame.height.toInt()
+
+                attributes["bounds"] = "[$left,$top][$right,$bottom]"
+            }
+
+            TreeNode(
+                attributes = attributes,
+                enabled = it.enabled,
+            )
+        }
+    )
+
+    private fun parseXCUIElementNode(xcUiElement: XCUIElementNode): TreeNode {
+        val attributes = mutableMapOf<String, String>()
+        attributes["text"] = xcUiElement.label
+        attributes["resource-id"] = xcUiElement.identifier
+        val right = xcUiElement.frame.x + xcUiElement.frame.width
+        val bottom = xcUiElement.frame.y + xcUiElement.frame.height
+        attributes["bounds"] = "[${xcUiElement.frame.x.toInt()},${xcUiElement.frame.y.toInt()}][${right.toInt()},${bottom.toInt()}]"
+        attributes["enabled"] = xcUiElement.enabled.toString()
+        attributes["focused"] = xcUiElement.hasFocus.toString()
+        attributes["selected"] = xcUiElement.selected.toString()
+
+        val children = mutableListOf<TreeNode>()
+        val childNodes = xcUiElement.children
+        if (childNodes != null) {
+            (0 until childNodes.size).forEach { i ->
+                children += mapHierarchy(childNodes[i])
+            }
+        }
 
         return TreeNode(
-            children = accessibilityNodes.map { node ->
-                val attributes = mutableMapOf<String, String>()
-
-                (node.title
-                    ?: node.axLabel
-                    ?: node.axValue
-                    )?.let {
-                        attributes["text"] = it
-                    }
-
-                (node.axUniqueId)?.let {
-                    attributes["resource-id"] = it
-                }
-
-                node.frame?.let {
-                    val left = it.x.toInt()
-                    val top = it.y.toInt()
-                    val right = left + it.width.toInt()
-                    val bottom = top + it.height.toInt()
-
-                    attributes["bounds"] = "[$left,$top][$right,$bottom]"
-                }
-
-                TreeNode(
-                    attributes = attributes,
-                    enabled = node.enabled,
-                )
-            }
+            attributes = attributes,
+            children = children,
+            enabled = xcUiElement.enabled,
+            focused = xcUiElement.hasFocus,
+            selected = xcUiElement.selected
         )
     }
 
@@ -353,5 +442,9 @@ class IOSDriver(
 
     override fun isShutdown(): Boolean {
         return iosDevice.isShutdown()
+    }
+
+    companion object {
+        private const val MAX_RETRIES = 3
     }
 }
