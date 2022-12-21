@@ -88,7 +88,7 @@ object DeviceScreenService {
 
     private fun TreeNode.bounds(): UIElementBounds? {
         val boundsString = attributes["bounds"] ?: return null
-        val pattern = Pattern.compile("\\[([0-9]+),([0-9]+)]\\[([0-9]+),([0-9]+)]")
+        val pattern = Pattern.compile("\\[([0-9-]+),([0-9-]+)]\\[([0-9-]+),([0-9-]+)]")
         val m = pattern.matcher(boundsString)
         if (!m.matches()) {
             System.err.println("Warning: Bounds text does not match expected pattern: $boundsString")
