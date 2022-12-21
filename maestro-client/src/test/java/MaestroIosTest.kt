@@ -2,7 +2,9 @@ import io.grpc.ManagedChannelBuilder
 import ios.IOSDevice
 import ios.idb.IdbIOSDevice
 import maestro.Maestro
+import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
+import maestro.ios.XcUITestDriverImpl
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -22,7 +24,8 @@ internal class MaestroIosTest {
         val channel = ManagedChannelBuilder.forAddress("localhost", 10882)
             .usePlaintext()
             .build()
-        maestro = Maestro.ios(driver = IOSDriver(IdbIOSDevice(channel, null)))
+        val deviceId = ""
+        maestro = Maestro.ios(driver = IOSDriver(IdbIOSDevice(channel, deviceId), XcUITestDriverImpl(IOSDriverLogger(), deviceId)))
     }
 
     @Test

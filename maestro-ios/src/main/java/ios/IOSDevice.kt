@@ -34,7 +34,7 @@ interface IOSDevice : AutoCloseable {
 
     fun deviceInfo(): Result<DeviceInfo, Throwable>
 
-    fun contentDescriptor(appId: String): Result<XCUIElement, Throwable>
+    fun contentDescriptor(appId: String, onContentDescriptorError: (String) -> Unit): Result<XCUIElement, Throwable>
 
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 

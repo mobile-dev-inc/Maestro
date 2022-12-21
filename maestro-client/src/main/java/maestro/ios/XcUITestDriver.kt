@@ -1,32 +1,41 @@
 package maestro.ios
 
+import ios.logger.Logger
 import ios.xcrun.Simctl
 import maestro.Maestro
-import maestro.debuglog.DebugLogStore
 import okio.buffer
 import okio.sink
 import okio.source
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
 
-object IOSUiTestRunner {
+interface XcUITestDriver {
+    fun uninstall()
+    fun setup()
+    fun cleanup()
+}
 
-    private const val UI_TEST_RUNNER_PATH = "/maestro-driver-iosUITests-Runner.zip"
-    private const val XCTEST_RUN_PATH = "/maestro-driver-ios-config.xctestrun"
-    private const val UI_TEST_HOST_PATH = "/maestro-driver-ios.zip"
-    private const val UI_TEST_RUNNER_APP_BUNDLE_ID = "dev.mobile.maestro-driver-iosUITests.xctrunner"
+class XcUITestDriverImpl(private val logger: Logger, private val deviceId: String): XcUITestDriver {
 
-    private val logger = DebugLogStore.loggerFor(IOSUiTestRunner::class.java)
-
-    fun ensureOpen() {
-        Simctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
-    }
-
-    fun uninstall() {
+    override fun uninstall() {
         Simctl.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID)
     }
 
-    fun runXCTest(deviceId: String) {
+    override fun setup() {
+        logger.info("[Start] Installing xctest ui runner on $deviceId")
+        runXCTest()
+        logger.info("[Done] Installing xctest ui runner on $deviceId")
+
+        logger.info("[Start] Ensuring ui test runner app is launched on $deviceId")
+        ensureOpen()
+        logger.info("[Done] Ensuring ui test runner app is launched on $deviceId")
+    }
+
+    private fun ensureOpen() {
+        Simctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
+    }
+
+    private fun runXCTest() {
         val processOutput = ProcessBuilder(
             "bash",
             "-c",
@@ -61,7 +70,7 @@ object IOSUiTestRunner {
         }
     }
 
-    fun cleanup() {
+    override fun cleanup() {
         logger.info("[Start] Cleaning up the ui test runner files")
         val xctestConfig = "${System.getenv("TMP_DIR")}/$XCTEST_RUN_PATH"
         val hostApp = "${System.getenv("TMPDIR")}/Debug-iphonesimulator/maestro-driver-ios.app"
@@ -89,5 +98,12 @@ object IOSUiTestRunner {
             bufferedSink.writeAll(it.source())
             bufferedSink.flush()
         }
+    }
+
+    companion object {
+        private const val UI_TEST_RUNNER_PATH = "/maestro-driver-iosUITests-Runner.zip"
+        private const val XCTEST_RUN_PATH = "/maestro-driver-ios-config.xctestrun"
+        private const val UI_TEST_HOST_PATH = "/maestro-driver-ios.zip"
+        private const val UI_TEST_RUNNER_APP_BUNDLE_ID = "dev.mobile.maestro-driver-iosUITests.xctrunner"
     }
 }

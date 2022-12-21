@@ -38,9 +38,10 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
-import maestro.debuglog.DebugLogStore
+import ios.logger.Logger
+import maestro.debuglog.IOSDriverLogger
 import maestro.ios.GetRunningAppIdResolver
-import maestro.ios.IOSUiTestRunner
+import maestro.ios.XcUITestDriver
 import maestro.utils.FileUtils
 import okio.Sink
 import java.io.File
@@ -50,6 +51,8 @@ import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
+    private val xcUiTestDriver: XcUITestDriver,
+    private val logger: Logger = IOSDriverLogger()
 ) : Driver {
 
     private var widthPixels: Int? = null
@@ -57,7 +60,7 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
 
-    private val logger by lazy { DebugLogStore.loggerFor(IOSDriver::class.java) }
+    private val getRunningAppIdResolver by lazy { GetRunningAppIdResolver(logger) }
 
     override fun name(): String {
         return "iOS Simulator"
@@ -70,18 +73,13 @@ class IOSDriver(
 
     private fun ensureXCUITestChannel() {
         logger.info("[Start] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
-        IOSUiTestRunner.uninstall()
+        xcUiTestDriver.uninstall()
         logger.info("[Done] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
-        logger.info("[Start] Installing xctest ui runner on ${iosDevice.deviceId}")
-        IOSUiTestRunner.runXCTest(iosDevice.deviceId ?: throw RuntimeException("No device selected for running UI tests"))
-        logger.info("[Done] Installing xctest ui runner on ${iosDevice.deviceId}")
-
-        logger.info("[Start] Ensuring ui test runner app is launched on ${iosDevice.deviceId}")
-        IOSUiTestRunner.ensureOpen()
-        logger.info("[Done] Ensuring ui test runner app is launched on ${iosDevice.deviceId}")
+        xcUiTestDriver.setup()
     }
 
-    private fun ensureGrpcChannel() {
+    @SuppressWarnings("Used in cloud")
+    fun ensureGrpcChannel() {
         val response = iosDevice.deviceInfo().expect {}
 
         widthPixels = response.widthPixels
@@ -93,7 +91,7 @@ class IOSDriver(
             resetProxy()
         }
         iosDevice.close()
-        IOSUiTestRunner.cleanup()
+        xcUiTestDriver.cleanup()
 
         widthPixels = null
         heightPixels = null
@@ -198,11 +196,10 @@ class IOSDriver(
         var resolvedAppId: String? = ""
         for (i in 0..MAX_RETRIES) {
             val resolvedApp = try {
-                resolvedAppId = GetRunningAppIdResolver.getRunningAppId() ?: appId
+                resolvedAppId = getRunningAppIdResolver.invoke() ?: appId
                 resolvedAppId
             } catch (connectException: ConnectException) {
-                IOSUiTestRunner.runXCTest(iosDevice.deviceId ?: throw IllegalArgumentException())
-                IOSUiTestRunner.ensureOpen()
+                xcUiTestDriver.setup()
                 null
             }
             if (!resolvedApp.isNullOrEmpty()) break
@@ -212,7 +209,7 @@ class IOSDriver(
 
         val contentDescriptorResult = iosDevice.contentDescriptor(
             resolvedAppId ?: throw IllegalStateException("Failed to get view hierarchy, app id was not resolvedGetRunningAppRequest.kt")
-        )
+        ) { errorMessage -> logger.info(errorMessage) }
 
         return when (contentDescriptorResult) {
             is Ok -> mapHierarchy(contentDescriptorResult.value)

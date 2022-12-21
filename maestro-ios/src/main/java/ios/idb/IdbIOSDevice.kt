@@ -60,7 +60,6 @@ import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
 import ios.hierarchy.Error
 import ios.hierarchy.XCUIElement
-import ios.logger.IOSDriverLogger
 import ios.api.XCTestDriverClient
 import okio.Buffer
 import okio.Sink
@@ -95,7 +94,7 @@ class IdbIOSDevice(
         }
     }
 
-    override fun contentDescriptor(appId: String): Result<XCUIElement, Throwable> {
+    override fun contentDescriptor(appId: String, onContentDescriptorError: (String) -> Unit): Result<XCUIElement, Throwable> {
         return runCatching {
             val xcUiElement = XCTestDriverClient.subTree(appId).use {
                 if (it.isSuccessful) {
@@ -108,14 +107,19 @@ class IdbIOSDevice(
                         val error = mapper.readValue(errorResponse, Error::class.java)
                         when (error.errorCode) {
                             VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE -> {
+                                onContentDescriptorError("Driver was not able to capture view hierarchy due to illegal argument failure. " +
+                                    "Falling back to idb instead in this case.")
                                 val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
                                 val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
                                 accessibilityNode
                             }
                             else -> {
-                                IOSDriverLogger.dumpDeviceLogs(deviceId)
-                                throw IllegalArgumentException("Maestro was not able to capture view hierarchy. Run maestro bugreport command and submit " +
-                                    "new github issue on https://github.com/mobile-dev-inc/maestro/issues/new with the bugreport created.")
+                                onContentDescriptorError("Driver was not able to capture view hierarchy. " +
+                                    "Error: ${error.errorMessage}, ${error.errorCode}")
+                                throw IllegalArgumentException(
+                                    "Maestro was not able to capture view hierarchy. Run maestro bugreport command and submit " +
+                                        "new github issue on https://github.com/mobile-dev-inc/maestro/issues/new with the bugreport created."
+                                )
                             }
                         }
                     }
@@ -351,7 +355,7 @@ class IdbIOSDevice(
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
         stop(id)
-        
+
         // Wait for the app to be stopped, unfortunately idb's stop()
         // does not wait for the process to finish
         Thread.sleep(1500)

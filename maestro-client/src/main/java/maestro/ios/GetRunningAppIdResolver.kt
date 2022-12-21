@@ -3,13 +3,13 @@ package maestro.ios
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import ios.api.XCTestDriverClient
 import ios.xcrun.Simctl
-import maestro.debuglog.DebugLogStore
+import ios.logger.Logger
 
-object GetRunningAppIdResolver {
-    private val logger = DebugLogStore.loggerFor(GetRunningAppIdResolver::class.java)
+class GetRunningAppIdResolver(private val logger: Logger) {
+
     private val mapper = jacksonObjectMapper()
 
-    fun getRunningAppId(): String? {
+    fun invoke(): String? {
         val appIds = Simctl.listApps()
         logger.info("installed apps: $appIds")
 
@@ -20,8 +20,9 @@ object GetRunningAppIdResolver {
                         String(body.bytes()),
                         GetRunningAppIdResponse::class.java
                     )
-
-                    responseBody.runningAppBundleId
+                    val runningAppId = responseBody.runningAppBundleId
+                    logger.info("Running app id response received $runningAppId")
+                    runningAppId
                 }
             } else {
                 logger.info("request to resolve running app id failed with exception - ${response.body?.toString()}")

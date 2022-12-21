@@ -15,11 +15,12 @@ private enum class RequestType {
 }
 
 object XCTestDriverClient {
-    private val okHttpClient =
+    private val okHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
 
     private val mapper = jacksonObjectMapper()
 
