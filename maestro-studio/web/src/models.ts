@@ -1,6 +1,7 @@
 import React from 'react';
 
 export type HTMLProps<T> = React.DetailedHTMLProps<React.HTMLAttributes<T>, T>
+export type TextAreaProps = React.DetailedHTMLProps<React.TextareaHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>
 export type DivProps = HTMLProps<HTMLDivElement>
 
 export type UIElementBounds = {
@@ -24,4 +25,17 @@ export type DeviceScreen = {
   width: number
   height: number
   elements: UIElement[]
+}
+
+export type ReplCommandStatus = 'pending' | 'running' | 'success' | 'error' | 'canceled'
+
+export type ReplCommand = {
+  id: string
+  yaml: string
+  status: ReplCommandStatus
+}
+
+export type Repl = {
+  version: number
+  commands: ReplCommand[]
 }

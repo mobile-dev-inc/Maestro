@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
@@ -32,15 +33,18 @@ import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
 import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.io.path.absolute
 import kotlin.io.path.inputStream
 import kotlin.io.path.isDirectory
 
 object YamlCommandReader {
 
-    private val YAML = YAMLFactory()
+    private val YAML = YAMLFactory().apply {
+        disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+    }
 
-    private val MAPPER = ObjectMapper(YAML).apply {
+    val MAPPER = ObjectMapper(YAML).apply {
         registerModule(KotlinModule.Builder().build())
     }
 

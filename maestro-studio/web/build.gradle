@@ -5,7 +5,10 @@ tasks.register("deps", Exec.class) {
 }
 
 tasks.register("build", Exec.class) {
-    inputs.dir(layout.projectDirectory)
+    def inputFiles = fileTree(layout.projectDirectory) {
+        exclude("build", "node_modules", ".idea")
+    }
+    inputs.files(inputFiles)
     outputs.dir(layout.projectDirectory.dir("build"))
     dependsOn(tasks.deps)
     commandLine("npm", "run", "build")

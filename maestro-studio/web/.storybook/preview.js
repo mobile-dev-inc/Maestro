@@ -1,4 +1,7 @@
 import '../src/index.css'
+import {installMocks} from "../src/mocks";
+
+installMocks()
 
 export const parameters = {
   actions: { argTypesRegex: "^on[A-Z].*" },

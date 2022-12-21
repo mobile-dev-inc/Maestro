@@ -34,6 +34,7 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.utils.MaestroTimer
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
@@ -119,7 +120,7 @@ class Orchestra(
         )
     }
 
-    private fun executeCommands(
+    fun executeCommands(
         commands: List<MaestroCommand>,
     ): Boolean {
         commands

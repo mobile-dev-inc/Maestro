@@ -2,6 +2,7 @@ import Inspect from './Inspect';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DeviceScreen } from './models';
 import { motion } from 'framer-motion';
+import { API } from './api';
 
 const RefreshIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -32,9 +33,7 @@ const Header = ({onRefresh}: {
   )
 }
 
-const Main = ({ getDeviceScreen }: {
-  getDeviceScreen: () => Promise<DeviceScreen>
-}) => {
+const Main = () => {
   const [deviceScreen, setDeviceScreen] = useState<DeviceScreen>()
   const [error, setError] = useState<string>()
 
@@ -42,13 +41,13 @@ const Main = ({ getDeviceScreen }: {
     setError(undefined)
     setDeviceScreen(undefined)
     try {
-      const deviceScreen = await getDeviceScreen()
+      const deviceScreen = await API.getDeviceScreen()
       setDeviceScreen(deviceScreen)
     } catch (e) {
       console.error(e)
       setError("An error occurred. Please try refreshing.")
     }
-  }, [setError, setDeviceScreen, getDeviceScreen])
+  }, [setError, setDeviceScreen])
 
   useEffect(() => {
     refresh()
