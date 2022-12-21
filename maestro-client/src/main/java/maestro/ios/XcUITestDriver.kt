@@ -10,12 +10,17 @@ import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
 
 interface XcUITestDriver {
+    fun listApps(): Set<String>
     fun uninstall()
     fun setup()
     fun cleanup()
 }
 
 class XcUITestDriverImpl(private val logger: Logger, private val deviceId: String): XcUITestDriver {
+
+    override fun listApps(): Set<String> {
+        return Simctl.listApps()
+    }
 
     override fun uninstall() {
         Simctl.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID)

@@ -60,7 +60,7 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
 
-    private val getRunningAppIdResolver by lazy { GetRunningAppIdResolver(logger) }
+    private val getRunningAppIdResolver by lazy { GetRunningAppIdResolver(logger, xcUiTestDriver) }
 
     override fun name(): String {
         return "iOS Simulator"
