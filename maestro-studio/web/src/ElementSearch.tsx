@@ -18,9 +18,9 @@ const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => {
 
 const ElementSearch = ({deviceScreen, onElementSelected, hoveredElement, onElementHovered}: {
   deviceScreen: DeviceScreen
-  onElementSelected:  React.Dispatch<React.SetStateAction<UIElement | null>>
+  onElementSelected: (element: UIElement | null) => void
   hoveredElement: UIElement | null
-  onElementHovered: React.Dispatch<React.SetStateAction<UIElement | null>>
+  onElementHovered: (element: UIElement | null) => void
 }) => {
   const [query, setQuery] = useState("");
 
@@ -70,7 +70,9 @@ const ElementSearch = ({deviceScreen, onElementSelected, hoveredElement, onEleme
               onElementHovered(element)
             }}
             onMouseLeave={() => {
-              onElementHovered(prev => prev === element ? null : prev)
+              if (hoveredElement?.id === element.id) {
+                onElementHovered(null)
+              }
             }}
           >
             <div

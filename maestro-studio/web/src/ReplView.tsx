@@ -1,5 +1,5 @@
 import { API } from './api';
-import React, { ReactElement, useState } from 'react';
+import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import AutosizingTextArea from './AutosizingTextArea';
 import { ReplCommand, ReplCommandStatus } from './models';
 import { Reorder } from 'framer-motion';
@@ -242,10 +242,22 @@ const ReplHeader = ({onSelectAll, onDeselectAll, selected, onPlay, onExport, onC
 }
 
 const ReplView = () => {
+  const listRef = useRef<HTMLElement>()
   const [input, setInput] = useState("")
   const [_selected, setSelected] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const {error, repl} = API.repl.useRepl()
+  const listSize = repl?.commands.length || 0
+  const previousListSize = useRef(0);
+
+  // Scroll to bottom when new commands are added
+  useEffect(() => {
+    const listSizeChange = listSize - previousListSize.current
+    if (listSizeChange > 0 && listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight
+    }
+    previousListSize.current = listSize
+  }, [listSize])
 
   if (error) {
     return (
@@ -282,68 +294,68 @@ const ReplView = () => {
   }
 
   return (
-    <div>
-      <div className="flex flex-col border">
-        <ReplHeader
-          onSelectAll={() => setSelected(repl.commands.map(c => c.id))}
-          onDeselectAll={() => setSelected([])}
-          selected={selected.length}
-          onPlay={onPlay}
-          onExport={onExport}
-          onCopy={onCopy}
-          onDelete={onDelete}
-        />
-        <Reorder.Group
-          onReorder={onReorder}
-          values={repl.commands}
-        >
-          {repl.commands.map(command => (
-            <Reorder.Item
-              value={command}
-              key={command.id}
-              transition={{duration: .1}}
-              dragTransition={{bounceStiffness: 2000, bounceDamping: 100}}
-              onDragStart={() => { setDragging(true) }}
-              onDragEnd={() => { setTimeout(() => setDragging(false)) }}
-            >
-              <CommandRow
-                command={command}
-                selected={selected.includes(command.id)}
-                onClick={() => {
-                  if (dragging) return
-                  if (selected.includes(command.id)) {
-                    setSelected(prevState => prevState.filter(id => id !== command.id))
-                  } else {
-                    setSelected(prevState => [...prevState, command.id])
-                  }
-                }}
-              />
-            </Reorder.Item>
-          ))}
-        </Reorder.Group>
-        <div
-          className="relative flex flex-col"
-          onKeyDown={e => {
-            if (e.code === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              runCommand()
-            }
-          }}
-        >
-          <AutosizingTextArea
-            className="resize-none p-4 overflow-scroll bg-gray-50 font-mono cursor-text outline-none border border-transparent focus:border focus:border-slate-400"
-            setValue={value => setInput(value)}
-            value={input}
-            placeholder="Enter a command or interact with the device screenshot. Cmd-ENTER to run."
-          />
-          <button
-            className="absolute flex items-center right-1 top-1 rounded bottom-1 px-4 disabled:text-slate-400 enabled:text-blue-600 enabled:hover:bg-slate-200 enabled:active:bg-slate-300 cursor-default"
-            disabled={!input}
-            onClick={() => runCommand()}
+    <div className="flex flex-col border rounded overflow-hidden h-full">
+      <ReplHeader
+        onSelectAll={() => setSelected(repl.commands.map(c => c.id))}
+        onDeselectAll={() => setSelected([])}
+        selected={selected.length}
+        onPlay={onPlay}
+        onExport={onExport}
+        onCopy={onCopy}
+        onDelete={onDelete}
+      />
+      <Reorder.Group
+        ref={listRef}
+        className="overflow-y-scroll"
+        onReorder={onReorder}
+        values={repl.commands}
+      >
+        {repl.commands.map(command => (
+          <Reorder.Item
+            value={command}
+            key={command.id}
+            transition={{duration: .1}}
+            dragTransition={{bounceStiffness: 2000, bounceDamping: 100}}
+            onDragStart={() => { setDragging(true) }}
+            onDragEnd={() => { setTimeout(() => setDragging(false)) }}
           >
-            <PlayIcon />
-          </button>
-        </div>
+            <CommandRow
+              command={command}
+              selected={selected.includes(command.id)}
+              onClick={() => {
+                if (dragging) return
+                if (selected.includes(command.id)) {
+                  setSelected(prevState => prevState.filter(id => id !== command.id))
+                } else {
+                  setSelected(prevState => [...prevState, command.id])
+                }
+              }}
+            />
+          </Reorder.Item>
+        ))}
+      </Reorder.Group>
+      <div
+        className="relative flex flex-col"
+        onKeyDown={e => {
+          if (e.code === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            runCommand()
+          }
+        }}
+      >
+        <AutosizingTextArea
+          className="resize-none p-4 overflow-scroll bg-gray-50 font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
+          setValue={value => setInput(value)}
+          value={input}
+          placeholder="Enter a command, then press ENTER to run"
+        />
+        <button
+          className="absolute flex items-center right-1 top-1 rounded bottom-1 px-4 disabled:text-slate-400 enabled:text-blue-600 enabled:hover:bg-slate-200 enabled:active:bg-slate-300 cursor-default"
+          disabled={!input}
+          onClick={() => runCommand()}
+        >
+          <PlayIcon />
+        </button>
       </div>
     </div>
   )

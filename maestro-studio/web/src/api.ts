@@ -1,5 +1,5 @@
 import { DeviceScreen, Repl, ReplCommand } from './models';
-import useSWR, { mutate } from 'swr';
+import useSWR, { mutate, SWRConfiguration, SWRResponse } from 'swr';
 
 export type ReplResponse = {
   repl?: Repl
@@ -32,8 +32,12 @@ const useRepl = (): ReplResponse => {
 }
 
 export const API = {
-  getDeviceScreen: async (): Promise<DeviceScreen> => {
-    return makeRequest('GET', '/api/device-screen')
+  useDeviceScreen: (config?: SWRConfiguration<DeviceScreen>): SWRResponse<DeviceScreen> => {
+    return useSWR('/api/device-screen?deletePrevious=true', (url) => makeRequest('GET', url), config)
+  },
+  getDeviceScreen: async (deletePrevious?: boolean): Promise<DeviceScreen> => {
+    const query = deletePrevious ? '?deletePrevious=true' : ''
+    return makeRequest('GET', `/api/device-screen${query}`)
   },
   repl: {
     useRepl,

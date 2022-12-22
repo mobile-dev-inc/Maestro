@@ -39,14 +39,17 @@ const Footer = ({selectedElement, hoveredElement}: {
 const Inspect = ({ deviceScreen }: {
   deviceScreen: DeviceScreen
 }) => {
-  const [hoveredElement, setHoveredElement] = useState<UIElement | null>(null)
-  const [selectedElement, setSelectedElement] = useState<UIElement | null>(null)
-  
+  const [hoveredElementId, setHoveredElementId] = useState<string | null>(null)
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
+
+  const hoveredElement = deviceScreen.elements.find(e => e.id === hoveredElementId) || null
+  const selectedElement = deviceScreen.elements.find(e => e.id === selectedElementId) || null
+
   const banner = selectedElement ? (
     <Banner
       left={selectedElement.text}
       right={selectedElement.resourceId}
-      onClose={() => setSelectedElement(null)}
+      onClose={() => setSelectedElementId(null)}
     />
   ) : null
 
@@ -66,17 +69,17 @@ const Inspect = ({ deviceScreen }: {
       >
         <AnnotatedScreenshot
           deviceScreen={deviceScreen}
-          onElementHovered={setHoveredElement}
+          onElementHovered={e => setHoveredElementId(e?.id || null)}
           hoveredElement={hoveredElement}
-          onElementSelected={setSelectedElement}
+          onElementSelected={e => setSelectedElementId(e?.id || null)}
           selectedElement={selectedElement}
         />
         <PageSwitcher banner={banner}>
           <ElementSearch
             deviceScreen={deviceScreen}
-            onElementHovered={setHoveredElement}
+            onElementHovered={e => setHoveredElementId(e?.id || null)}
             hoveredElement={hoveredElement}
-            onElementSelected={setSelectedElement}
+            onElementSelected={e => setSelectedElementId(e?.id || null)}
           />
           {detailsPage}
         </PageSwitcher>

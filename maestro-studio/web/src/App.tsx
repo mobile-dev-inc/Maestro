@@ -1,11 +1,11 @@
 import React from 'react';
 import Main from './Main';
-import ReplView from './ReplView';
+import InteractPage from './InteractPage';
 
 function App() {
   if (window.location.pathname === '/interact') {
     return (
-      <ReplView />
+      <InteractPage />
     )
   }
   return (

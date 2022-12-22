@@ -23,13 +23,22 @@ import kotlin.io.path.createTempDirectory
 object DeviceScreenService {
 
     private val SCREENSHOT_DIR = getScreenshotDir()
+
+    private var previousScreenshot: File? = null
+
     fun routes(routing: Routing, maestro: Maestro) {
         routing.get("/api/device-screen") {
+            val deletePrevious = call.request.queryParameters["deletePrevious"] == "true"
+
             val tree: TreeNode
             val screenshotFile: File
             synchronized(DeviceScreenService) {
                 tree = maestro.viewHierarchy().root
                 screenshotFile = takeScreenshot(maestro)
+                if (deletePrevious) {
+                    previousScreenshot?.delete()
+                    previousScreenshot = screenshotFile
+                }
             }
 
             val deviceInfo = maestro.deviceInfo()
@@ -76,12 +85,17 @@ object DeviceScreenService {
         }
 
         return elements.map { element ->
-            val id = UUID.randomUUID()
             val bounds = element.bounds()
             val text = element.attribute("text")
             val resourceId = element.attribute("resource-id")
             val textIndex = getIndex(element, "text")
             val resourceIdIndex = getIndex(element, "resource-id")
+            fun createElementId(): String {
+                val parts = listOfNotNull(resourceId, resourceIdIndex, text, textIndex)
+                val fallbackId = bounds?.let { (x, y, w, h) -> "$x,$y,$w,$h" } ?: UUID.randomUUID().toString()
+                return if (parts.isEmpty()) fallbackId else parts.joinToString("-")
+            }
+            val id = createElementId()
             UIElement(id, bounds, resourceId, resourceIdIndex, text, textIndex)
         }
     }
@@ -112,7 +126,11 @@ object DeviceScreenService {
         val name = "${UUID.randomUUID()}.png"
         val screenshotFile = SCREENSHOT_DIR.resolve(name).toFile()
         screenshotFile.deleteOnExit()
-        maestro.takeScreenshot(screenshotFile)
+        try {
+            maestro.takeScreenshot(screenshotFile)
+        } catch (ignore: Exception) {
+            // ignore intermittent screenshot errors
+        }
         return screenshotFile
     }
 
