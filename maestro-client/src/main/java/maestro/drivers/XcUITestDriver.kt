@@ -1,32 +1,21 @@
-package maestro.ios
+package maestro.drivers
 
-import ios.logger.Logger
 import ios.xcrun.Simctl
 import maestro.Maestro
+import maestro.logger.Logger
 import okio.buffer
 import okio.sink
 import okio.source
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
 
-interface XcUITestDriver {
-    fun listApps(): Set<String>
-    fun uninstall()
-    fun setup()
-    fun cleanup()
-}
+class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
 
-class XcUITestDriverImpl(private val logger: Logger, private val deviceId: String): XcUITestDriver {
-
-    override fun listApps(): Set<String> {
-        return Simctl.listApps()
-    }
-
-    override fun uninstall() {
+    fun uninstall() {
         Simctl.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID)
     }
 
-    override fun setup() {
+    fun setup() {
         logger.info("[Start] Installing xctest ui runner on $deviceId")
         runXCTest()
         logger.info("[Done] Installing xctest ui runner on $deviceId")
@@ -75,7 +64,7 @@ class XcUITestDriverImpl(private val logger: Logger, private val deviceId: Strin
         }
     }
 
-    override fun cleanup() {
+    fun cleanup() {
         logger.info("[Start] Cleaning up the ui test runner files")
         val xctestConfig = "${System.getenv("TMP_DIR")}/$XCTEST_RUN_PATH"
         val hostApp = "${System.getenv("TMPDIR")}/Debug-iphonesimulator/maestro-driver-ios.app"

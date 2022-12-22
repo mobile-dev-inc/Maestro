@@ -1,7 +1,6 @@
 package maestro.debuglog
 
-import ios.logger.Logger
-import maestro.drivers.IOSDriver
+import maestro.logger.Logger
 
 class IOSDriverLogger : Logger {
 

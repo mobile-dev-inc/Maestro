@@ -1,6 +1,7 @@
-package ios.api
+package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import maestro.api.GetRunningAppRequest
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient

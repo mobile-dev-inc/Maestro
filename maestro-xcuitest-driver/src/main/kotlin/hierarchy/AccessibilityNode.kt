@@ -1,4 +1,4 @@
-package ios.hierarchy
+package hierarchy
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize

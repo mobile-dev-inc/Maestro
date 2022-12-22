@@ -21,6 +21,8 @@ package ios.idb
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.runCatching
@@ -58,9 +60,8 @@ import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
-import ios.hierarchy.Error
-import ios.hierarchy.XCUIElement
-import ios.api.XCTestDriverClient
+import api.GetViewHierarchy
+import hierarchy.XCUIElement
 import okio.Buffer
 import okio.Sink
 import okio.buffer
@@ -94,38 +95,22 @@ class IdbIOSDevice(
         }
     }
 
-    override fun contentDescriptor(appId: String, onContentDescriptorError: (String) -> Unit): Result<XCUIElement, Throwable> {
-        return runCatching {
-            val xcUiElement = XCTestDriverClient.subTree(appId).use {
-                if (it.isSuccessful) {
-                    it.body?.let { response ->
-                        mapper.readValue(String(response.bytes()), XCUIElement::class.java)
-                    } ?: throw IllegalStateException("View Hierarchy not available, response body is null")
-                } else {
-                    it.body?.let { response ->
-                        val errorResponse = String(response.bytes()).trim()
-                        val error = mapper.readValue(errorResponse, Error::class.java)
-                        when (error.errorCode) {
-                            VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE -> {
-                                onContentDescriptorError("Driver was not able to capture view hierarchy due to illegal argument failure. " +
-                                    "Falling back to idb instead in this case.")
-                                val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
-                                val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
-                                accessibilityNode
-                            }
-                            else -> {
-                                onContentDescriptorError("Driver was not able to capture view hierarchy. " +
-                                    "Error: ${error.errorMessage}, ${error.errorCode}")
-                                throw IllegalArgumentException(
-                                    "Maestro was not able to capture view hierarchy. Run maestro bugreport command and submit " +
-                                        "new github issue on https://github.com/mobile-dev-inc/maestro/issues/new with the bugreport created."
-                                )
-                            }
+    override fun contentDescriptor(appId: String): Result<XCUIElement, Throwable> {
+        return when (val result = GetViewHierarchy.invoke(appId)) {
+            is Ok -> return result
+            is Err -> {
+                when (result.error) {
+                    is GetViewHierarchy.IllegalArgumentSnapshotFailure -> {
+                        runCatching {
+                            val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
+                            val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
+                            accessibilityNode
                         }
                     }
+                    is GetViewHierarchy.UnknownFailure -> Err(result.error)
+                    else -> Err(result.error)
                 }
             }
-            xcUiElement as XCUIElement
         }
     }
 

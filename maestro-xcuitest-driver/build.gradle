@@ -1,0 +1,33 @@
+plugins {
+    id 'maven-publish'
+    id "kotlin"
+    id "idea"
+    id "com.vanniktech.maven.publish"
+}
+
+
+dependencies {
+    api "com.squareup.okhttp3:okhttp:4.10.0"
+    api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
+    api 'org.rauschig:jarchivelib:1.2.0'
+    api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+    testImplementation "com.google.truth:truth:1.1.3"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

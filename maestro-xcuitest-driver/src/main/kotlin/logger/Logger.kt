@@ -1,4 +1,4 @@
-package ios.logger
+package maestro.logger
 
 interface Logger {
 

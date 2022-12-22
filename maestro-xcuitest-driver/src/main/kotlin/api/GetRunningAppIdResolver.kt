@@ -1,15 +1,16 @@
-package maestro.ios
+package api
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import ios.api.XCTestDriverClient
-import ios.logger.Logger
+import maestro.logger.Logger
+import util.Simctl
+import xcuitest.XCTestDriverClient
 
-class GetRunningAppIdResolver(private val logger: Logger, private val xcUITestDriver: XcUITestDriver) {
+class GetRunningAppIdResolver(private val logger: Logger) {
 
     private val mapper = jacksonObjectMapper()
 
     fun invoke(): String? {
-        val appIds = xcUITestDriver.listApps()
+        val appIds = Simctl.listApps()
         logger.info("installed apps: $appIds")
 
         return XCTestDriverClient.runningAppId(appIds).use { response ->

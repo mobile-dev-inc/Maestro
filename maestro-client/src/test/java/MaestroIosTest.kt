@@ -1,16 +1,11 @@
 import io.grpc.ManagedChannelBuilder
-import ios.IOSDevice
 import ios.idb.IdbIOSDevice
 import maestro.Maestro
-import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
-import maestro.ios.XcUITestDriverImpl
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.Paths
 import kotlin.io.path.createDirectories
 
 @Disabled("Local testing only")
@@ -25,7 +20,7 @@ internal class MaestroIosTest {
             .usePlaintext()
             .build()
         val deviceId = ""
-        maestro = Maestro.ios(driver = IOSDriver(IdbIOSDevice(channel, deviceId), XcUITestDriverImpl(IOSDriverLogger(), deviceId)))
+        maestro = Maestro.ios(driver = IOSDriver(IdbIOSDevice(channel, deviceId)))
     }
 
     @Test

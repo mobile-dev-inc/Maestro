@@ -27,9 +27,7 @@ import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
-import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
-import maestro.ios.XcUITestDriverImpl
 
 object MaestroFactory {
     private const val defaultHost = "localhost"
@@ -54,9 +52,7 @@ object MaestroFactory {
                         val channel = ManagedChannelBuilder.forAddress(defaultHost, idbPort)
                             .usePlaintext()
                             .build()
-                        val logger = IOSDriverLogger()
-                        val xcUiTestDriver = XcUITestDriverImpl(logger, device.instanceId)
-                        Maestro.ios(IOSDriver(IdbIOSDevice(channel, device.instanceId), xcUiTestDriver))
+                        Maestro.ios(IOSDriver(IdbIOSDevice(channel, device.instanceId)))
                     }
                 },
                 device = device,
@@ -103,9 +99,7 @@ object MaestroFactory {
             .build()
         val device = PickDeviceInteractor.pickDevice(deviceId)
         val idbIOSDevice = IdbIOSDevice(channel, device.instanceId)
-        val logger = IOSDriverLogger()
-        val xcUiTestDriver = XcUITestDriverImpl(logger, device.instanceId)
-        val iosDriver = IOSDriver(idbIOSDevice, xcUiTestDriver)
+        val iosDriver = IOSDriver(idbIOSDevice)
         return Maestro.ios(iosDriver)
     }
 

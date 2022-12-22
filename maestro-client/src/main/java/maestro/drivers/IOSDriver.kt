@@ -19,15 +19,16 @@
 
 package maestro.drivers
 
+import api.GetRunningAppIdResolver
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onSuccess
+import hierarchy.IdbElementNode
+import hierarchy.XCUIElement
+import hierarchy.XCUIElementNode
 import ios.IOSDevice
-import ios.hierarchy.IdbElementNode
-import ios.hierarchy.XCUIElement
-import ios.hierarchy.XCUIElementNode
 import ios.idb.IdbIOSDevice
 import maestro.DeviceInfo
 import maestro.Driver
@@ -38,10 +39,8 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
-import ios.logger.Logger
 import maestro.debuglog.IOSDriverLogger
-import maestro.ios.GetRunningAppIdResolver
-import maestro.ios.XcUITestDriver
+import maestro.logger.Logger
 import maestro.utils.FileUtils
 import okio.Sink
 import java.io.File
@@ -51,7 +50,6 @@ import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
-    private val xcUiTestDriver: XcUITestDriver,
     private val logger: Logger = IOSDriverLogger()
 ) : Driver {
 
@@ -60,7 +58,8 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
 
-    private val getRunningAppIdResolver by lazy { GetRunningAppIdResolver(logger, xcUiTestDriver) }
+    private val getRunningAppIdResolver by lazy { GetRunningAppIdResolver(logger) }
+    private val xcUiTestDriver by lazy { XcUITestDriver(logger, iosDevice.deviceId ?: throw IllegalStateException("No device id found")) }
 
     override fun name(): String {
         return "iOS Simulator"
@@ -207,11 +206,7 @@ class IOSDriver(
 
         logger.info("Getting view hierarchy for $resolvedAppId")
 
-        val contentDescriptorResult = iosDevice.contentDescriptor(
-            resolvedAppId ?: throw IllegalStateException("Failed to get view hierarchy, app id was not resolvedGetRunningAppRequest.kt")
-        ) { errorMessage -> logger.info(errorMessage) }
-
-        return when (contentDescriptorResult) {
+        return when (val contentDescriptorResult = iosDevice.contentDescriptor(requireNotNull(resolvedAppId))) {
             is Ok -> mapHierarchy(contentDescriptorResult.value)
             is Err -> TreeNode()
         }
