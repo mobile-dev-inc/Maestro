@@ -9,14 +9,6 @@ class maestro_driver_iosUITests: XCTestCase {
 
         // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-        addUIInterruptionMonitor(withDescription: "Tracking Usage Permission Alert") { (alert) -> Bool in
-            if alert.buttons["Allow"].exists {
-                alert.buttons["Allow"].tap()
-                return true
-                
-            }
-            return false
-        }
 
         // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
