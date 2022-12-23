@@ -39,6 +39,6 @@ object GetViewHierarchy {
         }
     }
 
-    class IllegalArgumentSnapshotFailure: Throwable()
+    class IllegalArgumentSnapshotFailure: Throwable("Failed to capture view hierarchy due to kAXErrorIllegalArgument")
     class UnknownFailure(val errorResponse: String): Throwable()
 }

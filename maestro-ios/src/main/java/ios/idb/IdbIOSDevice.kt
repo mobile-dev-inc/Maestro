@@ -101,16 +101,20 @@ class IdbIOSDevice(
             is Err -> {
                 when (result.error) {
                     is GetViewHierarchy.IllegalArgumentSnapshotFailure -> {
-                        runCatching {
-                            val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
-                            val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
-                            accessibilityNode
-                        }
+                        idbContentDescriptor()
                     }
                     is GetViewHierarchy.UnknownFailure -> Err(result.error)
                     else -> Err(result.error)
                 }
             }
+        }
+    }
+
+    override fun idbContentDescriptor(): Result<XCUIElement, Throwable> {
+        return runCatching {
+            val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
+            val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
+            accessibilityNode
         }
     }
 

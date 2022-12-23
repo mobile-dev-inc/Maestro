@@ -36,6 +36,8 @@ interface IOSDevice : AutoCloseable {
 
     fun contentDescriptor(appId: String): Result<XCUIElement, Throwable>
 
+    fun idbContentDescriptor(): Result<XCUIElement, Throwable>
+
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 
     fun longPress(x: Int, y: Int): Result<Unit, Throwable>
