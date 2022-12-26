@@ -1,9 +1,19 @@
-import { DeviceScreen, Repl, ReplCommand } from './models';
+import { DeviceScreen, FormattedFlow, Repl, ReplCommand } from './models';
 import useSWR, { mutate, SWRConfiguration, SWRResponse } from 'swr';
 
 export type ReplResponse = {
   repl?: Repl
   error?: any
+}
+
+export class HttpError extends Error {
+
+  constructor(
+    public status: number,
+    public message: string,
+  ) {
+    super(message);
+  }
 }
 
 export const wait = async (durationMs: number) => {
@@ -21,7 +31,7 @@ const makeRequest = async <T>(method: string, path: string, body?: Object | unde
   })
   if (!response.ok) {
     const body = await response.text()
-    throw new Error(`Request failed ${response.status}: ${body}`)
+    throw new HttpError(response.status, body)
   }
   return await response.json()
 }
@@ -61,6 +71,9 @@ export const API = {
       }, {
         revalidate: false
       })
+    },
+    formatFlow: async (ids: string[]): Promise<FormattedFlow> => {
+      return makeRequest('POST', '/api/repl/command/format', { ids })
     },
   }
 }

@@ -6,6 +6,6 @@ export default {
 
 export const Main = () => {
   return (
-    <ReplView />
+    <ReplView onError={e => console.log(e)}/>
   )
 }

@@ -38,11 +38,20 @@ private data class ReorderCommandsRequest(
     val ids: List<UUID>,
 )
 
+private data class FormatCommandsRequest(
+    val ids: List<UUID>,
+)
+
 private data class ReplEntry(
     val id: UUID,
     val yaml: String,
     val commands: List<MaestroCommand>,
     var status: ReplCommandStatus,
+)
+
+private data class FormattedFlow(
+    val config: String,
+    val commands: String,
 )
 
 private class ReplState {
@@ -149,6 +158,15 @@ object ReplService {
             val request = call.parseBody<ReorderCommandsRequest>()
             state.reorderEntries(request.ids)
             call.respondRepl()
+        }
+        routing.post("/api/repl/command/format") {
+            val request = call.parseBody<FormatCommandsRequest>()
+            val entries = state.getEntriesById(request.ids)
+            val inferredAppId = entries.firstNotNullOfOrNull { e -> e.commands.firstNotNullOfOrNull { c -> c.launchAppCommand?.appId } } ?: "<your-app-id>"
+            val commandsString = entries.joinToString("") { if (it.yaml.endsWith("\n")) it.yaml else "${it.yaml}\n" }
+            val formattedFlow = FormattedFlow("appId: $inferredAppId", commandsString)
+            val response = jacksonObjectMapper().writeValueAsString(formattedFlow)
+            call.respondText(response)
         }
     }
 

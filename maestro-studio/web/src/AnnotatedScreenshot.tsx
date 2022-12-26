@@ -105,12 +105,12 @@ const getHoveredElement = (deviceScreen: DeviceScreen, mouse: MousePosition): UI
   })[0]
 }
 
-export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSelected, hoveredElement, onElementHovered, annotationsEnabled = true}: {
+export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSelected, hoveredElement, onHover, annotationsEnabled = true}: {
   deviceScreen: DeviceScreen
   selectedElement: UIElement | null
   onElementSelected: (element: UIElement | null) => void
   hoveredElement: UIElement | null
-  onElementHovered: (element: UIElement | null) => void
+  onHover: (element: UIElement | null, mouse: MousePosition | null) => void
   annotationsEnabled?: boolean
 }) => {
   const ref = useRef(null)
@@ -118,12 +118,16 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
 
   useEffect(() => {
     if (mouse.isOver) {
-      const hoveredElement = getHoveredElement(deviceScreen, mouse);
-      onElementHovered(hoveredElement)
+      if (annotationsEnabled) {
+        const hoveredElement = getHoveredElement(deviceScreen, mouse);
+        onHover(hoveredElement, mouse)
+      } else {
+        onHover(null, mouse)
+      }
     } else {
-      onElementHovered(null)
+      onHover(null, null)
     }
-  }, [deviceScreen, mouse, onElementHovered])
+  }, [deviceScreen, mouse, onHover, annotationsEnabled])
 
   const createAnnotation = (element: UIElement) => {
     let state: AnnotationState = 'default'

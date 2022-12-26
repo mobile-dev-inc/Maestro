@@ -39,3 +39,8 @@ export type Repl = {
   version: number
   commands: ReplCommand[]
 }
+
+export type FormattedFlow = {
+  config: string
+  commands: string
+}

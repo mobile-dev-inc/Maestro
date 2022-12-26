@@ -15,6 +15,7 @@ import maestro.TreeNode
 import java.io.File
 import java.nio.file.Path
 import java.util.UUID
+import java.util.function.BiFunction
 import java.util.regex.Pattern
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -84,6 +85,7 @@ object DeviceScreenService {
             return matchingElements.indexOf(element)
         }
 
+        val ids = mutableMapOf<String, Int>()
         return elements.map { element ->
             val bounds = element.bounds()
             val text = element.attribute("text")
@@ -93,7 +95,9 @@ object DeviceScreenService {
             fun createElementId(): String {
                 val parts = listOfNotNull(resourceId, resourceIdIndex, text, textIndex)
                 val fallbackId = bounds?.let { (x, y, w, h) -> "$x,$y,$w,$h" } ?: UUID.randomUUID().toString()
-                return if (parts.isEmpty()) fallbackId else parts.joinToString("-")
+                val id = if (parts.isEmpty()) fallbackId else parts.joinToString("-")
+                val index = ids.compute(id) { _, i -> (i ?: 0) + 1}
+                return if (index == 1) id else "$id-$index"
             }
             val id = createElementId()
             UIElement(id, bounds, resourceId, resourceIdIndex, text, textIndex)

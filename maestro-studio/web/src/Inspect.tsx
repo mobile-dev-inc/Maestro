@@ -69,7 +69,7 @@ const Inspect = ({ deviceScreen }: {
       >
         <AnnotatedScreenshot
           deviceScreen={deviceScreen}
-          onElementHovered={e => setHoveredElementId(e?.id || null)}
+          onHover={e => setHoveredElementId(e?.id || null)}
           hoveredElement={hoveredElement}
           onElementSelected={e => setSelectedElementId(e?.id || null)}
           selectedElement={selectedElement}

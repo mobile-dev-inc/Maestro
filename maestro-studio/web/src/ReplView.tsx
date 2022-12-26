@@ -1,8 +1,10 @@
 import { API } from './api';
 import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import AutosizingTextArea from './AutosizingTextArea';
-import { ReplCommand, ReplCommandStatus } from './models';
+import { FormattedFlow, ReplCommand, ReplCommandStatus } from './models';
 import { Reorder } from 'framer-motion';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import { SaveFlowModal } from './SaveFlowModal';
 
 const PlayIcon = () => {
   return (
@@ -122,16 +124,17 @@ const CommandRow = ({command, selected, onClick}: {
   return (
     <div
       key={command.id}
-      className="flex flex-row border-b hover:bg-slate-50 active:bg-slate-100"
+      className="relative flex flex-row border-b hover:bg-slate-50 active:bg-slate-100 data-[running]:bg-blue-50"
       onClick={onClick}
+      data-running={command.status === 'running' ? true : undefined}
     >
       <div
         className="flex flex-col px-2 pt-4 border-r"
       >
         <CheckBox type="circle" checked={selected} />
       </div>
-      <pre className="p-4 font-mono cursor-default flex-1">{command.yaml}</pre>
-      <div className="p-4">
+      <pre className="p-4 pr-14 font-mono cursor-default flex-1 overflow-x-scroll">{command.yaml}</pre>
+      <div className="absolute p-4 right-0">
         <StatusIcon status={command.status} />
       </div>
     </div>
@@ -196,10 +199,11 @@ const HeaderButton = ({text, icon, onClick}: {
   )
 }
 
-const ReplHeader = ({onSelectAll, onDeselectAll, selected, onPlay, onExport, onCopy, onDelete}: {
+const ReplHeader = ({onSelectAll, onDeselectAll, selected, copyText, onPlay, onExport, onCopy, onDelete}: {
   onSelectAll: () => void
   onDeselectAll: () => void
   selected: number
+  copyText: string
   onPlay: () => void
   onExport: () => void
   onCopy: () => void
@@ -225,14 +229,16 @@ const ReplHeader = ({onSelectAll, onDeselectAll, selected, onPlay, onExport, onC
         />
       </div>
       <div className="flex flex-1 gap-2 justify-between">
-        <span className="px-2 data-[selectall=true]:text-slate-400 select-none self-center" data-selectall={selected === 0}>
+        <span className="px-2 whitespace-nowrap data-[selectall=true]:text-slate-400 select-none self-center" data-selectall={selected === 0}>
           {selected > 0 ? `${selected} Selected` : 'Select All'}
         </span>
         {selected > 0 && (
           <div className="flex">
             <HeaderButton text="Play" icon={<PlayIconSmall />} onClick={onPlay}/>
             <HeaderButton text="Export" icon={<ExportIconSmall />} onClick={onExport}/>
-            <HeaderButton text="Copy" icon={<CopyIconSmall />} onClick={onCopy}/>
+            <CopyToClipboard text={copyText}>
+              <HeaderButton text="Copy" icon={<CopyIconSmall />} onClick={onCopy}/>
+            </CopyToClipboard>
             <HeaderButton text="Delete" icon={<DeleteIconSmall />} onClick={onDelete}/>
           </div>
         )}
@@ -241,11 +247,32 @@ const ReplHeader = ({onSelectAll, onDeselectAll, selected, onPlay, onExport, onC
   );
 }
 
-const ReplView = () => {
+const getFlowText = (selected: ReplCommand[]): string => {
+  return selected.map(c => (
+    c.yaml.endsWith('\n') ? c.yaml : `${c.yaml}\n`
+  )).join('')
+}
+
+const Instructions = () => {
+  return (
+    <div className="flex-1 flex flex-col p-16 items-center">
+      <div className="flex flex-col gap-4 font-mono p-12 bg-blue-50 rounded-md border border-blue-400 text-blue-900">
+        <p>• Type a command above, then hit ENTER to run</p>
+        <p>• Tap on the device screen on the left to generate commands</p>
+        <p>• Hold CMD (⌘) down to freely tap and swipe on the device screen</p>
+      </div>
+    </div>
+  )
+}
+
+const ReplView = ({onError}: {
+  onError: (error: string | null) => void
+}) => {
   const listRef = useRef<HTMLElement>()
   const [input, setInput] = useState("")
   const [_selected, setSelected] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
+  const [formattedFlow, setFormattedFlow] = useState<FormattedFlow | null>(null)
   const {error, repl} = API.repl.useRepl()
   const listSize = repl?.commands.length || 0
   const previousListSize = useRef(0);
@@ -266,17 +293,21 @@ const ReplView = () => {
   }
 
   if (!repl) {
-    return (
-      <div>Loading...</div>
-    )
+    return null
   }
 
-  const selected = _selected.filter(id => repl.commands.find(c => c.id === id))
+  const selectedCommands = _selected.map(id => repl.commands.find(c => c.id === id)).filter((c): c is ReplCommand => !!c)
+  const selectedIds = selectedCommands.map(c => c.id)
 
-  const runCommand = () => {
+  const runCommand = async () => {
     if (!input) return
-    API.repl.runCommand(input)
-    setInput("")
+    onError(null)
+    try {
+      await API.repl.runCommand(input)
+      setInput("")
+    } catch (e: any) {
+      onError(e.message || 'Failed to run command')
+    }
   }
 
   const onReorder = (newOrder: ReplCommand[]) => {
@@ -284,21 +315,27 @@ const ReplView = () => {
   }
 
   const onPlay = () => {
-    API.repl.runCommandsById(selected)
+    API.repl.runCommandsById(selectedIds)
   }
 
-  const onExport = () => {}
+  const onExport = () => {
+    if (selectedIds.length === 0) return
+    API.repl.formatFlow(selectedIds).then(setFormattedFlow)
+  }
   const onCopy = () => {}
   const onDelete = () => {
-    API.repl.deleteCommands(selected)
+    API.repl.deleteCommands(selectedIds)
   }
+
+  const flowText = getFlowText(selectedCommands);
 
   return (
     <div className="flex flex-col border rounded overflow-hidden h-full">
       <ReplHeader
         onSelectAll={() => setSelected(repl.commands.map(c => c.id))}
         onDeselectAll={() => setSelected([])}
-        selected={selected.length}
+        selected={selectedIds.length}
+        copyText={flowText}
         onPlay={onPlay}
         onExport={onExport}
         onCopy={onCopy}
@@ -306,7 +343,7 @@ const ReplView = () => {
       />
       <Reorder.Group
         ref={listRef}
-        className="overflow-y-scroll"
+        className="overflow-y-scroll overflow-hidden"
         onReorder={onReorder}
         values={repl.commands}
       >
@@ -321,10 +358,10 @@ const ReplView = () => {
           >
             <CommandRow
               command={command}
-              selected={selected.includes(command.id)}
+              selected={selectedIds.includes(command.id)}
               onClick={() => {
                 if (dragging) return
-                if (selected.includes(command.id)) {
+                if (selectedIds.includes(command.id)) {
                   setSelected(prevState => prevState.filter(id => id !== command.id))
                 } else {
                   setSelected(prevState => [...prevState, command.id])
@@ -344,7 +381,7 @@ const ReplView = () => {
         }}
       >
         <AutosizingTextArea
-          className="resize-none p-4 overflow-scroll bg-gray-50 font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
+          className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden bg-gray-50 font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
           setValue={value => setInput(value)}
           value={input}
           placeholder="Enter a command, then press ENTER to run"
@@ -357,6 +394,12 @@ const ReplView = () => {
           <PlayIcon />
         </button>
       </div>
+      {repl.commands.length === 0 && (
+        <Instructions />
+      )}
+      {formattedFlow && (
+        <SaveFlowModal formattedFlow={formattedFlow} onClose={()=>{ setFormattedFlow(null) }} />
+      )}
     </div>
   )
 }

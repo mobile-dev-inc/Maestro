@@ -2,6 +2,7 @@ import React, { MouseEventHandler, useEffect, useState } from 'react';
 import { DeviceScreen, DivProps, UIElement } from './models';
 import { API } from './api';
 import { AnnotatedScreenshot } from './AnnotatedScreenshot';
+import { MousePosition } from '@react-hook/mouse-position';
 
 type GestureEvent = {
   x: number
@@ -87,8 +88,11 @@ const useMetaKeyDown = () => {
   return metaKeyDown
 }
 
-const InteractableDevice = ({deviceScreen}: {
+const toPercent = (n: number, total: number) => `${Math.round((100 * n / total))}%`
+
+const InteractableDevice = ({deviceScreen, onHint}: {
   deviceScreen: DeviceScreen
+  onHint: (hint: string | null) => void
 }) => {
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null)
   const metaKeyDown = useMetaKeyDown()
@@ -116,7 +120,6 @@ const InteractableDevice = ({deviceScreen}: {
   }
 
   const onElementTap = (e: UIElement | null) => {
-    const toPercent = (n: number, total: number) => `${Math.round((100 * n / total))}%`
     if (!e) return
     if (!e.bounds) return
     if (e.resourceId) {
@@ -140,6 +143,37 @@ const InteractableDevice = ({deviceScreen}: {
     }
   }
 
+  const getMouseHint = (mouse: MousePosition): string | null => {
+    if (
+      typeof mouse.x !== 'number'
+      || typeof mouse.y !== 'number'
+      || typeof mouse.elementWidth !== 'number'
+      || typeof mouse.elementHeight !== 'number'
+    ) {
+      return null
+    }
+    const x = toPercent(mouse.x, mouse.elementWidth)
+    const y = toPercent(mouse.y, mouse.elementHeight)
+    return `${x}, ${y}`
+  }
+
+  const getElementHint = (element: UIElement): string => {
+    if (element.resourceId) return element.resourceId
+    if (element.text) return element.text
+    if (!element.bounds) return ''
+    const cx = toPercent(element.bounds.x + element.bounds.width / 2, deviceScreen.width)
+    const cy = toPercent(element.bounds.y + element.bounds.height / 2, deviceScreen.height)
+    return `${cx}, ${cy}`
+  }
+
+  const onHover = (element: UIElement | null, mouse: MousePosition | null) => {
+
+    const mouseHint = mouse == null ? null : getMouseHint(mouse)
+    const elementHint = element == null ? null : getElementHint(element)
+    onHint(elementHint || mouseHint)
+    setHoveredElementId(element?.id || null)
+  }
+
   return (
     <GestureDiv
       className="h-full"
@@ -155,7 +189,7 @@ const InteractableDevice = ({deviceScreen}: {
         selectedElement={null}
         onElementSelected={onElementTap}
         hoveredElement={hoveredElement}
-        onElementHovered={e => setHoveredElementId(e?.id || null)}
+        onHover={onHover}
         annotationsEnabled={!metaKeyDown}
       />
     </GestureDiv>
