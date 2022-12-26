@@ -14,4 +14,26 @@ object Simctl {
 
         return appsMap.keys
     }
+
+    fun setProxy(host: String, port: Int) {
+        ProcessBuilder("networksetup", "-setwebproxy", "Wi-Fi", host, port.toString())
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+        ProcessBuilder("networksetup", "-setsecurewebproxy", "Wi-Fi", host, port.toString())
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+    }
+
+    fun resetProxy() {
+        ProcessBuilder("networksetup", "-setwebproxystate", "Wi-Fi", "off")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+        ProcessBuilder("networksetup", "-setsecurewebproxystate", "Wi-Fi", "off")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+    }
 }

@@ -43,6 +43,7 @@ import maestro.debuglog.IOSDriverLogger
 import maestro.logger.Logger
 import maestro.utils.FileUtils
 import okio.Sink
+import util.Simctl
 import java.io.File
 import java.net.ConnectException
 import java.nio.file.Files
@@ -409,27 +410,12 @@ class IOSDriver(
     }
 
     override fun setProxy(host: String, port: Int) {
-        ProcessBuilder("networksetup", "-setwebproxy", "Wi-Fi", host, port.toString())
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
-        ProcessBuilder("networksetup", "-setsecurewebproxy", "Wi-Fi", host, port.toString())
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
-
+        Simctl.setProxy(host, port)
         proxySet = true
     }
 
     override fun resetProxy() {
-        ProcessBuilder("networksetup", "-setwebproxystate", "Wi-Fi", "off")
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
-        ProcessBuilder("networksetup", "-setsecurewebproxystate", "Wi-Fi", "off")
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
+        Simctl.resetProxy()
     }
 
     override fun isShutdown(): Boolean {
