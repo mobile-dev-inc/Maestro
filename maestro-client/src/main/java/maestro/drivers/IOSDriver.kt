@@ -86,15 +86,19 @@ class IOSDriver(
         heightPixels = response.heightPixels
     }
 
+    @SuppressWarnings("Used in cloud")
+    fun closeGrpcChannel() {
+        iosDevice.close()
+        widthPixels = null
+        heightPixels = null
+    }
+
     override fun close() {
         if (proxySet) {
             resetProxy()
         }
-        iosDevice.close()
+        closeGrpcChannel()
         xcUiTestDriver.cleanup()
-
-        widthPixels = null
-        heightPixels = null
         appId = null
     }
 

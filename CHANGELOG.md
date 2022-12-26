@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.18.0 - 2022-12-26
+* Feature: Adds new XcUITest driver to capture view hierarchy on iOS.
+  * Fixes stability issues on iOS 16
+  * Fixes not identified bottom navigation tabs
+  * Gets view hierarchy natively from XCUITest
+* Fix: Missing letter j and y in inputRandomText command
+* Tweak: Un-deprecate the hierarchy command, inform about Studio
+* Tweak: Match negative bounds as well in maestro studio
+* Feature: Adds replay functionality in maestro studio
+* Feature: Adding device interaction to interact page in Maestro Studio
+
 ## 1.17.4 - 2022-12-15
 * Fix: Maestro commands were failing if Android SDK wasn't installed
 
