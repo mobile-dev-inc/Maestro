@@ -258,7 +258,12 @@ class IOSDriver(
 
     private fun parseXCUIElementNode(xcUiElement: XCUIElementNode): TreeNode {
         val attributes = mutableMapOf<String, String>()
-        attributes["text"] = xcUiElement.label
+        val text = xcUiElement.title?.ifEmpty {
+            xcUiElement.label.ifEmpty {
+                xcUiElement.value
+            }
+        }
+        attributes["text"] = text ?: ""
         attributes["resource-id"] = xcUiElement.identifier
         val right = xcUiElement.frame.x + xcUiElement.frame.width
         val bottom = xcUiElement.frame.y + xcUiElement.frame.height
