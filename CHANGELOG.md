@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.1 - 2022-12-27
+* Fix: Create XCUITest driver HTTP server on loopback address
+* Fix: Create parity with idb for `text` attribute with following priority:
+  * Title
+  * Label
+  * Value
+
 ## 1.18.0 - 2022-12-26
 * Feature: Adds new XcUITest driver to capture view hierarchy on iOS.
   * Fixes stability issues on iOS 16
