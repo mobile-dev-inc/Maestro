@@ -1,13 +1,22 @@
 package maestro.drivers
 
+import ios.xcrun.CommandLineUtils
 import ios.xcrun.Simctl
 import maestro.Maestro
 import maestro.logger.Logger
+import maestro.utils.MaestroTimer
+import okhttp3.OkHttp
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okio.buffer
 import okio.sink
 import okio.source
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
+import java.io.IOException
+import java.net.ConnectException
+import java.net.Socket
+import java.util.concurrent.CompletableFuture
 
 class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
 
@@ -16,17 +25,37 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
     }
 
     fun setup() {
-        logger.info("[Start] Installing xctest ui runner on $deviceId")
-        runXCTest()
-        logger.info("[Done] Installing xctest ui runner on $deviceId")
+        repeat(3) { i ->
+            logger.info("[Start] Installing xctest ui runner on $deviceId")
+            runXCTest()
+            logger.info("[Done] Installing xctest ui runner on $deviceId")
 
-        logger.info("[Start] Ensuring ui test runner app is launched on $deviceId")
-        ensureOpen()
-        logger.info("[Done] Ensuring ui test runner app is launched on $deviceId")
+            logger.info("[Start] Ensuring ui test runner app is launched on $deviceId")
+            if (ensureOpen()) {
+                logger.info("[Done] Ensuring ui test runner app is launched on $deviceId")
+                return
+            } else {
+                logger.info("[Failed] Ensuring ui test runner app is launched on $deviceId")
+                logger.info("[Retry] Retrying setup()")
+            }
+        }
     }
 
-    private fun ensureOpen() {
+    private fun ensureOpen(): Boolean {
         Simctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
+        return MaestroTimer.retryUntilTrue(10_000, 100) {
+            try {
+                val client = OkHttpClient()
+                val call = client.newCall(Request.Builder()
+                    .url("http://localhost:9080/subTree/?appId=com.apple.springboard")
+                    .get()
+                    .build())
+                val response = call.execute()
+                response.isSuccessful
+            } catch (ignore: ConnectException) {
+                false
+            }
+        }
     }
 
     private fun runXCTest() {
