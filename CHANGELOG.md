@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.18.2 - 2022-12-27
+* Fix: Wait for XCUITest server to start before proceeding
+
 ## 1.18.1 - 2022-12-27
 * Fix: Create XCUITest driver HTTP server on loopback address
 * Fix: Create parity with idb for `text` attribute with following priority:
