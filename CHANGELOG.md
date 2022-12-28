@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.18.3 - 2022-12-27
+* XCUITest driver improvements and fixes:
+  * Close the response when validating server up 
+  * Add logs to uninstall of runner 
+  * Remove redundant import and library from maestro-ios 
+  * Kills the process before we uninstall it 
+  * Redirect runner logs in xctest_runner_logs directory
+
 ## 1.18.2 - 2022-12-27
 * Fix: Wait for XCUITest server to start before proceeding
 
