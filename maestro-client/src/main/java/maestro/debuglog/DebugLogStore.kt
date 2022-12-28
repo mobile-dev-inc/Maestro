@@ -20,7 +20,7 @@ object DebugLogStore {
     private const val APP_NAME = "maestro"
     private const val APP_AUTHOR = "mobile_dev"
     private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
-    private const val KEEP_LOG_COUNT = 5
+    private const val KEEP_LOG_COUNT = 6
     val logDirectory = File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR))
 
     private val currentRunLogDirectory: File

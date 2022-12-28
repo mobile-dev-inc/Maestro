@@ -73,7 +73,7 @@ class IOSDriver(
 
     private fun ensureXCUITestChannel() {
         logger.info("[Start] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
-        xcUiTestDriver.uninstall()
+        xcUiTestDriver.killAndUninstall()
         logger.info("[Done] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
         xcUiTestDriver.setup()
     }

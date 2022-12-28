@@ -1,6 +1,5 @@
 import XCTest
 import FlyingFox
-import maestro_driver_ios
 
 class maestro_driver_iosUITests: XCTestCase {
 

@@ -3,17 +3,34 @@ package ios.xcrun
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
+import net.harawata.appdirs.AppDirsFactory
 import okio.buffer
 import okio.source
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 object Simctl {
-    private val NULL_FILE = File(
-        if (System.getProperty("os.name")
-                .startsWith("Windows")
-        ) "NUL" else "/dev/null"
-    )
+
+    private const val APP_NAME = "maestro"
+    private const val APP_AUTHOR = "mobile_dev"
+    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+    private const val MAX_COUNT_XCTEST_LOGS = 5
+
+    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
+    private val logDirectory by lazy {
+        File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR), "xctest_runner_logs").apply {
+            if (!exists()) {
+                mkdir()
+            } else {
+                val existing = listFiles() ?: emptyArray()
+                val toDelete = existing.sortedByDescending { it.name }
+                val count = toDelete.size
+                if (count > MAX_COUNT_XCTEST_LOGS) toDelete.forEach { it.deleteRecursively() }
+            }
+        }
+    }
 
     data class SimctlError(override val message: String): Throwable(message)
 
@@ -140,11 +157,12 @@ object Simctl {
         }
     }
 
-    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String) {
-        CommandLineUtils.runCommand(
+    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String): Process {
+        val date = dateFormatter.format(LocalDateTime.now())
+        return CommandLineUtils.runCommand(
             "xcodebuild test-without-building -xctestrun $xcTestRunFilePath -destination id=$deviceId",
             waitForCompletion = false,
-            outputFile = NULL_FILE
+            outputFile = File(logDirectory, "xctest_runner_$date.log")
         )
     }
 
