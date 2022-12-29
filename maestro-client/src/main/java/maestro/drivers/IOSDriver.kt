@@ -260,7 +260,9 @@ class IOSDriver(
         val attributes = mutableMapOf<String, String>()
         val text = xcUiElement.title?.ifEmpty {
             xcUiElement.label.ifEmpty {
-                xcUiElement.value
+                xcUiElement.value?.ifEmpty {
+                    xcUiElement.placeholderValue
+                }
             }
         }
         attributes["text"] = text ?: ""
