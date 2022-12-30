@@ -66,12 +66,16 @@ import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.source
+import util.Simctl
 import java.io.File
 import java.io.InputStream
+import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.zip.GZIPInputStream
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.pathString
 
 class IdbIOSDevice(
     private val channel: ManagedChannel,
@@ -420,13 +424,14 @@ class IdbIOSDevice(
 
     override fun takeScreenshot(out: Sink): Result<Unit, Throwable> {
         return runCatching {
-            val response = blockingStub.screenshot(screenshotRequest {})
-
+            val tmpImage = Files.createTempFile("tmp_image", ".png")
+            Simctl.screenshot(tmpImage.toAbsolutePath().pathString)
             out
                 .buffer()
                 .use {
-                    it.write(response.imageData.toByteArray())
+                    it.write(tmpImage.source().buffer().readByteArray())
                 }
+            tmpImage.deleteIfExists()
         }
     }
 

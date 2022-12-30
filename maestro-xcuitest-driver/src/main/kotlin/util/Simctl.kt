@@ -36,4 +36,11 @@ object Simctl {
             .start()
             .waitFor()
     }
+
+    fun screenshot(path: String) {
+        CommandLineUtils.runCommand(
+            listOf("xcrun", "simctl", "io", "booted", "screenshot", path),
+            waitForCompletion = true
+        )
+    }
 }

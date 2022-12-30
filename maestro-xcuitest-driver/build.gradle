@@ -11,6 +11,7 @@ dependencies {
     api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
     api 'org.rauschig:jarchivelib:1.2.0'
     api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
+    api 'org.slf4j:slf4j-simple:1.7.36'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
