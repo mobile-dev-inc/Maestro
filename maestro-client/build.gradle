@@ -72,7 +72,6 @@ dependencies {
     api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
     api 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.4'
     api 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.13.4'
-    api 'net.harawata:appdirs:1.2.1'
 
     implementation project(':maestro-ios')
     implementation 'com.google.code.findbugs:jsr305:3.0.2'

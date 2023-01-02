@@ -2,7 +2,7 @@ package api
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.logger.Logger
-import util.Simctl
+import util.XCRunnerSimctl
 import xcuitest.XCTestDriverClient
 
 class GetRunningAppIdResolver(private val logger: Logger) {
@@ -10,7 +10,7 @@ class GetRunningAppIdResolver(private val logger: Logger) {
     private val mapper = jacksonObjectMapper()
 
     fun invoke(): String? {
-        val appIds = Simctl.listApps()
+        val appIds = XCRunnerSimctl.listApps()
         logger.info("installed apps: $appIds")
 
         return XCTestDriverClient.runningAppId(appIds).use { response ->

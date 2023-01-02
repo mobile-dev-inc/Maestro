@@ -25,6 +25,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onSuccess
+import driver.XcUITestDriver
 import hierarchy.IdbElementNode
 import hierarchy.XCUIElement
 import hierarchy.XCUIElementNode
@@ -43,7 +44,7 @@ import maestro.debuglog.IOSDriverLogger
 import maestro.logger.Logger
 import maestro.utils.FileUtils
 import okio.Sink
-import util.Simctl
+import util.XCRunnerSimctl
 import java.io.File
 import java.net.ConnectException
 import java.nio.file.Files
@@ -421,12 +422,12 @@ class IOSDriver(
     }
 
     override fun setProxy(host: String, port: Int) {
-        Simctl.setProxy(host, port)
+        XCRunnerSimctl.setProxy(host, port)
         proxySet = true
     }
 
     override fun resetProxy() {
-        Simctl.resetProxy()
+        XCRunnerSimctl.resetProxy()
     }
 
     override fun isShutdown(): Boolean {

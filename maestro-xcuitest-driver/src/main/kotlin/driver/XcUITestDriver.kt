@@ -1,13 +1,12 @@
-package maestro.drivers
+package driver
 
-import ios.xcrun.Simctl
-import maestro.Maestro
 import maestro.logger.Logger
 import maestro.utils.MaestroTimer
 import okio.buffer
 import okio.sink
 import okio.source
 import org.rauschig.jarchivelib.ArchiverFactory
+import util.XCRunnerSimctl
 import xcuitest.XCTestDriverClient
 import java.io.File
 import java.net.ConnectException
@@ -23,7 +22,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
             logger.info("[Done] Killing the started XCUITest")
         }
         logger.info("[Start] Uninstalling the XCUITest runner app")
-        Simctl.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID)
+        XCRunnerSimctl.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID)
         logger.info("[Done] Uninstalling the XCUITest runner app")
     }
 
@@ -45,7 +44,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
     }
 
     private fun ensureOpen(): Boolean {
-        Simctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
+        XCRunnerSimctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
         return MaestroTimer.retryUntilTrue(10_000, 100) {
             try {
                 XCTestDriverClient.subTree(UI_TEST_RUNNER_APP_BUNDLE_ID).use { it.isSuccessful }
@@ -80,7 +79,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
             logger.info("[Done] Writing maestro-driver-ios app")
 
             logger.info("[Start] Running XcUITest with xcode build command")
-            xcTestProcess = Simctl.runXcTestWithoutBuild(
+            xcTestProcess = XCRunnerSimctl.runXcTestWithoutBuild(
                 deviceId,
                 xctestRunFile.absolutePath
             )
@@ -113,7 +112,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
     }
 
     private fun writeFileToDestination(srcPath: String, destFile: File) {
-        Maestro::class.java.getResourceAsStream(srcPath)?.let {
+        XcUITestDriver::class.java.getResourceAsStream(srcPath)?.let {
             val bufferedSink = destFile.sink().buffer()
             bufferedSink.writeAll(it.source())
             bufferedSink.flush()

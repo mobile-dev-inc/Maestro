@@ -66,7 +66,7 @@ import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.source
-import util.Simctl
+import util.XCRunnerSimctl
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Files
@@ -425,7 +425,7 @@ class IdbIOSDevice(
     override fun takeScreenshot(out: Sink): Result<Unit, Throwable> {
         return runCatching {
             val tmpImage = Files.createTempFile("tmp_image", ".png")
-            Simctl.screenshot(tmpImage.toAbsolutePath().pathString)
+            XCRunnerSimctl.screenshot(tmpImage.toAbsolutePath().pathString)
             out
                 .buffer()
                 .use {
