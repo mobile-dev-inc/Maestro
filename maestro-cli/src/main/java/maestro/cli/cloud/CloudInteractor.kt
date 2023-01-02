@@ -41,6 +41,8 @@ class CloudInteractor(
         env: Map<String, String> = emptyMap(),
         androidApiLevel: Int? = null,
         failOnCancellation: Boolean = false,
+        includeTags: List<String> = emptyList(),
+        excludeTags: List<String> = emptyList(),
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -53,7 +55,7 @@ class CloudInteractor(
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
-            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
+            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip, includeTags, excludeTags)
             println()
             val progressBar = ProgressBar(20)
 

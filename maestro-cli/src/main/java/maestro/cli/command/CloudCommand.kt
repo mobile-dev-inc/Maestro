@@ -79,6 +79,20 @@ class CloudCommand : Callable<Int> {
     @Option(order = 10, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
+    @Option(
+        order = 11,
+        names = ["--include-tags"],
+        description = ["List of tags that will remove the Flows that does not have the provided tags"]
+    )
+    private var includeTags: List<String> = emptyList()
+
+    @Option(
+        order = 12,
+        names = ["--exclude-tags"],
+        description = ["List of tags that will remove the Flows containing the provided tags"]
+    )
+    private var excludeTags: List<String> = emptyList()
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
@@ -98,6 +112,8 @@ class CloudCommand : Callable<Int> {
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             androidApiLevel = androidApiLevel,
+            includeTags = includeTags,
+            excludeTags = excludeTags,
             failOnCancellation = failOnCancellation,
         )
     }
