@@ -216,6 +216,8 @@ class ApiClient(
         pullRequestId: String?,
         env: Map<String, String>? = null,
         androidApiLevel: Int?,
+        includeTags: List<String> = emptyList(),
+        excludeTags: List<String> = emptyList(),
         maxRetryCount: Int = 3,
         completedRetries: Int = 0,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
@@ -234,6 +236,8 @@ class ApiClient(
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
+        if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
+        if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -273,6 +277,8 @@ class ApiClient(
                         pullRequestId,
                         env,
                         androidApiLevel,
+                        includeTags,
+                        excludeTags,
                         maxRetryCount,
                         completedRetries + 1,
                         progressListener,

@@ -83,6 +83,8 @@ class CloudInteractor(
                 pullRequestId,
                 env,
                 androidApiLevel,
+                includeTags,
+                excludeTags,
             ) { totalBytes, bytesWritten ->
                 progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
             }
