@@ -19,16 +19,19 @@ object XCRunnerSimctl {
 
     private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
     private val logDirectory by lazy {
-        File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR), "xctest_runner_logs").apply {
-            if (!exists()) {
-                mkdir()
-            } else {
-                val existing = listFiles() ?: emptyArray()
-                val toDelete = existing.sortedByDescending { it.name }
-                val count = toDelete.size
-                if (count > MAX_COUNT_XCTEST_LOGS) toDelete.forEach { it.deleteRecursively() }
-            }
+        val parentName = AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR)
+        val logsDirectory = File(parentName, "xctest_runner_logs")
+        File(parentName).apply {
+            if (!exists()) mkdir()
+
+            if (!logsDirectory.exists()) logsDirectory.mkdir()
+
+            val existing = logsDirectory.listFiles() ?: emptyArray()
+            val toDelete = existing.sortedByDescending { it.name }
+            val count = toDelete.size
+            if (count > MAX_COUNT_XCTEST_LOGS) toDelete.forEach { it.deleteRecursively() }
         }
+        logsDirectory
     }
 
     fun listApps(): Set<String> {
