@@ -1982,6 +1982,37 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Tap(Point(25, 25)))
     }
 
+    @Test
+    fun `Case 073 - Handle linebreaks`() {
+        // Given
+        val commands = readCommands("073_handle_linebreaks")
+
+        val driver = driver {
+            val indicator = element {
+                text = "Indicator"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Hello\nWorld"
+                bounds = Bounds(0, 0, 100, 100)
+
+                onClick = {
+                    indicator.text += "!"
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

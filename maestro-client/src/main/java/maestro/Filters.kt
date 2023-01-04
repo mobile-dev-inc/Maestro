@@ -58,6 +58,7 @@ object Filters {
         return {
             it.attributes["text"]?.let { value ->
                 text == value
+                    || text == value.replace('\n', ' ')
             } ?: false
         }
     }
@@ -65,7 +66,12 @@ object Filters {
     fun textMatches(regex: Regex): ElementLookupPredicate {
         return {
             it.attributes["text"]?.let { value ->
-                regex.matches(value) || regex.pattern == value
+                val strippedValue = value.replace('\n', ' ')
+
+                regex.matches(value)
+                    || regex.pattern == value
+                    || regex.matches(strippedValue)
+                    || regex.pattern == strippedValue
             } ?: false
         }
     }
