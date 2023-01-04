@@ -66,6 +66,18 @@ class TestCommand : Callable<Int> {
     @Option(names = ["--output"])
     private var output: File? = null
 
+    @Option(
+        names = ["--include-tags"],
+        description = ["List of tags that will remove the Flows that does not have the provided tags"]
+    )
+    private var includeTags: List<String> = emptyList()
+
+    @Option(
+        names = ["--exclude-tags"],
+        description = ["List of tags that will remove the Flows containing the provided tags"]
+    )
+    private var excludeTags: List<String> = emptyList()
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -99,7 +111,9 @@ class TestCommand : Callable<Int> {
                 val suiteResult = TestSuiteInteractor(
                     maestro = maestro,
                     device = device,
-                    reporter = ReporterFactory.buildReporter(format)
+                    reporter = ReporterFactory.buildReporter(format),
+                    includeTags = includeTags,
+                    excludeTags = excludeTags,
                 ).runTestSuite(
                     input = flowFile,
                     env = env,

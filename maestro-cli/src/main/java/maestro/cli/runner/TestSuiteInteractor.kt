@@ -6,6 +6,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
@@ -19,6 +20,8 @@ class TestSuiteInteractor(
     private val maestro: Maestro,
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
+    private val includeTags: List<String> = emptyList(),
+    private val excludeTags: List<String> = emptyList(),
 ) {
 
     fun runTestSuite(
@@ -33,24 +36,17 @@ class TestSuiteInteractor(
                 env,
             )
         } else {
-            val flowFiles = input
-                .listFiles()
-                .filter {
-                    it.isFile
-                        && it.extension in setOf("yaml", "yml")
-                        && it.nameWithoutExtension != "config"
-                }
-                .toList()
+            val flowFiles = WorkspaceUtils.filterFlowFilesBasedOnTags(input.listFiles().map { it.toPath() }, includeTags, excludeTags)
 
             runTestSuite(
-                flowFiles,
+                flowFiles.map { it.toFile() },
                 reportOut,
                 env,
             )
         }
     }
 
-    fun runTestSuite(
+    private fun runTestSuite(
         flows: List<File>,
         reportOut: Sink?,
         env: Map<String, String>,
