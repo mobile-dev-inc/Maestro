@@ -15,6 +15,8 @@ object CommandLineUtils {
         ) "NUL" else "/dev/null"
     )
 
+    // Deprecated: `runCommand("foo $bar")` $bar may contain spaces and forms a security risk
+    @Deprecated("use runCommand(listOf(...)) instead")
     fun runCommand(command: String, waitForCompletion: Boolean = true, outputFile: File? = null): Process {
         LOGGER.info("Running command line operation: $command")
 
