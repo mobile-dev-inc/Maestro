@@ -1,6 +1,7 @@
 package maestro.cli.runner
 
 import maestro.Maestro
+import maestro.cli.CliError
 import maestro.cli.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
@@ -37,6 +38,9 @@ class TestSuiteInteractor(
             )
         } else {
             val flowFiles = WorkspaceUtils.filterFlowFilesBasedOnTags(input.listFiles().map { it.toPath() }, includeTags, excludeTags)
+            if (flowFiles.isEmpty()) {
+                throw CliError("No flow returned from the tag filter used")
+            }
 
             runTestSuite(
                 flowFiles.map { it.toFile() },

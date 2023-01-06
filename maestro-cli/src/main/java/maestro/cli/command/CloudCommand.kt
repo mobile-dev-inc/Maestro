@@ -82,14 +82,17 @@ class CloudCommand : Callable<Int> {
     @Option(
         order = 11,
         names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"]
+        description = ["List of tags that will remove the Flows that does not have the provided tags"],
+        split = ",",
+
     )
     private var includeTags: List<String> = emptyList()
 
     @Option(
         order = 12,
         names = ["--exclude-tags"],
-        description = ["List of tags that will remove the Flows containing the provided tags"]
+        description = ["List of tags that will remove the Flows containing the provided tags"],
+        split = ",",
     )
     private var excludeTags: List<String> = emptyList()
 
@@ -97,6 +100,7 @@ class CloudCommand : Callable<Int> {
     private var failOnCancellation: Boolean = false
 
     override fun call(): Int {
+        println(includeTags)
         return CloudInteractor(
             client = ApiClient(apiUrl),
         ).upload(

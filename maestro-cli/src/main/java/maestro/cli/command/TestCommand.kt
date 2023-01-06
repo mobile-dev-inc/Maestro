@@ -68,13 +68,15 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"]
+        description = ["List of tags that will remove the Flows that does not have the provided tags"],
+        split = ",",
     )
     private var includeTags: List<String> = emptyList()
 
     @Option(
         names = ["--exclude-tags"],
-        description = ["List of tags that will remove the Flows containing the provided tags"]
+        description = ["List of tags that will remove the Flows containing the provided tags"],
+        split = ",",
     )
     private var excludeTags: List<String> = emptyList()
 

@@ -1,5 +1,6 @@
 package maestro.cli.util
 
+import maestro.cli.CliError
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.FileNotFoundException
 import java.net.URI
@@ -25,6 +26,10 @@ object WorkspaceUtils {
             includeTags = includeTags,
             excludeTags = excludeTags,
         )
+
+        if (flowsMatchingTagsRule.isEmpty()) {
+            throw CliError("No flow returned from the tag filter used")
+        }
 
         val outUri = URI.create("jar:file:${out.toAbsolutePath()}")
         FileSystems.newFileSystem(outUri, mapOf("create" to "true")).use { fs ->
