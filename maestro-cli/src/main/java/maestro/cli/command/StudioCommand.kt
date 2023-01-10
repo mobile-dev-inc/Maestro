@@ -41,9 +41,7 @@ class StudioCommand : Callable<Int> {
             val message = ("Maestro Studio".bold() + " is running at " + studioUrl.blue()).box()
             println()
             println(message)
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().browse(URI(studioUrl))
-            }
+            tryOpenUrl(studioUrl)
 
             println()
             println("Note: Most Maestro CLI commands do not work while Maestro Studio is running. We will address this in an upcoming release.")
@@ -54,6 +52,16 @@ class StudioCommand : Callable<Int> {
             Thread.currentThread().join()
         }
         return 0
+    }
+
+    private fun tryOpenUrl(studioUrl: String) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(URI(studioUrl))
+            }
+        } catch (ignore: Exception) {
+            // Do nothing
+        }
     }
 
     private fun getFreePort(): Int {
