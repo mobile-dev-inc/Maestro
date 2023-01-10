@@ -14,10 +14,22 @@ class WorkspaceUtilsTest {
     }
 
     @Test
-    fun `Test filterFlowsFilesBasedOnTags only include-tags`() {
+    fun `Test filterFlowsFilesBasedOnTags only include-tags with one option`() {
         val result = WorkspaceUtils.filterFlowFilesBasedOnTags(
             flowFiles(),
             includeTags = listOf("dev"),
+        )
+
+        Truth.assertThat(result).hasSize(2)
+        Truth.assertThat(result.first().fileName.toString()).isEqualTo("flowA.yaml")
+        Truth.assertThat(result[1].fileName.toString()).isEqualTo("flowB.yaml")
+    }
+
+    @Test
+    fun `Test filterFlowsFilesBasedOnTags only include-tags, but with multiple options`() {
+        val result = WorkspaceUtils.filterFlowFilesBasedOnTags(
+            flowFiles(),
+            includeTags = listOf("dev", "pull-request"),
         )
 
         Truth.assertThat(result).hasSize(2)
