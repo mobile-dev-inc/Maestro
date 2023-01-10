@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.18.5 - 2023-01-10
+* Feature: tags
+* Tweak: allow running other maestro commands alongside Maestro Studio
+* Tweak: improved matching for strings with linebreaks
+* Fix: creating maestro logs directory was not always working properly
+
 ## 1.18.3 - 2022-12-27
 * XCUITest driver improvements and fixes:
   * Close the response when validating server up 
