@@ -4,13 +4,14 @@ import com.github.michaelbull.result.Ok
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
-import maestro.utils.MaestroTimer
 import ios.xcrun.Simctl
-import ios.xcrun.SimctlList
 import ios.xcrun.Simctl.SimctlError
+import ios.xcrun.SimctlList
 import maestro.cli.CliError
-import maestro.debuglog.DebugLogStore
+import maestro.cli.session.SessionStore
 import maestro.cli.util.EnvUtils
+import maestro.debuglog.DebugLogStore
+import maestro.utils.MaestroTimer
 import java.io.File
 import java.net.Socket
 import java.util.concurrent.TimeUnit
@@ -80,10 +81,13 @@ object DeviceService {
         val idbPort = 10882
 
         val isIdbCompanionRunning =
-            try { Socket(idbHost, idbPort).use { true } }
-            catch(_: Exception) { false }
+            try {
+                Socket(idbHost, idbPort).use { true }
+            } catch (_: Exception) {
+                false
+            }
 
-        if (isIdbCompanionRunning) {
+        if (isIdbCompanionRunning && SessionStore.activeSessions().isEmpty()) {
             error("idb_companion is already running. Stop idb_companion and run maestro again")
         }
 
@@ -114,7 +118,7 @@ object DeviceService {
                 process
                     .waitFor(1000, TimeUnit.MILLISECONDS)
                 process.exitValue() == 0
-            }  || error("Simulator failed to boot")
+            } || error("Simulator failed to boot")
 
             // Test if idb can get accessibility info elements with non-zero frame with
             logger.warning("Waiting for successful taps")
@@ -228,6 +232,6 @@ object DeviceService {
         val firstChoice = File(androidHome, "emulator/emulator")
         val secondChoice = File(androidHome, "tools/emulator")
         return firstChoice.takeIf { it.exists() } ?: secondChoice.takeIf { it.exists() }
-            ?: throw CliError("Could not find emulator binary at either of the following paths:\n$firstChoice\n$secondChoice")
+        ?: throw CliError("Could not find emulator binary at either of the following paths:\n$firstChoice\n$secondChoice")
     }
 }

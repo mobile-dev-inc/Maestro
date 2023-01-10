@@ -488,14 +488,25 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
         private const val ANIMATION_TIMEOUT_MS: Long = 15000
 
-        fun ios(driver: Driver): Maestro {
-            driver.open()
+        fun ios(
+            driver: Driver,
+            openDriver: Boolean = true,
+        ): Maestro {
+            if (openDriver) {
+                driver.open()
+            }
             return Maestro(driver)
         }
 
-        fun android(dadb: Dadb, hostPort: Int = 7001): Maestro {
+        fun android(
+            dadb: Dadb,
+            hostPort: Int = 7001,
+            openDriver: Boolean = true,
+        ): Maestro {
             val driver = AndroidDriver(dadb, hostPort = hostPort)
-            driver.open()
+            if (openDriver) {
+                driver.open()
+            }
             return Maestro(driver)
         }
     }

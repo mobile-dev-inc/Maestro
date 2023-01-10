@@ -3,12 +3,11 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
-import maestro.cli.util.MaestroFactory
+import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
 import maestro.cli.view.faint
-import maestro.cli.view.red
 import maestro.studio.MaestroStudio
 import picocli.CommandLine
 import java.awt.Desktop
@@ -34,26 +33,26 @@ class StudioCommand : Callable<Int> {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
 
-        val (maestro, _) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
+        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+            val port = getFreePort()
+            MaestroStudio.start(port, session.maestro)
 
-        val port = getFreePort()
-        MaestroStudio.start(port, maestro)
+            val studioUrl = "http://localhost:${port}"
+            val message = ("Maestro Studio".bold() + " is running at " + studioUrl.blue()).box()
+            println()
+            println(message)
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(URI(studioUrl))
+            }
 
-        val studioUrl = "http://localhost:${port}"
-        val message = ("Maestro Studio".bold() + " is running at " + studioUrl.blue()).box()
-        println()
-        println(message)
-        if (Desktop.isDesktopSupported()) {
-            Desktop.getDesktop().browse(URI(studioUrl))
+            println()
+            println("Note: Most Maestro CLI commands do not work while Maestro Studio is running. We will address this in an upcoming release.")
+
+            println()
+            println("Navigate to $studioUrl in your browser to open Maestro Studio. Ctrl-C to exit.".faint())
+
+            Thread.currentThread().join()
         }
-
-        println()
-        println("Note: Most Maestro CLI commands do not work while Maestro Studio is running. We will address this in an upcoming release.")
-
-        println()
-        println("Navigate to $studioUrl in your browser to open Maestro Studio. Ctrl-C to exit.".faint())
-
-        Thread.currentThread().join()
         return 0
     }
 

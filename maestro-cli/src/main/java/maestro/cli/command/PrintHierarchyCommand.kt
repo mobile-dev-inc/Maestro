@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
-import maestro.cli.util.MaestroFactory
+import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.green
 import picocli.CommandLine
 
@@ -43,16 +43,14 @@ class PrintHierarchyCommand : Runnable {
     private val parent: App? = null
 
     override fun run() {
-        MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
-            .maestro
-            .use {
-                val hierarchy = jacksonObjectMapper()
-                    .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                    .writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(it.viewHierarchy().root)
+        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+            val hierarchy = jacksonObjectMapper()
+                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                .writerWithDefaultPrettyPrinter()
+                .writeValueAsString(session.maestro.viewHierarchy().root)
 
-                println(hierarchy)
-            }
+            println(hierarchy)
+        }
 
         System.err.println("Have you tried running “maestro studio” to visually inspect your app’s UI elements?".green())
     }

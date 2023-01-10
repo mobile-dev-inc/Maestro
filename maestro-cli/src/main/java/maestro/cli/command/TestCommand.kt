@@ -24,18 +24,17 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
-import maestro.cli.runner.resultview.AnsiResultView
-import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.TestSuiteInteractor
-import maestro.cli.util.MaestroFactory
+import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.PlainTextResultView
+import maestro.cli.session.MaestroSessionManager
 import okio.buffer
 import okio.sink
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
-import kotlin.concurrent.thread
 
 @CommandLine.Command(
     name = "test",
@@ -95,13 +94,10 @@ class TestCommand : Callable<Int> {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
 
-        val (maestro, device) = MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
+        return MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+            val maestro = session.maestro
+            val device = session.device
 
-        Runtime.getRuntime().addShutdownHook(thread(start = false) {
-            maestro.close()
-        })
-
-        return maestro.use {
             if (flowFile.isDirectory || format != ReportFormat.NOOP) {
                 if (continuous) {
                     throw CommandLine.ParameterException(

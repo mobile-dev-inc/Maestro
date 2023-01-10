@@ -3,7 +3,7 @@ package maestro.cli.command.network
 import com.github.tomakehurst.wiremock.http.Request
 import com.github.tomakehurst.wiremock.http.RequestMethod
 import com.github.tomakehurst.wiremock.http.Response
-import maestro.cli.util.MaestroFactory
+import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.red
 import maestro.networkproxy.NetworkProxy
@@ -22,7 +22,6 @@ import picocli.CommandLine.Parameters
 import java.io.File
 import java.net.URL
 import java.util.concurrent.Callable
-import kotlin.concurrent.thread
 
 @Command(
     name = "record",
@@ -55,14 +54,8 @@ class RecordNetworkCommand : Callable<Int> {
             handleRequest(request, response)
         }
 
-        val (maestro, _) = MaestroFactory.createMaestro(parent.app.host, parent.app.port, parent.app.deviceId)
-
-        Runtime.getRuntime().addShutdownHook(thread(start = false) {
-            maestro.close()
-        })
-
-        maestro.use {
-            maestro.setProxy(port = 8080)
+        MaestroSessionManager.newSession(parent.app.host, parent.app.port, parent.app.deviceId) { session ->
+            session.maestro.setProxy(port = 8080)
 
             PrintUtils.message("Recording network traffic to ${output.absolutePath}")
 

@@ -25,7 +25,7 @@ import maestro.Filters
 import maestro.Filters.asFilter
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
-import maestro.cli.util.MaestroFactory
+import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.red
 import maestro.orchestra.Orchestra
 import picocli.CommandLine
@@ -59,40 +59,38 @@ class QueryCommand : Runnable {
     lateinit var commandSpec: Model.CommandSpec
 
     override fun run() {
-        MaestroFactory.createMaestro(parent?.host, parent?.port, parent?.deviceId)
-            .maestro
-            .use { maestro ->
-                val filters = mutableListOf<ElementFilter>()
+        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+            val filters = mutableListOf<ElementFilter>()
 
-                text?.let {
-                    filters += Filters.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
-                }
-
-                id?.let {
-                    filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
-                }
-
-                if (filters.isEmpty()) {
-                    throw CommandLine.ParameterException(
-                        commandSpec.commandLine(),
-                        "Must specify at least one search criteria"
-                    )
-                }
-
-                val elements = maestro.allElementsMatching(
-                    Filters.intersect(filters)
-                )
-
-                val mapper = jacksonObjectMapper()
-                    .writerWithDefaultPrettyPrinter()
-
-                println("Matches: ${elements.size}")
-                elements.forEach {
-                    println(
-                        mapper.writeValueAsString(it)
-                    )
-                }
+            text?.let {
+                filters += Filters.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
             }
+
+            id?.let {
+                filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
+            }
+
+            if (filters.isEmpty()) {
+                throw CommandLine.ParameterException(
+                    commandSpec.commandLine(),
+                    "Must specify at least one search criteria"
+                )
+            }
+
+            val elements = session.maestro.allElementsMatching(
+                Filters.intersect(filters)
+            )
+
+            val mapper = jacksonObjectMapper()
+                .writerWithDefaultPrettyPrinter()
+
+            println("Matches: ${elements.size}")
+            elements.forEach {
+                println(
+                    mapper.writeValueAsString(it)
+                )
+            }
+        }
         System.err.println("This command is deprecated. Use \"maestro studio\" instead.".red())
     }
 

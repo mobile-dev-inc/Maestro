@@ -1,6 +1,6 @@
 package maestro.cli.command.network
 
-import maestro.cli.util.MaestroFactory
+import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.red
 import maestro.networkproxy.NetworkProxy
@@ -11,7 +11,6 @@ import picocli.CommandLine.Parameters
 import picocli.CommandLine.ParentCommand
 import java.io.File
 import java.util.concurrent.Callable
-import kotlin.concurrent.thread
 
 @Command(
     name = "replay",
@@ -51,14 +50,8 @@ class ReplayNetworkCommand : Callable<Int> {
             YamlMappingRuleParser.readRules(rules.absoluteFile.toPath())
         )
 
-        val (maestro, _) = MaestroFactory.createMaestro(parent.app.host, parent.app.port, parent.app.deviceId)
-
-        Runtime.getRuntime().addShutdownHook(thread(start = false) {
-            maestro.close()
-        })
-
-        maestro.use {
-            maestro.setProxy(port = 8080)
+        MaestroSessionManager.newSession(parent.app.host, parent.app.port, parent.app.deviceId) { session ->
+            session.maestro.setProxy(port = 8080)
 
             PrintUtils.message("Replaying network traffic from ${rules.absolutePath}")
 
