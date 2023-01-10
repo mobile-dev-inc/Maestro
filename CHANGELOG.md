@@ -5,6 +5,7 @@
 * Tweak: allow running other maestro commands alongside Maestro Studio
 * Tweak: improved matching for strings with linebreaks
 * Fix: creating maestro logs directory was not always working properly
+* Fix: maestro studio was not working properly on Kubuntu
 
 ## 1.18.3 - 2022-12-27
 * XCUITest driver improvements and fixes:
