@@ -345,20 +345,20 @@ class IOSDriver(
         when (swipeDirection) {
             SwipeDirection.UP -> {
                 iosDevice.scroll(
-                    xStart = width / 2,
-                    yStart = height / 3,
-                    xEnd = width / 2,
-                    yEnd = height / 9,
+                    xStart = width / 4,
+                    yStart = height,
+                    xEnd = width / 4,
+                    yEnd = height / 4,
                     durationMs = durationMs,
                     IdbIOSDevice.ScrollType.SWIPE
                 ).expect {}
             }
             SwipeDirection.DOWN -> {
                 iosDevice.scroll(
-                    xStart = width / 2,
-                    yStart = height / 9,
-                    xEnd = width / 2,
-                    yEnd = height / 3,
+                    xStart = width / 4,
+                    yStart = 0,
+                    xEnd = width,
+                    yEnd = height / 4,
                     durationMs = durationMs,
                     IdbIOSDevice.ScrollType.SWIPE
                 ).expect {}
