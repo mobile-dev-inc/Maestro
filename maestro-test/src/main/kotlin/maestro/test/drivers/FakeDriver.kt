@@ -30,6 +30,7 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
+import maestro.UiElement
 import okio.Sink
 import okio.buffer
 import java.awt.image.BufferedImage
@@ -180,6 +181,12 @@ class FakeDriver : Driver {
         ensureOpen()
 
         events += Event.SwipeWithDirection(swipeDirection, durationMs)
+    }
+
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+        ensureOpen()
+
+        events += Event.SwipeElementWithDirection(elementPoint, direction, durationMs)
     }
 
     override fun backPress() {
@@ -354,6 +361,12 @@ class FakeDriver : Driver {
 
         data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(), UserInteraction
 
+        data class SwipeElementWithDirection(
+            val point: Point,
+            val swipeDirection: SwipeDirection,
+            val durationMs: Long
+        ) : Event(), UserInteraction
+
         data class LaunchApp(
             val appId: String
         ) : Event(), UserInteraction
@@ -393,7 +406,7 @@ class FakeDriver : Driver {
             val longitude: Double,
         ) : Event()
 
-        object EraseAllText: Event()
+        object EraseAllText : Event()
 
         data class SetProxy(
             val host: String,

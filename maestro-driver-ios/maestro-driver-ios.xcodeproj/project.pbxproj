@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
+		32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF92966DC8300FB69BD /* SwipeRequest.swift */; };
 		52049BD72935039F00807AA3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD62935039F00807AA3 /* AppDelegate.swift */; };
 		52049BD92935039F00807AA3 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD82935039F00807AA3 /* SceneDelegate.swift */; };
 		52049BDB2935039F00807AA3 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BDA2935039F00807AA3 /* ViewController.swift */; };
@@ -34,6 +36,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandler.swift; sourceTree = "<group>"; };
+		32762AF92966DC8300FB69BD /* SwipeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRequest.swift; sourceTree = "<group>"; };
 		52049BD32935039F00807AA3 /* maestro-driver-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "maestro-driver-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52049BD62935039F00807AA3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		52049BD82935039F00807AA3 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
+				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -145,6 +150,7 @@
 				943A907B293F5B1A00C85136 /* RouteHandler.swift */,
 				943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
+				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -275,6 +281,8 @@
 				943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */,
 				943A907C293F5B1A00C85136 /* RouteHandler.swift in Sources */,
 				52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */,
+				32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */,
+				32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

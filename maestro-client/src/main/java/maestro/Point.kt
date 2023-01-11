@@ -22,15 +22,35 @@ package maestro
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-data class Point(
-    val x: Int,
-    val y: Int
+abstract class AbstractPoint<T : Number>(
+    open val x: T,
+    open val y: T
 ) {
 
-    fun distance(other: Point): Float {
+    fun distance(other: AbstractPoint<T>): Float {
         return sqrt(
-            (other.x - x.toDouble()).pow(2.0) + (other.y - y.toDouble()).pow(2.0)
+            (other.x.toDouble() - x.toDouble()).pow(2.0) + (other.y.toDouble() - y.toDouble()).pow(2.0)
         ).toFloat()
     }
 
 }
+
+data class Point(
+    override val x: Int,
+    override val y: Int
+) : AbstractPoint<Int>(x, y) {
+
+    fun normalise(width: Int, height: Int): PointF {
+        return PointF(
+            x.toFloat() / width,
+            y.toFloat() / height
+        )
+    }
+
+}
+
+data class PointF(
+    override val x: Float,
+    override val y: Float
+) : AbstractPoint<Float>(x, y)
+

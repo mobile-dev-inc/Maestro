@@ -46,11 +46,15 @@ data class SwipeCommand(
     val direction: SwipeDirection? = null,
     val startPoint: Point? = null,
     val endPoint: Point? = null,
+    val elementSelector: ElementSelector? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS
 ) : Command {
 
     override fun description(): String {
         return when {
+            elementSelector != null && direction != null -> {
+                "Swiping in $direction direction on ${elementSelector.description()}"
+            }
             direction != null -> {
                 "Swiping in $direction direction in $duration ms"
             }
@@ -66,7 +70,7 @@ data class SwipeCommand(
     }
 
     companion object {
-        const val DEFAULT_DURATION_IN_MILLIS = 2000L
+        private const val DEFAULT_DURATION_IN_MILLIS = 400L
     }
 }
 

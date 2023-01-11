@@ -30,13 +30,13 @@ import hierarchy.IdbElementNode
 import hierarchy.XCUIElement
 import hierarchy.XCUIElementNode
 import ios.IOSDevice
-import ios.idb.IdbIOSDevice
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Platform
 import maestro.Point
+import maestro.PointF
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
@@ -55,8 +55,8 @@ class IOSDriver(
     private val logger: Logger = IOSDriverLogger()
 ) : Driver {
 
-    private var widthPixels: Int? = null
-    private var heightPixels: Int? = null
+    private var widthPoints: Int? = null
+    private var heightPoints: Int? = null
     private var appId: String? = null
     private var proxySet = false
 
@@ -83,15 +83,15 @@ class IOSDriver(
     fun ensureGrpcChannel() {
         val response = iosDevice.deviceInfo().expect {}
 
-        widthPixels = response.widthPixels
-        heightPixels = response.heightPixels
+        widthPoints = response.widthPoints
+        heightPoints = response.heightPoints
     }
 
     @SuppressWarnings("Used in cloud")
     fun closeGrpcChannel() {
         iosDevice.close()
-        widthPixels = null
-        heightPixels = null
+        widthPoints = null
+        heightPoints = null
     }
 
     override fun close() {
@@ -198,17 +198,7 @@ class IOSDriver(
     }
 
     override fun contentDescriptor(): TreeNode {
-        var resolvedAppId: String? = ""
-        for (i in 0..MAX_RETRIES) {
-            val resolvedApp = try {
-                resolvedAppId = getRunningAppIdResolver.invoke() ?: appId
-                resolvedAppId
-            } catch (connectException: ConnectException) {
-                xcUiTestDriver.setup()
-                null
-            }
-            if (!resolvedApp.isNullOrEmpty()) break
-        }
+        val resolvedAppId = activeAppId()
 
         logger.info("Getting view hierarchy for $resolvedAppId")
 
@@ -293,22 +283,21 @@ class IOSDriver(
     }
 
     override fun scrollVertical() {
-        val screenWidth = widthPixels ?: throw IllegalStateException("Screen width not available")
-        val screenHeight = heightPixels ?: throw IllegalStateException("Screen height not available")
+        val appId = activeAppId() ?: return
 
         iosDevice.scroll(
-            xStart = screenWidth / 4,
-            yStart = screenHeight / 4,
-            xEnd = screenWidth / 4,
-            yEnd = 0,
-            durationMs = IdbIOSDevice.DEFAULT_SWIPE_DURATION_MILLIS,
-            scrollType = IdbIOSDevice.ScrollType.SCROLL
+            appId = appId,
+            xStart = 0.5f,
+            yStart = 0.9f,
+            xEnd = 0.5f,
+            yEnd = 0.1f,
+            velocity = null
         ).expect {}
     }
 
     private fun validate(start: Point, end: Point) {
-        val screenWidth = widthPixels ?: throw IllegalStateException("Screen width not available")
-        val screenHeight = heightPixels ?: throw IllegalStateException("Screen height not available")
+        val screenWidth = widthPoints ?: throw IllegalStateException("Screen width not available")
+        val screenHeight = heightPoints ?: throw IllegalStateException("Screen height not available")
 
         if (start.x < 0 || start.x > screenWidth) {
             throw java.lang.IllegalArgumentException("x value of start point (${start.x}) needs to be between 0 and $screenWidth")
@@ -325,65 +314,135 @@ class IOSDriver(
         }
     }
 
-    override fun swipe(start: Point, end: Point, durationMs: Long) {
+    override fun swipe(
+        start: Point,
+        end: Point,
+        durationMs: Long
+    ) {
         validate(start, end)
 
+        val width = widthPoints ?: throw IllegalStateException("Device width not available")
+        val height = heightPoints ?: throw IllegalStateException("Device height not available")
+
+        val normalisedStart = start.normalise(
+            width,
+            height,
+        )
+        val normalisedEnd = end.normalise(
+            width,
+            height,
+        )
+
         iosDevice.scroll(
-            xStart = start.x,
-            yStart = start.y,
-            xEnd = end.x,
-            yEnd = end.y,
-            durationMs = durationMs,
-            scrollType = IdbIOSDevice.ScrollType.SWIPE
+            appId = activeAppId() ?: return,
+            xStart = normalisedStart.x,
+            yStart = normalisedStart.y,
+            xEnd = normalisedEnd.x,
+            yEnd = normalisedEnd.y,
+            velocity = if (durationMs > 0) {
+                start.distance(end) / toSeconds(durationMs)
+            } else {
+                Float.MAX_VALUE
+            }
         ).expect {}
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        val width = widthPixels ?: throw IllegalStateException("Device width not available")
-        val height = heightPixels ?: throw IllegalStateException("Device height not available")
+        val startPoint: PointF
+        val endPoint: PointF
 
         when (swipeDirection) {
             SwipeDirection.UP -> {
-                iosDevice.scroll(
-                    xStart = width / 4,
-                    yStart = height,
-                    xEnd = width / 4,
-                    yEnd = height / 4,
-                    durationMs = durationMs,
-                    IdbIOSDevice.ScrollType.SWIPE
-                ).expect {}
+                startPoint = PointF(
+                    x = 0.5f,
+                    y = 0.9f,
+                )
+                endPoint = PointF(
+                    x = 0.5F,
+                    y = 0.1f,
+                )
             }
             SwipeDirection.DOWN -> {
-                iosDevice.scroll(
-                    xStart = width / 4,
-                    yStart = 0,
-                    xEnd = width,
-                    yEnd = height / 4,
-                    durationMs = durationMs,
-                    IdbIOSDevice.ScrollType.SWIPE
-                ).expect {}
+                startPoint = PointF(
+                    x = 0.5f,
+                    y = 0.1f,
+                )
+                endPoint = PointF(
+                    x = 0.5F,
+                    y = 0.9f,
+                )
             }
             SwipeDirection.RIGHT -> {
-                iosDevice.scroll(
-                    xStart = 0,
-                    yStart = height / 4,
-                    xEnd = width / 4,
-                    yEnd = height / 4,
-                    durationMs = durationMs,
-                    IdbIOSDevice.ScrollType.SWIPE
-                ).expect {}
+                startPoint = PointF(
+                    x = 0.1f,
+                    y = 0.5f,
+                )
+                endPoint = PointF(
+                    x = 0.9F,
+                    y = 0.5f,
+                )
             }
             SwipeDirection.LEFT -> {
-                iosDevice.scroll(
-                    xStart = width / 4,
-                    yStart = height / 4,
-                    xEnd = 0,
-                    yEnd = height / 4,
-                    durationMs = durationMs,
-                    IdbIOSDevice.ScrollType.SWIPE
-                ).expect {}
+                startPoint = PointF(
+                    x = 0.9f,
+                    y = 0.5f,
+                )
+                endPoint = PointF(
+                    x = 0.1F,
+                    y = 0.5f,
+                )
             }
         }
+        directionalSwipe(durationMs, startPoint, endPoint)
+    }
+
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+        val width = widthPoints ?: throw IllegalStateException("Device width not available")
+        val height = heightPoints ?: throw IllegalStateException("Device height not available")
+
+        when (direction) {
+            SwipeDirection.UP -> {
+                val end = PointF(x = 0.5f, y = 0.1f)
+                val start = elementPoint.normalise(width, height)
+                directionalSwipe(durationMs, start, end)
+            }
+            SwipeDirection.DOWN -> {
+                val end = PointF(x = 0.5f, y = 0.9f)
+                val start = elementPoint.normalise(width, height)
+                directionalSwipe(durationMs, start, end)
+            }
+            SwipeDirection.RIGHT -> {
+                val end = PointF(x = 0.9f, y = 0.5f)
+                val start = elementPoint.normalise(width, height)
+                directionalSwipe(durationMs, start, end)
+            }
+            SwipeDirection.LEFT -> {
+                val end = PointF(x = 0.1f, y = 0.5f)
+                val start = elementPoint.normalise(width, height)
+                directionalSwipe(durationMs, start, end)
+            }
+        }
+    }
+
+    private fun directionalSwipe(durationMs: Long, start: PointF, end: PointF) {
+        val width = widthPoints ?: throw IllegalStateException("Device width not available")
+        val height = heightPoints ?: throw IllegalStateException("Device height not available")
+
+        val denormalizedDistance = PointF(start.x * width, start.y * height)
+            .distance(PointF(end.x * width, end.y * height))
+
+        iosDevice.scroll(
+            appId = activeAppId() ?: return,
+            xStart = start.x,
+            yStart = start.y,
+            xEnd = end.x,
+            yEnd = end.y,
+            velocity = if (durationMs > 0) {
+                denormalizedDistance / toSeconds(durationMs)
+            } else {
+                Float.MAX_VALUE
+            }
+        ).expect {}
     }
 
     override fun backPress() {}
@@ -432,6 +491,25 @@ class IOSDriver(
 
     override fun isShutdown(): Boolean {
         return iosDevice.isShutdown()
+    }
+
+    private fun activeAppId(): String? {
+        var resolvedAppId: String? = ""
+        for (i in 0..MAX_RETRIES) {
+            val resolvedApp = try {
+                resolvedAppId = getRunningAppIdResolver.invoke() ?: appId
+                resolvedAppId
+            } catch (connectException: ConnectException) {
+                xcUiTestDriver.setup()
+                null
+            }
+            if (!resolvedApp.isNullOrEmpty()) break
+        }
+        return resolvedAppId
+    }
+
+    private fun toSeconds(ms: Long): Float {
+        return ms / 1000f
     }
 
     companion object {

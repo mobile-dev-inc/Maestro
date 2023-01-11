@@ -19,14 +19,15 @@
 
 package ios.idb
 
+import api.GetViewHierarchy
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.runCatching
 import com.google.protobuf.ByteString
+import hierarchy.XCUIElement
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
@@ -48,7 +49,6 @@ import idb.pullRequest
 import idb.pushRequest
 import idb.recordRequest
 import idb.rmRequest
-import idb.screenshotRequest
 import idb.setLocationRequest
 import idb.targetDescriptionRequest
 import idb.terminateRequest
@@ -60,13 +60,12 @@ import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import ios.grpc.BlockingStreamObserver
-import api.GetViewHierarchy
-import hierarchy.XCUIElement
 import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.source
 import util.XCRunnerSimctl
+import xcuitest.XCTestDriverClient
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Files
@@ -200,32 +199,23 @@ class IdbIOSDevice(
         }
     }
 
-    override fun scroll(xStart: Int, yStart: Int, xEnd: Int, yEnd: Int, durationMs: Long, scrollType: ScrollType): Result<Unit, Throwable> {
-        val deviceInfo = deviceInfo().getOrThrow { throw IllegalStateException("Device info not available") }
+    override fun scroll(
+        appId: String,
+        xStart: Float,
+        yStart: Float,
+        xEnd: Float,
+        yEnd: Float,
+        velocity: Float?,
+    ): Result<Unit, Throwable> {
         return runCatching {
-            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
-            val stream = asyncStub.hid(responseObserver)
-
-            val durationS = (durationMs.toDouble() / 1000)
-            val swipeAction = HIDEventKt.hIDSwipe {
-                this.start = point {
-                    this.x = xStart.toDouble()
-                    this.y = yStart.toDouble()
-                }.toBuilder().build()
-                this.end = point {
-                    this.x = xEnd.toDouble()
-                    this.y = yEnd.toDouble()
-                }
-                this.duration = if (durationS >= 1.0) DEFAULT_SWIPE_DURATION_MILLIS.toDouble() / 1000 else durationS
-                this.delta = if (scrollType == ScrollType.SWIPE) SCROLL_FACTOR * deviceInfo.widthPixels else SCROLL_FACTOR * deviceInfo.heightPixels
-            }
-
-            stream.onNext(
-                hIDEvent {
-                    swipe = swipeAction
-                }
-            )
-            stream.onCompleted()
+            XCTestDriverClient.swipe(
+                appId = appId,
+                startX = xStart,
+                startY = yStart,
+                endX = xEnd,
+                endY = yEnd,
+                velocity = velocity,
+            ).use {  }
         }
     }
 
@@ -517,13 +507,6 @@ class IdbIOSDevice(
         // 4Mb, the default max read for gRPC
         private const val CHUNK_SIZE = 1024 * 1024 * 3
         private val mapper = jacksonObjectMapper()
-        private const val SCROLL_FACTOR = 0.07
-        private const val VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE = "illegal-argument-snapshot-failure"
-        const val DEFAULT_SWIPE_DURATION_MILLIS = 1000L
     }
 
-    enum class ScrollType {
-        SCROLL,
-        SWIPE
-    }
 }

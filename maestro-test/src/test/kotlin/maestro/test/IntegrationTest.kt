@@ -2013,6 +2013,33 @@ class IntegrationTest {
         driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
     }
 
+    @Test
+    fun `Case 074 - Directional swipe on elements`() {
+        // given
+        val commands = readCommands("074_directional_swipe_element")
+        val elementBounds = Bounds(0, 100, 100, 100)
+        val driver = driver {
+            element {
+                text = "swiping element"
+                bounds = elementBounds
+            }
+        }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertHasEvent(
+            Event.SwipeElementWithDirection(
+                Point(50, 100),
+                SwipeDirection.RIGHT,
+                400
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

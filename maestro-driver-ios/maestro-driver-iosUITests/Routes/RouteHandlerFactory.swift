@@ -7,6 +7,8 @@ class RouteHandlerFactory {
             return SubTreeRouteHandler()
         case .runningApp:
             return RunningAppRouteHandler()
+        case .swipe:
+            return SwipeRouteHandler()
         }
     }
 }

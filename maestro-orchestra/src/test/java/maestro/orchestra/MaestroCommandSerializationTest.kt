@@ -167,7 +167,7 @@ internal class MaestroCommandSerializationTest {
                   "x" : 100,
                   "y" : 100
                 },
-                "duration" : 2000
+                "duration" : 400
               }
             }
           """.trimIndent()

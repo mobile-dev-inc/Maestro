@@ -119,6 +119,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
+    fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long) {
+        LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
+        driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs)
+
+        waitForAppToSettle()
+    }
+
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 

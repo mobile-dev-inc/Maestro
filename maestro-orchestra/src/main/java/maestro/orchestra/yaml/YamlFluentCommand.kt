@@ -344,6 +344,7 @@ data class YamlFluentCommand(
 
                 return MaestroCommand(SwipeCommand(startPoint = startPoint, endPoint = endPoint, duration = swipe.duration))
             }
+            is YamlSwipeElement -> return swipeElementCommand(swipe)
             else -> {
                 throw IllegalStateException(
                     "Provide swipe direction UP, DOWN, RIGHT OR LEFT or by giving explicit " +
@@ -351,6 +352,16 @@ data class YamlFluentCommand(
                 )
             }
         }
+    }
+
+    private fun swipeElementCommand(swipeElement: YamlSwipeElement): MaestroCommand {
+        return MaestroCommand(
+            swipeCommand = SwipeCommand(
+                direction = swipeElement.direction,
+                elementSelector = toElementSelector(swipeElement.from),
+                duration = swipeElement.duration
+            )
+        )
     }
 
     private fun toElementSelector(selectorUnion: YamlElementSelectorUnion): ElementSelector {

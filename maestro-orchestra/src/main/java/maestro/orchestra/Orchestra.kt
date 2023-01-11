@@ -34,7 +34,6 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
-import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.utils.MaestroTimer
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
@@ -745,7 +744,15 @@ class Orchestra(
     }
 
     private fun swipeCommand(command: SwipeCommand): Boolean {
-        maestro.swipe(command.direction, command.startPoint, command.endPoint, command.duration)
+        val elementSelector = command.elementSelector
+        val direction = command.direction
+        when {
+            elementSelector != null && direction != null -> {
+                val uiElement = findElement(elementSelector)
+                maestro.swipe(direction, uiElement, command.duration)
+            }
+            else -> maestro.swipe(direction, command.startPoint, command.endPoint, command.duration)
+        }
         return true
     }
 
