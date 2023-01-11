@@ -8,6 +8,8 @@ import com.github.michaelbull.result.map
 import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
 import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.update.Updates
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -37,21 +39,26 @@ class ApiClient(
         .readTimeout(5, TimeUnit.MINUTES)
         .writeTimeout(5, TimeUnit.MINUTES)
         .protocols(listOf(Protocol.HTTP_1_1))
+        .addInterceptor(SystemInformationInterceptor())
         .build()
 
     private val knownCIEnvVars = listOf("CI", "JENKINS_HOME", "BITRISE_IO")
     private val BASE_RETRY_DELAY_MS = 3000L
 
+    fun sendErrorReport(exception: Exception, commandLine: String) {
+        post<Unit>(
+            path = "/maestro/error",
+            body = mapOf(
+                "exception" to exception,
+                "commandLine" to commandLine
+            )
+        )
+    }
+
     fun getLatestCliVersion(
-        deviceUuid: String,
-        osName: String,
-        currentVersion: CliVersion,
         freshInstall: Boolean,
     ): CliVersion {
         val request = Request.Builder()
-            .header("X-UUID", deviceUuid)
-            .header("X-OS", osName)
-            .header("X-VERSION", currentVersion.toString())
             .header("X-FRESH-INSTALL", if (freshInstall) "true" else "false")
             .url("$baseUrl/maestro/version")
             .get()
@@ -264,7 +271,7 @@ class ApiClient(
                 if (response.code >= 500 && completedRetries < maxRetryCount) {
                     PrintUtils.message("Request failed, retrying...")
                     Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
-                    
+
                     return upload(
                         authToken,
                         appFile,
@@ -309,6 +316,7 @@ class ApiClient(
         val response = client.newCall(request).execute()
 
         if (!response.isSuccessful) return Err(response)
+        if (Unit is T) return Ok(Unit)
         val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
         return Ok(parsed)
     }
@@ -392,7 +400,7 @@ data class CliVersion(
     val major: Int,
     val minor: Int,
     val patch: Int,
-): Comparable<CliVersion> {
+) : Comparable<CliVersion> {
 
     override fun compareTo(other: CliVersion): Int {
         return COMPARATOR.compare(this, other)
@@ -404,7 +412,7 @@ data class CliVersion(
 
     companion object {
 
-        private val COMPARATOR = compareBy<CliVersion>({it.major}, {it.minor}, {it.patch})
+        private val COMPARATOR = compareBy<CliVersion>({ it.major }, { it.minor }, { it.patch })
 
         fun parse(versionString: String): CliVersion? {
             val parts = versionString.split('.')
@@ -415,4 +423,18 @@ data class CliVersion(
             return CliVersion(major, minor, patch)
         }
     }
+}
+
+class SystemInformationInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val newRequest = chain.request().newBuilder()
+            .header("X-UUID", Updates.DEVICE_UUID)
+            .header("X-VERSION", Updates.CLI_VERSION.toString())
+            .header("X-OS", Updates.OS_NAME)
+            .header("X-OSARCH", Updates.OS_ARCH)
+            .build()
+
+        return chain.proceed(newRequest)
+    }
+
 }

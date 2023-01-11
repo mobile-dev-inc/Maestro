@@ -16,15 +16,17 @@ import kotlin.io.path.writeText
 
 object Updates {
 
-    private val BASE_API_URL = "https://api.mobile.dev"
-    private val OS_NAME = System.getProperty("os.name")
-    private val FRESH_INSTALL: Boolean
-    private val DEVICE_UUID: String
-    private val CLI_VERSION: CliVersion? = getVersion().apply {
+    val OS_NAME: String = System.getProperty("os.name")
+    val OS_ARCH: String = System.getProperty("os.arch")
+    val DEVICE_UUID: String
+    val CLI_VERSION: CliVersion? = getVersion().apply {
         if (this == null) {
             System.err.println("\nWarning: Failed to parse current version".red())
         }
     }
+
+    const val BASE_API_URL = "https://api.mobile.dev"
+    private val FRESH_INSTALL: Boolean
 
     private val DEFAULT_THREAD_FACTORY = Executors.defaultThreadFactory()
     private val EXECUTOR = Executors.newCachedThreadPool {
@@ -63,9 +65,6 @@ object Updates {
         }
 
         val latestCliVersion = ApiClient(BASE_API_URL).getLatestCliVersion(
-            deviceUuid = DEVICE_UUID,
-            osName = OS_NAME,
-            currentVersion = CLI_VERSION,
             freshInstall = FRESH_INSTALL,
         )
 
