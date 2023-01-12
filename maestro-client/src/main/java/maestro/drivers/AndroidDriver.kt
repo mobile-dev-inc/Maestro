@@ -400,7 +400,7 @@ class AndroidDriver(
     }
 
     override fun openLink(link: String) {
-        dadb.shell("am start -d $link")
+        dadb.shell("am start -d \"$link\"")
     }
 
     override fun setLocation(latitude: Double, longitude: Double) {
