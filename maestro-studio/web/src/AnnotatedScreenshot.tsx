@@ -1,8 +1,12 @@
 import { DeviceScreen, UIElement } from './models';
-import React, { CSSProperties, useEffect, useRef } from 'react';
+import React, { CSSProperties, useEffect, useRef, useState } from 'react';
 import useMouse, { MousePosition } from '@react-hook/mouse-position';
 
 type AnnotationState = 'default' | 'hidden' | 'hovered' | 'selected'
+type ContextMenuData = {
+  element: UIElement
+  position: {x: number, y: number}
+}
 
 const Annotation = ({element, deviceWidth, deviceHeight, state, onClick}: {
   element: UIElement
@@ -105,18 +109,48 @@ const getHoveredElement = (deviceScreen: DeviceScreen, mouse: MousePosition): UI
   })[0]
 }
 
-export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSelected, hoveredElement, onHover, annotationsEnabled = true}: {
+const ContextMenu = ({data, onInspect, onClose}: {
+  data: ContextMenuData
+  onInspect: () => void
+  onClose: () => void
+}) => {
+  return (
+    <div
+      className="fixed inset-0 z-20"
+      onClick={e => {
+        e.stopPropagation()
+        onClose()
+      }}
+    >
+      <div
+        className="absolute bg-white shadow-xl border px-4 py-2 mx-1 -my-2 rounded cursor-default hover:bg-slate-300 active:bg-slate-400"
+        style={{
+          left: data.position.x,
+          top: data.position.y,
+        }}
+        onClick={onInspect}
+      >
+        Inspect Element
+      </div>
+    </div>
+  )
+}
+
+export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSelected, hoveredElement, onHover, onInspect, annotationsEnabled = true}: {
   deviceScreen: DeviceScreen
   selectedElement: UIElement | null
   onElementSelected: (element: UIElement | null) => void
   hoveredElement: UIElement | null
   onHover: (element: UIElement | null, mouse: MousePosition | null) => void
+  onInspect: (element: UIElement) => void
   annotationsEnabled?: boolean
 }) => {
   const ref = useRef(null)
   const mouse = useMouse(ref)
+  const [contextMenuData, setContextMenuData] = useState<ContextMenuData | null>(null)
 
   useEffect(() => {
+    if (contextMenuData) return
     if (mouse.isOver) {
       if (annotationsEnabled) {
         const hoveredElement = getHoveredElement(deviceScreen, mouse);
@@ -127,7 +161,7 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
     } else {
       onHover(null, null)
     }
-  }, [deviceScreen, mouse, onHover, annotationsEnabled])
+  }, [deviceScreen, mouse, onHover, annotationsEnabled, contextMenuData])
 
   const createAnnotation = (element: UIElement) => {
     let state: AnnotationState = 'default'
@@ -179,12 +213,21 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
   return (
     <div
       ref={ref}
-      className="relative border h-full rounded-md overflow-hidden"
+      className="relative h-full overflow-hidden"
       style={{
         aspectRatio: deviceScreen.width / deviceScreen.height,
       }}
       onClick={() => {
         if (selectedElement) onElementSelected(null)
+      }}
+      onContextMenu={e => {
+        if (contextMenuData || selectedElement || !hoveredElement) return
+        e.preventDefault()
+        e.stopPropagation()
+        setContextMenuData({
+          element: hoveredElement,
+          position: { x: e.clientX, y: e.clientY },
+        })
       }}
     >
       <img
@@ -197,6 +240,13 @@ export const AnnotatedScreenshot = ({deviceScreen, selectedElement, onElementSel
         <div className="w-full h-full">
           {deviceScreen.elements.map(createAnnotation)}
         </div>
+      )}
+      {contextMenuData && (
+        <ContextMenu
+          data={contextMenuData}
+          onInspect={() => onInspect(contextMenuData.element)}
+          onClose={() => setContextMenuData(null)}
+        />
       )}
     </div>
   );

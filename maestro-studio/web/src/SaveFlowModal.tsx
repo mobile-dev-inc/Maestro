@@ -1,8 +1,8 @@
 import { FormattedFlow } from './models';
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import AutosizingTextArea from './AutosizingTextArea';
 import { saveAs } from 'file-saver';
+import { Modal } from './Modal';
 
 export const SaveFlowModal = ({formattedFlow, onClose}: {
   formattedFlow: FormattedFlow
@@ -16,21 +16,12 @@ export const SaveFlowModal = ({formattedFlow, onClose}: {
     onClose()
   }
   return (
-    <motion.div
-      className="fixed w-full h-full p-12 top-0 left-0 flex items-center justify-center bg-slate-900/60"
-      onClick={onClose}
-    >
-      <motion.div
-        className="flex flex-col gap-8 h-full p-10 min-w-[70%] min-h-[70%] bg-white rounded-lg"
-        initial={{ scale: .97, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ ease: 'easeOut', duration: .1 }}
-        onClick={e => e.stopPropagation()}
-      >
+    <Modal onClose={onClose}>
+      <div className="flex flex-col gap-8 p-10 h-full">
         <span
           className="text-lg font-bold"
         >
-          Save Flow to File
+            Save Flow to File
         </span>
         <div
           className="flex flex-col h-full border rounded bg-red-100"
@@ -62,7 +53,7 @@ export const SaveFlowModal = ({formattedFlow, onClose}: {
             Save
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </Modal>
   )
 }

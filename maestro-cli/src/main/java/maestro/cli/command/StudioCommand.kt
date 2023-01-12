@@ -66,7 +66,9 @@ class StudioCommand : Callable<Int> {
 
     private fun getFreePort(): Int {
         (9999..11000).forEach { port ->
-            ServerSocket(port).use { return it.localPort }
+            try {
+                ServerSocket(port).use { return it.localPort }
+            } catch (ignore: Exception) {}
         }
         ServerSocket(0).use { return it.localPort }
     }

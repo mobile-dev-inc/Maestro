@@ -73,6 +73,7 @@ const Inspect = ({ deviceScreen }: {
           hoveredElement={hoveredElement}
           onElementSelected={e => setSelectedElementId(e?.id || null)}
           selectedElement={selectedElement}
+          onInspect={e => setSelectedElementId(e.id)}
         />
         <PageSwitcher banner={banner}>
           <ElementSearch

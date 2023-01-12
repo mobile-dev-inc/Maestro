@@ -190,7 +190,7 @@ const HeaderButton = ({text, icon, onClick}: {
 }) => {
   return (
     <div
-      className="flex items-center text-sm px-2.5 gap-1.5 border-l select-none hover:bg-slate-100 active:bg-slate-200"
+      className="flex items-center text-sm px-2.5 gap-1.5 border-l border-slate-300 select-none hover:bg-slate-200 active:bg-slate-300"
       onClick={onClick}
     >
       {icon}
@@ -211,10 +211,10 @@ const ReplHeader = ({onSelectAll, onDeselectAll, selected, copyText, onPlay, onE
 }) => {
   return (
     <div
-      className="flex border-b"
+      className="flex border-b bg-slate-100"
     >
       <div
-        className="flex flex-col p-2 border-r"
+        className="flex flex-col p-2 border-r border-slate-300"
       >
         <CheckBox
           type="square"
@@ -229,7 +229,7 @@ const ReplHeader = ({onSelectAll, onDeselectAll, selected, copyText, onPlay, onE
         />
       </div>
       <div className="flex flex-1 gap-2 justify-between">
-        <span className="px-2 whitespace-nowrap data-[selectall=true]:text-slate-400 select-none self-center" data-selectall={selected === 0}>
+        <span className="px-4 whitespace-nowrap data-[selectall=true]:text-slate-400 select-none self-center" data-selectall={selected === 0}>
           {selected > 0 ? `${selected} Selected` : 'Select All'}
         </span>
         {selected > 0 && (
@@ -260,6 +260,7 @@ const Instructions = () => {
         <p>• Type a command above, then hit ENTER to run</p>
         <p>• Tap on the device screen on the left to generate commands</p>
         <p>• Hold CMD (⌘) down to freely tap and swipe on the device screen</p>
+        <p>• Right click to inspect an element</p>
       </div>
     </div>
   )
@@ -381,7 +382,7 @@ const ReplView = ({onError}: {
         }}
       >
         <AutosizingTextArea
-          className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden bg-gray-50 font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
+          className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
           setValue={value => setInput(value)}
           value={input}
           placeholder="Enter a command, then press ENTER to run"

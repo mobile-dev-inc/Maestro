@@ -90,9 +90,10 @@ const useMetaKeyDown = () => {
 
 const toPercent = (n: number, total: number) => `${Math.round((100 * n / total))}%`
 
-const InteractableDevice = ({deviceScreen, onHint}: {
+const InteractableDevice = ({deviceScreen, onHint, onInspectElement}: {
   deviceScreen: DeviceScreen
   onHint: (hint: string | null) => void
+  onInspectElement: (element: UIElement) => void
 }) => {
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null)
   const metaKeyDown = useMetaKeyDown()
@@ -167,7 +168,6 @@ const InteractableDevice = ({deviceScreen, onHint}: {
   }
 
   const onHover = (element: UIElement | null, mouse: MousePosition | null) => {
-
     const mouseHint = mouse == null ? null : getMouseHint(mouse)
     const elementHint = element == null ? null : getElementHint(element)
     onHint(elementHint || mouseHint)
@@ -176,7 +176,7 @@ const InteractableDevice = ({deviceScreen, onHint}: {
 
   return (
     <GestureDiv
-      className="h-full"
+      className="h-full border-2 border-pink-500 rounded-lg overflow-hidden"
       style={{
         aspectRatio: deviceScreen.width / deviceScreen.height,
       }}
@@ -190,6 +190,7 @@ const InteractableDevice = ({deviceScreen, onHint}: {
         onElementSelected={onElementTap}
         hoveredElement={hoveredElement}
         onHover={onHover}
+        onInspect={onInspectElement}
         annotationsEnabled={!metaKeyDown}
       />
     </GestureDiv>
