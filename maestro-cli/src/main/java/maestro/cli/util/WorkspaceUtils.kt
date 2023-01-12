@@ -49,12 +49,14 @@ object WorkspaceUtils {
         excludeTags: List<String> = emptyList(),
     ): List<Path> {
 
+        val isFlowFile = { it: Path ->
+            it.toFile().isFile
+                && it.toFile().extension in setOf("yaml", "yml")
+                && it.toFile().nameWithoutExtension != "config"
+        }
+
         val flowFiles = files
-            .filter {
-                it.toFile().isFile
-                    && it.toFile().extension in setOf("yaml", "yml")
-                    && it.toFile().nameWithoutExtension != "config"
-            }
+            .filter(isFlowFile)
 
         val flowsMatchingTagRule = mutableListOf<Path>()
         flowFiles.forEach {
@@ -71,6 +73,12 @@ object WorkspaceUtils {
 
             flowsMatchingTagRule.add(it)
         }
+
+        files
+            .filterNot(isFlowFile)
+            .forEach {
+                flowsMatchingTagRule.add(it)
+            }
 
         return flowsMatchingTagRule
     }
