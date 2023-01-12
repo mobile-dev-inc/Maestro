@@ -28,6 +28,7 @@ import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
 import maestro.drivers.IOSDriver
+import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -38,6 +39,7 @@ object MaestroSessionManager {
     private const val idbPort = 10882
 
     private val executor = Executors.newScheduledThreadPool(1)
+    private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
 
     fun <T> newSession(
         host: String?,
@@ -50,10 +52,14 @@ object MaestroSessionManager {
 
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
-                SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                try {
+                    SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                } catch (e: Exception) {
+                    logger.error("Failed to record heartbeat", e)
+                }
             },
             0L,
-            10L,
+            5L,
             TimeUnit.SECONDS
         )
 
