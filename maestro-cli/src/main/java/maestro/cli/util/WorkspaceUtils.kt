@@ -1,6 +1,9 @@
 package maestro.cli.util
 
 import maestro.cli.CliError
+import maestro.orchestra.CompositeCommand
+import maestro.orchestra.MaestroCommand
+import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.FileNotFoundException
 import java.net.URI
@@ -11,6 +14,7 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.copyTo
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
+import kotlin.io.path.pathString
 import kotlin.streams.toList
 
 object WorkspaceUtils {
@@ -58,9 +62,12 @@ object WorkspaceUtils {
         val flowFiles = files
             .filter(isFlowFile)
 
-        val flowsMatchingTagRule = mutableListOf<Path>()
+        val flowsMatchingTagRule = mutableSetOf<Path>()
+        val referencedSubFlows = mutableSetOf<String>()
+
         flowFiles.forEach {
-            val config = YamlCommandReader.getConfig(YamlCommandReader.readCommands(it))
+            val commands = YamlCommandReader.readCommands(it)
+            val config = YamlCommandReader.getConfig(commands)
             val tags = config?.tags ?: emptyList()
 
             if (excludeTags.isNotEmpty() && tags.any(excludeTags::contains)) {
@@ -72,7 +79,17 @@ object WorkspaceUtils {
             }
 
             flowsMatchingTagRule.add(it)
+
+            referencedSubFlows += referencedSubFlows(commands)
         }
+
+        flowFiles
+            .filter { flowFile ->
+                referencedSubFlows.any { flowFile.pathString.endsWith(it) }
+            }
+            .forEach {
+                flowsMatchingTagRule.add(it)
+            }
 
         files
             .filterNot(isFlowFile)
@@ -80,7 +97,20 @@ object WorkspaceUtils {
                 flowsMatchingTagRule.add(it)
             }
 
-        return flowsMatchingTagRule
+        return flowsMatchingTagRule.toList()
+    }
+
+    private fun referencedSubFlows(commands: List<MaestroCommand>): List<String> {
+        return commands
+            .flatMap { referencedSubFlows(it) }
+    }
+
+    private fun referencedSubFlows(maestroCommand: MaestroCommand): List<String> {
+        return when (val command = maestroCommand.asCommand()) {
+            is RunFlowCommand -> command.sourceDescription?.let { listOf(it) } ?: emptyList()
+            is CompositeCommand -> referencedSubFlows(command.subCommands())
+            else -> emptyList()
+        }
     }
 
 }
