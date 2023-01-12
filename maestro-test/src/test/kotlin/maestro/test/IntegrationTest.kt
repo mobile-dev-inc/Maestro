@@ -2040,6 +2040,42 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 075 - Repeat while`() {
+        // Given
+        val commands = readCommands("075_repeat_while")
+        val driver = driver {
+            var counter = 0
+
+            val counterView = element {
+                text = "Value 0"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                    counter++
+                    counterView.text = "Value $counter"
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failures
+
+        driver.assertEventCount(
+            Event.Tap(Point(50, 50)),
+            expectedCount = 3
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

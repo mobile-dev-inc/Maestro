@@ -178,13 +178,7 @@ data class YamlFluentCommand(
                 )
             )
             repeat != null -> listOf(
-                MaestroCommand(
-                    RepeatCommand(
-                        times = repeat.times,
-                        commands = repeat.commands
-                            .flatMap { it.toCommands(flowPath, appId) },
-                    )
-                )
+                repeatCommand(repeat, flowPath, appId)
             )
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
             runScript != null -> listOf(
@@ -221,6 +215,15 @@ data class YamlFluentCommand(
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
+
+    private fun repeatCommand(repeat: YamlRepeatCommand, flowPath: Path, appId: String) = MaestroCommand(
+        RepeatCommand(
+            times = repeat.times,
+            condition = repeat.`while`?.toCondition(),
+            commands = repeat.commands
+                .flatMap { it.toCommands(flowPath, appId) },
+        )
+    )
 
     private fun eraseCommand(eraseText: YamlEraseText): MaestroCommand {
         return if (eraseText.charactersToErase != null) {
