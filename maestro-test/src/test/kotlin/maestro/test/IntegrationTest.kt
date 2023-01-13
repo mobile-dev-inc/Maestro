@@ -2076,6 +2076,24 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 076 - Optional assertion`() {
+        // Given
+        val commands = readCommands("076_optional_assertion")
+
+        val driver = driver {
+            // No elements
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

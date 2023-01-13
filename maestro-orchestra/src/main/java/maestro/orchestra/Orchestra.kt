@@ -202,13 +202,22 @@ class Orchestra(
     private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         if (!evaluateCondition(command.condition, timeoutMs = timeout)) {
-            throw MaestroException.AssertionFailure(
-                "Assertion is false: ${command.condition.description()}",
-                maestro.viewHierarchy().root,
-            )
+            if (!isOptional(command.condition)) {
+                throw MaestroException.AssertionFailure(
+                    "Assertion is false: ${command.condition.description()}",
+                    maestro.viewHierarchy().root,
+                )
+            } else {
+                throw CommandSkipped
+            }
         }
 
         return false
+    }
+
+    private fun isOptional(condition: Condition): Boolean {
+        return condition.visible?.optional == true
+            || condition.notVisible?.optional == true
     }
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
