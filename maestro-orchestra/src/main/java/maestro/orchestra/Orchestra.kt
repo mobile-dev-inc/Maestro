@@ -200,7 +200,8 @@ class Orchestra(
     }
 
     private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
-        if (!evaluateCondition(command.condition, timeoutMs = command.timeout ?: lookupTimeoutMs)) {
+        val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
+        if (!evaluateCondition(command.condition, timeoutMs = timeout)) {
             throw MaestroException.AssertionFailure(
                 "Assertion is false: ${command.condition.description()}",
                 maestro.viewHierarchy().root,

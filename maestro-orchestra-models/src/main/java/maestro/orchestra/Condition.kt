@@ -6,14 +6,14 @@ import maestro.orchestra.util.Env.evaluateScripts
 data class Condition(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
-    val scriptCondition: String? = null,
+    val scriptCondition: String? = null
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): Condition {
         return copy(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
-            scriptCondition = scriptCondition?.evaluateScripts(jsEngine)
+            scriptCondition = scriptCondition?.evaluateScripts(jsEngine),
         )
     }
 

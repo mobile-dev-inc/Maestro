@@ -276,10 +276,14 @@ data class YamlFluentCommand(
             throw SyntaxError("extendedWaitUntil expects either `visible` or `notVisible` to be provided")
         }
 
+        val condition = Condition(
+            visible = command.visible?.let { toElementSelector(it) },
+            notVisible = command.notVisible?.let { toElementSelector(it) },
+        )
+
         return MaestroCommand(
-            AssertCommand(
-                visible = command.visible?.let { toElementSelector(it) },
-                notVisible = command.notVisible?.let { toElementSelector(it) },
+            AssertConditionCommand(
+                condition = condition,
                 timeout = command.timeout,
             )
         )
