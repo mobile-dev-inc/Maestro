@@ -9,13 +9,16 @@ import io.ktor.server.http.content.staticRootFolder
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
+import maestro.ElementFilter
 import maestro.Filters
+import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.TreeNode
+import maestro.orchestra.Orchestra
 import java.io.File
 import java.nio.file.Path
+import java.util.IdentityHashMap
 import java.util.UUID
-import java.util.function.BiFunction
 import java.util.regex.Pattern
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -78,11 +81,14 @@ object DeviceScreenService {
         val elements = gatherElements(tree, mutableListOf())
             .sortedWith(Filters.INDEX_COMPARATOR)
 
-        fun getIndex(element: TreeNode, attribute: String): Int? {
-            val value = element.attribute(attribute) ?: return null
-            val matchingElements = elements.filter { value == it.attributes[attribute] }
+        fun getIndex(filter: ElementFilter, element: TreeNode): Int? {
+            val identityHashMap = IdentityHashMap<TreeNode, Unit>()
+            val matchingElements = Filters.deepestMatchingElement(filter)(elements).filter {
+                // There are duplicate elements for some reason (likely due to unintended behavior in Filter.deepestMatchingElement) - filter them out
+                identityHashMap.put(it, Unit) == null
+            }
             if (matchingElements.size < 2) return null
-            return matchingElements.indexOf(element)
+            return matchingElements.sortedWith(Filters.INDEX_COMPARATOR).indexOf(element)
         }
 
         val ids = mutableMapOf<String, Int>()
@@ -90,8 +96,8 @@ object DeviceScreenService {
             val bounds = element.bounds()
             val text = element.attribute("text")
             val resourceId = element.attribute("resource-id")
-            val textIndex = getIndex(element, "text")
-            val resourceIdIndex = getIndex(element, "resource-id")
+            val textIndex = if (text == null) null else getIndex(Filters.textMatches(text.toRegex(Orchestra.REGEX_OPTIONS)).asFilter(), element)
+            val resourceIdIndex = if (resourceId == null) null else getIndex(Filters.idMatches(resourceId.toRegex(Orchestra.REGEX_OPTIONS)), element)
             fun createElementId(): String {
                 val parts = listOfNotNull(resourceId, resourceIdIndex, text, textIndex)
                 val fallbackId = bounds?.let { (x, y, w, h) -> "$x,$y,$w,$h" } ?: UUID.randomUUID().toString()

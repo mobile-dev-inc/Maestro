@@ -124,16 +124,22 @@ const InteractableDevice = ({deviceScreen, onHint, onInspectElement}: {
     if (!e) return
     if (!e.bounds) return
     if (e.resourceId) {
-      const index = typeof e.resourceIdIndex === 'number' ? `index: "${e.resourceIdIndex}"` : ''
+      const index = typeof e.resourceIdIndex === 'number' ? `index: ${e.resourceIdIndex}` : ''
       API.repl.runCommand(`
         tapOn:
           id: "${e.resourceId}"
           ${index}
       `)
     } else if (e.text) {
-      API.repl.runCommand(`
-        tapOn: ${e.text}
-      `)
+      if (typeof e.textIndex === 'number') {
+        API.repl.runCommand(`
+          tapOn:
+            text: "${e.text}"
+            index: ${e.textIndex}
+        `)
+      } else {
+        API.repl.runCommand(`tapOn: ${e.text}`)
+      }
     } else {
       const cx = toPercent(e.bounds.x + e.bounds.width / 2, deviceScreen.width)
       const cy = toPercent(e.bounds.y + e.bounds.height / 2, deviceScreen.height)
