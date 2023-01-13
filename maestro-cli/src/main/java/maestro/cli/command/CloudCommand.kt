@@ -100,7 +100,6 @@ class CloudCommand : Callable<Int> {
     private var failOnCancellation: Boolean = false
 
     override fun call(): Int {
-        println(includeTags)
         return CloudInteractor(
             client = ApiClient(apiUrl),
         ).upload(
