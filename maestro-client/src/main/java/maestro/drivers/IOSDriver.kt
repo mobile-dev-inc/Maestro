@@ -365,7 +365,7 @@ class IOSDriver(
             SwipeDirection.DOWN -> {
                 startPoint = PointF(
                     x = 0.5f,
-                    y = 0.1f,
+                    y = 0.2f,
                 )
                 endPoint = PointF(
                     x = 0.5F,
