@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.19.0 - 2023-01-13
+* Feature: iOS unicode input support + non-English keyboards
+* Feature: `swipe` command now supports `from` argument to swipe from a given view
+* Feature: `repeat` command now supports `while` condition
+* Feature: Allowing `extendedWaitUntil` command to use env values in `timeout` property
+* Tweak: assert commands now respect `optional` flag
+* Tweak: error analytics
+* Fix: scroll not working reliably on iOS
+* Fix: `openLink` was opening Google Maps on Android 
+* Fix: sub-flows are now included regardless of their tags
+* Fix: Maestro Studio was not always computing `index` field correctly
+* Fix: `maestro upload` was ignoring JS files
+* Fix: `openLink` command now supports query parameters
+
 ## 1.18.5 - 2023-01-10
 * Feature: tags
 * Tweak: allow running other maestro commands alongside Maestro Studio
