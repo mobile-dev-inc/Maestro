@@ -1,0 +1,8 @@
+appId: org.wikimedia.wikipedia
+---
+- runFlow: subflows/onboarding-ios.yaml
+- tapOn:
+    point: "50%,17%"
+- runScript: scripts/getSearchQuery.js
+- inputText: ${output.result}
+- assertVisible: ${output.result}

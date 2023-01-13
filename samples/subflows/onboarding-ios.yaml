@@ -1,0 +1,17 @@
+appId: org.wikimedia.wikipedia
+---
+- launchApp
+- swipe:
+    direction: LEFT
+    duration: 400
+- swipe:
+    direction: LEFT
+    duration: 400
+- swipe:
+    direction: LEFT
+    duration: 400
+- swipe:
+    direction: LEFT
+    duration: 400
+- tapOn:
+    point: "50%,90%"
