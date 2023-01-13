@@ -513,11 +513,13 @@ class Orchestra(
     }
 
     private fun inputTextCommand(command: InputTextCommand): Boolean {
-        val isAscii = Charsets.US_ASCII.newEncoder()
-            .canEncode(command.text)
+        if (!maestro.isUnicodeInputSupported()) {
+            val isAscii = Charsets.US_ASCII.newEncoder()
+                .canEncode(command.text)
 
-        if (!isAscii) {
-            throw UnicodeNotSupportedError(command.text)
+            if (!isAscii) {
+                throw UnicodeNotSupportedError(command.text)
+            }
         }
 
         maestro.inputText(command.text)

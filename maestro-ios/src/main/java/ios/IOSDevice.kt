@@ -57,7 +57,10 @@ interface IOSDevice : AutoCloseable {
     /**
      * Inputs text into the currently focused element.
      */
-    fun input(text: String): Result<Unit, Throwable>
+    fun input(
+        appId: String,
+        text: String,
+    ): Result<Unit, Throwable>
 
     /**
      * Installs application on the device.

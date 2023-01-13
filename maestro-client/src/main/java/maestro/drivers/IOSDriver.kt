@@ -208,6 +208,10 @@ class IOSDriver(
         }
     }
 
+    override fun isUnicodeInputSupported(): Boolean {
+        return true
+    }
+
     private fun mapHierarchy(xcUiElement: XCUIElement): TreeNode {
         return when (xcUiElement) {
             is XCUIElementNode -> parseXCUIElementNode(xcUiElement)
@@ -463,7 +467,12 @@ class IOSDriver(
     }
 
     override fun inputText(text: String) {
-        iosDevice.input(text).expect {}
+        val appId = activeAppId() ?: return
+
+        iosDevice.input(
+            appId = appId,
+            text = text,
+        ).expect {}
     }
 
     override fun openLink(link: String) {

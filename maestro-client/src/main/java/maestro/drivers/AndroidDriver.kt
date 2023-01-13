@@ -428,6 +428,10 @@ class AndroidDriver(
         return channel.isShutdown
     }
 
+    override fun isUnicodeInputSupported(): Boolean {
+        return false
+    }
+
     private fun mapHierarchy(node: Node): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()

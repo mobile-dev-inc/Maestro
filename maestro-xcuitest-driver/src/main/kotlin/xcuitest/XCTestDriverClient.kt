@@ -1,5 +1,6 @@
 package xcuitest
 
+import api.InputTextRequest
 import api.SwipeRequest
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.api.GetRunningAppRequest
@@ -70,6 +71,29 @@ object XCTestDriverClient {
         val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
 
         val url = xctestAPIBuilder("swipe")
+            .addQueryParameter("appId", appId)
+            .build()
+
+        val httpRequest = Request.Builder()
+            .addHeader("Content-Type", "application/json")
+            .url(url)
+            .post(body)
+            .build()
+
+        return okHttpClient.newCall(httpRequest).execute()
+    }
+
+    fun inputText(
+        appId: String,
+        text: String,
+    ): Response {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val request = InputTextRequest(
+            text = text,
+        )
+        val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
+
+        val url = xctestAPIBuilder("inputText")
             .addQueryParameter("appId", appId)
             .build()
 

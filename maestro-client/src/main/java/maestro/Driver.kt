@@ -82,4 +82,6 @@ interface Driver {
 
     fun isShutdown(): Boolean
 
+    fun isUnicodeInputSupported(): Boolean
+
 }

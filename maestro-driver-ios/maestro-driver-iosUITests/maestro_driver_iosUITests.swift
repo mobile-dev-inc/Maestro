@@ -23,6 +23,7 @@ class maestro_driver_iosUITests: XCTestCase {
                                         path: Route.runningApp.rawValue)
         let swipeRoute = HTTPRoute(method: .POST,
                                    path: Route.swipe.rawValue)
+        let inputTextRoute = HTTPRoute(method: .POST, path: Route.inputText.rawValue)
         await server.appendRoute(subTreeRoute) { request in
             let handler = RouteHandlerFactory.createRouteHandler(route: .subTree)
             return try await handler.handle(request: request)
@@ -33,6 +34,10 @@ class maestro_driver_iosUITests: XCTestCase {
         }
         await server.appendRoute(swipeRoute) { request in
             let handler = RouteHandlerFactory.createRouteHandler(route: .swipe)
+            return try await handler.handle(request: request)
+        }
+        await server.appendRoute(inputTextRoute) { request in
+            let handler = RouteHandlerFactory.createRouteHandler(route: .inputText)
             return try await handler.handle(request: request)
         }
         try await server.start()

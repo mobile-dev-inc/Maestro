@@ -489,6 +489,10 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return driver.isShutdown()
     }
 
+    fun isUnicodeInputSupported(): Boolean {
+        return driver.isUnicodeInputSupported()
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

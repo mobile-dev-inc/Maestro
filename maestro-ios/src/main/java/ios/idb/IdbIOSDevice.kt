@@ -215,21 +215,19 @@ class IdbIOSDevice(
                 endX = xEnd,
                 endY = yEnd,
                 velocity = velocity,
-            ).use {  }
+            ).use { }
         }
     }
 
-    override fun input(text: String): Result<Unit, Throwable> {
+    override fun input(
+        appId: String,
+        text: String,
+    ): Result<Unit, Throwable> {
         return runCatching {
-            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
-            val stream = asyncStub.hid(responseObserver)
-
-            TextInputUtil.textToListOfEvents(text)
-                .forEach {
-                    stream.onNext(it)
-                    Thread.sleep(75)
-                }
-            stream.onCompleted()
+            XCTestDriverClient.inputText(
+                appId = appId,
+                text = text,
+            ).use { }
         }
     }
 
