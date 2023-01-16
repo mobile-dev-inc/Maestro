@@ -22,6 +22,7 @@ package maestro.cli.command
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
+import maestro.cli.report.ReportFormat
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
@@ -85,7 +86,7 @@ class CloudCommand : Callable<Int> {
         description = ["List of tags that will remove the Flows that does not have the provided tags"],
         split = ",",
 
-    )
+        )
     private var includeTags: List<String> = emptyList()
 
     @Option(
@@ -95,6 +96,20 @@ class CloudCommand : Callable<Int> {
         split = ",",
     )
     private var excludeTags: List<String> = emptyList()
+
+    @Option(
+        order = 13,
+        names = ["--format"],
+        description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
+    )
+    private var format: ReportFormat = ReportFormat.NOOP
+
+    @Option(
+        order = 14,
+        names = ["--output"],
+        description = ["File to write report into (default=report.xml)"],
+    )
+    private var output: File? = null
 
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
@@ -117,6 +132,8 @@ class CloudCommand : Callable<Int> {
             androidApiLevel = androidApiLevel,
             includeTags = includeTags,
             excludeTags = excludeTags,
+            reportFormat = format,
+            reportOutput = output,
             failOnCancellation = failOnCancellation,
         )
     }

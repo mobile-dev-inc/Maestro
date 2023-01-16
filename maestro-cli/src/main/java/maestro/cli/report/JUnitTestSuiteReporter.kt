@@ -39,7 +39,7 @@ class JUnitTestSuiteReporter(
                                 testCases = suite.flows
                                     .map { flow ->
                                         TestCase(
-                                            id = flow.fileName,
+                                            id = flow.fileName ?: flow.name,
                                             name = flow.name,
                                             failure = flow.failure?.let { failure ->
                                                 Failure(

@@ -4,6 +4,10 @@ import maestro.cli.CliError
 import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
+import maestro.cli.model.FlowStatus
+import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.ReportFormat
+import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.WorkspaceUtils
@@ -12,6 +16,9 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.utils.TemporaryDirectory
+import okio.BufferedSink
+import okio.buffer
+import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
@@ -43,9 +50,12 @@ class CloudInteractor(
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
+        reportFormat: ReportFormat = ReportFormat.NOOP,
+        reportOutput: File? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
+        if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
         val authToken = apiKey              // Check for API key
             ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
@@ -106,6 +116,8 @@ class CloudInteractor(
                     teamId = teamId,
                     appId = appId,
                     failOnCancellation = failOnCancellation,
+                    reportFormat = reportFormat,
+                    reportOutput = reportOutput,
                 )
             }
         }
@@ -117,6 +129,8 @@ class CloudInteractor(
         teamId: String,
         appId: String,
         failOnCancellation: Boolean,
+        reportFormat: ReportFormat,
+        reportOutput: File?,
     ): Int {
         val startTime = System.currentTimeMillis()
 
@@ -159,25 +173,14 @@ class CloudInteractor(
                 }
 
             if (upload.completed) {
-                TestSuiteStatusView.showSuiteResult(
-                    upload.toViewModel(
-                        TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
-                            uploadId = upload.uploadId,
-                            teamId = teamId,
-                            appId = appId,
-                        )
-                    )
+                return handleSyncUploadCompletion(
+                    upload = upload,
+                    teamId = teamId,
+                    appId = appId,
+                    failOnCancellation = failOnCancellation,
+                    reportFormat = reportFormat,
+                    reportOutput = reportOutput,
                 )
-
-                if (upload.status == UploadStatus.Status.CANCELED && failOnCancellation) {
-                    return 1
-                }
-
-                return if (upload.status == UploadStatus.Status.ERROR) {
-                    1
-                } else {
-                    0
-                }
             }
 
             Thread.sleep(pollingInterval)
@@ -195,6 +198,73 @@ class CloudInteractor(
 
             0
         }
+    }
+
+    private fun handleSyncUploadCompletion(
+        upload: UploadStatus,
+        teamId: String,
+        appId: String,
+        failOnCancellation: Boolean,
+        reportFormat: ReportFormat,
+        reportOutput: File?,
+    ): Int {
+        TestSuiteStatusView.showSuiteResult(
+            upload.toViewModel(
+                TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
+                    uploadId = upload.uploadId,
+                    teamId = teamId,
+                    appId = appId,
+                )
+            )
+        )
+
+        val passed = if (upload.status == UploadStatus.Status.CANCELED && failOnCancellation) {
+            false
+        } else upload.status != UploadStatus.Status.ERROR
+
+        val reportOutputSink = reportFormat.fileExtension
+            ?.let { extension ->
+                (reportOutput ?: File("report$extension"))
+                    .sink()
+                    .buffer()
+            }
+
+        if (reportOutputSink != null) {
+            saveReport(reportFormat, passed, upload, reportOutputSink)
+        }
+
+        return if (!passed) {
+            1
+        } else {
+            0
+        }
+    }
+
+    private fun saveReport(
+        reportFormat: ReportFormat,
+        passed: Boolean,
+        upload: UploadStatus,
+        reportOutputSink: BufferedSink
+    ) {
+        ReporterFactory.buildReporter(reportFormat)
+            .report(
+                TestExecutionSummary(
+                    passed = passed,
+                    suites = listOf(
+                        TestExecutionSummary.SuiteResult(
+                            passed = passed,
+                            flows = upload.flows.map { flow ->
+                                TestExecutionSummary.FlowResult(
+                                    name = flow.name,
+                                    fileName = null,
+                                    status = FlowStatus.from(flow.status),
+                                )
+                            }
+                        )
+                    )
+                ),
+                reportOutputSink,
+            )
     }
 
     companion object {
