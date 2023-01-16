@@ -55,8 +55,17 @@ class IOSDriver(
     private val logger: Logger = IOSDriverLogger()
 ) : Driver {
 
-    private var widthPoints: Int? = null
-    private var heightPoints: Int? = null
+    private val deviceInfo by lazy {
+        iosDevice.deviceInfo().expect {}
+    }
+
+    private val widthPoints by lazy {
+        deviceInfo.widthPoints
+    }
+    private val heightPoints by lazy {
+        deviceInfo.heightPoints
+    }
+
     private var appId: String? = null
     private var proxySet = false
 
@@ -81,17 +90,12 @@ class IOSDriver(
 
     @SuppressWarnings("Used in cloud")
     fun ensureGrpcChannel() {
-        val response = iosDevice.deviceInfo().expect {}
-
-        widthPoints = response.widthPoints
-        heightPoints = response.heightPoints
+        iosDevice.deviceInfo().expect {}
     }
 
     @SuppressWarnings("Used in cloud")
     fun closeGrpcChannel() {
         iosDevice.close()
-        widthPoints = null
-        heightPoints = null
     }
 
     override fun close() {
@@ -104,14 +108,12 @@ class IOSDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
-        val response = iosDevice.deviceInfo().expect {}
-
         return DeviceInfo(
             platform = Platform.IOS,
-            widthPixels = response.widthPixels,
-            heightPixels = response.heightPixels,
-            widthGrid = response.widthPoints,
-            heightGrid = response.heightPoints,
+            widthPixels = deviceInfo.widthPixels,
+            heightPixels = deviceInfo.heightPixels,
+            widthGrid = deviceInfo.widthPoints,
+            heightGrid = deviceInfo.heightPoints,
         )
     }
 
@@ -300,8 +302,8 @@ class IOSDriver(
     }
 
     private fun validate(start: Point, end: Point) {
-        val screenWidth = widthPoints ?: throw IllegalStateException("Screen width not available")
-        val screenHeight = heightPoints ?: throw IllegalStateException("Screen height not available")
+        val screenWidth = widthPoints
+        val screenHeight = heightPoints
 
         if (start.x < 0 || start.x > screenWidth) {
             throw java.lang.IllegalArgumentException("x value of start point (${start.x}) needs to be between 0 and $screenWidth")
@@ -325,8 +327,8 @@ class IOSDriver(
     ) {
         validate(start, end)
 
-        val width = widthPoints ?: throw IllegalStateException("Device width not available")
-        val height = heightPoints ?: throw IllegalStateException("Device height not available")
+        val width = widthPoints
+        val height = heightPoints
 
         val normalisedStart = start.normalise(
             width,
@@ -401,8 +403,8 @@ class IOSDriver(
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
-        val width = widthPoints ?: throw IllegalStateException("Device width not available")
-        val height = heightPoints ?: throw IllegalStateException("Device height not available")
+        val width = widthPoints
+        val height = heightPoints
 
         when (direction) {
             SwipeDirection.UP -> {
@@ -429,8 +431,8 @@ class IOSDriver(
     }
 
     private fun directionalSwipe(durationMs: Long, start: PointF, end: PointF) {
-        val width = widthPoints ?: throw IllegalStateException("Device width not available")
-        val height = heightPoints ?: throw IllegalStateException("Device height not available")
+        val width = widthPoints
+        val height = heightPoints
 
         val denormalizedDistance = PointF(start.x * width, start.y * height)
             .distance(PointF(end.x * width, end.y * height))
