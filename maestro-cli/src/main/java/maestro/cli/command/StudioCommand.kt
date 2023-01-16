@@ -44,7 +44,7 @@ class StudioCommand : Callable<Int> {
             tryOpenUrl(studioUrl)
 
             println()
-            println("Note: Most Maestro CLI commands do not work while Maestro Studio is running. We will address this in an upcoming release.")
+            println("Tip: Maestro Studio can now run simultaneously alongside other Meastro CLI commands!")
 
             println()
             println("Navigate to $studioUrl in your browser to open Maestro Studio. Ctrl-C to exit.".faint())
