@@ -31,11 +31,11 @@ interface IOSDevice : AutoCloseable {
 
     val deviceId: String?
 
+    fun open()
+
     fun deviceInfo(): Result<DeviceInfo, Throwable>
 
-    fun contentDescriptor(appId: String): Result<XCUIElement, Throwable>
-
-    fun idbContentDescriptor(): Result<XCUIElement, Throwable>
+    fun contentDescriptor(): Result<XCUIElement, Throwable>
 
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 
@@ -46,7 +46,6 @@ interface IOSDevice : AutoCloseable {
     fun pressButton(code: Int): Result<Unit, Throwable>
 
     fun scroll(
-        appId: String,
         xStart: Float,
         yStart: Float,
         xEnd: Float,
@@ -58,7 +57,6 @@ interface IOSDevice : AutoCloseable {
      * Inputs text into the currently focused element.
      */
     fun input(
-        appId: String,
         text: String,
     ): Result<Unit, Throwable>
 

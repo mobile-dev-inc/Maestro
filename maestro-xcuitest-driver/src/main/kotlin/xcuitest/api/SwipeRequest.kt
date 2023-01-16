@@ -1,4 +1,4 @@
-package api
+package xcuitest.api
 
 data class SwipeRequest(
     val startX: Float,

@@ -1,7 +1,7 @@
 package xcuitest
 
-import api.InputTextRequest
-import api.SwipeRequest
+import xcuitest.api.InputTextRequest
+import xcuitest.api.SwipeRequest
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.api.GetRunningAppRequest
 import okhttp3.HttpUrl
@@ -12,7 +12,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.util.concurrent.TimeUnit
 
-object XCTestDriverClient {
+class XCTestDriverClient(
+    private val host: String = "localhost",
+    private val port: Int = 9080,
+) {
 
     private val okHttpClient by lazy {
         OkHttpClient.Builder()
@@ -109,9 +112,9 @@ object XCTestDriverClient {
     private fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
         return HttpUrl.Builder()
             .scheme("http")
-            .host("localhost")
+            .host(host)
             .addPathSegment(pathSegment)
-            .port(9080)
+            .port(port)
     }
 
 }

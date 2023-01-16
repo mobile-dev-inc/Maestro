@@ -32,7 +32,7 @@ object DeviceScreenService {
     private var previousScreenshot: File? = null
 
     fun routes(routing: Routing, maestro: Maestro) {
-        routing.get("/api/device-screen") {
+        routing.get("/xcuitest/api/device-screen") {
             val deletePrevious = call.request.queryParameters["deletePrevious"] == "true"
 
             val tree: TreeNode

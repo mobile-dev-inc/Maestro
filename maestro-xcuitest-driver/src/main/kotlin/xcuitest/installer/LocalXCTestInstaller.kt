@@ -1,4 +1,4 @@
-package driver
+package xcuitest.installer
 
 import maestro.logger.Logger
 import maestro.utils.MaestroTimer
@@ -11,11 +11,15 @@ import xcuitest.XCTestDriverClient
 import java.io.File
 import java.net.ConnectException
 
-class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
+class LocalXCTestInstaller(
+    private val logger: Logger,
+    private val deviceId: String,
+    private val driverClient: XCTestDriverClient,
+) : XCTestInstaller {
 
     private var xcTestProcess: Process? = null
 
-    fun killAndUninstall() {
+    override fun killAndUninstall() {
         if (xcTestProcess?.isAlive == true) {
             logger.info("[Start] Killing the started XCUITest")
             xcTestProcess?.destroy()
@@ -26,7 +30,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
         logger.info("[Done] Uninstalling the XCUITest runner app")
     }
 
-    fun setup() {
+    override fun setup() {
         repeat(3) { i ->
             logger.info("[Start] Installing xctest ui runner on $deviceId")
             runXCTest()
@@ -47,7 +51,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
         XCRunnerSimctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
         return MaestroTimer.retryUntilTrue(10_000, 100) {
             try {
-                XCTestDriverClient.subTree(UI_TEST_RUNNER_APP_BUNDLE_ID).use { it.isSuccessful }
+                driverClient.subTree(UI_TEST_RUNNER_APP_BUNDLE_ID).use { it.isSuccessful }
             } catch (ignore: ConnectException) {
                 false
             }
@@ -89,7 +93,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
         }
     }
 
-    fun cleanup() {
+    override fun close() {
         logger.info("[Start] Cleaning up the ui test runner files")
         val xctestConfig = "${System.getenv("TMP_DIR")}/$XCTEST_RUN_PATH"
         val hostApp = "${System.getenv("TMPDIR")}/Debug-iphonesimulator/maestro-driver-ios.app"
@@ -112,7 +116,7 @@ class XcUITestDriver(private val logger: Logger, private val deviceId: String) {
     }
 
     private fun writeFileToDestination(srcPath: String, destFile: File) {
-        XcUITestDriver::class.java.getResourceAsStream(srcPath)?.let {
+        LocalXCTestInstaller::class.java.getResourceAsStream(srcPath)?.let {
             val bufferedSink = destFile.sink().buffer()
             bufferedSink.writeAll(it.source())
             bufferedSink.flush()

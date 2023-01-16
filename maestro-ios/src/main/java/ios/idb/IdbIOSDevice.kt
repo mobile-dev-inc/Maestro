@@ -19,12 +19,10 @@
 
 package ios.idb
 
-import api.GetViewHierarchy
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.runCatching
 import com.google.protobuf.ByteString
 import hierarchy.XCUIElement
@@ -64,17 +62,12 @@ import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.source
-import util.XCRunnerSimctl
-import xcuitest.XCTestDriverClient
 import java.io.File
 import java.io.InputStream
-import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.zip.GZIPInputStream
-import kotlin.io.path.deleteIfExists
-import kotlin.io.path.pathString
 
 class IdbIOSDevice(
     private val channel: ManagedChannel,
@@ -83,6 +76,15 @@ class IdbIOSDevice(
 
     private val blockingStub = CompanionServiceGrpc.newBlockingStub(channel)
     private val asyncStub = CompanionServiceGrpc.newStub(channel)
+
+    override fun open() {
+        ensureGrpcChannel()
+    }
+
+    @SuppressWarnings("Used in cloud")
+    private fun ensureGrpcChannel() {
+        deviceInfo().expect {}
+    }
 
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
         return runCatching {
@@ -98,22 +100,7 @@ class IdbIOSDevice(
         }
     }
 
-    override fun contentDescriptor(appId: String): Result<XCUIElement, Throwable> {
-        return when (val result = GetViewHierarchy.invoke(appId)) {
-            is Ok -> return result
-            is Err -> {
-                when (result.error) {
-                    is GetViewHierarchy.IllegalArgumentSnapshotFailure -> {
-                        idbContentDescriptor()
-                    }
-                    is GetViewHierarchy.UnknownFailure -> Err(result.error)
-                    else -> Err(result.error)
-                }
-            }
-        }
-    }
-
-    override fun idbContentDescriptor(): Result<XCUIElement, Throwable> {
+    override fun contentDescriptor(): Result<XCUIElement, Throwable> {
         return runCatching {
             val accessibilityResponse = blockingStub.accessibilityInfo(accessibilityInfoRequest {})
             val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
@@ -200,35 +187,19 @@ class IdbIOSDevice(
     }
 
     override fun scroll(
-        appId: String,
         xStart: Float,
         yStart: Float,
         xEnd: Float,
         yEnd: Float,
         velocity: Float?,
     ): Result<Unit, Throwable> {
-        return runCatching {
-            XCTestDriverClient.swipe(
-                appId = appId,
-                startX = xStart,
-                startY = yStart,
-                endX = xEnd,
-                endY = yEnd,
-                velocity = velocity,
-            ).use { }
-        }
+        error("Not supported")
     }
 
     override fun input(
-        appId: String,
         text: String,
     ): Result<Unit, Throwable> {
-        return runCatching {
-            XCTestDriverClient.inputText(
-                appId = appId,
-                text = text,
-            ).use { }
-        }
+        error("Not supported")
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {
@@ -411,16 +382,7 @@ class IdbIOSDevice(
     }
 
     override fun takeScreenshot(out: Sink): Result<Unit, Throwable> {
-        return runCatching {
-            val tmpImage = Files.createTempFile("tmp_image", ".png")
-            XCRunnerSimctl.screenshot(tmpImage.toAbsolutePath().pathString)
-            out
-                .buffer()
-                .use {
-                    it.write(tmpImage.source().buffer().readByteArray())
-                }
-            tmpImage.deleteIfExists()
-        }
+        error("Not supported")
     }
 
     // Warning: This method reads all bytes into memory. This can probably be optimized if necessary.

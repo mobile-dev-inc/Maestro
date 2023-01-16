@@ -22,13 +22,19 @@ package maestro.cli.session
 import dadb.Dadb
 import dadb.adbserver.AdbServer
 import io.grpc.ManagedChannelBuilder
+import ios.LocalIOSDevice
 import ios.idb.IdbIOSDevice
+import ios.xcrun.XCRunIOSDevice
+import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
+import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
+import xcuitest.XCTestDriverClient
+import xcuitest.installer.LocalXCTestInstaller
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -37,6 +43,7 @@ import kotlin.concurrent.thread
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
     private const val idbPort = 10882
+    private const val xcTestPort = 9080
 
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
@@ -140,8 +147,30 @@ object MaestroSessionManager {
                         val channel = ManagedChannelBuilder.forAddress(defaultHost, idbPort)
                             .usePlaintext()
                             .build()
+
+                        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort)
+
                         Maestro.ios(
-                            driver = IOSDriver(IdbIOSDevice(channel, selectedDevice.device.instanceId)),
+                            driver = IOSDriver(
+                                LocalIOSDevice(
+                                    deviceId = selectedDevice.device.instanceId,
+                                    idbIOSDevice = IdbIOSDevice(
+                                        channel = channel,
+                                        deviceId = selectedDevice.device.instanceId,
+                                    ),
+                                    xcTestDevice = XCTestIOSDevice(
+                                        deviceId = selectedDevice.device.instanceId,
+                                        client = xcTestDriverClient,
+                                        installer = LocalXCTestInstaller(
+                                            logger = IOSDriverLogger(),
+                                            deviceId = selectedDevice.device.instanceId,
+                                            driverClient = xcTestDriverClient
+                                        ),
+                                        logger = IOSDriverLogger(),
+                                    ),
+                                    xcRunIOSDevice = XCRunIOSDevice(selectedDevice.device.instanceId),
+                                )
+                            ),
                             openDriver = !connectToExistingSession,
                         )
                     }
@@ -239,7 +268,25 @@ object MaestroSessionManager {
             .build()
         val device = PickDeviceInteractor.pickDevice(deviceId)
         val idbIOSDevice = IdbIOSDevice(channel, device.instanceId)
-        val iosDriver = IOSDriver(idbIOSDevice)
+        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort)
+
+        val iosDriver = IOSDriver(
+            LocalIOSDevice(
+                deviceId = device.instanceId,
+                idbIOSDevice = idbIOSDevice,
+                xcTestDevice = XCTestIOSDevice(
+                    deviceId = device.instanceId,
+                    client = xcTestDriverClient,
+                    installer = LocalXCTestInstaller(
+                        logger = IOSDriverLogger(),
+                        deviceId = device.instanceId,
+                        driverClient = xcTestDriverClient
+                    ),
+                    logger = IOSDriverLogger(),
+                ),
+                xcRunIOSDevice = XCRunIOSDevice(device.instanceId),
+            )
+        )
         return Maestro.ios(
             driver = iosDriver,
             openDriver = openDriver,

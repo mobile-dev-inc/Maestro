@@ -19,13 +19,11 @@
 
 package maestro.drivers
 
-import api.GetRunningAppIdResolver
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onSuccess
-import driver.XcUITestDriver
 import hierarchy.IdbElementNode
 import hierarchy.XCUIElement
 import hierarchy.XCUIElementNode
@@ -40,19 +38,15 @@ import maestro.PointF
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
-import maestro.debuglog.IOSDriverLogger
-import maestro.logger.Logger
 import maestro.utils.FileUtils
 import okio.Sink
 import util.XCRunnerSimctl
 import java.io.File
-import java.net.ConnectException
 import java.nio.file.Files
 import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
-    private val logger: Logger = IOSDriverLogger()
 ) : Driver {
 
     private val deviceInfo by lazy {
@@ -69,41 +63,19 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
 
-    private val getRunningAppIdResolver by lazy { GetRunningAppIdResolver(logger) }
-    private val xcUiTestDriver by lazy { XcUITestDriver(logger, iosDevice.deviceId ?: throw IllegalStateException("No device id found")) }
-
     override fun name(): String {
         return "iOS Simulator"
     }
 
     override fun open() {
-        ensureGrpcChannel()
-        ensureXCUITestChannel()
-    }
-
-    private fun ensureXCUITestChannel() {
-        logger.info("[Start] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
-        xcUiTestDriver.killAndUninstall()
-        logger.info("[Done] Uninstalling xctest ui runner app on ${iosDevice.deviceId}")
-        xcUiTestDriver.setup()
-    }
-
-    @SuppressWarnings("Used in cloud")
-    fun ensureGrpcChannel() {
-        iosDevice.deviceInfo().expect {}
-    }
-
-    @SuppressWarnings("Used in cloud")
-    fun closeGrpcChannel() {
-        iosDevice.close()
+        iosDevice.open()
     }
 
     override fun close() {
         if (proxySet) {
             resetProxy()
         }
-        closeGrpcChannel()
-        xcUiTestDriver.cleanup()
+        iosDevice.close()
         appId = null
     }
 
@@ -200,11 +172,7 @@ class IOSDriver(
     }
 
     override fun contentDescriptor(): TreeNode {
-        val resolvedAppId = activeAppId()
-
-        logger.info("Getting view hierarchy for $resolvedAppId")
-
-        return when (val contentDescriptorResult = iosDevice.contentDescriptor(requireNotNull(resolvedAppId))) {
+        return when (val contentDescriptorResult = iosDevice.contentDescriptor()) {
             is Ok -> mapHierarchy(contentDescriptorResult.value)
             is Err -> TreeNode()
         }
@@ -218,7 +186,7 @@ class IOSDriver(
         return when (xcUiElement) {
             is XCUIElementNode -> parseXCUIElementNode(xcUiElement)
             is IdbElementNode -> parseIdbElementNode(xcUiElement)
-            else -> throw IllegalStateException("Illegal instance for parsing hierarchy")
+            else -> error("Illegal instance for parsing hierarchy")
         }
     }
 
@@ -289,10 +257,7 @@ class IOSDriver(
     }
 
     override fun scrollVertical() {
-        val appId = activeAppId() ?: return
-
         iosDevice.scroll(
-            appId = appId,
             xStart = 0.5f,
             yStart = 0.5f,
             xEnd = 0.5f,
@@ -306,17 +271,17 @@ class IOSDriver(
         val screenHeight = heightPoints
 
         if (start.x < 0 || start.x > screenWidth) {
-            throw java.lang.IllegalArgumentException("x value of start point (${start.x}) needs to be between 0 and $screenWidth")
+            error("x value of start point (${start.x}) needs to be between 0 and $screenWidth")
         }
         if (end.x < 0 || end.x > screenWidth) {
-            throw java.lang.IllegalArgumentException("x value of end point (${end.x}) needs to be between 0 and $screenWidth")
+            error("x value of end point (${end.x}) needs to be between 0 and $screenWidth")
         }
 
         if (start.y < 0 || start.y > screenHeight) {
-            throw java.lang.IllegalArgumentException("y value of start point (${start.y}) needs to be between 0 and $screenHeight")
+            error("y value of start point (${start.y}) needs to be between 0 and $screenHeight")
         }
         if (end.y < 0 || end.y > screenHeight) {
-            throw java.lang.IllegalArgumentException("y value of end point (${end.y}) needs to be between 0 and $screenHeight")
+            error("y value of end point (${end.y}) needs to be between 0 and $screenHeight")
         }
     }
 
@@ -340,7 +305,6 @@ class IOSDriver(
         )
 
         iosDevice.scroll(
-            appId = activeAppId() ?: return,
             xStart = normalisedStart.x,
             yStart = normalisedStart.y,
             xEnd = normalisedEnd.x,
@@ -438,7 +402,6 @@ class IOSDriver(
             .distance(PointF(end.x * width, end.y * height))
 
         iosDevice.scroll(
-            appId = activeAppId() ?: return,
             xStart = start.x,
             yStart = start.y,
             xEnd = end.x,
@@ -469,10 +432,7 @@ class IOSDriver(
     }
 
     override fun inputText(text: String) {
-        val appId = activeAppId() ?: return
-
         iosDevice.input(
-            appId = appId,
             text = text,
         ).expect {}
     }
@@ -502,21 +462,6 @@ class IOSDriver(
 
     override fun isShutdown(): Boolean {
         return iosDevice.isShutdown()
-    }
-
-    private fun activeAppId(): String? {
-        var resolvedAppId: String? = ""
-        for (i in 0..MAX_RETRIES) {
-            val resolvedApp = try {
-                resolvedAppId = getRunningAppIdResolver.invoke() ?: appId
-                resolvedAppId
-            } catch (connectException: ConnectException) {
-                xcUiTestDriver.setup()
-                null
-            }
-            if (!resolvedApp.isNullOrEmpty()) break
-        }
-        return resolvedAppId
     }
 
     private fun toSeconds(ms: Long): Float {
