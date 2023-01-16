@@ -35,6 +35,7 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.MaestroTimer
+import maestro.utils.StringUtils.toRegexSafe
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
 import java.io.File
@@ -666,7 +667,7 @@ class Orchestra(
             ?.let {
                 descriptions += "Text matching regex: $it"
                 filters += Filters.deepestMatchingElement(
-                    Filters.textMatches(it.toRegex(REGEX_OPTIONS)).asFilter()
+                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS)).asFilter()
                 )
             }
 
@@ -674,7 +675,7 @@ class Orchestra(
             ?.let {
                 descriptions += "Id matching regex: $it"
                 filters += Filters.deepestMatchingElement(
-                    Filters.idMatches(it.toRegex(REGEX_OPTIONS))
+                    Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
                 )
             }
 

@@ -15,6 +15,7 @@ import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.orchestra.Orchestra
+import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
 import java.nio.file.Path
 import java.util.IdentityHashMap
@@ -96,8 +97,16 @@ object DeviceScreenService {
             val bounds = element.bounds()
             val text = element.attribute("text")
             val resourceId = element.attribute("resource-id")
-            val textIndex = if (text == null) null else getIndex(Filters.textMatches(text.toRegex(Orchestra.REGEX_OPTIONS)).asFilter(), element)
-            val resourceIdIndex = if (resourceId == null) null else getIndex(Filters.idMatches(resourceId.toRegex(Orchestra.REGEX_OPTIONS)), element)
+            val textIndex = if (text == null) {
+                null
+            } else {
+                getIndex(Filters.textMatches(text.toRegexSafe(Orchestra.REGEX_OPTIONS)).asFilter(), element)
+            }
+            val resourceIdIndex = if (resourceId == null) {
+                null
+            } else {
+                getIndex(Filters.idMatches(resourceId.toRegexSafe(Orchestra.REGEX_OPTIONS)), element)
+            }
             fun createElementId(): String {
                 val parts = listOfNotNull(resourceId, resourceIdIndex, text, textIndex)
                 val fallbackId = bounds?.let { (x, y, w, h) -> "$x,$y,$w,$h" } ?: UUID.randomUUID().toString()

@@ -28,6 +28,7 @@ import maestro.cli.DisableAnsiMixin
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.red
 import maestro.orchestra.Orchestra
+import maestro.utils.StringUtils.toRegexSafe
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Model
@@ -63,11 +64,11 @@ class QueryCommand : Runnable {
             val filters = mutableListOf<ElementFilter>()
 
             text?.let {
-                filters += Filters.textMatches(it.toRegex(Orchestra.REGEX_OPTIONS)).asFilter()
+                filters += Filters.textMatches(it.toRegexSafe(Orchestra.REGEX_OPTIONS)).asFilter()
             }
 
             id?.let {
-                filters += Filters.idMatches(it.toRegex(Orchestra.REGEX_OPTIONS))
+                filters += Filters.idMatches(it.toRegexSafe(Orchestra.REGEX_OPTIONS))
             }
 
             if (filters.isEmpty()) {
