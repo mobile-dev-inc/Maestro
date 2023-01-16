@@ -37,13 +37,15 @@ class TestSuiteInteractor(
                 env,
             )
         } else {
-            val flowFiles = WorkspaceUtils.filterFlowFilesBasedOnTags(input.listFiles().map { it.toPath() }, includeTags, excludeTags)
+            val flowFiles = WorkspaceUtils.filterFilesBasedOnTags(input.listFiles().map { it.toPath() }, includeTags, excludeTags)
             if (flowFiles.isEmpty()) {
                 throw CliError("No flow returned from the tag filter used")
             }
 
             runTestSuite(
-                flowFiles.map { it.toFile() },
+                flowFiles
+                    .filter(WorkspaceUtils::isFlowFile)
+                    .map { it.toFile() },
                 reportOut,
                 env,
             )

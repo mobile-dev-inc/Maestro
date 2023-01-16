@@ -25,7 +25,7 @@ object WorkspaceUtils {
         val files = Files.walk(file).filter { !it.isDirectory() }.toList()
         val relativeTo = if (file.isDirectory()) file else file.parent
 
-        val flowsMatchingTagsRule = filterFlowFilesBasedOnTags(
+        val flowsMatchingTagsRule = filterFilesBasedOnTags(
             files,
             includeTags = includeTags,
             excludeTags = excludeTags,
@@ -47,20 +47,22 @@ object WorkspaceUtils {
         }
     }
 
-    fun filterFlowFilesBasedOnTags(
+    fun isFlowFile(path: Path): Boolean {
+        return with(path.toFile()) {
+            isFile
+                && extension in setOf("yaml", "yml")
+                && nameWithoutExtension != "config"
+        }
+    }
+
+    fun filterFilesBasedOnTags(
         files: List<Path>,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
     ): List<Path> {
 
-        val isFlowFile = { it: Path ->
-            it.toFile().isFile
-                && it.toFile().extension in setOf("yaml", "yml")
-                && it.toFile().nameWithoutExtension != "config"
-        }
-
         val flowFiles = files
-            .filter(isFlowFile)
+            .filter(::isFlowFile)
 
         val flowsMatchingTagRule = mutableSetOf<Path>()
         val referencedSubFlows = mutableSetOf<String>()
@@ -92,7 +94,7 @@ object WorkspaceUtils {
             }
 
         files
-            .filterNot(isFlowFile)
+            .filterNot(::isFlowFile)
             .forEach {
                 flowsMatchingTagRule.add(it)
             }

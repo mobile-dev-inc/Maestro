@@ -12,20 +12,23 @@ class WorkspaceUtilsTest {
         val flowB = FileUtils.toFile(this.javaClass.getResource("/tags/flowB.yaml"))
         val subFlow = FileUtils.toFile(this.javaClass.getResource("/tags/subflow.yaml"))
         val subSubFlow = FileUtils.toFile(this.javaClass.getResource("/tags/subsubflow.yaml"))
+        val config = FileUtils.toFile(this.javaClass.getResource("/tags/config.yml"))
         val script = FileUtils.toFile(this.javaClass.getResource("/tags/script.js"))
+
         return listOf(
             flowA.toPath(),
             flowB.toPath(),
             subFlow.toPath(),
             subSubFlow.toPath(),
-            script.toPath()
+            config.toPath(),
+            script.toPath(),
         )
     }
 
     @Test
-    fun `Test filterFlowsFilesBasedOnTags only include-tags with one option`() {
+    fun `Test filterFilesBasedOnTags only include-tags with one option`() {
         // When
-        val result = WorkspaceUtils.filterFlowFilesBasedOnTags(
+        val result = WorkspaceUtils.filterFilesBasedOnTags(
             flowFiles(),
             includeTags = listOf("dev"),
         )
@@ -36,14 +39,15 @@ class WorkspaceUtilsTest {
             "flowB.yaml",
             "subflow.yaml",
             "subsubflow.yaml",
+            "config.yml",
             "script.js",
         )
     }
 
     @Test
-    fun `Test filterFlowsFilesBasedOnTags only include-tags, but with multiple options`() {
+    fun `Test filterFilesBasedOnTags only include-tags, but with multiple options`() {
         // When
-        val result = WorkspaceUtils.filterFlowFilesBasedOnTags(
+        val result = WorkspaceUtils.filterFilesBasedOnTags(
             flowFiles(),
             includeTags = listOf("dev", "pull-request"),
         )
@@ -54,14 +58,15 @@ class WorkspaceUtilsTest {
             "flowB.yaml",
             "subflow.yaml",
             "subsubflow.yaml",
+            "config.yml",
             "script.js",
         )
     }
 
     @Test
-    fun `Test filterFlowsFilesBasedOnTags only exclude-tags`() {
+    fun `Test filterFilesBasedOnTags only exclude-tags`() {
         // When
-        val result = WorkspaceUtils.filterFlowFilesBasedOnTags(
+        val result = WorkspaceUtils.filterFilesBasedOnTags(
             flowFiles(),
             excludeTags = listOf("pull-request"),
         )
@@ -71,14 +76,15 @@ class WorkspaceUtilsTest {
             "flowB.yaml",
             "subflow.yaml",
             "subsubflow.yaml",
+            "config.yml",
             "script.js",
         )
     }
 
     @Test
-    fun `Test filterFlowsFilesBasedOnTags proving both`() {
+    fun `Test filterFilesBasedOnTags proving both`() {
         // When
-        val result = WorkspaceUtils.filterFlowFilesBasedOnTags(
+        val result = WorkspaceUtils.filterFilesBasedOnTags(
             flowFiles(),
             includeTags = listOf("dev"),
             excludeTags = listOf("pull-request"),
@@ -89,6 +95,7 @@ class WorkspaceUtilsTest {
             "flowB.yaml",
             "subflow.yaml",
             "subsubflow.yaml",
+            "config.yml",
             "script.js",
         )
     }
