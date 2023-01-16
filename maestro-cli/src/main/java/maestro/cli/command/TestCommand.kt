@@ -59,7 +59,10 @@ class TestCommand : Callable<Int> {
     @Option(names = ["-e", "--env"])
     private var env: Map<String, String> = emptyMap()
 
-    @Option(names = ["--format"])
+    @Option(
+        names = ["--format"],
+        description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
+    )
     private var format: ReportFormat = ReportFormat.NOOP
 
     @Option(names = ["--output"])
