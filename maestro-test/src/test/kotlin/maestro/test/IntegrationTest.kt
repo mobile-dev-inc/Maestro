@@ -2094,6 +2094,34 @@ class IntegrationTest {
         // No test failure
     }
 
+    @Test
+    fun `Case 077 - Env special characters`() {
+        // Given
+        val commands = readCommands("077_env_special_characters")
+            .withEnv(
+                mapOf(
+                    "OUTER" to "!@#\$&*()_+{}|:\"<>?[]\\\\;',./"
+                )
+            )
+
+        val driver = driver {
+            // No elements
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

@@ -20,4 +20,10 @@ object Js {
         }
     """.trimIndent()
 
+    fun sanitizeJs(text: String): String {
+        return text
+            .replace("\n", "")
+            .replace("'", "\\'")
+    }
+
 }

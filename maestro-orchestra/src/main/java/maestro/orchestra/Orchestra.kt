@@ -26,6 +26,7 @@ import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.UiElement
+import maestro.js.Js
 import maestro.js.JsEngine
 import maestro.networkproxy.NetworkProxy
 import maestro.networkproxy.yaml.YamlMappingRuleParser
@@ -36,8 +37,6 @@ import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
-import org.jsoup.Jsoup
-import org.jsoup.safety.Safelist
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Files
@@ -248,7 +247,7 @@ class Orchestra(
 
     private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
         command.env.forEach { (name, value) ->
-            val cleanValue = Jsoup.clean(value, Safelist.none())
+            val cleanValue = Js.sanitizeJs(value)
             jsEngine.evaluateScript("var $name = '$cleanValue'")
         }
 
@@ -779,7 +778,7 @@ class Orchestra(
         copiedText = element.treeNode.attributes["text"]
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: $element")
 
-        jsEngine.evaluateScript("maestro.copiedText = '${Jsoup.clean(copiedText, Safelist.none())}'")
+        jsEngine.evaluateScript("maestro.copiedText = '${Js.sanitizeJs(copiedText ?: "")}'")
 
         return true
     }

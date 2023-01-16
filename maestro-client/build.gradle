@@ -65,7 +65,6 @@ dependencies {
     api "com.android.tools:sdk-common:30.3.0"
     api "com.android.tools.apkparser:apkanalyzer:30.3.0"
     api 'org.mozilla:rhino:1.7.14'
-    api 'org.jsoup:jsoup:1.15.3'
     api 'com.squareup.okhttp3:okhttp:4.10.0'
     api 'org.rauschig:jarchivelib:1.2.0'
     api 'com.fasterxml.jackson.core:jackson-databind:2.13.4'

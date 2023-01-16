@@ -2,8 +2,6 @@ package maestro.js
 
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
-import org.jsoup.Jsoup
-import org.jsoup.safety.Safelist
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.ScriptableObject
 import java.util.concurrent.TimeUnit
@@ -77,7 +75,7 @@ class JsEngine(
             env.forEach { (key, value) ->
                 context.evaluateString(
                     scope,
-                    "var $key = '${Jsoup.clean(value, Safelist.none())}'",
+                    "var $key = '${Js.sanitizeJs(value)}'",
                     sourceName,
                     1,
                     null
