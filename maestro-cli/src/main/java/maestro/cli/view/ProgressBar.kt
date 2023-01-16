@@ -22,7 +22,8 @@ class ProgressBar(private val width: Int) {
             System.err.print(ansi)
         } else {
             val progressFactor = (progress * width).toInt()
-            val amountToAdd = progressFactor - alreadyPrinted
+            var amountToAdd = progressFactor - alreadyPrinted
+            if (amountToAdd < 0) amountToAdd = 0
             alreadyPrinted = progressFactor
             print(".".repeat(amountToAdd))
         }
