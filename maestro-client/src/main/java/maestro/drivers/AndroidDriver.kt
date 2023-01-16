@@ -260,7 +260,7 @@ class AndroidDriver(
     }
 
     override fun scrollVertical() {
-        swipe(SwipeDirection.UP, 2000)
+        swipe(SwipeDirection.UP, 400)
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
@@ -272,7 +272,7 @@ class AndroidDriver(
         when(swipeDirection) {
             SwipeDirection.UP -> {
                 val startX = (deviceInfo.widthGrid * 0.5f).toInt()
-                val startY = (deviceInfo.heightGrid * 0.9f).toInt()
+                val startY = (deviceInfo.heightGrid * 0.5f).toInt()
                 val endX = (deviceInfo.widthGrid * 0.5f).toInt()
                 val endY = (deviceInfo.heightGrid * 0.1f).toInt()
                 directionalSwipe(
