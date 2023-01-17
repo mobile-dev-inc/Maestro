@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.19.1 - 2023-01-17
+* Feature: generating test report from `maestro cloud` output
+* Fix: in rare cases, maestro cloud was computing progress bar as negative value
+* Fix: local test suite included non-flow files
+* Fix: some special characters were not allowed in env variables (i.e. `&`)
+* Fix: vertical scrolling was sometimes not working on iOS
+* Fix: if a text string is an invalid regex, treat it as a regular string instead
+* Fix: scroll and swipe commands on iOS were throwing an error when running in parallel with Maestro Studio
+* Tweak: print out valid inputs for `--format` parameter in `maestro test` and `maestro upload`
+* Tweak: removed Maestro Studio warning related to parallel execution
+* Refactor: making XCTestDriver configurable
+
 ## 1.19.0 - 2023-01-13
 * Feature: iOS unicode input support + non-English keyboards
 * Feature: `swipe` command now supports `from` argument to swipe from a given view
