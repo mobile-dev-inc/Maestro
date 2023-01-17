@@ -13,7 +13,6 @@ import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import maestro.logger.Logger
 import okio.Sink
-import util.XCRunnerSimctl
 import xcuitest.XCTestDriverClient
 import xcuitest.api.GetRunningAppIdResponse
 import xcuitest.installer.XCTestInstaller
@@ -25,6 +24,7 @@ class XCTestIOSDevice(
     private val client: XCTestDriverClient,
     private val installer: XCTestInstaller,
     private val logger: Logger,
+    private val getInstalledApps: () -> Set<String>,
 ) : IOSDevice {
 
     private var closed: Boolean = false
@@ -185,7 +185,7 @@ class XCTestIOSDevice(
     }
 
     private fun activeAppId(): String? {
-        val appIds = XCRunnerSimctl.listApps()
+        val appIds = getInstalledApps()
         logger.info("installed apps: $appIds")
 
         return client.runningAppId(appIds).use { response ->

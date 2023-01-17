@@ -33,6 +33,7 @@ import maestro.cli.device.Platform
 import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
+import util.XCRunnerSimctl
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.LocalXCTestInstaller
 import java.util.UUID
@@ -166,6 +167,7 @@ object MaestroSessionManager {
                                             deviceId = selectedDevice.device.instanceId,
                                             driverClient = xcTestDriverClient
                                         ),
+                                        getInstalledApps = { XCRunnerSimctl.listApps() },
                                         logger = IOSDriverLogger(),
                                     ),
                                     xcRunIOSDevice = XCRunIOSDevice(selectedDevice.device.instanceId),
@@ -282,6 +284,7 @@ object MaestroSessionManager {
                         deviceId = device.instanceId,
                         driverClient = xcTestDriverClient
                     ),
+                    getInstalledApps = { XCRunnerSimctl.listApps() },
                     logger = IOSDriverLogger(),
                 ),
                 xcRunIOSDevice = XCRunIOSDevice(device.instanceId),
