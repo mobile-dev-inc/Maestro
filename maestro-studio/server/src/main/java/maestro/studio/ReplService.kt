@@ -6,17 +6,21 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
+import io.ktor.server.request.receiveStream
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import maestro.Maestro
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.yaml.YamlFluentCommand
+import java.io.IOException
 import java.nio.file.Paths
 import java.util.UUID
 import kotlin.concurrent.thread
@@ -116,16 +120,16 @@ object ReplService {
     private val state = ReplState()
 
     fun routes(routing: Routing, maestro: Maestro) {
-        routing.get("/xcuitest/api/repl") {
+        routing.get("/api/repl") {
             call.respondRepl()
         }
-        routing.get("/xcuitest/api/repl/watch") {
+        routing.get("/api/repl/watch") {
             val currentReplVersion = call.parameters["currentVersion"]?.toIntOrNull()
                 ?: throw HttpException(HttpStatusCode.BadRequest, "Must specify current repl version")
             state.waitForChange(currentReplVersion)
             call.respondRepl()
         }
-        routing.post("/xcuitest/api/repl/command") {
+        routing.post("/api/repl/command") {
             val request = call.parseBody<RunCommandRequest>()
             when {
                 request.ids != null -> {
@@ -145,17 +149,17 @@ object ReplService {
             }
             call.respondRepl()
         }
-        routing.delete("/xcuitest/api/repl/command") {
+        routing.delete("/api/repl/command") {
             val request = call.parseBody<DeleteCommandsRequest>()
             state.deleteEntries(request.ids)
             call.respondRepl()
         }
-        routing.post("/xcuitest/api/repl/command/reorder") {
+        routing.post("/api/repl/command/reorder") {
             val request = call.parseBody<ReorderCommandsRequest>()
             state.reorderEntries(request.ids)
             call.respondRepl()
         }
-        routing.post("/xcuitest/api/repl/command/format") {
+        routing.post("/api/repl/command/format") {
             val request = call.parseBody<FormatCommandsRequest>()
             val entries = state.getEntriesById(request.ids)
             val inferredAppId = entries.firstNotNullOfOrNull { e -> e.commands.firstNotNullOfOrNull { c -> c.launchAppCommand?.appId } } ?: "<your-app-id>"
