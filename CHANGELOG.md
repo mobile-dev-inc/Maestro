@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.19.2 - 2023-01-17
+* Hotfix: Maestro Studio was not working
+
 ## 1.19.1 - 2023-01-17
 * Feature: generating test report from `maestro cloud` output
 * Fix: in rare cases, maestro cloud was computing progress bar as negative value
