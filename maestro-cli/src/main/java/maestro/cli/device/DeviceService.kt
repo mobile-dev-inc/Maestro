@@ -20,6 +20,8 @@ import kotlin.concurrent.thread
 object DeviceService {
 
     private val logger = DebugLogStore.loggerFor(DeviceService::class.java)
+    private const val idbHost = "localhost"
+    private const val idbPort = 10882
 
     fun startDevice(device: Device.AvailableForLaunch): Device.Connected {
         when (device.platform) {
@@ -74,20 +76,18 @@ object DeviceService {
         }
     }
 
-    private fun startIdbCompanion(device: Device.Connected) {
-        logger.info("startIDBCompanion on $device")
-
-        val idbHost = "localhost"
-        val idbPort = 10882
-
-        val isIdbCompanionRunning =
-            try {
+    private fun isIdbCompanionRunning(): Boolean {
+        return try {
                 Socket(idbHost, idbPort).use { true }
             } catch (_: Exception) {
                 false
             }
+    }
 
-        if (isIdbCompanionRunning && SessionStore.activeSessions().isEmpty()) {
+    private fun startIdbCompanion(device: Device.Connected) {
+        logger.info("startIDBCompanion on $device")
+
+        if (isIdbCompanionRunning() && SessionStore.activeSessions().isEmpty()) {
             error("idb_companion is already running. Stop idb_companion and run maestro again")
         }
 

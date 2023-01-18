@@ -6,9 +6,14 @@ object PickDeviceInteractor {
 
     fun pickDevice(deviceId: String? = null): Device.Connected {
         if (deviceId != null) {
-            return DeviceService.listConnectedDevices()
-                .find { it.instanceId == deviceId }
-                ?: throw CliError("Device with id $deviceId is not connected")
+            val device = DeviceService.listConnectedDevices()
+                .find {
+                    it.instanceId == deviceId
+                } ?: throw CliError("Device with id $deviceId is not connected")
+
+            DeviceService.prepareDevice(device)
+
+            return device
         }
 
         return pickDeviceInternal()
