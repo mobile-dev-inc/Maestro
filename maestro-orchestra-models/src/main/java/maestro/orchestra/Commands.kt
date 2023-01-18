@@ -66,7 +66,9 @@ data class SwipeCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): SwipeCommand {
-        return this
+        return copy(
+            elementSelector = elementSelector?.evaluateScripts(jsEngine),
+        )
     }
 
     companion object {
