@@ -27,10 +27,12 @@ class InputTextRouteHandler : RouteHandler {
             let element = xcuiApplication
                 .descendants(matching: .any)
                 .element(matching: NSPredicate(format: "hasKeyboardFocus == true"))
-            
-            if (element.exists) {
-                element.typeText(requestBody.text)
+        
+            if (!element.exists) {
+                return HTTPResponse(statusCode: .notFound)
             }
+            
+            element.typeText(requestBody.text)
             
             return HTTPResponse(statusCode: .ok)
         }

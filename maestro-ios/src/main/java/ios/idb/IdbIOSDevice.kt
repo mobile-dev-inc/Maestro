@@ -199,7 +199,17 @@ class IdbIOSDevice(
     override fun input(
         text: String,
     ): Result<Unit, Throwable> {
-        error("Not supported")
+        return runCatching {
+            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
+            val stream = asyncStub.hid(responseObserver)
+
+            TextInputUtil.textToListOfEvents(text)
+                .forEach {
+                    stream.onNext(it)
+                    Thread.sleep(75)
+                }
+            stream.onCompleted()
+        }
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {

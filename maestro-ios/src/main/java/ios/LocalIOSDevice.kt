@@ -67,6 +67,13 @@ class LocalIOSDevice(
 
     override fun input(text: String): Result<Unit, Throwable> {
         return xcTestDevice.input(text)
+            .recoverIf(
+                { it is XCTestIOSDevice.InputFieldNotFound },
+                {
+                    idbIOSDevice.input(text)
+                        .getOrThrow()
+                }
+            )
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {

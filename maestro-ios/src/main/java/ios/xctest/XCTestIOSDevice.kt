@@ -111,7 +111,7 @@ class XCTestIOSDevice(
                 endX = xEnd,
                 endY = yEnd,
                 velocity = velocity,
-            ).use { }
+            ).use {}
         }
     }
 
@@ -122,7 +122,13 @@ class XCTestIOSDevice(
             client.inputText(
                 appId = appId,
                 text = text,
-            ).use { }
+            ).use {
+                if (!it.isSuccessful) {
+                    if (it.code == 404) {
+                        throw InputFieldNotFound()
+                    }
+                }
+            }
         }
     }
 
@@ -212,6 +218,7 @@ class XCTestIOSDevice(
     }
 
     class IllegalArgumentSnapshotFailure : Throwable("Failed to capture view hierarchy due to kAXErrorIllegalArgument")
+    class InputFieldNotFound : Throwable("Unable to find focused input field")
     class UnknownFailure(val errorResponse: String) : Throwable()
 
     companion object {
