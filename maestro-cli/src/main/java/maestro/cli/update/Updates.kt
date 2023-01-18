@@ -2,6 +2,7 @@ package maestro.cli.update
 
 import maestro.cli.api.ApiClient
 import maestro.cli.api.CliVersion
+import maestro.cli.util.CiUtils
 import maestro.cli.view.red
 import java.nio.file.Paths
 import java.util.Properties
@@ -41,10 +42,14 @@ object Updates {
             false
         } else {
             uuidPath.parent.createDirectories()
-            uuidPath.writeText(UUID.randomUUID().toString())
+            uuidPath.writeText(generateUUID())
             true
         }
         DEVICE_UUID = uuidPath.readText()
+    }
+
+    private fun generateUUID(): String {
+        return CiUtils.getCiProvider() ?: UUID.randomUUID().toString()
     }
 
     fun fetchUpdatesAsync() {

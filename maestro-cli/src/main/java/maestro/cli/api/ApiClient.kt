@@ -9,6 +9,7 @@ import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.update.Updates
+import maestro.cli.util.CiUtils
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -42,7 +43,6 @@ class ApiClient(
         .addInterceptor(SystemInformationInterceptor())
         .build()
 
-    private val knownCIEnvVars = listOf("CI", "JENKINS_HOME", "BITRISE_IO")
     private val BASE_RETRY_DELAY_MS = 3000L
 
     fun sendErrorReport(exception: Exception, commandLine: String) {
@@ -134,14 +134,7 @@ class ApiClient(
     }
 
     private fun getAgent(): String {
-        for (ciVar in knownCIEnvVars) {
-            try {
-                val value = System.getenv(ciVar).lowercase()
-                if (value.isNotEmpty() && value != "0" && value != "false") return "ci"
-            } catch (e: Exception) {}
-        }
-
-        return "cli"
+        return CiUtils.getCiProvider() ?: "cli"
     }
 
     fun uploadStatus(
