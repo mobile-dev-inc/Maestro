@@ -1,4 +1,6 @@
 appId: org.wikipedia
+tags:
+  - advanced
 ---
 - runFlow: subflows/onboarding-android.yaml
 - tapOn:

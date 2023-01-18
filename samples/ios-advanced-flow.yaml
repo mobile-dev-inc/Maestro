@@ -1,4 +1,6 @@
 appId: org.wikimedia.wikipedia
+tags:
+  - advanced
 ---
 - runFlow: subflows/onboarding-ios.yaml
 - tapOn:
