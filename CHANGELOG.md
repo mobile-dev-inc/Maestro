@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.19.5 - 2023-01-19
+* Fix: inputText was not working on iOS React Native apps
+* Fix: Maestro fails to launch on iOS if --device parameter is present
+* Fix: Evaluate JS scripts with element selector in swipe command
+* Tweak: added tags to sample flows
+* Tweak: indicating whether build is running on CI in analytics
+
 ## 1.19.2 - 2023-01-17
 * Hotfix: Maestro Studio was not working
 
