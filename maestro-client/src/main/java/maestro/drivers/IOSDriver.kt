@@ -372,23 +372,23 @@ class IOSDriver(
 
         when (direction) {
             SwipeDirection.UP -> {
-                val end = PointF(x = 0.5f, y = 0.1f)
                 val start = elementPoint.normalise(width, height)
+                val end = PointF(x = start.x, y = 0.1f)
                 directionalSwipe(durationMs, start, end)
             }
             SwipeDirection.DOWN -> {
-                val end = PointF(x = 0.5f, y = 0.9f)
                 val start = elementPoint.normalise(width, height)
+                val end = PointF(x = start.x, y = 0.9f)
                 directionalSwipe(durationMs, start, end)
             }
             SwipeDirection.RIGHT -> {
-                val end = PointF(x = 0.9f, y = 0.5f)
                 val start = elementPoint.normalise(width, height)
+                val end = PointF(x = 0.9f, y = start.y)
                 directionalSwipe(durationMs, start, end)
             }
             SwipeDirection.LEFT -> {
-                val end = PointF(x = 0.1f, y = 0.5f)
                 val start = elementPoint.normalise(width, height)
+                val end = PointF(x = 0.1f, y = start.y)
                 directionalSwipe(durationMs, start, end)
             }
         }

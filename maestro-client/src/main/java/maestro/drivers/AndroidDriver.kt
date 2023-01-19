@@ -321,24 +321,20 @@ class AndroidDriver(
         val deviceInfo = deviceInfo()
         when(direction) {
             SwipeDirection.UP -> {
-                val endX = (deviceInfo.widthGrid * 0.5f).toInt()
                 val endY = (deviceInfo.heightGrid * 0.1f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(endX, endY))
+                directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))
             }
             SwipeDirection.DOWN -> {
-                val endX = (deviceInfo.widthGrid * 0.5f).toInt()
                 val endY = (deviceInfo.heightGrid * 0.9f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(endX, endY))
+                directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))
             }
             SwipeDirection.RIGHT -> {
                 val endX = (deviceInfo.widthGrid * 0.9f).toInt()
-                val endY = (deviceInfo.heightGrid * 0.5f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(endX, endY))
+                directionalSwipe(durationMs, elementPoint, Point(endX, elementPoint.y))
             }
             SwipeDirection.LEFT -> {
                 val endX = (deviceInfo.widthGrid * 0.1f).toInt()
-                val endY = (deviceInfo.heightGrid * 0.5f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(endX, endY))
+                directionalSwipe(durationMs, elementPoint, Point(endX, elementPoint.y))
             }
         }
     }
