@@ -43,11 +43,10 @@ const useRepl = (): ReplResponse => {
 
 export const API = {
   useDeviceScreen: (config?: SWRConfiguration<DeviceScreen>): SWRResponse<DeviceScreen> => {
-    return useSWR('/api/device-screen?deletePrevious=true', (url) => makeRequest('GET', url), config)
+    return useSWR('/api/device-screen', (url) => makeRequest('GET', url), config)
   },
-  getDeviceScreen: async (deletePrevious?: boolean): Promise<DeviceScreen> => {
-    const query = deletePrevious ? '?deletePrevious=true' : ''
-    return makeRequest('GET', `/api/device-screen${query}`)
+  getDeviceScreen: async (): Promise<DeviceScreen> => {
+    return makeRequest('GET', `/api/device-screen`)
   },
   repl: {
     useRepl,

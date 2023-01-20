@@ -3,6 +3,7 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent.KEYCODE_1
@@ -34,6 +35,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
+import com.google.protobuf.ByteString
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
@@ -41,6 +43,7 @@ import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfo
 import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
+import maestro_android.screenshotResponse
 import maestro_android.tapResponse
 import maestro_android.viewHierarchyResponse
 import org.junit.Test
@@ -168,6 +171,23 @@ class Service(
 
         responseObserver.onNext(inputTextResponse {  })
         responseObserver.onCompleted()
+    }
+
+    override fun screenshot(
+        request: MaestroAndroid.ScreenshotRequest,
+        responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
+    ) {
+        val outputStream = ByteString.newOutput()
+        val bitmap = uiAutomation.takeScreenshot()
+        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
+            responseObserver.onNext(screenshotResponse {
+                bytes = outputStream.toByteString()
+            })
+            responseObserver.onCompleted()
+        } else {
+            Log.e("Maestro", "Failed to compress bitmap")
+            responseObserver.onError(Throwable("Failed to compress bitmap"))
+        }
     }
 
     private fun setText(text: String) {

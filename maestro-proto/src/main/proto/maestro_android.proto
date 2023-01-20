@@ -8,6 +8,8 @@ service MaestroDriver {
 
   rpc viewHierarchy(ViewHierarchyRequest) returns (ViewHierarchyResponse) {}
 
+  rpc screenshot(ScreenshotRequest) returns (ScreenshotResponse) {}
+
   rpc tap(TapRequest) returns (TapResponse) {}
 
   rpc inputText(InputTextRequest) returns (InputTextResponse) {}
@@ -21,6 +23,12 @@ message DeviceInfoRequest {}
 message DeviceInfo {
   uint32 widthPixels = 1;
   uint32 heightPixels = 2;
+}
+
+message ScreenshotRequest {}
+
+message ScreenshotResponse {
+  bytes bytes = 1;
 }
 
 // View hierarchy

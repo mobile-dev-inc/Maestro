@@ -27,7 +27,6 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
-import maestro.MaestroException.UnableToTakeScreenshot
 import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
@@ -41,6 +40,7 @@ import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
 import maestro_android.eraseAllTextRequest
 import maestro_android.inputTextRequest
+import maestro_android.screenshotRequest
 import maestro_android.tapRequest
 import maestro_android.viewHierarchyRequest
 import okio.Sink
@@ -353,15 +353,10 @@ class AndroidDriver(
     }
 
     override fun takeScreenshot(out: Sink) {
-        val deviceScreenshotPath = "/sdcard/maestro-screenshot.png"
-
-        val adbShellResponse = dadb.shell("screencap -p $deviceScreenshotPath")
-        if (adbShellResponse.exitCode != 0) {
-            throw UnableToTakeScreenshot("Failed to take screenshot: ${adbShellResponse.errorOutput}")
+        val response = blockingStub.screenshot(screenshotRequest {})
+        out.buffer().use {
+            it.write(response.bytes.toByteArray())
         }
-
-        dadb.pull(out, deviceScreenshotPath)
-        dadb.shell("rm $deviceScreenshotPath")
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
