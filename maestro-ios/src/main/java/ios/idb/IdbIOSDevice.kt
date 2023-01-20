@@ -466,9 +466,9 @@ class IdbIOSDevice(
     }
 
     override fun close() {
-        channel.shutdown()
+        channel.shutdownNow()
 
-        if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
             throw TimeoutException("Couldn't close Maestro iOS driver due to gRPC timeout")
         }
     }
