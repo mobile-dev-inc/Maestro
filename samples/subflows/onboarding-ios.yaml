@@ -13,5 +13,4 @@ appId: org.wikimedia.wikipedia
 - swipe:
     direction: LEFT
     duration: 400
-- tapOn:
-    point: "50%,90%"
+- tapOn: Get started

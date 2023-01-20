@@ -3,8 +3,7 @@ tags:
   - advanced
 ---
 - runFlow: subflows/onboarding-ios.yaml
-- tapOn:
-    point: "50%,17%"
+- tapOn: Search Wikipedia
 - runScript: scripts/getSearchQuery.js
 - inputText: ${output.result}
 - assertVisible: ${output.result}
