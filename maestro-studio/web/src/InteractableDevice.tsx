@@ -108,14 +108,14 @@ const InteractableDevice = ({deviceScreen, onHint, onInspectElement}: {
   }
 
   const onSwipeGesture = (startX: number, startY: number, endX: number, endY: number, duration: number) => {
-    const startXpx = Math.round(startX * deviceScreen.width)
-    const startYpx = Math.round(startY * deviceScreen.height)
-    const endXpx = Math.round(endX * deviceScreen.width)
-    const endYpx = Math.round(endY * deviceScreen.height)
+    const startXPercent = Math.round(startX * 100)
+    const startYPercent = Math.round(startY * 100)
+    const endXPercent = Math.round(endX * 100)
+    const endYPercent = Math.round(endY * 100)
     API.repl.runCommand(`
       swipe:
-        start: "${startXpx}, ${startYpx}"
-        end: "${endXpx}, ${endYpx}"
+        start: "${startXPercent}%,${startYPercent}%"
+        end: "${endXPercent}%,${endYPercent}%"
         duration: ${Math.round(duration)}
     `)
   }
