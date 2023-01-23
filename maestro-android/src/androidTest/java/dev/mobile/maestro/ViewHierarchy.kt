@@ -1,14 +1,18 @@
 package dev.mobile.maestro
 
 import android.app.UiAutomation
+import android.content.Context
 import android.graphics.Rect
+import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Xml
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.GridLayout
 import android.widget.GridView
 import android.widget.ListView
 import android.widget.TableLayout
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import org.xmlpull.v1.XmlSerializer
 import java.io.IOException
@@ -24,6 +28,12 @@ object ViewHierarchy {
         uiAutomation: UiAutomation,
         out: OutputStream
     ) {
+        val windowManager = InstrumentationRegistry.getInstrumentation()
+            .context
+            .getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        val displayMetrics = DisplayMetrics()
+        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
 
         val serializer = Xml.newSerializer()
         serializer.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output", true)
@@ -54,8 +64,8 @@ object ViewHierarchy {
                 it,
                 serializer,
                 0,
-                device.displayWidth,
-                device.displayHeight
+                displayMetrics.widthPixels,
+                displayMetrics.heightPixels,
             )
         }
 
