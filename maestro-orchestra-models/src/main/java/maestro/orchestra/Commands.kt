@@ -21,6 +21,7 @@ package maestro.orchestra
 
 import maestro.KeyCode
 import maestro.Point
+import maestro.ScrollDirection
 import maestro.SwipeDirection
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
@@ -80,6 +81,25 @@ data class SwipeCommand(
 
     companion object {
         private const val DEFAULT_DURATION_IN_MILLIS = 400L
+    }
+}
+
+data class ScrollUntilVisibleCommand(
+    val selector: ElementSelector,
+    val direction: ScrollDirection,
+    val timeout: Long = DEFAULT_TIMEOUT_IN_MILLIS
+) : Command {
+
+    override fun description(): String {
+        return "Scrolling $direction until ${selector.description()} is visible."
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
+        return this
+    }
+
+    companion object {
+        const val DEFAULT_TIMEOUT_IN_MILLIS = 20 * 1000L
     }
 }
 

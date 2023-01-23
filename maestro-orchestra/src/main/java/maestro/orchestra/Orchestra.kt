@@ -35,6 +35,7 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.toSwipeDirection
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
@@ -168,6 +169,7 @@ class Orchestra(
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
+            is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
@@ -275,6 +277,26 @@ class Orchestra(
     private fun scrollVerticalCommand(): Boolean {
         maestro.scrollVertical()
         return true
+    }
+
+    private fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
+        val endTime = System.currentTimeMillis() + command.timeout
+        var error: MaestroException.ElementNotFound? = null
+        do {
+            try {
+                maestro.waitForAppToSettle()
+                findElement(command.selector, 500)
+                return true
+            } catch (ignored: MaestroException.ElementNotFound) {
+                error = ignored
+            }
+
+            maestro.swipe(command.direction.toSwipeDirection(), duration = 600L)
+        } while (System.currentTimeMillis() < endTime)
+
+        if (error != null) throw error
+
+        return false
     }
 
     private fun hideKeyboardCommand(): Boolean {

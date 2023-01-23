@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- scrollUntilVisible:
+    element:
+      text: "Test"
+    direction: DOWN
+    timeout: 20000

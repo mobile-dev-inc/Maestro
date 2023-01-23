@@ -22,7 +22,7 @@ package maestro.orchestra.yaml
 import com.fasterxml.jackson.annotation.JsonCreator
 import maestro.KeyCode
 import maestro.Point
-import maestro.orchestra.AssertCommand
+import maestro.ScrollDirection
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
@@ -46,6 +46,7 @@ import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
+import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.SwipeCommand
@@ -90,6 +91,7 @@ data class YamlFluentCommand(
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: String? = null,
     val mockNetwork: String? = null,
+    val scrollUntilVisible: YamlScrollUntilVisible? = null
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -212,6 +214,7 @@ data class YamlFluentCommand(
                     )
                 )
             )
+            scrollUntilVisible != null -> listOf(scrollUntilVisibleCommand(scrollUntilVisible))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -423,6 +426,21 @@ data class YamlFluentCommand(
         return MaestroCommand(
             CopyTextFromCommand(
                 selector = toElementSelector(copyText)
+            )
+        )
+    }
+
+    private fun scrollUntilVisibleCommand(yaml: YamlScrollUntilVisible): MaestroCommand {
+        val timeout =
+            if (yaml.timeout < ScrollUntilVisibleCommand.DEFAULT_TIMEOUT_IN_MILLIS) {
+                ScrollUntilVisibleCommand.DEFAULT_TIMEOUT_IN_MILLIS
+            } else yaml.timeout
+
+        return MaestroCommand(
+            ScrollUntilVisibleCommand(
+                selector = toElementSelector(yaml.element),
+                direction = yaml.direction,
+                timeout = timeout
             )
         )
     }
