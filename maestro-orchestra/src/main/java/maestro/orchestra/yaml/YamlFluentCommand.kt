@@ -351,6 +351,11 @@ data class YamlFluentCommand(
 
                 return MaestroCommand(SwipeCommand(startPoint = startPoint, endPoint = endPoint, duration = swipe.duration))
             }
+            is YamlRelativeCoordinateSwipe -> {
+                return MaestroCommand(
+                    SwipeCommand(startRelative = swipe.start, endRelative = swipe.end)
+                )
+            }
             is YamlSwipeElement -> return swipeElementCommand(swipe)
             else -> {
                 throw IllegalStateException(

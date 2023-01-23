@@ -47,6 +47,8 @@ data class SwipeCommand(
     val startPoint: Point? = null,
     val endPoint: Point? = null,
     val elementSelector: ElementSelector? = null,
+    val startRelative: String? = null,
+    val endRelative: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS
 ) : Command {
 
@@ -61,6 +63,9 @@ data class SwipeCommand(
             startPoint != null && endPoint != null -> {
                 "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y}) in $duration ms"
             }
+            startRelative != null && endRelative != null -> {
+                "Swipe from ($startRelative) to ($endRelative) in $duration ms"
+            }
             else -> "Invalid input to swipe command"
         }
     }
@@ -68,6 +73,8 @@ data class SwipeCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SwipeCommand {
         return copy(
             elementSelector = elementSelector?.evaluateScripts(jsEngine),
+            startRelative = startRelative?.evaluateScripts(jsEngine),
+            endRelative = endRelative?.evaluateScripts(jsEngine)
         )
     }
 

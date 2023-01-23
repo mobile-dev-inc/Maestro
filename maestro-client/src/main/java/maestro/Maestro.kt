@@ -110,10 +110,32 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
-    fun swipe(swipeDirection: SwipeDirection? = null, start: Point? = null, end: Point? = null, duration: Long) {
+    fun swipe(
+        swipeDirection: SwipeDirection? = null,
+        startPoint: Point? = null,
+        endPoint: Point? = null,
+        startRelative: String? = null,
+        endRelative: String? = null,
+        duration: Long
+    ) {
         when {
             swipeDirection != null -> driver.swipe(swipeDirection, duration)
-            start != null && end != null -> driver.swipe(start, end, duration)
+            startPoint != null && endPoint != null -> driver.swipe(startPoint, endPoint, duration)
+            startRelative != null && endRelative != null -> {
+                val startPoints = startRelative.replace("%", "")
+                    .split(",").map { it.trim().toInt() }
+                val startX = cachedDeviceInfo.widthGrid * startPoints[0] / 100
+                val startY = cachedDeviceInfo.heightGrid * startPoints[1] / 100
+                val start = Point(startX, startY)
+
+                val endPoints = endRelative.replace("%", "")
+                    .split(",").map { it.trim().toInt() }
+                val endX = cachedDeviceInfo.widthGrid * endPoints[0] / 100
+                val endY = cachedDeviceInfo.heightGrid * endPoints[1] / 100
+                val end = Point(endX, endY)
+
+                driver.swipe(start, end, duration)
+            }
         }
 
         waitForAppToSettle()

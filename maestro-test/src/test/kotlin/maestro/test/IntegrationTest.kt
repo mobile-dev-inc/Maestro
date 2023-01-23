@@ -2122,6 +2122,28 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 078 - Swipe with relative coordinates`() {
+        // given
+        val commands = readCommands("078_swipe_relative")
+        val driver = driver {
+        }
+        val deviceInfo = driver.deviceInfo()
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        val expectedStart = Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid * 30 / 100)
+        val expectedEnd = Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid * 60 / 100)
+        driver.assertHasEvent(
+            Event.Swipe(start = expectedStart, End = expectedEnd, durationMs = 400)
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

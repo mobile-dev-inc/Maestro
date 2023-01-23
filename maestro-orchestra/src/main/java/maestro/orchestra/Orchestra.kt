@@ -758,12 +758,21 @@ class Orchestra(
     private fun swipeCommand(command: SwipeCommand): Boolean {
         val elementSelector = command.elementSelector
         val direction = command.direction
+        val startRelative = command.startRelative
+        val endRelative = command.endRelative
+        val start = command.startPoint
+        val end = command.endPoint
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector)
                 maestro.swipe(direction, uiElement, command.duration)
             }
-            else -> maestro.swipe(direction, command.startPoint, command.endPoint, command.duration)
+            startRelative != null && endRelative != null -> {
+                maestro.swipe(startRelative = startRelative, endRelative = endRelative, duration = command.duration)
+            }
+            direction != null -> maestro.swipe(swipeDirection = direction, duration = command.duration)
+            start != null && end != null -> maestro.swipe(startPoint = start, endPoint = end, duration = command.duration)
+            else -> error("Illegal arguments for swiping")
         }
         return true
     }

@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- swipe:
+    start: "50%,30%"
+    end: "50%,60%"
+    duration: 3000

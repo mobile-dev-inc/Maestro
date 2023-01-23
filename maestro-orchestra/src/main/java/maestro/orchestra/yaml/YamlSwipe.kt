@@ -19,6 +19,8 @@ interface YamlSwipe {
 
 data class YamlSwipeDirection(val direction: SwipeDirection, override val duration: Long = DEFAULT_DURATION_IN_MILLIS) : YamlSwipe
 data class YamlCoordinateSwipe(val start: String, val end: String, override val duration: Long = DEFAULT_DURATION_IN_MILLIS) : YamlSwipe
+data class YamlRelativeCoordinateSwipe(val start: String, val end: String, override val duration: Long = DEFAULT_DURATION_IN_MILLIS) : YamlSwipe
+
 @JsonDeserialize(`as` = YamlSwipeElement::class)
 data class YamlSwipeElement(
     @JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_PROPERTIES])
@@ -42,11 +44,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 check(root.get("start") != null && root.get("end") != null) {
                     "You need to provide both start and end coordinates, to swipe with coordinates"
                 }
-                return YamlCoordinateSwipe(
-                    root.path("start").toString().replace("\"", ""),
-                    root.path("end").toString().replace("\"", ""),
-                    duration
-                )
+                return resolveCoordinateSwipe(root, duration)
             }
             input.contains("direction") -> {
                 check(root.get("start") == null && root.get("end") == null) {
@@ -77,6 +75,47 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 )
             }
         }
+    }
+
+    private fun resolveCoordinateSwipe(root: TreeNode, duration: Long): YamlSwipe {
+        when {
+            isRelativeSwipe(root) -> {
+                val start = root.path("start").toString().replace("\"", "")
+                val end = root.path("end").toString().replace("\"", "")
+                check(start.contains("%") && end.contains("%")) {
+                    "You need to provide start and end coordinates with %, Found: (${start}, ${end})"
+                }
+                val startPoints = start
+                    .replace("%", "")
+                    .split(",")
+                    .map { it.trim().toInt() }
+                val endPoints = end
+                    .replace("%", "")
+                    .split(",")
+                    .map { it.trim().toInt() }
+                check(startPoints[0] in 0..100 && startPoints[1] in 0..100) {
+                    "Invalid start point: $start should be between 0 to 100"
+                }
+                check(endPoints[0] in 0..100 && endPoints[1] in 0..100) {
+                    "Invalid start point: $end should be between 0 to 100"
+                }
+
+                return YamlRelativeCoordinateSwipe(
+                    start,
+                    end,
+                    duration
+                )
+            }
+            else -> return YamlCoordinateSwipe(
+                root.path("start").toString().replace("\"", ""),
+                root.path("end").toString().replace("\"", ""),
+                duration
+            )
+        }
+    }
+
+    private fun isRelativeSwipe(root: TreeNode): Boolean {
+        return root.get("start").toString().contains("%") || root.get("end").toString().contains("%")
     }
 
     private fun getDuration(root: TreeNode): Long {

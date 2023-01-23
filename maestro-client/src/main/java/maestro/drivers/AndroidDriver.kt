@@ -283,7 +283,7 @@ class AndroidDriver(
             }
             SwipeDirection.DOWN -> {
                 val startX = (deviceInfo.widthGrid * 0.5f).toInt()
-                val startY = (deviceInfo.heightGrid * 0.1f).toInt()
+                val startY = (deviceInfo.heightGrid * 0.2f).toInt()
                 val endX = (deviceInfo.widthGrid * 0.5f).toInt()
                 val endY = (deviceInfo.heightGrid * 0.9f).toInt()
                 directionalSwipe(

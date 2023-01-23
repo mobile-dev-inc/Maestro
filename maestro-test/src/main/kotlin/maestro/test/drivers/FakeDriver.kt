@@ -365,6 +365,12 @@ class FakeDriver : Driver {
 
         data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(), UserInteraction
 
+        data class SwipeRelative(
+            val startRelativeValue: Int,
+            val endRelativeValue: Int,
+            val durationMs: Long
+        ): Event(), UserInteraction
+
         data class SwipeElementWithDirection(
             val point: Point,
             val swipeDirection: SwipeDirection,
