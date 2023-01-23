@@ -2,7 +2,6 @@ package dev.mobile.maestro
 
 import android.app.UiAutomation
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.util.DisplayMetrics
 import android.util.Log
@@ -35,6 +34,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.protobuf.ByteString
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
@@ -135,7 +135,7 @@ class Service(
         request: MaestroAndroid.TapRequest,
         responseObserver: StreamObserver<MaestroAndroid.TapResponse>
     ) {
-        uiDevice.click(
+        uiDevice.clickExt(
             request.x,
             request.y
         )
@@ -169,7 +169,7 @@ class Service(
             Thread.sleep(75)
         }
 
-        responseObserver.onNext(inputTextResponse {  })
+        responseObserver.onNext(inputTextResponse { })
         responseObserver.onCompleted()
     }
 
