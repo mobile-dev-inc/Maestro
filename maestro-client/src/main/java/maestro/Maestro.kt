@@ -25,6 +25,7 @@ import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
+import maestro.drivers.WebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
 import okio.Buffer
@@ -379,7 +380,10 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         repeat(10) {
             val hierarchyAfter = viewHierarchy()
             if (latestHierarchy == hierarchyAfter) {
-                return hierarchyAfter
+                val isLoading = latestHierarchy.root.attributes.getOrDefault("is-loading", "false").toBoolean()
+                if (!isLoading) {
+                    return hierarchyAfter
+                }
             }
             latestHierarchy = hierarchyAfter
 
@@ -523,7 +527,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
         fun ios(
             driver: Driver,
-            openDriver: Boolean = true,
+            openDriver: Boolean = true
         ): Maestro {
             if (openDriver) {
                 driver.open()
@@ -540,6 +544,12 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             if (openDriver) {
                 driver.open()
             }
+            return Maestro(driver)
+        }
+
+        fun web(isStudio: Boolean): Maestro {
+            val driver = WebDriver(isStudio)
+            driver.open()
             return Maestro(driver)
         }
     }

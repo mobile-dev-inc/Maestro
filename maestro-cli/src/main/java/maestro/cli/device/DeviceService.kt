@@ -14,6 +14,7 @@ import maestro.debuglog.DebugLogStore
 import maestro.utils.MaestroTimer
 import java.io.File
 import java.net.Socket
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -64,6 +65,13 @@ object DeviceService {
                 return Device.Connected(
                     instanceId = dadb.toString(),
                     description = device.description,
+                    platform = device.platform,
+                )
+            }
+            Platform.WEB -> {
+                return Device.Connected(
+                    instanceId = "",
+                    description = "Selenium Chromium driver",
                     platform = device.platform,
                 )
             }
@@ -144,7 +152,15 @@ object DeviceService {
     }
 
     private fun listDevices(): List<Device> {
-        return listAndroidDevices() + listIOSDevices()
+        return listAndroidDevices() + listIOSDevices() + listWebDevices()
+    }
+
+    private fun listWebDevices(): List<Device> {
+        return listOf(Device.AvailableForLaunch(
+            platform = Platform.WEB,
+            description = "Chromium Desktop Browser (Experimental)",
+            modelId = "chromium"
+        ))
     }
 
     private fun listAndroidDevices(): List<Device> {

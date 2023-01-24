@@ -29,6 +29,8 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.PrintUtils
+import maestro.orchestra.yaml.YamlCommandReader
 import okio.buffer
 import okio.sink
 import picocli.CommandLine
@@ -85,6 +87,15 @@ class TestCommand : Callable<Int> {
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
+    private fun isWebFlow(): Boolean {
+        if (!flowFile.isDirectory) {
+            val config = YamlCommandReader.readConfig(flowFile.toPath())
+            return Regex("http(s?)://").containsMatchIn(config.appId)
+        }
+
+        return false
+    }
+
     override fun call(): Int {
         if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
@@ -97,7 +108,11 @@ class TestCommand : Callable<Int> {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
 
-        return MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+        val deviceId =
+            if (isWebFlow()) "chromium".also { PrintUtils.warn("Web support is an experimental feature and may be removed in future versions.\n") }
+            else parent?.deviceId
+        
+        return MaestroSessionManager.newSession(parent?.host, parent?.port, deviceId) { session ->
             val maestro = session.maestro
             val device = session.device
 

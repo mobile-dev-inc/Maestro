@@ -33,7 +33,7 @@ class StudioCommand : Callable<Int> {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
 
-        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId, true) { session ->
             val port = getFreePort()
             MaestroStudio.start(port, session.maestro)
 
@@ -44,7 +44,7 @@ class StudioCommand : Callable<Int> {
             tryOpenUrl(studioUrl)
 
             println()
-            println("Tip: Maestro Studio can now run simultaneously alongside other Meastro CLI commands!")
+            println("Tip: Maestro Studio can now run simultaneously alongside other Maestro CLI commands!")
 
             println()
             println("Navigate to $studioUrl in your browser to open Maestro Studio. Ctrl-C to exit.".faint())

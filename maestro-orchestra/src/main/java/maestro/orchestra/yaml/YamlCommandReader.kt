@@ -58,6 +58,11 @@ object YamlCommandReader {
         listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
     }
 
+    fun readConfig(flowPath: Path): YamlConfig {
+        val (config) = readConfigAndCommands(flowPath)
+        return config
+    }
+
     // Files to watch for changes. Includes any referenced files.
     fun getWatchFiles(flowPath: Path): List<Path> = mapParsingErrors {
         val (config, commands) = readConfigAndCommands(flowPath)
