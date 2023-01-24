@@ -65,23 +65,26 @@ class CloudCommand : Callable<Int> {
     @Option(order = 5, names = ["--branch"], description = ["The branch this upload originated from"])
     private var branch: String? = null
 
-    @Option(order = 6, names = ["--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
+    @Option(order = 6, names = ["--commitSha"], description = ["The commit SHA of this upload"])
+    private var commitSha: String? = null
+
+    @Option(order = 7, names = ["--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
     private var pullRequestId: String? = null
 
-    @Option(order = 7, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
+    @Option(order = 8, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
     private var env: Map<String, String> = emptyMap()
 
-    @Option(order = 8, names = ["--name"], description = ["Name of the upload"])
+    @Option(order = 9, names = ["--name"], description = ["Name of the upload"])
     private var uploadName: String? = null
 
-    @Option(order = 9, names = ["--async"], description = ["Run the upload asynchronously"])
+    @Option(order = 10, names = ["--async"], description = ["Run the upload asynchronously"])
     private var async: Boolean = false
 
-    @Option(order = 10, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
+    @Option(order = 11, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
     @Option(
-        order = 11,
+        order = 12,
         names = ["--include-tags"],
         description = ["List of tags that will remove the Flows that does not have the provided tags"],
         split = ",",
@@ -90,7 +93,7 @@ class CloudCommand : Callable<Int> {
     private var includeTags: List<String> = emptyList()
 
     @Option(
-        order = 12,
+        order = 13,
         names = ["--exclude-tags"],
         description = ["List of tags that will remove the Flows containing the provided tags"],
         split = ",",
@@ -98,14 +101,14 @@ class CloudCommand : Callable<Int> {
     private var excludeTags: List<String> = emptyList()
 
     @Option(
-        order = 13,
+        order = 14,
         names = ["--format"],
         description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
     )
     private var format: ReportFormat = ReportFormat.NOOP
 
     @Option(
-        order = 14,
+        order = 15,
         names = ["--output"],
         description = ["File to write report into (default=report.xml)"],
     )
@@ -127,6 +130,7 @@ class CloudCommand : Callable<Int> {
             repoOwner = repoOwner,
             repoName = repoName,
             branch = branch,
+            commitSha = commitSha,
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             androidApiLevel = androidApiLevel,
