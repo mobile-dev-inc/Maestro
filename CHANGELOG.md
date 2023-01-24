@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.20.0 - 2023-01-24
+* Feature: Maestro Studio - use percentage-based swiping
+* Feature: Scroll until view element is visible
+* Feature: Relatively swipe with percentage based start and end coordinates
+* Fix: Android tap was not always working
+* Fix: Bottom of Android hierarchy was cut off
+* Fix: idb_companion fails to start due to gRPC timeout exception
+* Tweak: Improve Android Screenshot Internal Logic
+* Tweak: Change the end coordinates for swipe element
+* Tweak: Update sample flows
+
 ## 1.19.5 - 2023-01-19
 * Fix: inputText was not working on iOS React Native apps
 * Fix: Maestro fails to launch on iOS if --device parameter is present
