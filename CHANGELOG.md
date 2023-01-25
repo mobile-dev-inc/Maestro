@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.21.0 - 2023-01-25
+* Feature: Next evolution of Maestro Studio
+* Fix: More robust implementation of inputText on iOS
+* Fix: More robust implementation of tap on iOS
+* Experimental: Added web driver
+
 ## 1.20.0 - 2023-01-24
 * Feature: Maestro Studio - use percentage-based swiping
 * Feature: Scroll until view element is visible
