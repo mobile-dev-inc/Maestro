@@ -5,8 +5,7 @@ import os
 class InputTextRouteHandler : RouteHandler {
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "InputTextRouteHandler")
-    private let maximumTextInputFrequency = 10
-    
+
     func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
         
@@ -46,17 +45,28 @@ class InputTextRouteHandler : RouteHandler {
             let selector = NSSelectorFromString("_XCT_sendString:maximumFrequency:completion:")
             let methodIMP = proxy.method(for: selector)
 
+            let typingFrequency = typingFrequencyFor(text: text)
+            logger.info("typing frequency: \(typingFrequency)")
             let method = unsafeBitCast(methodIMP, to: sendStringMethod.self)
-            method(proxy, selector, text as NSString, maximumTextInputFrequency, { error in
+            let start = Date()
+            method(proxy, selector, text as NSString, typingFrequency, { error in
                 if let error = error {
                     self.logger.error("Error inputting text '\(text)': \(error)")
                     continuation.resume(with: .failure(error))
                 } else {
+                    let duration = Date().timeIntervalSince(start)
+                    self.logger.info("Text input duration took \(duration)")
                     continuation.resume(with: .success(()))
                 }
             })
         }
     }
+
+    private func typingFrequencyFor(text: String) -> Int {
+        let count = max(text.count, 5)
+        return count * 2
+    }
+
 
     private func errorResponse(message: String) -> HTTPResponse {
         logger.error("Failed to input text - \(message)")
