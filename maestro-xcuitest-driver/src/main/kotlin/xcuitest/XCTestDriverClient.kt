@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import xcuitest.api.TouchRequest
 import java.util.concurrent.TimeUnit
 
 class XCTestDriverClient(
@@ -97,6 +98,31 @@ class XCTestDriverClient(
         val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
 
         val url = xctestAPIBuilder("inputText")
+            .addQueryParameter("appId", appId)
+            .build()
+
+        val httpRequest = Request.Builder()
+            .addHeader("Content-Type", "application/json")
+            .url(url)
+            .post(body)
+            .build()
+
+        return okHttpClient.newCall(httpRequest).execute()
+    }
+
+    fun tap(
+        appId: String,
+        x: Float,
+        y: Float
+    ): Response {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val request = TouchRequest(
+            x = x,
+            y = y,
+        )
+        val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
+
+        val url = xctestAPIBuilder("touch")
             .addQueryParameter("appId", appId)
             .build()
 

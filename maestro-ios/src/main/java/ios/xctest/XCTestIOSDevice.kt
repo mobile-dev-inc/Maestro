@@ -79,7 +79,15 @@ class XCTestIOSDevice(
     }
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
-        error("Not supported")
+        return runCatching {
+            val appId = activeAppId() ?: return@runCatching
+
+            client.tap(
+                appId = appId,
+                x = x.toFloat(),
+                y = y.toFloat(),
+            ).use {}
+        }
     }
 
     override fun longPress(x: Int, y: Int): Result<Unit, Throwable> {

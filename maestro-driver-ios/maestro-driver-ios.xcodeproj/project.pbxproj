@@ -11,6 +11,8 @@
 		32097965297092A800340282 /* InputTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32097964297092A800340282 /* InputTextRequest.swift */; };
 		32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
 		32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF92966DC8300FB69BD /* SwipeRequest.swift */; };
+		32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB252980449200A1A0A0 /* TouchRequest.swift */; };
+		32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */; };
 		52049BD72935039F00807AA3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD62935039F00807AA3 /* AppDelegate.swift */; };
 		52049BD92935039F00807AA3 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD82935039F00807AA3 /* SceneDelegate.swift */; };
 		52049BDB2935039F00807AA3 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BDA2935039F00807AA3 /* ViewController.swift */; };
@@ -42,6 +44,8 @@
 		32097964297092A800340282 /* InputTextRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRequest.swift; sourceTree = "<group>"; };
 		32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandler.swift; sourceTree = "<group>"; };
 		32762AF92966DC8300FB69BD /* SwipeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRequest.swift; sourceTree = "<group>"; };
+		32ECCB252980449200A1A0A0 /* TouchRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRequest.swift; sourceTree = "<group>"; };
+		32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRouteHandler.swift; sourceTree = "<group>"; };
 		52049BD32935039F00807AA3 /* maestro-driver-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "maestro-driver-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52049BD62935039F00807AA3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		52049BD82935039F00807AA3 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -134,6 +138,7 @@
 				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
 				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
 				32097964297092A800340282 /* InputTextRequest.swift */,
+				32ECCB252980449200A1A0A0 /* TouchRequest.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -157,6 +162,7 @@
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
 				320979622970925500340282 /* InputTextRouteHandler.swift */,
+				32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -281,9 +287,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */,
+				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
 				943A907E293F5B8600C85136 /* Route.swift in Sources */,
 				943A9084293F5CC400C85136 /* SubTreeRouteHandler.swift in Sources */,
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
+				32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */,
 				943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */,
 				943A907C293F5B1A00C85136 /* RouteHandler.swift in Sources */,
 				32097965297092A800340282 /* InputTextRequest.swift in Sources */,
