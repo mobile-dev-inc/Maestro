@@ -17,7 +17,8 @@ After merging the PR, tag the release:
 
 7. `git tag -a vX.Y.Z -m "Version X.Y.Z"` (where X.Y.Z is the new version)
 8. `git push --tags`
-9. Close and release the staging repository published at [Sonatype](https://s01.oss.sonatype.org/).
+9. Wait until all Publish actions have completed https://github.com/mobile-dev-inc/maestro/actions
+10. Close and release the staging repository published at [Sonatype](https://s01.oss.sonatype.org/).
 
 After this is done, create a new branch to prepare for the next development version:
 
