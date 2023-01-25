@@ -33,7 +33,7 @@ const Header = ({onRefresh}: {
   )
 }
 
-const Main = () => {
+const DeprecatedInspectPage = () => {
   const [deviceScreen, setDeviceScreen] = useState<DeviceScreen>()
   const [error, setError] = useState<string>()
 
@@ -83,4 +83,4 @@ const Main = () => {
   )
 }
 
-export default Main
+export default DeprecatedInspectPage

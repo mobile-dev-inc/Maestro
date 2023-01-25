@@ -1,15 +1,15 @@
 import React from 'react';
-import Main from './Main';
+import DeprecatedInspectPage from './DeprecatedInspectPage';
 import InteractPage from './InteractPage';
 
 function App() {
-  if (window.location.pathname === '/interact') {
+  if (window.location.pathname === '/inspect') {
     return (
-      <InteractPage />
+      <DeprecatedInspectPage />
     )
   }
   return (
-    <Main />
+    <InteractPage />
   );
 }
 

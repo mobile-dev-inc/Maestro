@@ -1,5 +1,5 @@
 import React from 'react';
-import Main from './Main';
+import DeprecatedInspectPage from './DeprecatedInspectPage';
 
 export default {
   title: 'Main',
@@ -10,6 +10,6 @@ export default {
 
 export const MainStory = () => {
   return (
-    <Main />
+    <DeprecatedInspectPage />
   )
 }
