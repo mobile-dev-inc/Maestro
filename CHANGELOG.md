@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.21.1 - 2023-01-25
+* Fix: Increase typing speed for iOS text input
+
 ## 1.21.0 - 2023-01-25
 * Feature: Next evolution of Maestro Studio
 * Fix: More robust implementation of inputText on iOS
