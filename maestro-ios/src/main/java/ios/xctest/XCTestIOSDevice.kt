@@ -214,7 +214,9 @@ class XCTestIOSDevice(
                     runningAppId
                 }
             } else {
-                logger.info("request to resolve running app id failed with exception - ${response.body?.toString()}")
+                val body = response.body?.let { String(it.bytes()) } ?: ""
+                val code = response.code
+                logger.info("request to resolve running app id failed with exception - Code: $code Body: $body")
 
                 return null
             }
