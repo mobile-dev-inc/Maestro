@@ -2,7 +2,6 @@
 ## TODO: make destination generic for iOS 15 simulator
 xcodebuild -project ./maestro-driver-ios/maestro-driver-ios.xcodeproj \
   -scheme maestro-driver-ios -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,name=iPhone 13,OS=15.4" \
   -IDEBuildLocationStyle=Custom \
   -IDECustomBuildLocationType=Absolute \
   -IDECustomBuildProductsPath="$PWD/build/Products" \

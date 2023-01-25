@@ -68,12 +68,8 @@
 		<dict>
 			<key>DYLD_FRAMEWORK_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__TESTROOT__/Debug-iphonesimulator/PackageFrameworks:__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks</string>
-			<key>DYLD_INSERT_LIBRARIES</key>
-			<string>/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 15.4.simruntime/Contents/Resources/RuntimeRoot/usr/lib/libMainThreadChecker.dylib</string>
 			<key>DYLD_LIBRARY_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__PLATFORMS__/iPhoneSimulator.platform/Developer/usr/lib</string>
-			<key>MTC_CRASH_ON_REPORT</key>
-			<string>1</string>
 			<key>__XCODE_BUILT_PRODUCTS_DIR_PATHS</key>
 			<string>__TESTROOT__/Debug-iphonesimulator</string>
 			<key>__XPC_DYLD_FRAMEWORK_PATH</key>
@@ -98,8 +94,6 @@
 			<key>__XPC_DYLD_LIBRARY_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator</string>
 		</dict>
-		<key>UITargetAppMainThreadCheckerEnabled</key>
-		<true/>
 		<key>UITargetAppPath</key>
 		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-ios.app</string>
 		<key>UserAttachmentLifetime</key>

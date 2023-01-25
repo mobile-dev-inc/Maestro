@@ -5,47 +5,66 @@ import os
 class InputTextRouteHandler : RouteHandler {
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "InputTextRouteHandler")
+    private let maximumTextInputFrequency = 10
     
     func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let appId = request.query["appId"] else {
-            logger.error("Requested view hierarchy for an invalid appId")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest)
-        }
-        
         let decoder = JSONDecoder()
         
         guard let requestBody = try? decoder.decode(InputTextRequest.self, from: request.body) else {
-            let errorData = handleError(message: "incorrect request body provided")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+            return errorResponse(message: "incorrect request body provided")
         }
-        
-        let response = await MainActor.run {
-            let xcuiApplication = XCUIApplication(bundleIdentifier: appId)
-            
-            logger.info("Finding element with keyboard focus")
-            
-            let element = xcuiApplication
-                .descendants(matching: .any)
-                .element(matching: NSPredicate(format: "hasKeyboardFocus == true"))
-        
-            if (!element.exists) {
-                return HTTPResponse(statusCode: .notFound)
-            }
-            
-            element.typeText(requestBody.text)
-            
+
+        do {
+            try await send(text: requestBody.text)
             return HTTPResponse(statusCode: .ok)
+        } catch {
+            return errorResponse(message: "internal error")
         }
-        
-        return response
     }
-    
-    private func handleError(message: String) -> Data {
+
+    private func send(text: String) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            let ObjC = ObjCRuntime()
+            let daemonSession = ObjC.XCTRunnerDaemonSession.sharedSession()
+            let proxy = daemonSession.daemonProxy().handle as! NSObject
+
+            // ObjCRuntime does not work correctly because
+            // class_getInstanceMethod(object_getClass(proxy), "_XCT_sendString:maximumFrequency:completion:") returns null
+            // while proxy.method(for: NSSelectorFromString("_XCT_sendString:maximumFrequency:completion:")) does work
+            //
+            //            let proxy = daemonSession.daemonProxy()
+            //            proxy._XCT_sendString(requestBody.text, maximumFrequency: 1, completion: { (error: Error?) in
+            //                if let error = error {
+            //                    continuation.resume(with: .failure(error))
+            //                } else {
+            //                    continuation.resume(with: .success(HTTPResponse(statusCode: .ok)))
+            //                }
+            //            })
+
+            typealias sendStringMethod = @convention(c) (NSObject, Selector, NSString, Int, @escaping (Error?) -> ()) -> ()
+
+            let selector = NSSelectorFromString("_XCT_sendString:maximumFrequency:completion:")
+            let methodIMP = proxy.method(for: selector)
+
+            let method = unsafeBitCast(methodIMP, to: sendStringMethod.self)
+            method(proxy, selector, text as NSString, maximumTextInputFrequency, { error in
+                if let error = error {
+                    self.logger.error("Error inputting text '\(text)': \(error)")
+                    continuation.resume(with: .failure(error))
+                } else {
+                    continuation.resume(with: .success(()))
+                }
+            })
+        }
+    }
+
+    private func errorResponse(message: String) -> HTTPResponse {
         logger.error("Failed to input text - \(message)")
         let jsonString = """
          { "errorMessage" : \(message) }
         """
-        return Data(jsonString.utf8)
+        let errorData = Data(jsonString.utf8)
+        return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
     }
     
 }

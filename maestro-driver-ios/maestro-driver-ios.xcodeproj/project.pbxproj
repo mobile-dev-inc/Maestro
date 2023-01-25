@@ -21,6 +21,8 @@
 		52049BE3293503A200807AA3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52049BE1293503A200807AA3 /* LaunchScreen.storyboard */; };
 		52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
+		612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 612DE40129801F71003C2BE0 /* XCTest.framework */; platformFilter = ios; };
+		612DE40929815897003C2BE0 /* SwiftObjcBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE40829815897003C2BE0 /* SwiftObjcBridge.swift */; };
 		9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */; };
 		943A907C293F5B1A00C85136 /* RouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A907B293F5B1A00C85136 /* RouteHandler.swift */; };
 		943A907E293F5B8600C85136 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A907D293F5B8600C85136 /* Route.swift */; };
@@ -56,6 +58,8 @@
 		52049BE4293503A200807AA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITests.swift; sourceTree = "<group>"; };
+		612DE40129801F71003C2BE0 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		612DE40829815897003C2BE0 /* SwiftObjcBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftObjcBridge.swift; sourceTree = "<group>"; };
 		9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetRunningAppRequest.swift; sourceTree = "<group>"; };
 		943A907B293F5B1A00C85136 /* RouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteHandler.swift; sourceTree = "<group>"; };
 		943A907D293F5B8600C85136 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
@@ -76,6 +80,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */,
 				5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -121,6 +126,7 @@
 			children = (
 				943A907A293F5AF400C85136 /* Routes */,
 				52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */,
+				612DE40829815897003C2BE0 /* SwiftObjcBridge.swift */,
 			);
 			path = "maestro-driver-iosUITests";
 			sourceTree = "<group>";
@@ -128,6 +134,7 @@
 		5279BFD42935ECE20056C609 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				612DE40129801F71003C2BE0 /* XCTest.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -286,6 +293,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				612DE40929815897003C2BE0 /* SwiftObjcBridge.swift in Sources */,
 				9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */,
 				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
 				943A907E293F5B8600C85136 /* Route.swift in Sources */,
@@ -368,7 +376,6 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -396,6 +403,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CC_C_LANGUAGE_STANDARD = gnu11;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -428,7 +436,6 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
