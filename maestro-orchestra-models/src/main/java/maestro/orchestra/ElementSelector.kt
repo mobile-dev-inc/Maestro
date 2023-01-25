@@ -33,7 +33,7 @@ data class ElementSelector(
     val containsChild: ElementSelector? = null,
     val optional: Boolean = false,
     val traits: List<ElementTrait>? = null,
-    val index: Int? = null,
+    val index: String? = null,
     val enabled: Boolean? = null,
 ) {
 
@@ -52,6 +52,7 @@ data class ElementSelector(
             leftOf = leftOf?.evaluateScripts(jsEngine),
             rightOf = rightOf?.evaluateScripts(jsEngine),
             containsChild = containsChild?.evaluateScripts(jsEngine),
+            index = index?.evaluateScripts(jsEngine),
         )
     }
 
@@ -98,7 +99,7 @@ data class ElementSelector(
         }
 
         index?.let {
-            descriptions.add("Index: $it")
+            descriptions.add("Index: ${it.toDoubleOrNull()?.toInt() ?: it}")
         }
 
         val combined = descriptions.joinToString(", ")

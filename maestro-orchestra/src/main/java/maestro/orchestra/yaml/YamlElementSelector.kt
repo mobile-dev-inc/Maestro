@@ -40,6 +40,6 @@ data class YamlElementSelector(
     val rightOf: YamlElementSelectorUnion? = null,
     val containsChild: YamlElementSelectorUnion? = null,
     val traits: String? = null,
-    val index: Int? = null,
+    val index: String? = null,
     val enabled: Boolean? = null,
 ) : YamlElementSelectorUnion

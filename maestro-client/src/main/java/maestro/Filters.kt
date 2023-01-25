@@ -38,7 +38,7 @@ object Filters {
         filters
             .map { it(nodes).toSet() }
             .reduceOrNull { a, b -> a.intersect(b) }
-            ?.toList() ?: emptyList()
+            ?.toList() ?: nodes
     }
 
     fun compose(first: ElementFilter, second: ElementFilter): ElementFilter = compose(listOf(first, second))

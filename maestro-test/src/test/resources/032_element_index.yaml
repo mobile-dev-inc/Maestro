@@ -6,5 +6,5 @@ appId: com.example.app
     retryTapIfNoChange: false
 - tapOn:
     text: Item.*
-    index: 1
+    index: ${0 + 1}
     retryTapIfNoChange: false

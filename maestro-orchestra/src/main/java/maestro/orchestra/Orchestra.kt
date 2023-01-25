@@ -761,6 +761,8 @@ class Orchestra(
 
         var resultFilter = Filters.intersect(filters)
         resultFilter = selector.index
+            ?.toDouble()
+            ?.toInt()
             ?.let {
                 Filters.compose(
                     resultFilter,
