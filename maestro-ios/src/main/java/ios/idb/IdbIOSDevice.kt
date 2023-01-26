@@ -183,6 +183,8 @@ class IdbIOSDevice(
                 }
             )
             stream.onCompleted()
+
+            responseObserver.awaitResult()
         }
     }
 
