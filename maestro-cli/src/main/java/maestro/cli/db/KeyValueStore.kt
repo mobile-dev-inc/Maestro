@@ -7,31 +7,25 @@ class KeyValueStore(
     private val dbFile: File
 ) {
 
-    private val db by lazy {
-        dbFile
-            .readLines()
-            .associate { line ->
-                val (key, value) = line.split("=", limit = 2)
-                key to value
-            }
-            .toMutableMap()
-    }
-
     fun get(key: String): String? {
+        val db = getCurrentDB()
         return db[key]
     }
 
     fun set(key: String, value: String) {
+        val db = getCurrentDB()
         db[key] = value
-        commit()
+        commit(db)
     }
 
     fun delete(key: String) {
+        val db = getCurrentDB()
         db.remove(key)
-        commit()
+        commit(db)
     }
 
     fun keys(): List<String> {
+        val db = getCurrentDB()
         return db.keys.toList()
     }
 
@@ -47,10 +41,19 @@ class KeyValueStore(
         }
     }
 
-    private fun commit() {
+    private fun getCurrentDB(): MutableMap<String, String> {
+        return dbFile
+            .readLines()
+            .associate { line ->
+                val (key, value) = line.split("=", limit = 2)
+                key to value
+            }
+            .toMutableMap()
+    }
+
+    private fun commit(db: MutableMap<String, String>) {
         dbFile.writeText(
-            db
-                .map { (key, value) -> "$key=$value" }
+            db.map { (key, value) -> "$key=$value" }
                 .joinToString("\n")
         )
     }
