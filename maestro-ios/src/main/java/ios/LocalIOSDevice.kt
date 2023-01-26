@@ -40,7 +40,7 @@ class LocalIOSDevice(
     }
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
-        return xcTestDevice.tap(x, y)
+        return idbIOSDevice.tap(x, y)
     }
 
     override fun longPress(x: Int, y: Int): Result<Unit, Throwable> {
