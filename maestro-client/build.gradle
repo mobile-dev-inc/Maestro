@@ -76,7 +76,9 @@ dependencies {
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'de.upb.cs.swt:axml:2.1.2'
     implementation 'org.seleniumhq.selenium:selenium-java:4.7.2'
-    implementation 'io.github.bonigarcia:webdrivermanager:5.3.1'
+    implementation('io.github.bonigarcia:webdrivermanager:5.3.1') {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
