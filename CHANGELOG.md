@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.21.2 - 2023-01-26
+* Hotfix: Move iOS tap() implementation back to IDB to resolve problems with React Native apps
+* Fix: running multiple Maestro instances would sometimes result in Connection exception
+* Fix: support JS injection in `scrollUntilVisible` command
+
 ## 1.21.1 - 2023-01-25
 * Fix: Increase typing speed for iOS text input
 
