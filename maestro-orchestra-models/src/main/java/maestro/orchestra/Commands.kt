@@ -95,7 +95,9 @@ data class ScrollUntilVisibleCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
-        return this
+         return copy(
+            selector = selector.evaluateScripts(jsEngine),
+        )
     }
 
     companion object {
