@@ -309,7 +309,7 @@ class WebDriver(val isStudio: Boolean) : Driver {
         return
     }
 
-    override fun takeScreenshot(out: Sink) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean) {
         val driver = ensureOpen()
 
         val src = (driver as TakesScreenshot).getScreenshotAs(OutputType.FILE)

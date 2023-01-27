@@ -13,6 +13,8 @@ class RouteHandlerFactory {
             return InputTextRouteHandler()
         case .touch:
             return TouchRouteHandler()
+        case .screenshot:
+            return ScreenshotHandler()
         }
     }
 }

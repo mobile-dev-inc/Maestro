@@ -68,7 +68,7 @@ interface Driver {
 
     fun hideKeyboard()
 
-    fun takeScreenshot(out: Sink)
+    fun takeScreenshot(out: Sink, compressed: Boolean)
 
     fun startScreenRecording(out: Sink): ScreenRecording
 

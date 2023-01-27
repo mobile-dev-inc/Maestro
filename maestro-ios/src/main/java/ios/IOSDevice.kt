@@ -131,7 +131,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param out - output sink
      */
-    fun takeScreenshot(out: Sink): Result<Unit, Throwable>
+    fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable>
 
     /**
      * Start a screen recording

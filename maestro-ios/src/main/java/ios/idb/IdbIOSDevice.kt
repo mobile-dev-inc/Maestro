@@ -393,7 +393,7 @@ class IdbIOSDevice(
         }
     }
 
-    override fun takeScreenshot(out: Sink): Result<Unit, Throwable> {
+    override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
         error("Not supported")
     }
 

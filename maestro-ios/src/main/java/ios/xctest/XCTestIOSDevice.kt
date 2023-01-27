@@ -13,6 +13,7 @@ import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import maestro.logger.Logger
 import okio.Sink
+import okio.buffer
 import xcuitest.XCTestDriverClient
 import xcuitest.api.GetRunningAppIdResponse
 import xcuitest.installer.XCTestInstaller
@@ -176,8 +177,21 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun takeScreenshot(out: Sink): Result<Unit, Throwable> {
-        error("Not supported")
+    override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
+        return runCatching {
+            client.screenshot(compressed).use { response ->
+                response.body?.let { body ->
+                    if (response.isSuccessful) {
+                        out.buffer().use {
+                            it.write(body.bytes())
+                        }
+                    } else {
+                        val errorResponse = String(body.bytes()).trim()
+                        throw UnknownFailure(errorResponse)
+                    }
+                } ?: throw UnknownFailure("Error - body for snapshot request not available")
+            }
+        }
     }
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
@@ -229,7 +243,7 @@ class XCTestIOSDevice(
 
     class IllegalArgumentSnapshotFailure : Throwable("Failed to capture view hierarchy due to kAXErrorIllegalArgument")
     class InputFieldNotFound : Throwable("Unable to find focused input field")
-    class UnknownFailure(val errorResponse: String) : Throwable()
+    class UnknownFailure(errorResponse: String) : Throwable(errorResponse)
 
     companion object {
 

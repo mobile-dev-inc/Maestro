@@ -4,4 +4,5 @@ enum Route: String {
     case swipe = "/swipe?appId=*"
     case inputText = "/inputText?appId=*"
     case touch = "/touch?appId=*"
+    case screenshot
 }

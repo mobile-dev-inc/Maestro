@@ -29,6 +29,7 @@
 		943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */; };
 		943A9084293F5CC400C85136 /* SubTreeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */; };
 		943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */; };
+		9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9494CBD02982F719009C987C /* ScreenshotHandler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +67,7 @@
 		943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteHandlerFactory.swift; sourceTree = "<group>"; };
 		943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubTreeRouteHandler.swift; sourceTree = "<group>"; };
 		943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningAppRouteHandler.swift; sourceTree = "<group>"; };
+		9494CBD02982F719009C987C /* ScreenshotHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotHandler.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -170,6 +172,7 @@
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
 				320979622970925500340282 /* InputTextRouteHandler.swift */,
 				32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */,
+				9494CBD02982F719009C987C /* ScreenshotHandler.swift */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -306,6 +309,7 @@
 				52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */,
 				32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */,
 				320979632970925500340282 /* InputTextRouteHandler.swift in Sources */,
+				9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */,
 				32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

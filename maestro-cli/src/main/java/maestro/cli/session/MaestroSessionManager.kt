@@ -24,7 +24,6 @@ import dadb.adbserver.AdbServer
 import io.grpc.ManagedChannelBuilder
 import ios.LocalIOSDevice
 import ios.idb.IdbIOSDevice
-import ios.xcrun.XCRunIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.cli.device.Device
@@ -182,7 +181,6 @@ object MaestroSessionManager {
                                         getInstalledApps = { XCRunnerSimctl.listApps() },
                                         logger = IOSDriverLogger(),
                                     ),
-                                    xcRunIOSDevice = XCRunIOSDevice(selectedDevice.device.instanceId),
                                 )
                             ),
                             openDriver = !connectToExistingSession,
@@ -304,7 +302,6 @@ object MaestroSessionManager {
                     getInstalledApps = { XCRunnerSimctl.listApps() },
                     logger = IOSDriverLogger(),
                 ),
-                xcRunIOSDevice = XCRunIOSDevice(device.instanceId),
             )
         )
         return Maestro.ios(

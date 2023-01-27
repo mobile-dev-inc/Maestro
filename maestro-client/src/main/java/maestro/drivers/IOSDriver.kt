@@ -420,8 +420,8 @@ class IOSDriver(
         iosDevice.pressKey(40).expect {}
     }
 
-    override fun takeScreenshot(out: Sink) {
-        iosDevice.takeScreenshot(out).expect {}
+    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+        iosDevice.takeScreenshot(out, compressed).expect {}
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {

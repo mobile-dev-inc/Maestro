@@ -352,7 +352,7 @@ class AndroidDriver(
         dadb.shell("input keyevent 111")
     }
 
-    override fun takeScreenshot(out: Sink) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean) {
         val response = blockingStub.screenshot(screenshotRequest {})
         out.buffer().use {
             it.write(response.bytes.toByteArray())
