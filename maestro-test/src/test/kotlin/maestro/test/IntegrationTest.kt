@@ -2163,7 +2163,7 @@ class IntegrationTest {
 
 
         // With view
-        val elementBounds = Bounds(0, 100, 100, 100)
+        val elementBounds = Bounds(100, 100, 100, 100)
         val driver2 = driver {
             element {
                 text = "Test"
@@ -2179,7 +2179,7 @@ class IntegrationTest {
         // Then
         driver1.assertEvents(
             listOf(
-                Event.SwipeWithDirection(SwipeDirection.UP, 600),
+                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, 600),
             )
         )
     }

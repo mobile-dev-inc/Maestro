@@ -26,6 +26,7 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.SwipeDirection
 import maestro.UiElement
 import maestro.js.Js
 import maestro.js.JsEngine
@@ -282,22 +283,19 @@ class Orchestra(
 
     private fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
         val endTime = System.currentTimeMillis() + command.timeout
-        var error: MaestroException.ElementNotFound? = null
+        val direction = command.direction.toSwipeDirection()
+        val paddingH = if (direction == SwipeDirection.LEFT || direction == SwipeDirection.RIGHT) 0.1f else 0f
+        val paddingV = if (direction == SwipeDirection.DOWN || direction == SwipeDirection.UP) 0.1f else 0f
         do {
             try {
-                maestro.waitForAppToSettle()
-                findElement(command.selector, 500)
-                return true
+                val element = findElement(command.selector, 500)
+                if (element.isWithinViewPortBounds(maestro.deviceInfo(), paddingH, paddingV)) return true
             } catch (ignored: MaestroException.ElementNotFound) {
-                error = ignored
             }
-
-            maestro.swipe(command.direction.toSwipeDirection(), duration = 600L)
+            maestro.swipeFromCenter(direction, durationMs = 600L)
         } while (System.currentTimeMillis() < endTime)
 
-        if (error != null) throw error
-
-        return false
+        throw MaestroException.ElementNotFound("No visible element found: ${command.selector.description()}", maestro.viewHierarchy().root)
     }
 
     private fun hideKeyboardCommand(): Boolean {

@@ -149,6 +149,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         waitForAppToSettle()
     }
 
+    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long) {
+        LOGGER.info("Swiping ${swipeDirection.name} from center")
+        val center = Point(x = cachedDeviceInfo.widthGrid / 2, y = cachedDeviceInfo.heightGrid / 2)
+        driver.swipe(center, swipeDirection, durationMs)
+        waitForAppToSettle()
+    }
+
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 

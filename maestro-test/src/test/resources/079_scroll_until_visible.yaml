@@ -4,4 +4,4 @@ appId: com.example.app
     element:
       text: "Test"
     direction: DOWN
-    timeout: 20000
+    timeout: 100

@@ -432,7 +432,7 @@ data class YamlFluentCommand(
 
     private fun scrollUntilVisibleCommand(yaml: YamlScrollUntilVisible): MaestroCommand {
         val timeout =
-            if (yaml.timeout < ScrollUntilVisibleCommand.DEFAULT_TIMEOUT_IN_MILLIS) {
+            if (yaml.timeout < 0) {
                 ScrollUntilVisibleCommand.DEFAULT_TIMEOUT_IN_MILLIS
             } else yaml.timeout
 

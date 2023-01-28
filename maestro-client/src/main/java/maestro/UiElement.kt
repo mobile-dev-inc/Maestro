@@ -28,6 +28,18 @@ data class UiElement(
         return bounds.center().distance(other.bounds.center())
     }
 
+    fun isWithinViewPortBounds(info: DeviceInfo, paddingHorizontal: Float = 0f, paddingVertical: Float = 0f): Boolean {
+        val paddingX = (info.widthGrid * paddingHorizontal).toInt()
+        val paddingY = (info.heightGrid * paddingVertical).toInt()
+        val xEnd = info.widthGrid - paddingX
+        val yEnd = info.heightGrid - paddingY
+
+        val isXWithinBounds = bounds.x in paddingX..xEnd
+        val isYWithinBounds = bounds.y in paddingY..yEnd
+
+        return isXWithinBounds && isYWithinBounds
+    }
+
     companion object {
 
         fun TreeNode.toUiElement(): UiElement {
