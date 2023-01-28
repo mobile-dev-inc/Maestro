@@ -23,6 +23,7 @@ import maestro.DeviceInfo
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Filters.asFilter
+import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.UiElement
@@ -577,9 +578,10 @@ class Orchestra(
         waitUntilVisible: Boolean,
     ): Boolean {
         return try {
-            val element = findElement(command.selector)
+            val result = findElement(command.selector)
             maestro.tap(
-                element,
+                result.element,
+                result.hierarchy,
                 retryIfNoChange,
                 waitUntilVisible,
                 command.longPress ?: false,
@@ -650,7 +652,7 @@ class Orchestra(
     private fun findElement(
         selector: ElementSelector,
         timeoutMs: Long? = null
-    ): UiElement {
+    ): FindElementResult {
         val timeout = timeoutMs
             ?: adjustedToLatestInteraction(
                 if (selector.optional) {
@@ -737,7 +739,7 @@ class Orchestra(
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                filters += Filters.containsChild(findElement(it)).asFilter()
+                filters += Filters.containsChild(findElement(it).element).asFilter()
             }
 
         selector.traits
@@ -789,7 +791,7 @@ class Orchestra(
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector)
-                maestro.swipe(direction, uiElement, command.duration)
+                maestro.swipe(direction, uiElement.element, command.duration)
             }
             startRelative != null && endRelative != null -> {
                 maestro.swipe(startRelative = startRelative, endRelative = endRelative, duration = command.duration)
@@ -807,9 +809,9 @@ class Orchestra(
     )
 
     private fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
-        val element = findElement(command.selector)
-        copiedText = element.treeNode.attributes["text"]
-            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: $element")
+        val result = findElement(command.selector)
+        copiedText = result.element.treeNode.attributes["text"]
+            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
 
         jsEngine.evaluateScript("maestro.copiedText = '${Js.sanitizeJs(copiedText ?: "")}'")
 
