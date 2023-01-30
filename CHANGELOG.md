@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.21.3 - 2023-01-30
+* Fix: `scrollUntilVisible` was not always working on iOS
+* Tweak: speed up tests by skipping an unnecessary hierarchy poll
+* Tweak: iOS screenshot no longer depends on IDB and is faster
+
 ## 1.21.2 - 2023-01-26
 * Hotfix: Move iOS tap() implementation back to IDB to resolve problems with React Native apps
 * Fix: running multiple Maestro instances would sometimes result in Connection exception
