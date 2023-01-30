@@ -27,7 +27,6 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.SwipeDirection
-import maestro.UiElement
 import maestro.js.Js
 import maestro.js.JsEngine
 import maestro.networkproxy.NetworkProxy
@@ -288,7 +287,7 @@ class Orchestra(
         val paddingV = if (direction == SwipeDirection.DOWN || direction == SwipeDirection.UP) 0.1f else 0f
         do {
             try {
-                val element = findElement(command.selector, 500)
+                val element = findElement(command.selector, 500).element
                 if (element.isWithinViewPortBounds(maestro.deviceInfo(), paddingH, paddingV)) return true
             } catch (ignored: MaestroException.ElementNotFound) {
             }
