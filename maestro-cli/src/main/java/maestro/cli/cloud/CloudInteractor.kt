@@ -202,6 +202,36 @@ class CloudInteractor(
         }
     }
 
+    fun deployMaestroMockServerWorkspace(
+        workspace: File,
+        apiKey: String? = null,
+    ): Int {
+        if (!workspace.exists()) throw CliError("Workspace does not exist: ${workspace.absolutePath}")
+
+        val authToken = apiKey              // Check for API key
+            ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
+            ?: auth.triggerSignInFlow()     // Otherwise, trigger the sign-in flow
+
+        PrintUtils.message("Deploying workspace to Maestro Mock Server...")
+
+        TemporaryDirectory.use { tmpDir ->
+            val workspaceZip = tmpDir.resolve("workspace.zip")
+            WorkspaceUtils.createMaestroMockServerWorkspaceZip(workspace.toPath().absolute(), workspaceZip)
+            val progressBar = ProgressBar(20)
+
+            client.deployMaestroMockServerWorkspace(
+                authToken,
+                workspaceZip,
+            ) { totalBytes, bytesWritten ->
+                progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
+            }
+            println()
+            PrintUtils.message("✅ Workspace deployed!")
+
+            return 0
+        }
+    }
+
     private fun handleSyncUploadCompletion(
         upload: UploadStatus,
         teamId: String,

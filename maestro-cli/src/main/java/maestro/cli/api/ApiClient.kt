@@ -303,6 +303,54 @@ class ApiClient(
         }
     }
 
+    fun deployMaestroMockServerWorkspace(
+        authToken: String,
+        workspaceZip: Path,
+        maxRetryCount: Int = 3,
+        completedRetries: Int = 0,
+        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
+    ): String {
+        if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
+
+        val requestPart = mutableMapOf<String, Any>()
+        requestPart["agent"] = getAgent()
+
+        val bodyBuilder = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("workspace", "workspace.zip", workspaceZip.toFile().asRequestBody("application/zip".toMediaType()))
+
+        val body = bodyBuilder.build()
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url("$baseUrl/mms-deploy")
+            .post(body)
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        response.use {
+            if (!response.isSuccessful) {
+                if (response.code >= 500 && completedRetries < maxRetryCount) {
+                    PrintUtils.message("Request failed, retrying...")
+                    Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
+
+                    return deployMaestroMockServerWorkspace(
+                        authToken,
+                        workspaceZip,
+                        maxRetryCount,
+                        completedRetries + 1,
+                        progressListener,
+                    )
+                } else {
+                    throw CliError("Mock server deploy request failed (${response.code}): ${response.body?.string()}")
+                }
+            }
+
+            return response.body.toString()
+        }
+    }
+
     private inline fun <reified T> post(path: String, body: Any): Result<T, Response> {
         val bodyBytes = JSON.writeValueAsBytes(body)
         val request = Request.Builder()

@@ -34,6 +34,7 @@ import maestro.cli.command.network.NetworkCommand
 import maestro.cli.update.Updates
 import maestro.cli.view.box
 import maestro.cli.command.StudioCommand
+import maestro.cli.command.mockserver.MockServerCommand
 import maestro.cli.util.ErrorReporter
 import picocli.CommandLine
 import picocli.CommandLine.Command
@@ -56,6 +57,7 @@ import kotlin.system.exitProcess
         NetworkCommand::class,
         BugReportCommand::class,
         StudioCommand::class,
+        MockServerCommand::class
     ]
 )
 class App {
