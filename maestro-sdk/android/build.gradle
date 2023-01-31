@@ -1,0 +1,34 @@
+plugins {
+    id 'com.android.library'
+    id "kotlin-android"
+    id 'maven-publish'
+    id "com.vanniktech.maven.publish"
+}
+
+// TODO see if we can lower min required version of Kotlin
+android {
+    namespace 'dev.mobile.maestro.sdk'
+    compileSdk 32
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 32
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = "S01"
+    }
+}
+
+dependencies {
+    implementation "com.squareup.okhttp3:okhttp:4.10.0"
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.4'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
+}

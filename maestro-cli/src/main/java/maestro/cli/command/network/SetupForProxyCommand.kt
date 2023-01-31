@@ -34,6 +34,7 @@ class SetupForProxyCommand : Callable<Int> {
         when (device.platform) {
             Platform.IOS -> setupIOS(device)
             Platform.ANDROID -> setupAndroid()
+            Platform.WEB -> error("Proxy setup is not supported for web devices")
         }
 
         return 0
