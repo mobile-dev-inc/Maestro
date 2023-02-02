@@ -3,6 +3,11 @@ import XCTest
 import os
 
 class InputTextRouteHandler : RouteHandler {
+    private enum Constants {
+        // 15 characters per second
+        static let typingFrequency = 15
+        static let maxTextLength = 45
+    }
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "InputTextRouteHandler")
 
@@ -14,11 +19,36 @@ class InputTextRouteHandler : RouteHandler {
         }
 
         do {
-            try await send(text: requestBody.text)
-            return HTTPResponse(statusCode: .ok)
+            if (requestBody.text.count > Constants.maxTextLength) {
+                return fallbackOnCopyPaste(text: requestBody.text, request: request)
+            } else {
+                try await send(text: requestBody.text)
+                return HTTPResponse(statusCode: .ok)
+            }
         } catch {
             return errorResponse(message: "internal error")
         }
+    }
+    
+    private func fallbackOnCopyPaste(text: String, request: FlyingFox.HTTPRequest) -> FlyingFox.HTTPResponse {
+        guard let appId = request.query["appId"] else {
+            logger.error("Requested view hierarchy for an invalid appId")
+            return HTTPResponse(statusCode: HTTPStatusCode.badRequest)
+        }
+        
+        let xcuiApplication = XCUIApplication(bundleIdentifier: appId)
+        
+        let element = xcuiApplication
+            .descendants(matching: .any)
+            .element(matching: NSPredicate(format: "hasKeyboardFocus == true"))
+        
+        if (!element.exists) {
+            return HTTPResponse(statusCode: .notFound)
+        }
+        
+        element.setText(text: text, application: xcuiApplication)
+        
+        return HTTPResponse(statusCode: .ok)
     }
 
     private func send(text: String) async throws {
@@ -45,11 +75,10 @@ class InputTextRouteHandler : RouteHandler {
             let selector = NSSelectorFromString("_XCT_sendString:maximumFrequency:completion:")
             let methodIMP = proxy.method(for: selector)
 
-            let typingFrequency = typingFrequencyFor(text: text)
-            logger.info("typing frequency: \(typingFrequency)")
+            logger.info("typing frequency: \(Constants.typingFrequency)")
             let method = unsafeBitCast(methodIMP, to: sendStringMethod.self)
             let start = Date()
-            method(proxy, selector, text as NSString, typingFrequency, { error in
+            method(proxy, selector, text as NSString, Constants.typingFrequency, { error in
                 if let error = error {
                     self.logger.error("Error inputting text '\(text)': \(error)")
                     continuation.resume(with: .failure(error))
@@ -61,12 +90,6 @@ class InputTextRouteHandler : RouteHandler {
             })
         }
     }
-
-    private func typingFrequencyFor(text: String) -> Int {
-        let count = max(text.count, 5)
-        return count * 2
-    }
-
 
     private func errorResponse(message: String) -> HTTPResponse {
         logger.error("Failed to input text - \(message)")
