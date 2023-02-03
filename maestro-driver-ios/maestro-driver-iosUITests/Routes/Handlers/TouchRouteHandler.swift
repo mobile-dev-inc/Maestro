@@ -7,11 +7,6 @@ class TouchRouteHandler : RouteHandler {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "TapRouteHandler")
     
     func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let appId = request.query["appId"] else {
-            logger.error("Requested view hierarchy for an invalid appId")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest)
-        }
-        
         let decoder = JSONDecoder()
         
         guard let requestBody = try? decoder.decode(TouchRequest.self, from: request.body) else {
@@ -19,23 +14,21 @@ class TouchRouteHandler : RouteHandler {
             return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
         }
         
-        let response = await MainActor.run {
-            let xcuiApplication = XCUIApplication(bundleIdentifier: appId)
-            
-            logger.info("Tapping \(requestBody.x), \(requestBody.y)")
-            
-            xcuiApplication
-                .coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-                .withOffset(CGVector(
-                    dx: Double(requestBody.x),
-                    dy: Double(requestBody.y)
-                ))
-                .tap()
-            
+        logger.info("Tapping \(requestBody.x), \(requestBody.y)")
+
+        let eventRecord = EventRecord(orientation: .portrait)
+        eventRecord.addPointerTouchEvent(at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)))
+
+        do {
+            let start = Date()
+            try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+            let duration = Date().timeIntervalSince(start)
+            logger.info("Tapping took \(duration)")
             return HTTPResponse(statusCode: .ok)
+        } catch {
+            logger.error("Error tapping: \(error)")
+            return HTTPResponse(statusCode: .internalServerError)
         }
-        
-        return response
     }
     
     private func handleError(message: String) -> Data {
