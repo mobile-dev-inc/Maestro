@@ -2,19 +2,22 @@ package xcuitest.installer
 
 import maestro.logger.Logger
 import maestro.utils.MaestroTimer
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okio.buffer
 import okio.sink
 import okio.source
 import org.rauschig.jarchivelib.ArchiverFactory
 import util.XCRunnerSimctl
-import xcuitest.XCTestDriverClient
 import java.io.File
 import java.net.ConnectException
+import java.util.concurrent.TimeUnit
 
 class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
-    private val driverClient: XCTestDriverClient,
 ) : XCTestInstaller {
 
     private var xcTestProcess: Process? = null
@@ -30,7 +33,7 @@ class LocalXCTestInstaller(
         logger.info("[Done] Uninstalling the XCUITest runner app")
     }
 
-    override fun setup() {
+    override fun setup(): Boolean {
         repeat(3) { i ->
             logger.info("[Start] Installing xctest ui runner on $deviceId")
             runXCTest()
@@ -39,23 +42,54 @@ class LocalXCTestInstaller(
             logger.info("[Start] Ensuring ui test runner app is launched on $deviceId")
             if (ensureOpen()) {
                 logger.info("[Done] Ensuring ui test runner app is launched on $deviceId")
-                return
+                return true
             } else {
                 logger.info("[Failed] Ensuring ui test runner app is launched on $deviceId")
                 logger.info("[Retry] Retrying setup() ${i}th time")
             }
         }
+        return false
+    }
+
+
+    override fun isChannelAlive(): Boolean {
+        return XCRunnerSimctl.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID) &&
+            subTreeOfRunnerApp().use { it.isSuccessful }
     }
 
     private fun ensureOpen(): Boolean {
         XCRunnerSimctl.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
         return MaestroTimer.retryUntilTrue(10_000, 100) {
             try {
-                driverClient.subTree(UI_TEST_RUNNER_APP_BUNDLE_ID).use { it.isSuccessful }
+                subTreeOfRunnerApp().use { it.isSuccessful }
             } catch (ignore: ConnectException) {
                 false
             }
         }
+    }
+
+    private fun subTreeOfRunnerApp(): Response {
+        fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
+            return HttpUrl.Builder()
+                .scheme("http")
+                .host("localhost")
+                .addPathSegment(pathSegment)
+                .port(22087)
+        }
+        val url = xctestAPIBuilder("subTree")
+            .addQueryParameter("appId", UI_TEST_RUNNER_APP_BUNDLE_ID)
+            .build()
+
+        val request = Request.Builder()
+            .get()
+            .url(url)
+            .build()
+
+        val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+        return okHttpClient.newCall(request).execute()
     }
 
     private fun runXCTest() {

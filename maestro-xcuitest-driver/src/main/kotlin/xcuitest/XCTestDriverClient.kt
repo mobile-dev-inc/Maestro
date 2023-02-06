@@ -1,29 +1,69 @@
 package xcuitest
 
-import xcuitest.api.InputTextRequest
-import xcuitest.api.SwipeRequest
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.api.GetRunningAppRequest
 import okhttp3.HttpUrl
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import xcuitest.api.InputTextRequest
+import xcuitest.api.SwipeRequest
 import xcuitest.api.TouchRequest
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class XCTestDriverClient(
     private val host: String = "localhost",
-    private val port: Int = 9080,
+    private val port: Int = 22087,
+    private val restoreConnection: () -> Boolean = { false }
 ) {
+
+    private var isShuttingDown = false
+
+    init {
+        Runtime.getRuntime().addShutdownHook(Thread {
+            isShuttingDown = true
+        })
+    }
 
     private val okHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .build()
+            .addInterceptor(Interceptor {
+                val request = it.request()
+                try {
+                    it.proceed(request)
+                } catch (connectException: IOException) {
+                    if (restoreConnection()) {
+                        it.proceed(request)
+                    } else {
+                        throw XCTestDriverUnreachable("Failed to reach out XCUITest Server")
+                    }
+                }
+            }).addNetworkInterceptor(Interceptor {
+                val request = it.request()
+                try {
+                    it.proceed(request)
+                } catch (connectException: IOException) {
+                    if (restoreConnection() || isShuttingDown) {
+                        Response.Builder()
+                            .request(it.request())
+                            .protocol(Protocol.HTTP_1_1)
+                            .code(200)
+                            .build()
+                    } else {
+                        it.proceed(request)
+                    }
+                }
+            }).build()
     }
+
+    class XCTestDriverUnreachable(message: String) : IOException(message)
 
     private val mapper = jacksonObjectMapper()
 
@@ -155,5 +195,4 @@ class XCTestDriverClient(
             .addPathSegment(pathSegment)
             .port(port)
     }
-
 }

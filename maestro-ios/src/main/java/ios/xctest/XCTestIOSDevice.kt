@@ -28,8 +28,6 @@ class XCTestIOSDevice(
     private val getInstalledApps: () -> Set<String>,
 ) : IOSDevice {
 
-    private var closed: Boolean = false
-
     override fun open() {
         ensureXCUITestChannel()
     }
@@ -203,13 +201,11 @@ class XCTestIOSDevice(
     }
 
     override fun isShutdown(): Boolean {
-        return closed
+        return !installer.isChannelAlive()
     }
 
     override fun close() {
         installer.close()
-
-        closed = true
     }
 
     private fun activeAppId(): String? {

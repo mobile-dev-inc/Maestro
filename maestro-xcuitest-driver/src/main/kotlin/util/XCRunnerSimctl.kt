@@ -35,9 +35,11 @@ object XCRunnerSimctl {
     }
 
     fun listApps(): Set<String> {
-        val process = ProcessBuilder("bash", "-c", "xcrun simctl listapps booted | plutil -convert json - -o -").start()
+        val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "xcrun simctl listapps booted | plutil -convert json - -o -"))
 
         val json = String(process.inputStream.readBytes())
+
+        if (json.isEmpty()) return emptySet()
 
         val mapper = jacksonObjectMapper()
         val appsMap = mapper.readValue(json, Map::class.java) as Map<String, Any>
@@ -73,17 +75,21 @@ object XCRunnerSimctl {
 
     fun ensureAppAlive(bundleId: String) {
         MaestroTimer.retryUntilTrue(timeoutMs = 4000, delayMs = 300) {
-            val process = ProcessBuilder(
-                "bash",
-                "-c",
-                "xcrun simctl spawn booted launchctl list | grep $bundleId | awk '/$bundleId/ {print \$3}'"
-            ).start()
-
-            val processOutput = process.inputStream.source().buffer().readUtf8().trim()
-            process.waitFor(3000, TimeUnit.MILLISECONDS)
-
-            processOutput.contains(bundleId)
+            isAppAlive(bundleId)
         }
+    }
+
+    fun isAppAlive(bundleId: String): Boolean {
+        val process = ProcessBuilder(
+            "bash",
+            "-c",
+            "xcrun simctl spawn booted launchctl list | grep $bundleId | awk '/$bundleId/ {print \$3}'"
+        ).start()
+
+        val processOutput = process.inputStream.source().buffer().readUtf8().trim()
+        process.waitFor(3000, TimeUnit.MILLISECONDS)
+
+        return processOutput.contains(bundleId)
     }
 
     fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String): Process {

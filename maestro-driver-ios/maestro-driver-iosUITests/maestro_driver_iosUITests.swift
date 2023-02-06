@@ -17,7 +17,7 @@ class maestro_driver_iosUITests: XCTestCase {
     }
 
     func testHttpServer() async throws {
-        let server = HTTPServer(address: .loopback(port: 9080))
+        let server = HTTPServer(address: .loopback(port: 22087))
         let subTreeRoute = HTTPRoute(Route.subTree.rawValue)
         let runningAppRoute = HTTPRoute(method: .POST,
                                         path: Route.runningApp.rawValue)
