@@ -21,6 +21,7 @@ import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
 import maestro.utils.MaestroTimer
+import maestro_android.deviceInfo
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -2182,6 +2183,94 @@ class IntegrationTest {
                 Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, 600),
             )
         )
+    }
+
+    @Test
+    fun `Case 080 - Hierarchy pruning assert visible`() {
+        // Given
+        val commands = readCommands("080_hierarchy_pruning_assert_visible")
+
+        val info = driver{}.deviceInfo()
+
+        val driver = driver {
+            element {
+                id = "root"
+                bounds = Bounds(0, 0, 500, 500)
+
+                element {
+                    id = "visible_1"
+                    bounds = Bounds(0, 0, 100, 100)
+                }
+
+                element {
+                    id = "visible_2"
+                    bounds = Bounds(info.widthGrid - 50, 0, info.widthGrid + 100 , 100)
+                }
+
+                element {
+                    id = "visible_3"
+                    bounds = Bounds(0, info.heightGrid - 50, 100 , info.heightGrid + 100)
+                }
+
+                element {
+                    id = "visible_4"
+                    bounds = Bounds(-100, -100, info.widthGrid + 200 , info.heightGrid + 200)
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 081 - Hierarchy pruning assert not visible`() {
+        // Given
+        val commands = readCommands("081_hierarchy_pruning_assert_not_visible")
+
+        val info = driver{}.deviceInfo()
+
+        val driver = driver {
+            element {
+                id = "root"
+                bounds = Bounds(0, 0, 500, 500)
+
+                element {
+                    id = "not_visible_1"
+                    bounds = Bounds(-100, -100, 0, 0)
+                }
+
+                element {
+                    id = "not_visible_2"
+                    bounds = Bounds(info.widthGrid, 0, info.widthGrid + 100, 100)
+                }
+
+                element {
+                    id = "not_visible_3"
+                    bounds = Bounds(0, info.heightGrid, 100, info.heightGrid + 100)
+                }
+
+                element {
+                    id = "not_visible_4"
+                    bounds = Bounds(0, info.heightGrid - 10 , 100, info.heightGrid + 100)
+                }
+            }
+        }
+
+        // When & Then
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertNoInteraction()
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(

@@ -375,10 +375,8 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     ): FindElementResult? {
         var hierarchy = ViewHierarchy(TreeNode())
         val element = MaestroTimer.withTimeout(timeoutMs) {
-            val rootNode = driver.contentDescriptor()
-            hierarchy = ViewHierarchy(rootNode)
-
-            filter(rootNode.aggregate()).firstOrNull()
+            hierarchy = viewHierarchy()
+            filter(hierarchy.aggregate()).firstOrNull()
         }?.toUiElementOrNull()
 
         return if (element == null) {
