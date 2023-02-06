@@ -75,7 +75,7 @@ const Section = ({ deviceScreen, element, title, documentationUrl, codeSnippets 
         {
           codeSnippet
             .replace('[id]', id)
-            .replace('[text]', text)
+            .replace('[text]', text.replace("\n", " "))
             .replace('[point]', point)
             .replace('[resource-id-index]', resourceIdIndex)
             .replace('[text-index]', textIndex)
