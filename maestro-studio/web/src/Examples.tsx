@@ -6,7 +6,7 @@ const isBoundsEmpty = (element: UIElement): boolean => {
   return !element.bounds?.width || !element.bounds?.height
 }
 
-const CodeSnippet = ({children}: {
+export const CodeSnippet = ({children}: {
   children: string
 }) => {
   const [hovered, setHovered] = useState(false)

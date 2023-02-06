@@ -7,6 +7,7 @@ import picocli.CommandLine
     name = "mockserver",
     subcommands = [
         MockServerDeployCommand::class,
+        MockServerOpenCommand::class
     ]
 )
 class MockServerCommand {

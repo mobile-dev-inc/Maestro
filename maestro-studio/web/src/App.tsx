@@ -1,16 +1,20 @@
 import React from 'react';
 import DeprecatedInspectPage from './DeprecatedInspectPage';
 import InteractPage from './InteractPage';
+import MockPage from './MockPage';
 
 function App() {
-  if (window.location.pathname === '/inspect') {
-    return (
-      <DeprecatedInspectPage />
-    )
+  switch (window.location.pathname) {
+    case '/inspect':
+      return <DeprecatedInspectPage />
+    
+    case '/mock':
+      return <MockPage />
+
+    case '/interact':
+    default:
+      return <InteractPage />
   }
-  return (
-    <InteractPage />
-  );
 }
 
 export default App;

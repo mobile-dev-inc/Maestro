@@ -1,5 +1,4 @@
-import React from 'react';
-import DeprecatedInspectPage from './DeprecatedInspectPage';
+import App from './App';
 
 export default {
   title: 'Main',
@@ -10,6 +9,6 @@ export default {
 
 export const MainStory = () => {
   return (
-    <DeprecatedInspectPage />
+    <App />
   )
 }

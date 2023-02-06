@@ -1,5 +1,5 @@
 import { ResponseComposition, rest, RestContext, setupWorker } from 'msw';
-import { DeviceScreen, FormattedFlow, ReplCommand } from './models';
+import { DeviceScreen, ReplCommand } from './models';
 import { sampleElements } from './sampleElements';
 import { wait } from './api';
 
@@ -114,6 +114,42 @@ const handlers = [
       commands: contentString,
     }))
   }),
+  rest.get('/api/mock-server/data', (req, res, ctx) => {
+    const projectId = '1803cbd0-7258-4878-a16c-1ef0022d2f4a'
+    const sessions = [
+      '9c4e5640-eaa8-4c81-94b4-efa96192dfd5',
+      '7d191905-7a0e-429c-a0d2-ed5c5744ff83'
+    ]
+
+    const events = []
+    for (const i of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      const sessionId = sessions[i % 2]
+      const simulateRuntimeError = i % 4 === 0
+      const response = simulateRuntimeError ? {
+        runtimeError: 'Something went wrong when evaluating rule'
+      } : {
+        index: i,
+        title: `Post title ${i}`,
+        body: 'Lorem ipsum dolor sit amet'
+      }
+
+      events.push({
+        timestamp: Date.now(),
+        path: `/posts/${i}`,
+        matched: i % 3 !== 0,
+        response,
+        method: (i + 1) % 3 === 0 ? 'POST' : 'GET',
+        statusCode: simulateRuntimeError ? 500 : (i % 7 === 0 ? 401 : 200) ,
+        sessionId: sessionId,
+        projectId: projectId,
+        })
+    }
+
+    return res(ctx.delay(500), ctx.status(200), ctx.json({
+      projectId,
+      events
+    }))
+  })
 ]
 
 export const installMocks = () => {

@@ -1,9 +1,14 @@
-import { DeviceScreen, FormattedFlow, Repl, ReplCommand } from './models';
+import { DeviceScreen, FormattedFlow, MockEvent, Repl, ReplCommand } from './models';
 import useSWR, { mutate, SWRConfiguration, SWRResponse } from 'swr';
 
 export type ReplResponse = {
   repl?: Repl
   error?: any
+}
+
+type GetMockDataResponse = {
+  projectId: string,
+  events: MockEvent[]
 }
 
 export class HttpError extends Error {
@@ -41,6 +46,8 @@ const useRepl = (): ReplResponse => {
   return { repl, error }
 }
 
+const fetcher = (url: string) => fetch(url).then(r => r.json())
+
 export const API = {
   useDeviceScreen: (config?: SWRConfiguration<DeviceScreen>): SWRResponse<DeviceScreen> => {
     return useSWR('/api/device-screen', (url) => makeRequest('GET', url), config)
@@ -74,6 +81,9 @@ export const API = {
     formatFlow: async (ids: string[]): Promise<FormattedFlow> => {
       return makeRequest('POST', '/api/repl/command/format', { ids })
     },
+  },
+  useMockData: () => {
+    return useSWR<GetMockDataResponse>('/api/mock-server/data', fetcher)
   }
 }
 

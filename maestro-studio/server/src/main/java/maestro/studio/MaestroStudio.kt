@@ -32,6 +32,7 @@ object MaestroStudio {
             routing {
                 DeviceScreenService.routes(this, maestro)
                 ReplService.routes(this, maestro)
+                MockService.routes(this, maestro, MockInteractor())
                 singlePageApplication {
                     useResources = true
                     filesPath = "web"
