@@ -22,7 +22,6 @@ package maestro.orchestra.yaml
 import com.fasterxml.jackson.annotation.JsonCreator
 import maestro.KeyCode
 import maestro.Point
-import maestro.ScrollDirection
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
@@ -436,11 +435,14 @@ data class YamlFluentCommand(
                 ScrollUntilVisibleCommand.DEFAULT_TIMEOUT_IN_MILLIS
             } else yaml.timeout
 
+        val visibility = if (yaml.visibilityPercentage < 0) 0 else if (yaml.visibilityPercentage > 100) 100 else yaml.visibilityPercentage
         return MaestroCommand(
             ScrollUntilVisibleCommand(
                 selector = toElementSelector(yaml.element),
                 direction = yaml.direction,
-                timeout = timeout
+                timeout = timeout,
+                scrollDuration = yaml.speedToDuration(),
+                visibilityPercentage = visibility
             )
         )
     }

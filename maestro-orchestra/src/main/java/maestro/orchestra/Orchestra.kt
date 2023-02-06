@@ -26,7 +26,6 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.SwipeDirection
 import maestro.js.Js
 import maestro.js.JsEngine
 import maestro.networkproxy.NetworkProxy
@@ -283,15 +282,18 @@ class Orchestra(
     private fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
         val endTime = System.currentTimeMillis() + command.timeout
         val direction = command.direction.toSwipeDirection()
-        val paddingH = if (direction == SwipeDirection.LEFT || direction == SwipeDirection.RIGHT) 0.1f else 0f
-        val paddingV = if (direction == SwipeDirection.DOWN || direction == SwipeDirection.UP) 0.1f else 0f
+        val deviceInfo = maestro.deviceInfo()
         do {
             try {
                 val element = findElement(command.selector, 500).element
-                if (element.isWithinViewPortBounds(maestro.deviceInfo(), paddingH, paddingV)) return true
+                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightPixels)
+                if (visibility >= command.visibilityPercentageNormalized) {
+                    return true
+                }
+
             } catch (ignored: MaestroException.ElementNotFound) {
             }
-            maestro.swipeFromCenter(direction, durationMs = 600L)
+            maestro.swipeFromCenter(direction, durationMs = command.scrollDuration)
         } while (System.currentTimeMillis() < endTime)
 
         throw MaestroException.ElementNotFound("No visible element found: ${command.selector.description()}", maestro.viewHierarchy().root)

@@ -2150,6 +2150,8 @@ class IntegrationTest {
         // Given
         val commands = readCommands("079_scroll_until_visible")
 
+        val info = driver {  }.deviceInfo()
+
         // Without view
         val driver1 = driver {
             // No elements
@@ -2164,7 +2166,7 @@ class IntegrationTest {
 
 
         // With view
-        val elementBounds = Bounds(100, 100, 100, 100)
+        val elementBounds = Bounds(0, info.heightGrid, 100, info.heightGrid+ 100)
         val driver2 = driver {
             element {
                 text = "Test"
@@ -2180,7 +2182,7 @@ class IntegrationTest {
         // Then
         driver1.assertEvents(
             listOf(
-                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, 600),
+                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, 1),
             )
         )
     }
