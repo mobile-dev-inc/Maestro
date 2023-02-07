@@ -1,5 +1,7 @@
 package maestro.cli.command.mockserver
 
+import maestro.Driver
+import maestro.Maestro
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.blue
 import maestro.cli.view.bold
@@ -27,21 +29,18 @@ class MockServerOpenCommand : Callable<Int> {
     override fun call(): Int {
         interactor.getProjectId() ?: error("Not logged in. Please run `maestro login` and try again.")
 
-        MaestroSessionManager.newSession(null, null, null, true) { session ->
-            val port = getFreePort()
-            MaestroStudio.start(port, session.maestro)
+        val port = getFreePort()
+        MaestroStudio.start(port, null)
 
-            val studioUrl = "http://localhost:${port}/mock"
-            val message = ("Maestro Studio".bold() + " Mock Server is running at " + studioUrl.blue()).box()
-            println()
-            println(message)
-            tryOpenUrl(studioUrl)
+        val studioUrl = "http://localhost:${port}/mock"
+        val message = ("Maestro Studio".bold() + " Mock Server is running at " + studioUrl.blue()).box()
+        println()
+        println(message)
+        tryOpenUrl(studioUrl)
 
-            println()
-            println("Navigate to $studioUrl in your browser to open Maestro Studio Mock Server. Ctrl-C to exit.".faint())
+        println()
+        println("Navigate to $studioUrl in your browser to open Maestro Studio Mock Server. Ctrl-C to exit.".faint())
 
-            Thread.currentThread().join()
-        }
         return 0
     }
 

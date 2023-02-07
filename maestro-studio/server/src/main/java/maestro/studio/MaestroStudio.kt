@@ -14,7 +14,7 @@ import maestro.Maestro
 
 object MaestroStudio {
 
-    fun start(port: Int, maestro: Maestro) {
+    fun start(port: Int, maestro: Maestro?) {
         embeddedServer(Netty, port = port) {
             install(StatusPages) {
                 exception<HttpException> { call, cause ->
@@ -30,9 +30,11 @@ object MaestroStudio {
                 }
             }
             routing {
-                DeviceScreenService.routes(this, maestro)
-                ReplService.routes(this, maestro)
-                MockService.routes(this, maestro, MockInteractor())
+                if (maestro != null) {
+                    DeviceScreenService.routes(this, maestro)
+                    ReplService.routes(this, maestro)
+                }
+                MockService.routes(this, MockInteractor())
                 singlePageApplication {
                     useResources = true
                     filesPath = "web"

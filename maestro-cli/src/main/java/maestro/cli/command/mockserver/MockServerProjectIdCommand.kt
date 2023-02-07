@@ -8,9 +8,9 @@ import picocli.CommandLine.ParentCommand
 import java.util.concurrent.Callable
 
 @Command(
-    name = "setup",
+    name = "projectid",
 )
-class MockServerSetupCommand : Callable<Int> {
+class MockServerProjectIdCommand : Callable<Int> {
 
     @ParentCommand
     lateinit var parent: MockServerCommand

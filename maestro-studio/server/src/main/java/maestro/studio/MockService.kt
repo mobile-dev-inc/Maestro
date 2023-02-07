@@ -26,7 +26,7 @@ private data class GetMockDataResponse(
 
 object MockService {
 
-    fun routes(routing: Routing, maestro: Maestro, interactor: MockInteractor) {
+    fun routes(routing: Routing, interactor: MockInteractor) {
         routing.get("/api/mock-server/data") {
             val data = GetMockDataResponse(
                 projectId = interactor.getProjectId(),

@@ -11,9 +11,9 @@ import java.nio.file.Files
 import java.util.concurrent.Callable
 
 @Command(
-    name = "scaffold",
+    name = "init",
 )
-class MockServerScaffoldCommand : Callable<Int> {
+class MockServerInitCommand : Callable<Int> {
 
     @ParentCommand
     lateinit var parent: MockServerCommand

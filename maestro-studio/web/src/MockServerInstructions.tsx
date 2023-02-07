@@ -13,7 +13,7 @@ const MockServerInstructions = ({ projectId }: { projectId?: string }) => (
       <div>
         <p className="text-md">Then, initialize the Maestro SDK in your app:</p>
         <CodeSnippet>{`MaestroSdk.init('${projectId || '<your_project_id>'}')`}</CodeSnippet>
-        <p className="text-md">You can retrieve your project id by running <span className="italic">maestro mockserver setup</span>.</p>
+        <p className="text-md">You can retrieve your project id by running <span className="italic">maestro mockserver projectid</span>.</p>
       </div>
 
       <div>
@@ -24,7 +24,7 @@ const MockServerInstructions = ({ projectId }: { projectId?: string }) => (
 
       <div>
         <p className="text-md">Lastly, deploy a set of rules to the Maestro Mock Server. You can either write your own rules or use the following command to scaffold a sample rule to get started:</p>
-        <CodeSnippet>{`maestro mockserver scaffold`}</CodeSnippet>
+        <CodeSnippet>{`maestro mockserver init`}</CodeSnippet>
       </div>
 
       <p className="font-semibold">That's it! Now, build and run your app and you should start seeing events come in!</p>
