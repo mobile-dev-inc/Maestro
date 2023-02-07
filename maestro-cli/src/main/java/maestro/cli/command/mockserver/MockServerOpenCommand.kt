@@ -1,25 +1,15 @@
 package maestro.cli.command.mockserver
 
-import maestro.cli.CliError
-import maestro.cli.api.ApiClient
-import maestro.cli.cloud.CloudInteractor
 import maestro.cli.session.MaestroSessionManager
-import maestro.cli.util.PrintUtils
 import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
 import maestro.cli.view.faint
-import maestro.cli.view.red
-import maestro.networkproxy.NetworkProxy
-import maestro.networkproxy.yaml.YamlMappingRuleParser
 import maestro.studio.MaestroStudio
-import picocli.CommandLine
+import maestro.studio.MockInteractor
 import picocli.CommandLine.Command
-import picocli.CommandLine.Option
-import picocli.CommandLine.Parameters
 import picocli.CommandLine.ParentCommand
 import java.awt.Desktop
-import java.io.File
 import java.net.ServerSocket
 import java.net.URI
 import java.util.concurrent.Callable
@@ -32,7 +22,11 @@ class MockServerOpenCommand : Callable<Int> {
     @ParentCommand
     lateinit var parent: MockServerCommand
 
+    private val interactor = MockInteractor()
+
     override fun call(): Int {
+        interactor.getProjectId() ?: error("Not logged in. Please run `maestro login` and try again.")
+
         MaestroSessionManager.newSession(null, null, null, true) { session ->
             val port = getFreePort()
             MaestroStudio.start(port, session.maestro)

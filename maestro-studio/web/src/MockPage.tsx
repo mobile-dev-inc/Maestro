@@ -59,8 +59,8 @@ const MockPage = () => {
 
   return (
     <div className="flex flex-col px-8 h-full overflow-hidden">
-      {data?.events.length === 0 && !!data.projectId ? (
-          <MockServerInstructions projectId={data.projectId} />
+      {(data?.events || []).length === 0 ? (
+          <MockServerInstructions projectId={data?.projectId} />
       ) : (
         <>
           <div className="flex flex-col gap-4 font-mono p-2 my-4 bg-blue-50 rounded-md border border-blue-400 text-blue-900">

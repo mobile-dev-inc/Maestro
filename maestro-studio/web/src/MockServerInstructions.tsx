@@ -1,6 +1,6 @@
 import { CodeSnippet } from "./Examples"
 
-const MockServerInstructions = ({ projectId }: { projectId: string }) => (
+const MockServerInstructions = ({ projectId }: { projectId?: string }) => (
   <div className="w-full h-full flex justify-center items-center">
     <div className="flex flex-col w-3/4 space-y-6 p-8 shadow-xl border-4 border-blue-300 margin-auto">
       <p className="text-lg font-bold">No events found! Follow the guide below to integrate Maestro SDK.</p>
@@ -12,8 +12,8 @@ const MockServerInstructions = ({ projectId }: { projectId: string }) => (
 
       <div>
         <p className="text-md">Then, initialize the Maestro SDK in your app:</p>
-        <CodeSnippet>{`MaestroSDK.init('${projectId}')`}</CodeSnippet>
-        <p className="text-md">You can always retrieve your project id later by running <span className="italic">maestro mockserver setup</span>.</p>
+        <CodeSnippet>{`MaestroSdk.init('${projectId || '<your_project_id>'}')`}</CodeSnippet>
+        <p className="text-md">You can retrieve your project id by running <span className="italic">maestro mockserver setup</span>.</p>
       </div>
 
       <div>
