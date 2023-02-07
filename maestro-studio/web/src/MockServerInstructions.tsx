@@ -7,7 +7,7 @@ const MockServerInstructions = ({ projectId }: { projectId: string }) => (
       
       <div>
         <p className="text-md">First, add the Maestro SDK dependency to your app:</p>
-        <CodeSnippet>{`implementation 'dev.mobile:maestro-sdk-android:1.21.4-SNAPSHOT'`}</CodeSnippet>
+        <CodeSnippet>{`implementation 'dev.mobile:maestro-sdk-android:+'`}</CodeSnippet>
       </div>
 
       <div>

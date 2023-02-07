@@ -58,15 +58,17 @@ class MockServerScaffoldCommand : Callable<Int> {
             apiKey = apiKey,
         )
     }
+
+    companion object {
+        val sampleIndexJs = """
+            get('/posts', (req, res, session) => {
+                session.count = (session.count || 0) + 1;
+        
+                res.json({
+                    posts: [{ id: 0, title: "Post 1" }, {id: 1, title: "Post 2"}],
+                    count: session.count
+                });
+            });
+        """.trimIndent()
+    }
 }
-
-val sampleIndexJs = """
-    get('/posts', (req, res, session) => {
-        session.count = (session.count || 0) + 1;
-
-        res.json({
-            posts: [{ id: 0, title: "Post 1" }, {id: 1, title: "Post 2"}],
-            count: session.count
-        });
-    });
-""".trimIndent()
