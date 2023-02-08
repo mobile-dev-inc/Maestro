@@ -32,7 +32,12 @@ class MaestroMockServerSdk internal constructor() {
             targetUrl = baseUrl,
         )
 
-        return "https://mock.mobile.dev/$sessionPayload/"
+        val url = "https://mock.mobile.dev/$sessionPayload"
+        return if (baseUrl.endsWith("/")) {
+            "$url/"
+        } else {
+            url
+        }
     }
 
     private fun obtainSessionInfo(): SessionInfo {
