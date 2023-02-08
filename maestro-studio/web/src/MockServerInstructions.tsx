@@ -12,22 +12,23 @@ const MockServerInstructions = ({ projectId }: { projectId?: string }) => (
 
       <div>
         <p className="text-md">Then, initialize the Maestro SDK in your app:</p>
-        <CodeSnippet>{`MaestroSdk.init('${projectId || '<your_project_id>'}')`}</CodeSnippet>
+        <CodeSnippet>{`MaestroSdk.init("${projectId || '<your_project_id>'}")`}</CodeSnippet>
         <p className="text-md">You can retrieve your project id by running <span className="italic">maestro mockserver projectid</span>.</p>
       </div>
 
       <div>
         <p className="text-md">Next step is to update your app to use the API base url provided by Maestro SDK:</p>
-        <CodeSnippet>{`val baseUrl = MaestroSdk.mockServer().url("<normal_api_url>")`}</CodeSnippet>
+        <CodeSnippet>{`val baseUrl = MaestroSdk.mockServer().url("https://api.yourdomain.com")`}</CodeSnippet>
         <p className="text-md">You can then use <span className="italic">baseUrl</span> as you would normally do in your app. Requests will be sent to <span className="italic">https://mock.mobile.dev</span> and forwarded to your original API if no mock rules are found.</p>
       </div>
+      
+      <p className="font-semibold">That's it! Now, build and run your app and you should start seeing events come in!</p>
 
       <div>
-        <p className="text-md">Lastly, deploy a set of rules to the Maestro Mock Server. You can either write your own rules or use the following command to scaffold a sample rule to get started:</p>
+        <p className="text-md mb-2">(Optional) If you want to get started with writing rules right away, you can run the following command to scaffold and deploy a sample rule:</p>
         <CodeSnippet>{`maestro mockserver init`}</CodeSnippet>
       </div>
 
-      <p className="font-semibold">That's it! Now, build and run your app and you should start seeing events come in!</p>
     </div>
   </div>
 )

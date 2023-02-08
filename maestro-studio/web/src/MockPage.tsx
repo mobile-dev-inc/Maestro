@@ -37,7 +37,7 @@ const safeParse = (res: any, fallback: Object): Object => {
 const MockPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<MockEvent | undefined>()
   const [query, setQuery] = useState<string>('')
-  const {data, isLoading} = API.useMockData()
+  const {data, isLoading} = API.useMockData({ refreshInterval: 5000 })
 
   const filteredEvents = useMemo(() => {
     return data?.events?.filter(event => {

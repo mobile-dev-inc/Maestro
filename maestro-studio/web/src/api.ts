@@ -82,8 +82,8 @@ export const API = {
       return makeRequest('POST', '/api/repl/command/format', { ids })
     },
   },
-  useMockData: () => {
-    return useSWR<GetMockDataResponse>('/api/mock-server/data', fetcher)
+  useMockData: (config?: SWRConfiguration) => {
+    return useSWR<GetMockDataResponse>('/api/mock-server/data', fetcher, config)
   }
 }
 

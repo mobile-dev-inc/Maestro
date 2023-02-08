@@ -1,8 +1,7 @@
 package maestro.cli.command.mockserver
 
-import maestro.Driver
-import maestro.Maestro
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.session.SessionStore
 import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
@@ -15,6 +14,7 @@ import java.awt.Desktop
 import java.net.ServerSocket
 import java.net.URI
 import java.util.concurrent.Callable
+import kotlin.concurrent.thread
 
 @Command(
     name = "open",
@@ -40,6 +40,8 @@ class MockServerOpenCommand : Callable<Int> {
 
         println()
         println("Navigate to $studioUrl in your browser to open Maestro Studio Mock Server. Ctrl-C to exit.".faint())
+
+        Thread.currentThread().join()
 
         return 0
     }

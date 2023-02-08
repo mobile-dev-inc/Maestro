@@ -55,6 +55,8 @@ class MockInteractor(
         }
         val response = client.newCall(request).execute()
 
+        if (response.code >= 400) error("Invalid token. Please run `maestro logout` and then `maestro login` to retrieve a valid token.")
+
         response.use {
             try {
                 val auth = JSON.readValue(response.body?.bytes(), Auth::class.java)
