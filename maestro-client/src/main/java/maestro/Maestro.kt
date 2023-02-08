@@ -25,7 +25,14 @@ import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
+import maestro.drivers.IOSDriver
 import maestro.drivers.WebDriver
+import maestro.drivers.screenshot.GenericScreenshotDriver
+import maestro.drivers.screenshot.IOSScreenshotDriver
+import maestro.drivers.screenshot.ScreenshotDriver
+import maestro.drivers.screenshot.genericWaitUntilScreenIsStatic
+import maestro.drivers.screenshot.takeScreenshot
+import maestro.drivers.screenshot.tryTakingScreenshot
 import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
 import okio.Buffer
@@ -38,7 +45,9 @@ import java.io.File
 import javax.imageio.ImageIO
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
-class Maestro(private val driver: Driver) : AutoCloseable {
+class Maestro(private val driver: Driver,
+              private val screenshotDriver: ScreenshotDriver
+) : AutoCloseable {
 
     private val cachedDeviceInfo by lazy {
         fetchDeviceInfo()
@@ -251,7 +260,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         LOGGER.info("Tapping at ($x, $y)")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
-        val screenshotBeforeTap: BufferedImage? = tryTakingScreenshot()
+        val screenshotBeforeTap: BufferedImage? = screenshotDriver.tryTakingScreenshot()
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
@@ -267,7 +276,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 return
             }
 
-            val screenshotAfterTap: BufferedImage? = tryTakingScreenshot()
+            val screenshotAfterTap: BufferedImage? = screenshotDriver.tryTakingScreenshot()
             if (screenshotBeforeTap != null &&
                 screenshotAfterTap != null &&
                 screenshotBeforeTap.width == screenshotAfterTap.width &&
@@ -290,13 +299,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
             LOGGER.info("Nothing changed in the UI.")
         }
-    }
-
-    private fun tryTakingScreenshot() = try {
-        ImageIO.read(takeScreenshot(true).inputStream())
-    } catch (e: Exception) {
-        LOGGER.warn("Failed to take screenshot", e)
-        null
     }
 
     private fun waitUntilVisible(element: UiElement): ViewHierarchy {
@@ -391,21 +393,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     fun waitForAppToSettle(initialHierarchy: ViewHierarchy? = null): ViewHierarchy {
-        var latestHierarchy = initialHierarchy ?: viewHierarchy()
-        repeat(10) {
-            val hierarchyAfter = viewHierarchy()
-            if (latestHierarchy == hierarchyAfter) {
-                val isLoading = latestHierarchy.root.attributes.getOrDefault("is-loading", "false").toBoolean()
-                if (!isLoading) {
-                    return hierarchyAfter
-                }
-            }
-            latestHierarchy = hierarchyAfter
-
-            MaestroTimer.sleep(MaestroTimer.Reason.WAIT_TO_SETTLE, 200)
-        }
-
-        return latestHierarchy
+        return screenshotDriver.waitForAppToSettle(initialHierarchy)
     }
 
     fun inputText(text: String) {
@@ -432,7 +420,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 .sink()
                 .buffer()
                 .use {
-                    takeScreenshot(it, false)
+                    screenshotDriver.takeScreenshot(it, false)
                 }
         } else {
             throw MaestroException.DestinationIsNotWritable(
@@ -459,21 +447,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
     }
 
-    fun takeScreenshot(out: Sink, compressed: Boolean) {
-        LOGGER.info("Taking screenshot to output sink")
-
-        driver.takeScreenshot(out, compressed)
-    }
-
-    private fun takeScreenshot(compressed: Boolean): ByteArray {
-        LOGGER.info("Taking screenshot to byte array")
-
-        val buffer = Buffer()
-        takeScreenshot(buffer, compressed)
-
-        return buffer.readByteArray()
-    }
-
     fun setLocation(latitude: Double, longitude: Double) {
         LOGGER.info("Setting location: ($latitude, $longitude)")
 
@@ -490,25 +463,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         val timeout = timeout ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")
 
-        MaestroTimer.retryUntilTrue(timeout) {
-            val startScreenshot: BufferedImage? = tryTakingScreenshot()
-            val endScreenshot: BufferedImage? = tryTakingScreenshot()
-
-            if (startScreenshot != null &&
-                endScreenshot != null &&
-                startScreenshot.width == endScreenshot.width &&
-                startScreenshot.height == endScreenshot.height
-            ) {
-                val imageDiff = ImageComparison(
-                    startScreenshot,
-                    endScreenshot
-                ).compareImages().differencePercent
-
-                return@retryUntilTrue imageDiff <= SCREENSHOT_DIFF_THRESHOLD
-            }
-
-            return@retryUntilTrue false
-        }
+        screenshotDriver.genericWaitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD)
     }
 
     fun setProxy(
@@ -547,7 +502,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             if (openDriver) {
                 driver.open()
             }
-            return Maestro(driver)
+            return Maestro(driver, IOSScreenshotDriver(driver))
         }
 
         fun android(
@@ -559,13 +514,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             if (openDriver) {
                 driver.open()
             }
-            return Maestro(driver)
+            return Maestro(driver, GenericScreenshotDriver(driver))
         }
 
         fun web(isStudio: Boolean): Maestro {
             val driver = WebDriver(isStudio)
             driver.open()
-            return Maestro(driver)
+            return Maestro(driver, GenericScreenshotDriver(driver))
         }
     }
 }

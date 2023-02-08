@@ -423,6 +423,10 @@ class AndroidDriver(
         return false
     }
 
+    override fun isScreenStatic(): Boolean {
+        TODO("Not yet implemented")
+    }
+
     private fun mapHierarchy(node: Node): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()

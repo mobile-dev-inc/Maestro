@@ -353,4 +353,8 @@ class WebDriver(val isStudio: Boolean) : Driver {
     override fun isUnicodeInputSupported(): Boolean {
         return true
     }
+
+    override fun isScreenStatic(): Boolean {
+        TODO("Not yet implemented")
+    }
 }

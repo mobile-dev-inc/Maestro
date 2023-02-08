@@ -277,6 +277,10 @@ class FakeDriver : Driver {
         return state != State.OPEN
     }
 
+    override fun isScreenStatic(): Boolean {
+        return false
+    }
+
     override fun isUnicodeInputSupported(): Boolean {
         return false
     }

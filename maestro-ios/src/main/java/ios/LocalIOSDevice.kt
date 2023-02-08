@@ -124,4 +124,7 @@ class LocalIOSDevice(
         xcTestDevice.close()
     }
 
+    override fun isScreenStatic(): Result<Boolean, Throwable> {
+        return xcTestDevice.isScreenStatic()
+    }
 }

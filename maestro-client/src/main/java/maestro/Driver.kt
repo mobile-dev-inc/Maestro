@@ -84,4 +84,5 @@ interface Driver {
 
     fun isUnicodeInputSupported(): Boolean
 
+    fun isScreenStatic(): Boolean
 }

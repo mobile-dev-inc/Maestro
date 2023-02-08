@@ -93,6 +93,18 @@ class XCTestDriverClient(
         return okHttpClient.newCall(request).execute()
     }
 
+    fun isScreenStatic(): Response {
+        val url = xctestAPIBuilder("isScreenStatic")
+            .build()
+
+        val request = Request.Builder()
+            .get()
+            .url(url)
+            .build()
+
+        return okHttpClient.newCall(request).execute()
+    }
+
     fun runningAppId(appIds: Set<String>): Response {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val appIdsRequest = GetRunningAppRequest(appIds)

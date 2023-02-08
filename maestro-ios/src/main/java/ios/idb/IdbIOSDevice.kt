@@ -487,6 +487,10 @@ class IdbIOSDevice(
         }
     }
 
+    override fun isScreenStatic(): Result<Boolean, Throwable> {
+        TODO("Not yet implemented")
+    }
+
     companion object {
         // 4Mb, the default max read for gRPC
         private const val CHUNK_SIZE = 1024 * 1024 * 3

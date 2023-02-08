@@ -153,6 +153,10 @@ interface IOSDevice : AutoCloseable {
      */
     fun isShutdown(): Boolean
 
+    /**
+     * @return false if 2 consequent screenshots are equal, true if screen is static
+     */
+    fun isScreenStatic(): Result<Boolean, Throwable>
 }
 
 interface IOSScreenRecording : AutoCloseable

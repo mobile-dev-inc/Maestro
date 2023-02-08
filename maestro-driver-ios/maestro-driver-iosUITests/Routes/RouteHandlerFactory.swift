@@ -15,6 +15,8 @@ class RouteHandlerFactory {
             return TouchRouteHandler()
         case .screenshot:
             return ScreenshotHandler()
+        case .isScreenStatic:
+            return IsScreenStaticHandler()
         }
     }
 }

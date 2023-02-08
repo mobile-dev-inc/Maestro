@@ -64,7 +64,7 @@ class IOSDriver(
     private var proxySet = false
 
     override fun name(): String {
-        return "iOS Simulator"
+        return NAME
     }
 
     override fun open() {
@@ -464,11 +464,15 @@ class IOSDriver(
         return iosDevice.isShutdown()
     }
 
+    override fun isScreenStatic(): Boolean {
+        return iosDevice.isScreenStatic().expect {}
+    }
+
     private fun toSeconds(ms: Long): Float {
         return ms / 1000f
     }
 
     companion object {
-        private const val MAX_RETRIES = 3
+        const val NAME = "iOS Simulator"
     }
 }

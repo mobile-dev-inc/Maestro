@@ -5,4 +5,5 @@ enum Route: String {
     case inputText = "/inputText?appId=*"
     case touch = "/touch?appId=*"
     case screenshot
+    case isScreenStatic
 }
