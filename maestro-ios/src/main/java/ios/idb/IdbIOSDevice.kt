@@ -336,15 +336,27 @@ class IdbIOSDevice(
         }
 
         // forces app container folder to be re-created
+        val paths = listOf(
+            "Documents",
+            "Library",
+            "Library/Caches",
+            "Library/Preferences",
+            "SystemData",
+            "tmp"
+        )
+
         runCatching {
-            blockingStub.mkdir(mkdirRequest {
-                container = fileContainer {
-                    kind = Idb.FileContainer.Kind.APPLICATION
-                    bundleId = id
-                }
-                path = "tmp"
-            })
+            paths.forEach { path ->
+                blockingStub.mkdir(mkdirRequest {
+                    container = fileContainer {
+                        kind = Idb.FileContainer.Kind.APPLICATION
+                        bundleId = id
+                    }
+                    this.path = path
+                })
+            }
         }
+
         return result
     }
 
