@@ -112,6 +112,12 @@ const MockPage = () => {
 
                   <h1 className="text-lg font-bold mt-12 mb-2">Here are some examples of how you can mock this network call:</h1>
                   <div className="h-100 overflow-y-scroll space-y-4 pb-2">
+                    <a
+                      className="text-blue-400 underline underline-offset-2 whitespace-nowrap"
+                      href="https://maestro.mobile.dev/advanced/experimental/maestro-mock-server/writing-rules"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >View Documentation</a>
                     <div>
                       <span className="text-slate-500 whitespace-nowrap">Basic</span>
                       <CodeSnippet>
