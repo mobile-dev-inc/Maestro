@@ -77,7 +77,10 @@ class SimctlIOSDevice(
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+        runCatching {
+            Simctl.launch(deviceId, id)
+        }
+        return Ok(Unit)
     }
 
     override fun stop(id: String): Result<Unit, Throwable> {

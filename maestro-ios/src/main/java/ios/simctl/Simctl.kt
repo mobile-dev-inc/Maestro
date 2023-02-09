@@ -162,4 +162,16 @@ object Simctl {
 
         return String(process.inputStream.readBytes()).trimEnd()
     }
+
+    fun launch(deviceId: String, bundleId: String) {
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "launch",
+                deviceId,
+                bundleId,
+            )
+        )
+    }
 }

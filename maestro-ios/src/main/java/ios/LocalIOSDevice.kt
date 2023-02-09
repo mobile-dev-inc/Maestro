@@ -96,7 +96,7 @@ class LocalIOSDevice(
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {
-        return idbIOSDevice.launch(id)
+        return simctlIOSDevice.launch(id)
     }
 
     override fun stop(id: String): Result<Unit, Throwable> {
