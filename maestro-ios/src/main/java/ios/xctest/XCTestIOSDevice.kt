@@ -148,7 +148,7 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun pullAppState(id: String, file: File): Result<Idb.PullResponse, Throwable> {
+    override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {
         error("Not supported")
     }
 
@@ -156,7 +156,7 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun clearAppState(id: String): Result<Idb.RmResponse, Throwable> {
+    override fun clearAppState(id: String): Result<Unit, Throwable> {
         error("Not supported")
     }
 

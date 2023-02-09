@@ -21,7 +21,6 @@ package ios
 
 import com.github.michaelbull.result.Result
 import hierarchy.XCUIElement
-import idb.Idb
 import ios.device.DeviceInfo
 import okio.Sink
 import java.io.File
@@ -82,7 +81,7 @@ interface IOSDevice : AutoCloseable {
      * @param id bundle id of the app
      * @param file output directory
      */
-    fun pullAppState(id: String, file: File): Result<Idb.PullResponse, Throwable>
+    fun pullAppState(id: String, file: File): Result<Unit, Throwable>
 
     /**
      * Pushes files to app container
@@ -97,7 +96,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param id = bundle id of the app to clear
      */
-    fun clearAppState(id: String): Result<Idb.RmResponse, Throwable>
+    fun clearAppState(id: String): Result<Unit, Throwable>
 
     /**
      * Clears device keychain.

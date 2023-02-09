@@ -23,6 +23,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.expect
+import com.github.michaelbull.result.get
+import com.github.michaelbull.result.map
 import com.github.michaelbull.result.runCatching
 import com.google.protobuf.ByteString
 import hierarchy.XCUIElement
@@ -263,7 +265,7 @@ class IdbIOSDevice(
         }
     }
 
-    override fun pullAppState(id: String, file: File): Result<Idb.PullResponse, Throwable> {
+    override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {
         return runCatching {
             val observer = BlockingStreamObserver<Idb.PullResponse>()
             asyncStub.pull(pullRequest {
@@ -314,7 +316,7 @@ class IdbIOSDevice(
         }
     }
 
-    override fun clearAppState(id: String): Result<Idb.RmResponse, Throwable> {
+    override fun clearAppState(id: String): Result<Unit, Throwable> {
 
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
@@ -357,7 +359,7 @@ class IdbIOSDevice(
             }
         }
 
-        return result
+        return result.map {  }
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {

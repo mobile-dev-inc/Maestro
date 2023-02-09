@@ -2,6 +2,7 @@ package ios
 
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
+import com.github.michaelbull.result.map
 import com.github.michaelbull.result.recoverIf
 import hierarchy.XCUIElement
 import idb.Idb
@@ -75,7 +76,7 @@ class LocalIOSDevice(
         return idbIOSDevice.uninstall(id)
     }
 
-    override fun pullAppState(id: String, file: File): Result<Idb.PullResponse, Throwable> {
+    override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {
         return idbIOSDevice.pullAppState(id, file)
     }
 
@@ -83,7 +84,7 @@ class LocalIOSDevice(
         return idbIOSDevice.pushAppState(id, file)
     }
 
-    override fun clearAppState(id: String): Result<Idb.RmResponse, Throwable> {
+    override fun clearAppState(id: String): Result<Unit, Throwable> {
         return idbIOSDevice.clearAppState(id)
     }
 
