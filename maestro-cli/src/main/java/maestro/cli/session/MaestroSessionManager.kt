@@ -166,7 +166,9 @@ object MaestroSessionManager {
                             logger = IOSDriverLogger(),
                             deviceId = selectedDevice.device.instanceId,
                         )
-                        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort) {
+                        // TODO (as) remove this flag with a proper factory
+                        val installNetworkInterceptor = isStudio
+                        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort, installNetworkInterceptor) {
                             if (SessionStore.activeSessions().isNotEmpty()) {
                                 IdbInstaller.setup(selectedDevice.device)
                                 return@XCTestDriverClient xcTestInstaller.setup()
@@ -220,6 +222,7 @@ object MaestroSessionManager {
                     selectedDevice.port,
                     selectedDevice.deviceId,
                     !connectToExistingSession,
+                    isStudio
                 ),
                 device = null,
             )
@@ -295,6 +298,7 @@ object MaestroSessionManager {
         port: Int?,
         deviceId: String?,
         openDriver: Boolean,
+        isStudio: Boolean,
     ): Maestro {
         val channel = ManagedChannelBuilder.forAddress(host ?: defaultHost, port ?: idbPort)
             .usePlaintext()
@@ -305,7 +309,7 @@ object MaestroSessionManager {
             logger = IOSDriverLogger(),
             deviceId = device.instanceId,
         )
-        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort) {
+        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort, isStudio) {
             if (SessionStore.activeSessions().isNotEmpty()) {
                 IdbInstaller.setup(device)
                 return@XCTestDriverClient xcTestInstaller.setup()
