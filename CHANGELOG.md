@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.22.0 - 2023-02-09
+## 1.22.1 - 2023-02-09
 * Early Access Feature: Maestro Mock Server and Maestro SDK (Android preview)
 * Tweak: added visibility threshold and scroll speed to `scrollUntilVisible` command
 * Tweak: speed up `tapOn` command on iOS
