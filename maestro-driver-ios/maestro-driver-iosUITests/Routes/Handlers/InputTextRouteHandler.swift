@@ -3,7 +3,7 @@ import XCTest
 import os
 
 class InputTextRouteHandler : RouteHandler {
-    static let typingFrequency = 15
+    let typingFrequency = 15
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "InputTextRouteHandler")
     
