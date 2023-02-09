@@ -3,8 +3,8 @@ package maestro.cli.command.network
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
-import ios.xcrun.Simctl
-import ios.xcrun.Simctl.SimctlError
+import ios.simctl.Simctl
+import ios.simctl.Simctl.SimctlError
 import maestro.cli.CliError
 import maestro.cli.view.red
 import maestro.networkproxy.NetworkProxy

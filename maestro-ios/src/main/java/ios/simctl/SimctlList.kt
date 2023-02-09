@@ -1,4 +1,4 @@
-package ios.xcrun
+package ios.simctl
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 

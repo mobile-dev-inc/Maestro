@@ -7,6 +7,8 @@ import com.github.michaelbull.result.recoverIf
 import hierarchy.XCUIElement
 import idb.Idb
 import ios.device.DeviceInfo
+import ios.idb.IdbIOSDevice
+import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import okio.Sink
 import java.io.File
@@ -14,8 +16,9 @@ import java.io.InputStream
 
 class LocalIOSDevice(
     override val deviceId: String?,
-    private val idbIOSDevice: IOSDevice,
-    private val xcTestDevice: IOSDevice,
+    private val idbIOSDevice: IdbIOSDevice,
+    private val xcTestDevice: XCTestIOSDevice,
+    private val simctlIOSDevice: SimctlIOSDevice,
 ) : IOSDevice {
 
     override fun open() {
@@ -85,7 +88,7 @@ class LocalIOSDevice(
     }
 
     override fun clearAppState(id: String): Result<Unit, Throwable> {
-        return idbIOSDevice.clearAppState(id)
+        return simctlIOSDevice.clearAppState(id)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {

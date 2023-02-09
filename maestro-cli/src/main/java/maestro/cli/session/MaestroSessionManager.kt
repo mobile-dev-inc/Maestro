@@ -24,6 +24,7 @@ import dadb.adbserver.AdbServer
 import io.grpc.ManagedChannelBuilder
 import ios.LocalIOSDevice
 import ios.idb.IdbIOSDevice
+import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.cli.device.Device
@@ -181,6 +182,11 @@ object MaestroSessionManager {
                             logger = IOSDriverLogger(),
                         )
 
+                        val simctlIOSDevice = SimctlIOSDevice(
+                            deviceId = selectedDevice.device.instanceId,
+                            logger = IOSDriverLogger(),
+                        )
+
                         Maestro.ios(
                             driver = IOSDriver(
                                 LocalIOSDevice(
@@ -189,7 +195,8 @@ object MaestroSessionManager {
                                         channel = channel,
                                         deviceId = selectedDevice.device.instanceId,
                                     ),
-                                    xcTestDevice = xcTestDevice
+                                    xcTestDevice = xcTestDevice,
+                                    simctlIOSDevice = simctlIOSDevice,
                                 )
                             ),
                             openDriver = !connectToExistingSession || xcTestDevice.isShutdown(),
@@ -312,6 +319,11 @@ object MaestroSessionManager {
             getInstalledApps = { XCRunnerSimctl.listApps() },
             logger = IOSDriverLogger(),
         )
+        val simctlIOSDevice = SimctlIOSDevice(
+            deviceId = device.instanceId,
+            logger = IOSDriverLogger(),
+        )
+
         val iosDriver = IOSDriver(
             LocalIOSDevice(
                 deviceId = device.instanceId,
@@ -322,7 +334,8 @@ object MaestroSessionManager {
                     installer = xcTestInstaller,
                     getInstalledApps = { XCRunnerSimctl.listApps() },
                     logger = IOSDriverLogger(),
-                )
+                ),
+                simctlIOSDevice = simctlIOSDevice,
             )
         )
         return Maestro.ios(

@@ -4,9 +4,9 @@ import com.github.michaelbull.result.Ok
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.idb.IdbIOSDevice
-import ios.xcrun.Simctl
-import ios.xcrun.Simctl.SimctlError
-import ios.xcrun.SimctlList
+import ios.simctl.Simctl
+import ios.simctl.Simctl.SimctlError
+import ios.simctl.SimctlList
 import maestro.cli.CliError
 import maestro.cli.session.SessionStore
 import maestro.cli.util.EnvUtils
@@ -14,7 +14,6 @@ import maestro.debuglog.DebugLogStore
 import maestro.utils.MaestroTimer
 import java.io.File
 import java.net.Socket
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
