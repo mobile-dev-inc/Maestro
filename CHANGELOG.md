@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.22.0 - 2023-02-09
+* Early Access Feature: Maestro Mock Server and Maestro SDK (Android preview)
+* Tweak: added visibility threshold and scroll speed to `scrollUntilVisible` command
+* Tweak: speed up `tapOn` command on iOS
+* Fix: removing view hierarchy elements that are out of screen bounds
+* Fix: `inputText` command skipping characters on iOS
+* Fix: Reworked `clearAppState` behaviour on iOS, solving issue that caused crashes after clearing the state
+* Fix: crash when running multiple Maestro sessions in parallel while using iOS device
+* Fix: a rare crash in React Native apps when trying to input a long string on iOS
+* Fix: properly handling linebreaks in Maestro Studio
+
 ## 1.21.3 - 2023-01-30
 * Fix: `scrollUntilVisible` was not always working on iOS
 * Tweak: speed up tests by skipping an unnecessary hierarchy poll
