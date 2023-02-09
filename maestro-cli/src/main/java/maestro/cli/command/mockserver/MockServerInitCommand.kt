@@ -24,18 +24,22 @@ class MockServerInitCommand : Callable<Int> {
     @CommandLine.Option(order = 1, names = ["--apiUrl"], description = ["API base URL"])
     private var apiUrl: String = "https://api.mobile.dev"
 
-    private fun getWorkspaceDirectory(): File {
+    private fun getWorkspaceDirectory(): File? {
         val currentDir = System.getProperty("user.dir")
         val maestroDirPath = "$currentDir/.maestro"
         return if (File(maestroDirPath).isDirectory) {
             val mockserverDir = File("$maestroDirPath/mockserver")
             if (mockserverDir.isDirectory && (mockserverDir.list()?.size ?: 0) > 0) {
-                error("Found a non-empty mockserver directory, aborting scaffolding")
+                PrintUtils.err("Found a non-empty mockserver directory, aborting scaffolding")
+                return null
             }
             Files.createDirectory(mockserverDir.toPath()).toFile()
         } else {
             val sampleDirectory = File("$currentDir/sample-workspace")
-            if (sampleDirectory.isDirectory) error("$currentDir/sample-workspace already exists, aborting scaffolding")
+            if (sampleDirectory.isDirectory) {
+                PrintUtils.err("$currentDir/sample-workspace already exists, aborting scaffolding")
+                return null
+            }
             Files.createDirectory(sampleDirectory.toPath()).toFile()
         }
     }
@@ -46,17 +50,12 @@ class MockServerInitCommand : Callable<Int> {
     }
 
     override fun call(): Int {
-        val dir = getWorkspaceDirectory()
+        val dir = getWorkspaceDirectory() ?: return 1
         scaffoldWorkspace(dir)
 
         PrintUtils.message("Scaffolded workspace in ${dir.path}")
-
-        return CloudInteractor(
-            client = ApiClient(apiUrl),
-        ).deployMaestroMockServerWorkspace(
-            workspace = dir,
-            apiKey = apiKey,
-        )
+        
+        return 0
     }
 
     companion object {

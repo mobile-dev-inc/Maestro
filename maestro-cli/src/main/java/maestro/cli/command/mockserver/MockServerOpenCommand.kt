@@ -2,6 +2,7 @@ package maestro.cli.command.mockserver
 
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.session.SessionStore
+import maestro.cli.util.PrintUtils
 import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
@@ -27,7 +28,11 @@ class MockServerOpenCommand : Callable<Int> {
     private val interactor = MockInteractor()
 
     override fun call(): Int {
-        interactor.getProjectId() ?: error("Not logged in. Please run `maestro login` and try again.")
+        val projectId = interactor.getProjectId()
+        if (projectId == null) {
+            PrintUtils.err("Not logged in. Please run `maestro login` and try again.")
+            return 1
+        }
 
         val port = getFreePort()
         MaestroStudio.start(port, null)

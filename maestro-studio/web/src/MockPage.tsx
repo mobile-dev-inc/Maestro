@@ -86,8 +86,8 @@ const MockPage = () => {
                   >
                     <span className="text-sm text-gray-500">Session id: {event.sessionId}</span>
                     <div className="flex flex-row justify-between space-x-4 my-1">
-                      <span className="grow">{event.method} {event.path}</span>
-                      <span className={`${!!event.matched ? 'font-bold' : ''}`}>{!!event.matched ? 'matched' : 'unmatched'}</span>
+                      <span className="grow break-all">{event.method} {event.path}</span>
+                      <span className={`pl-4 ${!!event.matched ? 'font-bold' : ''}`}>{!!event.matched ? 'matched' : 'unmatched'}</span>
                       <span className={`text-${getStatusCodeColor(event.statusCode)}-600 font-bold`}>{event.statusCode}</span>
                     </div>
                     <span className={"text-xs text-gray-500"}>{formatDistance(new Date(event.timestamp), new Date(), { addSuffix: true })}</span>
@@ -111,13 +111,14 @@ const MockPage = () => {
                   />
 
                   <h1 className="text-lg font-bold mt-12 mb-2">Here are some examples of how you can mock this network call:</h1>
+                  <a
+                    className="text-blue-400 underline underline-offset-2 whitespace-nowrap mb-4"
+                    href="https://maestro.mobile.dev/advanced/experimental/maestro-mock-server/writing-rules"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >View Documentation</a>
+                  
                   <div className="h-100 overflow-y-scroll space-y-4 pb-2">
-                    <a
-                      className="text-blue-400 underline underline-offset-2 whitespace-nowrap"
-                      href="https://maestro.mobile.dev/advanced/experimental/maestro-mock-server/writing-rules"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >View Documentation</a>
                     <div>
                       <span className="text-slate-500 whitespace-nowrap">Basic</span>
                       <CodeSnippet>

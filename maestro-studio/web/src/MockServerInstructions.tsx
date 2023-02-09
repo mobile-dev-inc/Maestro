@@ -25,7 +25,7 @@ const MockServerInstructions = ({ projectId }: { projectId?: string }) => (
       <p className="font-semibold">That's it! Now, build and run your app and you should start seeing events come in!</p>
 
       <div>
-        <p className="text-md mb-2">(Optional) If you want to get started with writing rules right away, you can run the following command to scaffold and deploy a sample rule:</p>
+        <p className="text-md mb-2">(Optional) If you want to get started with writing rules right away, you can run the following command to scaffold a sample rule:</p>
         <CodeSnippet>{`maestro mockserver init`}</CodeSnippet>
       </div>
 

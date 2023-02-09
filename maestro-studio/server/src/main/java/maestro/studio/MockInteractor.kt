@@ -38,7 +38,7 @@ class MockInteractor(
     }
 
     fun getProjectId(): UUID? {
-        val authToken = getCachedAuthToken() ?: error("Not logged in. Please run `maestro login` and try again.")
+        val authToken = getCachedAuthToken() ?: return null
 
         val request = try {
             Request.Builder()
