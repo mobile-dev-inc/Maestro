@@ -432,9 +432,10 @@ class IOSDriver(
     }
 
     override fun inputText(text: String) {
+        // silently fail if no XCUIElement has focus
         iosDevice.input(
             text = text,
-        ).expect {}
+        )
     }
 
     override fun openLink(link: String) {
