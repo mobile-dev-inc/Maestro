@@ -116,7 +116,7 @@ class LocalIOSDevice(
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
-        return idbIOSDevice.setLocation(latitude, longitude)
+        return simctlIOSDevice.setLocation(latitude, longitude)
     }
 
     override fun isShutdown(): Boolean {

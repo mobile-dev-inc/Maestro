@@ -104,7 +104,9 @@ class SimctlIOSDevice(
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+        return runCatching {
+            Simctl.setLocation(deviceId, latitude, longitude)
+        }
     }
 
     override fun isShutdown(): Boolean {
