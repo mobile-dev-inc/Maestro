@@ -10,6 +10,7 @@ import maestro.logger.Logger
 import okio.Sink
 import java.io.File
 import java.io.InputStream
+import com.github.michaelbull.result.runCatching
 
 class SimctlIOSDevice(
     override val deviceId: String,
@@ -77,15 +78,15 @@ class SimctlIOSDevice(
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {
-        runCatching {
+        return runCatching {
             Simctl.launch(deviceId, id)
         }
-        return Ok(Unit)
     }
 
     override fun stop(id: String): Result<Unit, Throwable> {
-        Simctl.terminate(deviceId, id)
-        return Ok(Unit)
+        return runCatching {
+            Simctl.terminate(deviceId, id)
+        }
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
