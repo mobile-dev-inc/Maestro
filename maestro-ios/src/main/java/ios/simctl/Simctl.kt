@@ -163,6 +163,7 @@ object Simctl {
         return String(process.inputStream.readBytes()).trimEnd()
     }
 
+
     fun launch(deviceId: String, bundleId: String) {
         CommandLineUtils.runCommand(
             listOf(
@@ -171,6 +172,18 @@ object Simctl {
                 "launch",
                 deviceId,
                 bundleId,
+            )
+        )
+    }
+
+    fun openURL(deviceId: String, url: String) {
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "openurl",
+                deviceId,
+                url,
             )
         )
     }

@@ -90,7 +90,9 @@ class SimctlIOSDevice(
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+        return runCatching {
+            Simctl.openURL(deviceId, link)
+        }
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
