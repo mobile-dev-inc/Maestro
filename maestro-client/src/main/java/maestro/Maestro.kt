@@ -22,32 +22,21 @@ package maestro
 import com.github.romankh3.image.comparison.ImageComparison
 import dadb.Dadb
 import maestro.Filters.asFilter
-import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
-import maestro.drivers.IOSDriver
 import maestro.drivers.WebDriver
-import maestro.drivers.screenshot.GenericScreenshotDriver
-import maestro.drivers.screenshot.IOSScreenshotDriver
-import maestro.drivers.screenshot.ScreenshotDriver
-import maestro.drivers.screenshot.genericWaitUntilScreenIsStatic
-import maestro.drivers.screenshot.takeScreenshot
-import maestro.drivers.screenshot.tryTakingScreenshot
+import maestro.drivers.screenshot.ScreenshotUtils
 import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
-import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.sink
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
-import javax.imageio.ImageIO
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
-class Maestro(private val driver: Driver,
-              private val screenshotDriver: ScreenshotDriver
-) : AutoCloseable {
+class Maestro(private val driver: Driver) : AutoCloseable {
 
     private val cachedDeviceInfo by lazy {
         fetchDeviceInfo()
@@ -260,7 +249,7 @@ class Maestro(private val driver: Driver,
         LOGGER.info("Tapping at ($x, $y)")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
-        val screenshotBeforeTap: BufferedImage? = screenshotDriver.tryTakingScreenshot()
+        val screenshotBeforeTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
@@ -276,7 +265,7 @@ class Maestro(private val driver: Driver,
                 return
             }
 
-            val screenshotAfterTap: BufferedImage? = screenshotDriver.tryTakingScreenshot()
+            val screenshotAfterTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
             if (screenshotBeforeTap != null &&
                 screenshotAfterTap != null &&
                 screenshotBeforeTap.width == screenshotAfterTap.width &&
@@ -393,7 +382,7 @@ class Maestro(private val driver: Driver,
     }
 
     fun waitForAppToSettle(initialHierarchy: ViewHierarchy? = null): ViewHierarchy {
-        return screenshotDriver.waitForAppToSettle(initialHierarchy)
+        return driver.waitForAppToSettle(initialHierarchy)
     }
 
     fun inputText(text: String) {
@@ -420,7 +409,7 @@ class Maestro(private val driver: Driver,
                 .sink()
                 .buffer()
                 .use {
-                    screenshotDriver.takeScreenshot(it, false)
+                    ScreenshotUtils.takeScreenshot(it, false, driver)
                 }
         } else {
             throw MaestroException.DestinationIsNotWritable(
@@ -463,7 +452,7 @@ class Maestro(private val driver: Driver,
         val timeout = timeout ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")
 
-        screenshotDriver.genericWaitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD)
+        ScreenshotUtils.waitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD, driver)
     }
 
     fun setProxy(
@@ -502,7 +491,7 @@ class Maestro(private val driver: Driver,
             if (openDriver) {
                 driver.open()
             }
-            return Maestro(driver, IOSScreenshotDriver(driver))
+            return Maestro(driver)
         }
 
         fun android(
@@ -514,13 +503,13 @@ class Maestro(private val driver: Driver,
             if (openDriver) {
                 driver.open()
             }
-            return Maestro(driver, GenericScreenshotDriver(driver))
+            return Maestro(driver)
         }
 
         fun web(isStudio: Boolean): Maestro {
             val driver = WebDriver(isStudio)
             driver.open()
-            return Maestro(driver, GenericScreenshotDriver(driver))
+            return Maestro(driver)
         }
     }
 }

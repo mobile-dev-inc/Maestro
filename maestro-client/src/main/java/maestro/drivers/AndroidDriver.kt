@@ -32,9 +32,11 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
+import maestro.ViewHierarchy
 import maestro.android.AndroidAppFiles
 import maestro.android.asManifest
 import maestro.android.resolveLauncherActivity
+import maestro.drivers.screenshot.ScreenshotUtils
 import maestro.utils.MaestroTimer
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
@@ -426,8 +428,12 @@ class AndroidDriver(
         return false
     }
 
-    override fun isScreenStatic(): Boolean {
-        TODO("Not yet implemented")
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy {
+        return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+    }
+
+    override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
+        return ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
     }
 
     private fun mapHierarchy(node: Node): TreeNode {
@@ -578,6 +584,6 @@ class AndroidDriver(
 
         private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
         private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
-
+        private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
     }
 }

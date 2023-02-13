@@ -84,5 +84,7 @@ interface Driver {
 
     fun isUnicodeInputSupported(): Boolean
 
-    fun isScreenStatic(): Boolean
+    fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean
+
+    fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy
 }

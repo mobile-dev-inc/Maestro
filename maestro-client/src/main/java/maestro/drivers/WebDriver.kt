@@ -10,6 +10,8 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
+import maestro.ViewHierarchy
+import maestro.drivers.screenshot.ScreenshotUtils
 import okio.Sink
 import okio.buffer
 import org.apache.commons.io.output.NullOutputStream
@@ -354,7 +356,15 @@ class WebDriver(val isStudio: Boolean) : Driver {
         return true
     }
 
-    override fun isScreenStatic(): Boolean {
-        TODO("Not yet implemented")
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy {
+        return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+    }
+
+    override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
+        return ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
+    }
+
+    companion object {
+        private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
     }
 }

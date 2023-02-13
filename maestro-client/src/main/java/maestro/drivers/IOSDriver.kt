@@ -38,8 +38,12 @@ import maestro.PointF
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
+import maestro.ViewHierarchy
+import maestro.drivers.screenshot.ScreenshotUtils
 import maestro.utils.FileUtils
+import maestro.utils.MaestroTimer
 import okio.Sink
+import org.slf4j.LoggerFactory
 import util.XCRunnerSimctl
 import java.io.File
 import java.nio.file.Files
@@ -465,7 +469,23 @@ class IOSDriver(
         return iosDevice.isShutdown()
     }
 
-    override fun isScreenStatic(): Boolean {
+    override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
+        return MaestroTimer.retryUntilTrue(timeoutMs) {
+            val isScreenStatic = isScreenStatic()
+
+            LOGGER.info("screen static = $isScreenStatic")
+            return@retryUntilTrue isScreenStatic
+        }
+    }
+
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy {
+        LOGGER.info("Waiting for animation to end with timeout $SCREEN_SETTLE_TIMEOUT_MS")
+        val didFinishOnTime = waitUntilScreenIsStatic(SCREEN_SETTLE_TIMEOUT_MS)
+
+        return if (didFinishOnTime) ScreenshotUtils.viewHierarchy(this) else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+    }
+
+    private fun isScreenStatic(): Boolean {
         return iosDevice.isScreenStatic().expect {}
     }
 
@@ -475,5 +495,7 @@ class IOSDriver(
 
     companion object {
         const val NAME = "iOS Simulator"
+        private val LOGGER = LoggerFactory.getLogger(IOSDevice::class.java)
+        private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 2000
     }
 }
