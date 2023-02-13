@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonCreator
 
 data class WorkspaceConfig(
-    val flows: FlowList? = null,
+    val flows: StringList? = null,
+    val includeTags: StringList? = null,
+    val excludeTags: StringList? = null,
 ) {
 
     @JsonAnySetter
@@ -12,15 +14,15 @@ data class WorkspaceConfig(
         // Do nothing
     }
 
-    class FlowList : ArrayList<String>() {
+    class StringList : ArrayList<String>() {
 
         companion object {
 
             @Suppress("unused")
             @JvmStatic
             @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-            fun parse(string: String): FlowList {
-                return FlowList().apply {
+            fun parse(string: String): StringList {
+                return StringList().apply {
                     add(string)
                 }
             }

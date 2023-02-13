@@ -41,6 +41,9 @@ object WorkspaceExecutionPlanner {
             }
             .toList()
 
+        val globalIncludeTags = workspaceConfig.includeTags?.toList() ?: emptyList()
+        val globalExcludeTags = workspaceConfig.excludeTags?.toList() ?: emptyList()
+
         return ExecutionPlan(
             flowsToRun = entries
                 .filter { it.nameWithoutExtension != "config" }
@@ -57,7 +60,9 @@ object WorkspaceExecutionPlanner {
                     val tags = config?.tags ?: emptyList()
 
                     (includeTags.isEmpty() || tags.any(includeTags::contains))
+                        && (globalIncludeTags.isEmpty() || tags.any(globalIncludeTags::contains))
                         && (excludeTags.isEmpty() || !tags.any(excludeTags::contains))
+                        && (globalExcludeTags.isEmpty() || !tags.any(globalExcludeTags::contains))
                 }
         )
     }

@@ -166,6 +166,38 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `010 - Global include tags`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = path("/workspaces/010_global_include_tags"),
+            includeTags = listOf("featureA"),
+            excludeTags = listOf(),
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/010_global_include_tags/flowA.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `011 - Global exclude tags`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = path("/workspaces/011_global_exclude_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf("featureA"),
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/011_global_exclude_tags/flowB.yaml"),
+            path("/workspaces/011_global_exclude_tags/flowC.yaml"),
+            path("/workspaces/011_global_exclude_tags/flowE.yaml"),
+        )
+    }
+
     private fun path(pathStr: String): Path {
         return Paths.get(WorkspaceExecutionPlannerTest::class.java.getResource(pathStr).toURI())
     }
