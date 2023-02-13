@@ -243,6 +243,9 @@ class IOSDriver(
         attributes["focused"] = xcUiElement.hasFocus.toString()
         attributes["selected"] = xcUiElement.selected.toString()
 
+        val checked = xcUiElement.elementType in CHECKABLE_ELEMENTS && xcUiElement.value == "1"
+        attributes["checked"] = checked.toString()
+
         val children = mutableListOf<TreeNode>()
         val childNodes = xcUiElement.children
         if (childNodes != null) {
@@ -256,7 +259,8 @@ class IOSDriver(
             children = children,
             enabled = xcUiElement.enabled,
             focused = xcUiElement.hasFocus,
-            selected = xcUiElement.selected
+            selected = xcUiElement.selected,
+            checked = checked,
         )
     }
 
@@ -494,8 +498,21 @@ class IOSDriver(
     }
 
     companion object {
+
         const val NAME = "iOS Simulator"
+
         private val LOGGER = LoggerFactory.getLogger(IOSDevice::class.java)
         private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 2000
+
+        private const val ELEMENT_TYPE_CHECKBOX = 12
+        private const val ELEMENT_TYPE_SWITCH = 40
+        private const val ELEMENT_TYPE_TOGGLE = 41
+
+        private val CHECKABLE_ELEMENTS = setOf(
+            ELEMENT_TYPE_CHECKBOX,
+            ELEMENT_TYPE_SWITCH,
+            ELEMENT_TYPE_TOGGLE,
+        )
+
     }
 }

@@ -767,6 +767,36 @@ class Orchestra(
                 filters += Filters.enabled(it)
             }
 
+        selector.selected
+            ?.let {
+                descriptions += if (it) {
+                    "Selected"
+                } else {
+                    "Not selected"
+                }
+                filters += Filters.selected(it)
+            }
+
+        selector.checked
+            ?.let {
+                descriptions += if (it) {
+                    "Checked"
+                } else {
+                    "Not checked"
+                }
+                filters += Filters.checked(it)
+            }
+
+        selector.focused
+            ?.let {
+                descriptions += if (it) {
+                    "Focused"
+                } else {
+                    "Not focused"
+                }
+                filters += Filters.focused(it)
+            }
+
         var resultFilter = Filters.intersect(filters)
         resultFilter = selector.index
             ?.toDouble()

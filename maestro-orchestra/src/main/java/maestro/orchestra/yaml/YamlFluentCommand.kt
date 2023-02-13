@@ -415,6 +415,9 @@ data class YamlFluentCommand(
                 ?.map { ElementTrait.valueOf(it.replace('-', '_').uppercase()) },
             index = selector.index,
             enabled = selector.enabled,
+            selected = selector.selected,
+            checked = selector.checked,
+            focused = selector.focused,
             optional = selector.optional ?: false,
         )
     }

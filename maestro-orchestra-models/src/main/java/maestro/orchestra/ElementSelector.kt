@@ -35,6 +35,9 @@ data class ElementSelector(
     val traits: List<ElementTrait>? = null,
     val index: String? = null,
     val enabled: Boolean? = null,
+    val selected: Boolean? = null,
+    val checked: Boolean? = null,
+    val focused: Boolean? = null,
 ) {
 
     data class SizeSelector(

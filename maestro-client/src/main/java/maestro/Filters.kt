@@ -215,6 +215,24 @@ object Filters {
         }
     }
 
+    fun selected(expected: Boolean): ElementFilter {
+        return { nodes ->
+            nodes.filter { it.selected == expected }
+        }
+    }
+
+    fun checked(expected: Boolean): ElementFilter {
+        return { nodes ->
+            nodes.filter { it.checked == expected }
+        }
+    }
+
+    fun focused(expected: Boolean): ElementFilter {
+        return { nodes ->
+            nodes.filter { it.focused == expected }
+        }
+    }
+
     fun deepestMatchingElement(filter: ElementFilter): ElementFilter {
         return { nodes ->
             filter(nodes)

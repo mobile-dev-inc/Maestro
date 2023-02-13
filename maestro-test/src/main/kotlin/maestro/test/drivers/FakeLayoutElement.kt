@@ -28,7 +28,10 @@ data class FakeLayoutElement(
     var text: String? = null,
     var bounds: Bounds? = null,
     var clickable: Boolean = false,
-    var enabled: Boolean = true,
+    var enabled: Boolean? = true,
+    var selected: Boolean? = false,
+    var checked: Boolean? = false,
+    var focused: Boolean? = false,
     var color: Color = Color.BLACK,
     var onClick: (FakeLayoutElement) -> Unit = {},
     val children: MutableList<FakeLayoutElement> = mutableListOf(),
@@ -49,10 +52,29 @@ data class FakeLayoutElement(
             attributes += "resource-id" to it
         }
 
+        enabled?.let {
+            attributes += "enabled" to it.toString()
+        }
+
+        selected?.let {
+            attributes += "selected" to it.toString()
+        }
+
+        checked?.let {
+            attributes += "checked" to it.toString()
+        }
+
+        focused?.let {
+            attributes += "focused" to it.toString()
+        }
+
         return TreeNode(
             attributes = attributes,
             clickable = clickable,
             enabled = enabled,
+            selected = selected,
+            checked = checked,
+            focused = focused,
             children = children.map { it.toTreeNode() }
         )
     }
@@ -110,6 +132,23 @@ data class FakeLayoutElement(
 
         fun contains(x: Int, y: Int): Boolean {
             return x in left..right && y in top..bottom
+        }
+
+        fun translate(x: Int = 0, y: Int = 0): Bounds {
+            return Bounds(
+                left = left + x,
+                top = top + y,
+                right = right + x,
+                bottom = bottom + y,
+            )
+        }
+
+        companion object {
+
+            fun ofSize(width: Int, height: Int): Bounds {
+                return Bounds(0, 0, width, height)
+            }
+
         }
 
     }

@@ -1,0 +1,31 @@
+appId: com.example.app
+---
+# True
+- assertVisible:
+    text: "Field"
+    checked: true
+- assertVisible:
+    text: "Field"
+    selected: true
+- assertVisible:
+    text: "Field"
+    enabled: true
+- assertVisible:
+    text: "Field"
+    focused: true
+
+- tapOn: Flip
+
+# False
+- assertNotVisible:
+    text: "Field"
+    checked: true
+- assertNotVisible:
+    text: "Field"
+    selected: true
+- assertNotVisible:
+    text: "Field"
+    enabled: true
+- assertNotVisible:
+    text: "Field"
+    focused: true

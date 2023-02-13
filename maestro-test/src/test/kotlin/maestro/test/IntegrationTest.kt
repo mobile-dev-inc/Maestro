@@ -2152,7 +2152,7 @@ class IntegrationTest {
         // Given
         val commands = readCommands("079_scroll_until_visible")
 
-        val info = driver {  }.deviceInfo()
+        val info = driver { }.deviceInfo()
 
         // Without view
         val driver1 = driver {
@@ -2166,9 +2166,8 @@ class IntegrationTest {
             }
         }
 
-
         // With view
-        val elementBounds = Bounds(0, info.heightGrid, 100, info.heightGrid+ 100)
+        val elementBounds = Bounds(0, info.heightGrid, 100, info.heightGrid + 100)
         val driver2 = driver {
             element {
                 text = "Test"
@@ -2194,7 +2193,7 @@ class IntegrationTest {
         // Given
         val commands = readCommands("080_hierarchy_pruning_assert_visible")
 
-        val info = driver{}.deviceInfo()
+        val info = driver {}.deviceInfo()
 
         val driver = driver {
             element {
@@ -2208,17 +2207,17 @@ class IntegrationTest {
 
                 element {
                     id = "visible_2"
-                    bounds = Bounds(info.widthGrid - 50, 0, info.widthGrid + 100 , 100)
+                    bounds = Bounds(info.widthGrid - 50, 0, info.widthGrid + 100, 100)
                 }
 
                 element {
                     id = "visible_3"
-                    bounds = Bounds(0, info.heightGrid - 50, 100 , info.heightGrid + 100)
+                    bounds = Bounds(0, info.heightGrid - 50, 100, info.heightGrid + 100)
                 }
 
                 element {
                     id = "visible_4"
-                    bounds = Bounds(-100, -100, info.widthGrid + 200 , info.heightGrid + 200)
+                    bounds = Bounds(-100, -100, info.widthGrid + 200, info.heightGrid + 200)
                 }
             }
         }
@@ -2238,7 +2237,7 @@ class IntegrationTest {
         // Given
         val commands = readCommands("081_hierarchy_pruning_assert_not_visible")
 
-        val info = driver{}.deviceInfo()
+        val info = driver {}.deviceInfo()
 
         val driver = driver {
             element {
@@ -2262,7 +2261,7 @@ class IntegrationTest {
 
                 element {
                     id = "not_visible_4"
-                    bounds = Bounds(0, info.heightGrid - 10 , 100, info.heightGrid + 100)
+                    bounds = Bounds(0, info.heightGrid - 10, 100, info.heightGrid + 100)
                 }
             }
         }
@@ -2300,17 +2299,53 @@ class IntegrationTest {
         }
 
         // When
-        Maestro(driver, GenericScreenshotDriver(driver)).use {
+        Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
 
         // Then
         // No test failures
-
         driver.assertEventCount(
             Event.Tap(Point(50, 50)),
             expectedCount = 3
         )
+    }
+
+    @Test
+    fun `Case 083 - Assert on properties`() {
+        // Given
+        val commands = readCommands("083_assert_properties")
+
+        val driver = driver {
+            val field = element {
+                text = "Field"
+                checked = true
+                selected = true
+                focused = true
+                bounds = Bounds.ofSize(width = 100, height = 100)
+            }
+
+            element {
+                text = "Flip"
+                bounds = Bounds.ofSize(width = 100, height = 100)
+                    .translate(y = 100)
+                onClick = {
+                    field.checked = field.checked?.not()
+                    field.selected = field.selected?.not()
+                    field.enabled = field.enabled?.not()
+                    field.focused = field.focused?.not()
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.Tap(Point(50, 150)))
     }
 
     private fun orchestra(maestro: Maestro) = Orchestra(

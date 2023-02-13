@@ -42,4 +42,7 @@ data class YamlElementSelector(
     val traits: String? = null,
     val index: String? = null,
     val enabled: Boolean? = null,
+    val selected: Boolean? = null,
+    val checked: Boolean? = null,
+    val focused: Boolean? = null,
 ) : YamlElementSelectorUnion
