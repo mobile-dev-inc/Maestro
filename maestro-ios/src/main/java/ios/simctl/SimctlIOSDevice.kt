@@ -57,7 +57,9 @@ class SimctlIOSDevice(
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+        return runCatching {
+            Simctl.uninstall(deviceId, id)
+        }
     }
 
     override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {

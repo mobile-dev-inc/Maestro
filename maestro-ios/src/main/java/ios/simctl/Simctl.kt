@@ -202,6 +202,18 @@ object Simctl {
         )
     }
 
+    fun uninstall(deviceId: String, bundleId: String) {
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "uninstall",
+                deviceId,
+                bundleId
+            )
+        )
+    }
+
     fun clearKeychain(deviceId: String) {
         CommandLineUtils.runCommand(
             listOf(
