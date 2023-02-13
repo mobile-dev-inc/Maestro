@@ -239,6 +239,7 @@ class AndroidDriver(
         }
 
         dadb.shell("input keyevent $intCode")
+        Thread.sleep(300)
     }
 
     override fun contentDescriptor(): TreeNode {
@@ -345,11 +346,13 @@ class AndroidDriver(
 
     override fun backPress() {
         dadb.shell("input keyevent 4")
+        Thread.sleep(300)
     }
 
     override fun hideKeyboard() {
         dadb.shell("input keyevent 66")
         dadb.shell("input keyevent 111")
+        Thread.sleep(300)
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
