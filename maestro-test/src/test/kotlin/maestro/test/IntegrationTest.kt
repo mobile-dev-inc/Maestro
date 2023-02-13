@@ -1519,6 +1519,9 @@ class IntegrationTest {
                 Event.Tap(Point(50, 50)),
                 Event.Tap(Point(50, 50)),
                 Event.Tap(Point(50, 50)),
+                Event.Tap(Point(50, 50)),
+                Event.Tap(Point(50, 50)),
+                Event.Tap(Point(50, 50)),
             )
         )
     }
