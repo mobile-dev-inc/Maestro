@@ -7,12 +7,17 @@ data class WorkspaceConfig(
     val flows: StringList? = null,
     val includeTags: StringList? = null,
     val excludeTags: StringList? = null,
+    val local: Local? = null,
 ) {
 
     @JsonAnySetter
     fun setOtherField(key: String, other: Any?) {
         // Do nothing
     }
+
+    data class Local(
+        val deterministicOrder: Boolean? = null,
+    )
 
     class StringList : ArrayList<String>() {
 

@@ -198,6 +198,23 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `012 - Deterministic order for local tests`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = path("/workspaces/012_local_deterministic_order"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/012_local_deterministic_order/flowA.yaml"),
+            path("/workspaces/012_local_deterministic_order/flowB.yaml"),
+            path("/workspaces/012_local_deterministic_order/flowC.yaml"),
+        ).inOrder()
+    }
+
     private fun path(pathStr: String): Path {
         return Paths.get(WorkspaceExecutionPlannerTest::class.java.getResource(pathStr).toURI())
     }

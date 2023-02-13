@@ -40,6 +40,13 @@ object WorkspaceExecutionPlanner {
                 matchers.any { matcher -> matcher.matches(path) }
             }
             .toList()
+            .let { list ->
+                if (workspaceConfig.local?.deterministicOrder == true) {
+                    list.sortedBy { it.name }
+                } else {
+                    list
+                }
+            }
 
         val globalIncludeTags = workspaceConfig.includeTags?.toList() ?: emptyList()
         val globalExcludeTags = workspaceConfig.excludeTags?.toList() ?: emptyList()
