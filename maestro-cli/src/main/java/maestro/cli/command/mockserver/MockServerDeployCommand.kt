@@ -18,7 +18,7 @@ class MockServerDeployCommand : Callable<Int> {
     @ParentCommand
     lateinit var parent: MockServerCommand
 
-    @Parameters
+    @Parameters(arity = "0..1")
     lateinit var workspace: File
 
     @Option(order = 0, names = ["--apiKey"], description = ["API key"])
@@ -30,7 +30,18 @@ class MockServerDeployCommand : Callable<Int> {
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
+    private fun getDefaultMockserverDir(): File {
+        val currentDir = System.getProperty("user.dir")
+        val defaultWorkspaceDirPath = "$currentDir/.maestro/mockserver"
+
+        return File(defaultWorkspaceDirPath)
+    }
+
     override fun call(): Int {
+        if (!this::workspace.isInitialized) {
+            workspace = getDefaultMockserverDir()
+        }
+
         if (!workspace.isDirectory) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
@@ -44,8 +55,6 @@ class MockServerDeployCommand : Callable<Int> {
             workspace = workspace,
             apiKey = apiKey,
         )
-
-        return 0
     }
 
 }
