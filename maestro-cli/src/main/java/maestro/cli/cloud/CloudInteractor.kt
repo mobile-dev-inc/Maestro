@@ -66,7 +66,7 @@ class CloudInteractor(
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
-            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip, includeTags, excludeTags)
+            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
             println()
             val progressBar = ProgressBar(20)
 

@@ -29,6 +29,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
@@ -61,6 +62,14 @@ object YamlCommandReader {
     fun readConfig(flowPath: Path): YamlConfig {
         val (config) = readConfigAndCommands(flowPath)
         return config
+    }
+
+    fun readWorkspaceConfig(configPath: Path): WorkspaceConfig = try {
+        mapParsingErrors {
+            MAPPER.readValue(configPath.inputStream(), WorkspaceConfig::class.java)
+        }
+    } catch (ignored: NoInputException) {
+        WorkspaceConfig()
     }
 
     // Files to watch for changes. Includes any referenced files.

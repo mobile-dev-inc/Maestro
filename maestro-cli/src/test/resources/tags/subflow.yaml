@@ -1,5 +1,0 @@
-appId: com.example.app
-tags:
-  - subtag
----
-- runFlow: subsubflow.yaml

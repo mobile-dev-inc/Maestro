@@ -1,6 +1,3 @@
 appId: com.example.app
-tags:
-  - dev
 ---
 - launchApp
-- runFlow: subflow.yaml

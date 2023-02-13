@@ -1,0 +1,6 @@
+appId: com.example.app
+tags:
+  - included
+  - someOtherTag
+---
+- launchApp

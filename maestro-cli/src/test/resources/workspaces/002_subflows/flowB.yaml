@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- launchApp
+- runFlow: subflows/subflow.yaml

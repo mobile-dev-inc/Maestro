@@ -7,7 +7,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.WorkspaceUtils
+import maestro.cli.util.WorkspaceExecutionPlanner
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
@@ -37,15 +37,20 @@ class TestSuiteInteractor(
                 env,
             )
         } else {
-            val flowFiles = WorkspaceUtils.filterFilesBasedOnTags(input.listFiles().map { it.toPath() }, includeTags, excludeTags)
+            val flowFiles = WorkspaceExecutionPlanner
+                .plan(
+                    input = input.toPath().toAbsolutePath(),
+                    includeTags = includeTags,
+                    excludeTags = excludeTags,
+                )
+                .flowsToRun
+
             if (flowFiles.isEmpty()) {
                 throw CliError("No flow returned from the tag filter used")
             }
 
             runTestSuite(
-                flowFiles
-                    .filter(WorkspaceUtils::isFlowFile)
-                    .map { it.toFile() },
+                flowFiles.map { it.toFile() },
                 reportOut,
                 env,
             )
