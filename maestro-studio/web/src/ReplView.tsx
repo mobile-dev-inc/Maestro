@@ -5,6 +5,7 @@ import { FormattedFlow, ReplCommand, ReplCommandStatus } from './models';
 import { Reorder } from 'framer-motion';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { SaveFlowModal } from './SaveFlowModal';
+import { useConfirmationDialog } from './ConfirmationDialog';
 
 const PlayIcon = () => {
   return (
@@ -278,6 +279,12 @@ const ReplView = ({onError}: {
   const listSize = repl?.commands.length || 0
   const previousListSize = useRef(0);
 
+  const [showConfirmationDialog, dialog] = useConfirmationDialog(
+    'Confirmation?', 
+    `Click confirm to delete the selected commands.`, 
+    () => API.repl.deleteCommands(selectedIds)
+  );
+
   // Scroll to bottom when new commands are added
   useEffect(() => {
     const listSizeChange = listSize - previousListSize.current
@@ -325,83 +332,91 @@ const ReplView = ({onError}: {
   }
   const onCopy = () => {}
   const onDelete = () => {
-    API.repl.deleteCommands(selectedIds)
+    if (selectedIds.length > 1) {
+      showConfirmationDialog()
+    } else {
+      API.repl.deleteCommands(selectedIds)
+    }
   }
 
   const flowText = getFlowText(selectedCommands);
 
   return (
-    <div className="flex flex-col border rounded overflow-hidden h-full">
-      <ReplHeader
-        onSelectAll={() => setSelected(repl.commands.map(c => c.id))}
-        onDeselectAll={() => setSelected([])}
-        selected={selectedIds.length}
-        copyText={flowText}
-        onPlay={onPlay}
-        onExport={onExport}
-        onCopy={onCopy}
-        onDelete={onDelete}
-      />
-      <Reorder.Group
-        ref={listRef}
-        className="overflow-y-scroll overflow-hidden"
-        onReorder={onReorder}
-        values={repl.commands}
-      >
-        {repl.commands.map(command => (
-          <Reorder.Item
-            value={command}
-            key={command.id}
-            transition={{duration: .1}}
-            dragTransition={{bounceStiffness: 2000, bounceDamping: 100}}
-            onDragStart={() => { setDragging(true) }}
-            onDragEnd={() => { setTimeout(() => setDragging(false)) }}
-          >
-            <CommandRow
-              command={command}
-              selected={selectedIds.includes(command.id)}
-              onClick={() => {
-                if (dragging) return
-                if (selectedIds.includes(command.id)) {
-                  setSelected(prevState => prevState.filter(id => id !== command.id))
-                } else {
-                  setSelected(prevState => [...prevState, command.id])
-                }
-              }}
-            />
-          </Reorder.Item>
-        ))}
-      </Reorder.Group>
-      <div
-        className="relative flex flex-col"
-        onKeyDown={e => {
-          if (e.code === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            runCommand()
-          }
-        }}
-      >
-        <AutosizingTextArea
-          className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
-          setValue={value => setInput(value)}
-          value={input}
-          placeholder="Enter a command, then press ENTER to run"
+    <>
+      <div className="flex flex-col border rounded overflow-hidden h-full">
+        <ReplHeader
+          onSelectAll={() => setSelected(repl.commands.map(c => c.id))}
+          onDeselectAll={() => setSelected([])}
+          selected={selectedIds.length}
+          copyText={flowText}
+          onPlay={onPlay}
+          onExport={onExport}
+          onCopy={onCopy}
+          onDelete={onDelete}
         />
-        <button
-          className="absolute flex items-center right-1 top-1 rounded bottom-1 px-4 disabled:text-slate-400 enabled:text-blue-600 enabled:hover:bg-slate-200 enabled:active:bg-slate-300 cursor-default"
-          disabled={!input}
-          onClick={() => runCommand()}
+        <Reorder.Group
+          ref={listRef}
+          className="overflow-y-scroll overflow-hidden"
+          onReorder={onReorder}
+          values={repl.commands}
         >
-          <PlayIcon />
-        </button>
+          {repl.commands.map(command => (
+            <Reorder.Item
+              value={command}
+              key={command.id}
+              transition={{duration: .1}}
+              dragTransition={{bounceStiffness: 2000, bounceDamping: 100}}
+              onDragStart={() => { setDragging(true) }}
+              onDragEnd={() => { setTimeout(() => setDragging(false)) }}
+            >
+              <CommandRow
+                command={command}
+                selected={selectedIds.includes(command.id)}
+                onClick={() => {
+                  if (dragging) return
+                  if (selectedIds.includes(command.id)) {
+                    setSelected(prevState => prevState.filter(id => id !== command.id))
+                  } else {
+                    setSelected(prevState => [...prevState, command.id])
+                  }
+                }}
+              />
+            </Reorder.Item>
+          ))}
+        </Reorder.Group>
+        <div
+          className="relative flex flex-col"
+          onKeyDown={e => {
+            if (e.code === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              runCommand()
+            }
+          }}
+        >
+          <AutosizingTextArea
+            className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
+            setValue={value => setInput(value)}
+            value={input}
+            placeholder="Enter a command, then press ENTER to run"
+          />
+          <button
+            className="absolute flex items-center right-1 top-1 rounded bottom-1 px-4 disabled:text-slate-400 enabled:text-blue-600 enabled:hover:bg-slate-200 enabled:active:bg-slate-300 cursor-default"
+            disabled={!input}
+            onClick={() => runCommand()}
+          >
+            <PlayIcon />
+          </button>
+        </div>
+        {repl.commands.length === 0 && (
+          <Instructions />
+        )}
+        {formattedFlow && (
+          <SaveFlowModal formattedFlow={formattedFlow} onClose={()=>{ setFormattedFlow(null) }} />
+        )}
       </div>
-      {repl.commands.length === 0 && (
-        <Instructions />
-      )}
-      {formattedFlow && (
-        <SaveFlowModal formattedFlow={formattedFlow} onClose={()=>{ setFormattedFlow(null) }} />
-      )}
-    </div>
+
+      {dialog}
+    </>
   )
 }
 
