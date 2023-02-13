@@ -70,7 +70,15 @@ object XCRunnerSimctl {
     }
 
     fun uninstall(bundleId: String) {
-        CommandLineUtils.runCommand("xcrun simctl uninstall booted $bundleId")
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "uninstall",
+                "booted",
+                bundleId
+            )
+        )
     }
 
     fun ensureAppAlive(bundleId: String) {
@@ -81,9 +89,12 @@ object XCRunnerSimctl {
 
     fun isAppAlive(bundleId: String): Boolean {
         val process = ProcessBuilder(
-            "bash",
-            "-c",
-            "xcrun simctl spawn booted launchctl list | grep $bundleId | awk '/$bundleId/ {print \$3}'"
+            "xcrun",
+            "simctl",
+            "spawn",
+            "booted",
+            "launchctl",
+            "list"
         ).start()
 
         val processOutput = process.inputStream.source().buffer().readUtf8().trim()
@@ -95,7 +106,14 @@ object XCRunnerSimctl {
     fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String): Process {
         val date = dateFormatter.format(LocalDateTime.now())
         return CommandLineUtils.runCommand(
-            "xcodebuild test-without-building -xctestrun $xcTestRunFilePath -destination id=$deviceId",
+            listOf(
+                "xcodebuild",
+                "test-without-building",
+                "-xctestrun",
+                xcTestRunFilePath,
+                "-destination",
+                "id=$deviceId",
+            ),
             waitForCompletion = false,
             outputFile = File(logDirectory, "xctest_runner_$date.log")
         )

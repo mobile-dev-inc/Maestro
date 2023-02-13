@@ -45,14 +45,30 @@ object Simctl {
     }
 
     fun launchSimulator(deviceId: String) {
-        CommandLineUtils.runCommand("xcrun simctl boot $deviceId")
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "boot",
+                deviceId
+            )
+        )
 
         var exceptionToThrow: Exception? = null
 
         // Up to 10 iterations => max wait time of 1 second
         repeat(10) {
             try {
-                CommandLineUtils.runCommand("open -a /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app --args -CurrentDeviceUDID $deviceId")
+                CommandLineUtils.runCommand(
+                    listOf(
+                        "open",
+                        "-a",
+                        "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app",
+                        "--args",
+                        "-CurrentDeviceUDID",
+                        deviceId
+                    )
+                )
                 return
             } catch (e: Exception) {
                 exceptionToThrow = e

@@ -9,26 +9,13 @@ import java.util.concurrent.TimeoutException
 
 object CommandLineUtils {
 
-    private val NULL_FILE = File(
-        if (System.getProperty("os.name")
-                .startsWith("Windows")
-        ) "NUL" else "/dev/null"
-    )
-
-    // Deprecated: `runCommand("foo $bar")` $bar may contain spaces and forms a security risk
-    @Deprecated("use runCommand(listOf(...)) instead")
-    fun runCommand(command: String, waitForCompletion: Boolean = true, outputFile: File? = null): Process {
-        LOGGER.info("Running command line operation: $command")
-
-        val parts = command.split("\\s".toRegex())
-            .map { it.trim() }
-
-        return runCommand(parts, waitForCompletion, outputFile)
-    }
+    private val isWindows = System.getProperty("os.name").startsWith("Windows")
+    private val nullFile = File(if (isWindows) "NUL" else "/dev/null")
+    private val logger = LoggerFactory.getLogger(CommandLineUtils::class.java)
 
     @Suppress("SpreadOperator")
     fun runCommand(parts: List<String>, waitForCompletion: Boolean = true, outputFile: File? = null): Process {
-        LOGGER.info("Running command line operation: $parts")
+        logger.info("Running command line operation: $parts")
 
         val process = if (outputFile != null) {
             ProcessBuilder(*parts.toTypedArray())
@@ -37,8 +24,8 @@ object CommandLineUtils {
                 .start()
         } else {
             ProcessBuilder(*parts.toTypedArray())
-                .redirectOutput(NULL_FILE)
-                .redirectError(NULL_FILE)
+                .redirectOutput(nullFile)
+                .redirectError(nullFile)
                 .start()
         }
 
@@ -53,8 +40,8 @@ object CommandLineUtils {
                     .buffer()
                     .readUtf8()
 
-                LOGGER.error("Process failed with exit code ${process.exitValue()}")
-                LOGGER.error(processOutput)
+                logger.error("Process failed with exit code ${process.exitValue()}")
+                logger.error(processOutput)
 
                 throw IllegalStateException(processOutput)
             }
@@ -62,6 +49,4 @@ object CommandLineUtils {
 
         return process
     }
-
-    private val LOGGER = LoggerFactory.getLogger(CommandLineUtils::class.java)
 }
