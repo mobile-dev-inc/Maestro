@@ -1,8 +1,9 @@
-import React, { MouseEventHandler, useEffect, useState } from 'react';
+import React, { MouseEventHandler, useState } from 'react';
 import { DeviceScreen, DivProps, UIElement } from './models';
 import { API } from './api';
 import { AnnotatedScreenshot } from './AnnotatedScreenshot';
 import { MousePosition } from '@react-hook/mouse-position';
+import { isHotkeyPressed } from 'react-hotkeys-hook';
 
 type GestureEvent = {
   x: number
@@ -62,38 +63,16 @@ const GestureDiv = ({onTap, onSwipe, gesturesEnabled = true, ...rest}: {
 }
 
 const useMetaKeyDown = () => {
-  const [metaKeyDown, setMetaKeyDown] = useState(false);
-
-  function downHandler({key}: KeyboardEvent) {
-    if (key === 'Meta') {
-      setMetaKeyDown(true);
-    }
-  }
-
-  function upHandler({key}: KeyboardEvent) {
-    if (key === 'Meta') {
-      setMetaKeyDown(false);
-    }
-  }
-
-  useEffect(() => {
-    window.addEventListener('keydown', downHandler);
-    window.addEventListener('keyup', upHandler);
-    return () => {
-      window.removeEventListener('keydown', downHandler);
-      window.removeEventListener('keyup', upHandler);
-    };
-  }, []);
-
-  return metaKeyDown
+  return isHotkeyPressed('meta')
 }
 
 const toPercent = (n: number, total: number) => `${Math.round((100 * n / total))}%`
 
-const InteractableDevice = ({deviceScreen, onHint, onInspectElement}: {
+const InteractableDevice = ({deviceScreen, onHint, inspectedElement, onInspectElement}: {
   deviceScreen: DeviceScreen
   onHint: (hint: string | null) => void
-  onInspectElement: (element: UIElement) => void
+  inspectedElement: UIElement | null
+  onInspectElement: (element: UIElement | null) => void
 }) => {
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null)
   const metaKeyDown = useMetaKeyDown()
@@ -118,36 +97,6 @@ const InteractableDevice = ({deviceScreen, onHint, onInspectElement}: {
         end: "${endXPercent}%,${endYPercent}%"
         duration: ${Math.round(duration)}
     `)
-  }
-
-  const onElementTap = (e: UIElement | null) => {
-    if (!e) return
-    if (!e.bounds) return
-    if (e.resourceId) {
-      const index = typeof e.resourceIdIndex === 'number' ? `index: ${e.resourceIdIndex}` : ''
-      API.repl.runCommand(`
-        tapOn:
-          id: "${e.resourceId}"
-          ${index}
-      `)
-    } else if (e.text) {
-      if (typeof e.textIndex === 'number') {
-        API.repl.runCommand(`
-          tapOn:
-            text: "${e.text}"
-            index: ${e.textIndex}
-        `)
-      } else {
-        API.repl.runCommand(`tapOn: ${e.text}`)
-      }
-    } else {
-      const cx = toPercent(e.bounds.x + e.bounds.width / 2, deviceScreen.width)
-      const cy = toPercent(e.bounds.y + e.bounds.height / 2, deviceScreen.height)
-      API.repl.runCommand(`
-        tapOn:
-          point: "${cx},${cy}"
-      `)
-    }
   }
 
   const getMouseHint = (mouse: MousePosition): string | null => {
@@ -192,11 +141,10 @@ const InteractableDevice = ({deviceScreen, onHint, onInspectElement}: {
     >
       <AnnotatedScreenshot
         deviceScreen={deviceScreen}
-        selectedElement={null}
-        onElementSelected={onElementTap}
+        selectedElement={inspectedElement}
+        onElementSelected={onInspectElement}
         hoveredElement={hoveredElement}
         onHover={onHover}
-        onInspect={onInspectElement}
         annotationsEnabled={!metaKeyDown}
       />
     </GestureDiv>

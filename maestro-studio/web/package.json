@@ -16,14 +16,17 @@
     "date-fns": "^2.29.3",
     "file-saver": "^2.0.5",
     "framer-motion": "^7.10.3",
+    "fuse.js": "^6.6.2",
     "react": "^18.2.0",
     "react-contenteditable": "^3.3.6",
     "react-copy-to-clipboard": "^5.1.0",
     "react-dom": "^18.2.0",
+    "react-hotkeys-hook": "^4.3.5",
     "react-scripts": "5.0.1",
     "swr": "^2.0.0",
     "typescript": "^4.9.3",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "yaml": "^2.2.1"
   },
   "scripts": {
     "start": "react-scripts start",

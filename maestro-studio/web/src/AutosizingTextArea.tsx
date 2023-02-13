@@ -11,6 +11,7 @@ const AutosizingTextArea = ({value, setValue, ...rest}: {
       textAreaRef.current.style.height = "0px";
       const scrollHeight = textAreaRef.current.scrollHeight;
       textAreaRef.current.style.height = scrollHeight + "px";
+      textAreaRef.current.focus()
     }
   }, [textAreaRef, value]);
   return (

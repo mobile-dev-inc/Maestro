@@ -259,19 +259,19 @@ const Instructions = () => {
     <div className="flex-1 flex flex-col p-16 items-center">
       <div className="flex flex-col gap-4 font-mono p-12 bg-blue-50 rounded-md border border-blue-400 text-blue-900">
         <p>• Type a command above, then hit ENTER to run</p>
-        <p>• Tap on the device screen on the left to generate commands</p>
+        <p>• Tap on the device screen to explore available commands</p>
         <p>• Hold CMD (⌘) down to freely tap and swipe on the device screen</p>
-        <p>• Right click to inspect an element</p>
       </div>
     </div>
   )
 }
 
-const ReplView = ({onError}: {
+const ReplView = ({input, onInput, onError}: {
+  input: string
+  onInput: (input: string) => void
   onError: (error: string | null) => void
 }) => {
   const listRef = useRef<HTMLElement>()
-  const [input, setInput] = useState("")
   const [_selected, setSelected] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
   const [formattedFlow, setFormattedFlow] = useState<FormattedFlow | null>(null)
@@ -312,7 +312,7 @@ const ReplView = ({onError}: {
     onError(null)
     try {
       await API.repl.runCommand(input)
-      setInput("")
+      onInput("")
     } catch (e: any) {
       onError(e.message || 'Failed to run command')
     }
@@ -395,7 +395,7 @@ const ReplView = ({onError}: {
         >
           <AutosizingTextArea
             className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden font-mono cursor-text outline-none border border-transparent border-b-slate-200 focus:border focus:border-slate-400"
-            setValue={value => setInput(value)}
+            setValue={value => onInput(value)}
             value={input}
             placeholder="Enter a command, then press ENTER to run"
           />

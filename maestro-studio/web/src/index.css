@@ -11,3 +11,7 @@ html, body, #root {
   margin: 0;
   height: 100%;
 }
+
+input::placeholder {
+  @apply text-slate-400
+}
