@@ -79,7 +79,7 @@ const InteractPage = () => {
           <ReplView onError={setReplError}/>
         </div>
         <div
-          className="flex items-center gap-1 justify-center px-3 bg-slate-50 border-t h-10 text-slate-500 overflow-hidden whitespace-nowrap data-[error]:bg-red-100 data-[error]:text-red-800"
+          className="flex items-center gap-1 justify-center px-3 bg-slate-50 border-t h-auto text-slate-500 overflow-hidden data-[error]:bg-red-100 data-[error]:text-red-800 data-[error]:p-4"
           data-error={footerHint ? null : replError}
         >
           {footerHint || replError}
