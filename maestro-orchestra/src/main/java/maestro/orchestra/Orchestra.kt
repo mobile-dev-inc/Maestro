@@ -334,7 +334,14 @@ class Orchestra(
         )
 
         var mutatiing = false
-        while ((command.condition?.let { evaluateCondition(it) } != false) && counter < maxRuns) {
+
+        val checkCondition: () -> Boolean = {
+            command.condition
+                ?.evaluateScripts(jsEngine)
+                ?.let { evaluateCondition(it) } != false
+        }
+
+        while (checkCondition() && counter < maxRuns) {
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
             }

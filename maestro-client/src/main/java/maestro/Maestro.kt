@@ -386,6 +386,8 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     fun inputText(text: String) {
+        LOGGER.info("Inputting text: $text")
+
         driver.inputText(text)
         waitForAppToSettle()
     }

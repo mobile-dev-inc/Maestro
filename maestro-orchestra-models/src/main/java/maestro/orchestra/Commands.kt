@@ -609,7 +609,6 @@ data class RepeatCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             times = times?.evaluateScripts(jsEngine),
-            condition = condition?.evaluateScripts(jsEngine),
         )
     }
 

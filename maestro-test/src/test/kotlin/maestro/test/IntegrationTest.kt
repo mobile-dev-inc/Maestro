@@ -2277,6 +2277,42 @@ class IntegrationTest {
         driver.assertNoInteraction()
     }
 
+    @Test
+    fun `Case 082 - Repeat while true`() {
+        // Given
+        val commands = readCommands("082_repeat_while_true")
+        val driver = driver {
+            var counter = 0
+
+            val counterView = element {
+                text = "Value 0"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                    counter++
+                    counterView.text = "Value $counter"
+                }
+            }
+        }
+
+        // When
+        Maestro(driver, GenericScreenshotDriver(driver)).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failures
+
+        driver.assertEventCount(
+            Event.Tap(Point(50, 50)),
+            expectedCount = 3
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,
