@@ -92,7 +92,7 @@ class LocalIOSDevice(
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {
-        return idbIOSDevice.clearKeychain()
+        return simctlIOSDevice.clearKeychain()
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {

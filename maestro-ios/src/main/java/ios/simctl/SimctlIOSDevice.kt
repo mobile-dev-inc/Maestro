@@ -74,7 +74,9 @@ class SimctlIOSDevice(
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+        return runCatching {
+            Simctl.clearKeychain(deviceId)
+        }
     }
 
     override fun launch(id: String): Result<Unit, Throwable> {

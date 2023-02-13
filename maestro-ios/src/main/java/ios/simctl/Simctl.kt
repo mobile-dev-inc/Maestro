@@ -9,6 +9,7 @@ import java.io.File
 object Simctl {
 
     data class SimctlError(override val message: String): Throwable(message)
+    private val homedir = System.getProperty("user.home")
 
     fun list(): SimctlList {
         val command = listOf("xcrun", "simctl", "list", "-j")
@@ -197,6 +198,39 @@ object Simctl {
                 "openurl",
                 deviceId,
                 url,
+            )
+        )
+    }
+
+    fun clearKeychain(deviceId: String) {
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "spawn",
+                deviceId,
+                "launchctl",
+                "stop",
+                "com.apple.securityd",
+            )
+        )
+
+        CommandLineUtils.runCommand(
+            listOf(
+                "rm", "-rf",
+                "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
+            )
+        )
+
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "spawn",
+                deviceId,
+                "launchctl",
+                "start",
+                "com.apple.securityd",
             )
         )
     }
