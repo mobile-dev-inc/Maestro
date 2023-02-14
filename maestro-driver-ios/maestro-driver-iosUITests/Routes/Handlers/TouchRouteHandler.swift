@@ -16,7 +16,7 @@ class TouchRouteHandler : RouteHandler {
         
         logger.info("Tapping \(requestBody.x), \(requestBody.y)")
 
-        let eventRecord = EventRecord(orientation: .portrait)
+        var eventRecord = EventRecord(orientation: .portrait)
         eventRecord.addPointerTouchEvent(at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)))
 
         do {

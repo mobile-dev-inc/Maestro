@@ -7,7 +7,6 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
 import hierarchy.Error
 import hierarchy.XCUIElement
-import idb.Idb
 import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
@@ -103,11 +102,11 @@ class XCTestIOSDevice(
     }
 
     override fun scroll(
-        xStart: Float,
-        yStart: Float,
-        xEnd: Float,
-        yEnd: Float,
-        velocity: Float?
+        xStart: Double,
+        yStart: Double,
+        xEnd: Double,
+        yEnd: Double,
+        duration: Double,
     ): Result<Unit, Throwable> {
         return runCatching {
             val appId = activeAppId() ?: return@runCatching
@@ -118,7 +117,7 @@ class XCTestIOSDevice(
                 startY = yStart,
                 endX = xEnd,
                 endY = yEnd,
-                velocity = velocity,
+                duration = duration
             ).use {}
         }
     }

@@ -20,7 +20,6 @@
 package maestro.test.drivers
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.github.michaelbull.result.expect
 import com.google.common.truth.Truth.assertThat
 import maestro.DeviceInfo
 import maestro.Driver
@@ -31,12 +30,8 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
-import maestro.UiElement
 import maestro.ViewHierarchy
-import maestro.drivers.AndroidDriver
-import maestro.drivers.IOSDriver
 import maestro.drivers.screenshot.ScreenshotUtils
-import maestro.utils.MaestroTimer
 import okio.Sink
 import okio.buffer
 import java.awt.image.BufferedImage

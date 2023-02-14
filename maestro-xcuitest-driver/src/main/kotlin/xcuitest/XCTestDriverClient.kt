@@ -139,11 +139,11 @@ class XCTestDriverClient(
 
     fun swipe(
         appId: String,
-        startX: Float,
-        startY: Float,
-        endX: Float,
-        endY: Float,
-        velocity: Float? = null
+        startX: Double,
+        startY: Double,
+        endX: Double,
+        endY: Double,
+        duration: Double
     ): Response {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val request = SwipeRequest(
@@ -151,7 +151,7 @@ class XCTestDriverClient(
             startY = startY,
             endX = endX,
             endY = endY,
-            velocity = velocity
+            duration = duration
         )
         val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
 
