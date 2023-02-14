@@ -10,7 +10,4 @@ appId: org.wikimedia.wikipedia
 - swipe:
     direction: LEFT
     duration: 400
-- swipe:
-    direction: LEFT
-    duration: 400
 - tapOn: Get started
