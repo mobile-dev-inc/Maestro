@@ -99,6 +99,7 @@ class IOSDriver(
             .getOrThrow {
                 MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")
             }
+        waitForAppToSettle(null)
     }
 
     override fun stopApp(appId: String) {
