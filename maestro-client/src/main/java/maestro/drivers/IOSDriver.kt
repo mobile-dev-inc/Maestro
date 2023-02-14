@@ -28,6 +28,7 @@ import hierarchy.IdbElementNode
 import hierarchy.XCUIElement
 import hierarchy.XCUIElementNode
 import ios.IOSDevice
+import maestro.Capability
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
@@ -38,7 +39,7 @@ import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
-import maestro.drivers.screenshot.ScreenshotUtils
+import maestro.utils.ScreenshotUtils
 import maestro.utils.FileUtils
 import maestro.utils.MaestroTimer
 import okio.Sink
@@ -449,11 +450,15 @@ class IOSDriver(
         }
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy {
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy? {
         LOGGER.info("Waiting for animation to end with timeout $SCREEN_SETTLE_TIMEOUT_MS")
         val didFinishOnTime = waitUntilScreenIsStatic(SCREEN_SETTLE_TIMEOUT_MS)
 
-        return if (didFinishOnTime) ScreenshotUtils.viewHierarchy(this) else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+        return if (didFinishOnTime) null else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+    }
+
+    override fun capabilities(): List<Capability> {
+        return emptyList()
     }
 
     private fun isScreenStatic(): Boolean {
@@ -470,11 +475,9 @@ class IOSDriver(
 
 
     companion object {
-
         const val NAME = "iOS Simulator"
 
         private val LOGGER = LoggerFactory.getLogger(IOSDevice::class.java)
-        private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 2000
 
         private const val ELEMENT_TYPE_CHECKBOX = 12
         private const val ELEMENT_TYPE_SWITCH = 40
@@ -486,5 +489,6 @@ class IOSDriver(
             ELEMENT_TYPE_TOGGLE,
         )
 
+        private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 3000
     }
 }

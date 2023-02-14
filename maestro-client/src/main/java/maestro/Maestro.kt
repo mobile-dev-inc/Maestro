@@ -24,8 +24,9 @@ import dadb.Dadb
 import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.AndroidDriver
+import maestro.drivers.IOSDriver
 import maestro.drivers.WebDriver
-import maestro.drivers.screenshot.ScreenshotUtils
+import maestro.utils.ScreenshotUtils
 import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
 import okio.Sink
@@ -170,7 +171,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     ) {
         LOGGER.info("Tapping on element: $element")
 
-        val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy)
+        val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy) ?: initialHierarchy
 
         val center = (
             hierarchyBeforeTap
@@ -181,11 +182,11 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             ).bounds
             .center()
         performTap(
-            x = center.x,
-            y = center.y,
-            retryIfNoChange = retryIfNoChange,
-            longPress = longPress,
-            initialHierarchy = hierarchyBeforeTap,
+            center.x,
+            center.y,
+            retryIfNoChange,
+            longPress,
+            hierarchyBeforeTap,
         )
 
         if (waitUntilVisible) {
@@ -231,22 +232,57 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         retryIfNoChange: Boolean = true,
         longPress: Boolean = false,
     ) {
-        performTap(
-            x = x,
-            y = y,
-            retryIfNoChange = retryIfNoChange,
-            longPress = longPress,
-        )
+        performTap(x, y, retryIfNoChange, longPress)
     }
 
-    private fun performTap(
-        x: Int,
-        y: Int,
-        retryIfNoChange: Boolean = true,
-        longPress: Boolean = false,
-        initialHierarchy: ViewHierarchy? = null,
-    ) {
-        LOGGER.info("Tapping at ($x, $y)")
+    private fun getNumberOfRetries(retryIfNoChange: Boolean): Int {
+        return if (retryIfNoChange) 2 else 1
+    }
+
+    private fun performTap(x: Int,
+                           y: Int,
+                           retryIfNoChange: Boolean = true,
+                           longPress: Boolean = false,
+                           initialHierarchy: ViewHierarchy? = null) {
+        val capabilities = driver.capabilities()
+
+        if (Capability.FAST_HIERARCHY in capabilities) {
+            hierarchyBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy)
+        } else {
+            screenshotBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy)
+        }
+    }
+
+    private fun screenshotBasedTap(x: Int,
+                                  y: Int,
+                                  retryIfNoChange: Boolean = true,
+                                  longPress: Boolean = false,
+                                  initialHierarchy: ViewHierarchy? = null) {
+        LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
+
+        val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
+
+        val retries = getNumberOfRetries(retryIfNoChange)
+        repeat(retries) {
+            if (longPress) {
+                driver.longPress(Point(x, y))
+            } else {
+                driver.tap(Point(x, y))
+            }
+            val hierarchyAfterTap = waitForAppToSettle()
+
+            if (hierarchyAfterTap == null || hierarchyBeforeTap != hierarchyAfterTap) {
+                LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
+                return
+            }
+        }
+    }
+    private fun hierarchyBasedTap(x: Int,
+                                  y: Int,
+                                  retryIfNoChange: Boolean = true,
+                                  longPress: Boolean = false,
+                                  initialHierarchy: ViewHierarchy? = null) {
+        LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
         val screenshotBeforeTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
@@ -304,10 +340,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
 
         return hierarchy
-    }
-
-    private fun getNumberOfRetries(retryIfNoChange: Boolean): Int {
-        return if (retryIfNoChange) 2 else 1
     }
 
     fun pressKey(code: KeyCode, waitForAppToSettle: Boolean = true) {
@@ -381,7 +413,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return filter(viewHierarchy().aggregate())
     }
 
-    fun waitForAppToSettle(initialHierarchy: ViewHierarchy? = null): ViewHierarchy {
+    fun waitForAppToSettle(initialHierarchy: ViewHierarchy? = null): ViewHierarchy? {
         return driver.waitForAppToSettle(initialHierarchy)
     }
 
