@@ -5,6 +5,8 @@ plugins {
     id "com.github.johnrengelman.shadow" version "6.0.0"
 }
 
+group = "dev.mobile"
+
 application {
     applicationName = 'maestro'
     mainClassName = 'maestro.cli.AppKt'
