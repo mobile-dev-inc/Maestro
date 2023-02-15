@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.23.0 - 2023-02-15
+* Feature: Maestro Studio - Action Modal
+* Feature: Maestro Studio - Dark Mode
+* Feature: assertion on `enabled`, `selected`, `checked`, `focused` properties
+* Feature: running tests in a deterministic order (opt-in)
+* Feature: default global tags can now be set in `config.yaml`
+* Feature: allow to configure what flows should be included into a run at `config.yaml` level 
+* Tweak: considerable speed-up of iOS tests due to removal of unnecessary hierarchy polling
+* Tweak: wait for app to settle before proceeding with iOS test
+* Tweak: UX improvements in "delete command" confirmation dialog
+* Tweak: using `xcrun` for uninstall command on iOS
+* Tweak: using `xcrun` for clearKeychain command on iOS
+* Tweak: using `.maestro` directory by default for mockserver deploy command
+* Fix: errors were clipped in Maestro Studio
+* Fix: use element title as id in Web driver
+* Fix: Repeat-while-true did not work properly with JavaScript conditions
+* Fix: Repeat-times did not work properly with JavaScript input
+* Fix: added artificial delay after key presses (i.e. "back" key) on Android
+
 ## 1.22.1 - 2023-02-09
 * Early Access Feature: Maestro Mock Server and Maestro SDK (Android preview)
 * Tweak: added visibility threshold and scroll speed to `scrollUntilVisible` command
