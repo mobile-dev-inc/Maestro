@@ -5,6 +5,7 @@ import { JsonViewer } from "@textea/json-viewer"
 import { CodeSnippet } from "./Examples";
 import { API } from "./api";
 import MockServerInstructions from "./MockServerInstructions";
+import { ThemeToggle } from "./theme";
 
 const getStatusCodeColor = (statusCode: number): string => {
   if (statusCode < 400) return 'green'
@@ -58,21 +59,24 @@ const MockPage = () => {
   )
 
   return (
-    <div className="flex flex-col px-8 h-full overflow-hidden">
+    <div className="flex flex-col px-8 h-full dark:bg-slate-800 dark:text-white overflow-hidden">
       {(data?.events || []).length === 0 ? (
           <MockServerInstructions projectId={data?.projectId} />
       ) : (
         <>
-          <div className="flex flex-col gap-4 font-mono p-2 my-4 bg-blue-50 rounded-md border border-blue-400 text-blue-900">
-            <p>Project Id: {data?.projectId || 'unknown'}</p>
+          <div className="flex flex-row items-center space-x-4 justify-between">
+            <div className="flex flex-col gap-4 font-mono p-2 my-4 bg-blue-50 dark:bg-slate-500 dark:border-slate-600 dark:text-white rounded-md border border-blue-400 text-blue-900 basis-1/2">
+              <p>Project Id: {data?.projectId || 'unknown'}</p>
+            </div>
+            <ThemeToggle />
           </div>
           <div className="flex flex-row pt-2 max-h-full overflow-scroll">
             <div className="flex flex-col w-full basis-2/4 overflow-hidden">
-              <h1 className="text-lg font-bold">Events</h1>
+              <h1 className="text-lg font-bold select-none">Events</h1>
               <input
                 type="search"
                 placeholder="Filter events by session id, path, status code, response"
-                className="rounded w-full p-4 pl-2 my-2 bg-slate-100 focus:outline-slate-900"
+                className="rounded w-full p-4 pl-2 my-2 bg-slate-100 dark:bg-slate-600 dark:focus:outline-none focus:outline-slate-900"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
               />
@@ -81,16 +85,16 @@ const MockPage = () => {
 
                 {(filteredEvents || []).map(event => (
                   <div
-                    className={`flex flex-col my-2 px-4 rounded-md w-full py-2 cursor-pointer text-gray-600 ${selectedEvent !== event ? 'hover:bg-gray-200' : ''} active:bg-gray-300 ${selectedEvent === event ? 'bg-gray-300' : 'bg-gray-100 '}`}
+                    className={`flex flex-col my-2 px-4 rounded-md w-full py-2 cursor-pointer text-gray-600 ${selectedEvent !== event ? 'hover:bg-slate-200 dark:hover:bg-slate-700' : ''} active:bg-gray-300 dark:active:bg-slate-850 dark:text-white ${selectedEvent === event ? 'bg-gray-300 dark:bg-slate-850' : 'bg-gray-100 dark:bg-slate-600'}`}
                     onClick={() => setSelectedEvent(event)}
                   >
-                    <span className="text-sm text-gray-500">Session id: {event.sessionId}</span>
+                    <span className="text-sm text-gray-500 dark:text-slate-400">Session id: {event.sessionId}</span>
                     <div className="flex flex-row justify-between space-x-4 my-1">
                       <span className="grow break-all">{event.method} {event.path}</span>
                       <span className={`pl-4 ${!!event.matched ? 'font-bold' : ''}`}>{!!event.matched ? 'matched' : 'unmatched'}</span>
                       <span className={`text-${getStatusCodeColor(event.statusCode)}-600 font-bold`}>{event.statusCode}</span>
                     </div>
-                    <span className={"text-xs text-gray-500"}>{formatDistance(new Date(event.timestamp), new Date(), { addSuffix: true })}</span>
+                    <span className={"text-xs text-gray-500 dark:text-slate-400"}>{formatDistance(new Date(event.timestamp), new Date(), { addSuffix: true })}</span>
                   </div>
                 ))}
               </div>

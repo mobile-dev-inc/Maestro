@@ -59,7 +59,7 @@ const Inspect = ({ deviceScreen }: {
   
   return (
     <motion.div
-      className="flex flex-col overflow-hidden justify-end h-full"
+      className="flex flex-col overflow-hidden justify-end h-full dark:bg-slate-800"
     >
       <motion.div
         initial={{ scale: .97, opacity: 0 }}

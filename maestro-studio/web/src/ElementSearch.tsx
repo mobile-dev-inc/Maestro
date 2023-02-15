@@ -44,12 +44,12 @@ const ElementSearch = ({deviceScreen, onElementSelected, hoveredElement, onEleme
       <div className="font-bold text-lg mb-4">UI Elements</div>
       <div className="flex relative mb-4">
         <div className="flex items-center pl-5 absolute pointer-events-none inset-y-0">
-          <SearchIcon className="w-6 text-slate-500"/>
+          <SearchIcon className="w-6 text-slate-500 dark:text-slate-300"/>
         </div>
         <input
           type="search"
           placeholder="Search by element text or ID"
-          className="rounded w-full p-4 pl-14 bg-slate-100 focus:outline-slate-900"
+          className="rounded w-full p-4 pl-14 bg-slate-100 dark:bg-slate-600 dark:text-white focus:outline-slate-900 dark:focus:outline-slate-100"
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
@@ -76,7 +76,7 @@ const ElementSearch = ({deviceScreen, onElementSelected, hoveredElement, onEleme
             }}
           >
             <div
-              className={`flex gap-3 p-5 items-center rounded border ${hoveredElement === element ? 'bg-slate-100' : ''} active:bg-slate-200`}
+              className={`flex gap-3 p-5 items-center rounded border ${hoveredElement === element ? 'bg-slate-100 dark:bg-slate-850' : ''} active:bg-slate-200d dark:active:bg-slate-900 dark:text-white`}
             >
               <ElementLabel text={element.text} cursor="default"/>
               <div className="flex-1"/>

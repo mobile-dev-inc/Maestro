@@ -14,7 +14,7 @@ export const CodeSnippet = ({children}: {
   return (
     <CopyToClipboard text={children} onCopy={() => setCopied(true)}>
       <div
-        className="relative bg-slate-100 rounded border border-transparent hover:border-slate-500 active:bg-slate-200 cursor-context-menu"
+        className="relative bg-slate-100 dark:bg-slate-600 dark:hover:bg-slate-700 dark:active:bg-slate-800 rounded border border-transparent hover:border-slate-500 active:bg-slate-200 cursor-context-menu"
         onMouseOver={() => setHovered(true)}
         onMouseLeave={() => {
           setHovered(false)
@@ -26,7 +26,7 @@ export const CodeSnippet = ({children}: {
         </pre>
         {hovered ? (
           <div className="absolute top-0 right-0 flex">
-            <span className="px-2 py-1 font-sans text-slate-400">{copied ? 'copied' : 'click to copy'}</span>
+            <span className="px-2 py-1 font-sans text-slate-400 dark:text-white">{copied ? 'copied' : 'click to copy'}</span>
           </div>
         ) : null}
       </div>

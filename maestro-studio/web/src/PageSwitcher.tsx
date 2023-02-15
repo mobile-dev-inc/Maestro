@@ -21,19 +21,19 @@ const PageSwitcher = ({ children, banner }: {
         </motion.div>
       ) : null}
       <motion.div
-        className="w-full h-full relative rounded-lg border bg-white overflow-clip"
+        className="w-full h-full relative rounded-lg border dark:border-slate-600 dark:text-white bg-white overflow-clip"
         layout="position"
         transition={{ ease: 'easeOut', duration: animationDuration }}
       >
         <motion.div
-          className="absolute p-8 w-full h-full bg-white"
+          className="absolute p-8 w-full h-full bg-white dark:bg-slate-700"
         >
           {children[0]}
         </motion.div>
         <AnimatePresence>
           {children[1] ? (
             <motion.div
-              className="absolute p-8 w-full h-full bg-white"
+              className="absolute p-8 w-full h-full bg-white dark:bg-slate-700 dark:text-white"
               initial={{ opacity: 0, translateY: '10px' }}
               animate={{ opacity: 1, translateY: 0 }}
               exit={{ opacity: 0, translateY: '10px' }}

@@ -30,7 +30,7 @@ const Banner = ({left, right, onClose}: {
   onClose: () => void
 }) => {
   return (
-    <div className="flex gap-3 items-center font-bold p-2 pr-5 rounded bg-blue-100 border border-blue-500 overflow-hidden">
+    <div className="flex gap-3 items-center font-bold p-2 pr-5 rounded bg-blue-100 dark:bg-slate-900 dark:text-white dark:border-slate-800 border border-blue-500 overflow-hidden">
       <div className="flex justify-center p-2 rounded items-center hover:bg-blue-900/20 active:bg-blue-900/40" onClick={onClose}>
         <CloseIcon />
       </div>

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { DeviceScreen } from './models';
 import { motion } from 'framer-motion';
 import { API } from './api';
+import { ThemeToggle } from './theme';
 
 const RefreshIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -17,11 +18,11 @@ const Header = ({onRefresh}: {
 }) => {
   return (
     <div
-      className="px-5 py-3 border-b flex justify-between items-center"
+      className="px-5 py-3 border-b flex items-center flex dark:bg-slate-800 dark:text-white"
     >
-      <span className="font-bold font-mono cursor-default">$ maestro studio</span>
+      <span className="font-bold font-mono cursor-default grow">$ maestro studio</span>
       <button
-        className="relative pl-10 cursor-default border border-slate-400 rounded px-4 py-1 hover:bg-slate-100 active:bg-slate-200"
+        className="relative pl-10 cursor-default border border-slate-400 rounded px-4 py-1 hover:bg-slate-100 active:bg-slate-200 dark:hover:bg-slate-850 dark:active:bg-slate-900 mr-4"
         onClick={onRefresh}
       >
         Refresh
@@ -29,6 +30,7 @@ const Header = ({onRefresh}: {
           <RefreshIcon className="w-5 top-0"/>
         </div>
       </button>
+      <ThemeToggle />
     </div>
   )
 }
@@ -59,7 +61,7 @@ const DeprecatedInspectPage = () => {
       {deviceScreen ? (
         <Inspect deviceScreen={deviceScreen} />
       ): (
-        <div className="flex items-center justify-center flex-1">
+        <div className="flex items-center justify-center flex-1 dark:bg-slate-800 dark:text-white">
           {error ? (
             <div className="text-xl">{error}</div>
           ) : (

@@ -1,7 +1,7 @@
 import App from './App';
 
 export default {
-  title: 'Main',
+  title: 'App',
   parameters: {
     layout: 'fullscreen'
   }
