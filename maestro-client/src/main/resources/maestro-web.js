@@ -34,7 +34,7 @@
       }
 
       if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor) {
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.htmlFor
+        attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.title || node.htmlFor
       }
 
       if (node.tagName.toLowerCase() === 'body') {
