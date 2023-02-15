@@ -7,7 +7,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.WorkspaceExecutionPlanner
+import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel

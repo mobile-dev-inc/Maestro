@@ -1,4 +1,4 @@
-package maestro.cli.util
+package maestro.orchestra.workspace
 
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.yaml.YamlCommandReader
