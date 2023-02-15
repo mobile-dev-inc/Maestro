@@ -3,7 +3,7 @@
 ## 1.23.0 - 2023-02-15
 * Feature: Maestro Studio - Action Modal
 * Feature: Maestro Studio - Dark Mode
-* Feature: assertion on `enabled`, `selected`, `checked`, `focused` properties
+* Feature: assertion on `enabled`, `selected`, `checked`, `focused` properties ([documentation](https://maestro.mobile.dev/reference/assertions#assertvisible))
 * Feature: running tests in a deterministic order ([documentation](https://maestro.mobile.dev/cli/test-suites-and-reports#deterministic-ordering))
 * Feature: default global tags can now be set in `config.yaml` ([documentation](https://maestro.mobile.dev/cli/tags#global-tags))
 * Feature: allow to configure what flows should be included into a run at `config.yaml` level ([documentation](https://maestro.mobile.dev/cli/test-suites-and-reports#controlling-what-tests-to-include)) 
