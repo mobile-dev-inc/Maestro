@@ -1,5 +1,5 @@
 import { API } from './api';
-import React, { ReactElement, useEffect, useRef, useState } from 'react';
+import React, { memo, ReactElement, useEffect, useRef, useState } from 'react';
 import AutosizingTextArea from './AutosizingTextArea';
 import { FormattedFlow, ReplCommand, ReplCommandStatus } from './models';
 import { Reorder } from 'framer-motion';
@@ -279,11 +279,7 @@ const ReplView = ({input, onInput, onError}: {
   const listSize = repl?.commands.length || 0
   const previousListSize = useRef(0);
 
-  const [showConfirmationDialog, dialog] = useConfirmationDialog(
-    'Confirmation?', 
-    `Click confirm to delete the selected commands.`, 
-    () => API.repl.deleteCommands(selectedIds)
-  );
+  const [showConfirmationDialog, Dialog] = useConfirmationDialog(() => API.repl.deleteCommands(selectedIds));
 
   // Scroll to bottom when new commands are added
   useEffect(() => {
@@ -332,11 +328,7 @@ const ReplView = ({input, onInput, onError}: {
   }
   const onCopy = () => {}
   const onDelete = () => {
-    if (selectedIds.length > 1) {
-      showConfirmationDialog()
-    } else {
-      API.repl.deleteCommands(selectedIds)
-    }
+    showConfirmationDialog()
   }
 
   const flowText = getFlowText(selectedCommands);
@@ -415,9 +407,12 @@ const ReplView = ({input, onInput, onError}: {
         )}
       </div>
 
-      {dialog}
+      <Dialog 
+        title={`Delete (${selectedIds.length}) command${selectedIds.length === 1 ? '' : 's'}?`} 
+        content={`Click confirm to delete the selected command${selectedIds.length === 1 ? '' : 's'}.`} 
+      />
     </>
   )
 }
 
-export default ReplView
+export default memo(ReplView)

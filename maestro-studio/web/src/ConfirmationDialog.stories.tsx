@@ -5,7 +5,7 @@ export default {
 }
 
 export const Main = () => {
-  const [show, dialog] = useConfirmationDialog('Confirmation', 'Click confirm to delete the 7 selected commands.', () => alert('confirmed!'))
+  const [show, Dialog] = useConfirmationDialog(() => alert('confirmed!'))
 
   return (
     <>
@@ -15,7 +15,7 @@ export const Main = () => {
       >
         Show modal
       </button>
-      {dialog}
+      <Dialog title="This is the title" content="This is the content" />
     </>
   )
 }
