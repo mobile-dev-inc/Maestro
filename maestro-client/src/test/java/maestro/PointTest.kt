@@ -22,4 +22,21 @@ internal class PointTest {
         // Then
         assertThat(point).isEqualTo(Point(1, 2))
     }
+
+    @Test
+    internal fun `Deserialize PointF`() {
+        // Given
+        val json = """
+            {
+                "x": 1.5,
+                "y": 2.5
+            }
+        """.trimIndent()
+
+        // When
+        val point = Gson().fromJson(json, PointF::class.java)
+
+        // Then
+        assertThat(point).isEqualTo(PointF(1.5F, 2.5F))
+    }
 }

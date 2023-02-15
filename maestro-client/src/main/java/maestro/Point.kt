@@ -38,8 +38,27 @@ data class Point(
     val y: Int
 ) {
 
+    fun normalise(width: Int, height: Int): PointF {
+        return PointF(
+            x.toFloat() / width,
+            y.toFloat() / height
+        )
+    }
+
     fun distance(other: Point): Float {
         return distance(x, y, other.x, other.y)
     }
 
 }
+
+data class PointF(
+    val x: Float,
+    val y: Float
+) {
+
+    fun distance(other: PointF): Float {
+        return distance(x, y, other.x, other.y)
+    }
+
+}
+

@@ -45,11 +45,11 @@ interface IOSDevice : AutoCloseable {
     fun pressButton(code: Int): Result<Unit, Throwable>
 
     fun scroll(
-        xStart: Double,
-        yStart: Double,
-        xEnd: Double,
-        yEnd: Double,
-        duration: Double,
+        xStart: Float,
+        yStart: Float,
+        xEnd: Float,
+        yEnd: Float,
+        velocity: Float?,
     ): Result<Unit, Throwable>
 
     /**

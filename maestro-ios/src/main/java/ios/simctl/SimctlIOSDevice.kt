@@ -44,7 +44,7 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun scroll(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double): Result<Unit, Throwable> {
+    override fun scroll(xStart: Float, yStart: Float, xEnd: Float, yEnd: Float, velocity: Float?): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }
 

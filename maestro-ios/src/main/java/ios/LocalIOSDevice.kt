@@ -2,8 +2,10 @@ package ios
 
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
+import com.github.michaelbull.result.map
 import com.github.michaelbull.result.recoverIf
 import hierarchy.XCUIElement
+import idb.Idb
 import ios.device.DeviceInfo
 import ios.idb.IdbIOSDevice
 import ios.simctl.SimctlIOSDevice
@@ -56,13 +58,13 @@ class LocalIOSDevice(
     }
 
     override fun scroll(
-        xStart: Double,
-        yStart: Double,
-        xEnd: Double,
-        yEnd: Double,
-        duration: Double
+        xStart: Float,
+        yStart: Float,
+        xEnd: Float,
+        yEnd: Float,
+        velocity: Float?
     ): Result<Unit, Throwable> {
-        return xcTestDevice.scroll(xStart, yStart, xEnd, yEnd, duration)
+        return xcTestDevice.scroll(xStart, yStart, xEnd, yEnd, velocity)
     }
 
     override fun input(text: String): Result<Unit, Throwable> {

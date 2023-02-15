@@ -23,6 +23,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.expect
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.runCatching
 import com.google.protobuf.ByteString
@@ -148,10 +149,6 @@ class IdbIOSDevice(
         }
     }
 
-    override fun scroll(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
-    }
-
     private fun press(
         x: Int,
         y: Int,
@@ -191,6 +188,16 @@ class IdbIOSDevice(
 
             responseObserver.awaitResult()
         }
+    }
+
+    override fun scroll(
+        xStart: Float,
+        yStart: Float,
+        xEnd: Float,
+        yEnd: Float,
+        velocity: Float?,
+    ): Result<Unit, Throwable> {
+        error("Not supported")
     }
 
     override fun input(
