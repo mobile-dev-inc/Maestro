@@ -2,12 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-class InputTextRouteHandler : RouteHandler {
-    let typingFrequency = 10
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
+                            category: String(describing: InputTextRouteHandler.self))
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "InputTextRouteHandler")
+final class InputTextRouteHandler : HTTPHandler {
+    private let typingFrequency = 10
     
-    func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
+    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
         
         guard let requestBody = try? decoder.decode(InputTextRequest.self, from: request.body) else {

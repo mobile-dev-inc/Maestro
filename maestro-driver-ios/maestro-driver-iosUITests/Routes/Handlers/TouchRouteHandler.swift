@@ -2,11 +2,11 @@ import FlyingFox
 import XCTest
 import os
 
-class TouchRouteHandler : RouteHandler {
-    
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "TapRouteHandler")
-    
-    func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
+                            category: String(describing: TouchRouteHandler.self))
+
+final class TouchRouteHandler: HTTPHandler {
+    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
         
         guard let requestBody = try? decoder.decode(TouchRequest.self, from: request.body) else {

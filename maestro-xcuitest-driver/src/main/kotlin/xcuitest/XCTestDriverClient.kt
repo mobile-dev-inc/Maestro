@@ -169,7 +169,6 @@ class XCTestDriverClient(
     }
 
     fun inputText(
-        appId: String,
         text: String,
     ): Response {
         val mediaType = "application/json; charset=utf-8".toMediaType()
@@ -179,7 +178,6 @@ class XCTestDriverClient(
         val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
 
         val url = xctestAPIBuilder("inputText")
-            .addQueryParameter("appId", appId)
             .build()
 
         val httpRequest = Request.Builder()
@@ -192,7 +190,6 @@ class XCTestDriverClient(
     }
 
     fun tap(
-        appId: String,
         x: Float,
         y: Float
     ): Response {
@@ -204,7 +201,6 @@ class XCTestDriverClient(
         val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
 
         val url = xctestAPIBuilder("touch")
-            .addQueryParameter("appId", appId)
             .build()
 
         val httpRequest = Request.Builder()

@@ -2,12 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-class RunningAppRouteHandler: RouteHandler {
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
+                            category: String(describing: RunningAppRouteHandler.self))
+
+final class RunningAppRouteHandler: HTTPHandler {
     private static let springboardBundleId = "com.apple.springboard"
     
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "RunningAppRouteHandler")
-    
-    func handle(request: HTTPRequest) async throws -> HTTPResponse {
+    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
         
         guard let requestBody = try? decoder.decode(RunningAppRequest.self, from: request.body) else {

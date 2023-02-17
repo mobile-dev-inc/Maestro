@@ -80,10 +80,7 @@ class XCTestIOSDevice(
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
         return runCatching {
-            val appId = activeAppId() ?: return@runCatching
-
             client.tap(
-                appId = appId,
                 x = x.toFloat(),
                 y = y.toFloat(),
             ).use {}
@@ -125,10 +122,7 @@ class XCTestIOSDevice(
 
     override fun input(text: String): Result<Unit, Throwable> {
         return runCatching {
-            val appId = activeAppId() ?: return@runCatching
-
             client.inputText(
-                appId = appId,
                 text = text,
             ).use {
                 if (!it.isSuccessful) {

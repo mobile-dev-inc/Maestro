@@ -2,10 +2,11 @@ import FlyingFox
 import XCTest
 import os
 
-class ScreenshotHandler : RouteHandler {
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "ScreenshotHandler")
-    
-    func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
+                            category: String(describing: ScreenshotHandler.self))
+
+final class ScreenshotHandler: HTTPHandler {
+    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let compressed = request.query["compressed"] == "true"
         
         let fullScreenshot = XCUIScreen.main.screenshot()

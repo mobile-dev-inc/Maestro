@@ -2,11 +2,11 @@ import FlyingFox
 import XCTest
 import os
 
-class SwipeRouteHandler: RouteHandler {
-    
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "SwipeRouteHandler")
-    
-    func handle(request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
+                            category: String(describing: SwipeRouteHandler.self))
+
+final class SwipeRouteHandler: HTTPHandler {
+    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         guard let appId = request.query["appId"] else {
             logger.error("Requested view hierarchy for an invalid appId")
             return HTTPResponse(statusCode: HTTPStatusCode.badRequest)

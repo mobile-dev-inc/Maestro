@@ -17,45 +17,7 @@ class maestro_driver_iosUITests: XCTestCase {
     }
 
     func testHttpServer() async throws {
-        let server = HTTPServer(address: .loopback(port: 22087))
-        let subTreeRoute = HTTPRoute(Route.subTree.rawValue)
-        let runningAppRoute = HTTPRoute(method: .POST,
-                                        path: Route.runningApp.rawValue)
-        let swipeRoute = HTTPRoute(method: .POST,
-                                   path: Route.swipe.rawValue)
-        let inputTextRoute = HTTPRoute(method: .POST, path: Route.inputText.rawValue)
-        let touchRoute = HTTPRoute(method: .POST, path: Route.touch.rawValue)
-        let screenshotRoute = HTTPRoute(Route.screenshot.rawValue)
-        let isScreenStaticRoute = HTTPRoute(Route.isScreenStatic.rawValue)
-        await server.appendRoute(subTreeRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .subTree)
-            return try await handler.handle(request: request)
-        }
-        await server.appendRoute(runningAppRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .runningApp)
-            return try await handler.handle(request: request)
-        }
-        await server.appendRoute(swipeRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .swipe)
-            return try await handler.handle(request: request)
-        }
-        await server.appendRoute(inputTextRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .inputText)
-            return try await handler.handle(request: request)
-        }
-        await server.appendRoute(touchRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .touch)
-            return try await handler.handle(request: request)
-        }
-        await server.appendRoute(screenshotRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .screenshot)
-            return try await handler.handle(request: request)
-        }
-        await server.appendRoute(isScreenStaticRoute) { request in
-            let handler = RouteHandlerFactory.createRouteHandler(route: .isScreenStatic)
-            return try await handler.handle(request: request)
-
-        }
+        let server = XCTestHTTPServer()
         try await server.start()
     }
 }
