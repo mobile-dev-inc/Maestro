@@ -16,7 +16,7 @@ enum Route: String, CaseIterable {
 
 struct XCTestHTTPServer {
     func start() async throws {
-        let server = HTTPServer(address: .loopback(port: 22087))
+        let server = HTTPServer(port: 22087)
         
         for route in Route.allCases {
             let handler = RouteHandlerFactory.createRouteHandler(route: route)
