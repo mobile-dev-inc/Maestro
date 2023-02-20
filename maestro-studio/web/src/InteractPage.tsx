@@ -34,7 +34,7 @@ const InteractPage = () => {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <div className="p-12 bg-slate-50 dark:bg-slate-700">
+      <div className="p-12 bg-slate-50 dark:bg-slate-700 min-w-fit">
         <InteractableDevice
           deviceScreen={deviceScreen}
           onHint={setFooterHint}

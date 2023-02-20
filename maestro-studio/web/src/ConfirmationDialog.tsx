@@ -27,9 +27,9 @@ export const useConfirmationDialog = (
           }}
         >
           <div
-            className="modal-content relative flex flex-col w-full pointer-events-auto bg-white rounded-md">
+            className="modal-content relative flex flex-col w-full pointer-events-auto bg-white dark:bg-slate-800 dark:text-white rounded-md">
             <div className="modal-header flex flex-shrink-0 items-center justify-between p-4 rounded-t-md">
-              <h1 className="text-xl font-medium leading-normal text-gray-800">
+              <h1 className="text-xl font-medium leading-normal text-gray-800 dark:text-white">
                 {title}
               </h1>
             </div>
@@ -41,14 +41,14 @@ export const useConfirmationDialog = (
               <button 
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="px-4 cursor-pointer py-1 mr-2 border text-black bg-gray-100 text-white rounded cursor-default hover:bg-gray-200 active:bg-gray-300"
+                className="px-4 cursor-pointer py-1 mr-2 border text-black bg-gray-100 text-white rounded cursor-default hover:bg-gray-200 active:bg-gray-300 dark:text-white dark:bg-transparent dark:hover:bg-slate-850 dark:active:bg-slate-900"
               >
                 Cancel
               </button>
               <button 
                 type="button" 
                 onClick={() => {setIsOpen(false); onConfirm()}}
-                className="px-4 py-1 cursor-pointer border bg-red-700 text-white rounded cursor-default hover:bg-red-800 active:bg-red-900"
+                className="px-4 py-1 cursor-pointer border bg-red-700 text-white rounded cursor-default hover:bg-red-800 active:bg-red-900 dark:border-none"
               >
                 Confirm
               </button>
