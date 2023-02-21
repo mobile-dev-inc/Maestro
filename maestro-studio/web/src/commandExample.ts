@@ -1,4 +1,4 @@
-import { UIElement } from './models';
+import { DeviceScreen, UIElement } from './models';
 import YAML from 'yaml';
 
 export type CommandExample = {
@@ -33,7 +33,7 @@ const getCoordinatesSelector = (deviceWidth: number, deviceHeight: number, uiEle
   }
 }
 
-const getSelectors = (uiElement: UIElement): Selector[] => {
+const getSelectors = (uiElement: UIElement, deviceScreen: DeviceScreen): Selector[] => {
   const selectors: Selector[] = []
   if (uiElement.resourceId) {
     if (typeof uiElement.resourceIdIndex === 'number') {
@@ -55,12 +55,34 @@ const getSelectors = (uiElement: UIElement): Selector[] => {
       })
     }
   } else {
-    selectors.push({
-      title: 'Resource Id',
-      status: 'unavailable',
-      message: 'This element has no resource id associated with it. Type ‘\u2318 D’ to view platform-specific documentation on how to assign resource ids to ui elements.',
-      documentation: 'https://maestro.mobile.dev/platform-support/supported-platforms',
-    })
+    const elementsWithSameBounds = deviceScreen.elements.filter((element) => {
+      if (element.resourceId === null || element.resourceId === undefined)
+        return false;
+      return (
+        element.bounds?.width === uiElement.bounds?.width &&
+        element.bounds?.height === uiElement.bounds?.height
+      );
+    });
+    if (elementsWithSameBounds.length > 0) {
+      elementsWithSameBounds.forEach((element) => {
+        selectors.push({
+          title: "Resource Id",
+          status: "available",
+          definition: {
+            id: element.resourceId,
+          },
+        });
+      });
+    } else {
+      selectors.push({
+        title: "Resource Id",
+        status: "unavailable",
+        message:
+          "This element has no resource id associated with it. Type ‘\u2318 D’ to view platform-specific documentation on how to assign resource ids to ui elements.",
+        documentation:
+          "https://maestro.mobile.dev/platform-support/supported-platforms",
+      });
+    }
   }
   if (uiElement.text) {
     if (typeof uiElement.textIndex === 'number') {
@@ -105,16 +127,16 @@ const toConditionalExample = (selector: Selector): CommandExample => {
   return {
     status: selector.status,
     title: `Conditional > ${selector.title}`,
-    content: selector.status === 'available' ? YAML.stringify([{ runFlow: { when: { visible: selector.definition }, file: 'Subflow.yaml'} }]) : selector.message,
+    content: selector.status === 'available' ? YAML.stringify([{ runFlow: { when: { visible: selector.definition }, file: 'Subflow.yaml' } }]) : selector.message,
     documentation: selector.documentation || 'https://maestro.mobile.dev/advanced/conditions',
   }
 }
 
-export const getCommandExamples = (deviceWidth: number, deviceHeight: number, uiElement: UIElement): CommandExample[] => {
-  const selectors = getSelectors(uiElement)
+export const getCommandExamples = (deviceScreen: DeviceScreen, uiElement: UIElement): CommandExample[] => {
+  const selectors = getSelectors(uiElement, deviceScreen)
   const commands: CommandExample[] = [
     ...selectors.map(toTapExample),
-    toTapExample(getCoordinatesSelector(deviceWidth, deviceHeight, uiElement)),
+    toTapExample(getCoordinatesSelector(deviceScreen.width, deviceScreen.height, uiElement)),
     ...selectors.map(toAssertExample),
     ...selectors.map(toConditionalExample)
   ]

@@ -1,11 +1,18 @@
 import { ActionModal } from './ActionModal';
-import { UIElement } from './models';
+import { DeviceScreen, UIElement } from './models';
 
 export default {
   title: 'ActionModal',
   parameters: {
     layout: 'fullscreen'
   },
+}
+
+const deviceScreen: DeviceScreen = {
+  screenshot: '',
+  width: 1,
+  height: 1,
+  elements: [],
 }
 
 const uiElement: UIElement = {
@@ -21,8 +28,7 @@ export const Main = () => {
   return (
     <div className="w-full h-full flex">
       <ActionModal
-        deviceWidth={1}
-        deviceHeight={1}
+        deviceScreen={deviceScreen}
         uiElement={uiElement}
         onEdit={() => {}}
         onRun={() => {}}

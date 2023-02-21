@@ -1,4 +1,4 @@
-import { UIElement } from './models';
+import { DeviceScreen, UIElement } from './models';
 import { motion } from 'framer-motion';
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { CommandExample, getCommandExamples } from './commandExample';
@@ -171,15 +171,14 @@ const useFocused = (examples: CommandExample[]): {
   return { focused, moveFocus, setFocus }
 }
 
-export const ActionModal = ({ deviceWidth, deviceHeight, uiElement, onEdit, onRun, onClose }: {
-  deviceWidth: number
-  deviceHeight: number
+export const ActionModal = ({ deviceScreen, uiElement, onEdit, onRun, onClose }: {
+  deviceScreen: DeviceScreen
   uiElement: UIElement
   onEdit: (example: CommandExample) => void
   onRun: (example: CommandExample) => void
   onClose: () => void
 }) => {
-  const unfilteredExamples = useMemo(() => getCommandExamples(deviceWidth, deviceHeight, uiElement), [deviceWidth, deviceHeight, uiElement])
+  const unfilteredExamples = useMemo(() => getCommandExamples(deviceScreen, uiElement), [deviceScreen, uiElement])
   const [query, setQuery] = useState('')
   const fuse = useMemo(() => new Fuse(unfilteredExamples, {keys: ['title', 'content']}), [unfilteredExamples])
   const examples = useMemo(() => query ? fuse.search(query).map(r => r.item): unfilteredExamples, [fuse, unfilteredExamples, query])

@@ -62,8 +62,7 @@ const InteractPage = () => {
         </div>
         {inspectedElement && (
           <ActionModal
-            deviceWidth={deviceScreen.width}
-            deviceHeight={deviceScreen.height}
+            deviceScreen={deviceScreen}
             uiElement={inspectedElement}
             onEdit={example => {
               if (example.status === 'unavailable') return
