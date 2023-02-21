@@ -2143,7 +2143,7 @@ class IntegrationTest {
         val expectedStart = Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid * 30 / 100)
         val expectedEnd = Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid * 60 / 100)
         driver.assertHasEvent(
-            Event.Swipe(start = expectedStart, End = expectedEnd, durationMs = 400)
+            Event.Swipe(start = expectedStart, End = expectedEnd, durationMs = 3000)
         )
     }
 

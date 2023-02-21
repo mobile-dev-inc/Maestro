@@ -123,6 +123,8 @@ class Orchestra(
     fun executeCommands(
         commands: List<MaestroCommand>,
     ): Boolean {
+        jsEngine.init()
+
         commands
             .forEachIndexed { index, command ->
                 onCommandStart(index, command)

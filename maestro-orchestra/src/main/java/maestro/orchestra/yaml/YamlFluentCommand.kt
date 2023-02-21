@@ -355,7 +355,7 @@ data class YamlFluentCommand(
             }
             is YamlRelativeCoordinateSwipe -> {
                 return MaestroCommand(
-                    SwipeCommand(startRelative = swipe.start, endRelative = swipe.end)
+                    SwipeCommand(startRelative = swipe.start, endRelative = swipe.end, duration = swipe.duration)
                 )
             }
             is YamlSwipeElement -> return swipeElementCommand(swipe)
