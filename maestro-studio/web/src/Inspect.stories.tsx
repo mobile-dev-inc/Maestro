@@ -8,6 +8,6 @@ export default {
 
 export const Main = () => {
   return (
-    <Inspect deviceScreen={mockDeviceScreen} />
+    <Inspect deviceScreen={mockDeviceScreen} refresh={() => {}} />
   )
 }

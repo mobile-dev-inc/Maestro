@@ -5,7 +5,6 @@ import { JsonViewer } from "@textea/json-viewer"
 import { CodeSnippet } from "./Examples";
 import { API } from "./api";
 import MockServerInstructions from "./MockServerInstructions";
-import { ThemeToggle } from "./theme";
 
 const getStatusCodeColor = (statusCode: number): string => {
   if (statusCode < 400) return 'green'
@@ -68,7 +67,6 @@ const MockPage = () => {
             <div className="flex flex-col gap-4 font-mono p-2 my-4 bg-blue-50 dark:bg-slate-500 dark:border-slate-600 dark:text-white rounded-md border border-blue-400 text-blue-900 basis-1/2">
               <p>Project Id: {data?.projectId || 'unknown'}</p>
             </div>
-            <ThemeToggle />
           </div>
           <div className="flex flex-row pt-2 max-h-full overflow-scroll">
             <div className="flex flex-col w-full basis-2/4 overflow-hidden">

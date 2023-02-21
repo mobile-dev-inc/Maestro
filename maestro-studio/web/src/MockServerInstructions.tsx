@@ -1,12 +1,10 @@
 import { CodeSnippet } from "./Examples"
-import { ThemeToggle } from "./theme"
 
 const MockServerInstructions = ({ projectId }: { projectId?: string }) => (
   <div className="w-full h-full flex justify-center items-center dark:bg-slate-800 dark:text-white">
     <div className="flex flex-col w-3/4 space-y-6 p-8 shadow-xl border-4 border-blue-300 dark:border-slate-600 margin-auto dark:bg-slate-650">
       <div className="flex">
         <p className="text-lg font-bold grow">No events found! Follow the guide below to integrate Maestro SDK.</p>
-        <ThemeToggle />
       </div>
       
       <div>

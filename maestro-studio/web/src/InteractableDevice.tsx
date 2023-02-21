@@ -131,7 +131,7 @@ const InteractableDevice = ({deviceScreen, onHint, inspectedElement, onInspectEl
 
   return (
     <GestureDiv
-      className="h-full border-2 border-pink-500 rounded-lg overflow-hidden"
+      className="h-full border-2 border-pink-500 rounded-lg overflow-hidden m-auto"
       style={{
         aspectRatio: deviceScreen.width / deviceScreen.height,
       }}

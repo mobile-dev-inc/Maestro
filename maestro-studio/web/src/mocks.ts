@@ -147,7 +147,7 @@ const handlers = [
 
     return res(ctx.delay(500), ctx.status(200), ctx.json({
       projectId,
-      events
+      events: []
     }))
   })
 ]

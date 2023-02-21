@@ -36,8 +36,9 @@ const Footer = ({selectedElement, hoveredElement}: {
   )
 }
 
-const Inspect = ({ deviceScreen }: {
-  deviceScreen: DeviceScreen
+const Inspect = ({ deviceScreen, refresh }: {
+  deviceScreen: DeviceScreen,
+  refresh: () => void
 }) => {
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null)
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
@@ -80,6 +81,7 @@ const Inspect = ({ deviceScreen }: {
             onElementHovered={e => setHoveredElementId(e?.id || null)}
             hoveredElement={hoveredElement}
             onElementSelected={e => setSelectedElementId(e?.id || null)}
+            refresh={refresh}
           />
           {detailsPage}
         </PageSwitcher>
