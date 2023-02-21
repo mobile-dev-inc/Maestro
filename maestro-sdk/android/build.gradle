@@ -28,7 +28,7 @@ plugins.withId("com.vanniktech.maven.publish") {
 }
 
 dependencies {
-    implementation "com.squareup.okhttp3:okhttp:4.10.0"
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.4'
-    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
+    implementation(libs.square.okhttp)
+    implementation(libs.jackson.core.databind)
+    implementation(libs.jackson.module.kotlin)
 }

@@ -4,6 +4,8 @@ plugins {
 }
 
 android {
+    namespace 'dev.mobile.maestro.sdk.playground'
+
     compileSdkVersion 33
 
     defaultConfig {
@@ -32,11 +34,11 @@ android {
 dependencies {
     implementation project(":maestro-sdk:android")
 
-    implementation 'androidx.core:core-ktx:1.9.0'
-    implementation 'androidx.appcompat:appcompat:1.5.1'
-    implementation 'com.google.android.material:material:1.6.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation(libs.androidx.core)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.google.android.material)
 
-    implementation 'com.squareup.retrofit2:retrofit:+'
-    implementation 'com.squareup.retrofit2:converter-gson:+'
+    implementation(libs.square.retrofit)
+    implementation(libs.square.retrofit.gson)
 }

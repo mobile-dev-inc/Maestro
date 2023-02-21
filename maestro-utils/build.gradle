@@ -5,13 +5,12 @@ plugins {
     id "com.vanniktech.maven.publish"
 }
 
-
 dependencies {
-    api 'com.squareup.okio:okio:3.0.0'
+    api(libs.square.okio)
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-    testImplementation "com.google.truth:truth:1.1.3"
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.google.truth)
 }
 
 java {

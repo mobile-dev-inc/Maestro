@@ -1,18 +1,18 @@
 plugins {
     id 'maven-publish'
     id "kotlin"
-    id "com.google.protobuf" version "0.9.1"
     id "idea"
     id "com.vanniktech.maven.publish"
+    id "com.google.protobuf"
 }
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.21.9"
+        artifact = "com.google.protobuf:protoc:${libs.versions.googleProtobuf.get()}"
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.50.2'
+            artifact = "io.grpc:protoc-gen-grpc-java:${libs.versions.grpc.get()}"
         }
     }
     generateProtoTasks {
@@ -51,38 +51,38 @@ dependencies {
     implementation project(':maestro-utils')
     implementation project(':maestro-xcuitest-driver')
 
-    api 'io.grpc:grpc-kotlin-stub:1.3.0'
-    api 'io.grpc:grpc-stub:1.50.2'
-    api 'io.grpc:grpc-netty:1.50.2'
-    api 'io.grpc:grpc-protobuf:1.50.2'
-    api 'io.grpc:grpc-okhttp:1.50.2'
-    api 'com.google.protobuf:protobuf-kotlin:3.21.9'
-    api 'com.michael-bull.kotlin-result:kotlin-result:1.1.14'
-    api "dev.mobile:dadb:1.2.6"
-    api "org.slf4j:slf4j-simple:1.7.36"
-    api 'com.squareup.okio:okio:3.2.0'
-    api 'com.github.romankh3:image-comparison:4.4.0'
-    api "com.android.tools:sdk-common:30.3.0"
-    api "com.android.tools.apkparser:apkanalyzer:30.3.0"
-    api 'org.mozilla:rhino:1.7.14'
-    api 'com.squareup.okhttp3:okhttp:4.10.0'
-    api 'org.rauschig:jarchivelib:1.2.0'
-    api 'com.fasterxml.jackson.core:jackson-databind:2.13.4'
-    api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4'
-    api 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.4'
-    api 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.13.4'
+    api(libs.grpc.kotlin.stub)
+    api(libs.grpc.stub)
+    api(libs.grpc.netty)
+    api(libs.grpc.protobuf)
+    api(libs.grpc.okhttp)
+    api(libs.google.protobuf.kotlin)
+    api(libs.kotlin.result)
+    api(libs.dadb)
+    api(libs.slf4j)
+    api(libs.square.okio)
+    api(libs.image.comparison)
+    api(libs.android.tools.sdk)
+    api(libs.android.tools.apkparser)
+    api(libs.mozilla.rhino)
+    api(libs.square.okhttp)
+    api(libs.jarchivelib)
+    api(libs.jackson.core.databind)
+    api(libs.jackson.module.kotlin)
+    api(libs.jackson.dataformat.yaml)
+    api(libs.jackson.dataformat.xml)
 
     implementation project(':maestro-ios')
-    implementation 'com.google.code.findbugs:jsr305:3.0.2'
-    implementation 'de.upb.cs.swt:axml:2.1.2'
-    implementation 'org.seleniumhq.selenium:selenium-java:4.7.2'
-    implementation('io.github.bonigarcia:webdrivermanager:5.3.1') {
+    implementation(libs.google.findbugs)
+    implementation(libs.axml)
+    implementation(libs.selenium)
+    implementation((libs.webdrivermanager)) {
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-    testImplementation "com.google.truth:truth:1.1.3"
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.google.truth)
 }
 
 java {

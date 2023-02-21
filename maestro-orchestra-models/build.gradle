@@ -18,12 +18,12 @@ java {
 dependencies {
     implementation project(path: ':maestro-client')
 
-    api 'com.fasterxml.jackson.core:jackson-databind:2.13.2.1'
-    api 'com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2'
+    api(libs.jackson.core.databind)
+    api(libs.jackson.module.kotlin)
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-    testImplementation "com.google.truth:truth:1.1.3"
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.google.truth)
 }
 
 test {

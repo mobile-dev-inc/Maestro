@@ -1,23 +1,10 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath("com.android.tools.build:gradle:4.2.1")
-    }
-}
-
+@Suppress("DSL_SCOPE_VIOLATION")
 plugins {
-    id("com.vanniktech.maven.publish") version "0.19.0"
-    id("io.gitlab.arturbosch.detekt") version "1.19.0"
-    id("org.jetbrains.kotlin.jvm") version "1.6.10"
-}
-
-repositories {
-    google()
-    mavenCentral()
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.google.protobuf) apply false
+    alias(libs.plugins.vanniktech.publish)
+    alias(libs.plugins.detekt)
 }
 
 java {
@@ -30,11 +17,4 @@ detekt {
     allRules = false
     autoCorrect = true
     config = files("${rootDir}/detekt.yml")
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
 }
