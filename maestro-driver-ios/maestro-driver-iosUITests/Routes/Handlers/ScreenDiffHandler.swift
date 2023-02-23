@@ -7,6 +7,7 @@ import os
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                             category: String(describing: IsScreenStaticHandler.self))
 
+@MainActor
 final class IsScreenStaticHandler: HTTPHandler {
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let screenshot1 = XCUIScreen.main.screenshot()

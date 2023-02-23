@@ -5,6 +5,7 @@ import os
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                             category: String(describing: RunningAppRouteHandler.self))
 
+@MainActor
 final class RunningAppRouteHandler: HTTPHandler {
     private static let springboardBundleId = "com.apple.springboard"
     

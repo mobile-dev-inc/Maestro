@@ -35,7 +35,6 @@ import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Platform
 import maestro.Point
-import maestro.PointF
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
@@ -100,7 +99,6 @@ class IOSDriver(
             .getOrThrow {
                 MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")
             }
-        waitForAppToSettle(null)
     }
 
     override fun stopApp(appId: String) {
@@ -267,13 +265,11 @@ class IOSDriver(
     }
 
     override fun scrollVertical() {
-        iosDevice.scroll(
-            xStart = 0.5f,
-            yStart = 0.5f,
-            xEnd = 0.5f,
-            yEnd = 0.1f,
-            velocity = null
-        ).expect {}
+        swipe(
+            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
+            end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.1)),
+            durationMs = 333,
+        )
     }
 
     private fun validate(start: Point, end: Point) {
@@ -302,126 +298,84 @@ class IOSDriver(
     ) {
         validate(start, end)
 
-        val width = widthPoints
-        val height = heightPoints
-
-        val normalisedStart = start.normalise(
-            width,
-            height,
-        )
-        val normalisedEnd = end.normalise(
-            width,
-            height,
-        )
-
+        waitForAppToSettle(null)
         iosDevice.scroll(
-            xStart = normalisedStart.x,
-            yStart = normalisedStart.y,
-            xEnd = normalisedEnd.x,
-            yEnd = normalisedEnd.y,
-            velocity = if (durationMs > 0) {
-                start.distance(end) / toSeconds(durationMs)
-            } else {
-                Float.MAX_VALUE
-            }
+            xStart = start.x.toDouble(),
+            yStart = start.y.toDouble(),
+            xEnd = end.x.toDouble(),
+            yEnd = end.y.toDouble(),
+            duration = durationMs.toDouble() / 1000
         ).expect {}
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        val startPoint: PointF
-        val endPoint: PointF
+        val startPoint: Point
+        val endPoint: Point
 
         when (swipeDirection) {
             SwipeDirection.UP -> {
-                startPoint = PointF(
-                    x = 0.5f,
-                    y = 0.9f,
+                startPoint = Point(
+                    x = widthPercentToPoint(0.5),
+                    y = heightPercentToPoint(0.9),
                 )
-                endPoint = PointF(
-                    x = 0.5F,
-                    y = 0.1f,
+                endPoint = Point(
+                    x = widthPercentToPoint(0.5),
+                    y = heightPercentToPoint(0.1),
                 )
             }
             SwipeDirection.DOWN -> {
-                startPoint = PointF(
-                    x = 0.5f,
-                    y = 0.2f,
+                startPoint = Point(
+                    x = widthPercentToPoint(0.5),
+                    y = heightPercentToPoint(0.2),
                 )
-                endPoint = PointF(
-                    x = 0.5F,
-                    y = 0.9f,
+                endPoint = Point(
+                    x = widthPercentToPoint(0.5),
+                    y = heightPercentToPoint(0.9),
                 )
             }
             SwipeDirection.RIGHT -> {
-                startPoint = PointF(
-                    x = 0.1f,
-                    y = 0.5f,
+                startPoint = Point(
+                    x = widthPercentToPoint(0.1),
+                    y = heightPercentToPoint(0.5),
                 )
-                endPoint = PointF(
-                    x = 0.9F,
-                    y = 0.5f,
+                endPoint = Point(
+                    x = widthPercentToPoint(0.9),
+                    y = heightPercentToPoint(0.5),
                 )
             }
             SwipeDirection.LEFT -> {
-                startPoint = PointF(
-                    x = 0.9f,
-                    y = 0.5f,
+                startPoint = Point(
+                    x = widthPercentToPoint(0.9),
+                    y = heightPercentToPoint(0.5),
                 )
-                endPoint = PointF(
-                    x = 0.1F,
-                    y = 0.5f,
+                endPoint = Point(
+                    x = widthPercentToPoint(0.1),
+                    y = heightPercentToPoint(0.5),
                 )
             }
         }
-        directionalSwipe(durationMs, startPoint, endPoint)
+        swipe(startPoint, endPoint, durationMs)
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
-        val width = widthPoints
-        val height = heightPoints
-
         when (direction) {
             SwipeDirection.UP -> {
-                val start = elementPoint.normalise(width, height)
-                val end = PointF(x = start.x, y = 0.1f)
-                directionalSwipe(durationMs, start, end)
+                val end = Point(x = elementPoint.x, y = heightPercentToPoint(0.1))
+                swipe(elementPoint, end, durationMs)
             }
             SwipeDirection.DOWN -> {
-                val start = elementPoint.normalise(width, height)
-                val end = PointF(x = start.x, y = 0.9f)
-                directionalSwipe(durationMs, start, end)
+                val end = Point(x = elementPoint.x, y = heightPercentToPoint(0.9))
+                swipe(elementPoint, end, durationMs)
             }
             SwipeDirection.RIGHT -> {
-                val start = elementPoint.normalise(width, height)
-                val end = PointF(x = 0.9f, y = start.y)
-                directionalSwipe(durationMs, start, end)
+                val end = Point(x = widthPercentToPoint(0.9), y = elementPoint.y)
+                swipe(elementPoint, end, durationMs)
             }
             SwipeDirection.LEFT -> {
-                val start = elementPoint.normalise(width, height)
-                val end = PointF(x = 0.1f, y = start.y)
-                directionalSwipe(durationMs, start, end)
+                val end = Point(x = widthPercentToPoint(0.1), y = elementPoint.y)
+                swipe(elementPoint, end, durationMs)
             }
         }
-    }
-
-    private fun directionalSwipe(durationMs: Long, start: PointF, end: PointF) {
-        val width = widthPoints
-        val height = heightPoints
-
-        val denormalizedDistance = PointF(start.x * width, start.y * height)
-            .distance(PointF(end.x * width, end.y * height))
-
-        iosDevice.scroll(
-            xStart = start.x,
-            yStart = start.y,
-            xEnd = end.x,
-            yEnd = end.y,
-            velocity = if (durationMs > 0) {
-                denormalizedDistance / toSeconds(durationMs)
-            } else {
-                Float.MAX_VALUE
-            }
-        ).expect {}
     }
 
     override fun backPress() {}
@@ -499,9 +453,14 @@ class IOSDriver(
         return iosDevice.isScreenStatic().expect {}
     }
 
-    private fun toSeconds(ms: Long): Float {
-        return ms / 1000f
+    private fun heightPercentToPoint(percent: Double): Int {
+        return (percent * heightPoints).toInt()
     }
+
+    private fun widthPercentToPoint(percent: Double): Int {
+        return (percent * widthPoints).toInt()
+    }
+
 
     companion object {
         const val NAME = "iOS Simulator"

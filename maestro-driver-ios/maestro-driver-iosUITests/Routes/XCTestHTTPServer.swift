@@ -19,7 +19,7 @@ struct XCTestHTTPServer {
         let server = HTTPServer(address: .loopback(port: 22087))
         
         for route in Route.allCases {
-            let handler = RouteHandlerFactory.createRouteHandler(route: route)
+            let handler = await RouteHandlerFactory.createRouteHandler(route: route)
             await server.appendRoute(route.toHTTPRoute(), to: handler)
         }
         

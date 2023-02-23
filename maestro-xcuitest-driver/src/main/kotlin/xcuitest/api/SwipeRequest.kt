@@ -1,9 +1,9 @@
 package xcuitest.api
 
 data class SwipeRequest(
-    val startX: Float,
-    val startY: Float,
-    val endX: Float,
-    val endY: Float,
-    val velocity: Float? = null
+    val startX: Double,
+    val startY: Double,
+    val endX: Double,
+    val endY: Double,
+    val duration: Double
 )

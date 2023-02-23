@@ -5,6 +5,7 @@ import os
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                             category: String(describing: InputTextRouteHandler.self))
 
+@MainActor
 final class InputTextRouteHandler : HTTPHandler {
     private let typingFrequency = 10
     

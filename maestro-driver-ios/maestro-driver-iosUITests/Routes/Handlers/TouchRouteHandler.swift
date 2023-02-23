@@ -5,6 +5,7 @@ import os
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                             category: String(describing: TouchRouteHandler.self))
 
+@MainActor
 final class TouchRouteHandler: HTTPHandler {
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
@@ -16,7 +17,7 @@ final class TouchRouteHandler: HTTPHandler {
         
         logger.info("Tapping \(requestBody.x), \(requestBody.y)")
 
-        let eventRecord = EventRecord(orientation: .portrait)
+        var eventRecord = EventRecord(orientation: .portrait)
         eventRecord.addPointerTouchEvent(at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)))
 
         do {
