@@ -4,10 +4,9 @@ import os
 
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                             category: String(describing: InputTextRouteHandler.self))
-
 @MainActor
 final class InputTextRouteHandler : HTTPHandler {
-    private let typingFrequency = 10
+    private let typingFrequency = 60
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
@@ -18,7 +17,13 @@ final class InputTextRouteHandler : HTTPHandler {
         
         do {
             let start = Date()
-            try await RunnerDaemonProxy().send(string: requestBody.text, typingFrequency: typingFrequency)
+
+            var eventPath = PointerEventPath.pathForTextInput()
+            eventPath.type(text: requestBody.text, typingSpeed: typingFrequency)
+            var eventRecord = EventRecord(orientation: .portrait)
+            eventRecord.add(eventPath)
+            try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+
             let duration = Date().timeIntervalSince(start)
             logger.info("Text input duration took \(duration)")
             return HTTPResponse(statusCode: .ok)
