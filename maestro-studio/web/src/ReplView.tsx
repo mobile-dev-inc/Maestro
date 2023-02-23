@@ -386,13 +386,13 @@ const ReplView = ({input, onInput, onError}: {
           }}
         >
           <AutosizingTextArea
-            className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden font-mono cursor-text outline-none border border-transparent border-b-slate-200 dark:border-slate-600 focus:border focus:border-slate-400 dark:focus:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-850 dark:text-white"
+            className="resize-none p-4 pr-16 overflow-y-scroll overflow-hidden font-mono cursor-text outline-none border border-transparent border-b-slate-200 dark:border-b-slate-600 focus:border focus:border-slate-400 dark:focus:border-slate-400 dark:bg-slate-800 dark:text-white"
             setValue={value => onInput(value)}
             value={input}
             placeholder="Enter a command, then press ENTER to run"
           />
           <button
-            className="absolute flex items-center right-1 top-1 rounded bottom-1 px-4 disabled:text-slate-400 enabled:text-blue-600 enabled:hover:bg-slate-200 enabled:active:bg-slate-300 cursor-default"
+            className="absolute flex items-center right-1 top-1 rounded bottom-1 px-4 disabled:text-slate-400 enabled:text-blue-600 enabled:hover:bg-slate-200 enabled:active:bg-slate-300 cursor-default dark:enabled:hover:bg-slate-850 dark:enabled:active:bg-slate-900 dark:enabled:text-blue-400"
             disabled={!input}
             onClick={() => runCommand()}
           >
