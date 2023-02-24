@@ -2,19 +2,21 @@ package ios.simctl
 
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.runCatching
 import hierarchy.XCUIElement
 import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
+import ios.xctest.XCTestIOSDevice
 import maestro.logger.Logger
 import okio.Sink
 import java.io.File
 import java.io.InputStream
-import com.github.michaelbull.result.runCatching
 
 class SimctlIOSDevice(
     override val deviceId: String,
     private val logger: Logger,
+    private val xcTestDevice: XCTestIOSDevice,
 ) : IOSDevice {
     override fun open() {
         TODO("Not yet implemented")
@@ -72,6 +74,8 @@ class SimctlIOSDevice(
 
     override fun clearAppState(id: String): Result<Unit, Throwable> {
         Simctl.clearAppState(deviceId, id)
+        Simctl.grantPermissions(deviceId, id)
+        xcTestDevice.restartXCTestRunnerService()
         return Ok(Unit)
     }
 

@@ -3,7 +3,7 @@ package ios.simctl
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
-import util.CommandLineUtils
+import util.CommandLineUtils.runCommand
 import java.io.File
 
 object Simctl {
@@ -45,7 +45,7 @@ object Simctl {
     }
 
     fun launchSimulator(deviceId: String) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -59,7 +59,7 @@ object Simctl {
         // Up to 10 iterations => max wait time of 1 second
         repeat(10) {
             try {
-                CommandLineUtils.runCommand(
+                runCommand(
                     listOf(
                         "open",
                         "-a",
@@ -82,7 +82,7 @@ object Simctl {
     fun reboot(
         deviceId: String,
     ) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -93,7 +93,7 @@ object Simctl {
         )
         awaitShutdown(deviceId)
 
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -109,7 +109,7 @@ object Simctl {
         deviceId: String,
         certificate: File,
     ) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -182,7 +182,7 @@ object Simctl {
 
 
     fun launch(deviceId: String, bundleId: String) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -194,7 +194,7 @@ object Simctl {
     }
 
     fun setLocation(deviceId: String, latitude: Double, longitude: Double) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -205,9 +205,9 @@ object Simctl {
             )
         )
     }
-    
+
     fun openURL(deviceId: String, url: String) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -219,7 +219,7 @@ object Simctl {
     }
 
     fun uninstall(deviceId: String, bundleId: String) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -231,7 +231,7 @@ object Simctl {
     }
 
     fun clearKeychain(deviceId: String) {
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -243,14 +243,14 @@ object Simctl {
             )
         )
 
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "rm", "-rf",
                 "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
             )
         )
 
-        CommandLineUtils.runCommand(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -259,6 +259,39 @@ object Simctl {
                 "launchctl",
                 "start",
                 "com.apple.securityd",
+            )
+        )
+    }
+
+    fun grantPermissions(deviceId: String, bundleId: String) {
+        val permissions = listOf(
+            "calendar=YES",
+            "camera=YES",
+            "contacts=YES",
+            "faceid=YES",
+            "health=YES",
+            "homekit=YES",
+            "location=always",
+            "medialibrary=YES",
+            "microphone=YES",
+            "motion=YES",
+            "notifications=YES",
+            "photos=YES",
+            "reminders=YES",
+            "siri=YES",
+            "speech=YES",
+            "userTracking=YES",
+        )
+
+        runCommand(
+            listOf(
+                "$homedir/.maestro/deps/applesimutils",
+                "--byId",
+                deviceId,
+                "--bundle",
+                bundleId,
+                "--setPermissions",
+                permissions.joinToString(", ")
             )
         )
     }
