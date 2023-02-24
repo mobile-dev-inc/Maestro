@@ -122,19 +122,7 @@ class XCTestDriverClient(
     }
 
     fun runningAppId(appIds: Set<String>): Response {
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val appIdsRequest = GetRunningAppRequest(appIds)
-        val body = mapper.writeValueAsString(appIdsRequest).toRequestBody(mediaType)
-
-        val url = xctestAPIBuilder("runningApp")
-            .build()
-        val request = Request.Builder()
-            .addHeader("Content-Type", "application/json")
-            .url(url)
-            .post(body)
-            .build()
-
-        return okHttpClient.newCall(request).execute()
+        return executeJsonRequest("runningApp", GetRunningAppRequest(appIds))
     }
 
     fun swipe(
@@ -145,71 +133,29 @@ class XCTestDriverClient(
         endY: Double,
         duration: Double
     ): Response {
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val request = SwipeRequest(
+        return executeJsonRequest("swipe", SwipeRequest(
             startX = startX,
             startY = startY,
             endX = endX,
             endY = endY,
             duration = duration
-        )
-        val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
-
-        val url = xctestAPIBuilder("swipe")
-            .addQueryParameter("appId", appId)
-            .build()
-
-        val httpRequest = Request.Builder()
-            .addHeader("Content-Type", "application/json")
-            .url(url)
-            .post(body)
-            .build()
-
-        return okHttpClient.newCall(httpRequest).execute()
+        ))
     }
 
     fun inputText(
         text: String,
     ): Response {
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val request = InputTextRequest(
-            text = text,
-        )
-        val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
-
-        val url = xctestAPIBuilder("inputText")
-            .build()
-
-        val httpRequest = Request.Builder()
-            .addHeader("Content-Type", "application/json")
-            .url(url)
-            .post(body)
-            .build()
-
-        return okHttpClient.newCall(httpRequest).execute()
+        return executeJsonRequest("inputText", InputTextRequest(text))
     }
 
     fun tap(
         x: Float,
         y: Float
     ): Response {
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val request = TouchRequest(
+        return executeJsonRequest("touch", TouchRequest(
             x = x,
             y = y,
-        )
-        val body = mapper.writeValueAsString(request).toRequestBody(mediaType)
-
-        val url = xctestAPIBuilder("touch")
-            .build()
-
-        val httpRequest = Request.Builder()
-            .addHeader("Content-Type", "application/json")
-            .url(url)
-            .post(body)
-            .build()
-
-        return okHttpClient.newCall(httpRequest).execute()
+        ))
     }
 
     private fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
@@ -218,5 +164,17 @@ class XCTestDriverClient(
             .host(host)
             .addPathSegment(pathSegment)
             .port(port)
+    }
+
+    private fun executeJsonRequest(url: String, body: Any): Response {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
+
+        val requestBuilder = Request.Builder()
+            .addHeader("Content-Type", "application/json")
+            .url(xctestAPIBuilder(url).build())
+            .post(bodyData)
+
+        return okHttpClient.newCall(requestBuilder.build()).execute()
     }
 }
