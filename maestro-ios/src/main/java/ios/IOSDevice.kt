@@ -126,13 +126,6 @@ interface IOSDevice : AutoCloseable {
     fun openLink(link: String): Result<Unit, Throwable>
 
     /**
-     * Opens link in web browser
-     *
-     * @param link - link to open
-     */
-    fun openBrowser(link: String): Result<Unit, Throwable>
-
-    /**
      * Takes a screenshot and writes it into output sink
      *
      * @param out - output sink

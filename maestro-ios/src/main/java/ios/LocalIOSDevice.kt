@@ -109,10 +109,6 @@ class LocalIOSDevice(
         return simctlIOSDevice.openLink(link)
     }
 
-    override fun openBrowser(link: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.openBrowser(link)
-    }
-
     override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
         return xcTestDevice.takeScreenshot(out, compressed)
     }

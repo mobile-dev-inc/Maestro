@@ -172,10 +172,6 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun openBrowser(link: String): Result<Unit, Throwable> {
-        error("Not supported")
-    }
-
     override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
         return runCatching {
             client.screenshot(compressed).use { response ->

@@ -186,7 +186,6 @@ object MaestroSessionManager {
 
                         val simctlIOSDevice = SimctlIOSDevice(
                             deviceId = selectedDevice.device.instanceId,
-                            logger = IOSDriverLogger(),
                             xcTestDevice = xcTestDevice,
                         )
 
@@ -326,7 +325,6 @@ object MaestroSessionManager {
         )
         val simctlIOSDevice = SimctlIOSDevice(
             deviceId = device.instanceId,
-            logger = IOSDriverLogger(),
             xcTestDevice = xcTestDevice,
         )
 

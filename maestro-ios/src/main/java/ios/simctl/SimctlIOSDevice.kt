@@ -8,14 +8,12 @@ import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import ios.xctest.XCTestIOSDevice
-import maestro.logger.Logger
 import okio.Sink
 import java.io.File
 import java.io.InputStream
 
 class SimctlIOSDevice(
     override val deviceId: String,
-    private val logger: Logger,
     private val xcTestDevice: XCTestIOSDevice,
 ) : IOSDevice {
     override fun open() {
@@ -101,10 +99,6 @@ class SimctlIOSDevice(
         return runCatching {
             Simctl.openURL(deviceId, link)
         }
-    }
-
-    override fun openBrowser(link: String): Result<Unit, Throwable> {
-        return runCatching { Simctl.openURL(deviceId, link) }
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
