@@ -75,7 +75,8 @@ data class YamlFluentCommand(
     val inputRandomPersonName: YamlInputRandomPersonName? = null,
     val launchApp: YamlLaunchApp? = null,
     val swipe: YamlSwipe? = null,
-    val openLink: String? = null,
+    val openLink: YamlOpenLink? = null,
+    val openBrowser: String? = null,
     val pressKey: String? = null,
     val eraseText: YamlEraseText? = null,
     val takeScreenshot: YamlTakeScreenshot? = null,
@@ -132,7 +133,7 @@ data class YamlFluentCommand(
             inputRandomEmail != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_EMAIL_ADDRESS)))
             inputRandomPersonName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_PERSON_NAME)))
             swipe != null -> listOf(swipeCommand(swipe))
-            openLink != null -> listOf(MaestroCommand(OpenLinkCommand(openLink)))
+            openLink != null -> listOf(MaestroCommand(OpenLinkCommand(openLink.link, openLink.autoVerify, openLink.browser)))
             pressKey != null -> listOf(MaestroCommand(PressKeyCommand(code = KeyCode.getByName(pressKey) ?: throw SyntaxError("Unknown key name: $pressKey"))))
             eraseText != null -> listOf(eraseCommand(eraseText))
             action != null -> listOf(

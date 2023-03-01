@@ -402,7 +402,7 @@ class IOSDriver(
         )
     }
 
-    override fun openLink(link: String) {
+    override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         iosDevice.openLink(link).expect {}
     }
 

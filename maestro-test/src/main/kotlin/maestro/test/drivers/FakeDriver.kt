@@ -32,6 +32,7 @@ import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.orchestra.MaestroConfig
 import maestro.utils.ScreenshotUtils
 import okio.Sink
 import okio.buffer
@@ -257,10 +258,14 @@ class FakeDriver : Driver {
         events += Event.InputText(text)
     }
 
-    override fun openLink(link: String) {
+    override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         ensureOpen()
 
-        events += Event.OpenLink(link)
+        if (browser) {
+            events += Event.OpenBrowser(link)
+        } else {
+            events += Event.OpenLink(link, autoVerify)
+        }
     }
 
     override fun setProxy(host: String, port: Int) {
@@ -381,12 +386,6 @@ class FakeDriver : Driver {
 
         data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(), UserInteraction
 
-        data class SwipeRelative(
-            val startRelativeValue: Int,
-            val endRelativeValue: Int,
-            val durationMs: Long
-        ): Event(), UserInteraction
-
         data class SwipeElementWithDirection(
             val point: Point,
             val swipeDirection: SwipeDirection,
@@ -416,6 +415,11 @@ class FakeDriver : Driver {
         ) : Event()
 
         data class OpenLink(
+            val link: String,
+            val autoLink: Boolean = false
+        ) : Event()
+
+        data class OpenBrowser(
             val link: String,
         ) : Event()
 

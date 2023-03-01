@@ -13,6 +13,7 @@ androidxCore = "1.9.0"
 androidxEspresso = "3.4.0"
 androidxTestJunit = "1.1.3"
 androidxUiautomator = "2.2.0"
+apkParser =  "2.6.10"
 appdirs = "1.2.1"
 axml = "2.1.2"
 dadb = "1.2.6"
@@ -54,6 +55,7 @@ androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidxCore
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
 androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidxUiautomator" }
+apk-parser = { module = "net.dongliu:apk-parser", version.ref = "apkParser" }
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 axml = { module = "de.upb.cs.swt:axml", version.ref = "axml" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }

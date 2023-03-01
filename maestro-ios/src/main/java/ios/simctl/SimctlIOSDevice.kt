@@ -103,6 +103,10 @@ class SimctlIOSDevice(
         }
     }
 
+    override fun openBrowser(link: String): Result<Unit, Throwable> {
+        return runCatching { Simctl.openURL(deviceId, link) }
+    }
+
     override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }

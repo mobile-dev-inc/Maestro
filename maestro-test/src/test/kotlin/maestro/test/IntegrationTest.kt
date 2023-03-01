@@ -2348,6 +2348,47 @@ class IntegrationTest {
         driver.assertHasEvent(Event.Tap(Point(50, 150)))
     }
 
+    @Test
+    fun `Case 084 - Open Browser`() {
+        // given
+        val commands = readCommands("084_open_browser")
+
+        val driver = driver {}
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertEvents(
+            listOf(
+                Event.OpenBrowser("https://example.com")
+            )
+        )
+    }
+
+    @Test
+    fun `085 - Open link with auto verify`() {
+        // Given
+        val commands = readCommands("085_open_link_auto_verify")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.OpenLink("https://example.com", autoLink = true)
+            )
+        )
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,
