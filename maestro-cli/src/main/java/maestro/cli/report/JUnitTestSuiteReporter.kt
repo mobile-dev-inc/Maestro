@@ -16,7 +16,8 @@ import okio.Sink
 import okio.buffer
 
 class JUnitTestSuiteReporter(
-    private val mapper: ObjectMapper
+    private val mapper: ObjectMapper,
+    private val testSuiteName: String?
 ) : TestSuiteReporter {
 
     override fun report(
@@ -32,7 +33,7 @@ class JUnitTestSuiteReporter(
                         .suites
                         .map { suite ->
                             TestSuite(
-                                name = "Test Suite",
+                                name = testSuiteName ?: "Test Suite",
                                 device = summary.deviceName,
                                 failures = suite.flows.count { it.status == FlowStatus.ERROR },
                                 tests = suite.flows.size,
@@ -41,6 +42,7 @@ class JUnitTestSuiteReporter(
                                         TestCase(
                                             id = flow.fileName ?: flow.name,
                                             name = flow.name,
+                                            classname = flow.fileName ?: flow.name,
                                             failure = flow.failure?.let { failure ->
                                                 Failure(
                                                     message = failure.message,
@@ -75,6 +77,7 @@ class JUnitTestSuiteReporter(
     private data class TestCase(
         @JacksonXmlProperty(isAttribute = true) val id: String,
         @JacksonXmlProperty(isAttribute = true) val name: String,
+        @JacksonXmlProperty(isAttribute = true) val classname: String,
         val failure: Failure? = null,
     )
 
@@ -84,12 +87,13 @@ class JUnitTestSuiteReporter(
 
     companion object {
 
-        fun xml() = JUnitTestSuiteReporter(
-            XmlMapper().apply {
+        fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
+            mapper = XmlMapper().apply {
                 registerModule(KotlinModule.Builder().build())
                 setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 configure(ToXmlGenerator.Feature.WRITE_XML_DECLARATION, true)
-            }
+            },
+            testSuiteName = testSuiteName
         )
 
     }

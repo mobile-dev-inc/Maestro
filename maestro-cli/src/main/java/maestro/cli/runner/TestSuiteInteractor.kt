@@ -108,7 +108,7 @@ class TestSuiteInteractor(
         if (reportOut != null) {
             reporter.report(
                 summary,
-                reportOut
+                reportOut,
             )
         }
 

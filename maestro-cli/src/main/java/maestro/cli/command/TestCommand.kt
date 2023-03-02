@@ -67,6 +67,12 @@ class TestCommand : Callable<Int> {
     )
     private var format: ReportFormat = ReportFormat.NOOP
 
+    @Option(
+        names = ["--test-suite-name"],
+        description = ["Test suite name"],
+    )
+    private var testSuiteName: String? = null
+
     @Option(names = ["--output"])
     private var output: File? = null
 
@@ -127,7 +133,7 @@ class TestCommand : Callable<Int> {
                 val suiteResult = TestSuiteInteractor(
                     maestro = maestro,
                     device = device,
-                    reporter = ReporterFactory.buildReporter(format),
+                    reporter = ReporterFactory.buildReporter(format, testSuiteName),
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                 ).runTestSuite(

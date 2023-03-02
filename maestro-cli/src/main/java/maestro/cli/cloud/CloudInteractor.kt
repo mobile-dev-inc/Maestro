@@ -53,6 +53,7 @@ class CloudInteractor(
         excludeTags: List<String> = emptyList(),
         reportFormat: ReportFormat = ReportFormat.NOOP,
         reportOutput: File? = null,
+        testSuiteName: String? = null
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -120,6 +121,7 @@ class CloudInteractor(
                     failOnCancellation = failOnCancellation,
                     reportFormat = reportFormat,
                     reportOutput = reportOutput,
+                    testSuiteName = testSuiteName,
                 )
             }
         }
@@ -133,6 +135,7 @@ class CloudInteractor(
         failOnCancellation: Boolean,
         reportFormat: ReportFormat,
         reportOutput: File?,
+        testSuiteName: String?
     ): Int {
         val startTime = System.currentTimeMillis()
 
@@ -182,6 +185,7 @@ class CloudInteractor(
                     failOnCancellation = failOnCancellation,
                     reportFormat = reportFormat,
                     reportOutput = reportOutput,
+                    testSuiteName = testSuiteName,
                 )
             }
 
@@ -239,6 +243,7 @@ class CloudInteractor(
         failOnCancellation: Boolean,
         reportFormat: ReportFormat,
         reportOutput: File?,
+        testSuiteName: String?
     ): Int {
         TestSuiteStatusView.showSuiteResult(
             upload.toViewModel(
@@ -262,7 +267,7 @@ class CloudInteractor(
             }
 
         if (reportOutputSink != null) {
-            saveReport(reportFormat, passed, upload, reportOutputSink)
+            saveReport(reportFormat, passed, upload, reportOutputSink, testSuiteName)
         }
 
         return if (!passed) {
@@ -276,9 +281,10 @@ class CloudInteractor(
         reportFormat: ReportFormat,
         passed: Boolean,
         upload: UploadStatus,
-        reportOutputSink: BufferedSink
+        reportOutputSink: BufferedSink,
+        testSuiteName: String?
     ) {
-        ReporterFactory.buildReporter(reportFormat)
+        ReporterFactory.buildReporter(reportFormat, testSuiteName)
             .report(
                 TestExecutionSummary(
                     passed = passed,

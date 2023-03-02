@@ -108,6 +108,12 @@ class CloudCommand : Callable<Int> {
     private var format: ReportFormat = ReportFormat.NOOP
 
     @Option(
+        names = ["--test-suite-name"],
+        description = ["Test suite name"],
+    )
+    private var testSuiteName: String? = null
+
+    @Option(
         order = 15,
         names = ["--output"],
         description = ["File to write report into (default=report.xml)"],
@@ -139,6 +145,7 @@ class CloudCommand : Callable<Int> {
             reportFormat = format,
             reportOutput = output,
             failOnCancellation = failOnCancellation,
+            testSuiteName = testSuiteName
         )
     }
 
