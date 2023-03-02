@@ -19,10 +19,18 @@ class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
 ) : XCTestInstaller {
+    // Set this flag to allow using a test runner started from Xcode
+    // When this flag is set, maestro will not install, run, stop or remove the xctest runner.
+    // Make sure to launch the test runner from Xcode whenever maestro needs it.
+    private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
 
     private var xcTestProcess: Process? = null
 
     override fun killAndUninstall() {
+        if (useXcodeTestRunner) {
+            return
+        }
+
         if (xcTestProcess?.isAlive == true) {
             logger.info("[Start] Killing the started XCUITest")
             xcTestProcess?.destroy()
@@ -34,6 +42,10 @@ class LocalXCTestInstaller(
     }
 
     override fun setup(): Boolean {
+        if (useXcodeTestRunner) {
+            return ensureOpen()
+        }
+
         repeat(3) { i ->
             logger.info("[Start] Installing xctest ui runner on $deviceId")
             runXCTest()
@@ -128,6 +140,10 @@ class LocalXCTestInstaller(
     }
 
     override fun close() {
+        if (useXcodeTestRunner) {
+            return
+        }
+
         logger.info("[Start] Cleaning up the ui test runner files")
         val xctestConfig = "${System.getenv("TMP_DIR")}/$XCTEST_RUN_PATH"
         val hostApp = "${System.getenv("TMPDIR")}/Debug-iphonesimulator/maestro-driver-ios.app"
