@@ -422,16 +422,23 @@ class AndroidDriver(
     }
 
     private fun autoVerifyWithAppName(appId: String) {
-        val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
-        val appName = ApkFile(apkFile).apkMeta.name
-        val appNameElement = filterByText(appName)
-        if (appNameElement != null) {
-            tap(appNameElement.bounds.center())
-        } else {
-            val openWithAppElement = filterByText(".*$appName.*")
-            if (openWithAppElement != null) {
-                filterById("android:id/button_once")?.let {
-                    tap(it.bounds.center())
+        val appNameResult = runCatching {
+            val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
+            val appName = ApkFile(apkFile).apkMeta.name
+            appName
+        }
+        if (appNameResult.isSuccess) {
+            val appName = appNameResult.getOrThrow()
+            waitUntilScreenIsStatic(3000)
+            val appNameElement = filterByText(appName)
+            if (appNameElement != null) {
+                tap(appNameElement.bounds.center())
+            } else {
+                val openWithAppElement = filterByText(".*$appName.*")
+                if (openWithAppElement != null) {
+                    filterById("android:id/button_once")?.let {
+                        tap(it.bounds.center())
+                    }
                 }
             }
         }
