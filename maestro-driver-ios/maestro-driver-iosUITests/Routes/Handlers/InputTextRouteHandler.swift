@@ -6,15 +6,15 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                             category: String(describing: InputTextRouteHandler.self))
 @MainActor
 final class InputTextRouteHandler : HTTPHandler {
-    private let typingFrequency = 60
-    
+    private let typingFrequency = 30
+
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
-        
+
         guard let requestBody = try? decoder.decode(InputTextRequest.self, from: request.body) else {
             return errorResponse(message: "incorrect request body provided")
         }
-        
+
         do {
             let start = Date()
 
@@ -40,5 +40,5 @@ final class InputTextRouteHandler : HTTPHandler {
         """
         let errorData = Data(jsonString.utf8)
         return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
-    }    
+    }
 }
