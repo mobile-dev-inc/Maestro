@@ -133,4 +133,8 @@ class LocalIOSDevice(
     override fun isScreenStatic(): Result<Boolean, Throwable> {
         return xcTestDevice.isScreenStatic()
     }
+
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        simctlIOSDevice.setPermissions(id, permissions)
+    }
 }

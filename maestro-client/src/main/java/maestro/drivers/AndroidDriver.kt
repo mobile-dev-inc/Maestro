@@ -41,8 +41,8 @@ import maestro.ViewHierarchy
 import maestro.android.AndroidAppFiles
 import maestro.android.asManifest
 import maestro.android.resolveLauncherActivity
-import maestro.utils.ScreenshotUtils
 import maestro.utils.MaestroTimer
+import maestro.utils.ScreenshotUtils
 import maestro.utils.StringUtils.toRegexSafe
 import maestro_android.MaestroDriverGrpc
 import maestro_android.deviceInfoRequest
@@ -526,6 +526,95 @@ class AndroidDriver(
         return listOf(
             Capability.FAST_HIERARCHY
         )
+    }
+
+    override fun setPermissions(appId: String, permissions: Map<String, String>) {
+        val mutable = permissions.toMutableMap()
+        mutable.remove("all")?.let { value ->
+            setAllPermissions(appId, value)
+        }
+
+        mutable.forEach { permission ->
+            val permissionValue = translatePermissionValue(permission.value)
+            translatePermissionName(permission.key).forEach { permissionName ->
+                setPermissionInternal(appId, permissionName, permissionValue)
+            }
+        }
+    }
+
+    private fun setAllPermissions(appId: String, permissionValue: String) {
+        val permissionsResult = runCatching {
+            val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
+            ApkFile(apkFile).apkMeta.usesPermissions
+        }
+        if (permissionsResult.isSuccess) {
+            permissionsResult.getOrNull()?.let {
+                it.forEach { permission ->
+                    setPermissionInternal(appId, permission, translatePermissionValue(permissionValue))
+                }
+            }
+        }
+    }
+
+    private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
+        try {
+            dadb.shell("pm $permissionValue $appId $permission")
+        } catch (exception: Exception) {
+            /* no-op */
+        }
+    }
+
+    private fun translatePermissionName(name: String): List<String> {
+        return when (name) {
+            "location" -> listOf(
+                "android.permission.ACCESS_FINE_LOCATION",
+                "android.permission.ACCESS_COARSE_LOCATION",
+            )
+            "camera" -> listOf("android.permission.CAMERA")
+            "contacts" -> listOf(
+                "android.permission.READ_CONTACTS",
+                "android.permission.WRITE_CONTACTS"
+            )
+            "phone" -> listOf(
+                "android.permission.CALL_PHONE",
+                "android.permission.ANSWER_PHONE_CALLS",
+            )
+            "microphone" -> listOf(
+                "android.permission.RECORD_AUDIO"
+            )
+            "bluetooth" -> listOf(
+                "android.permission.BLUETOOTH_CONNECT",
+                "android.permission.BLUETOOTH_SCAN",
+            )
+            "storage" -> listOf(
+                "android.permission.WRITE_EXTERNAL_STORAGE",
+                "android.permission.READ_EXTERNAL_STORAGE"
+            )
+            "notifications" -> listOf(
+                "android.permission.POST_NOTIFICATIONS"
+            )
+            "medialibrary" -> listOf(
+                "android.permission.WRITE_EXTERNAL_STORAGE",
+                "android.permission.READ_EXTERNAL_STORAGE",
+                "android.permission.READ_MEDIA_AUDIO",
+                "android.permission.READ_MEDIA_IMAGES",
+                "android.permission.READ_MEDIA_VIDEO"
+            )
+            "calendar" -> listOf(
+                "android.permission.WRITE_CALENDAR",
+                "android.permission.READ_CALENDAR"
+            )
+            else -> listOf(name.replace("[^A-Za-z0-9._]+".toRegex(), ""))
+        }
+    }
+
+    private fun translatePermissionValue(value: String): String {
+        return when (value) {
+            "allow" -> "grant"
+            "deny" -> "revoke"
+            "unset" -> "revoke"
+            else -> "revoke"
+        }
     }
 
     private fun mapHierarchy(node: Node): TreeNode {

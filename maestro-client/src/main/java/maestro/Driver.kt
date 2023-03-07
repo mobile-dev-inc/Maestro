@@ -89,4 +89,6 @@ interface Driver {
     fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy?
 
     fun capabilities(): List<Capability>
+
+    fun setPermissions(appId: String, permissions: Map<String, String>)
 }

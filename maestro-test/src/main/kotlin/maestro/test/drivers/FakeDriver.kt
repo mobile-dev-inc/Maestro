@@ -32,7 +32,6 @@ import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
-import maestro.orchestra.MaestroConfig
 import maestro.utils.ScreenshotUtils
 import okio.Sink
 import okio.buffer
@@ -358,6 +357,12 @@ class FakeDriver : Driver {
         )
     }
 
+    override fun setPermissions(appId: String, permissions: Map<String, String>) {
+        ensureOpen()
+
+        events.add(Event.SetPermissions(appId, permissions))
+    }
+
     sealed class Event {
 
         data class Tap(
@@ -445,6 +450,10 @@ class FakeDriver : Driver {
 
         object ResetProxy : Event()
 
+        data class SetPermissions(
+            val appId: String,
+            val permissions: Map<String, String>,
+        ) : Event()
     }
 
     interface UserInteraction

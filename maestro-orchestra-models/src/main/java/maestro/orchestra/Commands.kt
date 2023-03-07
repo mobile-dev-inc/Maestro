@@ -347,6 +347,7 @@ data class LaunchAppCommand(
     val clearState: Boolean? = null,
     val clearKeychain: Boolean? = null,
     val stopApp: Boolean? = null,
+    var permissions: Map<String, String>? = null,
 ) : Command {
 
     override fun description(): String {

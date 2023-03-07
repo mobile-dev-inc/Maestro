@@ -486,6 +486,10 @@ class IdbIOSDevice(
         TODO("Not yet implemented")
     }
 
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        TODO("Not yet implemented")
+    }
+
     companion object {
         // 4Mb, the default max read for gRPC
         private const val CHUNK_SIZE = 1024 * 1024 * 3

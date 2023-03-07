@@ -449,6 +449,10 @@ class IOSDriver(
         return emptyList()
     }
 
+    override fun setPermissions(appId: String, permissions: Map<String, String>) {
+        iosDevice.setPermissions(appId, permissions)
+    }
+
     private fun isScreenStatic(): Boolean {
         return iosDevice.isScreenStatic().expect {}
     }

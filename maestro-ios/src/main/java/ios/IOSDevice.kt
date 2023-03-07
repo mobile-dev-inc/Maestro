@@ -156,6 +156,8 @@ interface IOSDevice : AutoCloseable {
      * @return false if 2 consequent screenshots are equal, true if screen is static
      */
     fun isScreenStatic(): Result<Boolean, Throwable>
+
+    fun setPermissions(id: String, permissions: Map<String, String>)
 }
 
 interface IOSScreenRecording : AutoCloseable

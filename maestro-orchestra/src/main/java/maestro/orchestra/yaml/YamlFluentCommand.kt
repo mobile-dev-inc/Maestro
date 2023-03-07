@@ -299,6 +299,7 @@ data class YamlFluentCommand(
                 clearState = command.clearState,
                 clearKeychain = command.clearKeychain,
                 stopApp = command.stopApp,
+                permissions = command.permissions,
             )
         )
     }
@@ -472,6 +473,7 @@ data class YamlFluentCommand(
                         clearState = null,
                         clearKeychain = null,
                         stopApp = null,
+                        permissions = null,
                     )
                 )
 
@@ -480,7 +482,9 @@ data class YamlFluentCommand(
                 )
 
                 "clearState" -> YamlFluentCommand(
-                    clearState = YamlClearState()
+                    clearState = YamlClearState(
+                        appId = null,
+                    )
                 )
 
                 "clearKeychain" -> YamlFluentCommand(

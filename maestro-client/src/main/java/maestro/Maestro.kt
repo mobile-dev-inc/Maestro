@@ -77,6 +77,10 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.clearAppState(appId)
     }
 
+    fun setPermissions(appId: String, permissions: Map<String, String>) {
+        driver.setPermissions(appId, permissions)
+    }
+
     fun clearKeychain() {
         LOGGER.info("Clearing keychain")
 

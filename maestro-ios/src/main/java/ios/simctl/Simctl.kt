@@ -263,25 +263,24 @@ object Simctl {
         )
     }
 
-    fun grantPermissions(deviceId: String, bundleId: String) {
-        val permissions = listOf(
-            "calendar=YES",
-            "camera=YES",
-            "contacts=YES",
-            "faceid=YES",
-            "health=YES",
-            "homekit=YES",
-            "location=always",
-            "medialibrary=YES",
-            "microphone=YES",
-            "motion=YES",
-            "notifications=YES",
-            "photos=YES",
-            "reminders=YES",
-            "siri=YES",
-            "speech=YES",
-            "userTracking=YES",
-        )
+    fun setPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+        val mutable = permissions.toMutableMap()
+        if (mutable.containsKey("all")) {
+            val value = mutable.remove("all")
+            allPermissions.forEach {
+                when (value) {
+                    "allow" -> mutable.putIfAbsent(it, allowValueForPermission(it))
+                    "deny" -> mutable.putIfAbsent(it, denyValueForPermission(it))
+                    "unset" -> mutable.putIfAbsent(it, "unset")
+                    else -> throw IllegalArgumentException("Permission 'all' can be set to 'allow', 'deny' or 'unset', not '$value'")
+                }
+            }
+        }
+
+        val argument = mutable
+            .filter { allPermissions.contains(it.key) }
+            .map { "${it.key}=${translatePermissionValue(it.value)}" }
+            .joinToString(",")
 
         runCommand(
             listOf(
@@ -291,8 +290,49 @@ object Simctl {
                 "--bundle",
                 bundleId,
                 "--setPermissions",
-                permissions.joinToString(", ")
+                argument
             )
         )
+    }
+
+    private val allPermissions = listOf(
+        "calendar",
+        "camera",
+        "contacts",
+        "faceid",
+        "health",
+        "homekit",
+        "location",
+        "medialibrary",
+        "microphone",
+        "motion",
+        "notifications",
+        "photos",
+        "reminders",
+        "siri",
+        "speech",
+        "usertracking",
+    )
+
+    private fun translatePermissionValue(value: String): String {
+        return when (value) {
+            "allow" -> "YES"
+            "deny" -> "NO"
+            else -> value
+        }
+    }
+
+    private fun allowValueForPermission(permission: String): String {
+        return when (permission) {
+            "location" -> "always"
+            else -> "YES"
+        }
+    }
+
+    private fun denyValueForPermission(permission: String): String {
+        return when (permission) {
+            "location" -> "never"
+            else -> "NO"
+        }
     }
 }

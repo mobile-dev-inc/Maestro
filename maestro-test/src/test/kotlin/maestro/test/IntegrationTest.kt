@@ -2389,6 +2389,61 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `086 - launchApp sets all permissions to allow`() {
+        val commands = readCommands("086_launchApp_sets_all_permissions_to_allow")
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        driver.assertEvents(
+            listOf(
+                Event.SetPermissions("com.example.app", mapOf("all" to "allow")),
+                Event.LaunchApp("com.example.app"),
+            )
+        )
+    }
+
+    @Test
+    fun `087 - launchApp with all permissions to deny`() {
+        val commands = readCommands("087_launchApp_with_all_permissions_to_deny")
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        driver.assertEvents(
+            listOf(
+                Event.SetPermissions("com.example.app", mapOf("all" to "deny")),
+                Event.LaunchApp("com.example.app"),
+            )
+        )
+    }
+
+    @Test
+    fun `088 - launchApp with all permissions to deny and notification to allow`() {
+        val commands = readCommands("088_launchApp_with_all_permissions_to_deny_and_notification_to_allow")
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        driver.assertEvents(
+            listOf(
+                Event.SetPermissions("com.example.app", mapOf("all" to "deny", "notifications" to "allow")),
+                Event.LaunchApp("com.example.app"),
+            )
+        )
+    }
+
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,

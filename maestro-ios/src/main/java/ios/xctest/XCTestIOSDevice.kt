@@ -227,6 +227,10 @@ class XCTestIOSDevice(
         }
     }
 
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        error("Not supported")
+    }
+
     private fun activeAppId(): String? {
         val appIds = getInstalledApps()
         logger.info("installed apps: $appIds")

@@ -72,8 +72,6 @@ class SimctlIOSDevice(
 
     override fun clearAppState(id: String): Result<Unit, Throwable> {
         Simctl.clearAppState(deviceId, id)
-        Simctl.grantPermissions(deviceId, id)
-        xcTestDevice.restartXCTestRunnerService()
         return Ok(Unit)
     }
 
@@ -121,6 +119,11 @@ class SimctlIOSDevice(
 
     override fun isScreenStatic(): Result<Boolean, Throwable> {
         TODO("Not yet implemented")
+    }
+
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        Simctl.setPermissions(deviceId, id, permissions)
+        xcTestDevice.restartXCTestRunnerService()
     }
 
     override fun close() {
