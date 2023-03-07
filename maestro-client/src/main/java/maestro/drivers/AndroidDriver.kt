@@ -433,6 +433,9 @@ class AndroidDriver(
             val appNameElement = filterByText(appName)
             if (appNameElement != null) {
                 tap(appNameElement.bounds.center())
+                filterById("android:id/button_once")?.let {
+                    tap(it.bounds.center())
+                }
             } else {
                 val openWithAppElement = filterByText(".*$appName.*")
                 if (openWithAppElement != null) {
