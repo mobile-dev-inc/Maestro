@@ -10,7 +10,7 @@ object EnvUtils {
             ?: System.getenv("ANDROID")
     }
 
-    fun mdevApiKey(): String? {
-        return System.getenv("MDEV_API_KEY")
+    fun maestroCloudApiKey(): String? {
+        return System.getenv("MAESTRO_CLOUD_API_KEY")
     }
 }

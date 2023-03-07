@@ -62,7 +62,7 @@ class CloudInteractor(
 
         val authToken = apiKey              // Check for API key
             ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.mdevApiKey()        // Resolve API key from shell if set
+            ?: EnvUtils.maestroCloudApiKey()        // Resolve API key from shell if set
             ?: auth.triggerSignInFlow()     // Otherwise, trigger the sign-in flow
 
         PrintUtils.message("Uploading Flow(s)...")
@@ -216,7 +216,7 @@ class CloudInteractor(
 
         val authToken = apiKey              // Check for API key
             ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.mdevApiKey()        // Resolve API key from shell if set
+            ?: EnvUtils.maestroCloudApiKey()        // Resolve API key from shell if set
             ?: auth.triggerSignInFlow()     // Otherwise, trigger the sign-in flow
 
         PrintUtils.message("Deploying workspace to Maestro Mock Server...")
