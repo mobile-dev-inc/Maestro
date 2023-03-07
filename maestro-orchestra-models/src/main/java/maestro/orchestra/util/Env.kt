@@ -32,4 +32,15 @@ object Env {
         return listOf(MaestroCommand(DefineVariablesCommand(env))) + this
     }
 
+    fun MutableMap<String, String>.withInjectedShellEnvVars(): MutableMap<String, String> {
+        val sysEnv = System.getenv()
+        for (sysEnvKey in sysEnv.keys) {
+            val sysEnvValue = sysEnv[sysEnvKey]
+            if (this[sysEnvKey] == null && sysEnvValue != null) {
+                this[sysEnvKey] = sysEnvValue
+            }
+        }
+
+        return this
+    }
 }

@@ -10,4 +10,7 @@ object EnvUtils {
             ?: System.getenv("ANDROID")
     }
 
+    fun mdevApiKey(): String? {
+        return System.getenv("MDEV_API_KEY")
+    }
 }

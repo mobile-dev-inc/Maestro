@@ -30,6 +30,7 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.PrintUtils
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
 import okio.buffer
 import okio.sink
@@ -59,7 +60,7 @@ class TestCommand : Callable<Int> {
     private var continuous: Boolean = false
 
     @Option(names = ["-e", "--env"])
-    private var env: Map<String, String> = emptyMap()
+    private var env: MutableMap<String, String> = mutableMapOf()
 
     @Option(
         names = ["--format"],
@@ -117,6 +118,8 @@ class TestCommand : Callable<Int> {
         val deviceId =
             if (isWebFlow()) "chromium".also { PrintUtils.warn("Web support is an experimental feature and may be removed in future versions.\n") }
             else parent?.deviceId
+
+        env = env.withInjectedShellEnvVars()
         
         return MaestroSessionManager.newSession(parent?.host, parent?.port, deviceId) { session ->
             val maestro = session.maestro
