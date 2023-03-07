@@ -1,12 +1,21 @@
 # Changelog
 
+## 1.24.0 - 2023-03-07
+* Change: LaunchApp command sets all app permissions to allow ([documentation](https://maestro.mobile.dev/reference/app-lifecycle))
+* Feature: LaunchApp supports specifying app permission state
+* Feature: On Android it is now possible to force links to be opened in the browser
+* Fix: Autocorrect is no longer applied to inputText on iOS
+* Fix: iOS apps with big view hierarchies (common with ReactNative and Flutter) caused an error in XCTest.framework
+* Fix: Studio UI fixes for Firefox and Safari
+* Fix: Element selection behavior in Maestro Studio
+
 ## 1.23.0 - 2023-02-15
 * Feature: Maestro Studio - Action Modal
 * Feature: Maestro Studio - Dark Mode
 * Feature: assertion on `enabled`, `selected`, `checked`, `focused` properties ([documentation](https://maestro.mobile.dev/reference/assertions#assertvisible))
 * Feature: running tests in a deterministic order ([documentation](https://maestro.mobile.dev/cli/test-suites-and-reports#deterministic-ordering))
 * Feature: default global tags can now be set in `config.yaml` ([documentation](https://maestro.mobile.dev/cli/tags#global-tags))
-* Feature: allow to configure what flows should be included into a run at `config.yaml` level ([documentation](https://maestro.mobile.dev/cli/test-suites-and-reports#controlling-what-tests-to-include)) 
+* Feature: allow to configure what flows should be included into a run at `config.yaml` level ([documentation](https://maestro.mobile.dev/cli/test-suites-and-reports#controlling-what-tests-to-include))
 * Tweak: considerable speed-up of iOS tests due to removal of unnecessary hierarchy polling
 * Tweak: wait for app to settle before proceeding with iOS test
 * Tweak: UX improvements in "delete command" confirmation dialog
@@ -90,7 +99,7 @@
 * Tweak: assert commands now respect `optional` flag
 * Tweak: error analytics
 * Fix: scroll not working reliably on iOS
-* Fix: `openLink` was opening Google Maps on Android 
+* Fix: `openLink` was opening Google Maps on Android
 * Fix: sub-flows are now included regardless of their tags
 * Fix: Maestro Studio was not always computing `index` field correctly
 * Fix: `maestro upload` was ignoring JS files
@@ -105,10 +114,10 @@
 
 ## 1.18.3 - 2022-12-27
 * XCUITest driver improvements and fixes:
-  * Close the response when validating server up 
-  * Add logs to uninstall of runner 
-  * Remove redundant import and library from maestro-ios 
-  * Kills the process before we uninstall it 
+  * Close the response when validating server up
+  * Add logs to uninstall of runner
+  * Remove redundant import and library from maestro-ios
+  * Kills the process before we uninstall it
   * Redirect runner logs in xctest_runner_logs directory
 
 ## 1.18.2 - 2022-12-27
@@ -166,7 +175,7 @@
 * Fix: Fix `maestro record` not capturing full launch screen recording
 
 ## 1.16.2 - 2022-12-02
-* Fix: older version of Maestro Driver on Android was not always updated 
+* Fix: older version of Maestro Driver on Android was not always updated
 
 ## 1.16.1 - 2022-11-30
 * Feature: `maestro record` command
@@ -178,7 +187,7 @@
   * `assertTrue` command to assert based on Javascript
   * `runFlow` can be launched based on Javascript condition
   * `copyTextFrom` now also stores result in `maestro.copiedText` variable
-  * Env parameters are now treated as Javascript variables 
+  * Env parameters are now treated as Javascript variables
 * Feature: HTTP(s) requests
   * `http.request()` Javascript API that allows to make HTTP requests as part of Maestro flows
 * Feature: Maestro Cloud `--android-api-level` parameter to select API version to be used
@@ -194,7 +203,7 @@
 * Feature: XML test report in JUnit-compatible format
 * Feature: `copyTextFrom` command for copying text from a view
 * Feature: `maestro bugreport` command for capturing Maestro logs
-* **Breaking change**: Removed `clipboardPaste` command in favour of new `pasteText` command 
+* **Breaking change**: Removed `clipboardPaste` command in favour of new `pasteText` command
 * Fix: Java 8 compatibility issue for M1 users
 * Fix: `_` character was mapped incorrectly on iOS
 * Fix: first `tapOn` command was failing unless it was preceeded by `launchApp` or `openLink`
@@ -214,7 +223,7 @@
 
 ## 1.13.1 - 2022-11-09
 * Fix: Fix maestro hanging with message "Waiting for idb service to start.."
-* Fix: Fix clearState operation not working on iOS 
+* Fix: Fix clearState operation not working on iOS
 
 ## 1.13.0 - 2022-11-08
 
@@ -300,7 +309,7 @@
 * Tweak: support of Tab Bar on iOS
 * Tweak: added `--mapping` option to `upload` CLI command
 * Fix: open the main launcher screen on Android instead of Leak Canary
-* Fix: input character-by-character on Android to counter adb issue where not the whole text gets transferred to the device 
+* Fix: input character-by-character on Android to counter adb issue where not the whole text gets transferred to the device
 
 ## 1.7.2 - 2022-09-20
 
@@ -334,7 +343,7 @@
 * Fix: Android WebView contents were sometimes not reported as part of the view hierarchy
 * Fix: iOS inputText race condition
 * Fix: populate iOS accessibility value
-* Refactoring: simplified `MaestroCommand` serialization 
+* Refactoring: simplified `MaestroCommand` serialization
 
 ## 1.5.0 - 2022-09-08
 
