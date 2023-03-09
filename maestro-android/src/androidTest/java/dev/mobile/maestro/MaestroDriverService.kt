@@ -2,7 +2,16 @@ package dev.mobile.maestro
 
 import android.app.UiAutomation
 import android.content.Context
+import android.content.Context.LOCATION_SERVICE
 import android.graphics.Bitmap
+import android.location.Criteria
+import android.location.Location
+import android.location.LocationManager
+import android.location.LocationProvider
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent.KEYCODE_1
@@ -45,6 +54,7 @@ import maestro_android.deviceInfo
 import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
 import maestro_android.screenshotResponse
+import maestro_android.setLocationResponse
 import maestro_android.tapResponse
 import maestro_android.viewHierarchyResponse
 import org.junit.Test
@@ -194,6 +204,66 @@ class Service(
             Log.e("Maestro", "Failed to compress bitmap")
             responseObserver.onError(Throwable("Failed to compress bitmap"))
         }
+    }
+
+    override fun setLocation(
+        request: MaestroAndroid.SetLocationRequest,
+        responseObserver: StreamObserver<MaestroAndroid.SetLocationResponse>
+    ) {
+        val latitude = request.latitude
+        val longitude = request.longitude
+        val accuracy = 0.0F
+
+        val locMgr = InstrumentationRegistry.getInstrumentation()
+            .context
+            .getSystemService(LOCATION_SERVICE) as LocationManager
+
+        locMgr.addTestProvider(
+            LocationManager.GPS_PROVIDER,
+            "requiresNetwork" === "",
+            "requiresSatellite" === "",
+            "requiresCell" === "",
+            "hasMonetaryCost" === "",
+            "supportsAltitude" === "",
+            "supportsSpeed" === "",
+            "supportsBearing" === "",
+            Criteria.POWER_LOW,
+            Criteria.ACCURACY_FINE
+        )
+
+        val newLocation = Location(LocationManager.GPS_PROVIDER)
+
+        newLocation.latitude = latitude
+        newLocation.longitude = longitude
+        newLocation.accuracy = accuracy
+        newLocation.altitude = 0.0
+        newLocation.accuracy = 500F
+        locMgr.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
+
+        val handler = Handler(Looper.getMainLooper())
+
+        fun postLocation() {
+            handler.post {
+                newLocation.setTime(System.currentTimeMillis())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                    newLocation.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                }
+                locMgr.setTestProviderStatus(
+                    LocationManager.GPS_PROVIDER,
+                    LocationProvider.AVAILABLE,
+                    null, System.currentTimeMillis()
+                )
+
+                locMgr.setTestProviderLocation(LocationManager.GPS_PROVIDER, newLocation)
+
+                postLocation()
+            }
+        }
+
+        postLocation()
+
+        responseObserver.onNext(setLocationResponse { })
+        responseObserver.onCompleted()
     }
 
     private fun setText(text: String) {

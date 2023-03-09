@@ -49,6 +49,7 @@ import maestro_android.deviceInfoRequest
 import maestro_android.eraseAllTextRequest
 import maestro_android.inputTextRequest
 import maestro_android.screenshotRequest
+import maestro_android.setLocationRequest
 import maestro_android.tapRequest
 import maestro_android.viewHierarchyRequest
 import net.dongliu.apk.parser.ApkFile
@@ -486,7 +487,14 @@ class AndroidDriver(
         .map { parts: Array<String> -> parts[1] }
 
     override fun setLocation(latitude: Double, longitude: Double) {
-        TODO("Not yet implemented")
+        shell("appops set dev.mobile.maestro android:mock_location allow")
+
+        blockingStub.setLocation(
+            setLocationRequest {
+                this.latitude = latitude
+                this.longitude = longitude
+            }
+        ) ?: error("Set Location Response can't be null")
     }
 
     override fun eraseText(charactersToErase: Int) {

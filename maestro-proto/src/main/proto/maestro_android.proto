@@ -15,6 +15,8 @@ service MaestroDriver {
   rpc inputText(InputTextRequest) returns (InputTextResponse) {}
 
   rpc eraseAllText(EraseAllTextRequest) returns (EraseAllTextResponse) {}
+
+  rpc setLocation(SetLocationRequest) returns (SetLocationResponse) {}
 }
 
 // Device info
@@ -58,3 +60,10 @@ message EraseAllTextRequest {
 }
 
 message EraseAllTextResponse {}
+
+message SetLocationRequest {
+    double latitude = 1;
+    double longitude = 2;
+}
+
+message SetLocationResponse {}
