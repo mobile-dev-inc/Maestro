@@ -7,14 +7,12 @@ import hierarchy.XCUIElement
 import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
-import ios.xctest.XCTestIOSDevice
 import okio.Sink
 import java.io.File
 import java.io.InputStream
 
 class SimctlIOSDevice(
     override val deviceId: String,
-    private val xcTestDevice: XCTestIOSDevice,
 ) : IOSDevice {
     override fun open() {
         TODO("Not yet implemented")
@@ -123,7 +121,6 @@ class SimctlIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         Simctl.setPermissions(deviceId, id, permissions)
-        xcTestDevice.restartXCTestRunnerService()
     }
 
     override fun close() {

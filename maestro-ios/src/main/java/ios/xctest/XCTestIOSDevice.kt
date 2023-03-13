@@ -32,7 +32,7 @@ class XCTestIOSDevice(
         restartXCTestRunnerService()
     }
 
-    fun restartXCTestRunnerService() {
+    private fun restartXCTestRunnerService() {
         logger.info("[Start] Uninstalling xctest ui runner app on $deviceId")
         installer.killAndUninstall()
         logger.info("[Done] Uninstalling xctest ui runner app on $deviceId")

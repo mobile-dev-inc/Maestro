@@ -1,28 +1,15 @@
 package maestro.cli.device
 
-import com.github.michaelbull.result.Ok
 import dadb.Dadb
-import io.grpc.ManagedChannelBuilder
-import ios.idb.IdbIOSDevice
 import ios.simctl.Simctl
 import ios.simctl.Simctl.SimctlError
 import ios.simctl.SimctlList
 import maestro.cli.CliError
-import maestro.cli.session.SessionStore
 import maestro.cli.util.EnvUtils
-import maestro.debuglog.DebugLogStore
 import maestro.utils.MaestroTimer
 import java.io.File
-import java.net.Socket
-import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 object DeviceService {
-
-    private val logger = DebugLogStore.loggerFor(DeviceService::class.java)
-    private const val idbHost = "localhost"
-    private const val idbPort = 10882
-
     fun startDevice(device: Device.AvailableForLaunch): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
@@ -74,69 +61,6 @@ object DeviceService {
                     platform = device.platform,
                 )
             }
-        }
-    }
-
-    fun prepareDevice(device: Device.Connected) {
-        if (device.platform == Platform.IOS) {
-            startIdbCompanion(device)
-        }
-    }
-
-    private fun isIdbCompanionRunning(): Boolean {
-        return try {
-                Socket(idbHost, idbPort).use { true }
-            } catch (_: Exception) {
-                false
-            }
-    }
-
-    private fun startIdbCompanion(device: Device.Connected) {
-        logger.info("startIDBCompanion on $device")
-
-        if (isIdbCompanionRunning() && SessionStore.activeSessions().isEmpty()) {
-            error("idb_companion is already running. Stop idb_companion and run maestro again")
-        }
-
-        val idbProcessBuilder = ProcessBuilder("idb_companion", "--udid", device.instanceId)
-        DebugLogStore.logOutputOf(idbProcessBuilder)
-        val idbProcess = idbProcessBuilder.start()
-
-        Runtime.getRuntime().addShutdownHook(thread(start = false) {
-            idbProcess.destroy()
-        })
-
-        val channel = ManagedChannelBuilder.forAddress(idbHost, idbPort)
-            .usePlaintext()
-            .build()
-
-        IdbIOSDevice(channel, device.instanceId).use { iosDevice ->
-            logger.warning("Waiting for idb service to start..")
-            MaestroTimer.retryUntilTrue(timeoutMs = 60000, delayMs = 100) {
-                Socket(idbHost, idbPort).use { true }
-            } || error("idb_companion did not start in time")
-
-            // The first time a simulator boots up, it can
-            // take 10's of seconds to complete.
-            logger.warning("Waiting for Simulator to boot..")
-            MaestroTimer.retryUntilTrue(timeoutMs = 120000, delayMs = 100) {
-                val process = ProcessBuilder("xcrun", "simctl", "bootstatus", device.instanceId)
-                    .start()
-                process
-                    .waitFor(1000, TimeUnit.MILLISECONDS)
-                process.exitValue() == 0
-            } || error("Simulator failed to boot")
-
-            // Test if idb can get accessibility info elements with non-zero frame with
-            logger.warning("Waiting for successful taps")
-            MaestroTimer.retryUntilTrue(timeoutMs = 20000, delayMs = 100) {
-                val tapResult = iosDevice
-                    .tap(0, 0)
-
-                tapResult is Ok
-            } || error("idb_companion is not able dispatch successful tap events")
-
-            logger.warning("Simulator ready")
         }
     }
 

@@ -30,7 +30,8 @@ import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
-import maestro.cli.idb.IdbInstaller
+import maestro.cli.idb.IdbCompanion
+import maestro.cli.idb.IdbCompanion.startIdbCompanion
 import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
@@ -44,8 +45,8 @@ import kotlin.concurrent.thread
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
-    private const val idbPort = 10882
-    private const val xcTestPort = 22087
+    private const val defaultIdbPort = 10882
+    private const val defaultXcTestPort = 22087
 
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
@@ -54,10 +55,7 @@ object MaestroSessionManager {
         host: String?,
         port: Int?,
         deviceId: String?,
-
-        // needed for experimental web support
         isStudio: Boolean = false,
-
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(host, port, deviceId)
@@ -142,7 +140,7 @@ object MaestroSessionManager {
     private fun createMaestro(
         selectedDevice: SelectedDevice,
         connectToExistingSession: Boolean,
-        isStudio: Boolean
+        isStudio: Boolean,
     ): MaestroSession {
         return when {
             selectedDevice.device != null -> MaestroSession(
@@ -158,23 +156,21 @@ object MaestroSessionManager {
                         )
                     }
                     Platform.IOS -> {
-                        val channel = ManagedChannelBuilder.forAddress(defaultHost, idbPort)
-                            .usePlaintext()
-                            .build()
-
                         val xcTestInstaller = LocalXCTestInstaller(
                             logger = IOSDriverLogger(),
                             deviceId = selectedDevice.device.instanceId,
                         )
-                        // TODO (as) remove this flag with a proper factory
-                        val installNetworkInterceptor = isStudio
-                        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort, installNetworkInterceptor) {
+
+                        val xcTestDriverClient = XCTestDriverClient(
+                            host = defaultHost,
+                            port = defaultXcTestPort,
+                            restoreConnection = {
                             if (SessionStore.activeSessions().isNotEmpty()) {
-                                IdbInstaller.setup(selectedDevice.device)
+                                IdbCompanion.setup(selectedDevice.device)
                                 return@XCTestDriverClient xcTestInstaller.setup()
                             }
                             return@XCTestDriverClient false
-                        }
+                        })
 
                         val xcTestDevice = XCTestIOSDevice(
                             deviceId = selectedDevice.device.instanceId,
@@ -186,17 +182,24 @@ object MaestroSessionManager {
 
                         val simctlIOSDevice = SimctlIOSDevice(
                             deviceId = selectedDevice.device.instanceId,
-                            xcTestDevice = xcTestDevice,
+                        )
+
+                        val idbIOSDevice = IdbIOSDevice(
+                            deviceId = selectedDevice.device.instanceId,
+                            startCompanion = {
+                                startIdbCompanion(
+                                    selectedDevice.host ?: defaultHost,
+                                    selectedDevice.port ?: defaultIdbPort,
+                                    selectedDevice.device.instanceId,
+                                )
+                            },
                         )
 
                         Maestro.ios(
                             driver = IOSDriver(
                                 LocalIOSDevice(
                                     deviceId = selectedDevice.device.instanceId,
-                                    idbIOSDevice = IdbIOSDevice(
-                                        channel = channel,
-                                        deviceId = selectedDevice.device.instanceId,
-                                    ),
+                                    idbIOSDevice = idbIOSDevice,
                                     xcTestDevice = xcTestDevice,
                                     simctlIOSDevice = simctlIOSDevice,
                                 )
@@ -222,7 +225,6 @@ object MaestroSessionManager {
                     selectedDevice.port,
                     selectedDevice.deviceId,
                     !connectToExistingSession,
-                    isStudio
                 ),
                 device = null,
             )
@@ -254,7 +256,7 @@ object MaestroSessionManager {
 
     private fun isIOS(host: String?, port: Int?): Boolean {
         return try {
-            val channel = ManagedChannelBuilder.forAddress(host ?: defaultHost, port ?: idbPort)
+            val channel = ManagedChannelBuilder.forAddress(host ?: defaultHost, port ?: defaultIdbPort)
                 .usePlaintext()
                 .build()
 
@@ -298,24 +300,34 @@ object MaestroSessionManager {
         port: Int?,
         deviceId: String?,
         openDriver: Boolean,
-        isStudio: Boolean,
     ): Maestro {
-        val channel = ManagedChannelBuilder.forAddress(host ?: defaultHost, port ?: idbPort)
-            .usePlaintext()
-            .build()
         val device = PickDeviceInteractor.pickDevice(deviceId)
-        val idbIOSDevice = IdbIOSDevice(channel, device.instanceId)
+
+        val idbIOSDevice = IdbIOSDevice(
+            deviceId = deviceId,
+            startCompanion = {
+                startIdbCompanion(
+                    host ?: defaultHost,
+                    port ?: defaultIdbPort,
+                    device.instanceId,
+                )
+            },
+        )
+
         val xcTestInstaller = LocalXCTestInstaller(
             logger = IOSDriverLogger(),
             deviceId = device.instanceId,
         )
-        val xcTestDriverClient = XCTestDriverClient(defaultHost, xcTestPort, isStudio) {
-            if (SessionStore.activeSessions().isNotEmpty()) {
-                IdbInstaller.setup(device)
-                return@XCTestDriverClient xcTestInstaller.setup()
+        val xcTestDriverClient = XCTestDriverClient(
+            host = defaultHost,
+            port = defaultXcTestPort,
+            restoreConnection = {
+                if (SessionStore.activeSessions().isNotEmpty()) {
+                    return@XCTestDriverClient xcTestInstaller.setup()
+                }
+                return@XCTestDriverClient false
             }
-            return@XCTestDriverClient false
-        }
+        )
         val xcTestDevice = XCTestIOSDevice(
             deviceId = device.instanceId,
             client = xcTestDriverClient,
@@ -325,7 +337,6 @@ object MaestroSessionManager {
         )
         val simctlIOSDevice = SimctlIOSDevice(
             deviceId = device.instanceId,
-            xcTestDevice = xcTestDevice,
         )
 
         val iosDriver = IOSDriver(
