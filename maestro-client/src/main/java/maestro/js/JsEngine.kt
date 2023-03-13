@@ -11,7 +11,7 @@ class JsEngine(
         .readTimeout(5, TimeUnit.MINUTES)
         .writeTimeout(5, TimeUnit.MINUTES)
         .protocols(listOf(Protocol.HTTP_1_1))
-        .build()
+        .build(),
 ) {
 
     private lateinit var context: Context
@@ -59,9 +59,9 @@ class JsEngine(
         script: String,
         env: Map<String, String> = emptyMap(),
         sourceName: String = "inline-script",
-        runInSubSope: Boolean = false
+        runInSubScope: Boolean = false,
     ): Any? {
-        val scope = if (runInSubSope) {
+        val scope = if (runInSubScope) {
             // We create a new scope for each evaluation to prevent local variables
             // from clashing with each other across multiple scripts.
             // Only 'output' is shared across scopes.
@@ -73,13 +73,8 @@ class JsEngine(
 
         if (env.isNotEmpty()) {
             env.forEach { (key, value) ->
-                context.evaluateString(
-                    scope,
-                    "var $key = '${Js.sanitizeJs(value)}'",
-                    sourceName,
-                    1,
-                    null
-                ).toString()
+                val wrappedValue = Context.javaToJS(value, scope)
+                ScriptableObject.putProperty(scope, key, wrappedValue)
             }
         }
 
