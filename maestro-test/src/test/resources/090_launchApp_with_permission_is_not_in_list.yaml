@@ -1,5 +1,0 @@
-appId: com.example.app
----
-- launchApp:
-    permissions:
-        android.permission.BODY_SENSORS_BACKGROUND: allow

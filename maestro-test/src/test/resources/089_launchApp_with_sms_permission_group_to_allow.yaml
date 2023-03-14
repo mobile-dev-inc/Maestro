@@ -1,4 +1,5 @@
 appId: com.example.app
 ---
 - launchApp:
-    permissions: sms
+    permissions:
+      sms: allow

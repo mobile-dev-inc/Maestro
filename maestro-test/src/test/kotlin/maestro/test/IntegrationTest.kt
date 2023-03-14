@@ -2443,6 +2443,26 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `089 - launchApp with SMS permissions`() {
+        // Given
+        val commands = readCommands("089_launchApp_with_sms_permission_group_to_allow")
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                Event.SetPermissions("com.example.app", mapOf("sms" to "allow")),
+                Event.LaunchApp("com.example.app"),
+            )
+        )
+    }
 
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
