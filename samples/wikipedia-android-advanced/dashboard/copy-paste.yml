@@ -1,0 +1,13 @@
+appId: org.wikimedia
+---
+- tapOn: "Explore"
+- scrollUntilVisible:
+    element: "Top read"
+- copyTextFrom:
+    id: ".*view_list_card_item_title"
+    index: 0
+- tapOn: "Explore"
+- tapOn: "Search Wikipedia"
+- inputText: "${maestro.copiedText}"
+- back
+- back

@@ -1,0 +1,8 @@
+appId: org.wikipedia
+---
+- launchApp:
+    clearState: true
+- runFlow: "onboarding/main.yml"
+- runFlow: "dashboard/main.yml"
+- runFlow: "auth/signup.yml"
+- runFlow: "auth/login.yml"

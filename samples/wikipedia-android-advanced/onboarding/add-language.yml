@@ -1,0 +1,10 @@
+appId: org.wikipedia
+---
+- tapOn: "ADD OR EDIT.*"
+- tapOn: "ADD LANGUAGE"
+- tapOn:
+    id: ".*menu_search_language"
+- inputText: "Greek"
+- assertVisible: "Ελληνικά"
+- tapOn: "Ελληνικά"
+- tapOn: "Back"

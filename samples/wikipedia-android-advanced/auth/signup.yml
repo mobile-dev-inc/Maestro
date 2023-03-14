@@ -1,0 +1,17 @@
+appId: org.wikimedia
+---
+- tapOn: "More"
+- tapOn: "LOG IN.*"
+- runScript: "../scripts/generateCredentials.js"
+- tapOn: "Username"
+- inputText: "${output.credentials.username}"
+- tapOn: "Password"
+- inputText: "${output.credentials.password}"
+- tapOn: "Repeat password"
+- inputText: "${output.credentials.password}"
+- tapOn: "Email.*"
+- inputText: "${output.credentials.email}"
+
+# We won't actually create the account
+- back
+- back

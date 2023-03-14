@@ -1,0 +1,12 @@
+appId: org.wikimedia
+---
+- tapOn: "Search Wikipedia"
+- inputText: "Sun"
+- assertVisible: "Star in the Solar System"
+- tapOn:
+    id: ".*page_list_item_title"
+- tapOn:
+    id: ".*page_save"
+- back
+- back
+- back
