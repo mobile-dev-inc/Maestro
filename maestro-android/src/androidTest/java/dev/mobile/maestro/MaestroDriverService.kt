@@ -61,6 +61,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.util.UUID
+import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 
 /**
@@ -102,6 +103,9 @@ class Service(
     private val uiDevice: UiDevice,
     private val uiAutomation: UiAutomation,
 ) : MaestroDriverGrpc.MaestroDriverImplBase() {
+
+    private val geoHandler = Handler(Looper.getMainLooper())
+    private var locationCounter = 0;
 
     override fun deviceInfo(
         request: MaestroAndroid.DeviceInfoRequest,
@@ -210,9 +214,14 @@ class Service(
         request: MaestroAndroid.SetLocationRequest,
         responseObserver: StreamObserver<MaestroAndroid.SetLocationResponse>
     ) {
+        locationCounter++
+        val version = locationCounter
+
+        geoHandler.removeCallbacksAndMessages(null)
+
         val latitude = request.latitude
         val longitude = request.longitude
-        val accuracy = 0.0F
+        val accuracy = 1F
 
         val locMgr = InstrumentationRegistry.getInstrumentation()
             .context
@@ -220,13 +229,13 @@ class Service(
 
         locMgr.addTestProvider(
             LocationManager.GPS_PROVIDER,
-            "requiresNetwork" === "",
-            "requiresSatellite" === "",
-            "requiresCell" === "",
-            "hasMonetaryCost" === "",
-            "supportsAltitude" === "",
-            "supportsSpeed" === "",
-            "supportsBearing" === "",
+            false,
+            true,
+            false,
+            false,
+            true,
+            false,
+            false,
             Criteria.POWER_LOW,
             Criteria.ACCURACY_FINE
         )
@@ -237,13 +246,14 @@ class Service(
         newLocation.longitude = longitude
         newLocation.accuracy = accuracy
         newLocation.altitude = 0.0
-        newLocation.accuracy = 500F
         locMgr.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
 
-        val handler = Handler(Looper.getMainLooper())
-
         fun postLocation() {
-            handler.post {
+            geoHandler.post {
+                if (locationCounter != version) {
+                    return@post
+                }
+
                 newLocation.setTime(System.currentTimeMillis())
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
                     newLocation.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()

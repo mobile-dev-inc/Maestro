@@ -33,6 +33,7 @@ import maestro.networkproxy.yaml.YamlMappingRuleParser
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
+import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -196,12 +197,23 @@ class Orchestra(
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
             is MockNetworkCommand -> mockNetworkCommand(command)
+            is TravelCommand -> travelCommand(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
                 timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
+    }
+
+    private fun travelCommand(command: TravelCommand): Boolean {
+        Traveller.travel(
+            maestro = maestro,
+            points = command.points,
+            speedMPS = command.speedMPS ?: 4.0,
+        )
+
+        return true
     }
 
     private fun assertConditionCommand(command: AssertConditionCommand): Boolean {

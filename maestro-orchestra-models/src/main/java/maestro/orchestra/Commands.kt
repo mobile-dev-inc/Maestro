@@ -102,7 +102,7 @@ data class ScrollUntilVisibleCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
-         return copy(
+        return copy(
             selector = selector.evaluateScripts(jsEngine),
         )
     }
@@ -699,6 +699,43 @@ data class MockNetworkCommand(
         return copy(
             path = path.evaluateScripts(jsEngine),
         )
+    }
+
+}
+
+data class TravelCommand(
+    val points: List<GeoPoint>,
+    val speedMPS: Double? = null,
+) : Command {
+
+    data class GeoPoint(
+        val latitude: Double,
+        val longitude: Double,
+    ) {
+
+        fun getDistanceInMeters(another: GeoPoint): Double {
+            val earthRadius = 6371 // in kilometers
+            val dLat = Math.toRadians(another.latitude - latitude)
+            val dLon = Math.toRadians(another.longitude - longitude)
+
+            val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(latitude)) * Math.cos(Math.toRadians(another.latitude)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+
+            val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+            val distance = earthRadius * c * 1000 // convert to meters
+
+            return distance
+        }
+
+    }
+
+    override fun description(): String {
+        return "Travel path ${points.joinToString { "(${it.latitude}, ${it.longitude})" }}"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
     }
 
 }

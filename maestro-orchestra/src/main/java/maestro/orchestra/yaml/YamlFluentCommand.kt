@@ -52,6 +52,7 @@ import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
+import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError
@@ -91,7 +92,8 @@ data class YamlFluentCommand(
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: String? = null,
     val mockNetwork: String? = null,
-    val scrollUntilVisible: YamlScrollUntilVisible? = null
+    val scrollUntilVisible: YamlScrollUntilVisible? = null,
+    val travel: YamlTravelCommand? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -215,8 +217,33 @@ data class YamlFluentCommand(
                 )
             )
             scrollUntilVisible != null -> listOf(scrollUntilVisibleCommand(scrollUntilVisible))
+            travel != null -> listOf(travelCommand(travel))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    private fun travelCommand(command: YamlTravelCommand): MaestroCommand {
+        return MaestroCommand(
+            TravelCommand(
+                points = command.points
+                    .map { point ->
+                        val spitPoint = point.split(",")
+
+                        if (spitPoint.size != 2) {
+                            throw SyntaxError("Invalid travel point: $point")
+                        }
+
+                        val latitude = spitPoint[0].toDoubleOrNull() ?: throw SyntaxError("Invalid travel point latitude: $point")
+                        val longitude = spitPoint[1].toDoubleOrNull() ?: throw SyntaxError("Invalid travel point longitude: $point")
+
+                        TravelCommand.GeoPoint(
+                            latitude = latitude,
+                            longitude = longitude,
+                        )
+                    },
+                speedMPS = command.speed,
+            )
+        )
     }
 
     private fun repeatCommand(repeat: YamlRepeatCommand, flowPath: Path, appId: String) = MaestroCommand(

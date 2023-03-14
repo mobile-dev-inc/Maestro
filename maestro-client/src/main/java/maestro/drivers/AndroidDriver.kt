@@ -280,7 +280,7 @@ class AndroidDriver(
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         val deviceInfo = deviceInfo()
-        when(swipeDirection) {
+        when (swipeDirection) {
             SwipeDirection.UP -> {
                 val startX = (deviceInfo.widthGrid * 0.5f).toInt()
                 val startY = (deviceInfo.heightGrid * 0.5f).toInt()
@@ -330,7 +330,7 @@ class AndroidDriver(
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
         val deviceInfo = deviceInfo()
-        when(direction) {
+        when (direction) {
             SwipeDirection.UP -> {
                 val endY = (deviceInfo.heightGrid * 0.1f).toInt()
                 directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))

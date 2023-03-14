@@ -2391,14 +2391,17 @@ class IntegrationTest {
 
     @Test
     fun `086 - launchApp sets all permissions to allow`() {
+        // Given
         val commands = readCommands("086_launchApp_sets_all_permissions_to_allow")
         val driver = driver {}
         driver.addInstalledApp("com.example.app")
 
+        // When
         Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
 
+        // Then
         driver.assertEvents(
             listOf(
                 Event.SetPermissions("com.example.app", mapOf("all" to "allow")),
@@ -2409,14 +2412,17 @@ class IntegrationTest {
 
     @Test
     fun `087 - launchApp with all permissions to deny`() {
+        // Given
         val commands = readCommands("087_launchApp_with_all_permissions_to_deny")
         val driver = driver {}
         driver.addInstalledApp("com.example.app")
 
+        // When
         Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
 
+        // Then
         driver.assertEvents(
             listOf(
                 Event.SetPermissions("com.example.app", mapOf("all" to "deny")),
@@ -2427,14 +2433,17 @@ class IntegrationTest {
 
     @Test
     fun `088 - launchApp with all permissions to deny and notification to allow`() {
+        // Given
         val commands = readCommands("088_launchApp_with_all_permissions_to_deny_and_notification_to_allow")
         val driver = driver {}
         driver.addInstalledApp("com.example.app")
 
+        // When
         Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
 
+        // Then
         driver.assertEvents(
             listOf(
                 Event.SetPermissions("com.example.app", mapOf("all" to "deny", "notifications" to "allow")),
@@ -2460,6 +2469,29 @@ class IntegrationTest {
             listOf(
                 Event.SetPermissions("com.example.app", mapOf("sms" to "allow")),
                 Event.LaunchApp("com.example.app"),
+            )
+        )
+    }
+
+    @Test
+    fun `090 - Travel`() {
+        // Given
+        val commands = readCommands("090_travel")
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                Event.SetLocation(0.0, 0.0),
+                Event.SetLocation(0.1, 0.0),
+                Event.SetLocation(0.1, 0.1),
+                Event.SetLocation(0.0, 0.1),
             )
         )
     }
