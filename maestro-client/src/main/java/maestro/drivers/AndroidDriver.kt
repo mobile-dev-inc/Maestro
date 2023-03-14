@@ -612,6 +612,11 @@ class AndroidDriver(
                 "android.permission.WRITE_CALENDAR",
                 "android.permission.READ_CALENDAR"
             )
+            "sms" -> listOf(
+                "android.permission.READ_SMS",
+                "android.permission.RECEIVE_SMS",
+                "android.permission.SEND_SMS"
+            )
             else -> listOf(name.replace("[^A-Za-z0-9._]+".toRegex(), ""))
         }
     }
