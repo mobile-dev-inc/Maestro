@@ -7,11 +7,6 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 detekt {
     buildUponDefaultConfig = true
     allRules = false

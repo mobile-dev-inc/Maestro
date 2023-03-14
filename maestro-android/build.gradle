@@ -65,7 +65,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
     }
     packagingOptions {
         resources {
@@ -107,7 +107,7 @@ tasks.register("copyMaestroServer", Copy) {
         if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
             throw new GradleException("This build must be run with java 8")
         }
-        
+
         if (!layout.buildDirectory.file(maestroServerApkDestPath).get().asFile.exists())
             throw new GradleException("Error: Input source for copyMaestroServer doesn't exist")
 
