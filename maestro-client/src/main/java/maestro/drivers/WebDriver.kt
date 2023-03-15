@@ -69,6 +69,7 @@ class WebDriver(val isStudio: Boolean) : Driver {
             driverService,
             ChromeOptions().apply {
                 logLevel = ChromeDriverLogLevel.OFF
+                addArguments("--remote-allow-origins=*")
                 if (isStudio) {
                     setHeadless(true)
                     addArguments("--window-size=1024,768")
