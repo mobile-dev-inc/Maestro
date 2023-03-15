@@ -55,7 +55,14 @@ class LocalXCTestInstaller(
 
     override fun start(): Boolean {
         if (useXcodeTestRunner) {
-            return ensureOpen()
+            repeat(20) {
+                if (ensureOpen()) {
+                    return true
+                }
+                logger.info("==> Start XCTest runner to continue flow")
+                Thread.sleep(500)
+            }
+            throw IllegalStateException("XCTest was not started manually")
         }
 
         stop()
