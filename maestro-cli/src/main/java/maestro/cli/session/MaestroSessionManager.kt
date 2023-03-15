@@ -167,7 +167,7 @@ object MaestroSessionManager {
                             restoreConnection = {
                             if (SessionStore.activeSessions().isNotEmpty()) {
                                 IdbCompanion.setup(selectedDevice.device)
-                                return@XCTestDriverClient xcTestInstaller.setup()
+                                return@XCTestDriverClient xcTestInstaller.start()
                             }
                             return@XCTestDriverClient false
                         })
@@ -323,7 +323,7 @@ object MaestroSessionManager {
             port = defaultXcTestPort,
             restoreConnection = {
                 if (SessionStore.activeSessions().isNotEmpty()) {
-                    return@XCTestDriverClient xcTestInstaller.setup()
+                    return@XCTestDriverClient xcTestInstaller.start()
                 }
                 return@XCTestDriverClient false
             }

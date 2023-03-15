@@ -2,9 +2,9 @@ package xcuitest.installer
 
 interface XCTestInstaller: AutoCloseable {
 
-    fun setup(): Boolean
+    fun start(): Boolean
 
-    fun killAndUninstall()
+    fun uninstall()
 
     fun isChannelAlive(): Boolean
 }

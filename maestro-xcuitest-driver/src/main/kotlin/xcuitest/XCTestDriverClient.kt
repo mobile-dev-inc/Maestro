@@ -144,7 +144,7 @@ class XCTestDriverClient(
             if (restoreConnection()) {
                 it.proceed(request)
             } else {
-                throw XCTestDriverUnreachable("Failed to reach out XCUITest Server")
+                throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in RetryOnError")
             }
         }
     })
@@ -163,7 +163,7 @@ class XCTestDriverClient(
                     .code(200)
                     .build()
             } else {
-                throw XCTestDriverUnreachable("Failed to reach out XCUITest Server")
+                throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in ReturnOkOnShutdown")
             }
         }
     })
