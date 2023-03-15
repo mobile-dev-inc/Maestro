@@ -84,7 +84,6 @@ class XCTestDriverClient(
     }
 
     fun swipe(
-        appId: String,
         startX: Double,
         startY: Double,
         endX: Double,

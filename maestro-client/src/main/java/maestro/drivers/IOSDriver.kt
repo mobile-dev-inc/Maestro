@@ -39,9 +39,9 @@ import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
-import maestro.utils.ScreenshotUtils
 import maestro.utils.FileUtils
 import maestro.utils.MaestroTimer
+import maestro.utils.ScreenshotUtils
 import okio.Sink
 import org.slf4j.LoggerFactory
 import util.XCRunnerSimctl

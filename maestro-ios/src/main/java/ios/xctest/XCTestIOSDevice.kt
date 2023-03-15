@@ -109,10 +109,7 @@ class XCTestIOSDevice(
         duration: Double,
     ): Result<Unit, Throwable> {
         return runCatching {
-            val appId = activeAppId() ?: return@runCatching
-
             client.swipe(
-                appId = appId,
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
