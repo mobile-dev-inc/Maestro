@@ -60,7 +60,7 @@ class TestCommand : Callable<Int> {
     private var continuous: Boolean = false
 
     @Option(names = ["-e", "--env"])
-    private var env: MutableMap<String, String> = mutableMapOf()
+    private var env: Map<String, String> = emptyMap()
 
     @Option(
         names = ["--format"],

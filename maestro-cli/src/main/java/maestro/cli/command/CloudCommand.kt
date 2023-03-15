@@ -23,6 +23,7 @@ import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
@@ -131,7 +132,7 @@ class CloudCommand : Callable<Int> {
             flowFile = flowFile,
             appFile = appFile,
             mapping = mapping,
-            env = env,
+            env = env.withInjectedShellEnvVars(),
             uploadName = uploadName,
             repoOwner = repoOwner,
             repoName = repoName,
