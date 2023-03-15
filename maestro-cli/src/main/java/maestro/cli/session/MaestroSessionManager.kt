@@ -26,12 +26,12 @@ import ios.LocalIOSDevice
 import ios.idb.IdbIOSDevice
 import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
+import maestro.LocalIdbRunner
 import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
 import maestro.cli.idb.IdbCompanion
-import maestro.cli.idb.IdbCompanion.startIdbCompanion
 import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
@@ -186,13 +186,11 @@ object MaestroSessionManager {
 
                         val idbIOSDevice = IdbIOSDevice(
                             deviceId = selectedDevice.device.instanceId,
-                            startCompanion = {
-                                startIdbCompanion(
-                                    selectedDevice.host ?: defaultHost,
-                                    selectedDevice.port ?: defaultIdbPort,
-                                    selectedDevice.device.instanceId,
-                                )
-                            },
+                            idbRunner = LocalIdbRunner(
+                                selectedDevice.host ?: defaultHost,
+                                selectedDevice.port ?: defaultIdbPort,
+                                selectedDevice.device.instanceId,
+                            )
                         )
 
                         Maestro.ios(
@@ -305,13 +303,11 @@ object MaestroSessionManager {
 
         val idbIOSDevice = IdbIOSDevice(
             deviceId = deviceId,
-            startCompanion = {
-                startIdbCompanion(
-                    host ?: defaultHost,
-                    port ?: defaultIdbPort,
-                    device.instanceId,
-                )
-            },
+            idbRunner = LocalIdbRunner(
+                host ?: defaultHost,
+                port ?: defaultIdbPort,
+                device.instanceId,
+            )
         )
 
         val xcTestInstaller = LocalXCTestInstaller(

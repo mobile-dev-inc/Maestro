@@ -66,14 +66,12 @@ import okio.source
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import java.util.zip.GZIPInputStream
 
 class IdbIOSDevice(
     override val deviceId: String?,
-    private val startCompanion: () -> (ManagedChannel),
-) : IOSDevice {
+    private val idbRunner: IdbRunner,
+) : IOSDevice, AutoCloseable {
 
     private var channel: ManagedChannel? = null
     private lateinit var blockingStub: CompanionServiceGrpc.CompanionServiceBlockingStub
@@ -84,8 +82,8 @@ class IdbIOSDevice(
     }
 
     private fun restartCompanion() {
-        channel?.let { closeChannel(it) }
-        channel = startCompanion()
+        channel?.let { idbRunner.stop(it) }
+        channel = idbRunner.start()
         blockingStub = CompanionServiceGrpc.newBlockingStub(channel)
         asyncStub = CompanionServiceGrpc.newStub(channel)
     }
@@ -487,15 +485,7 @@ class IdbIOSDevice(
     }
 
     override fun close() {
-        channel?.let { closeChannel(it) }
-    }
-
-    private fun closeChannel(channel: ManagedChannel) {
-        channel.shutdownNow()
-
-        if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
-            throw TimeoutException("Couldn't close Maestro iOS driver due to gRPC timeout")
-        }
+        channel?.let { idbRunner.stop(it) }
     }
 
     override fun isScreenStatic(): Result<Boolean, Throwable> {
