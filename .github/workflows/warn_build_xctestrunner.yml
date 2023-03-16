@@ -1,0 +1,17 @@
+name: Warn Build XCTest runner
+
+on:
+  push:
+    paths:
+      - 'maestro-driver-ios/**'
+  pull_request:
+    paths:
+      - 'maestro-driver-ios/**'
+
+jobs:
+  warn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message: "Make sure to run ./maestro-driver-ios/build-maestro-ios-runner.sh with every swift change"
