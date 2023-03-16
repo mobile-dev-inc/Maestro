@@ -141,7 +141,7 @@ class IOSDriver(
     }
 
     override fun longPress(point: Point) {
-        iosDevice.longPress(point.x, point.y).expect {}
+        iosDevice.longPress(point.x, point.y, 3000).expect {}
     }
 
     override fun pressKey(code: KeyCode) {
@@ -464,7 +464,6 @@ class IOSDriver(
     private fun widthPercentToPoint(percent: Double): Int {
         return (percent * widthPoints).toInt()
     }
-
 
     companion object {
         const val NAME = "iOS Simulator"

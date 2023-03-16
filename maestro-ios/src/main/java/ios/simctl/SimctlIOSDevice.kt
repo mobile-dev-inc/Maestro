@@ -30,7 +30,7 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun longPress(x: Int, y: Int): Result<Unit, Throwable> {
+    override fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }
 

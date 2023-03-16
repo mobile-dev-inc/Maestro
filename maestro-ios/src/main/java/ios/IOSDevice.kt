@@ -38,7 +38,7 @@ interface IOSDevice : AutoCloseable {
 
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 
-    fun longPress(x: Int, y: Int): Result<Unit, Throwable>
+    fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable>
 
     fun pressKey(code: Int): Result<Unit, Throwable>
 

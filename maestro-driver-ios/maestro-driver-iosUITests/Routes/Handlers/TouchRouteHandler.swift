@@ -15,10 +15,17 @@ final class TouchRouteHandler: HTTPHandler {
             return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
         }
         
-        logger.info("Tapping \(requestBody.x), \(requestBody.y)")
-
+        if requestBody.duration != nil {
+            logger.info("Long pressing \(requestBody.x), \(requestBody.y) for \(requestBody.duration!)s")
+        } else {
+            logger.info("Tapping \(requestBody.x), \(requestBody.y)")
+        }
+        
         var eventRecord = EventRecord(orientation: .portrait)
-        eventRecord.addPointerTouchEvent(at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)))
+        eventRecord.addPointerTouchEvent(
+            at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)),
+            touchUpAfter: requestBody.duration
+        )
 
         do {
             let start = Date()

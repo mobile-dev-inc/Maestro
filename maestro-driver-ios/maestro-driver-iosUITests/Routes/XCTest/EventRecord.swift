@@ -20,9 +20,9 @@ struct EventRecord {
             .takeUnretainedValue() as! NSObject
     }
 
-    mutating func addPointerTouchEvent(at point: CGPoint, touchUpAfter: TimeInterval = defaultTapDuration) {
+    mutating func addPointerTouchEvent(at point: CGPoint, touchUpAfter: TimeInterval?) {
         var path = PointerEventPath.pathForTouch(at: point)
-        path.offset += touchUpAfter
+        path.offset += touchUpAfter ?? EventRecord.defaultTapDuration
         path.liftUp()
         add(path)
     }

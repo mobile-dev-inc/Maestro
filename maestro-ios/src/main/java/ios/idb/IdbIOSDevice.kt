@@ -123,8 +123,8 @@ class IdbIOSDevice(
         return press(x, y, holdDelay = 50)
     }
 
-    override fun longPress(x: Int, y: Int): Result<Unit, Throwable> {
-        return press(x, y, holdDelay = 3000)
+    override fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable> {
+        return press(x, y, holdDelay = durationMs)
     }
 
     override fun pressKey(code: Int): Result<Unit, Throwable> {
