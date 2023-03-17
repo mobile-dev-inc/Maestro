@@ -223,7 +223,7 @@ data class TapOnElementCommand(
 ) : Command {
 
     override fun description(): String {
-        return "Tap on ${selector.description()}"
+        return "${tapOrLong(longPress)} on ${selector.description()}"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
@@ -243,7 +243,7 @@ data class TapOnPointCommand(
 ) : Command {
 
     override fun description(): String {
-        return "Tap on point ($x, $y)"
+        return "${tapOrLong(longPress)} on point ($x, $y)"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointCommand {
@@ -258,7 +258,7 @@ data class TapOnPointV2Command(
 ) : Command {
 
     override fun description(): String {
-        return "Tap on point ($point)"
+        return "${tapOrLong(longPress)} on point ($point)"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
@@ -739,3 +739,7 @@ data class TravelCommand(
     }
 
 }
+
+internal fun tapOrLong(isLongPress: Boolean?): String = if (isLongPress == true) "Long press" else "Tap"
+
+
