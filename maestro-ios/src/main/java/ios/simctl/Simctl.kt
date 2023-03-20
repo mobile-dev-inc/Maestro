@@ -3,8 +3,12 @@ package ios.simctl
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
+import org.rauschig.jarchivelib.ArchiveFormat
+import org.rauschig.jarchivelib.ArchiverFactory
 import util.CommandLineUtils.runCommand
 import java.io.File
+import java.io.InputStream
+import kotlin.io.path.createTempDirectory
 
 object Simctl {
 
@@ -334,5 +338,28 @@ object Simctl {
             "location" -> "never"
             else -> "NO"
         }
+    }
+
+    fun install(deviceId: String, stream: InputStream) {
+        val temp = createTempDirectory()
+        val extractDir = temp.toFile()
+
+        ArchiverFactory
+            .createArchiver(ArchiveFormat.ZIP)
+            .extract(stream, extractDir)
+
+        val app = extractDir.walk()
+            .filter { it.name.endsWith(".app") }
+            .first()
+
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "install",
+                deviceId,
+                app.absolutePath,
+            )
+        )
     }
 }

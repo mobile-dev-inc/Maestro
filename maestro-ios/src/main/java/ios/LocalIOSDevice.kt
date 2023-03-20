@@ -74,7 +74,7 @@ class LocalIOSDevice(
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {
-        return idbIOSDevice.install(stream)
+        return simctlIOSDevice.install(stream)
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {

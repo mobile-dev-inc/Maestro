@@ -51,7 +51,9 @@ class SimctlIOSDevice(
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+        return runCatching {
+            Simctl.install(deviceId, stream)
+        }
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {
