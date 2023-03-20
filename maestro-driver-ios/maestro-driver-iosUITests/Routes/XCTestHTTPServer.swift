@@ -8,6 +8,9 @@ enum Route: String, CaseIterable {
     case touch
     case screenshot
     case isScreenStatic
+    case pressKey
+    case pressButton
+    case eraseText
     
     func toHTTPRoute() -> HTTPRoute {
         return HTTPRoute(rawValue)

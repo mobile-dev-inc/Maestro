@@ -18,6 +18,12 @@ class RouteHandlerFactory {
             return ScreenshotHandler()
         case .isScreenStatic:
             return IsScreenStaticHandler()
+        case .pressKey:
+            return PressKeyHandler()
+        case .pressButton:
+            return PressButtonHandler()
+        case .eraseText:
+            return EraseTextHandler()
         }
     }
 }
