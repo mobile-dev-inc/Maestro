@@ -23,6 +23,8 @@ data class UIElement(
     val resourceId: String?,
     val resourceIdIndex: Int?,
     val text: String?,
+    val hintText: String?,
+    val accessibilityText: String?,
     val textIndex: Int?
 )
 

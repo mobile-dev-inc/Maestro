@@ -719,7 +719,7 @@ class Orchestra(
             ?.let {
                 descriptions += "Text matching regex: $it"
                 filters += Filters.deepestMatchingElement(
-                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS)).asFilter()
+                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
                 )
             }
 

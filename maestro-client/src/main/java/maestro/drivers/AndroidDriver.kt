@@ -455,7 +455,7 @@ class AndroidDriver(
     }
 
     private fun filterByText(textRegex: String): UiElement? {
-        val textMatcher = Filters.textMatches(textRegex.toRegexSafe(REGEX_OPTIONS)).asFilter()
+        val textMatcher = Filters.textMatches(textRegex.toRegexSafe(REGEX_OPTIONS))
         val filterFunc = Filters.deepestMatchingElement(textMatcher)
         return filterFunc(contentDescriptor().aggregate()).firstOrNull()?.toUiElementOrNull()
     }
@@ -636,15 +636,15 @@ class AndroidDriver(
 
             if (node.hasAttribute("text")) {
                 val text = node.getAttribute("text")
+                attributesBuilder["text"] = text
+            }
 
-                if (text.isNotBlank()) {
-                    attributesBuilder["text"] = text
-                } else if (node.hasAttribute("content-desc")) {
-                    // Using content-desc as fallback for text
-                    attributesBuilder["text"] = node.getAttribute("content-desc")
-                } else {
-                    attributesBuilder["text"] = text
-                }
+            if (node.hasAttribute("content-desc")) {
+                attributesBuilder["accessibilityText"] = node.getAttribute("content-desc")
+            }
+
+            if(node.hasAttribute("hintText")) {
+                attributesBuilder["hintText"] = node.getAttribute("hintText")
             }
 
             if (node.hasAttribute("resource-id")) {

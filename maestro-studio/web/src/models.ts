@@ -17,7 +17,9 @@ export type UIElement = {
   resourceId?: string
   resourceIdIndex?: number
   text?: string
+  hintText?: string
   textIndex?: number
+  accessibilityText?: string
 }
 
 export type DeviceScreen = {

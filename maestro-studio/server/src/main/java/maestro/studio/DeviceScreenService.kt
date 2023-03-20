@@ -96,11 +96,13 @@ object DeviceScreenService {
         return elements.map { element ->
             val bounds = element.bounds()
             val text = element.attribute("text")
+            val hintText = element.attribute("hintText")
+            val accessibilityText = element.attribute("accessibilityText")
             val resourceId = element.attribute("resource-id")
             val textIndex = if (text == null) {
                 null
             } else {
-                getIndex(Filters.textMatches(text.toRegexSafe(Orchestra.REGEX_OPTIONS)).asFilter(), element)
+                getIndex(Filters.textMatches(text.toRegexSafe(Orchestra.REGEX_OPTIONS)), element)
             }
             val resourceIdIndex = if (resourceId == null) {
                 null
@@ -115,7 +117,7 @@ object DeviceScreenService {
                 return if (index == 1) id else "$id-$index"
             }
             val id = createElementId()
-            UIElement(id, bounds, resourceId, resourceIdIndex, text, textIndex)
+            UIElement(id, bounds, resourceId, resourceIdIndex, text, hintText, accessibilityText, textIndex)
         }
     }
 

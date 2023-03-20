@@ -93,6 +93,7 @@ object ViewHierarchy {
             serializer.attribute("", "NAF", java.lang.Boolean.toString(true))
         }
         serializer.attribute("", "index", Integer.toString(index))
+        serializer.attribute("", "hintText", safeCharSeqToString(node.hintText))
         serializer.attribute("", "text", safeCharSeqToString(node.text))
         serializer.attribute("", "resource-id", safeCharSeqToString(node.viewIdResourceName))
         serializer.attribute("", "class", safeCharSeqToString(node.className))

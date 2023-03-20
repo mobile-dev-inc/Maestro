@@ -64,7 +64,7 @@ class QueryCommand : Runnable {
             val filters = mutableListOf<ElementFilter>()
 
             text?.let {
-                filters += Filters.textMatches(it.toRegexSafe(Orchestra.REGEX_OPTIONS)).asFilter()
+                filters += Filters.textMatches(it.toRegexSafe(Orchestra.REGEX_OPTIONS))
             }
 
             id?.let {

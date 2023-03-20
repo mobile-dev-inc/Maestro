@@ -54,25 +54,42 @@ object Filters {
         nodes.filter { this(it) }
     }
 
-    fun textMatches(text: String): ElementLookupPredicate {
-        return {
-            it.attributes["text"]?.let { value ->
-                text == value
-                    || text == value.replace('\n', ' ')
-            } ?: false
-        }
-    }
+    fun textMatches(regex: Regex): ElementFilter {
+        return { nodes ->
+            val textMatches = nodes.filter {
+                it.attributes["text"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
 
-    fun textMatches(regex: Regex): ElementLookupPredicate {
-        return {
-            it.attributes["text"]?.let { value ->
-                val strippedValue = value.replace('\n', ' ')
+                    regex.matches(value)
+                        || regex.pattern == value
+                        || regex.matches(strippedValue)
+                        || regex.pattern == strippedValue
+                } ?: false
+            }.toSet()
 
-                regex.matches(value)
-                    || regex.pattern == value
-                    || regex.matches(strippedValue)
-                    || regex.pattern == strippedValue
-            } ?: false
+            val hintTextMatches = nodes.filter {
+                it.attributes["hintText"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
+
+                    regex.matches(value)
+                        || regex.pattern == value
+                        || regex.matches(strippedValue)
+                        || regex.pattern == strippedValue
+                } ?: false
+            }
+
+            val accessibilityTextMatches = nodes.filter {
+                it.attributes["accessibilityText"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
+
+                    regex.matches(value)
+                        || regex.pattern == value
+                        || regex.matches(strippedValue)
+                        || regex.pattern == strippedValue
+                } ?: false
+            }.toSet()
+
+            textMatches.union(hintTextMatches).union(accessibilityTextMatches).toList()
         }
     }
 

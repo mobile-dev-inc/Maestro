@@ -35,6 +35,7 @@ const ElementSearch = ({deviceScreen, onElementSelected, hoveredElement, onEleme
     const filteredElements = deviceScreen.elements.filter(element => {
       if (!element.text && !element.resourceId) return false
       return !query || element.text?.toLowerCase().includes(query.toLowerCase()) || element.resourceId?.toLowerCase().includes(query.toLowerCase())
+          || element.hintText?.toLowerCase().includes(query.toLowerCase()) || element.accessibilityText?.toLowerCase().includes(query.toLowerCase())
     })
 
     return filteredElements.sort((a, b) => {
