@@ -100,6 +100,9 @@ value class ViewHierarchy(val root: TreeNode) {
 }
 
 fun TreeNode.filterOutOfBounds(width: Int, height: Int): TreeNode? {
+    if (attributes.containsKey("ignoreBoundsFiltering") && attributes["ignoreBoundsFiltering"] == "true") {
+        return this
+    }
 
     val filtered = children.mapNotNull {
         it.filterOutOfBounds(width, height)

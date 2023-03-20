@@ -105,7 +105,8 @@ class Service(
 ) : MaestroDriverGrpc.MaestroDriverImplBase() {
 
     private val geoHandler = Handler(Looper.getMainLooper())
-    private var locationCounter = 0;
+    private var locationCounter = 0
+    private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
 
     override fun deviceInfo(
         request: MaestroAndroid.DeviceInfoRequest,
@@ -133,13 +134,23 @@ class Service(
     ) {
         val stream = ByteArrayOutputStream()
 
-        Log.d("Maestro", "Requesting view hierarchy")
         val ms = measureTimeMillis {
-            ViewHierarchy.dump(
-                uiDevice,
-                uiAutomation,
-                stream
-            )
+            if (toastAccessibilityListener.getToastAccessibilityNode() != null && !toastAccessibilityListener.isTimedOut()) {
+                Log.d("Maestro", "Requesting view hierarchy with toast")
+                ViewHierarchy.dump(
+                    uiDevice,
+                    uiAutomation,
+                    stream,
+                    toastAccessibilityListener.getToastAccessibilityNode()
+                )
+            } else {
+                Log.d("Maestro", "Requesting view hierarchy")
+                ViewHierarchy.dump(
+                    uiDevice,
+                    uiAutomation,
+                    stream
+                )
+            }
         }
         Log.d("Maestro", "View hierarchy received in $ms ms")
 

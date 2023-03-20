@@ -26,7 +26,8 @@ object ViewHierarchy {
     fun dump(
         device: UiDevice,
         uiAutomation: UiAutomation,
-        out: OutputStream
+        out: OutputStream,
+        toastNode: AccessibilityNodeInfo? = null
     ) {
         val windowManager = InstrumentationRegistry.getInstrumentation()
             .context
@@ -68,9 +69,30 @@ object ViewHierarchy {
                 displayMetrics.heightPixels,
             )
         }
+        addToastNode(toastNode, serializer, displayMetrics)
 
         serializer.endTag("", "hierarchy")
         serializer.endDocument()
+    }
+
+    private fun addToastNode(
+        toastNode: AccessibilityNodeInfo?,
+        serializer: XmlSerializer,
+        displayMetrics: DisplayMetrics
+    ) {
+        if (toastNode != null) {
+            serializer.apply {
+                startTag("", "node")
+                attribute("", "index", "0")
+                attribute("", "class", toastNode.className.toString())
+                attribute("", "text", toastNode.text.toString())
+                attribute("", "visible-to-user", toastNode.isVisibleToUser.toString())
+                attribute("", "checkable", toastNode.isCheckable.toString())
+                attribute("", "clickable", toastNode.isClickable.toString())
+                attribute("", "bounds", getVisibleBoundsInScreen(toastNode, displayMetrics.widthPixels, displayMetrics.heightPixels)?.toShortString())
+                endTag("", "node")
+            }
+        }
     }
 
     private val NAF_EXCLUDED_CLASSES = arrayOf(

@@ -647,6 +647,12 @@ class AndroidDriver(
                 attributesBuilder["hintText"] = node.getAttribute("hintText")
             }
 
+            if (node.hasAttribute("class") && node.getAttribute("class") == TOAST_CLASS_NAME) {
+                attributesBuilder["ignoreBoundsFiltering"] = true.toString()
+            } else {
+                attributesBuilder["ignoreBoundsFiltering"] = false.toString()
+            }
+
             if (node.hasAttribute("resource-id")) {
                 attributesBuilder["resource-id"] = node.getAttribute("resource-id")
             }
@@ -687,7 +693,7 @@ class AndroidDriver(
         }
 
         return TreeNode(
-            attributes = attributes,
+            attributes = attributes.toMutableMap(),
             children = children,
             clickable = node.getBoolean("clickable"),
             enabled = node.getBoolean("enabled"),
@@ -777,6 +783,7 @@ class AndroidDriver(
 
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
+        private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
         private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
