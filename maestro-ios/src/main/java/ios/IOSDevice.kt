@@ -40,8 +40,10 @@ interface IOSDevice : AutoCloseable {
 
     fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable>
 
+    @Deprecated("Use pressKey(name) instead")
     fun pressKey(code: Int): Result<Unit, Throwable>
 
+    @Deprecated("Use pressButton(name) instead")
     fun pressButton(code: Int): Result<Unit, Throwable>
 
     fun scroll(
@@ -158,6 +160,12 @@ interface IOSDevice : AutoCloseable {
     fun isScreenStatic(): Result<Boolean, Throwable>
 
     fun setPermissions(id: String, permissions: Map<String, String>)
+
+    fun pressKey(name: String)
+
+    fun pressButton(name: String)
+
+    fun eraseText(charactersToErase: Int)
 }
 
 interface IOSScreenRecording : AutoCloseable

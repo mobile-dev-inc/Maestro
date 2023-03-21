@@ -141,6 +141,10 @@ class IdbIOSDevice(
         }
     }
 
+    override fun pressKey(name: String) {
+        TODO("Not yet implemented")
+    }
+
     override fun pressButton(code: Int): Result<Unit, Throwable> {
         return runWithRestartRecovery {
             val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
@@ -156,6 +160,10 @@ class IdbIOSDevice(
 
             stream.onCompleted()
         }
+    }
+
+    override fun pressButton(name: String) {
+        TODO("Not yet implemented")
     }
 
     override fun scroll(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double): Result<Unit, Throwable> {
@@ -493,6 +501,10 @@ class IdbIOSDevice(
     }
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
+        TODO("Not yet implemented")
+    }
+
+    override fun eraseText(charactersToErase: Int) {
         TODO("Not yet implemented")
     }
 

@@ -103,8 +103,16 @@ class XCTestIOSDevice(
         }
     }
 
+    override fun pressKey(name: String) {
+        client.pressKey(name).use {}
+    }
+
     override fun pressButton(code: Int): Result<Unit, Throwable> {
         error("Not supported")
+    }
+
+    override fun pressButton(name: String) {
+        client.pressButton(name).use {}
     }
 
     override fun scroll(
@@ -232,6 +240,10 @@ class XCTestIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         error("Not supported")
+    }
+
+    override fun eraseText(charactersToErase: Int) {
+        client.eraseText(charactersToErase).use {}
     }
 
     private fun activeAppId(): String? {

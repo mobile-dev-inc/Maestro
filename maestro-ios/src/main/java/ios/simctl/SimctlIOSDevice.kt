@@ -38,7 +38,15 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
+    override fun pressKey(name: String) {
+        TODO("Not yet implemented")
+    }
+
     override fun pressButton(code: Int): Result<Unit, Throwable> {
+        TODO("Not yet implemented")
+    }
+
+    override fun pressButton(name: String) {
         TODO("Not yet implemented")
     }
 
@@ -123,6 +131,10 @@ class SimctlIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         Simctl.setPermissions(deviceId, id, permissions)
+    }
+
+    override fun eraseText(charactersToErase: Int) {
+        TODO("Not yet implemented")
     }
 
     override fun close() {

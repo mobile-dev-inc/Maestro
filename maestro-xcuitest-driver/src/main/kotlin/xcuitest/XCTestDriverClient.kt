@@ -10,7 +10,10 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import xcuitest.api.EraseTextRequest
 import xcuitest.api.InputTextRequest
+import xcuitest.api.PressButtonRequest
+import xcuitest.api.PressKeyRequest
 import xcuitest.api.SwipeRequest
 import xcuitest.api.TouchRequest
 import java.io.IOException
@@ -115,6 +118,18 @@ class XCTestDriverClient(
             y = y,
             duration = duration
         ))
+    }
+
+    fun pressKey(name: String): Response {
+        return executeJsonRequest("pressKey", PressKeyRequest(name))
+    }
+
+    fun pressButton(name: String): Response {
+        return executeJsonRequest("pressButton", PressButtonRequest(name))
+    }
+
+    fun eraseText(charactersToErase: Int): Response {
+        return executeJsonRequest("eraseText", EraseTextRequest(charactersToErase))
     }
 
     private fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {

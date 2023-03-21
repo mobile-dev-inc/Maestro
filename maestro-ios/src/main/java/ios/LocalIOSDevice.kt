@@ -55,8 +55,16 @@ class LocalIOSDevice(
         }
     }
 
+    override fun pressKey(name: String) {
+        xcTestDevice.pressKey(name)
+    }
+
     override fun pressButton(code: Int): Result<Unit, Throwable> {
         return idbIOSDevice.pressButton(code)
+    }
+
+    override fun pressButton(name: String) {
+        xcTestDevice.pressButton(name)
     }
 
     override fun scroll(
@@ -136,5 +144,9 @@ class LocalIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         simctlIOSDevice.setPermissions(id, permissions)
+    }
+
+    override fun eraseText(charactersToErase: Int) {
+        xcTestDevice.eraseText(charactersToErase)
     }
 }

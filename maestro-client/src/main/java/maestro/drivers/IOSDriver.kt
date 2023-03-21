@@ -145,34 +145,28 @@ class IOSDriver(
     }
 
     override fun pressKey(code: KeyCode) {
-        return when (code) {
-            KeyCode.ENTER -> pressKey(40)  // keyboardReturnOrEnter
-            KeyCode.BACKSPACE -> pressKey(42)   // keyboardDeleteOrBackspace
-            KeyCode.VOLUME_UP -> pressKey(128)  // keyboardVolumeUp
-            KeyCode.VOLUME_DOWN -> pressKey(129)    // keyboardVolumeDown
-            KeyCode.HOME -> pressButton(1)  // idb.HIDButtonType.HOME
-            KeyCode.LOCK -> pressButton(2)  // idb.HIDButtonType.LOCK
-            KeyCode.BACK -> Unit // Do nothing, back key is not available on iOS
-            KeyCode.REMOTE_UP -> pressKey(82)
-            KeyCode.REMOTE_DOWN -> pressKey(81)
-            KeyCode.REMOTE_LEFT -> pressKey(80)
-            KeyCode.REMOTE_RIGHT -> pressKey(79)
-            KeyCode.REMOTE_CENTER -> Unit
-            KeyCode.REMOTE_PLAY_PAUSE -> Unit
-            KeyCode.REMOTE_STOP -> Unit
-            KeyCode.REMOTE_NEXT -> Unit
-            KeyCode.REMOTE_PREVIOUS -> Unit
-            KeyCode.REMOTE_REWIND -> Unit
-            KeyCode.REMOTE_FAST_FORWARD -> Unit
+        val keyCodeNameMap = mapOf(
+            KeyCode.BACKSPACE to "delete",
+            KeyCode.ENTER to "enter",
+            // Supported by iOS but not yet by maestro:
+//        KeyCode.RETURN to "return",
+//        KeyCode.TAP to "tab",
+//        KeyCode.SPACE to "space",
+//        KeyCode.ESCAPE to "escape",
+        )
+
+        val buttonNameMap = mapOf(
+            KeyCode.HOME to "home",
+            KeyCode.LOCK to "lock",
+        )
+
+        keyCodeNameMap[code]?.let { name ->
+            iosDevice.pressKey(name)
         }
-    }
 
-    private fun pressKey(code: Int) {
-        iosDevice.pressKey(code).expect {}
-    }
-
-    private fun pressButton(code: Int) {
-        iosDevice.pressButton(code).expect {}
+        buttonNameMap[code]?.let { name ->
+            iosDevice.pressButton(name)
+        }
     }
 
     override fun contentDescriptor(): TreeNode {
@@ -379,7 +373,7 @@ class IOSDriver(
     override fun backPress() {}
 
     override fun hideKeyboard() {
-        iosDevice.pressKey(40).expect {}
+        pressKey(KeyCode.ENTER)
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
@@ -409,9 +403,7 @@ class IOSDriver(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        repeat(charactersToErase) {
-            pressKey(KeyCode.BACKSPACE)
-        }
+        iosDevice.eraseText(charactersToErase)
     }
 
     override fun setProxy(host: String, port: Int) {
