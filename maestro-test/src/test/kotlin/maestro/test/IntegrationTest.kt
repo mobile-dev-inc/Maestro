@@ -2496,6 +2496,34 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `091 - Assert visible by index`() {
+        // Given
+        val commands = readCommands("091_assert_visible_by_index")
+        val driver = driver {
+
+            element {
+                text = "Item"
+                bounds = Bounds.ofSize(100, 100)
+            }
+
+            element {
+                text = "Item"
+                bounds = Bounds.ofSize(100, 100)
+                    .translate(y = 100)
+            }
+
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No failures
+    }
+
     private fun orchestra(maestro: Maestro) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,
