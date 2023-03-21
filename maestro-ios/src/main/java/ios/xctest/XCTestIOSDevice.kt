@@ -40,7 +40,24 @@ class XCTestIOSDevice(
     }
 
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
-        error("Not supported")
+        return runCatching {
+            client.deviceInfo().use { response ->
+                val body = response.body?.bytes()?.let { String(it) }
+
+                if (!response.isSuccessful) {
+                    val message = "${response.code} ${response.message} - $body"
+                    logger.info("Device info failed: $message")
+                    throw UnknownFailure(message)
+                }
+
+                body ?: throw UnknownFailure("Error: response body missing")
+
+                val deviceInfo = mapper.readValue(body, DeviceInfo::class.java)
+                logger.info("Device info $deviceInfo")
+
+                deviceInfo
+            }
+        }
     }
 
     override fun contentDescriptor(): Result<XCUIElement, Throwable> {

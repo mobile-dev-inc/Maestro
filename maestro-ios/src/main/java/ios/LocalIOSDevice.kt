@@ -25,7 +25,7 @@ class LocalIOSDevice(
     }
 
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
-        return idbIOSDevice.deviceInfo()
+        return xcTestDevice.deviceInfo()
     }
 
     override fun contentDescriptor(): Result<XCUIElement, Throwable> {

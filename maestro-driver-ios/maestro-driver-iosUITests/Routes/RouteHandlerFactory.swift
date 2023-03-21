@@ -24,6 +24,8 @@ class RouteHandlerFactory {
             return PressButtonHandler()
         case .eraseText:
             return EraseTextHandler()
+        case .deviceInfo:
+            return DeviceInfoHandler()
         }
     }
 }

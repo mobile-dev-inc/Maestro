@@ -132,6 +132,10 @@ class XCTestDriverClient(
         return executeJsonRequest("eraseText", EraseTextRequest(charactersToErase))
     }
 
+    fun deviceInfo(): Response {
+        return executeJsonRequest("deviceInfo", Unit)
+    }
+
     private fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
         return HttpUrl.Builder()
             .scheme("http")
