@@ -8,12 +8,18 @@ import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import okio.Sink
+import okio.buffer
+import okio.source
 import java.io.File
 import java.io.InputStream
+import java.nio.channels.Channels
+import java.nio.file.Files
 
 class SimctlIOSDevice(
     override val deviceId: String,
 ) : IOSDevice {
+    private var screenRecording: Simctl.ScreenRecording? = null
+
     override fun open() {
         TODO("Not yet implemented")
     }
@@ -112,7 +118,31 @@ class SimctlIOSDevice(
     }
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
-        TODO("Not yet implemented")
+        return runCatching {
+            val screenRecording = Simctl.startScreenRecording(deviceId)
+            this.screenRecording = screenRecording
+
+            object : IOSScreenRecording {
+                override fun close() {
+                    val file = stopScreenRecording() ?: return
+                    val byteChannel = Files.newByteChannel(file.toPath())
+                    val source = Channels.newInputStream(byteChannel).source().buffer()
+                    val buffer = out.buffer()
+
+                    buffer.writeAll(source)
+
+                    byteChannel.close()
+                    buffer.close()
+                    file.delete()
+                }
+            }
+        }
+    }
+
+    private fun stopScreenRecording(): File? {
+        return screenRecording
+            ?.let { Simctl.stopScreenRecording(it) }
+            .also { screenRecording = null }
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
@@ -138,7 +168,7 @@ class SimctlIOSDevice(
     }
 
     override fun close() {
-        TODO("Not yet implemented")
+        stopScreenRecording()
     }
 
 }

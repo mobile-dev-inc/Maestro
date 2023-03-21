@@ -8,6 +8,7 @@ import org.rauschig.jarchivelib.ArchiverFactory
 import util.CommandLineUtils.runCommand
 import java.io.File
 import java.io.InputStream
+import java.lang.ProcessBuilder.Redirect.PIPE
 import kotlin.io.path.createTempDirectory
 
 object Simctl {
@@ -361,5 +362,37 @@ object Simctl {
                 app.absolutePath,
             )
         )
+    }
+
+    data class ScreenRecording(
+        val process: Process,
+        val file: File
+    )
+
+    fun startScreenRecording(deviceId: String): ScreenRecording {
+        val tempDir = createTempDirectory()
+        val script = Simctl::class.java.getResource("/screenrecord.sh")!!.file
+        val recording = File(tempDir.toFile(), "screenrecording.mov")
+
+        val recordingProcess = ProcessBuilder(
+            listOf(
+                script,
+                deviceId,
+                recording.path
+            )
+        )
+            .redirectInput(PIPE)
+            .start()
+
+        return ScreenRecording(
+            recordingProcess,
+            recording
+        )
+    }
+
+    fun stopScreenRecording(screenRecording: ScreenRecording): File {
+        screenRecording.process.outputStream.close()
+        screenRecording.process.waitFor()
+        return screenRecording.file
     }
 }

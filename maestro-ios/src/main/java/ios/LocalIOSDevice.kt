@@ -122,7 +122,7 @@ class LocalIOSDevice(
     }
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
-        return idbIOSDevice.startScreenRecording(out)
+        return simctlIOSDevice.startScreenRecording(out)
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
@@ -136,6 +136,7 @@ class LocalIOSDevice(
     override fun close() {
         idbIOSDevice.close()
         xcTestDevice.close()
+        simctlIOSDevice.close()
     }
 
     override fun isScreenStatic(): Result<Boolean, Throwable> {
