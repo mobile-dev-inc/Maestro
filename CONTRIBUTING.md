@@ -8,7 +8,7 @@ contributions in the following types:
 - Type A: Simple fixes (bugs, typos) and cleanups
   - You can open a pull request directly, chances are high (though never guaranteed) that it will be merged.
 - Type B: Features and major changes (i.e. refactoring)
-  - Unless you feel adventurous and wouldn't mind discarding your work in the worst-case scenario, we advise to open a an issue or a PR with a suggestion first where you will 
+  - Unless you feel adventurous and wouldn't mind discarding your work in the worst-case scenario, we advise to open an issue or a PR with a suggestion first where you will 
     describe the problem you are trying to solve and the solution you have in mind. This will allow us to discuss the problem and the solution you have in mind.
 
 ### Sidenote on refactoring
@@ -47,7 +47,7 @@ Keep the following things in mind when working on a PR:
   - Use `Driver` interface to provide target-specific functionality.
   - Maestro commands should be as platform-agnostic as possible, though we do allow for exceptions where they are justified.
 - Maestro CLI is supposed to be cross-platform (Mac OS, Linux, Windows).
-- Maestro is designed to run locally as well as on Maestro Cloud. That means that code should assume that it is running in a sandbox environemnt and shouldn't call out or spawn 
+- Maestro is designed to run locally as well as on Maestro Cloud. That means that code should assume that it is running in a sandbox environment and shouldn't call out or spawn 
   arbitrary processes based on user's input
   - For that reason we are not allowing execution of bash scripts from Maestro commands.
   - For that reason, `MaestroCommand` class should be JSON-serializable (and is a reason we haven't moved to `sealed class`)
