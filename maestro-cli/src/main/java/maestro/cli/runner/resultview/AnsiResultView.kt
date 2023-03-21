@@ -25,15 +25,16 @@ import maestro.cli.runner.CommandStatus
 import org.fusesource.jansi.Ansi
 
 class AnsiResultView(
-    private val prompt: String? = null
-): ResultView {
+    private val prompt: String? = null,
+    private val printCommandLogs: Boolean = true,
+) : ResultView {
 
     private val startTimestamp = System.currentTimeMillis()
 
     private val frames = mutableListOf<Frame>()
 
     private var previousFrame: String? = null
-    
+
     init {
         println(Ansi.ansi().eraseScreen())
     }
@@ -91,39 +92,64 @@ class AnsiResultView(
         commands
             .filter { it.command.asCommand()?.visible() ?: true }
             .forEach {
-                val statusSymbol = status(it.status)
-                fgDefault()
-                render(" ║    ")
-                repeat(indent) {
-                    render("  ")
-                }
-                render(statusSymbol)
-                render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
-                render(
-                    it.command.description()
-                        .replace("(?<!\\\\)\\\$\\{.*}".toRegex()) { match ->
-                            "@|cyan ${match.value} |@"
-                        }
-                )
-
-                if (it.status == CommandStatus.SKIPPED) {
-                    render(" (skipped)")
-                } else if (it.numberOfRuns != null) {
-                    val timesWord = if (it.numberOfRuns == 1) "time" else "times"
-                    render(" (completed ${it.numberOfRuns} $timesWord)")
-                }
-
-                render("\n")
-
-                val expand = it.status in setOf(CommandStatus.RUNNING, CommandStatus.FAILED) &&
-                    (it.subCommands?.any { subCommand -> subCommand.status != CommandStatus.PENDING } ?: false)
-
-                if (expand) {
-                    it.subCommands?.let { subCommands ->
-                        renderCommands(subCommands, indent + 1)
-                    }
-                }
+                renderCommand(it, indent, statusColumnWidth)
             }
+    }
+
+    private fun Ansi.renderCommand(commandState: CommandState, indent: Int, statusColumnWidth: Int) {
+        val statusSymbol = status(commandState.status)
+        fgDefault()
+        renderLineStart(indent)
+        render(statusSymbol)
+        render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
+        render(
+            commandState.command.description()
+                .replace("(?<!\\\\)\\\$\\{.*}".toRegex()) { match ->
+                    "@|cyan ${match.value} |@"
+                }
+        )
+
+        if (commandState.status == CommandStatus.SKIPPED) {
+            render(" (skipped)")
+        } else if (commandState.numberOfRuns != null) {
+            val timesWord = if (commandState.numberOfRuns == 1) "time" else "times"
+            render(" (completed ${commandState.numberOfRuns} $timesWord)")
+        }
+
+        render("\n")
+
+        if (printCommandLogs && commandState.logMessages.isNotEmpty()) {
+            printLogMessages(indent, commandState)
+        }
+
+        val expandSubCommands = commandState.status in setOf(CommandStatus.RUNNING, CommandStatus.FAILED) &&
+            (commandState.subCommands?.any { subCommand -> subCommand.status != CommandStatus.PENDING } ?: false)
+
+        if (expandSubCommands) {
+            commandState.subCommands?.let { subCommands ->
+                renderCommands(subCommands, indent + 1)
+            }
+        }
+    }
+
+    private fun Ansi.printLogMessages(indent: Int, commandState: CommandState) {
+        renderLineStart(indent + 1)
+        render("   ")   // Space that a status symbol would normally occupy
+        render("@|yellow Log messages: |@\n")
+
+        commandState.logMessages.forEach {
+            renderLineStart(indent + 2)
+            render("   ")   // Space that a status symbol would normally occupy
+            render(it)
+            render("\n")
+        }
+    }
+
+    private fun Ansi.renderLineStart(indent: Int) {
+        render(" ║    ")
+        repeat(indent) {
+            render("  ")
+        }
     }
 
     private fun status(status: CommandStatus): String {

@@ -131,6 +131,14 @@ class Orchestra(
             .forEachIndexed { index, command ->
                 onCommandStart(index, command)
 
+                jsEngine.onLogMessage { msg ->
+                    val metadata = getMetadata(command)
+                    updateMetadata(
+                        command,
+                        metadata.copy(logMessages = metadata.logMessages + msg)
+                    )
+                }
+
                 val evaluatedCommand = command.evaluateScripts(jsEngine)
                 val metadata = getMetadata(command)
                     .copy(
@@ -887,6 +895,7 @@ class Orchestra(
     data class CommandMetadata(
         val numberOfRuns: Int? = null,
         val evaluatedCommand: MaestroCommand? = null,
+        val logMessages: List<String> = emptyList()
     )
 
     enum class ErrorResolution {

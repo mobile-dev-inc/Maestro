@@ -8,8 +8,8 @@ sealed class UiState {
     data class Error(val message: String) : UiState()
 
     data class Running(
-        val device: Device?,
-        val initCommands: List<CommandState>,
+        val device: Device? = null,
+        val initCommands: List<CommandState> = emptyList(),
         val commands: List<CommandState>,
     ) : UiState()
 

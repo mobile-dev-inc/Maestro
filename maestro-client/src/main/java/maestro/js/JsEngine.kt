@@ -17,6 +17,8 @@ class JsEngine(
     private lateinit var context: Context
     private lateinit var currentScope: JsScope
 
+    private var onLogMessage: (String) -> Unit = {}
+
     fun init() {
         context = Context.enter()
         currentScope = JsScope()
@@ -31,6 +33,17 @@ class JsEngine(
         context.initSafeStandardObjects(jsHttp)
         currentScope.put("http", currentScope, jsHttp)
 
+        val jsConsole = JsConsole(
+            onLogMessage = { onLogMessage(it) }
+        )
+        jsConsole.defineFunctionProperties(
+            arrayOf("log"),
+            JsConsole::class.java,
+            ScriptableObject.DONTENUM
+        )
+        context.initSafeStandardObjects(jsConsole)
+        currentScope.put("console", currentScope, jsConsole)
+
         context.evaluateString(
             currentScope,
             Js.initScript,
@@ -43,6 +56,10 @@ class JsEngine(
         // We are entering a sub-scope so that no more declarations can be made
         // on the root scope that is now sealed.
         enterScope()
+    }
+
+    fun onLogMessage(callback: (String) -> Unit) {
+        onLogMessage = callback
     }
 
     fun enterScope() {

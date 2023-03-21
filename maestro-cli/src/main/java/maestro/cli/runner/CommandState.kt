@@ -26,4 +26,5 @@ data class CommandState(
     val command: MaestroCommand,
     val numberOfRuns: Int? = null,
     val subCommands: List<CommandState>? = null,
+    val logMessages: List<String> = emptyList(),
 )

@@ -137,7 +137,8 @@ object MaestroCommandRunner {
                     numberOfRuns = commandMetadata[command]?.numberOfRuns,
                     subCommands = (command.asCommand() as? CompositeCommand)
                         ?.subCommands()
-                        ?.let { toCommandStates(it, commandStatuses, commandMetadata) }
+                        ?.let { toCommandStates(it, commandStatuses, commandMetadata) },
+                    logMessages = commandMetadata[command]?.logMessages ?: emptyList(),
                 )
             }
     }

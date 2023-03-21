@@ -2524,10 +2524,48 @@ class IntegrationTest {
         // No failures
     }
 
-    private fun orchestra(maestro: Maestro) = Orchestra(
+    @Test
+    fun `092 - Log messages`() {
+        // Given
+        val commands = readCommands("092_log_messages")
+        val driver = driver {
+        }
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "Log from evalScript",
+            "Log from runScript",
+        ).inOrder()
+    }
+
+    private fun orchestra(
+        maestro: Maestro,
+    ) = Orchestra(
         maestro,
         lookupTimeoutMs = 0L,
-        optionalLookupTimeoutMs = 0L
+        optionalLookupTimeoutMs = 0L,
+    )
+
+    private fun orchestra(
+        maestro: Maestro,
+        onCommandMetadataUpdate: (MaestroCommand, Orchestra.CommandMetadata) -> Unit = { _, _ -> },
+    ) = Orchestra(
+        maestro,
+        lookupTimeoutMs = 0L,
+        optionalLookupTimeoutMs = 0L,
+        onCommandMetadataUpdate = onCommandMetadataUpdate,
     )
 
     private fun orchestra(
