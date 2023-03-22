@@ -31,7 +31,6 @@ import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
-import maestro.cli.idb.IdbCompanion
 import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
@@ -164,18 +163,13 @@ object MaestroSessionManager {
                         val xcTestDriverClient = XCTestDriverClient(
                             host = defaultHost,
                             port = defaultXcTestPort,
-                            restoreConnection = {
-                            if (SessionStore.activeSessions().isNotEmpty()) {
-                                IdbCompanion.setup(selectedDevice.device)
-                                return@XCTestDriverClient xcTestInstaller.start()
-                            }
-                            return@XCTestDriverClient false
-                        })
+                            installer = xcTestInstaller,
+                            logger = IOSDriverLogger(XCTestDriverClient::class.java),
+                        )
 
                         val xcTestDevice = XCTestIOSDevice(
                             deviceId = selectedDevice.device.instanceId,
                             client = xcTestDriverClient,
-                            installer = xcTestInstaller,
                             getInstalledApps = { XCRunnerSimctl.listApps() },
                             logger = IOSDriverLogger(XCTestIOSDevice::class.java),
                         )
@@ -317,17 +311,12 @@ object MaestroSessionManager {
         val xcTestDriverClient = XCTestDriverClient(
             host = defaultHost,
             port = defaultXcTestPort,
-            restoreConnection = {
-                if (SessionStore.activeSessions().isNotEmpty()) {
-                    return@XCTestDriverClient xcTestInstaller.start()
-                }
-                return@XCTestDriverClient false
-            }
+            installer = xcTestInstaller,
+            logger = IOSDriverLogger(XCTestDriverClient::class.java),
         )
         val xcTestDevice = XCTestIOSDevice(
             deviceId = device.instanceId,
             client = xcTestDriverClient,
-            installer = xcTestInstaller,
             getInstalledApps = { XCRunnerSimctl.listApps() },
             logger = IOSDriverLogger(XCTestIOSDevice::class.java),
         )
@@ -339,13 +328,7 @@ object MaestroSessionManager {
             LocalIOSDevice(
                 deviceId = device.instanceId,
                 idbIOSDevice = idbIOSDevice,
-                xcTestDevice = XCTestIOSDevice(
-                    deviceId = device.instanceId,
-                    client = xcTestDriverClient,
-                    installer = xcTestInstaller,
-                    getInstalledApps = { XCRunnerSimctl.listApps() },
-                    logger = IOSDriverLogger(LocalIOSDevice::class.java),
-                ),
+                xcTestDevice = xcTestDevice,
                 simctlIOSDevice = simctlIOSDevice,
             )
         )

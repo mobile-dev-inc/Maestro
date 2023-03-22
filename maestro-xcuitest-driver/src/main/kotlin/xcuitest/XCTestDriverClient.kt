@@ -2,6 +2,7 @@ package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.api.GetRunningAppRequest
+import maestro.logger.Logger
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,13 +17,15 @@ import xcuitest.api.PressButtonRequest
 import xcuitest.api.PressKeyRequest
 import xcuitest.api.SwipeRequest
 import xcuitest.api.TouchRequest
+import xcuitest.installer.XCTestInstaller
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class XCTestDriverClient(
     private val host: String = "localhost",
     private val port: Int = 22087,
-    private val restoreConnection: () -> Boolean = { false }
+    private val installer: XCTestInstaller,
+    private val logger: Logger,
 ) {
 
     private var isShuttingDown = false
@@ -31,6 +34,13 @@ class XCTestDriverClient(
         Runtime.getRuntime().addShutdownHook(Thread {
             isShuttingDown = true
         })
+    }
+
+    fun restartXCTestRunnerService() {
+        logger.info("[Start] Uninstalling xctest ui runner app")
+        installer.uninstall()
+        logger.info("[Done] Uninstalling xctest ui runner app")
+        installer.start()
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -161,7 +171,7 @@ class XCTestDriverClient(
         try {
             it.proceed(request)
         } catch (connectException: IOException) {
-            if (restoreConnection()) {
+            if (installer.start()) {
                 it.proceed(request)
             } else {
                 throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in RetryOnError")
@@ -187,4 +197,12 @@ class XCTestDriverClient(
             }
         }
     })
+
+    fun isChannelAlive(): Boolean {
+        return installer.isChannelAlive()
+    }
+
+    fun close() {
+        installer.close()
+    }
 }

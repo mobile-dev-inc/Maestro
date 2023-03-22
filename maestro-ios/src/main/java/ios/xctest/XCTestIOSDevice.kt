@@ -16,27 +16,18 @@ import okio.buffer
 import xcuitest.XCTestDriverClient
 import xcuitest.api.GetRunningAppIdResponse
 import xcuitest.api.IsScreenStaticResponse
-import xcuitest.installer.XCTestInstaller
 import java.io.File
 import java.io.InputStream
 
 class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
-    private val installer: XCTestInstaller,
     private val logger: Logger,
     private val getInstalledApps: () -> Set<String>,
 ) : IOSDevice {
 
     override fun open() {
-        restartXCTestRunnerService()
-    }
-
-    private fun restartXCTestRunnerService() {
-        logger.info("[Start] Uninstalling xctest ui runner app on $deviceId")
-        installer.uninstall()
-        logger.info("[Done] Uninstalling xctest ui runner app on $deviceId")
-        installer.start()
+        client.restartXCTestRunnerService()
     }
 
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
@@ -226,11 +217,11 @@ class XCTestIOSDevice(
     }
 
     override fun isShutdown(): Boolean {
-        return !installer.isChannelAlive()
+        return !client.isChannelAlive()
     }
 
     override fun close() {
-        installer.close()
+        client.close()
     }
 
     override fun isScreenStatic(): Result<Boolean, Throwable> {
