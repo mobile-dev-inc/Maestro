@@ -106,12 +106,20 @@ object XCRunnerSimctl {
             .drop(1)
             .toList()
             .map { line -> line.split("\\s+".toRegex()) }
-            .filter { parts -> parts.count() < 3 }
+            .filter { parts -> parts.count() <= 3 }
             .associate { parts -> parts[2] to parts[0].toIntOrNull() }
+            .mapKeys { (key, _) ->
+                // Fixes issue with iOS 14.0 where process names are sometimes prefixed with "UIKitApplication:"
+                // and ending with [stuff]
+                key
+                    .substringBefore("[")
+                    .replace("UIKitApplication:", "")
+            }
     }
 
     fun isAppAlive(bundleId: String): Boolean {
-        return runningApps().containsKey(bundleId)
+        return runningApps()
+            .containsKey(bundleId)
     }
 
     fun pidForApp(bundleId: String): Int? {

@@ -109,7 +109,7 @@ class LocalXCTestInstaller(
                 .port(22087)
         }
         val url = xctestAPIBuilder("subTree")
-            .addQueryParameter("appId", UI_TEST_RUNNER_APP_BUNDLE_ID)
+            .addQueryParameter("appId", SPRINGBOARD_BUNDLE_ID)
             .build()
 
         val request = Request.Builder()
@@ -197,5 +197,6 @@ class LocalXCTestInstaller(
         private const val XCTEST_RUN_PATH = "/maestro-driver-ios-config.xctestrun"
         private const val UI_TEST_HOST_PATH = "/maestro-driver-ios.zip"
         private const val UI_TEST_RUNNER_APP_BUNDLE_ID = "dev.mobile.maestro-driver-iosUITests.xctrunner"
+        private const val SPRINGBOARD_BUNDLE_ID = "com.apple.springboard"
     }
 }
