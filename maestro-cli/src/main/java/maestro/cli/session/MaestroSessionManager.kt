@@ -157,7 +157,7 @@ object MaestroSessionManager {
                     }
                     Platform.IOS -> {
                         val xcTestInstaller = LocalXCTestInstaller(
-                            logger = IOSDriverLogger(),
+                            logger = IOSDriverLogger(LocalXCTestInstaller::class.java),
                             deviceId = selectedDevice.device.instanceId,
                         )
 
@@ -177,7 +177,7 @@ object MaestroSessionManager {
                             client = xcTestDriverClient,
                             installer = xcTestInstaller,
                             getInstalledApps = { XCRunnerSimctl.listApps() },
-                            logger = IOSDriverLogger(),
+                            logger = IOSDriverLogger(XCTestIOSDevice::class.java),
                         )
 
                         val simctlIOSDevice = SimctlIOSDevice(
@@ -311,7 +311,7 @@ object MaestroSessionManager {
         )
 
         val xcTestInstaller = LocalXCTestInstaller(
-            logger = IOSDriverLogger(),
+            logger = IOSDriverLogger(LocalXCTestInstaller::class.java),
             deviceId = device.instanceId,
         )
         val xcTestDriverClient = XCTestDriverClient(
@@ -329,7 +329,7 @@ object MaestroSessionManager {
             client = xcTestDriverClient,
             installer = xcTestInstaller,
             getInstalledApps = { XCRunnerSimctl.listApps() },
-            logger = IOSDriverLogger(),
+            logger = IOSDriverLogger(XCTestIOSDevice::class.java),
         )
         val simctlIOSDevice = SimctlIOSDevice(
             deviceId = device.instanceId,
@@ -344,7 +344,7 @@ object MaestroSessionManager {
                     client = xcTestDriverClient,
                     installer = xcTestInstaller,
                     getInstalledApps = { XCRunnerSimctl.listApps() },
-                    logger = IOSDriverLogger(),
+                    logger = IOSDriverLogger(LocalIOSDevice::class.java),
                 ),
                 simctlIOSDevice = simctlIOSDevice,
             )
