@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
   #
 
   spec.name         = "MaestroSDK"
-  spec.version      = "0.0.1"
+  spec.version      = "#{ ENV['MAESTRO_SDK_VERSION'] }"
   spec.summary      = "Maestro SDK for iOS"
 
   # This description is used to generate tags and improve search results.
@@ -70,7 +70,7 @@ Pod::Spec.new do |spec|
   #  Supports git, hg, bzr, svn and HTTP.
   #
 
-  spec.source       = { :git => "https://github.com/mobile-dev-inc/maestro.git", :tag => "ios-sdk-dev" }
+  spec.source       = { :git => "https://github.com/mobile-dev-inc/maestro.git", :tag => "v#{ ENV['MAESTRO_SDK_VERSION'] }" }
 
 
   # ――― Source Code ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #

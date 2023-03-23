@@ -24,7 +24,9 @@
 2. `git push --tags`
 3. Wait until all Publish actions have completed https://github.com/mobile-dev-inc/maestro/actions
 
-## Publish Maven
+## Publish Maven and Android SDK
+
+This step also published Maestro Android SDK.
 
 1. Log in to [Sonatype](https://s01.oss.sonatype.org/)
 2. Close the uploaded staging repository
@@ -35,3 +37,12 @@
 1. Trigger the [Publish CLI Github action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-cli.yml)
 2. Test installing the cli by running `curl -Ls "https://get.maestro.mobile.dev" | bash`
 3. Check the version number `maestro --version`
+
+## Publish iOS SDK
+
+This step is optional and only required if there are changes to the iOS SDK.
+
+Run this after a tag is pushed to remote.
+
+`./scripts/publish-ios-sdk.sh`
+
