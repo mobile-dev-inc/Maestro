@@ -2,5 +2,4 @@
 
 set -e
 
-./gradlew :maestro-cli:installDist -q
-./maestro-cli/build/install/maestro/bin/maestro "$@"
+./gradlew :maestro-cli:installDist -q && ./maestro-cli/build/install/maestro/bin/maestro "$@"
