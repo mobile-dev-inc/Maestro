@@ -2567,6 +2567,22 @@ class IntegrationTest {
         driver.assertHasEvent(Event.LaunchApp("com.example.default"))
     }
 
+    @Test
+    fun `094 - Subflow with inlined commands`() {
+        // Given
+        val commands = readCommands("094_runFlow_inline")
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.InputText("Inner Parameter"))
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

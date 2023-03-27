@@ -164,15 +164,7 @@ data class YamlFluentCommand(
                     )
                 )
             )
-            runFlow != null -> listOf(
-                MaestroCommand(
-                    RunFlowCommand(
-                        commands = runFlow(flowPath, runFlow),
-                        condition = runFlow.`when`?.toCondition(),
-                        sourceDescription = runFlow.file,
-                    )
-                )
-            )
+            runFlow != null -> listOf(runFlowCommand(appId, flowPath, runFlow))
             setLocation != null -> listOf(
                 MaestroCommand(
                     SetLocationCommand(
@@ -220,6 +212,35 @@ data class YamlFluentCommand(
             travel != null -> listOf(travelCommand(travel))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    private fun runFlowCommand(
+        appId: String,
+        flowPath: Path,
+        runFlow: YamlRunFlow
+    ): MaestroCommand {
+        if (runFlow.file == null && runFlow.commands == null) {
+            throw SyntaxError("Invalid runFlow command: No file or commands provided")
+        }
+
+        if (runFlow.file != null && runFlow.commands != null) {
+            throw SyntaxError("Invalid runFlow command: Can't provide both file and commands at the same time")
+        }
+
+        val commands = runFlow.commands
+            ?.flatMap {
+                it.toCommands(flowPath, appId)
+                    .withEnv(runFlow.env)
+            }
+            ?: runFlow(flowPath, runFlow)
+
+        return MaestroCommand(
+            RunFlowCommand(
+                commands = commands,
+                condition = runFlow.`when`?.toCondition(),
+                sourceDescription = runFlow.file,
+            )
+        )
     }
 
     private fun travelCommand(command: YamlTravelCommand): MaestroCommand {
@@ -271,11 +292,19 @@ data class YamlFluentCommand(
     }
 
     private fun getRunFlowWatchFiles(flowPath: Path, runFlow: YamlRunFlow): List<Path> {
+        if (runFlow.file == null) {
+            return emptyList()
+        }
+
         val runFlowPath = resolvePath(flowPath, runFlow.file)
         return listOf(runFlowPath) + YamlCommandReader.getWatchFiles(runFlowPath)
     }
 
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
+        if (command.file == null) {
+            error("Invalid runFlow command: No file or commands provided")
+        }
+
         val runFlowPath = resolvePath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
             .withEnv(command.env)
