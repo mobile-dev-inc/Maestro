@@ -2550,6 +2550,23 @@ class IntegrationTest {
         ).inOrder()
     }
 
+    @Test
+    fun `093 - JS default values`() {
+        // Given
+        val commands = readCommands("093_js_default_value")
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.default")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.LaunchApp("com.example.default"))
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

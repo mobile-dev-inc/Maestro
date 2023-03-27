@@ -1,0 +1,5 @@
+appId: ${APP_ID}
+env:
+  APP_ID: ${APP_ID || 'com.example.default'}
+---
+- launchApp

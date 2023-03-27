@@ -21,7 +21,7 @@ class JsEngine(
 
     fun init() {
         context = Context.enter()
-        currentScope = JsScope()
+        currentScope = JsScope(root = true)
         context.initSafeStandardObjects(currentScope)
 
         val jsHttp = JsHttp(httpClient)
@@ -63,7 +63,7 @@ class JsEngine(
     }
 
     fun enterScope() {
-        val subScope = JsScope()
+        val subScope = JsScope(root = false)
         subScope.parentScope = currentScope
         currentScope = subScope
     }
@@ -82,7 +82,7 @@ class JsEngine(
             // We create a new scope for each evaluation to prevent local variables
             // from clashing with each other across multiple scripts.
             // Only 'output' is shared across scopes.
-            JsScope()
+            JsScope(root = false)
                 .apply { parentScope = currentScope }
         } else {
             currentScope
