@@ -1,6 +1,17 @@
 import { DeviceScreen, UIElement } from './models';
 import YAML from 'yaml';
 
+const YAML_STRINGIFY_OPTIONS: YAML.SchemaOptions = {
+   toStringDefaults: {
+       defaultKeyType: 'PLAIN',
+       defaultStringType: 'QUOTE_DOUBLE'
+   }
+}
+
+const stringifyYaml = (value: any): string => {
+   return YAML.stringify(value, null, YAML_STRINGIFY_OPTIONS)
+}
+
 export type CommandExample = {
   status: 'available' | 'unavailable'
   title: string
@@ -123,7 +134,7 @@ const toTapExample = (selector: Selector): CommandExample => {
   return {
     status: selector.status,
     title: `Tap > ${selector.title}`,
-    content: selector.status === 'available' ? YAML.stringify([{ tapOn: selector.definition }]) : selector.message,
+    content: selector.status === 'available' ? stringifyYaml([{ tapOn: selector.definition }]) : selector.message,
     documentation: selector.documentation || 'https://maestro.mobile.dev/reference/tap-on-view',
   }
 }
@@ -132,7 +143,7 @@ const toAssertExample = (selector: Selector): CommandExample => {
   return {
     status: selector.status,
     title: `Assert > ${selector.title}`,
-    content: selector.status === 'available' ? YAML.stringify([{ assertVisible: selector.definition }]) : selector.message,
+    content: selector.status === 'available' ? stringifyYaml([{ assertVisible: selector.definition }]) : selector.message,
     documentation: selector.documentation || 'https://maestro.mobile.dev/reference/assertions',
   }
 }
@@ -141,7 +152,7 @@ const toConditionalExample = (selector: Selector): CommandExample => {
   return {
     status: selector.status,
     title: `Conditional > ${selector.title}`,
-    content: selector.status === 'available' ? YAML.stringify([{ runFlow: { when: { visible: selector.definition }, file: 'Subflow.yaml' } }]) : selector.message,
+    content: selector.status === 'available' ? stringifyYaml([{ runFlow: { when: { visible: selector.definition }, file: 'Subflow.yaml' } }]) : selector.message,
     documentation: selector.documentation || 'https://maestro.mobile.dev/advanced/conditions',
   }
 }
