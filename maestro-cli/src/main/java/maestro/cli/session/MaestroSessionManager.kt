@@ -34,6 +34,8 @@ import maestro.cli.device.Platform
 import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
+import sun.misc.Signal
+import sun.misc.SignalHandler
 import util.XCRunnerSimctl
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.LocalXCTestInstaller
@@ -41,6 +43,7 @@ import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.system.exitProcess
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
@@ -80,7 +83,6 @@ object MaestroSessionManager {
                 isStudio = isStudio
             )
         }
-
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             SessionStore.withExclusiveLock {
                 heartbeatFuture.cancel(true)
@@ -91,6 +93,7 @@ object MaestroSessionManager {
                 }
             }
         })
+        Signal.handle(CustomSignalHandler.suspendSignal, CustomSignalHandler())
 
         return block(session)
     }
@@ -336,4 +339,15 @@ object MaestroSessionManager {
 
     }
 
+    private class CustomSignalHandler() : SignalHandler {
+        override fun handle(signal: Signal) {
+            when (signal) {
+                suspendSignal -> exitProcess(0)
+            }
+        }
+
+        companion object {
+            val suspendSignal = Signal("TSTP")
+        }
+    }
 }
