@@ -110,6 +110,41 @@ object Simctl {
         awaitLaunch(deviceId)
     }
 
+    fun killAndRestart(
+        deviceId: String,
+    ) {
+        runCommand(listOf(
+            "killall",
+            "Simulator",
+        ))
+        launchSimulatorWithRetry(deviceId)
+        runCommand(listOf(
+            "xcrun",
+            "simctl",
+            "bootstatus",
+            deviceId
+        ))
+    }
+
+    private fun launchSimulatorWithRetry(deviceId: String) {
+        var exceptionToThrow: Exception? = null
+
+        // Up to 10 iterations => max wait time of 1 second
+        repeat(10) {
+            try {
+                runCommand(listOf("sh", "-c", "open -a \"\$(xcode-select -p)\"/Applications/Simulator.app"))
+                runCommand(listOf("xcrun", "simctl", "shutdown", "all"))
+                runCommand(listOf("xcrun", "simctl", "boot", deviceId))
+                return
+            } catch (e: Exception) {
+                exceptionToThrow = e
+                Thread.sleep(100)
+            }
+        }
+
+        exceptionToThrow?.let { throw it }
+    }
+
     fun addTrustedCertificate(
         deviceId: String,
         certificate: File,

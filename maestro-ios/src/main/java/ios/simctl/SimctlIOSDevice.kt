@@ -161,6 +161,7 @@ class SimctlIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         Simctl.setPermissions(deviceId, id, permissions)
+        Simctl.killAndRestart(deviceId)
     }
 
     override fun eraseText(charactersToErase: Int) {
