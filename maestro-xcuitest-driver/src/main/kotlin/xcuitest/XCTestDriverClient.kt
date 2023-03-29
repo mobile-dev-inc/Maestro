@@ -97,6 +97,7 @@ class XCTestDriverClient(
     }
 
     fun swipe(
+        appId: String,
         startX: Double,
         startY: Double,
         endX: Double,
@@ -104,6 +105,7 @@ class XCTestDriverClient(
         duration: Double
     ): Response {
         return executeJsonRequest("swipe", SwipeRequest(
+            appId = appId,
             startX = startX,
             startY = startY,
             endX = endX,

@@ -34,6 +34,7 @@
 		61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */; };
 		61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */; };
 		61C0AFF329C8C040005D1FC5 /* DeviceInfoResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */; };
+		61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */; };
 		9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */; };
 		94256BAD298D39DE00CDB55D /* ScreenDiffHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */; };
 		943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */; };
@@ -84,6 +85,7 @@
 		61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EraseTextRequest.swift; sourceTree = "<group>"; };
 		61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoHandler.swift; sourceTree = "<group>"; };
 		61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoResponse.swift; sourceTree = "<group>"; };
+		61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTarget.swift; sourceTree = "<group>"; };
 		9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetRunningAppRequest.swift; sourceTree = "<group>"; };
 		94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDiffHandler.swift; sourceTree = "<group>"; };
 		943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteHandlerFactory.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 				612DE413298426EF003C2BE0 /* EventRecord.swift */,
 				613E87D6299A64BD00FF8551 /* PointerEventPath.swift */,
 				613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */,
+				61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */,
 			);
 			path = XCTest;
 			sourceTree = "<group>";
@@ -362,6 +365,7 @@
 				61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */,
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
+				61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */,
 				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
 				32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */,
 				943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */,

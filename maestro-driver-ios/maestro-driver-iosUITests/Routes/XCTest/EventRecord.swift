@@ -1,7 +1,8 @@
 import Foundation
 import UIKit
 
-struct EventRecord {
+@objc
+final class EventRecord: NSObject {
     let eventRecord: NSObject
     static let defaultTapDuration = 0.1
 
@@ -20,27 +21,28 @@ struct EventRecord {
             .takeUnretainedValue() as! NSObject
     }
 
-    mutating func addPointerTouchEvent(at point: CGPoint, touchUpAfter: TimeInterval?) {
+    func addPointerTouchEvent(at point: CGPoint, touchUpAfter: TimeInterval?) -> Self {
         var path = PointerEventPath.pathForTouch(at: point)
-        path.offset += touchUpAfter ?? EventRecord.defaultTapDuration
+        path.offset += touchUpAfter ?? Self.defaultTapDuration
         path.liftUp()
-        add(path)
+        return add(path)
     }
 
-    mutating func addSwipeEvent(start: CGPoint, end: CGPoint, duration: TimeInterval) {
+    func addSwipeEvent(start: CGPoint, end: CGPoint, duration: TimeInterval) -> Self {
         var path = PointerEventPath.pathForTouch(at: start)
         path.offset += Self.defaultTapDuration
         path.moveTo(point: end)
         path.offset += duration
         path.liftUp()
-        add(path)
+        return add(path)
     }
 
-    mutating func add(_ path: PointerEventPath) {
+    func add(_ path: PointerEventPath) -> Self {
         let selector = NSSelectorFromString("addPointerEventPath:")
         let imp = eventRecord.method(for: selector)
         typealias Method = @convention(c) (NSObject, Selector, NSObject) -> ()
         let method = unsafeBitCast(imp, to: Method.self)
         method(eventRecord, selector, path.path)
+        return self
     }
 }

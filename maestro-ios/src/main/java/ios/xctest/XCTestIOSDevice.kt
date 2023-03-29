@@ -132,6 +132,7 @@ class XCTestIOSDevice(
     ): Result<Unit, Throwable> {
         return runCatching {
             client.swipe(
+                appId = activeAppId() ?: error("Unable to obtain active app id"),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,

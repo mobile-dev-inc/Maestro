@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 class RunnerDaemonProxy {
     private let proxy: NSObject
     
