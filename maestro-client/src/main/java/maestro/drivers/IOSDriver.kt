@@ -147,7 +147,7 @@ class IOSDriver(
     override fun pressKey(code: KeyCode) {
         val keyCodeNameMap = mapOf(
             KeyCode.BACKSPACE to "delete",
-            KeyCode.ENTER to "enter",
+            KeyCode.ENTER to "return",
             // Supported by iOS but not yet by maestro:
 //        KeyCode.RETURN to "return",
 //        KeyCode.TAP to "tab",
