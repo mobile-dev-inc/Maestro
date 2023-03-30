@@ -187,7 +187,19 @@ class FakeDriver : Driver {
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
         ensureOpen()
-
+        val todo = mutableListOf(layout)
+        while (todo.isNotEmpty()) {
+            val next = todo.removeLast()
+            todo.addAll(next.children)
+            if (next.bounds != null) {
+                when(direction) {
+                    SwipeDirection.UP -> next.bounds = next.bounds!!.translate(x = 0, y = -300)
+                    SwipeDirection.DOWN -> next.bounds = next.bounds!!.translate(x = 0, y = 300)
+                    SwipeDirection.RIGHT -> next.bounds = next.bounds!!.translate(x = -300, y = 0)
+                    SwipeDirection.LEFT -> next.bounds = next.bounds!!.translate(x = 300, y = 0)
+                }
+            }
+        }
         events += Event.SwipeElementWithDirection(elementPoint, direction, durationMs)
     }
 

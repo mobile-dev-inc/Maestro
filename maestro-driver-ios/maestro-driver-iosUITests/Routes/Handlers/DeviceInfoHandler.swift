@@ -21,7 +21,7 @@ struct DeviceInfoHandler: HTTPHandler {
             widthPoints: Int(screenSize.width),
             heightPoints: Int(screenSize.height),
             widthPixels: Int(screenSize.width * UIScreen.main.scale),
-            heightPixels: Int(screenSize.width * UIScreen.main.scale)
+            heightPixels: Int(screenSize.height * UIScreen.main.scale)
         )
 
         let responseBody = try! JSONEncoder().encode(deviceInfo)

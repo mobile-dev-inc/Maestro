@@ -312,7 +312,7 @@ class Orchestra(
         do {
             try {
                 val element = findElement(command.selector, 500).element
-                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightPixels)
+                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
                 if (visibility >= command.visibilityPercentageNormalized) {
                     return true
                 }

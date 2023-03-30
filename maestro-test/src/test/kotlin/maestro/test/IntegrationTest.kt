@@ -2148,27 +2148,31 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 079 - Scroll until view is visible`() {
+    fun `Case 079 - Scroll until view is visible - no view`() {
         // Given
         val commands = readCommands("079_scroll_until_visible")
 
-        val info = driver { }.deviceInfo()
-
-        // Without view
-        val driver1 = driver {
+        // No view
+        val driver = driver {
             // No elements
         }
 
         // Then fail
         assertThrows<MaestroException.ElementNotFound> {
-            Maestro(driver1).use {
+            Maestro(driver).use {
                 assertThat(orchestra(it).runFlow(commands))
             }
         }
+    }
 
-        // With view
-        val elementBounds = Bounds(0, info.heightGrid, 100, info.heightGrid + 100)
-        val driver2 = driver {
+    @Test
+    fun `Case 079-2 - Scroll until view is visible - with view`() {
+        // Given
+        val commands = readCommands("079_scroll_until_visible")
+        val info = driver { }.deviceInfo()
+
+        val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+        val driver = driver {
             element {
                 text = "Test"
                 bounds = elementBounds
@@ -2176,12 +2180,12 @@ class IntegrationTest {
         }
 
         // When
-        Maestro(driver2).use {
+        Maestro(driver).use {
             assertThat(orchestra(it).runFlow(commands)).isTrue()
         }
 
         // Then
-        driver1.assertEvents(
+        driver.assertEvents(
             listOf(
                 Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, 1),
             )
