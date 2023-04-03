@@ -10,6 +10,7 @@ import hierarchy.XCUIElement
 import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
+import ios.simctl.Simctl
 import maestro.logger.Logger
 import okio.Sink
 import okio.buffer
@@ -248,7 +249,20 @@ class XCTestIOSDevice(
     }
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
-        error("Not supported")
+        val mutable = permissions.toMutableMap()
+        if (mutable.containsKey("all")) {
+            val value = mutable.remove("all")
+            allPermissions.forEach {
+                when (value) {
+                    "allow" -> mutable.putIfAbsent(it, "allow")
+                    "deny" -> mutable.putIfAbsent(it, "deny")
+                    "unset" -> mutable.putIfAbsent(it, "unset")
+                    else -> throw IllegalArgumentException("Permission 'all' can be set to 'allow', 'deny' or 'unset', not '$value'")
+                }
+            }
+        }
+
+        client.setPermissions(mutable)
     }
 
     override fun eraseText(charactersToErase: Int) {
@@ -294,6 +308,9 @@ class XCTestIOSDevice(
 
         private val mapper by lazy { jacksonObjectMapper() }
 
+        private val allPermissions = listOf(
+            "notifications"
+        )
     }
 
 }

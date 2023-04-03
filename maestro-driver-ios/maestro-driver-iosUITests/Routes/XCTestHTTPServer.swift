@@ -12,6 +12,7 @@ enum Route: String, CaseIterable {
     case pressButton
     case eraseText
     case deviceInfo
+    case setPermissions
     
     func toHTTPRoute() -> HTTPRoute {
         return HTTPRoute(rawValue)

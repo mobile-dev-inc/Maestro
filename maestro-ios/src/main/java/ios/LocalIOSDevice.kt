@@ -145,6 +145,7 @@ class LocalIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         simctlIOSDevice.setPermissions(id, permissions)
+        xcTestDevice.setPermissions(id, permissions)
     }
 
     override fun eraseText(charactersToErase: Int) {
