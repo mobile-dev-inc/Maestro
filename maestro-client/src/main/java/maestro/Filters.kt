@@ -54,6 +54,10 @@ object Filters {
         nodes.filter { this(it) }
     }
 
+    fun nonClickable(): ElementFilter {
+        return  { nodes -> nodes.filter { it.clickable == false } }
+    }
+
     fun textMatches(regex: Regex): ElementFilter {
         return { nodes ->
             val textMatches = nodes.filter {
