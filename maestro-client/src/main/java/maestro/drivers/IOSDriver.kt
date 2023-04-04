@@ -381,6 +381,8 @@ class IOSDriver(
     override fun backPress() {}
 
     override fun hideKeyboard() {
+        if (isKeyboardHidden()) return
+
         swipe(
             start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
             end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.47)),
