@@ -1,8 +1,10 @@
 import XCTest
 
 final class SystemPermissionHelper {
-    static func handleSystemPermissionAlertIfNeeded(springboardApplication: XCUIApplication, appName: String) {
-        let predicate = NSPredicate(format: "label CONTAINS[c] %@", appName)
+    private static let notificationsPermissionLabel = "Would Like to Send You Notifications"
+    
+    static func handleSystemPermissionAlertIfNeeded(springboardApplication: XCUIApplication) {
+        let predicate = NSPredicate(format: "label CONTAINS[c] %@", notificationsPermissionLabel)
 
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
               let permissions = try? JSONDecoder().decode([String : PermissionValue].self, from: data),
