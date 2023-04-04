@@ -230,7 +230,6 @@ class IOSDriver(
         val text = xcUiElement.title?.ifEmpty {
             xcUiElement.value
         }
-        val clickable = if (xcUiElement.elementType == ELEMENT_TYPE_STATIC_TEXT) false else null
         attributes["accessibilityText"] = xcUiElement.label
         attributes["text"] = text ?: ""
         attributes["hintText"] = xcUiElement.placeholderValue ?: ""
@@ -255,7 +254,6 @@ class IOSDriver(
 
         return TreeNode(
             attributes = attributes,
-            clickable = clickable,
             children = children,
             enabled = xcUiElement.enabled,
             focused = xcUiElement.hasFocus,
@@ -398,24 +396,6 @@ class IOSDriver(
             end = Point(widthPercentToPoint(0.47), heightPercentToPoint(0.5)),
             durationMs = 50,
         )
-
-        if (isKeyboardHidden()) {
-            return
-        }
-
-        tapOnStaticTexts()
-    }
-
-    private fun tapOnStaticTexts() {
-        val filter = Filters.nonClickable()
-        MaestroTimer.retryUntilTrue(10000) {
-            val result = filter(contentDescriptor().aggregate()).map { it.toUiElement() }
-                .any {
-                    tap(it.bounds.center())
-                    isKeyboardHidden()
-                }
-            return@retryUntilTrue result
-        }
     }
 
     private fun isKeyboardHidden(): Boolean {
@@ -514,7 +494,6 @@ class IOSDriver(
         private const val ELEMENT_TYPE_CHECKBOX = 12
         private const val ELEMENT_TYPE_SWITCH = 40
         private const val ELEMENT_TYPE_TOGGLE = 41
-        private const val ELEMENT_TYPE_STATIC_TEXT = 48
 
         private val CHECKABLE_ELEMENTS = setOf(
             ELEMENT_TYPE_CHECKBOX,
