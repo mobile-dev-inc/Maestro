@@ -186,7 +186,11 @@ object Simctl {
     }
 
 
-    fun launch(deviceId: String, bundleId: String) {
+    fun launch(
+        deviceId: String,
+        bundleId: String,
+        launchArguments: List<String> = emptyList(),
+    ) {
         runCommand(
             listOf(
                 "xcrun",
@@ -194,7 +198,7 @@ object Simctl {
                 "launch",
                 deviceId,
                 bundleId,
-            )
+            ) + launchArguments,
         )
     }
 

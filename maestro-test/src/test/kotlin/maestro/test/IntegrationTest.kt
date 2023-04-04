@@ -2587,6 +2587,30 @@ class IntegrationTest {
         driver.assertHasEvent(Event.InputText("Inner Parameter"))
     }
 
+    @Test
+    fun `095 - Launch arguments`() {
+        // Given
+        val commands = readCommands("095_launch_arguments")
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.LaunchApp(
+            appId = "com.example.app",
+            launchArguments = listOf(
+                "argumentA",
+                "argumentB",
+                "argumentC",
+            )
+        ))
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

@@ -1,0 +1,11 @@
+appId: com.example.app
+env:
+  ARGUMENT_B: argumentB
+  INCLUDE_ARGUMENT_C: true
+---
+- launchApp:
+    arguments:
+      - argumentA
+      - ${ARGUMENT_B}
+      - ${INCLUDE_ARGUMENT_C && 'argumentC'}
+      - ${INCLUDE_ARGUMENT_D && 'argumentD'}

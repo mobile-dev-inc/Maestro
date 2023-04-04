@@ -168,7 +168,10 @@ class AndroidDriver(
         )
     }
 
-    override fun launchApp(appId: String) {
+    override fun launchApp(
+        appId: String,
+        launchArguments: List<String>,
+    ) {
         if (!isPackageInstalled(appId)) {
             throw IllegalArgumentException("Package $appId is not installed")
         }

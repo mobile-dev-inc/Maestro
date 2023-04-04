@@ -111,7 +111,10 @@ interface IOSDevice : AutoCloseable {
      * @param id - bundle id of the app to launch
      * @param isWarmup - in case it is warmup and we're not waiting for the logs, the app can be launched from foreground
      */
-    fun launch(id: String): Result<Unit, Throwable>
+    fun launch(
+        id: String,
+        launchArguments: List<String>,
+    ): Result<Unit, Throwable>
 
     /**
      * Terminates the app.

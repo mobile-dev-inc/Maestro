@@ -105,8 +105,11 @@ class LocalIOSDevice(
         return simctlIOSDevice.clearKeychain()
     }
 
-    override fun launch(id: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.launch(id)
+    override fun launch(
+        id: String,
+        launchArguments: List<String>
+    ): Result<Unit, Throwable> {
+        return simctlIOSDevice.launch(id, launchArguments)
     }
 
     override fun stop(id: String): Result<Unit, Throwable> {

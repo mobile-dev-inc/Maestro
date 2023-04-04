@@ -568,7 +568,11 @@ class Orchestra(
         }
 
         try {
-            maestro.launchApp(command.appId, stopIfRunning = command.stopApp ?: true)
+            maestro.launchApp(
+                appId = command.appId,
+                launchArguments = command.launchArguments ?: emptyList(),
+                stopIfRunning = command.stopApp ?: true
+            )
         } catch (e: Exception) {
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}")
         }

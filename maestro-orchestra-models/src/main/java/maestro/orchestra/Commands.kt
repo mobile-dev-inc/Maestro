@@ -348,6 +348,7 @@ data class LaunchAppCommand(
     val clearKeychain: Boolean? = null,
     val stopApp: Boolean? = null,
     var permissions: Map<String, String>? = null,
+    val launchArguments: List<String>? = null,
 ) : Command {
 
     override fun description(): String {
@@ -365,12 +366,19 @@ data class LaunchAppCommand(
             result += " without stopping app"
         }
 
+        if (launchArguments != null) {
+            result += " (launch arguments: ${launchArguments.joinToString(" ")})"
+        }
+
         return result
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
-            appId = appId.evaluateScripts(jsEngine)
+            appId = appId.evaluateScripts(jsEngine),
+            launchArguments = launchArguments
+                ?.map { it.evaluateScripts(jsEngine) }
+                ?.filter { it.isNotBlank() && it != "null" },
         )
     }
 }

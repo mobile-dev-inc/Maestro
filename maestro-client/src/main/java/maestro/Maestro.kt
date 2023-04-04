@@ -56,13 +56,17 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return driver.deviceInfo()
     }
 
-    fun launchApp(appId: String, stopIfRunning: Boolean = true) {
+    fun launchApp(
+        appId: String,
+        launchArguments: List<String> = emptyList(),
+        stopIfRunning: Boolean = true
+    ) {
         LOGGER.info("Launching app $appId")
 
         if (stopIfRunning) {
             driver.stopApp(appId)
         }
-        driver.launchApp(appId)
+        driver.launchApp(appId, launchArguments)
     }
 
     fun stopApp(appId: String) {
