@@ -39,7 +39,6 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
-import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.utils.FileUtils
@@ -379,6 +378,7 @@ class IOSDriver(
     override fun backPress() {}
 
     override fun hideKeyboard() {
+        dismissKeyboardIntroduction()
         if (isKeyboardHidden()) return
 
         swipe(
@@ -405,6 +405,23 @@ class IOSDriver(
         }?.toUiElementOrNull()
 
         return element == null
+    }
+
+    private fun dismissKeyboardIntroduction() {
+        val fastTypingInstruction = "Speed up your typing by sliding your finger across the letters to compose a word.*".toRegex()
+        val instructionTextFilter = Filters.textMatches(fastTypingInstruction)
+        val instructionText = MaestroTimer.withTimeout(2000) {
+            instructionTextFilter(contentDescriptor().aggregate()).firstOrNull()
+        }?.toUiElementOrNull()
+        if (instructionText != null && instructionText.bounds.center().y in heightPoints / 2..heightPoints) {
+            val continueElementFilter = Filters.textMatches("Continue".toRegex())
+            val continueElement = MaestroTimer.withTimeout(2000) {
+                continueElementFilter(contentDescriptor().aggregate()).firstOrNull()
+            }?.toUiElementOrNull()
+            if (continueElement != null && continueElement.bounds.center().y > instructionText.bounds.center().y) {
+                tap(continueElement.bounds.center())
+            }
+        }
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
