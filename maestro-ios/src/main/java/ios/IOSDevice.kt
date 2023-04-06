@@ -162,7 +162,7 @@ interface IOSDevice : AutoCloseable {
      */
     fun isScreenStatic(): Result<Boolean, Throwable>
 
-    fun setPermissions(id: String, permissions: Map<String, String>)
+    fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable>
 
     fun pressKey(name: String)
 

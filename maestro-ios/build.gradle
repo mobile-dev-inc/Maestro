@@ -48,7 +48,7 @@ sourceSets {
 
 dependencies {
     implementation project(':maestro-utils')
-    implementation project(':maestro-xcuitest-driver')
+    implementation project(':maestro-ios-driver')
 
     implementation(libs.grpc.kotlin.stub)
     implementation(libs.grpc.stub)

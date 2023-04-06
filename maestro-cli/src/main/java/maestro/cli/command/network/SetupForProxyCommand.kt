@@ -3,8 +3,8 @@ package maestro.cli.command.network
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
-import ios.simctl.Simctl
-import ios.simctl.Simctl.SimctlError
+import util.LocalSimulatorUtils
+import util.LocalSimulatorUtils.SimctlError
 import maestro.cli.CliError
 import maestro.cli.view.red
 import maestro.networkproxy.NetworkProxy
@@ -51,7 +51,7 @@ class SetupForProxyCommand : Callable<Int> {
         val certFile = NetworkProxy.unpackPemCertificates()
 
         try {
-            Simctl.addTrustedCertificate(
+            LocalSimulatorUtils.addTrustedCertificate(
                 device.instanceId,
                 certFile,
             )

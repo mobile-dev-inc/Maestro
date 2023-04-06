@@ -10,6 +10,7 @@ import ios.device.DeviceInfo
 import okio.Sink
 import okio.buffer
 import okio.source
+import util.LocalSimulatorUtils
 import java.io.File
 import java.io.InputStream
 import java.nio.channels.Channels
@@ -18,7 +19,7 @@ import java.nio.file.Files
 class SimctlIOSDevice(
     override val deviceId: String,
 ) : IOSDevice {
-    private var screenRecording: Simctl.ScreenRecording? = null
+    private var screenRecording: LocalSimulatorUtils.ScreenRecording? = null
 
     override fun open() {
         TODO("Not yet implemented")
@@ -66,13 +67,13 @@ class SimctlIOSDevice(
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.install(deviceId, stream)
+            LocalSimulatorUtils.install(deviceId, stream)
         }
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.uninstall(deviceId, id)
+            LocalSimulatorUtils.uninstall(deviceId, id)
         }
     }
 
@@ -85,13 +86,13 @@ class SimctlIOSDevice(
     }
 
     override fun clearAppState(id: String): Result<Unit, Throwable> {
-        Simctl.clearAppState(deviceId, id)
+        LocalSimulatorUtils.clearAppState(deviceId, id)
         return Ok(Unit)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.clearKeychain(deviceId)
+            LocalSimulatorUtils.clearKeychain(deviceId)
         }
     }
 
@@ -100,7 +101,7 @@ class SimctlIOSDevice(
         launchArguments: List<String>,
     ): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.launch(
+            LocalSimulatorUtils.launch(
                 deviceId = deviceId,
                 bundleId = id,
                 launchArguments = launchArguments,
@@ -110,13 +111,13 @@ class SimctlIOSDevice(
 
     override fun stop(id: String): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.terminate(deviceId, id)
+            LocalSimulatorUtils.terminate(deviceId, id)
         }
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.openURL(deviceId, link)
+            LocalSimulatorUtils.openURL(deviceId, link)
         }
     }
 
@@ -126,7 +127,7 @@ class SimctlIOSDevice(
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
         return runCatching {
-            val screenRecording = Simctl.startScreenRecording(deviceId)
+            val screenRecording = LocalSimulatorUtils.startScreenRecording(deviceId)
             this.screenRecording = screenRecording
 
             object : IOSScreenRecording {
@@ -148,13 +149,13 @@ class SimctlIOSDevice(
 
     private fun stopScreenRecording(): File? {
         return screenRecording
-            ?.let { Simctl.stopScreenRecording(it) }
+            ?.let { LocalSimulatorUtils.stopScreenRecording(it) }
             .also { screenRecording = null }
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
         return runCatching {
-            Simctl.setLocation(deviceId, latitude, longitude)
+            LocalSimulatorUtils.setLocation(deviceId, latitude, longitude)
         }
     }
 
@@ -166,8 +167,10 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun setPermissions(id: String, permissions: Map<String, String>) {
-        Simctl.setPermissions(deviceId, id, permissions)
+    override fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable> {
+        return runCatching {
+            LocalSimulatorUtils.setPermissions(deviceId, id, permissions)
+        }
     }
 
     override fun eraseText(charactersToErase: Int) {

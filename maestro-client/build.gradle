@@ -49,7 +49,7 @@ sourceSets {
 dependencies {
     protobuf project(':maestro-proto')
     implementation project(':maestro-utils')
-    implementation project(':maestro-xcuitest-driver')
+    implementation project(':maestro-ios-driver')
 
     api(libs.grpc.kotlin.stub)
     api(libs.grpc.stub)

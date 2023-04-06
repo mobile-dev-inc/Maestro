@@ -3,10 +3,10 @@ name: Warn Build XCTest runner
 on:
   push:
     paths:
-      - 'maestro-driver-ios/**'
+      - 'maestro-ios-xctest-runner/**'
   pull_request:
     paths:
-      - 'maestro-driver-ios/**'
+      - 'maestro-ios-xctest-runner/**'
 
 jobs:
   warn:
@@ -14,4 +14,4 @@ jobs:
     steps:
       - uses: mshick/add-pr-comment@v2
         with:
-          message: "Make sure to run ./maestro-driver-ios/build-maestro-ios-runner.sh with every swift change"
+          message: "Make sure to run ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh with every swift change"

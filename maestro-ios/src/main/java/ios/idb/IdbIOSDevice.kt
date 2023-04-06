@@ -507,7 +507,7 @@ class IdbIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun setPermissions(id: String, permissions: Map<String, String>) {
+    override fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }
 

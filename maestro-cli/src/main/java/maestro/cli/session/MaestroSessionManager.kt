@@ -36,7 +36,7 @@ import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
 import sun.misc.Signal
 import sun.misc.SignalHandler
-import util.XCRunnerSimctl
+import util.XCRunnerCLIUtils
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.LocalXCTestInstaller
 import java.util.UUID
@@ -293,7 +293,7 @@ object MaestroSessionManager {
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerSimctl.listApps() },
+            getInstalledApps = { XCRunnerCLIUtils.listApps() },
             logger = IOSDriverLogger(XCTestIOSDevice::class.java),
         )
 

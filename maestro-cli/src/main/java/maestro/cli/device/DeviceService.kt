@@ -1,9 +1,9 @@
 package maestro.cli.device
 
 import dadb.Dadb
-import ios.simctl.Simctl
-import ios.simctl.Simctl.SimctlError
-import ios.simctl.SimctlList
+import util.LocalSimulatorUtils
+import util.LocalSimulatorUtils.SimctlError
+import util.SimctlList
 import maestro.cli.CliError
 import maestro.cli.util.EnvUtils
 import maestro.utils.MaestroTimer
@@ -14,8 +14,8 @@ object DeviceService {
         when (device.platform) {
             Platform.IOS -> {
                 try {
-                    Simctl.launchSimulator(device.modelId)
-                    Simctl.awaitLaunch(device.modelId)
+                    LocalSimulatorUtils.launchSimulator(device.modelId)
+                    LocalSimulatorUtils.awaitLaunch(device.modelId)
                 } catch (e: SimctlError) {
                     throw CliError(e.message)
                 }
@@ -124,7 +124,7 @@ object DeviceService {
 
     private fun listIOSDevices(): List<Device> {
         val simctlList = try {
-            Simctl.list()
+            LocalSimulatorUtils.list()
         } catch (ignored: Exception) {
             return emptyList()
         }
