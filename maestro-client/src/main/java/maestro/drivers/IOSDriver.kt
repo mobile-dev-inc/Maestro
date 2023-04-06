@@ -39,6 +39,7 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
+import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.utils.FileUtils
@@ -416,7 +417,9 @@ class IOSDriver(
         if (instructionText != null && instructionText.bounds.center().y in heightPoints / 2..heightPoints) {
             val continueElementFilter = Filters.textMatches("Continue".toRegex())
             val continueElement = MaestroTimer.withTimeout(2000) {
-                continueElementFilter(contentDescriptor().aggregate()).firstOrNull()
+                continueElementFilter(contentDescriptor().aggregate()).find {
+                    it.toUiElement().bounds.center().y > instructionText.bounds.center().y
+                }
             }?.toUiElementOrNull()
             if (continueElement != null && continueElement.bounds.center().y > instructionText.bounds.center().y) {
                 tap(continueElement.bounds.center())
