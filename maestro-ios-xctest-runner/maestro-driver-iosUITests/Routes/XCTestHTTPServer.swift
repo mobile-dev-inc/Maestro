@@ -4,6 +4,7 @@ enum Route: String, CaseIterable {
     case subTree
     case runningApp
     case swipe
+    case swipeV2
     case inputText
     case touch
     case screenshot

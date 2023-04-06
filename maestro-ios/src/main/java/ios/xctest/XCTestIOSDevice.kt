@@ -142,6 +142,25 @@ class XCTestIOSDevice(
         }
     }
 
+    fun scrollV2(
+        xStart: Double,
+        yStart: Double,
+        xEnd: Double,
+        yEnd: Double,
+        duration: Double,
+    ): Result<Unit, Throwable> {
+        return runCatching {
+            client.swipeV2(
+                appId = activeAppId() ?: error("Unable to obtain active app id"),
+                startX = xStart,
+                startY = yStart,
+                endX = xEnd,
+                endY = yEnd,
+                duration = duration
+            ).use {}
+        }
+    }
+
     override fun input(text: String): Result<Unit, Throwable> {
         return runCatching {
             client.inputText(

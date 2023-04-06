@@ -15,23 +15,22 @@ final class SwipeRouteHandler: HTTPHandler {
             return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
         }
 
-        try await swipePrivateAPI(requestBody)
+        try await swipePrivateAPI(
+            start: requestBody.start,
+            end: requestBody.end,
+            duration: requestBody.duration)
 
         return HTTPResponse(statusCode: .ok)
     }
 
-    func swipePrivateAPI(_ request: SwipeRequest) async throws {
-        let description = "Swipe from \(request.start) to \(request.end) with \(request.duration) duration"
-        logger.info("\(description)")
+    func swipePrivateAPI(start: CGPoint, end: CGPoint, duration: Double) async throws {
 
-        let eventTarget = EventTarget(bundleId: request.appId)
-        try await eventTarget.dispatchEvent(description: description) {
-            EventRecord(orientation: .portrait)
-                .addSwipeEvent(
-                    start: request.start,
-                    end: request.end,
-                    duration: request.duration)
-        }
+        logger.info("Swiping from \(start.debugDescription) to \(end.debugDescription) with \(duration) duration")
+
+        var eventRecord = EventRecord(orientation: .portrait)
+        eventRecord.addSwipeEvent(start: start, end: end, duration: duration)
+
+        try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
     }
 
     private func handleError(message: String) -> Data {

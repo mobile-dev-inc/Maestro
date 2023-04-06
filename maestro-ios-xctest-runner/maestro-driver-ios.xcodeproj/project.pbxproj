@@ -26,6 +26,7 @@
 		612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE413298426EF003C2BE0 /* EventRecord.swift */; };
 		613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613E87D6299A64BD00FF8551 /* PointerEventPath.swift */; };
 		613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */; };
+		61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */; };
 		61C0AFE529C7AAB3005D1FC5 /* PressKeyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */; };
 		61C0AFE729C7AB0C005D1FC5 /* PressKeyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE629C7AB0C005D1FC5 /* PressKeyHandler.swift */; };
 		61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */; };
@@ -80,6 +81,7 @@
 		612DE413298426EF003C2BE0 /* EventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRecord.swift; sourceTree = "<group>"; };
 		613E87D6299A64BD00FF8551 /* PointerEventPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointerEventPath.swift; sourceTree = "<group>"; };
 		613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyModifierFlags.swift; sourceTree = "<group>"; };
+		61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandlerV2.swift; sourceTree = "<group>"; };
 		61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressKeyRequest.swift; sourceTree = "<group>"; };
 		61C0AFE629C7AB0C005D1FC5 /* PressKeyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressKeyHandler.swift; sourceTree = "<group>"; };
 		61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressButtonRequest.swift; sourceTree = "<group>"; };
@@ -220,6 +222,7 @@
 				943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
+				61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */,
 				320979622970925500340282 /* InputTextRouteHandler.swift */,
 				32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */,
 				9494CBD02982F719009C987C /* ScreenshotHandler.swift */,
@@ -376,6 +379,7 @@
 				61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */,
 				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
+				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
 				943A9084293F5CC400C85136 /* SubTreeRouteHandler.swift in Sources */,
 				945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */,
 				613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */,

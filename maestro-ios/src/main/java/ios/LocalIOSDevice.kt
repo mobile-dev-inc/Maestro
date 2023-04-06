@@ -76,7 +76,7 @@ class LocalIOSDevice(
         yEnd: Double,
         duration: Double
     ): Result<Unit, Throwable> {
-        return xcTestDevice.scroll(xStart, yStart, xEnd, yEnd, duration)
+        return xcTestDevice.scrollV2(xStart, yStart, xEnd, yEnd, duration)
     }
 
     override fun input(text: String): Result<Unit, Throwable> {
