@@ -32,6 +32,7 @@ import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
 import maestro.debuglog.IOSDriverLogger
+import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
 import sun.misc.Signal
@@ -147,16 +148,10 @@ object MaestroSessionManager {
         return when {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
-                    Platform.ANDROID -> {
-                        Maestro.android(
-                            dadb = Dadb
-                                .list()
-                                .find { it.toString() == selectedDevice.device.instanceId }
-                                ?: Dadb.discover()
-                                ?: error("Unable to find device with id ${selectedDevice.device.instanceId}"),
-                            openDriver = !connectToExistingSession,
-                        )
-                    }
+                    Platform.ANDROID -> createAndroid(
+                        selectedDevice.device.instanceId,
+                        !connectToExistingSession
+                    )
 
                     Platform.IOS -> createIOS(
                         selectedDevice.host,
@@ -165,7 +160,7 @@ object MaestroSessionManager {
                         !connectToExistingSession
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio = isStudio)
+                    Platform.WEB -> pickWebDevice(isStudio)
                 },
                 device = selectedDevice.device,
             )
@@ -240,7 +235,7 @@ object MaestroSessionManager {
         }
 
         return Maestro.android(
-            dadb = dadb,
+            driver = AndroidDriver(dadb),
             openDriver = openDriver,
         )
     }
@@ -261,6 +256,21 @@ object MaestroSessionManager {
     ): Maestro {
         val device = PickDeviceInteractor.pickDevice(deviceId)
         return createIOS(host, port, device.instanceId, openDriver)
+    }
+
+    private fun createAndroid(instanceId: String, openDriver: Boolean): Maestro {
+        val driver = AndroidDriver(
+            dadb = Dadb
+                .list()
+                .find { it.toString() == instanceId }
+                ?: Dadb.discover()
+                ?: error("Unable to find device with id $instanceId"),
+        )
+
+        return Maestro.android(
+            driver = driver,
+            openDriver = openDriver,
+        )
     }
 
     private fun createIOS(

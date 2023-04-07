@@ -528,11 +528,9 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
 
         fun android(
-            dadb: Dadb,
-            hostPort: Int = 7001,
+            driver: Driver,
             openDriver: Boolean = true,
         ): Maestro {
-            val driver = AndroidDriver(dadb, hostPort = hostPort)
             if (openDriver) {
                 driver.open()
             }

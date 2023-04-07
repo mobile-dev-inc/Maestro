@@ -27,7 +27,6 @@ import maestro.Capability
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.Filters
-import maestro.Filters.asFilter
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.Platform
@@ -71,7 +70,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class AndroidDriver(
     private val dadb: Dadb,
-    private val hostPort: Int,
+    private val hostPort: Int = 7001,
 ) : Driver {
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", hostPort)
