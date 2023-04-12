@@ -226,7 +226,11 @@ class XCTestDriverClient(
                     .code(200)
                     .build()
             } else {
-                throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in ReturnOkOnShutdown")
+                Response.Builder()
+                    .request(it.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(400)
+                    .build()
             }
         }
     })
