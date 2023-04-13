@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.26.1 - 2023-04-13
+* Fix: hideKeyboard crashing on react native apps because swipe fails on some screens 
+
 ## 1.26.0 - 2023-04-13
 * Feature: Adds Travel command to mock motion for app
 * Feature: Adds a capability to match the toast messages
