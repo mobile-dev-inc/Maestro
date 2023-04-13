@@ -5,12 +5,15 @@ import maestro.api.GetRunningAppRequest
 import maestro.logger.Logger
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import xcuitest.api.EraseTextRequest
 import xcuitest.api.InputTextRequest
 import xcuitest.api.PressButtonRequest
@@ -219,16 +222,31 @@ class XCTestDriverClient(
         } catch (connectException: IOException) {
             // Fake an Ok response when shutting down and receiving an error
             // to prevent a stack trace in the cli when running maestro studio.
+
             if (isShuttingDown) {
+                val message = "Shutting down xctest server"
+                val responseBody = """
+                    { "message" : "$message" }
+                """.trimIndent().toResponseBody("application/json; charset=utf-8".toMediaType())
+
                 Response.Builder()
                     .request(it.request())
                     .protocol(Protocol.HTTP_1_1)
+                    .message(message)
+                    .body(responseBody)
                     .code(200)
                     .build()
             } else {
+                val message = "Failed request for XCTest server"
+                val responseBody = """
+                    { "message" : "$message" }
+                """.trimIndent().toResponseBody("application/json; charset=utf-8".toMediaType())
+
                 Response.Builder()
                     .request(it.request())
                     .protocol(Protocol.HTTP_1_1)
+                    .message(message)
+                    .body(responseBody)
                     .code(400)
                     .build()
             }

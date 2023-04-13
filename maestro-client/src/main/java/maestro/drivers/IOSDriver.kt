@@ -50,12 +50,16 @@ import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
 ) : Driver {
 
+    private val executor by lazy { Executors.newSingleThreadExecutor() }
     private val deviceInfo by lazy {
         iosDevice.deviceInfo().expect {}
     }
@@ -379,24 +383,33 @@ class IOSDriver(
     override fun backPress() {}
 
     override fun hideKeyboard() {
-        dismissKeyboardIntroduction()
-        if (isKeyboardHidden()) return
+        val future = executor.submit {
+            dismissKeyboardIntroduction()
 
-        swipe(
-            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-            end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.47)),
-            durationMs = 50,
-        )
+            if (isKeyboardHidden()) return@submit
 
-        if (isKeyboardHidden()) {
-            return
+            swipe(
+                start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
+                end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.47)),
+                durationMs = 50,
+            )
+
+            if (isKeyboardHidden()) return@submit
+
+            swipe(
+                start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
+                end = Point(widthPercentToPoint(0.47), heightPercentToPoint(0.5)),
+                durationMs = 50,
+            )
+
+            waitForAppToSettle(null)
         }
-
-        swipe(
-            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-            end = Point(widthPercentToPoint(0.47), heightPercentToPoint(0.5)),
-            durationMs = 50,
-        )
+        try {
+            future.get(5, TimeUnit.SECONDS)
+        } catch (_: Exception) {
+            // swallow the timeout and exceptions
+            future.cancel(true)
+        }
     }
 
     private fun isKeyboardHidden(): Boolean {
