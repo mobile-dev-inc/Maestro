@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.26.0 - 2023-04-13
+* Feature: Adds Travel command to mock motion for app
+* Feature: Adds a capability to match the toast messages
+* Feature: Add support for console.log in javascript
+* Feature: Allow writing inline flows with runFlow command
+* Change: Adds sms permission to permission names which can be used to allow/deny: android.permission.READ_SMS, android.permission.RECIEVE_SMS, android.permission.SEND_SMS. Thanks, @depapp for the contribution.
+* Change: Maestro can now also match hint text and values of text field.
+* Change: Maestro can now also match elements with their accessibility text.
+* Commands moved away from IDB:
+   * Long press is now done with XCTest instead of idb
+   * Installation of app is now done with simctl commands
+   * Hide keyboard with help of XCTest. We now scroll up and down from the middle of the screen to close the keyboard.
+   * Press key now is done with XCTest.
+   * Note that with this change pressKey: Enter now only wraps on new line - earlier it also closed the keyboard
+   * Erase text is now done with XCTest.
+   * Use simctl to record screen
+* Fix: Web driver no longer crashes when using latest Chrome
+* Fix: Fixes hideKeyboard on android by appropriately dispatching proper event. Thanks, @nhaarman for contribution
+* Fix: Properly shutting down studio by listening to SIGTSP signal
+* Fix: Update granting of notifications and health permissions causing simulator restarts and XCTestUnreachableExceptions.
+
 ## 1.25.0 - 2023-03-13
 * Fix: Shell environment variables can no longer crash the javascript runtime
 * Fix: XCTestRunner and IDB are restarted on connection error
