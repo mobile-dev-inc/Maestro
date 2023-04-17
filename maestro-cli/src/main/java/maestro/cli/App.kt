@@ -130,8 +130,8 @@ fun main(args: Array<String>) {
     if (newVersion != null) {
         System.err.println()
         System.err.println(
-            ("A new version of the Maestro CLI is available ($newVersion). Upgrade instructions:\n" +
-                "https://maestro.mobile.dev/getting-started/installing-maestro#upgrading-the-cli").box()
+            ("A new version of the Maestro CLI is available ($newVersion). Upgrade command:\n" +
+                "curl -Ls \"https://get.maestro.mobile.dev\" | bash").box()
         )
     }
 
