@@ -41,13 +41,13 @@
     "ios",
     "android"
   ],
-  "repository": "https://github.com/mobile-dev-inc/maestro-rn-sdk.git",
+  "repository": "https://github.com/mobile-dev-inc/maestro.git",
   "author": "mobile.dev <support@mobile.dev> (https://mobile.dev)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mobile-dev-inc/maestro-rn-sdk.git/issues"
+    "url": "https://github.com/mobile-dev-inc/maestro/issues"
   },
-  "homepage": "https://github.com/mobile-dev-inc/maestro-rn-sdk.git#readme",
+  "homepage": "https://github.com/mobile-dev-inc/maestro",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
