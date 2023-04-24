@@ -49,6 +49,13 @@ object LocalSimulatorUtils {
         } ?: throw SimctlError("Device $deviceId did not boot in time")
     }
 
+    private fun xcodePath(): String {
+        val process = ProcessBuilder(listOf("xcode-select", "-p"))
+            .start()
+
+        return process.inputStream.bufferedReader().readLine()
+    }
+
     fun launchSimulator(deviceId: String) {
         runCommand(
             listOf(
@@ -59,6 +66,7 @@ object LocalSimulatorUtils {
             )
         )
 
+        val simulatorPath = "${xcodePath()}/Applications/Simulator.app"
         var exceptionToThrow: Exception? = null
 
         // Up to 10 iterations => max wait time of 1 second
@@ -68,7 +76,7 @@ object LocalSimulatorUtils {
                     listOf(
                         "open",
                         "-a",
-                        "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app",
+                        simulatorPath,
                         "--args",
                         "-CurrentDeviceUDID",
                         deviceId
