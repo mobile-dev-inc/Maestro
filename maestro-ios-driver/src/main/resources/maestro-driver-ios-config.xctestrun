@@ -35,8 +35,6 @@
 			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
 			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app/PlugIns/maestro-driver-iosUITests.xctest</string>
 		</array>
-		<key>DiagnosticCollectionPolicy</key>
-		<integer>1</integer>
 		<key>EnvironmentVariables</key>
 		<dict>
 			<key>OS_ACTIVITY_DT_MODE</key>
@@ -71,7 +69,7 @@
 			<key>DYLD_FRAMEWORK_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__TESTROOT__/Debug-iphonesimulator/PackageFrameworks:__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks</string>
 			<key>DYLD_INSERT_LIBRARIES</key>
-			<string>__SIMRUNTIMEROOT__/usr/lib/libMainThreadChecker.dylib</string>
+			<string>/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 15.4.simruntime/Contents/Resources/RuntimeRoot/usr/lib/libMainThreadChecker.dylib</string>
 			<key>DYLD_LIBRARY_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__PLATFORMS__/iPhoneSimulator.platform/Developer/usr/lib</string>
 			<key>MTC_CRASH_ON_REPORT</key>

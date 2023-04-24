@@ -1,6 +1,8 @@
 ## Build the UI test
 ## TODO: make destination generic for iOS 15 simulator
-xcodebuild -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
+xcodebuild ARCHS="x86_64 arm64" \
+  ONLY_ACTIVE_ARCH=NO \
+  -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
   -scheme maestro-driver-ios -sdk iphonesimulator \
   -destination "platform=iOS Simulator,name=iPhone 13,OS=15.4" \
   -IDEBuildLocationStyle=Custom \
