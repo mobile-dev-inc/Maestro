@@ -881,12 +881,22 @@ class Orchestra(
 
     private fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
         val result = findElement(command.selector)
-        copiedText = result.element.treeNode.attributes["text"]
+        copiedText = resolveText(result.element.treeNode.attributes)
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
 
         jsEngine.evaluateScript("maestro.copiedText = '${Js.sanitizeJs(copiedText ?: "")}'")
 
         return true
+    }
+
+    private fun resolveText(attributes: MutableMap<String, String>): String? {
+        return if (!attributes["text"].isNullOrEmpty()) {
+            attributes["text"]
+        } else if(!attributes["hintText"].isNullOrEmpty()) {
+            attributes["hintText"]
+        } else {
+            attributes["accessibilityText"]
+        }
     }
 
     private fun pasteText(): Boolean {
