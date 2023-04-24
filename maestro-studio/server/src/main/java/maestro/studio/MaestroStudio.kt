@@ -13,6 +13,7 @@ import io.ktor.server.routing.routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import maestro.Maestro
+import maestro.mockserver.MockInteractor
 
 object MaestroStudio {
 

@@ -53,6 +53,7 @@ import java.nio.file.Files
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 import kotlin.collections.set
 
 class IOSDriver(
@@ -103,8 +104,9 @@ class IOSDriver(
     override fun launchApp(
         appId: String,
         launchArguments: List<String>,
+        sessionId: UUID?,
     ) {
-        iosDevice.launch(appId, launchArguments)
+        iosDevice.launch(appId, launchArguments, sessionId)
             .onSuccess { this.appId = appId }
             .getOrThrow {
                 MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")

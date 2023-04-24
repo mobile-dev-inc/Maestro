@@ -45,7 +45,6 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.protobuf.ByteString
-import dev.mobile.maestro.sdk.SdkService
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
@@ -60,8 +59,6 @@ import maestro_android.viewHierarchyResponse
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
-import java.util.UUID
-import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 
 /**
@@ -74,10 +71,6 @@ class MaestroDriverService {
 
     @Test
     fun grpcServer() {
-        // TODO accept session ID from Maestro client instead
-        SdkService.initSession(UUID.randomUUID().toString())
-        SdkService.startService()
-
         Configurator.getInstance()
             .setActionAcknowledgmentTimeout(0L)
             .setWaitForIdleTimeout(0L)

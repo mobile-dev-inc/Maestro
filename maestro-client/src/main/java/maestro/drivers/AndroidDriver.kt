@@ -62,6 +62,7 @@ import org.w3c.dom.Node
 import org.xml.sax.SAXException
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -170,6 +171,7 @@ class AndroidDriver(
     override fun launchApp(
         appId: String,
         launchArguments: List<String>,
+        sessionId: UUID?,
     ) {
         if (!isPackageInstalled(appId)) {
             throw IllegalArgumentException("Package $appId is not installed")
@@ -179,6 +181,8 @@ class AndroidDriver(
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
             val manifest = apkFile.asManifest()
             runCatching {
+                val sessionUUID = sessionId ?: UUID.randomUUID()
+                dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
                 val launcherActivity = manifest.resolveLauncherActivity(appId)
                 val shellResponse = dadb.shell("am start-activity -n $appId/${launcherActivity}")
                 if (shellResponse.errorOutput.isNotEmpty()) shell("monkey --pct-syskeys 0 -p $appId 1")

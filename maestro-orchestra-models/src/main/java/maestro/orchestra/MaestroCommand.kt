@@ -60,6 +60,7 @@ data class MaestroCommand(
     val mockNetworkCommand: MockNetworkCommand? = null,
     val scrollUntilVisible: ScrollUntilVisibleCommand? = null,
     val travelCommand: TravelCommand? = null,
+    val assertOutgoingRequestsCommand: AssertOutgoingRequestsCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -95,6 +96,7 @@ data class MaestroCommand(
         mockNetworkCommand = command as? MockNetworkCommand,
         scrollUntilVisible = command as? ScrollUntilVisibleCommand,
         travelCommand = command as? TravelCommand,
+        assertOutgoingRequestsCommand = command as? AssertOutgoingRequestsCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -130,6 +132,7 @@ data class MaestroCommand(
         mockNetworkCommand != null -> mockNetworkCommand
         scrollUntilVisible != null -> scrollUntilVisible
         travelCommand != null -> travelCommand
+        assertOutgoingRequestsCommand != null -> assertOutgoingRequestsCommand
         else -> null
     }
 

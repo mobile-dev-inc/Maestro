@@ -1,21 +1,18 @@
 package maestro.cli.command.mockserver
 
-import maestro.cli.session.MaestroSessionManager
-import maestro.cli.session.SessionStore
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
 import maestro.cli.view.faint
 import maestro.studio.MaestroStudio
-import maestro.studio.MockInteractor
+import maestro.mockserver.MockInteractor
 import picocli.CommandLine.Command
 import picocli.CommandLine.ParentCommand
 import java.awt.Desktop
 import java.net.ServerSocket
 import java.net.URI
 import java.util.concurrent.Callable
-import kotlin.concurrent.thread
 
 @Command(
     name = "open",

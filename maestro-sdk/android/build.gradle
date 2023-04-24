@@ -28,7 +28,4 @@ plugins.withId("com.vanniktech.maven.publish") {
 }
 
 dependencies {
-    implementation(libs.square.okhttp)
-    implementation(libs.jackson.core.databind)
-    implementation(libs.jackson.module.kotlin)
 }

@@ -65,6 +65,7 @@ import okio.buffer
 import okio.source
 import java.io.File
 import java.io.InputStream
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.zip.GZIPInputStream
 
@@ -382,6 +383,7 @@ class IdbIOSDevice(
     override fun launch(
         id: String,
         launchArguments: List<String>,
+        maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         return runWithRestartRecovery {
             val responseObserver = BlockingStreamObserver<Idb.LaunchResponse>()

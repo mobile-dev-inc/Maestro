@@ -1,5 +1,5 @@
 import { ResponseComposition, rest, RestContext, setupWorker } from 'msw';
-import { DeviceScreen, ReplCommand } from './models';
+import { DeviceScreen, MockEvent, ReplCommand } from './models';
 import { sampleElements } from './sampleElements';
 import { wait } from './api';
 
@@ -133,8 +133,8 @@ const handlers = [
         body: 'Lorem ipsum dolor sit amet'
       }
 
-      events.push({
-        timestamp: Date.now(),
+      const event: MockEvent = {
+        timestamp: new Date().toISOString(),
         path: i === 2 ?  `/posts/${i}/alksudhjioash78902qbnpiasy091g089qg978§1gs0789gq078gw180hgb1s8008sg1078g1s08g1s08s1jkshipasha0ish0aisha908sh80ash0asha0shas90-ha` : `/posts/${i}`,
         matched: i % 3 !== 0,
         response,
@@ -142,12 +142,22 @@ const handlers = [
         statusCode: simulateRuntimeError ? 500 : (i % 7 === 0 ? 401 : 200) ,
         sessionId: sessionId,
         projectId: projectId,
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer REDACTED'
+        }
+      }
+
+      if ((i + 1) % 3 === 0) {
+        event.bodyAsString = JSON.stringify({ foo: 'bar', body: true })
+      }
+
+      events.push(event)
     }
 
     return res(ctx.delay(500), ctx.status(200), ctx.json({
       projectId,
-      events: []
+      events
     }))
   })
 ]

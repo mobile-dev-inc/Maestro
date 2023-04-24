@@ -25,6 +25,7 @@ import ios.device.DeviceInfo
 import okio.Sink
 import java.io.File
 import java.io.InputStream
+import java.util.UUID
 
 interface IOSDevice : AutoCloseable {
 
@@ -114,6 +115,7 @@ interface IOSDevice : AutoCloseable {
     fun launch(
         id: String,
         launchArguments: List<String>,
+        maestroSessionId: UUID?,
     ): Result<Unit, Throwable>
 
     /**

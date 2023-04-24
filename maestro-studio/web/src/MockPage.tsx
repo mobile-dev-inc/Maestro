@@ -34,6 +34,76 @@ const safeParse = (res: any, fallback: Object): Object => {
   }
 }
 
+const UsageExamples = ({ event }: { event: MockEvent }) => (
+  <>
+    <h1 className="text-lg font-bold mt-12 mb-2">Mock usage examples</h1>
+    <a
+      className="text-blue-400 underline underline-offset-2 whitespace-nowrap mb-4"
+      href="https://maestro.mobile.dev/advanced/experimental/maestro-mock-server/writing-rules"
+      target="_blank"
+      rel="noopener noreferrer"
+    >View Documentation</a>
+
+    <div className="h-100 overflow-y-scroll space-y-4 pb-2">
+      <div>
+        <span className="text-slate-500 whitespace-nowrap">Basic</span>
+        <CodeSnippet>
+          {`${getMockMethod(event.method)}('${event.path}', (req, res, session) => {\n\tres.status(${event.statusCode}).json({\n\t\tmockedResponse: true\n\t});\n});`}
+        </CodeSnippet>
+      </div>
+
+      <div>
+        <span className="text-slate-500 whitespace-nowrap">Use session</span>
+        <CodeSnippet>
+          {`${getMockMethod(event.method)}('${event.path}', (req, res, session) => {\n\tsession.count = (session.count || 0) + 1;\n\n\tres.status(${event.statusCode}).json({\n\t\tmockedResponse: true,\n\t\tcount: session.count\n\t});\n});`}
+        </CodeSnippet>
+      </div>
+
+      <div>
+        <span className="text-slate-500 whitespace-nowrap">Decorate original response</span>
+        <CodeSnippet>
+          {`${getMockMethod(event.method)}('${event.path}', async (req, res, session) => {\n\tconst originalRes = await req.propagate();\n\tconst data = originalRes.json();\n\n\tres.status(${event.statusCode}).json({\n\t\t...data,\n\t\tmockedResponse: true\n\t});\n});`}
+        </CodeSnippet>
+      </div>
+    </div>
+  </>
+)
+
+const PayloadView = ({ title, data }: { title: string, data?: string }) => (
+  <>
+    {!!data ? (
+      <>
+        <h1 className="text-lg font-bold">{title}</h1>
+        <JsonViewer 
+          value={safeParse(data, {})}
+          theme="dark"
+          displayDataTypes={false}
+          displayObjectSize={false}
+          defaultInspectDepth={6}
+          rootName={false}
+          style={{padding: 20, fontSize: '1.25em', overflowY: 'scroll', minHeight: '20%', maxHeight: '40%'}}
+        />
+      </>
+    ) : null}
+  </>
+)
+
+const MockEventData = ({ event }: { event: MockEvent }) => (
+  <>
+    <PayloadView data={event.bodyAsString} title="Request body"  />
+    {!!event.headers && Object.keys(event.headers).length > 0 ? (
+      <div className="py-2">
+        <p className="text-lg font-bold">Request headers</p>
+        {Object.entries(event.headers).map(([headerName, headerValue]) => (
+          <p>{headerName}: {headerValue}</p>
+        ))}
+      </div>
+    ) : null}
+
+    <PayloadView data={event.response} title={!!event?.matched ? 'Mocked response' : 'Response'}  />
+  </>
+)
+
 const MockPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<MockEvent | undefined>()
   const [query, setQuery] = useState<string>('')
@@ -70,7 +140,7 @@ const MockPage = () => {
           </div>
           <div className="flex flex-row pt-2 max-h-full overflow-scroll">
             <div className="flex flex-col w-full basis-2/4 overflow-hidden">
-              <h1 className="text-lg font-bold select-none">Events</h1>
+              <h1 className="text-xl font-bold select-none">Events</h1>
               <input
                 type="search"
                 placeholder="Filter events by session id, path, status code, response"
@@ -99,50 +169,12 @@ const MockPage = () => {
             </div>
 
             <div className="flex flex-col basis-2/4 px-8 overflow-hidden">
-              <h1 className="text-lg font-bold">{!!selectedEvent?.matched ? 'Mocked response' : 'Response'}</h1>
+              <p className="text-xl font-bold">Event data</p>
               {!selectedEvent ? <p className="text-slate-500">No event selected</p> : (
                 <>
-                  <JsonViewer 
-                    value={safeParse(selectedEvent.response, {})}
-                    theme="dark"
-                    displayDataTypes={false}
-                    displayObjectSize={false}
-                    defaultInspectDepth={6}
-                    rootName={false}
-                    style={{padding: 20, fontSize: '1.25em', overflowY: 'scroll', minHeight: '25%', maxHeight: '40%'}}
-                  />
-
-                  <h1 className="text-lg font-bold mt-12 mb-2">Here are some examples of how you can mock this network call:</h1>
-                  <a
-                    className="text-blue-400 underline underline-offset-2 whitespace-nowrap mb-4"
-                    href="https://maestro.mobile.dev/advanced/experimental/maestro-mock-server/writing-rules"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >View Documentation</a>
-                  
-                  <div className="h-100 overflow-y-scroll space-y-4 pb-2">
-                    <div>
-                      <span className="text-slate-500 whitespace-nowrap">Basic</span>
-                      <CodeSnippet>
-                        {`${getMockMethod(selectedEvent.method)}('${selectedEvent.path}', (req, res, session) => {\n\tres.status(${selectedEvent.statusCode}).json({\n\t\tmockedResponse: true\n\t});\n});`}
-                      </CodeSnippet>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-500 whitespace-nowrap">Use session</span>
-                      <CodeSnippet>
-                        {`${getMockMethod(selectedEvent.method)}('${selectedEvent.path}', (req, res, session) => {\n\tsession.count = (session.count || 0) + 1;\n\n\tres.status(${selectedEvent.statusCode}).json({\n\t\tmockedResponse: true,\n\t\tcount: session.count\n\t});\n});`}
-                      </CodeSnippet>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-500 whitespace-nowrap">Decorate original response</span>
-                      <CodeSnippet>
-                        {`${getMockMethod(selectedEvent.method)}('${selectedEvent.path}', async (req, res, session) => {\n\tconst originalRes = await req.propagate();\n\tconst data = originalRes.json();\n\n\tres.status(${selectedEvent.statusCode}).json({\n\t\t...data,\n\t\tmockedResponse: true\n\t});\n});`}
-                      </CodeSnippet>
-                    </div>
-                  </div>
-              </>
+                  <MockEventData event={selectedEvent} />
+                  <UsageExamples event={selectedEvent} />
+                </>
               )}
             </div>
           </div>

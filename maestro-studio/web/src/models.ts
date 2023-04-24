@@ -55,5 +55,7 @@ export type MockEvent = {
   statusCode: number,
   method: string,
   sessionId: string,
-  projectId: string
+  projectId: string,
+  bodyAsString?: string,
+  headers?: {[key: string]: string}
 }

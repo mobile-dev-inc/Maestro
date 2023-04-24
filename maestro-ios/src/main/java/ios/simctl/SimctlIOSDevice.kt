@@ -15,6 +15,7 @@ import java.io.File
 import java.io.InputStream
 import java.nio.channels.Channels
 import java.nio.file.Files
+import java.util.UUID
 
 class SimctlIOSDevice(
     override val deviceId: String,
@@ -99,12 +100,14 @@ class SimctlIOSDevice(
     override fun launch(
         id: String,
         launchArguments: List<String>,
+        maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         return runCatching {
             LocalSimulatorUtils.launch(
                 deviceId = deviceId,
                 bundleId = id,
                 launchArguments = launchArguments,
+                sessionId = null
             )
         }
     }

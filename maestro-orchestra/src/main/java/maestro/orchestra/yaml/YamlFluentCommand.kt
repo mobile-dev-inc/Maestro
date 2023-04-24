@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import maestro.KeyCode
 import maestro.Point
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertOutgoingRequestsCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.Condition
@@ -94,6 +95,7 @@ data class YamlFluentCommand(
     val mockNetwork: String? = null,
     val scrollUntilVisible: YamlScrollUntilVisible? = null,
     val travel: YamlTravelCommand? = null,
+    val assertOutgoingRequest: YamlAssertOutgoingRequestsCommand? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -210,6 +212,7 @@ data class YamlFluentCommand(
             )
             scrollUntilVisible != null -> listOf(scrollUntilVisibleCommand(scrollUntilVisible))
             travel != null -> listOf(travelCommand(travel))
+            assertOutgoingRequest != null -> listOf(assertOutgoingRequestsCommand(assertOutgoingRequest))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -239,6 +242,18 @@ data class YamlFluentCommand(
                 commands = commands,
                 condition = runFlow.`when`?.toCondition(),
                 sourceDescription = runFlow.file,
+            )
+        )
+    }
+
+    private fun assertOutgoingRequestsCommand(command: YamlAssertOutgoingRequestsCommand): MaestroCommand {
+        return MaestroCommand(
+            AssertOutgoingRequestsCommand(
+                path = command.path,
+                headersPresent = command.headersPresent,
+                headersAndValues = command.headersAndValues,
+                httpMethodIs = command.httpMethodIs,
+                requestBodyContains = command.requestBodyContains,
             )
         )
     }

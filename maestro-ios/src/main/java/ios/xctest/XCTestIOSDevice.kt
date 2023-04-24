@@ -18,6 +18,7 @@ import xcuitest.api.GetRunningAppIdResponse
 import xcuitest.api.IsScreenStaticResponse
 import java.io.File
 import java.io.InputStream
+import java.util.UUID
 
 class XCTestIOSDevice(
     override val deviceId: String?,
@@ -202,6 +203,7 @@ class XCTestIOSDevice(
     override fun launch(
         id: String,
         launchArguments: List<String>,
+        maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         error("Not supported")
     }

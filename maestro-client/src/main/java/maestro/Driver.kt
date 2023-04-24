@@ -21,6 +21,7 @@ package maestro
 
 import okio.Sink
 import java.io.File
+import java.util.UUID
 
 interface Driver {
 
@@ -35,6 +36,7 @@ interface Driver {
     fun launchApp(
         appId: String,
         launchArguments: List<String>,
+        sessionId: UUID? = null,
     )
 
     fun stopApp(appId: String)

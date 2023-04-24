@@ -1,31 +1,13 @@
 package dev.mobile.maestro.sdk.mockserver
 
 import android.util.Base64
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dev.mobile.maestro.sdk.MaestroSdk
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import java.util.UUID
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import dev.mobile.maestro.sdk.session.MaestroSession
 
 class MaestroMockServerSdk internal constructor() {
 
-    private val httpClient by lazy {
-        OkHttpClient.Builder()
-            .readTimeout(5, TimeUnit.MINUTES)
-            .writeTimeout(5, TimeUnit.MINUTES)
-            .protocols(listOf(Protocol.HTTP_1_1))
-            .build()
-    }
-
-    private val jsonMapper by lazy {
-        jacksonObjectMapper()
-    }
-
     fun url(baseUrl: String): String {
-        val sessionInfo = obtainSessionInfo()
+        val sessionInfo = MaestroSession.getSessionInfo()
 
         val sessionPayload = generateSessionPayload(
             sessionId = sessionInfo.sessionId,
@@ -38,40 +20,6 @@ class MaestroMockServerSdk internal constructor() {
         } else {
             url
         }
-    }
-
-    private fun obtainSessionInfo(): SessionInfo {
-        val sessionFuture = Executors.newSingleThreadExecutor()
-            .submit<SessionInfo> {
-                querySessionInfoFromSdk()
-            }
-
-        val sessionInfo = try {
-            sessionFuture.get()
-        } catch (ignored: Exception) {
-            SessionInfo(
-                sessionId = UUID.randomUUID().toString(),
-            )
-        }
-
-        return sessionInfo
-    }
-
-    private fun querySessionInfoFromSdk(): SessionInfo {
-        val request = Request.Builder()
-            .get()
-            .url("http://localhost:7008/session")
-            .build()
-
-        return httpClient
-            .newCall(request)
-            .execute()
-            .use {
-                jsonMapper.readValue(
-                    it.body?.bytes(),
-                    SessionInfo::class.java
-                )
-            }
     }
 
     private fun generateSessionPayload(
@@ -92,8 +40,7 @@ class MaestroMockServerSdk internal constructor() {
         )
     }
 
-    data class SessionInfo(
-        val sessionId: String,
-    )
+
+
 
 }

@@ -437,6 +437,7 @@ message LaunchRequest {
     bool foreground_if_running = 4;
     bool wait_for = 5;
     bool wait_for_debugger = 6;
+    string session_id = 7;
   }
   message Stop {}
   oneof control {

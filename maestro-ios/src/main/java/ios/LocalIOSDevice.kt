@@ -13,6 +13,7 @@ import ios.xctest.XCTestIOSDevice
 import okio.Sink
 import java.io.File
 import java.io.InputStream
+import java.util.UUID
 
 class LocalIOSDevice(
     override val deviceId: String?,
@@ -109,9 +110,10 @@ class LocalIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: List<String>
+        launchArguments: List<String>,
+        maestroSessionId: UUID?
     ): Result<Unit, Throwable> {
-        return simctlIOSDevice.launch(id, launchArguments)
+        return simctlIOSDevice.launch(id, launchArguments, maestroSessionId)
     }
 
     override fun stop(id: String): Result<Unit, Throwable> {

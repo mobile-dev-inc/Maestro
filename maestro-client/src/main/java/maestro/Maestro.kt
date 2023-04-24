@@ -20,10 +20,8 @@
 package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
-import dadb.Dadb
 import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElementOrNull
-import maestro.drivers.AndroidDriver
 import maestro.drivers.WebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
@@ -34,9 +32,12 @@ import okio.sink
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.util.UUID
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(private val driver: Driver) : AutoCloseable {
+
+    private val sessionId = UUID.randomUUID()
 
     private val cachedDeviceInfo by lazy {
         fetchDeviceInfo()
@@ -66,7 +67,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         if (stopIfRunning) {
             driver.stopApp(appId)
         }
-        driver.launchApp(appId, launchArguments)
+        driver.launchApp(appId, launchArguments, sessionId = sessionId)
     }
 
     fun stopApp(appId: String) {
@@ -508,6 +509,27 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
     fun isUnicodeInputSupported(): Boolean {
         return driver.isUnicodeInputSupported()
+    }
+
+    fun assertOutgoingRequest(
+        path: String? = null,
+        assertHeaderIsPresent: List<String> = emptyList(),
+        assertHeadersAndValues: Map<String, String> = emptyMap(),
+        assertHttpMethod: String? = null,
+        assertRequestBodyContains: String? = null,
+    ): Boolean {
+        val events = AssertOutgoingRequestService.getMockEvents(sessionId)
+        if (events.isEmpty()) return false
+
+        val rules = OutgoingRequestRules(
+            path = path,
+            headersPresent = assertHeaderIsPresent,
+            headersAndValues = assertHeadersAndValues,
+            httpMethodIs = assertHttpMethod,
+            requestBodyContains = assertRequestBodyContains,
+        )
+        val matched = AssertOutgoingRequestService.match(events, rules)
+        return matched.isNotEmpty()
     }
 
     companion object {

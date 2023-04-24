@@ -34,6 +34,10 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
         val hierarchyRoot: TreeNode,
     ) : MaestroException(message)
 
+    open class OutgoingRequestAssertionFailure(
+        message: String,
+    ) : MaestroException(message)
+
     class ElementNotFound(
         message: String,
         hierarchyRoot: TreeNode,
