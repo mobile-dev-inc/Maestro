@@ -125,7 +125,7 @@ class LocalXCTestInstaller(
     }
 
     private fun startXCTestRunner() {
-        val processOutput = ProcessBuilder(listOf("xcrun", "simctl", "spawn", "booted", "launchctl", "list"))
+        val processOutput = ProcessBuilder(listOf("xcrun", "simctl", "spawn", deviceId, "launchctl", "list"))
             .start()
             .inputStream.source().buffer().readUtf8()
             .trim()
