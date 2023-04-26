@@ -332,6 +332,12 @@ class FakeDriver : Driver {
         }
     }
 
+    fun assertNoEvent(event: Event) {
+        if (events.contains(event)) {
+            throw AssertionError("Expected no event: $event\nActual events: $events")
+        }
+    }
+
     fun assertAnyEvent(condition: ((event: Event) -> Boolean)) {
         assertThat(events.any { condition(it) }).isTrue()
     }

@@ -2611,6 +2611,24 @@ class IntegrationTest {
         ))
     }
 
+    @Test
+    fun `096 - platform condition`() {
+        // Given
+        val commands = readCommands("096_platform_condition")
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.InputText("Hello iOS"))
+        driver.assertHasEvent(Event.InputText("Hello ios"))
+        driver.assertNoEvent(Event.InputText("Hello Android"))
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

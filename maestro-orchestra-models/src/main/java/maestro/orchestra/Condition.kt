@@ -1,9 +1,11 @@
 package maestro.orchestra
 
+import maestro.Platform
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 
 data class Condition(
+    val platform: Platform? = null,
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null
@@ -19,6 +21,10 @@ data class Condition(
 
     fun description(): String {
         val descriptions = mutableListOf<String>()
+
+        platform?.let {
+            descriptions.add("Platform is $it")
+        }
 
         visible?.let {
             descriptions.add("${it.description()} is visible")
