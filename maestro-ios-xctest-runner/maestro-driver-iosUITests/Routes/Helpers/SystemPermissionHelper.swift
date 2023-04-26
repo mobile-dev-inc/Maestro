@@ -25,7 +25,7 @@ final class SystemPermissionHelper {
                 if dontAllowButton.exists {
                     dontAllowButton.tap()
                 }
-            case .unset:
+            case .unset, .unknown:
                 // do nothing
                 break
             }
