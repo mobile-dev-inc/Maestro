@@ -175,10 +175,11 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         retryIfNoChange: Boolean = true,
         waitUntilVisible: Boolean = false,
         longPress: Boolean = false,
+        appId: String? = null
     ) {
         LOGGER.info("Tapping on element: $element")
 
-        val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy) ?: initialHierarchy
+        val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy, appId) ?: initialHierarchy
 
         val center = (
             hierarchyBeforeTap
@@ -410,8 +411,8 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return filter(viewHierarchy().aggregate())
     }
 
-    fun waitForAppToSettle(initialHierarchy: ViewHierarchy? = null): ViewHierarchy? {
-        return driver.waitForAppToSettle(initialHierarchy)
+    fun waitForAppToSettle(initialHierarchy: ViewHierarchy? = null, appId: String? = null): ViewHierarchy? {
+        return driver.waitForAppToSettle(initialHierarchy, appId)
     }
 
     fun inputText(text: String) {

@@ -17,6 +17,8 @@ service MaestroDriver {
   rpc eraseAllText(EraseAllTextRequest) returns (EraseAllTextResponse) {}
 
   rpc setLocation(SetLocationRequest) returns (SetLocationResponse) {}
+
+  rpc isWindowUpdating(CheckWindowUpdatingRequest) returns (CheckWindowUpdatingResponse) {}
 }
 
 // Device info
@@ -67,3 +69,11 @@ message SetLocationRequest {
 }
 
 message SetLocationResponse {}
+
+message CheckWindowUpdatingRequest {
+  string appId = 1;
+}
+
+message CheckWindowUpdatingResponse {
+  bool isWindowUpdating = 1;
+}

@@ -172,7 +172,8 @@ class Orchestra(
                 tapOnElement(
                     command,
                     command.retryIfNoChange ?: true,
-                    command.waitUntilVisible ?: false
+                    command.waitUntilVisible ?: false,
+                    config
                 )
             }
 
@@ -632,6 +633,7 @@ class Orchestra(
         command: TapOnElementCommand,
         retryIfNoChange: Boolean,
         waitUntilVisible: Boolean,
+        config: MaestroConfig?,
     ): Boolean {
         return try {
             val result = findElement(command.selector)
@@ -641,6 +643,7 @@ class Orchestra(
                 retryIfNoChange,
                 waitUntilVisible,
                 command.longPress ?: false,
+                config?.appId
             )
 
             true

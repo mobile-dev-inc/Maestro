@@ -49,6 +49,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
 import maestro_android.MaestroDriverGrpc
+import maestro_android.checkWindowUpdatingResponse
 import maestro_android.deviceInfo
 import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
@@ -212,6 +213,16 @@ class Service(
             Log.e("Maestro", "Failed to compress bitmap")
             responseObserver.onError(Throwable("Failed to compress bitmap"))
         }
+    }
+
+    override fun isWindowUpdating(
+        request: MaestroAndroid.CheckWindowUpdatingRequest,
+        responseObserver: StreamObserver<MaestroAndroid.CheckWindowUpdatingResponse>
+    ) {
+        responseObserver.onNext(checkWindowUpdatingResponse {
+            isWindowUpdating = uiDevice.waitForWindowUpdate(request.appId, 500)
+        })
+        responseObserver.onCompleted()
     }
 
     override fun setLocation(

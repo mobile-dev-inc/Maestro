@@ -363,7 +363,7 @@ class FakeDriver : Driver {
         }
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?): ViewHierarchy? {
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?): ViewHierarchy? {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
     }
 
