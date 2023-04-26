@@ -59,7 +59,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
     fun launchApp(
         appId: String,
-        launchArguments: List<String> = emptyList(),
+        launchArguments: Map<String, Any> = emptyMap(),
         stopIfRunning: Boolean = true
     ) {
         LOGGER.info("Launching app $appId")

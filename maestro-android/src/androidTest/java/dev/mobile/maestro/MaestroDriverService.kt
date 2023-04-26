@@ -3,6 +3,7 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
+import android.content.Intent
 import android.graphics.Bitmap
 import android.location.Criteria
 import android.location.Location
@@ -53,6 +54,7 @@ import maestro_android.checkWindowUpdatingResponse
 import maestro_android.deviceInfo
 import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
+import maestro_android.launchAppResponse
 import maestro_android.screenshotResponse
 import maestro_android.setLocationResponse
 import maestro_android.tapResponse
@@ -101,6 +103,36 @@ class Service(
     private val geoHandler = Handler(Looper.getMainLooper())
     private var locationCounter = 0
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
+
+    override fun launchApp(
+        request: MaestroAndroid.LaunchAppRequest,
+        responseObserver: StreamObserver<MaestroAndroid.LaunchAppResponse>
+    ) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+        val intent = context.packageManager.getLaunchIntentForPackage(request.packageName)
+
+        if (intent == null) {
+            Log.e("Maestro", "No launcher intent found for package ${request.packageName}")
+            responseObserver.onError(RuntimeException("No launcher intent found for package ${request.packageName}"))
+            return
+        }
+
+        request.argumentsList
+            .forEach {
+                when (it.type) {
+                    String::class.java.name -> intent.putExtra(it.key, it.value)
+                    Boolean::class.java.name -> intent.putExtra(it.key, it.value.toBoolean())
+                    Int::class.java.name -> intent.putExtra(it.key, it.value.toInt())
+                    Double::class.java.name -> intent.putExtra(it.key, it.value.toDouble())
+                    else -> intent.putExtra(it.key, it.value)
+                }
+            }
+        context.startActivity(intent)
+
+        responseObserver.onNext(launchAppResponse { })
+        responseObserver.onCompleted()
+    }
 
     override fun deviceInfo(
         request: MaestroAndroid.DeviceInfoRequest,
@@ -346,5 +378,9 @@ class Service(
 
     private fun keyPressShiftedToEvents(uiDevice: UiDevice, keyCode: Int) {
         uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
+    }
+
+    companion object {
+        private const val LENGTH_KEY_VALUE_PAIR = 2
     }
 }

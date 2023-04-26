@@ -103,7 +103,7 @@ class IOSDriver(
 
     override fun launchApp(
         appId: String,
-        launchArguments: List<String>,
+        launchArguments: Map<String, Any>,
         sessionId: UUID?,
     ) {
         iosDevice.launch(appId, launchArguments, sessionId)

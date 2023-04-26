@@ -202,7 +202,7 @@ class XCTestIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: List<String>,
+        launchArguments: Map<String, Any>,
         maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         error("Not supported")

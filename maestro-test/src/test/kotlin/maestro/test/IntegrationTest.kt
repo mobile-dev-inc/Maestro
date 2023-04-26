@@ -2603,10 +2603,11 @@ class IntegrationTest {
         // Then
         driver.assertHasEvent(Event.LaunchApp(
             appId = "com.example.app",
-            launchArguments = listOf(
-                "argumentA",
-                "argumentB",
-                "argumentC",
+            launchArguments = mapOf(
+                "argumentA" to true,
+                "argumentB" to 4,
+                "argumentC" to 4.0,
+                "argumentD" to "Hello String Value true"
             )
         ))
     }

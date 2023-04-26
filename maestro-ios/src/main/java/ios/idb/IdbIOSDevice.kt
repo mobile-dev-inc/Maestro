@@ -382,7 +382,7 @@ class IdbIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: List<String>,
+        launchArguments: Map<String, Any>,
         maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         return runWithRestartRecovery {
@@ -392,10 +392,6 @@ class IdbIOSDevice(
                 launchRequest {
                     start = idb.LaunchRequestKt.start {
                         bundleId = id
-
-                        if (launchArguments.isNotEmpty()) {
-                            appArgs.addAll(launchArguments)
-                        }
                     }
                 }
             )

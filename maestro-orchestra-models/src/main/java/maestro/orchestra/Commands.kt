@@ -348,7 +348,7 @@ data class LaunchAppCommand(
     val clearKeychain: Boolean? = null,
     val stopApp: Boolean? = null,
     var permissions: Map<String, String>? = null,
-    val launchArguments: List<String>? = null,
+    val launchArguments: Map<String, Any>? = null,
 ) : Command {
 
     override fun description(): String {
@@ -367,7 +367,7 @@ data class LaunchAppCommand(
         }
 
         if (launchArguments != null) {
-            result += " (launch arguments: ${launchArguments.joinToString(" ")})"
+            result += " (launch arguments: ${launchArguments})"
         }
 
         return result
@@ -376,9 +376,10 @@ data class LaunchAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            launchArguments = launchArguments
-                ?.map { it.evaluateScripts(jsEngine) }
-                ?.filter { it.isNotBlank() && it != "null" },
+            launchArguments = launchArguments?.entries?.associate {
+                val value = it.value
+                it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
+            },
         )
     }
 }

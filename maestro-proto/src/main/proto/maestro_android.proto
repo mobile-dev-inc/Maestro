@@ -19,7 +19,23 @@ service MaestroDriver {
   rpc setLocation(SetLocationRequest) returns (SetLocationResponse) {}
 
   rpc isWindowUpdating(CheckWindowUpdatingRequest) returns (CheckWindowUpdatingResponse) {}
+
+  rpc launchApp(LaunchAppRequest) returns (LaunchAppResponse) {}
 }
+
+message LaunchAppRequest {
+
+  string packageName = 1;
+  repeated ArgumentValue arguments = 2;
+}
+
+message ArgumentValue {
+  string key = 1;
+  string value = 2;
+  string type = 3;
+}
+
+message LaunchAppResponse {}
 
 // Device info
 message DeviceInfoRequest {}

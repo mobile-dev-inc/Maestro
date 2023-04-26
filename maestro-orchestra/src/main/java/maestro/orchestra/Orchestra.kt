@@ -592,7 +592,7 @@ class Orchestra(
         try {
             maestro.launchApp(
                 appId = command.appId,
-                launchArguments = command.launchArguments ?: emptyList(),
+                launchArguments = command.launchArguments ?: emptyMap(),
                 stopIfRunning = command.stopApp ?: true
             )
         } catch (e: Exception) {
@@ -955,6 +955,7 @@ class Orchestra(
         val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
         private const val MAX_ERASE_CHARACTERS = 50
+        private const val MAX_LAUNCH_ARGUMENT_PAIRS_ALLOWED = 1
     }
 }
 

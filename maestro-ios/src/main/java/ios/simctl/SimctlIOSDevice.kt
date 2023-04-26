@@ -10,6 +10,7 @@ import ios.device.DeviceInfo
 import okio.Sink
 import okio.buffer
 import okio.source
+import util.IOSLaunchArguments.toIOSLaunchArguments
 import util.LocalSimulatorUtils
 import java.io.File
 import java.io.InputStream
@@ -99,14 +100,15 @@ class SimctlIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: List<String>,
+        launchArguments: Map<String, Any>,
         maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         return runCatching {
+            val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()
             LocalSimulatorUtils.launch(
                 deviceId = deviceId,
                 bundleId = id,
-                launchArguments = launchArguments,
+                launchArguments = iOSLaunchArguments,
                 sessionId = maestroSessionId?.toString() ?: null,
             )
         }
