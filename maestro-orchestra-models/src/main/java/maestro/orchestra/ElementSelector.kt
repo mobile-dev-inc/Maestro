@@ -31,6 +31,7 @@ data class ElementSelector(
     val leftOf: ElementSelector? = null,
     val rightOf: ElementSelector? = null,
     val containsChild: ElementSelector? = null,
+    val containsDescendants: List<ElementSelector>? = null,
     val optional: Boolean = false,
     val traits: List<ElementTrait>? = null,
     val index: String? = null,
@@ -55,6 +56,7 @@ data class ElementSelector(
             leftOf = leftOf?.evaluateScripts(jsEngine),
             rightOf = rightOf?.evaluateScripts(jsEngine),
             containsChild = containsChild?.evaluateScripts(jsEngine),
+            containsDescendants = containsDescendants?.map { it.evaluateScripts(jsEngine) },
             index = index?.evaluateScripts(jsEngine),
         )
     }
@@ -84,6 +86,15 @@ data class ElementSelector(
 
         rightOf?.let {
             descriptions.add("Right of ${it.description()}")
+        }
+
+        containsChild?.let {
+            descriptions.add("Contains child: ${it.description()}")
+        }
+
+        containsDescendants?.let { selectors ->
+            val descendantDescriptions = selectors.joinToString(", ") { it.description() }
+            descriptions.add("Contains descendants: [$descendantDescriptions]")
         }
 
         size?.let {

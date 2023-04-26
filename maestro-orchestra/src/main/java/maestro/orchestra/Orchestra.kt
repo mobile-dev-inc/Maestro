@@ -807,6 +807,13 @@ class Orchestra(
                 filters += Filters.containsChild(findElement(it).element).asFilter()
             }
 
+        selector.containsDescendants
+            ?.let { descendantSelectors ->
+                val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
+                descriptions += "Contains descendants: $descendantDescriptions"
+                filters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it, deviceInfo).filterFunc })
+            }
+
         selector.traits
             ?.map {
                 TraitFilters.buildFilter(it)

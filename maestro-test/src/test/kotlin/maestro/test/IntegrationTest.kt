@@ -2629,6 +2629,45 @@ class IntegrationTest {
         driver.assertNoEvent(Event.InputText("Hello Android"))
     }
 
+    @Test
+    fun `Case 097 - Contains descendants`() {
+        // Given
+        val commands = readCommands("097_contains_descendants")
+
+        val driver = driver {
+            element {
+                id = "id1"
+                bounds = Bounds(0, 0, 200, 200)
+
+                element {
+                    bounds = Bounds(0, 0, 200, 200)
+                    element {
+                        id = "id2"
+                        bounds = Bounds(0, 0, 200, 200)
+                        element {
+                            text = "Child 1"
+                            bounds = Bounds(0, 0, 100, 50)
+                        }
+                    }
+                    element {
+                        text = "Child 2"
+                        bounds = Bounds(0, 0, 100, 100)
+                        enabled = false
+                    }
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failures
+        driver.assertNoInteraction()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

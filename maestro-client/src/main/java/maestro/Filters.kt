@@ -193,6 +193,19 @@ object Filters {
         }
     }
 
+    fun containsDescendants(filters: List<ElementFilter>): ElementFilter {
+        fun ElementFilter.matches(node: TreeNode): Boolean {
+            return invoke(listOf(node)).isNotEmpty() || node.children.any { matches(it) }
+        }
+        return { nodes ->
+            nodes.filter { node ->
+                filters.all { filter ->
+                    node.children.any { filter.matches(it) }
+                }
+            }
+        }
+    }
+
     fun hasText(): ElementLookupPredicate {
         return {
             it.attributes["text"] != null
