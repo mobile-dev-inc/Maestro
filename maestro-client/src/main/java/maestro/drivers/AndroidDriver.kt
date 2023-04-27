@@ -361,7 +361,6 @@ class AndroidDriver(
 
     override fun hideKeyboard() {
         dadb.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
-        dadb.shell("input keyevent 111") // 'Escape'
         Thread.sleep(300)
         waitForAppToSettle(null, null)
     }
