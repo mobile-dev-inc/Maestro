@@ -34,7 +34,7 @@ class LocalXCTestInstaller(
         stop()
 
         logger.info("[Start] Uninstall XCUITest runner")
-        XCRunnerCLIUtils.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID)
+        XCRunnerCLIUtils.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
         logger.info("[Done] Uninstall XCUITest runner")
     }
 
@@ -45,7 +45,7 @@ class LocalXCTestInstaller(
             logger.info("[Done] Stop XCUITest runner")
         }
 
-        val pid = XCRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID)
+        val pid = XCRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
         if (pid != null) {
             ProcessBuilder(listOf("kill", pid.toString()))
                 .start()
@@ -85,12 +85,12 @@ class LocalXCTestInstaller(
     }
 
     override fun isChannelAlive(): Boolean {
-        return XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID) &&
+        return XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId) &&
             subTreeOfRunnerApp().use { it.isSuccessful }
     }
 
     private fun ensureOpen(): Boolean {
-        XCRunnerCLIUtils.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID)
+        XCRunnerCLIUtils.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
         return MaestroTimer.retryUntilTrue(10_000, 100) {
             try {
                 subTreeOfRunnerApp().use { it.isSuccessful }

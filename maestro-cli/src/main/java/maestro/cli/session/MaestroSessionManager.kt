@@ -303,7 +303,7 @@ object MaestroSessionManager {
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps() },
+            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
             logger = IOSDriverLogger(XCTestIOSDevice::class.java),
         )
 

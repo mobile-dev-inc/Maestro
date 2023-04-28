@@ -32,8 +32,8 @@ object XCRunnerCLIUtils {
         logsDirectory
     }
 
-    fun listApps(): Set<String> {
-        val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "xcrun simctl listapps booted | plutil -convert json - -o -"))
+    fun listApps(deviceId: String): Set<String> {
+        val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "xcrun simctl listapps $deviceId | plutil -convert json - -o -"))
 
         val json = String(process.inputStream.readBytes())
 
@@ -67,30 +67,30 @@ object XCRunnerCLIUtils {
             .waitFor()
     }
 
-    fun uninstall(bundleId: String) {
+    fun uninstall(bundleId: String, deviceId: String) {
         CommandLineUtils.runCommand(
             listOf(
                 "xcrun",
                 "simctl",
                 "uninstall",
-                "booted",
+                deviceId,
                 bundleId
             )
         )
     }
 
-    fun ensureAppAlive(bundleId: String) {
+    fun ensureAppAlive(bundleId: String, deviceId: String) {
         MaestroTimer.retryUntilTrue(timeoutMs = 4000, delayMs = 300) {
-            isAppAlive(bundleId)
+            isAppAlive(bundleId, deviceId)
         }
     }
 
-    private fun runningApps(): Map<String, Int?> {
+    private fun runningApps(deviceId: String): Map<String, Int?> {
         val process = ProcessBuilder(
             "xcrun",
             "simctl",
             "spawn",
-            "booted",
+            deviceId,
             "launchctl",
             "list"
         ).start()
@@ -117,13 +117,13 @@ object XCRunnerCLIUtils {
             }
     }
 
-    fun isAppAlive(bundleId: String): Boolean {
-        return runningApps()
+    fun isAppAlive(bundleId: String, deviceId: String): Boolean {
+        return runningApps(deviceId)
             .containsKey(bundleId)
     }
 
-    fun pidForApp(bundleId: String): Int? {
-        return runningApps()[bundleId]
+    fun pidForApp(bundleId: String, deviceId: String): Int? {
+        return runningApps(deviceId)[bundleId]
     }
 
     fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String): Process {
@@ -139,13 +139,6 @@ object XCRunnerCLIUtils {
             ),
             waitForCompletion = false,
             outputFile = File(logDirectory, "xctest_runner_$date.log")
-        )
-    }
-
-    fun screenshot(path: String) {
-        CommandLineUtils.runCommand(
-            listOf("xcrun", "simctl", "io", "booted", "screenshot", path),
-            waitForCompletion = true
         )
     }
 }
