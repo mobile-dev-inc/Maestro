@@ -135,7 +135,7 @@ const toTapExample = (selector: Selector): CommandExample => {
     status: selector.status,
     title: `Tap > ${selector.title}`,
     content: selector.status === 'available' ? stringifyYaml([{ tapOn: selector.definition }]) : selector.message,
-    documentation: selector.documentation || 'https://maestro.mobile.dev/reference/tap-on-view',
+    documentation: selector.documentation || 'https://maestro.mobile.dev/api-reference/commands/tapon',
   }
 }
 
@@ -144,7 +144,7 @@ const toAssertExample = (selector: Selector): CommandExample => {
     status: selector.status,
     title: `Assert > ${selector.title}`,
     content: selector.status === 'available' ? stringifyYaml([{ assertVisible: selector.definition }]) : selector.message,
-    documentation: selector.documentation || 'https://maestro.mobile.dev/reference/assertions',
+    documentation: selector.documentation || 'https://maestro.mobile.dev/api-reference/commands/assertvisible',
   }
 }
 
