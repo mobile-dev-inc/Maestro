@@ -1,5 +1,6 @@
 package maestro.cli.api
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -396,7 +397,7 @@ class ApiClient(
 
     companion object {
 
-        private val JSON = jacksonObjectMapper()
+        private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 }
 
