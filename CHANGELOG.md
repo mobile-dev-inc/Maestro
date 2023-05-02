@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.27.0 - 2023-05-02
+* Feature: Adds assertOutgoingRequests to assert the network requests from the app
+* Feature: Add platform condition in runFlow command to do platform-specific orchestration. Thanks, Larry Ng for your contribution!
+* Feature: Adds a new selector containsDescendants. Thanks, Larry Ng for your contribution!
+* Feature: iOS and Android launch arguments
+* Change: Include the update command instead of update instructions in the update message. Thanks @bobpozun for your contribution!
+* Fix: Fixes swipe flakiness caused due to waiting for animations to complete on XCTest
+* Fix:  Correctly resolving `maestro.copiedText`
+* Fix: Using deviceId instead of booted, potentially resolving XCTestUnreachable exceptions.
+* Fix: Improving waitForAppToSettle for Android by accounting window updates. Resolves maestro command interaction in Android 13.
+* Fix: Notification permissions not getting granted
+* Fix: Use correct documentation URLs in Studio
+
 ## 1.26.1 - 2023-04-13
 * Fix: hideKeyboard crashing on react native apps because swipe fails on some screens 
 
