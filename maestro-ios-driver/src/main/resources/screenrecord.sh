@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # The `simctl recordVideo` command requires a SIGINT to be sent to stop the recording.
 # Before the SIGINT is sent, the video file is not playable.
 # Kotlin / JVM has no API to sent signals to subprocesses.
@@ -12,13 +10,8 @@
 # Also not that the backend currently does not support hvec. That is why the
 # codec is set to h264.
 
-if [[ $# -ne 2 ]] ; then
-    echo 'Usage: screenrecord.sh <udid> <output file>'
-    exit 1
-fi
-
 echo "Start recording"
-xcrun simctl io "$1" recordVideo --force --codec h264 "$2" &
+xcrun simctl io "$DEVICE_ID" recordVideo --force --codec h264 "$RECORDING_PATH" &
 simctlpid=$!
 
 echo "Simctl pid $simctlpid"
