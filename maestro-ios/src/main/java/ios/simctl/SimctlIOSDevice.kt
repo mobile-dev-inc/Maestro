@@ -43,15 +43,7 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun pressKey(code: Int): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
-    }
-
     override fun pressKey(name: String) {
-        TODO("Not yet implemented")
-    }
-
-    override fun pressButton(code: Int): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }
 

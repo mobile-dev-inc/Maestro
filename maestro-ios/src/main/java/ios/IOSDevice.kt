@@ -41,12 +41,6 @@ interface IOSDevice : AutoCloseable {
 
     fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable>
 
-    @Deprecated("Use pressKey(name) instead")
-    fun pressKey(code: Int): Result<Unit, Throwable>
-
-    @Deprecated("Use pressButton(name) instead")
-    fun pressButton(code: Int): Result<Unit, Throwable>
-
     fun scroll(
         xStart: Double,
         yStart: Double,

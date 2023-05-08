@@ -128,39 +128,8 @@ class IdbIOSDevice(
         return press(x, y, holdDelay = durationMs)
     }
 
-    override fun pressKey(code: Int): Result<Unit, Throwable> {
-        return runWithRestartRecovery {
-            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
-            val stream = asyncStub.hid(responseObserver)
-
-            TextInputUtil.keyPressToEvents(code.toLong())
-                .forEach {
-                    stream.onNext(it)
-                }
-            stream.onCompleted()
-            responseObserver.awaitResult()
-        }
-    }
-
     override fun pressKey(name: String) {
         TODO("Not yet implemented")
-    }
-
-    override fun pressButton(code: Int): Result<Unit, Throwable> {
-        return runWithRestartRecovery {
-            val responseObserver = BlockingStreamObserver<Idb.HIDResponse>()
-            val stream = asyncStub.hid(responseObserver)
-
-            TextInputUtil.pressWithDuration(
-                HIDEventKt.hIDPressAction {
-                    this.button = HIDEventKt.hIDButton {
-                        this.button = HIDButtonType.forNumber(code)
-                    }
-                }
-            ).forEach { stream.onNext(it) }
-
-            stream.onCompleted()
-        }
     }
 
     override fun pressButton(name: String) {

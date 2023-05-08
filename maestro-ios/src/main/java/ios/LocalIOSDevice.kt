@@ -50,20 +50,8 @@ class LocalIOSDevice(
         return xcTestDevice.longPress(x, y, durationMs)
     }
 
-    override fun pressKey(code: Int): Result<Unit, Throwable> {
-        return if (code == 40) {
-            xcTestDevice.pressKey(code)
-        } else {
-            idbIOSDevice.pressKey(code)
-        }
-    }
-
     override fun pressKey(name: String) {
         xcTestDevice.pressKey(name)
-    }
-
-    override fun pressButton(code: Int): Result<Unit, Throwable> {
-        return idbIOSDevice.pressButton(code)
     }
 
     override fun pressButton(name: String) {
