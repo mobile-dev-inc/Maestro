@@ -34,20 +34,21 @@ class XCTestIOSDevice(
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
         return runCatching {
             client.deviceInfo().use { response ->
-                val body = response.body?.bytes()?.let { String(it) }
+                response.body.use { body ->
+                    val bodyString = body?.bytes()?.let { String(it) }
+                    if (!response.isSuccessful) {
+                        val message = "${response.code} ${response.message} - $bodyString"
+                        logger.info("Device info failed: $message")
+                        throw UnknownFailure(message)
+                    }
 
-                if (!response.isSuccessful) {
-                    val message = "${response.code} ${response.message} - $body"
-                    logger.info("Device info failed: $message")
-                    throw UnknownFailure(message)
+                    bodyString ?: throw UnknownFailure("Error: response body missing")
+
+                    val deviceInfo = mapper.readValue(bodyString, DeviceInfo::class.java)
+                    logger.info("Device info $deviceInfo")
+
+                    deviceInfo
                 }
-
-                body ?: throw UnknownFailure("Error: response body missing")
-
-                val deviceInfo = mapper.readValue(body, DeviceInfo::class.java)
-                logger.info("Device info $deviceInfo")
-
-                deviceInfo
             }
         }
     }
@@ -64,21 +65,23 @@ class XCTestIOSDevice(
     private fun getViewHierarchy(appId: String): Result<XCUIElement, Throwable> {
         return try {
             client.subTree(appId).use {
-                if (it.isSuccessful) {
-                    val xcUiElement = it.body?.let { response ->
-                        mapper.readValue(String(response.bytes()), XCUIElement::class.java)
-                    } ?: error("View Hierarchy not available, response body is null")
-                    Ok(xcUiElement)
-                } else {
-                    val err = it.body?.let { response ->
-                        val errorResponse = String(response.bytes()).trim()
-                        val error = mapper.readValue(errorResponse, Error::class.java)
-                        when (error.errorCode) {
-                            VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE -> Err(IllegalArgumentSnapshotFailure())
-                            else -> Err(UnknownFailure(errorResponse))
-                        }
-                    } ?: Err(UnknownFailure("Error body for view hierarchy request not available"))
-                    err
+                it.body.use { body ->
+                    if (it.isSuccessful) {
+                        val xcUiElement = body?.let { response ->
+                            mapper.readValue(String(response.bytes()), XCUIElement::class.java)
+                        } ?: error("View Hierarchy not available, response body is null")
+                        Ok(xcUiElement)
+                    } else {
+                        val err = body?.let { response ->
+                            val errorResponse = String(response.bytes()).trim()
+                            val error = mapper.readValue(errorResponse, Error::class.java)
+                            when (error.errorCode) {
+                                VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE -> Err(IllegalArgumentSnapshotFailure())
+                                else -> Err(UnknownFailure(errorResponse))
+                            }
+                        } ?: Err(UnknownFailure("Error body for view hierarchy request not available"))
+                        err
+                    }
                 }
             }
         } catch (exception: Throwable) {
@@ -208,7 +211,9 @@ class XCTestIOSDevice(
     override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
         return runCatching {
             client.screenshot(compressed).use { response ->
-                response.body?.let { body ->
+                response.body.use { body ->
+                    body ?: throw UnknownFailure("Error - body for snapshot request not available")
+
                     if (response.isSuccessful) {
                         out.buffer().use {
                             it.write(body.bytes())
@@ -217,7 +222,7 @@ class XCTestIOSDevice(
                         val errorResponse = String(body.bytes()).trim()
                         throw UnknownFailure(errorResponse)
                     }
-                } ?: throw UnknownFailure("Error - body for snapshot request not available")
+                }
             }
         }
     }
@@ -241,7 +246,9 @@ class XCTestIOSDevice(
     override fun isScreenStatic(): Result<Boolean, Throwable> {
         return runCatching {
             client.isScreenStatic().use { response ->
-                response.body?.let { body ->
+                response.body.use { body ->
+                    body ?: throw UnknownFailure("Error - body for isScreenStatic request not available")
+
                     if (response.isSuccessful) {
                         val responseBody: IsScreenStaticResponse = mapper.readValue(
                             String(body.bytes()),
@@ -255,7 +262,7 @@ class XCTestIOSDevice(
                         logger.info("Screen diff request failed with error = $errorResponse")
                         throw UnknownFailure(errorResponse)
                     }
-                } ?: throw UnknownFailure("Error - body for isScreenStatic request not available")
+                }
             }
         }
     }
@@ -288,27 +295,29 @@ class XCTestIOSDevice(
         logger.info("installed apps: $appIds")
 
         return client.runningAppId(appIds).use { response ->
-            val runningAppBundleId = if (response.isSuccessful) {
-                response.body?.let { body ->
-                    val responseBody: GetRunningAppIdResponse = mapper.readValue(
-                        String(body.bytes()),
-                        GetRunningAppIdResponse::class.java
-                    )
-                    val runningAppId = responseBody.runningAppBundleId
-                    logger.info("Running app id response received $runningAppId")
-                    runningAppId
+            response.body.use { body ->
+                val runningAppBundleId = if (response.isSuccessful) {
+                    body?.let { body ->
+                        val responseBody: GetRunningAppIdResponse = mapper.readValue(
+                            String(body.bytes()),
+                            GetRunningAppIdResponse::class.java
+                        )
+                        val runningAppId = responseBody.runningAppBundleId
+                        logger.info("Running app id response received $runningAppId")
+                        runningAppId
+                    }
+                } else {
+                    val bodyString = response.body?.let { String(it.bytes()) } ?: ""
+                    val code = response.code
+                    logger.info("request to resolve running app id failed with exception - Code: $code Body: $bodyString")
+
+                    return null
                 }
-            } else {
-                val body = response.body?.let { String(it.bytes()) } ?: ""
-                val code = response.code
-                logger.info("request to resolve running app id failed with exception - Code: $code Body: $body")
 
-                return null
+                logger.info("found running app id $runningAppBundleId")
+
+                runningAppBundleId
             }
-
-            logger.info("found running app id $runningAppBundleId")
-
-            runningAppBundleId
         }
     }
 
