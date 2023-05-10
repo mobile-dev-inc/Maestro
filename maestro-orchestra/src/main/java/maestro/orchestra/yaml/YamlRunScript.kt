@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlRunScript(
     val file: String,
-    val env: Map<String, String> = emptyMap(),  // TODO
+    val env: Map<String, String> = emptyMap(),
+    val `when`: YamlCondition? = null,
 ) {
 
     companion object {

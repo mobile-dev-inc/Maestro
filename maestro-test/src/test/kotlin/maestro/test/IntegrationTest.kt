@@ -2669,6 +2669,42 @@ class IntegrationTest {
         driver.assertNoInteraction()
     }
 
+    @Test
+    fun `Case 098 - Execute Javascript conditionally`() {
+        // Given
+        val commands = readCommands("098_runscript_conditionals")
+
+        val driver = driver {
+            element {
+                text = "Click me"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = { element ->
+                    element.text = "Clicked"
+                }
+            }
+        }
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), 1)
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "Log from runScript",
+        ).inOrder()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

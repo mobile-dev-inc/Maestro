@@ -269,15 +269,19 @@ class Orchestra(
     }
 
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
-        jsEngine.evaluateScript(
-            script = command.script,
-            env = command.env,
-            sourceName = command.sourceDescription,
-            runInSubScope = true,
-        )
+        return if (evaluateCondition(command.condition)) {
+            jsEngine.evaluateScript(
+                script = command.script,
+                env = command.env,
+                sourceName = command.sourceDescription,
+                runInSubScope = true,
+            )
 
-        // We do not actually know if there were any mutations, but we assume there were
-        return true
+            // We do not actually know if there were any mutations, but we assume there were
+            return true
+        } else {
+            throw CommandSkipped
+        }
     }
 
     private fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {

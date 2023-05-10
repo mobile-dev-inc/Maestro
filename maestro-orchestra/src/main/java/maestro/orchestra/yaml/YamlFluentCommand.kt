@@ -186,6 +186,7 @@ data class YamlFluentCommand(
                             .readText(),
                         env = runScript.env,
                         sourceDescription = runScript.file,
+                        condition = runScript.`when`?.toCondition(),
                     )
                 )
             )

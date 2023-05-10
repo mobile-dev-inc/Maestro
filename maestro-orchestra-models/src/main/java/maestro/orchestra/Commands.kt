@@ -654,17 +654,23 @@ data class RunScriptCommand(
     val script: String,
     val env: Map<String, String> = emptyMap(),
     val sourceDescription: String,
+    val condition: Condition?
 ) : Command {
 
     override fun description(): String {
-        return "Run $sourceDescription"
+        return if (condition == null) {
+            "Run $sourceDescription"
+        } else {
+            "Run $sourceDescription when ${condition.description()}"
+        }
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
-            }
+            },
+            condition = condition?.evaluateScripts(jsEngine),
         )
     }
 
