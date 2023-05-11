@@ -41,7 +41,7 @@ class RecordNetworkCommand : Callable<Int> {
 
     override fun call(): Int {
         println()
-        println("\uD83D\uDEA7 THIS COMMAND IS A WIP \uD83D\uDEA7".red())
+        println("Network Mocking has been deprecated and will be removed in a future version".red())
         println()
 
         val proxy = NetworkProxy(port = 8080)

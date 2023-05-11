@@ -2,6 +2,7 @@ package maestro.cli.command.mockserver
 
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.PrintUtils.err
+import maestro.cli.view.red
 import maestro.mockserver.MockInteractor
 import picocli.CommandLine.Command
 import picocli.CommandLine.ParentCommand
@@ -18,6 +19,10 @@ class MockServerProjectIdCommand : Callable<Int> {
     private val interactor = MockInteractor()
 
     override fun call(): Int {
+        println()
+        println("Maestro Mock Server has been deprecated and will be removed in a future version".red())
+        println()
+
         val projectId = interactor.getProjectId() ?: err("Could not retrieve project id")
 
         PrintUtils.message("Project id: $projectId")

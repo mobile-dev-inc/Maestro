@@ -5,6 +5,7 @@ import maestro.cli.view.blue
 import maestro.cli.view.bold
 import maestro.cli.view.box
 import maestro.cli.view.faint
+import maestro.cli.view.red
 import maestro.studio.MaestroStudio
 import maestro.mockserver.MockInteractor
 import picocli.CommandLine.Command
@@ -25,6 +26,10 @@ class MockServerOpenCommand : Callable<Int> {
     private val interactor = MockInteractor()
 
     override fun call(): Int {
+        println()
+        println("Maestro Mock Server has been deprecated and will be removed in a future version".red())
+        println()
+
         val projectId = interactor.getProjectId()
         if (projectId == null) {
             PrintUtils.err("Not logged in. Please run `maestro login` and try again.")

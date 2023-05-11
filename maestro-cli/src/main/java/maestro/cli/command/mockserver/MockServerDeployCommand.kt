@@ -2,6 +2,7 @@ package maestro.cli.command.mockserver
 
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
+import maestro.cli.view.red
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -38,6 +39,10 @@ class MockServerDeployCommand : Callable<Int> {
     }
 
     override fun call(): Int {
+        println()
+        println("Maestro Mock Server has been deprecated and will be removed in a future version".red())
+        println()
+
         if (!this::workspace.isInitialized) {
             workspace = getDefaultMockserverDir()
         }
