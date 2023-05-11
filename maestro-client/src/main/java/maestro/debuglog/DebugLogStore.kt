@@ -61,8 +61,11 @@ object DebugLogStore {
                 )
             }
         }
+    }
 
-        logSystemInfo()
+    fun copyTo(file: File) {
+        val local = logFile("maestro")
+        local.copyTo(file)
     }
 
     fun loggerFor(clazz: Class<*>): Logger {
@@ -94,7 +97,9 @@ object DebugLogStore {
     }
 
     private fun removeOldLogs(baseDir: File) {
-        if (!baseDir.isDirectory) { return }
+        if (!baseDir.isDirectory) {
+            return
+        }
 
         val existing = baseDir.listFiles() ?: return
         val toDelete = existing.sortedByDescending { it.name }
@@ -104,7 +109,7 @@ object DebugLogStore {
         toDelete.forEach { it.deleteRecursively() }
     }
 
-    private fun logSystemInfo() {
+    fun logSystemInfo() {
         val logData = """
             Maestro version: ${appVersion()}
             OS: ${System.getProperty("os.name")}
@@ -116,10 +121,26 @@ object DebugLogStore {
     }
 
     private fun appVersion(): String {
-        val props = Driver::class.java.classLoader.getResourceAsStream("version.properties").use {
-            Properties().apply { load(it) }
+        try {
+            val props = Driver::class.java.classLoader.getResourceAsStream("version.properties").use {
+                Properties().apply { load(it) }
+            }
+            return props["version"].toString()
+        } catch (ignore: Exception) {
+            // no-action
         }
-
-        return props["version"].toString()
+        return "Undefined"
     }
+}
+
+fun Logger.warn(message: String, throwable: Throwable? = null) {
+    if (throwable != null) {
+        log(Level.WARNING, message, throwable)
+    } else log(Level.WARNING, message)
+}
+
+fun Logger.error(message: String, throwable: Throwable? = null) {
+    if (throwable != null) {
+        log(Level.SEVERE, message, throwable)
+    } else log(Level.SEVERE, message)
 }

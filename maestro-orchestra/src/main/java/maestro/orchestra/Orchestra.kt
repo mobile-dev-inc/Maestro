@@ -153,6 +153,7 @@ class Orchestra(
                     // Swallow exception
                     onCommandSkipped(index, command)
                 } catch (e: Throwable) {
+
                     when (onCommandFailed(index, command, e)) {
                         ErrorResolution.FAIL -> return false
                         ErrorResolution.CONTINUE -> {
@@ -929,7 +930,7 @@ class Orchestra(
     private fun resolveText(attributes: MutableMap<String, String>): String? {
         return if (!attributes["text"].isNullOrEmpty()) {
             attributes["text"]
-        } else if(!attributes["hintText"].isNullOrEmpty()) {
+        } else if (!attributes["hintText"].isNullOrEmpty()) {
             attributes["hintText"]
         } else {
             attributes["accessibilityText"]

@@ -7,9 +7,11 @@ import util.SimctlList
 import maestro.cli.CliError
 import maestro.cli.util.EnvUtils
 import maestro.utils.MaestroTimer
+import org.slf4j.LoggerFactory
 import java.io.File
 
 object DeviceService {
+    val logger = LoggerFactory.getLogger(DeviceService::class.java)
     fun startDevice(device: Device.AvailableForLaunch): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
@@ -17,6 +19,7 @@ object DeviceService {
                     LocalSimulatorUtils.launchSimulator(device.modelId)
                     LocalSimulatorUtils.awaitLaunch(device.modelId)
                 } catch (e: SimctlError) {
+                    logger.error("Failed to launch simulator", e)
                     throw CliError(e.message)
                 }
 

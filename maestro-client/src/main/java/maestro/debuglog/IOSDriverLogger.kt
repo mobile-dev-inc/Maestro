@@ -1,10 +1,12 @@
 package maestro.debuglog
 
 import maestro.logger.Logger
+import org.slf4j.LoggerFactory
 
 class IOSDriverLogger(val clazz: Class<*>) : Logger {
 
     override fun info(message: String) {
+        LoggerFactory.getLogger(clazz).info(message)
         loggerFor(clazz).info(message)
     }
 

@@ -8,19 +8,26 @@ import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
 import maestro.cli.device.Device
+import maestro.cli.report.FlowDebugMetadata
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
+import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
+import maestro.debuglog.DebugLogStore
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.OrchestraAppState
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
+import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.concurrent.thread
 
 object TestRunner {
+
+    private val logger = LoggerFactory.getLogger(TestRunner::class.java)
 
     fun runSingle(
         maestro: Maestro,
@@ -29,18 +36,25 @@ object TestRunner {
         env: Map<String, String>,
         resultView: ResultView
     ): Int {
+
+        // debug
+        val debug = FlowDebugMetadata()
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
-
             MaestroCommandRunner.runCommands(
                 maestro,
                 device,
                 resultView,
                 commands,
-                cachedAppState = null
+                cachedAppState = null,
+                debug
             )
         }
+
+        TestDebugReporter.saveFlow(flowFile.name, debug)
+        if (debug.exception != null) PrintUtils.err("${debug.exception?.message}")
+
         return if (result.get()?.flowSuccess == true) 0 else 1
     }
 
@@ -91,6 +105,7 @@ object TestRunner {
                                 resultView,
                                 commands,
                                 cachedAppState = cachedAppState,
+                                FlowDebugMetadata()
                             )
                         }.get()
                     }
@@ -122,6 +137,7 @@ object TestRunner {
         return try {
             Ok(block())
         } catch (e: Exception) {
+            logger.error("Failed to run flow", e)
             val message = ErrorViewUtils.exceptionToMessage(e)
 
             if (!maestro.isShutDown()) {

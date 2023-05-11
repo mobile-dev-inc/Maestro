@@ -11,9 +11,17 @@ object TestSuiteStatusView {
 
     fun showFlowCompletion(result: FlowResult) {
         printStatus(result.status)
-        print(" ${result.name}")
 
-        if (result.status == FlowStatus.WARNING) {
+        print(" ${result.name}")
+        if (result.status == FlowStatus.ERROR && result.error != null) {
+            print(
+                Ansi.ansi()
+                    .fgRed()
+                    .render(" (${result.error})")
+                    .fgDefault()
+            )
+        }
+        else if (result.status == FlowStatus.WARNING) {
             print(
                 Ansi.ansi()
                     .fgYellow()
@@ -36,6 +44,7 @@ object TestSuiteStatusView {
                 "${failedFlows.size}/${suite.flows.size} ${flowWord(failedFlows.size)} Failed",
                 bold = true,
             )
+
         } else {
             val passedFlows = suite.flows
                 .filter { it.status == FlowStatus.SUCCESS || it.status == FlowStatus.WARNING }
@@ -113,6 +122,7 @@ object TestSuiteStatusView {
         data class FlowResult(
             val name: String,
             val status: FlowStatus,
+            val error: String? = null
         )
 
         data class UploadDetails(
@@ -136,6 +146,7 @@ object TestSuiteStatusView {
             fun UploadStatus.FlowResult.toViewModel() = FlowResult(
                 name = name,
                 status = FlowStatus.from(status),
+                error = errors.firstOrNull()
             )
 
         }

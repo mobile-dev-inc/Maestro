@@ -45,9 +45,6 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.jarchivelib)
 
-    // Silence logs from WireMock
-    implementation(libs.slf4j.nop)
-
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.google.truth)

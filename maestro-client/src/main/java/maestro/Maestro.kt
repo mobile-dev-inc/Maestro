@@ -247,11 +247,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return if (retryIfNoChange) 2 else 1
     }
 
-    private fun performTap(x: Int,
-                           y: Int,
-                           retryIfNoChange: Boolean = true,
-                           longPress: Boolean = false,
-                           initialHierarchy: ViewHierarchy? = null) {
+    private fun performTap(
+        x: Int,
+        y: Int,
+        retryIfNoChange: Boolean = true,
+        longPress: Boolean = false,
+        initialHierarchy: ViewHierarchy? = null
+    ) {
         val capabilities = driver.capabilities()
 
         if (Capability.FAST_HIERARCHY in capabilities) {
@@ -261,11 +263,13 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
     }
 
-    private fun screenshotBasedTap(x: Int,
-                                  y: Int,
-                                  retryIfNoChange: Boolean = true,
-                                  longPress: Boolean = false,
-                                  initialHierarchy: ViewHierarchy? = null) {
+    private fun screenshotBasedTap(
+        x: Int,
+        y: Int,
+        retryIfNoChange: Boolean = true,
+        longPress: Boolean = false,
+        initialHierarchy: ViewHierarchy? = null
+    ) {
         LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
@@ -285,11 +289,14 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             }
         }
     }
-    private fun hierarchyBasedTap(x: Int,
-                                  y: Int,
-                                  retryIfNoChange: Boolean = true,
-                                  longPress: Boolean = false,
-                                  initialHierarchy: ViewHierarchy? = null) {
+
+    private fun hierarchyBasedTap(
+        x: Int,
+        y: Int,
+        retryIfNoChange: Boolean = true,
+        longPress: Boolean = false,
+        initialHierarchy: ViewHierarchy? = null
+    ) {
         LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
@@ -536,6 +543,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)
+
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
         private const val ANIMATION_TIMEOUT_MS: Long = 15000
 

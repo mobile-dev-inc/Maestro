@@ -59,7 +59,6 @@ dependencies {
     api(libs.google.protobuf.kotlin)
     api(libs.kotlin.result)
     api(libs.dadb)
-    api(libs.slf4j)
     api(libs.square.okio)
     api(libs.image.comparison)
     api(libs.android.tools.sdk)
@@ -80,6 +79,11 @@ dependencies {
     implementation((libs.webdrivermanager)) {
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
+    api(libs.slf4j)
+    api(libs.logback) {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)

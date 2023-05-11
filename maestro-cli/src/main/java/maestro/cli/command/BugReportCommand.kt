@@ -1,6 +1,5 @@
 package maestro.cli.command
 
-import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.debuglog.DebugLogStore
 import picocli.CommandLine

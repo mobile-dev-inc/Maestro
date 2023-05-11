@@ -14,6 +14,7 @@ import ios.grpc.BlockingStreamObserver
 import ios.idb.IdbRunner
 import maestro.debuglog.DebugLogStore
 import maestro.utils.MaestroTimer
+import org.slf4j.LoggerFactory
 import java.net.Socket
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -23,7 +24,7 @@ class LocalIdbRunner(
     val host: String,
     val port: Int,
     val deviceId: String,
-): IdbRunner {
+) : IdbRunner {
     override fun stop(channel: ManagedChannel) {
         channel.shutdownNow()
 
@@ -49,15 +50,14 @@ class LocalIdbRunner(
             idbProcess.destroy()
         })
 
-        logger.warning("Waiting for idb service to start..")
+        logger.warn("Waiting for idb service to start..")
         MaestroTimer.retryUntilTrue(timeoutMs = 60000, delayMs = 100) {
             Socket(host, port).use { true }
         } || error("idb_companion did not start in time")
 
-
         // The first time a simulator boots up, it can
         // take 10's of seconds to complete.
-        logger.warning("Waiting for Simulator to boot..")
+        logger.warn("Waiting for Simulator to boot..")
         MaestroTimer.retryUntilTrue(timeoutMs = 120000, delayMs = 100) {
             val process = ProcessBuilder("xcrun", "simctl", "bootstatus", deviceId)
                 .start()
@@ -71,12 +71,12 @@ class LocalIdbRunner(
             .build()
 
         // Test if idb can get accessibility info elements with non-zero frame width
-        logger.warning("Waiting for successful taps")
+        logger.warn("Waiting for successful taps")
         MaestroTimer.retryUntilTrue(timeoutMs = 20000, delayMs = 100) {
             testPressAction(channel) is Ok
         } || error("idb_companion is not able dispatch successful tap events")
 
-        logger.warning("Simulator ready")
+        logger.warn("Simulator ready")
 
         return channel
     }
@@ -134,6 +134,6 @@ class LocalIdbRunner(
     }
 
     companion object {
-        val logger = DebugLogStore.loggerFor(LocalIdbRunner::class.java)
+        val logger = LoggerFactory.getLogger(LocalIdbRunner::class.java)
     }
 }

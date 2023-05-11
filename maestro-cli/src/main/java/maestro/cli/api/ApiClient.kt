@@ -1,6 +1,7 @@
 package maestro.cli.api
 
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -11,6 +12,7 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.update.Updates
 import maestro.cli.util.CiUtils
+import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -144,7 +146,7 @@ class ApiClient(
     ): UploadStatus {
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
-            .url("$baseUrl/v2/upload/$uploadId/status")
+            .url("$baseUrl/v2/upload/$uploadId/status?includeErrors=true")
             .get()
             .build()
 
@@ -401,12 +403,14 @@ class ApiClient(
     }
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class UploadResponse(
     val teamId: String,
     val appId: String,
     val uploadId: String,
 )
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class UploadStatus(
     val uploadId: UUID,
     val status: Status,
@@ -417,6 +421,7 @@ data class UploadStatus(
     data class FlowResult(
         val name: String,
         val status: Status,
+        val errors: List<String>
     )
 
     enum class Status {

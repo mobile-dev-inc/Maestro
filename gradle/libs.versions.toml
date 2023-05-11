@@ -39,12 +39,12 @@ mozillaRhino = "1.7.14"
 picocli = "4.5.2"
 selenium = "4.7.2"
 slf4j = "1.7.36"
-slf4jNop = "2.0.1"
 squareOkhttp = "4.10.0"
 squareOkio = "3.2.0"
 squareRetrofit = "2.9.0"
 webdrivermanager = "5.3.1"
 wiremock = "2.35.0"
+logback="1.2.3"
 
 [libraries]
 android-tools-apkparser = { module = "com.android.tools.apkparser:apkanalyzer", version.ref = "androidToolsApkParser" }
@@ -98,14 +98,14 @@ mozilla-rhino = { module = "org.mozilla:rhino", version.ref = "mozillaRhino" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
-slf4j = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
-slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4jNop" }
+slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 square-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "squareOkhttp" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "squareRetrofit" }
 square-retrofit-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "squareRetrofit" }
 webdrivermanager = { module = "io.github.bonigarcia:webdrivermanager", version.ref = "webdrivermanager" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 [bundles]
 

@@ -21,8 +21,10 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.debuglog.DebugLogStore
 import maestro.cli.device.Device
+import maestro.cli.report.CommandDebugMetadata
+import maestro.cli.report.FlowDebugMetadata
+import maestro.cli.report.ScreenshotDebugMetadata
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
 import maestro.orchestra.ApplyConfigurationCommand
@@ -31,11 +33,13 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.OrchestraAppState
 import maestro.orchestra.yaml.YamlCommandReader
+import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.IdentityHashMap
 
 object MaestroCommandRunner {
 
-    private val logger = DebugLogStore.loggerFor(MaestroCommand::class.java)
+    private val logger = LoggerFactory.getLogger(MaestroCommandRunner::class.java)
 
     fun runCommands(
         maestro: Maestro,
@@ -43,11 +47,41 @@ object MaestroCommandRunner {
         view: ResultView,
         commands: List<MaestroCommand>,
         cachedAppState: OrchestraAppState?,
+        debug: FlowDebugMetadata
     ): Result {
         val initFlow = YamlCommandReader.getConfig(commands)?.initFlow
 
         val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
         val commandMetadata = IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>()
+
+        // debug
+        val debugCommands = debug.commands
+        val debugScreenshots = debug.screenshots
+
+        fun takeDebugScreenshot(status: CommandStatus): File? {
+            val containsFailed = debugScreenshots.any { it.status == CommandStatus.FAILED }
+
+            // Avoids duplicate failed images from parent commands
+            if (containsFailed && status == CommandStatus.FAILED) {
+                return null
+            }
+
+            val result = kotlin.runCatching {
+                val out = File.createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
+                    .also { it.deleteOnExit() } // save to another dir before exiting
+                maestro.takeScreenshot(out)
+                debugScreenshots.add(
+                    ScreenshotDebugMetadata(
+                        screenshot = out,
+                        timestamp = System.currentTimeMillis(),
+                        status = status
+                    )
+                )
+                out
+            }
+
+            return result.getOrNull()
+        }
 
         fun refreshUi() {
             view.setState(
@@ -56,12 +90,12 @@ object MaestroCommandRunner {
                     initCommands = toCommandStates(
                         initFlow?.commands ?: emptyList(),
                         commandStatuses,
-                        commandMetadata,
+                        commandMetadata
                     ),
                     commands = toCommandStates(
                         commands,
                         commandStatuses,
-                        commandMetadata,
+                        commandMetadata
                     )
                 )
             )
@@ -74,16 +108,35 @@ object MaestroCommandRunner {
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
                 commandStatuses[command] = CommandStatus.RUNNING
+                debugCommands[command] = CommandDebugMetadata(
+                    timestamp = System.currentTimeMillis(),
+                    status = CommandStatus.RUNNING
+                )
+
                 refreshUi()
             },
             onCommandComplete = { _, command ->
                 logger.info("${command.description()} COMPLETED")
                 commandStatuses[command] = CommandStatus.COMPLETED
+                debugCommands[command]?.let {
+                    it.status = CommandStatus.COMPLETED
+                    it.calculateDuration()
+                }
                 refreshUi()
             },
             onCommandFailed = { _, command, e ->
+                debugCommands[command]?.let {
+                    it.status = CommandStatus.FAILED
+                    it.calculateDuration()
+                    it.error = e
+                }
+
+                takeDebugScreenshot(CommandStatus.FAILED)
+
                 if (e !is MaestroException) {
                     throw e
+                } else {
+                    debug.exception = e
                 }
 
                 logger.info("${command.description()} FAILED")
@@ -94,11 +147,17 @@ object MaestroCommandRunner {
             onCommandSkipped = { _, command ->
                 logger.info("${command.description()} SKIPPED")
                 commandStatuses[command] = CommandStatus.SKIPPED
+                debugCommands[command]?.let {
+                    it.status = CommandStatus.SKIPPED
+                }
                 refreshUi()
             },
             onCommandReset = { command ->
                 logger.info("${command.description()} PENDING")
                 commandStatuses[command] = CommandStatus.PENDING
+                debugCommands[command]?.let {
+                    it.status = CommandStatus.PENDING
+                }
                 refreshUi()
             },
             onCommandMetadataUpdate = { command, metadata ->
@@ -118,14 +177,13 @@ object MaestroCommandRunner {
         }
 
         val flowSuccess = orchestra.runFlow(commands, cachedState)
-
         return Result(flowSuccess = flowSuccess, cachedAppState = cachedState)
     }
 
     private fun toCommandStates(
         commands: List<MaestroCommand>,
         commandStatuses: MutableMap<MaestroCommand, CommandStatus>,
-        commandMetadata: IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>,
+        commandMetadata: IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>
     ): List<CommandState> {
         return commands
             // Don't render configuration commands
@@ -145,6 +203,7 @@ object MaestroCommandRunner {
 
     data class Result(
         val flowSuccess: Boolean,
-        val cachedAppState: OrchestraAppState?,
+        val cachedAppState: OrchestraAppState?
     )
 }
+

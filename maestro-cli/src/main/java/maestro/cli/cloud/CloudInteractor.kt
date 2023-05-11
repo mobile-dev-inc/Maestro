@@ -295,10 +295,12 @@ class CloudInteractor(
                         TestExecutionSummary.SuiteResult(
                             passed = passed,
                             flows = upload.flows.map { flow ->
+                                val failure = flow.errors.firstOrNull()
                                 TestExecutionSummary.FlowResult(
                                     name = flow.name,
                                     fileName = null,
                                     status = FlowStatus.from(flow.status),
+                                    failure = if (failure != null) TestExecutionSummary.Failure(failure) else null
                                 )
                             }
                         )

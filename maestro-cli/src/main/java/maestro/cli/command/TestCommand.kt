@@ -24,6 +24,7 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
@@ -38,6 +39,7 @@ import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
+import kotlin.io.path.absolutePathString
 
 @CommandLine.Command(
     name = "test",
@@ -153,6 +155,7 @@ class TestCommand : Callable<Int> {
                 if (suiteResult.passed) {
                     0
                 } else {
+                    printExitDebugMessage()
                     1
                 }
             } else {
@@ -160,9 +163,19 @@ class TestCommand : Callable<Int> {
                     TestRunner.runContinuous(maestro, device, flowFile, env)
                 } else {
                     val resultView = if (DisableAnsiMixin.ansiEnabled) AnsiResultView() else PlainTextResultView()
-                    TestRunner.runSingle(maestro, device, flowFile, env, resultView)
+                    val resultSingle = TestRunner.runSingle(maestro, device, flowFile, env, resultView)
+                    if (resultSingle == 1) {
+                        printExitDebugMessage()
+                    }
+                    return@newSession resultSingle
                 }
             }
         }
+    }
+
+    private fun printExitDebugMessage() {
+        println()
+        println("==== Debug output (logs & screenshots) ====")
+        PrintUtils.message(TestDebugReporter.path.absolutePathString())
     }
 }
