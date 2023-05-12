@@ -26,6 +26,7 @@ If applicable, add screenshots to help explain your problem.
 
 - Maestro version [e.g. v1.2.3]
 - Platform: [e.g. iOS 16.4.1, Android 11.0, Chrome]
+- Framework: [Native iOS/Android, Flutter, React Native, etc]
 - Device model and OS version: [e.g. iPhone6]
 - Simulator, emulator or physical device
 - Host [e.g. Mac M1, Windows, Linux, etc]
