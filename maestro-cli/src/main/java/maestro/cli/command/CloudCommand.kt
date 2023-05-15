@@ -127,6 +127,7 @@ class CloudCommand : Callable<Int> {
     override fun call(): Int {
         return CloudInteractor(
             client = ApiClient(apiUrl),
+            failOnTimeout = failOnCancellation,
         ).upload(
             async = async,
             flowFile = flowFile,
