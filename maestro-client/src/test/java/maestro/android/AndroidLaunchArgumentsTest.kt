@@ -14,7 +14,9 @@ class AndroidLaunchArgumentsTest {
             "isMaestro" to true,
             "cartValue" to 4,
             "cartValueDouble" to 4.4,
-            "cartColor" to "Hello this is cart value which is orange"
+            "cartColor" to "Hello this is cart value which is orange",
+            "cartTimeStamp" to 1683113805263,
+            "cartZeroValue" to 0
         )
 
         // when
@@ -26,7 +28,9 @@ class AndroidLaunchArgumentsTest {
                 provideArgumentValue("isMaestro", "true", Boolean::class.java.name),
                 provideArgumentValue("cartValue", "4", Int::class.java.name),
                 provideArgumentValue("cartValueDouble", "4.4", Double::class.java.name),
-                provideArgumentValue("cartColor", "Hello this is cart value which is orange", String::class.java.name)
+                provideArgumentValue("cartColor", "Hello this is cart value which is orange", String::class.java.name),
+                provideArgumentValue("cartTimeStamp", "1683113805263", Long::class.java.name),
+                provideArgumentValue("cartZeroValue", "0", Int::class.java.name)
             )
         )
     }

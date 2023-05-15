@@ -125,6 +125,7 @@ class Service(
                     Boolean::class.java.name -> intent.putExtra(it.key, it.value.toBoolean())
                     Int::class.java.name -> intent.putExtra(it.key, it.value.toInt())
                     Double::class.java.name -> intent.putExtra(it.key, it.value.toDouble())
+                    Long::class.java.name -> intent.putExtra(it.key, it.value.toLong())
                     else -> intent.putExtra(it.key, it.value)
                 }
             }
