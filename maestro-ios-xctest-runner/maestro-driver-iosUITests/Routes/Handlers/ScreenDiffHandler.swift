@@ -4,11 +4,13 @@ import CryptoKit
 import FlyingFox
 import os
 
-private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                            category: String(describing: IsScreenStaticHandler.self))
-
 @MainActor
-final class IsScreenStaticHandler: HTTPHandler {
+struct IsScreenStaticHandler: HTTPHandler {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Self.self)
+    )
+    
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let screenshot1 = XCUIScreen.main.screenshot()
         let screenshot2 = XCUIScreen.main.screenshot()

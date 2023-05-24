@@ -2,11 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                            category: String(describing: SwipeRouteHandler.self))
-
 @MainActor
-final class SwipeRouteHandlerV2: HTTPHandler {
+struct SwipeRouteHandlerV2: HTTPHandler {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Self.self)
+    )
+    
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
 

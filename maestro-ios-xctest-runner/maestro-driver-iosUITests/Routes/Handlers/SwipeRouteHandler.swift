@@ -2,11 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                            category: String(describing: SwipeRouteHandler.self))
-
 @MainActor
-final class SwipeRouteHandler: HTTPHandler {
+struct SwipeRouteHandler: HTTPHandler {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Self.self)
+    )
+    
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {        
         let decoder = JSONDecoder()
         
@@ -27,8 +29,8 @@ final class SwipeRouteHandler: HTTPHandler {
 
         logger.info("Swiping from \(start.debugDescription) to \(end.debugDescription) with \(duration) duration")
 
-        var eventRecord = EventRecord(orientation: .portrait)
-        eventRecord.addSwipeEvent(start: start, end: end, duration: duration)
+        let eventRecord = EventRecord(orientation: .portrait)
+        _ = eventRecord.addSwipeEvent(start: start, end: end, duration: duration)
 
         try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
     }

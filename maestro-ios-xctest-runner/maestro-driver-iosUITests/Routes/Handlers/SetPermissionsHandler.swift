@@ -4,7 +4,7 @@ import os
 
 @MainActor
 struct SetPermissionsHandler: HTTPHandler {
-    let logger = Logger(
+    private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
     )

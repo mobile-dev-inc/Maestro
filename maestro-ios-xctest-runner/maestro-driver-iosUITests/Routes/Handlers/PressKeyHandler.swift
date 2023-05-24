@@ -7,7 +7,7 @@ import XCTest
 struct PressKeyHandler: HTTPHandler {
     private let typingFrequency = 30
 
-    let logger = Logger(
+    private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
     )
@@ -20,8 +20,8 @@ struct PressKeyHandler: HTTPHandler {
 
         var eventPath = PointerEventPath.pathForTextInput()
         eventPath.type(text: requestBody.xctestKey, typingSpeed: typingFrequency)
-        var eventRecord = EventRecord(orientation: .portrait)
-        eventRecord.add(eventPath)
+        let eventRecord = EventRecord(orientation: .portrait)
+        _ = eventRecord.add(eventPath)
         try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
 
         return HTTPResponse(statusCode: .ok)

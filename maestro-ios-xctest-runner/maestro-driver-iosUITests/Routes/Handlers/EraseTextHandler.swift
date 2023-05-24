@@ -8,7 +8,7 @@ import Network
 struct EraseTextHandler: HTTPHandler {
     private let typingFrequency = 30
 
-    let logger = Logger(
+    private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
     )
@@ -22,8 +22,8 @@ struct EraseTextHandler: HTTPHandler {
         let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: requestBody.charactersToErase)
         var eventPath = PointerEventPath.pathForTextInput()
         eventPath.type(text: deleteText, typingSpeed: typingFrequency)
-        var eventRecord = EventRecord(orientation: .portrait)
-        eventRecord.add(eventPath)
+        let eventRecord = EventRecord(orientation: .portrait)
+        _ = eventRecord.add(eventPath)
         try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
 
         return HTTPResponse(statusCode: .ok)

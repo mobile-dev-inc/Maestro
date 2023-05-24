@@ -6,8 +6,7 @@ import Network
 
 @MainActor
 struct DeviceInfoHandler: HTTPHandler {
-
-    let logger = Logger(
+    private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
     )

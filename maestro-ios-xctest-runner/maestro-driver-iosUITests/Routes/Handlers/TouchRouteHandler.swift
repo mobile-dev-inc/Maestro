@@ -2,11 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                            category: String(describing: TouchRouteHandler.self))
-
 @MainActor
-final class TouchRouteHandler: HTTPHandler {
+struct TouchRouteHandler: HTTPHandler {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Self.self)
+    )
+    
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
         
@@ -21,8 +23,8 @@ final class TouchRouteHandler: HTTPHandler {
             logger.info("Tapping \(requestBody.x), \(requestBody.y)")
         }
         
-        var eventRecord = EventRecord(orientation: .portrait)
-        eventRecord.addPointerTouchEvent(
+        let eventRecord = EventRecord(orientation: .portrait)
+        _ = eventRecord.addPointerTouchEvent(
             at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)),
             touchUpAfter: requestBody.duration
         )

@@ -2,11 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                            category: String(describing: SubTreeRouteHandler.self))
-
 @MainActor
-final class SubTreeRouteHandler: HTTPHandler {
+struct SubTreeRouteHandler: HTTPHandler {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Self.self)
+    )
+    
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         guard let appId = request.query["appId"] else {
             logger.error("Requested view hierarchy for an invalid appId")

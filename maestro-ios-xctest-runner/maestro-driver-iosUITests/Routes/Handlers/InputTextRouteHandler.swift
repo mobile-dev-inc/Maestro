@@ -2,10 +2,13 @@ import FlyingFox
 import XCTest
 import os
 
-private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                            category: String(describing: InputTextRouteHandler.self))
 @MainActor
-final class InputTextRouteHandler : HTTPHandler {
+struct InputTextRouteHandler : HTTPHandler {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Self.self)
+    )
+    
     private let typingFrequency = 30
 
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
@@ -20,8 +23,8 @@ final class InputTextRouteHandler : HTTPHandler {
 
             var eventPath = PointerEventPath.pathForTextInput()
             eventPath.type(text: requestBody.text, typingSpeed: typingFrequency)
-            var eventRecord = EventRecord(orientation: .portrait)
-            eventRecord.add(eventPath)
+            let eventRecord = EventRecord(orientation: .portrait)
+            _ = eventRecord.add(eventPath)
             try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
 
             let duration = Date().timeIntervalSince(start)
