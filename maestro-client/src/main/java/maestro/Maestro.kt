@@ -284,7 +284,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
             val hierarchyAfterTap = waitForAppToSettle()
 
             if (hierarchyAfterTap == null || hierarchyBeforeTap != hierarchyAfterTap) {
-                LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
+                LOGGER.info("Something has changed in the UI judging by view hierarchy. Proceed.")
                 return
             }
         }
