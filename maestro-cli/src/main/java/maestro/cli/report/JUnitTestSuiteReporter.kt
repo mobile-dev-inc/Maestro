@@ -36,6 +36,7 @@ class JUnitTestSuiteReporter(
                                 name = testSuiteName ?: "Test Suite",
                                 device = summary.deviceName,
                                 failures = suite.flows.count { it.status == FlowStatus.ERROR },
+                                time = suite.duration?.inWholeSeconds?.toString(),
                                 tests = suite.flows.size,
                                 testCases = suite.flows
                                     .map { flow ->
@@ -47,7 +48,8 @@ class JUnitTestSuiteReporter(
                                                 Failure(
                                                     message = failure.message,
                                                 )
-                                            }
+                                            },
+                                            time = flow.duration?.inWholeSeconds?.toString()
                                         )
                                     }
                             )
@@ -69,6 +71,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val device: String?,
         @JacksonXmlProperty(isAttribute = true) val tests: Int,
         @JacksonXmlProperty(isAttribute = true) val failures: Int,
+        @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         @JacksonXmlElementWrapper(useWrapping = false)
         @JsonProperty("testcase")
         val testCases: List<TestCase>,
@@ -78,6 +81,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val id: String,
         @JacksonXmlProperty(isAttribute = true) val name: String,
         @JacksonXmlProperty(isAttribute = true) val classname: String,
+        @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         val failure: Failure? = null,
     )
 

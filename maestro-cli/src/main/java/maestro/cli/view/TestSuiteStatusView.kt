@@ -6,13 +6,16 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.FlowResult
 import org.fusesource.jansi.Ansi
 import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 object TestSuiteStatusView {
 
     fun showFlowCompletion(result: FlowResult) {
         printStatus(result.status)
 
-        print(" ${result.name}")
+        val durationString = result.duration?.let { " ($it)" }.orEmpty()
+        print(" ${result.name}$durationString")
         if (result.status == FlowStatus.ERROR && result.error != null) {
             print(
                 Ansi.ansi()
@@ -53,8 +56,9 @@ object TestSuiteStatusView {
                 .filter { it.status == FlowStatus.CANCELED }
 
             if (passedFlows.isNotEmpty()) {
+                val durationMessage = suite.duration?.let { " in $it" } ?: ""
                 PrintUtils.success(
-                    "${passedFlows.size}/${suite.flows.size} ${flowWord(passedFlows.size)} Passed",
+                    "${passedFlows.size}/${suite.flows.size} ${flowWord(passedFlows.size)} Passed$durationMessage",
                     bold = true,
                 )
 
@@ -68,13 +72,13 @@ object TestSuiteStatusView {
         }
         println()
 
-        if (suite.uploadDetais != null) {
+        if (suite.uploadDetails != null) {
             println("==== View details in the console ====")
             PrintUtils.message(
                 uploadUrl(
-                    suite.uploadDetais.uploadId.toString(),
-                    suite.uploadDetais.teamId,
-                    suite.uploadDetais.appId,
+                    suite.uploadDetails.uploadId.toString(),
+                    suite.uploadDetails.teamId,
+                    suite.uploadDetails.appId,
                 )
             )
             println()
@@ -116,13 +120,15 @@ object TestSuiteStatusView {
     data class TestSuiteViewModel(
         val status: FlowStatus,
         val flows: List<FlowResult>,
-        val uploadDetais: UploadDetails? = null,
+        val duration: Duration? = null,
+        val uploadDetails: UploadDetails? = null,
     ) {
 
         data class FlowResult(
             val name: String,
             val status: FlowStatus,
-            val error: String? = null
+            val duration: Duration? = null,
+            val error: String? = null,
         )
 
         data class UploadDetails(
@@ -134,9 +140,9 @@ object TestSuiteStatusView {
         companion object {
 
             fun UploadStatus.toViewModel(
-                uploadDetais: UploadDetails
+                uploadDetails: UploadDetails
             ) = TestSuiteViewModel(
-                uploadDetais = uploadDetais,
+                uploadDetails = uploadDetails,
                 status = FlowStatus.from(status),
                 flows = flows.map {
                     it.toViewModel()
@@ -158,7 +164,7 @@ object TestSuiteStatusView {
 // Helped launcher to play around with presentation
 fun main() {
     val status = TestSuiteStatusView.TestSuiteViewModel(
-        uploadDetais = TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
+        uploadDetails = TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
             uploadId = UUID.randomUUID(),
             teamId = "teamid",
             appId = "appid",
@@ -168,16 +174,19 @@ fun main() {
             FlowResult(
                 name = "A",
                 status = FlowStatus.SUCCESS,
+                duration = 42.seconds,
             ),
             FlowResult(
                 name = "B",
                 status = FlowStatus.SUCCESS,
+                duration = 231.seconds,
             ),
             FlowResult(
                 name = "C",
                 status = FlowStatus.CANCELED,
             )
-        )
+        ),
+        duration = 273.seconds,
     )
 
     status.flows

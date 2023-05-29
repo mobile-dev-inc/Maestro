@@ -22,6 +22,9 @@ import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
+import kotlin.math.roundToLong
+import kotlin.system.measureTimeMillis
+import kotlin.time.Duration.Companion.seconds
 
 class TestSuiteInteractor(
     private val maestro: Maestro,
@@ -89,14 +92,18 @@ class TestSuiteInteractor(
             flowResults.add(result)
         }
 
+        val suiteDuration = flowResults.sumOf { it.duration?.inWholeSeconds ?: 0 }.seconds
+
         TestSuiteStatusView.showSuiteResult(
             TestSuiteViewModel(
                 status = if (passed) FlowStatus.SUCCESS else FlowStatus.ERROR,
+                duration = suiteDuration,
                 flows = flowResults
                     .map {
                         TestSuiteViewModel.FlowResult(
                             name = it.name,
                             status = it.status,
+                            duration = it.duration,
                         )
                     },
             )
@@ -108,7 +115,8 @@ class TestSuiteInteractor(
             suites = listOf(
                 TestExecutionSummary.SuiteResult(
                     passed = passed,
-                    flows = flowResults
+                    flows = flowResults,
+                    duration = suiteDuration
                 )
             )
         )
@@ -162,65 +170,68 @@ class TestSuiteInteractor(
             return result.getOrNull()
         }
 
-        try {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(env)
+        val flowTimeMillis = measureTimeMillis {
+            try {
+                val commands = YamlCommandReader.readCommands(flowFile.toPath())
+                    .withEnv(env)
 
-            val config = YamlCommandReader.getConfig(commands)
+                val config = YamlCommandReader.getConfig(commands)
 
-            val orchestra = Orchestra(
-                maestro = maestro,
-                onCommandStart = { _, command ->
-                    logger.info("${command.description()} RUNNING")
-                    debugCommands[command] = CommandDebugMetadata(
-                        timestamp = System.currentTimeMillis(),
-                        status = CommandStatus.RUNNING
-                    )
-                },
-                onCommandComplete = { _, command ->
-                    logger.info("${command.description()} COMPLETED")
-                    debugCommands[command]?.let {
-                        it.status = CommandStatus.COMPLETED
-                        it.calculateDuration()
-                    }
-                },
-                onCommandFailed = { _, command, e ->
-                    logger.info("${command.description()} FAILED")
-                    if (e is MaestroException) debug.exception = e
-                    debugCommands[command]?.let {
-                        it.status = CommandStatus.FAILED
-                        it.calculateDuration()
-                        it.error = e
-                    }
+                val orchestra = Orchestra(
+                    maestro = maestro,
+                    onCommandStart = { _, command ->
+                        logger.info("${command.description()} RUNNING")
+                        debugCommands[command] = CommandDebugMetadata(
+                            timestamp = System.currentTimeMillis(),
+                            status = CommandStatus.RUNNING
+                        )
+                    },
+                    onCommandComplete = { _, command ->
+                        logger.info("${command.description()} COMPLETED")
+                        debugCommands[command]?.let {
+                            it.status = CommandStatus.COMPLETED
+                            it.calculateDuration()
+                        }
+                    },
+                    onCommandFailed = { _, command, e ->
+                        logger.info("${command.description()} FAILED")
+                        if (e is MaestroException) debug.exception = e
+                        debugCommands[command]?.let {
+                            it.status = CommandStatus.FAILED
+                            it.calculateDuration()
+                            it.error = e
+                        }
 
-                    takeDebugScreenshot(CommandStatus.FAILED)
-                    Orchestra.ErrorResolution.FAIL
-                },
-                onCommandSkipped = { _, command ->
-                    logger.info("${command.description()} SKIPPED")
-                    debugCommands[command]?.let {
-                        it.status = CommandStatus.SKIPPED
-                    }
-                },
-                onCommandReset = { command ->
-                    logger.info("${command.description()} PENDING")
-                    debugCommands[command]?.let {
-                        it.status = CommandStatus.PENDING
-                    }
-                },
-            )
+                        takeDebugScreenshot(CommandStatus.FAILED)
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                    onCommandSkipped = { _, command ->
+                        logger.info("${command.description()} SKIPPED")
+                        debugCommands[command]?.let {
+                            it.status = CommandStatus.SKIPPED
+                        }
+                    },
+                    onCommandReset = { command ->
+                        logger.info("${command.description()} PENDING")
+                        debugCommands[command]?.let {
+                            it.status = CommandStatus.PENDING
+                        }
+                    },
+                )
 
-            config?.name?.let {
-                flowName = it
+                config?.name?.let {
+                    flowName = it
+                }
+
+                val flowSuccess = orchestra.runFlow(commands)
+                flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
+            } catch (e: Exception) {
+                logger.error("Failed to complete flow", e)
+                flowStatus = FlowStatus.ERROR
+                errorMessage = ErrorViewUtils.exceptionToMessage(e)
             }
-
-            val flowSuccess = orchestra.runFlow(commands)
-            flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
-        } catch (e: Exception) {
-            logger.error("Failed to complete flow", e)
-            flowStatus = FlowStatus.ERROR
-            errorMessage = ErrorViewUtils.exceptionToMessage(e)
         }
+        val flowDuration = (flowTimeMillis / 1000f).roundToLong().seconds
 
         TestDebugReporter.saveFlow(flowName, debug)
 
@@ -228,7 +239,8 @@ class TestSuiteInteractor(
             TestSuiteViewModel.FlowResult(
                 name = flowName,
                 status = flowStatus,
-                error = debug.exception?.message
+                duration = flowDuration,
+                error = debug.exception?.message,
             )
         )
 
@@ -241,6 +253,7 @@ class TestSuiteInteractor(
                     message = errorMessage ?: debug.exception?.message ?: "Unknown error",
                 )
             } else null,
+            duration = flowDuration,
         )
     }
 

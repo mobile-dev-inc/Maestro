@@ -5,6 +5,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Buffer
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 class JUnitTestSuiteReporterTest {
 
@@ -24,13 +25,16 @@ class JUnitTestSuiteReporterTest {
                             name = "Flow A",
                             fileName = "flow_a",
                             status = FlowStatus.SUCCESS,
+                            duration = 421.seconds
                         ),
                         TestExecutionSummary.FlowResult(
                             name = "Flow B",
                             fileName = "flow_b",
                             status = FlowStatus.WARNING,
+                            duration = 1494.seconds
                         ),
-                    )
+                    ),
+                    duration = 1915.seconds,
                 )
             )
         )
@@ -48,9 +52,9 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Test Suite" device="iPhone 14" tests="2" failures="0">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B"/>
+                  <testsuite name="Test Suite" device="iPhone 14" tests="2" failures="0" time="1915">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="1494"/>
                   </testsuite>
                 </testsuites>
                 
@@ -73,14 +77,17 @@ class JUnitTestSuiteReporterTest {
                             name = "Flow A",
                             fileName = "flow_a",
                             status = FlowStatus.SUCCESS,
+                            duration = 421.seconds
                         ),
                         TestExecutionSummary.FlowResult(
                             name = "Flow B",
                             fileName = "flow_b",
                             status = FlowStatus.ERROR,
-                            failure = TestExecutionSummary.Failure("Error message")
+                            failure = TestExecutionSummary.Failure("Error message"),
+                            duration = 131.seconds
                         ),
-                    )
+                    ),
+                    duration = 552.seconds,
                 )
             )
         )
@@ -98,9 +105,9 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Test Suite" tests="2" failures="1">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B">
+                  <testsuite name="Test Suite" tests="2" failures="1" time="552">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="131">
                       <failure>Error message</failure>
                     </testcase>
                   </testsuite>
@@ -126,13 +133,15 @@ class JUnitTestSuiteReporterTest {
                             name = "Flow A",
                             fileName = "flow_a",
                             status = FlowStatus.SUCCESS,
+                            duration = 421.seconds
                         ),
                         TestExecutionSummary.FlowResult(
                             name = "Flow B",
                             fileName = "flow_b",
                             status = FlowStatus.WARNING,
                         ),
-                    )
+                    ),
+                    duration = 421.seconds,
                 )
             )
         )
@@ -150,8 +159,8 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A"/>
+                  <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0" time="421">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421"/>
                     <testcase id="Flow B" name="Flow B" classname="Flow B"/>
                   </testsuite>
                 </testsuites>
