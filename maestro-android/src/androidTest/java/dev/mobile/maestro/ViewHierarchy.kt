@@ -3,6 +3,7 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.graphics.Rect
+import android.os.Build
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Xml
@@ -33,8 +34,14 @@ object ViewHierarchy {
             .context
             .getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val displayMetrics = DisplayMetrics()
-        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+        val displayRect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.bounds
+        } else {
+            val displayMetrics = DisplayMetrics()
+            windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+            Rect(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
+        }
+
 
         val serializer = Xml.newSerializer()
         serializer.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output", true)
@@ -65,11 +72,10 @@ object ViewHierarchy {
                 it,
                 serializer,
                 0,
-                displayMetrics.widthPixels,
-                displayMetrics.heightPixels,
+                displayRect
             )
         }
-        addToastNode(toastNode, serializer, displayMetrics)
+        addToastNode(toastNode, serializer, displayRect)
 
         serializer.endTag("", "hierarchy")
         serializer.endDocument()
@@ -78,7 +84,7 @@ object ViewHierarchy {
     private fun addToastNode(
         toastNode: AccessibilityNodeInfo?,
         serializer: XmlSerializer,
-        displayMetrics: DisplayMetrics
+        displayRect: Rect
     ) {
         if (toastNode != null) {
             serializer.apply {
@@ -89,7 +95,7 @@ object ViewHierarchy {
                 attribute("", "visible-to-user", toastNode.isVisibleToUser.toString())
                 attribute("", "checkable", toastNode.isCheckable.toString())
                 attribute("", "clickable", toastNode.isClickable.toString())
-                attribute("", "bounds", getVisibleBoundsInScreen(toastNode, displayMetrics.widthPixels, displayMetrics.heightPixels)?.toShortString())
+                attribute("", "bounds", getVisibleBoundsInScreen(toastNode, displayRect)?.toShortString())
                 endTag("", "node")
             }
         }
@@ -106,8 +112,7 @@ object ViewHierarchy {
         node: AccessibilityNodeInfo,
         serializer: XmlSerializer,
         index: Int,
-        width: Int,
-        height: Int,
+        displayRect: Rect,
         insideWebView: Boolean = false,
     ) {
         serializer.startTag("", "node")
@@ -133,9 +138,7 @@ object ViewHierarchy {
         serializer.attribute("", "selected", java.lang.Boolean.toString(node.isSelected))
         serializer.attribute("", "visible-to-user", java.lang.Boolean.toString(node.isVisibleToUser))
         serializer.attribute(
-            "", "bounds", getVisibleBoundsInScreen(
-                node, width, height
-            )?.toShortString()
+            "", "bounds", getVisibleBoundsInScreen(node, displayRect)?.toShortString()
         )
         val count = node.childCount
         for (i in 0 until count) {
@@ -148,8 +151,7 @@ object ViewHierarchy {
                     dumpNodeRec(
                         child,
                         serializer, i,
-                        width,
-                        height,
+                        displayRect,
                         insideWebView || child.className == "android.webkit.WebView"
                     )
                     child.recycle()
@@ -260,18 +262,13 @@ object ViewHierarchy {
     }
 
     // This method is copied from AccessibilityNodeInfoHelper as-is
-    private fun getVisibleBoundsInScreen(node: AccessibilityNodeInfo?, width: Int, height: Int): Rect? {
+    private fun getVisibleBoundsInScreen(node: AccessibilityNodeInfo?, displayRect: Rect): Rect? {
         if (node == null) {
             return null
         }
         // targeted node's bounds
         val nodeRect = Rect()
         node.getBoundsInScreen(nodeRect)
-        val displayRect = Rect()
-        displayRect.top = 0
-        displayRect.left = 0
-        displayRect.right = width
-        displayRect.bottom = height
         return if (nodeRect.intersect(displayRect)) {
             nodeRect
         } else {

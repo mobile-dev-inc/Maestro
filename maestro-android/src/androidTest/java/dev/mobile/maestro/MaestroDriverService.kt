@@ -159,6 +159,7 @@ class Service(
         request: MaestroAndroid.ViewHierarchyRequest,
         responseObserver: StreamObserver<MaestroAndroid.ViewHierarchyResponse>
     ) {
+        refreshAccessibilityCache()
         val stream = ByteArrayOutputStream()
 
         val ms = measureTimeMillis {
@@ -187,6 +188,20 @@ class Service(
             }
         )
         responseObserver.onCompleted()
+    }
+
+    /**
+     * Clears the in-process Accessibility cache, removing any stale references. Because the
+     * AccessibilityInteractionClient singleton stores copies of AccessibilityNodeInfo instances,
+     * calls to public APIs such as `recycle` do not guarantee cached references get updated.
+     */
+    private fun refreshAccessibilityCache() {
+        try {
+            uiDevice.waitForIdle(2000)
+            uiAutomation.serviceInfo = null
+        } catch (nullExp: NullPointerException) {
+            /* no-op */
+        }
     }
 
     override fun tap(
