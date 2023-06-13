@@ -6,6 +6,7 @@ import pxb.android.axml.AxmlVisitor
 import pxb.android.axml.AxmlWriter
 import pxb.android.axml.NodeVisitor
 import java.io.File
+import java.lang.ClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
@@ -44,7 +45,7 @@ object ApkDebuggable {
     }
 
     private fun getOriginalManifestBytes(apkFile: File): ByteArray {
-        FileSystems.newFileSystem(apkFile.toPath(), null).use { fs ->
+        FileSystems.newFileSystem(apkFile.toPath(), null as ClassLoader?).use { fs ->
             val manifestPath = fs.getPath("AndroidManifest.xml")
             return Files.readAllBytes(manifestPath)
         }
