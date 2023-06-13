@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit
 class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
+    private val port: Int,
 ) : XCTestInstaller {
     // Set this flag to allow using a test runner started from Xcode
     // When this flag is set, maestro will not install, run, stop or remove the xctest runner.
@@ -150,7 +151,8 @@ class LocalXCTestInstaller(
             logger.info("[Start] Running XcUITest with xcode build command")
             xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
                 deviceId,
-                xctestRunFile.absolutePath
+                xctestRunFile.absolutePath,
+                port
             )
             logger.info("[Done] Running XcUITest with xcode build command")
         } else {
