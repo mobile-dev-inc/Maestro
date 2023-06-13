@@ -121,6 +121,9 @@ class CloudCommand : Callable<Int> {
     )
     private var output: File? = null
 
+    @Option(order = 16, names = ["--ios-version"], description = ["iOS version to run your flow against"])
+    private var iOSVersion: String? = null
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
@@ -142,6 +145,7 @@ class CloudCommand : Callable<Int> {
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             androidApiLevel = androidApiLevel,
+            iOSVersion = iOSVersion,
             includeTags = includeTags,
             excludeTags = excludeTags,
             reportFormat = format,

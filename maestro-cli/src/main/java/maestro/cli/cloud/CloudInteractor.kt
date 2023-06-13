@@ -49,6 +49,7 @@ class CloudInteractor(
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
         androidApiLevel: Int? = null,
+        iOSVersion: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
@@ -98,6 +99,7 @@ class CloudInteractor(
                 pullRequestId,
                 env,
                 androidApiLevel,
+                iOSVersion,
                 includeTags,
                 excludeTags,
             ) { totalBytes, bytesWritten ->

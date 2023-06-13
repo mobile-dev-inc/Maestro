@@ -220,6 +220,7 @@ class ApiClient(
         pullRequestId: String?,
         env: Map<String, String>? = null,
         androidApiLevel: Int?,
+        iOSVersion: String? = null,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
         maxRetryCount: Int = 3,
@@ -241,6 +242,7 @@ class ApiClient(
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
+        iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
 
@@ -283,6 +285,7 @@ class ApiClient(
                         pullRequestId,
                         env,
                         androidApiLevel,
+                        iOSVersion,
                         includeTags,
                         excludeTags,
                         maxRetryCount,
