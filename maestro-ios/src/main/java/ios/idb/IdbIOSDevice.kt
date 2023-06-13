@@ -30,7 +30,6 @@ import hierarchy.XCUIElement
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
-import idb.Idb.HIDEvent.HIDButtonType
 import idb.Idb.RecordResponse
 import idb.PushRequestKt.inner
 import idb.accessibilityInfoRequest
