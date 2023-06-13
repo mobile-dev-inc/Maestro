@@ -247,8 +247,16 @@ class FakeDriver : Driver {
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
+        ensureOpen()
+
+        out.buffer().writeUtf8("Screen recording").close()
+
+        events += Event.StartRecording
+
         return object : ScreenRecording {
-            override fun close() {}
+            override fun close() {
+                events += Event.StopRecording
+            }
         }
     }
 
@@ -481,6 +489,10 @@ class FakeDriver : Driver {
             val appId: String,
             val permissions: Map<String, String>,
         ) : Event()
+
+        object StartRecording : Event()
+
+        object StopRecording : Event()
     }
 
     interface UserInteraction

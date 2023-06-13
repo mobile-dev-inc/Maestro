@@ -41,6 +41,7 @@ class IntegrationTest {
     @AfterEach
     internal fun tearDown() {
         File("screenshot.png").delete()
+        File("recording.mp4").delete()
     }
 
     @Test
@@ -2703,6 +2704,29 @@ class IntegrationTest {
         assertThat(receivedLogs).containsExactly(
             "Log from runScript",
         ).inOrder()
+    }
+
+    @Test
+    fun `Case 099 - Screen recording`() {
+        // Given
+        val commands = readCommands("099_screen_recording")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.StartRecording,
+                Event.StopRecording,
+            )
+        )
     }
 
     private fun orchestra(

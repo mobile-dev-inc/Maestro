@@ -26,6 +26,7 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.ScreenRecording
 import maestro.js.Js
 import maestro.js.JsEngine
 import maestro.networkproxy.NetworkProxy
@@ -39,6 +40,8 @@ import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
+import okio.buffer
+import okio.sink
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Files
@@ -64,6 +67,8 @@ class Orchestra(
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
     private var deviceInfo: DeviceInfo? = null
+
+    private var screenRecording: ScreenRecording? = null
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
@@ -210,6 +215,8 @@ class Orchestra(
             is MockNetworkCommand -> mockNetworkCommand(command)
             is TravelCommand -> travelCommand(command)
             is AssertOutgoingRequestsCommand -> assertOutgoingRequestsCommand(command)
+            is StartRecordingCommand -> startRecordingCommand(command)
+            is StopRecordingCommand -> stopRecordingCommand()
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -554,6 +561,20 @@ class Orchestra(
 
         maestro.takeScreenshot(file)
 
+        return false
+    }
+
+    private fun startRecordingCommand(command: StartRecordingCommand): Boolean {
+        val pathStr = command.path + ".mp4"
+        val file = screenshotsDir
+            ?.let { File(it, pathStr) }
+            ?: File(pathStr)
+        screenRecording = maestro.startScreenRecording(file.sink().buffer())
+        return false
+    }
+
+    private fun stopRecordingCommand(): Boolean {
+        screenRecording?.close()
         return false
     }
 

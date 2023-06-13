@@ -771,6 +771,28 @@ data class AssertOutgoingRequestsCommand(
     }
 }
 
+data class StartRecordingCommand(val path: String) : Command {
+
+    override fun description(): String {
+        return "Start recording $path"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): StartRecordingCommand {
+        return copy(
+            path = path.evaluateScripts(jsEngine),
+        )
+    }
+}
+
+class StopRecordingCommand : Command {
+
+    override fun description(): String {
+        return "Stop recording"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
 internal fun tapOrLong(isLongPress: Boolean?): String = if (isLongPress == true) "Long press" else "Tap"
-
-

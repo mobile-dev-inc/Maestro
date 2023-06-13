@@ -61,6 +61,8 @@ data class MaestroCommand(
     val scrollUntilVisible: ScrollUntilVisibleCommand? = null,
     val travelCommand: TravelCommand? = null,
     val assertOutgoingRequestsCommand: AssertOutgoingRequestsCommand? = null,
+    val startRecordingCommand: StartRecordingCommand? = null,
+    val stopRecordingCommand: StopRecordingCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -97,6 +99,8 @@ data class MaestroCommand(
         scrollUntilVisible = command as? ScrollUntilVisibleCommand,
         travelCommand = command as? TravelCommand,
         assertOutgoingRequestsCommand = command as? AssertOutgoingRequestsCommand,
+        startRecordingCommand = command as? StartRecordingCommand,
+        stopRecordingCommand = command as? StopRecordingCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -133,6 +137,8 @@ data class MaestroCommand(
         scrollUntilVisible != null -> scrollUntilVisible
         travelCommand != null -> travelCommand
         assertOutgoingRequestsCommand != null -> assertOutgoingRequestsCommand
+        startRecordingCommand != null -> startRecordingCommand
+        stopRecordingCommand != null -> stopRecordingCommand
         else -> null
     }
 

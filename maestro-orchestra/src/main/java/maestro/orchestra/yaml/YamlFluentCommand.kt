@@ -48,7 +48,9 @@ import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
+import maestro.orchestra.StopRecordingCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
@@ -96,6 +98,8 @@ data class YamlFluentCommand(
     val scrollUntilVisible: YamlScrollUntilVisible? = null,
     val travel: YamlTravelCommand? = null,
     val assertOutgoingRequest: YamlAssertOutgoingRequestsCommand? = null,
+    val startRecording: YamlStartRecording? = null,
+    val stopRecording: YamlStopRecording? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -214,6 +218,8 @@ data class YamlFluentCommand(
             scrollUntilVisible != null -> listOf(scrollUntilVisibleCommand(scrollUntilVisible))
             travel != null -> listOf(travelCommand(travel))
             assertOutgoingRequest != null -> listOf(assertOutgoingRequestsCommand(assertOutgoingRequest))
+            startRecording != null -> listOf(MaestroCommand(StartRecordingCommand(startRecording.path)))
+            stopRecording != null -> listOf(MaestroCommand(StopRecordingCommand()))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -605,6 +611,10 @@ data class YamlFluentCommand(
 
                 "waitForAnimationToEnd" -> YamlFluentCommand(
                     waitForAnimationToEnd = YamlWaitForAnimationToEndCommand(null)
+                )
+
+                "stopRecording" -> YamlFluentCommand(
+                    stopRecording = YamlStopRecording()
                 )
 
                 else -> throw SyntaxError("Invalid command: \"$stringCommand\"")
