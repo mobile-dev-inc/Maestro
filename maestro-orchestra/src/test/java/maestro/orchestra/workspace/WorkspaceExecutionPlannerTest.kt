@@ -215,6 +215,29 @@ internal class WorkspaceExecutionPlannerTest {
         ).inOrder()
     }
 
+    @Test
+    internal fun `013 - Execution order is respected`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = path("/workspaces/013_execution_order"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/013_execution_order/flowA.yaml"),
+        )
+
+        // Then
+        assertThat(plan.sequence).isNotNull()
+        assertThat(plan.sequence!!.flows).containsExactly(
+            path("/workspaces/013_execution_order/flowB.yaml"),
+            path("/workspaces/013_execution_order/flowCWithCustomName.yaml"),
+            path("/workspaces/013_execution_order/flowD.yaml"),
+        ).inOrder()
+    }
+
     private fun path(pathStr: String): Path {
         return Paths.get(WorkspaceExecutionPlannerTest::class.java.getResource(pathStr).toURI())
     }

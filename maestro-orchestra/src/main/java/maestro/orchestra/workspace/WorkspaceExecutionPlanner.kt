@@ -1,5 +1,6 @@
 package maestro.orchestra.workspace
 
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.yaml.YamlCommandReader
 import java.nio.file.Files
@@ -35,42 +36,56 @@ object WorkspaceExecutionPlanner {
                 input.fileSystem.getPathMatcher("glob:${input.pathString}/$it")
             }
 
-        val entries = Files.walk(input)
+        val globalIncludeTags = workspaceConfig.includeTags?.toList() ?: emptyList()
+        val globalExcludeTags = workspaceConfig.excludeTags?.toList() ?: emptyList()
+
+        // filter out all Flow files
+        val unsortedFlowFiles = Files.walk(input)
             .filter { path ->
                 matchers.any { matcher -> matcher.matches(path) }
             }
             .toList()
-            .let { list ->
-                if (workspaceConfig.local?.deterministicOrder == true) {
-                    list.sortedBy { it.name }
-                } else {
-                    list
-                }
+            .filter { it.nameWithoutExtension != "config" }
+            .filter {
+                it.isRegularFile()
+                    && (
+                    it.name.endsWith(".yaml")
+                        || it.name.endsWith(".yml")
+                    )
             }
 
-        val globalIncludeTags = workspaceConfig.includeTags?.toList() ?: emptyList()
-        val globalExcludeTags = workspaceConfig.excludeTags?.toList() ?: emptyList()
+        // retrieve config for each Flow file
+        val configPerFlowFile = unsortedFlowFiles.associateWith {
+            val commands = YamlCommandReader.readCommands(it)
+            YamlCommandReader.getConfig(commands)
+        }
+
+        // filter out all Flows not matching tags if present
+        val allFlows = unsortedFlowFiles.filter {
+            val config = configPerFlowFile[it]
+            val tags = config?.tags ?: emptyList()
+
+            (includeTags.isEmpty() || tags.any(includeTags::contains))
+                && (globalIncludeTags.isEmpty() || tags.any(globalIncludeTags::contains))
+                && (excludeTags.isEmpty() || !tags.any(excludeTags::contains))
+                && (globalExcludeTags.isEmpty() || !tags.any(globalExcludeTags::contains))
+        }
+
+        val flowsToRunInSequence = getFlowsToRunInSequence(allFlows, configPerFlowFile, workspaceConfig) ?: emptyList()
+        var normalFlows = allFlows - flowsToRunInSequence.toSet()
+
+        if (workspaceConfig.local?.deterministicOrder == true) {
+            println()
+            println("WARNING! deterministicOrder has been deprecated in favour of executionOrder and will be removed in a future version")
+            normalFlows = normalFlows.sortedBy { it.name }
+        }
 
         return ExecutionPlan(
-            flowsToRun = entries
-                .filter { it.nameWithoutExtension != "config" }
-                .filter {
-                    it.isRegularFile()
-                        && (
-                        it.name.endsWith(".yaml")
-                            || it.name.endsWith(".yml")
-                        )
-                }
-                .filter {
-                    val commands = YamlCommandReader.readCommands(it)
-                    val config = YamlCommandReader.getConfig(commands)
-                    val tags = config?.tags ?: emptyList()
-
-                    (includeTags.isEmpty() || tags.any(includeTags::contains))
-                        && (globalIncludeTags.isEmpty() || tags.any(globalIncludeTags::contains))
-                        && (excludeTags.isEmpty() || !tags.any(excludeTags::contains))
-                        && (globalExcludeTags.isEmpty() || !tags.any(globalExcludeTags::contains))
-                }
+            flowsToRun = normalFlows,
+            FlowSequence(
+                flowsToRunInSequence,
+                workspaceConfig.executionOrder?.continueOnFailure
+            )
         )
     }
 
@@ -81,8 +96,37 @@ object WorkspaceExecutionPlanner {
                 .takeIf { it.exists() }
     }
 
+    private fun parseFileName(file: Path): String {
+        return file.fileName.toString().substringBeforeLast(".")
+    }
+
+    private fun getFlowsToRunInSequence(
+        list: List<Path>,
+        configPerFlowFile: Map<Path, MaestroConfig?>,
+        workspaceConfig: WorkspaceConfig)
+    : List<Path>? {
+        if (workspaceConfig.executionOrder?.flowsOrder?.isNotEmpty() == true) {
+            val flowsOrder = workspaceConfig.executionOrder?.flowsOrder!!.distinct()
+
+            return flowsOrder.map { flowName ->
+                list.find {
+                    val config = configPerFlowFile[it]
+                    val name = config?.name ?: parseFileName(it)
+                    flowName == name
+                } ?: error("Could not find Flow with name $flowName")
+            }
+        }
+        return null
+    }
+
+    data class FlowSequence(
+        val flows: List<Path>,
+        val continueOnFailure: Boolean? = true
+    )
+
     data class ExecutionPlan(
         val flowsToRun: List<Path>,
+        val sequence: FlowSequence? = null
     )
 
 }

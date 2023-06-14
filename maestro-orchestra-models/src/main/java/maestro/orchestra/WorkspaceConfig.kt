@@ -8,6 +8,7 @@ data class WorkspaceConfig(
     val includeTags: StringList? = null,
     val excludeTags: StringList? = null,
     val local: Local? = null,
+    val executionOrder: ExecutionOrder? = null
 ) {
 
     @JsonAnySetter
@@ -15,8 +16,14 @@ data class WorkspaceConfig(
         // Do nothing
     }
 
+    @Deprecated("Use ExecutionOrder instead")
     data class Local(
         val deterministicOrder: Boolean? = null,
+    )
+
+    data class ExecutionOrder(
+        val continueOnFailure: Boolean? = true,
+        val flowsOrder: List<String> = emptyList()
     )
 
     class StringList : ArrayList<String>() {
