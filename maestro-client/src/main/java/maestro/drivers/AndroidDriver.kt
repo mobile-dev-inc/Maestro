@@ -19,6 +19,7 @@
 
 package maestro.drivers
 
+import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
@@ -90,13 +91,7 @@ class AndroidDriver(
     override fun open() {
         uninstallMaestroApks()
         installMaestroApks()
-
-        instrumentationSession = dadb.openShell()
-        instrumentationSession?.write(
-            "am instrument -w -m -e debug false " +
-                "-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' " +
-                "dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n"
-        )
+        startInstrumentationSession()
 
         try {
             awaitLaunch()
@@ -106,6 +101,25 @@ class AndroidDriver(
         }
 
         allocateForwarder()
+    }
+
+    private fun startInstrumentationSession() {
+        val startTime = System.currentTimeMillis()
+        val instrumentationCommand = "am instrument -w -m -e debug false " +
+            "-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' " +
+            "dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n"
+
+        while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+            instrumentationSession = dadb.openShell(instrumentationCommand)
+
+            if (instrumentationSession.successfullyStarted()) {
+                return
+            }
+
+            instrumentationSession?.close()
+            Thread.sleep(100)
+        }
+        throw TimeoutException("Maestro instrumentation could not be initialized")
     }
 
     private fun allocateForwarder() {
@@ -124,14 +138,11 @@ class AndroidDriver(
     private fun awaitLaunch() {
         val startTime = System.currentTimeMillis()
 
-        while (System.currentTimeMillis() - startTime < SERVER_LAUNCH_TIMEOUT_MS) {
-            try {
+        while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+            runCatching {
                 dadb.open("tcp:7001").close()
                 return
-            } catch (ignored: Exception) {
-                // Continue
             }
-
             Thread.sleep(100)
         }
 
@@ -743,6 +754,9 @@ class AndroidDriver(
             throw IllegalStateException("dev.mobile.maestro was not installed")
         }
         install(maestroServerApk)
+        if (!isPackageInstalled("dev.mobile.maestro.test")) {
+            throw IllegalStateException("dev.mobile.maestro.test was not installed")
+        }
     }
 
     private fun uninstallMaestroApks() {
@@ -792,10 +806,26 @@ class AndroidDriver(
         return response.output
     }
 
+    private fun getStartupTimeout(): Long = runCatching {
+        System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
+    }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
+
+    private fun AdbShellStream?.successfullyStarted(): Boolean {
+        val output = this?.read()
+        return when {
+            output is AdbShellPacket.StdError -> false
+            output.toString().contains("FAILED", true) -> false
+            output.toString().contains("UNABLE", true) -> false
+            else -> true
+        }
+    }
+
     companion object {
 
-        private const val SERVER_LAUNCH_TIMEOUT_MS = 15000
+        private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
+        private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
+
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
