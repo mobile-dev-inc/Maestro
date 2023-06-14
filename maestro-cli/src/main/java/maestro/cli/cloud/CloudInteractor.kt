@@ -158,7 +158,7 @@ class CloudInteractor(
                     continue
                 }
 
-                if (e.statusCode == 500) {
+                if (e.statusCode == 500 || e.statusCode == 502) {
                     if (++retryCounter <= maxPollingRetries) {
                         // retry on 500
                         Thread.sleep(pollingInterval)
