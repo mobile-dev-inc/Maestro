@@ -43,6 +43,8 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         fetchDeviceInfo()
     }
 
+    private var screenRecordingInProgress = false
+
     fun deviceName(): String {
         return driver.name()
     }
@@ -460,6 +462,16 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     fun startScreenRecording(out: Sink): ScreenRecording {
+        if (screenRecordingInProgress) {
+            LOGGER.info("Screen recording not started: Already in progress")
+            return object : ScreenRecording {
+                override fun close() {
+                    // No-op
+                }
+            }
+        }
+        screenRecordingInProgress = true
+
         LOGGER.info("Starting screen recording")
         val screenRecording = driver.startScreenRecording(out)
         val startTimestamp = System.currentTimeMillis()
@@ -473,6 +485,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                     Thread.sleep(durationPadding)
                 }
                 screenRecording.close()
+                screenRecordingInProgress = false
             }
         }
     }
