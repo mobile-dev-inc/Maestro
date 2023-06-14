@@ -46,4 +46,6 @@ data class YamlElementSelector(
     val selected: Boolean? = null,
     val checked: Boolean? = null,
     val focused: Boolean? = null,
+    val repeat: Int? = null,
+    val delay: Int? = null
 ) : YamlElementSelectorUnion

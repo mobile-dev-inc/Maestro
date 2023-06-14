@@ -675,7 +675,8 @@ class Orchestra(
                 retryIfNoChange,
                 waitUntilVisible,
                 command.longPress ?: false,
-                config?.appId
+                config?.appId,
+                tapRepeat = command.repeat
             )
 
             true
@@ -697,6 +698,7 @@ class Orchestra(
             command.y,
             retryIfNoChange,
             command.longPress ?: false,
+            tapRepeat = command.repeat
         )
 
         return true
@@ -721,7 +723,8 @@ class Orchestra(
                 percentX = percentX,
                 percentY = percentY,
                 retryIfNoChange = command.retryIfNoChange ?: true,
-                longPress = command.longPress ?: false
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat
             )
         } else {
             val (x, y) = point.split(",")
@@ -733,7 +736,8 @@ class Orchestra(
                 x = x,
                 y = y,
                 retryIfNoChange = command.retryIfNoChange ?: true,
-                longPress = command.longPress ?: false
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat
             )
         }
 

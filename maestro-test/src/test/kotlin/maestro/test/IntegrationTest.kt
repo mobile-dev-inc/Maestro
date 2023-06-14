@@ -2729,6 +2729,52 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 100 - tapOn multiple times`() {
+        // Given
+        val commands = readCommands("100_tapOn_multiple_times")
+
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), 3)
+    }
+
+    @Test
+    fun `Case 101 - doubleTapOn`() {
+        // Given
+        val commands = readCommands("101_doubleTapOn")
+
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), 2)
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
