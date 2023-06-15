@@ -24,6 +24,7 @@ class LocalXCTestInstaller(
     // When this flag is set, maestro will not install, run, stop or remove the xctest runner.
     // Make sure to launch the test runner from Xcode whenever maestro needs it.
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
+    private val tempDir = "${System.getenv("TMPDIR")}/$deviceId"
 
     private var xcTestProcess: Process? = null
 
@@ -107,7 +108,7 @@ class LocalXCTestInstaller(
                 .scheme("http")
                 .host("localhost")
                 .addPathSegment(pathSegment)
-                .port(22087)
+                .port(port)
         }
         val url = xctestAPIBuilder("subTree")
             .addQueryParameter("appId", SPRINGBOARD_BUNDLE_ID)
@@ -133,7 +134,7 @@ class LocalXCTestInstaller(
 
         if (!processOutput.contains(UI_TEST_RUNNER_APP_BUNDLE_ID)) {
             logger.info("Not able to find ui test runner app, going to install now")
-            val tempDir = System.getenv("TMPDIR")
+            val tempDir = File(tempDir).apply { mkdir() }
             val xctestRunFile = File("$tempDir/maestro-driver-ios-config.xctestrun")
 
             logger.info("[Start] Writing xctest run file")
@@ -166,19 +167,14 @@ class LocalXCTestInstaller(
         }
 
         logger.info("[Start] Cleaning up the ui test runner files")
-        val xctestConfig = "${System.getenv("TMP_DIR")}/$XCTEST_RUN_PATH"
-        val hostApp = "${System.getenv("TMPDIR")}/Debug-iphonesimulator/maestro-driver-ios.app"
-        val uiTestRunnerApp = "${System.getenv("TMPDIR")}/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app"
-        File(xctestConfig).delete()
-        File(uiTestRunnerApp).deleteRecursively()
-        File(hostApp).deleteRecursively()
+        File(tempDir).deleteRecursively()
         uninstall()
         logger.info("[Done] Cleaning up the ui test runner files")
     }
 
     private fun extractZipToApp(appFileName: String, srcAppPath: String) {
-        val appFile = File("${System.getenv("TMPDIR")}/Debug-iphonesimulator").apply { mkdir() }
-        val appZip = File("${System.getenv("TMPDIR")}/$appFileName.zip")
+        val appFile = File("$tempDir/Debug-iphonesimulator").apply { mkdir() }
+        val appZip = File("$tempDir/$appFileName.zip")
 
         writeFileToDestination(srcAppPath, appZip)
         ArchiverFactory.createArchiver(appZip).apply {
