@@ -1,18 +1,17 @@
 package maestro.cli.api
 
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
-import maestro.cli.util.PrintUtils
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.update.Updates
 import maestro.cli.util.CiUtils
-import okhttp3.HttpUrl
+import maestro.cli.util.PrintUtils
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -258,40 +257,52 @@ class ApiClient(
 
         val body = bodyBuilder.build()
 
-        val request = Request.Builder()
-            .header("Authorization", "Bearer $authToken")
-            .url("$baseUrl/v2/upload")
-            .post(body)
-            .build()
+        fun retry(message: String): UploadResponse {
+            if (completedRetries >= maxRetryCount) {
+                throw CliError(message)
+            }
 
-        val response = client.newCall(request).execute()
+            PrintUtils.message("$message, retrying...")
+            Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
+
+            return upload(
+                authToken,
+                appFile,
+                workspaceZip,
+                uploadName,
+                mappingFile,
+                repoOwner,
+                repoName,
+                branch,
+                commitSha,
+                pullRequestId,
+                env,
+                androidApiLevel,
+                iOSVersion,
+                includeTags,
+                excludeTags,
+                maxRetryCount,
+                completedRetries + 1,
+                progressListener,
+            )
+        }
+
+        val response = try {
+            val request = Request.Builder()
+                .header("Authorization", "Bearer $authToken")
+                .url("$baseUrl/v2/upload")
+                .post(body)
+                .build()
+
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            return retry("Upload failed due to socket exception")
+        }
 
         response.use {
             if (!response.isSuccessful) {
-                if (response.code >= 500 && completedRetries < maxRetryCount) {
-                    PrintUtils.message("Request failed, retrying...")
-                    Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
-
-                    return upload(
-                        authToken,
-                        appFile,
-                        workspaceZip,
-                        uploadName,
-                        mappingFile,
-                        repoOwner,
-                        repoName,
-                        branch,
-                        commitSha,
-                        pullRequestId,
-                        env,
-                        androidApiLevel,
-                        iOSVersion,
-                        includeTags,
-                        excludeTags,
-                        maxRetryCount,
-                        completedRetries + 1,
-                        progressListener,
-                    )
+                if (response.code >= 500) {
+                    return retry("Upload failed with status code ${response.code}")
                 } else {
                     throw CliError("Upload request failed (${response.code}): ${response.body?.string()}")
                 }
@@ -424,7 +435,7 @@ data class UploadStatus(
     data class FlowResult(
         val name: String,
         val status: Status,
-        val errors: List<String>
+        val errors: List<String>,
     )
 
     enum class Status {
