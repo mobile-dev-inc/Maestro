@@ -23,7 +23,9 @@ import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
+import maestro.cli.util.PrintUtils
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
@@ -128,31 +130,45 @@ class CloudCommand : Callable<Int> {
     private var failOnCancellation: Boolean = false
 
     override fun call(): Int {
-        return CloudInteractor(
-            client = ApiClient(apiUrl),
-            failOnTimeout = failOnCancellation,
-        ).upload(
-            async = async,
-            flowFile = flowFile,
-            appFile = appFile,
-            mapping = mapping,
-            env = env.withInjectedShellEnvVars(),
-            uploadName = uploadName,
-            repoOwner = repoOwner,
-            repoName = repoName,
-            branch = branch,
-            commitSha = commitSha,
-            pullRequestId = pullRequestId,
-            apiKey = apiKey,
-            androidApiLevel = androidApiLevel,
-            iOSVersion = iOSVersion,
-            includeTags = includeTags,
-            excludeTags = excludeTags,
-            reportFormat = format,
-            reportOutput = output,
-            failOnCancellation = failOnCancellation,
-            testSuiteName = testSuiteName
-        )
+        try {
+            PrintUtils.message("Evaluating workspace...")
+            WorkspaceExecutionPlanner
+                .plan(
+                    input = flowFile.toPath().toAbsolutePath(),
+                    includeTags = includeTags,
+                    excludeTags = excludeTags,
+                )
+
+
+            return CloudInteractor(
+                client = ApiClient(apiUrl),
+                failOnTimeout = failOnCancellation,
+            ).upload(
+                async = async,
+                flowFile = flowFile,
+                appFile = appFile,
+                mapping = mapping,
+                env = env.withInjectedShellEnvVars(),
+                uploadName = uploadName,
+                repoOwner = repoOwner,
+                repoName = repoName,
+                branch = branch,
+                commitSha = commitSha,
+                pullRequestId = pullRequestId,
+                apiKey = apiKey,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
+                includeTags = includeTags,
+                excludeTags = excludeTags,
+                reportFormat = format,
+                reportOutput = output,
+                failOnCancellation = failOnCancellation,
+                testSuiteName = testSuiteName
+            )
+        } catch (e: Exception) {
+            PrintUtils.err("Upload aborted. Received error when evaluating workspace: ${e.message}")
+            return 1
+        }
     }
 
 }
