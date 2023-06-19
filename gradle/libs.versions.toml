@@ -16,6 +16,7 @@ androidxUiautomator = "2.2.0"
 apkParser =  "2.6.10"
 appdirs = "1.2.1"
 axml = "2.1.2"
+commons-codec = "1.15"
 dadb = "1.2.6"
 detekt = "1.19.0"
 googleAndroidMaterial = "1.6.0"
@@ -58,6 +59,7 @@ androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", versi
 apk-parser = { module = "net.dongliu:apk-parser", version.ref = "apkParser" }
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 axml = { module = "de.upb.cs.swt:axml", version.ref = "axml" }
+commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
 google-android-material = { module = "com.google.android.material:material", version.ref = "googleAndroidMaterial" }
 google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }

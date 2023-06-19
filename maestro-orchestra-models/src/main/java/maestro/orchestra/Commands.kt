@@ -710,22 +710,6 @@ data class EvalScriptCommand(
 
 }
 
-data class MockNetworkCommand(
-    val path: String,
-) : Command {
-
-    override fun description(): String {
-        return "Mock network using $path"
-    }
-
-    override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return copy(
-            path = path.evaluateScripts(jsEngine),
-        )
-    }
-
-}
-
 data class TravelCommand(
     val points: List<GeoPoint>,
     val speedMPS: Double? = null,

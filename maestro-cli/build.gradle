@@ -29,7 +29,6 @@ dependencies {
 
     implementation project(':maestro-client')
     implementation project(':maestro-orchestra')
-    implementation project(':maestro-network-proxy')
     implementation project(':maestro-ios')
     implementation project(':maestro-ios-driver')
     implementation project(':maestro-studio:server')
@@ -44,6 +43,7 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.jarchivelib)
+    implementation(libs.commons.codec)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)

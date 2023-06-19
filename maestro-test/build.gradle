@@ -4,7 +4,6 @@ plugins {
 
 dependencies {
     implementation project(":maestro-orchestra")
-    implementation project(":maestro-network-proxy")
     implementation project(':maestro-client')
     implementation project(':maestro-utils')
 

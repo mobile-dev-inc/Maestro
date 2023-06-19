@@ -30,7 +30,6 @@ import maestro.cli.command.RecordCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
-import maestro.cli.command.network.NetworkCommand
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.update.Updates
 import maestro.cli.util.ErrorReporter
@@ -57,7 +56,6 @@ import kotlin.system.exitProcess
         DownloadSamplesCommand::class,
         LoginCommand::class,
         LogoutCommand::class,
-        NetworkCommand::class,
         BugReportCommand::class,
         StudioCommand::class,
     ]

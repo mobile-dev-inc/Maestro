@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <application
-        android:networkSecurityConfig="@xml/maestro_network_security_config_unsafe"/>
-
-</manifest>

@@ -39,7 +39,6 @@ import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
-import maestro.orchestra.MockNetworkCommand
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
@@ -96,7 +95,6 @@ data class YamlFluentCommand(
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: String? = null,
-    val mockNetwork: String? = null,
     val scrollUntilVisible: YamlScrollUntilVisible? = null,
     val travel: YamlTravelCommand? = null,
     val assertOutgoingRequest: YamlAssertOutgoingRequestsCommand? = null,
@@ -207,13 +205,6 @@ data class YamlFluentCommand(
                 MaestroCommand(
                     EvalScriptCommand(
                         scriptString = evalScript,
-                    )
-                )
-            )
-            mockNetwork != null -> listOf(
-                MaestroCommand(
-                    MockNetworkCommand(
-                        mockNetwork,
                     )
                 )
             )
