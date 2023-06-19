@@ -17,12 +17,6 @@ object IOSLaunchArguments {
                 }
             }
         }
-        val iOSLaunchArguments = mutableListOf<String>()
-        iOSLaunchArgumentsMap.toList().map { "${it.first}:${it.second}" }
-            .forEach {
-                iOSLaunchArguments += it.split(":")
-            }
-
-        return iOSLaunchArguments
+        return iOSLaunchArgumentsMap.toList().flatMap { listOf(it.first, it.second.toString()) }
     }
 }

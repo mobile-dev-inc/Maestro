@@ -48,4 +48,20 @@ class IOSLaunchArgumentsTest {
             listOf("isCartScreen", "false", "-cartValue", "3", "-cartColor", "Orange")
         )
     }
+
+    @Test
+    fun `url arguments are passed correctly`() {
+        // given
+        val launchArguments = mapOf<String, Any>(
+            "-url" to "http://example.com"
+        )
+
+        // when
+        val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()
+
+        // then
+        assertThat(iOSLaunchArguments).isEqualTo(
+            listOf("-url", "http://example.com")
+        )
+    }
 }
