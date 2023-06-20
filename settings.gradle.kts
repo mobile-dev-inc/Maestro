@@ -28,7 +28,5 @@ include("maestro-proto")
 include("maestro-studio:server")
 include("maestro-studio:web")
 include("maestro-test")
-include("maestro-sdk:android")
-include("maestro-sdk:android-playground")
 //include("examples:samples")
 //findProject(":examples:samples")?.name = "samples"

@@ -30,33 +30,3 @@
 1. Trigger the [Publish CLI Github action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-cli.yml)
 2. Test installing the cli by running `curl -Ls "https://get.maestro.mobile.dev" | bash`
 3. Check the version number `maestro --version`
-
-## ~~Publish Maven and Android SDK~~ (Deprecated)
-
-This step also published Maestro Android SDK.
-
-1. Log in to [Sonatype](https://s01.oss.sonatype.org/)
-2. Close the uploaded staging repository
-3. Release the closed staging repository
-
-## ~~Publish iOS SDK~~ (Deprecated)
-
-This step is optional and only required if there are changes to the iOS SDK. **Important note** if your changes include new APIs or breaking changes - make sure to reflect that in React Native SDK as well.
-
-Run this after a tag is pushed to remote.
-
-`./scripts/publish-ios-sdk.sh`
-
-## ~~Publish React Native SDK~~ (Deprecated)
-
-This step is optional and only required if there are changes to the React Native SDK.
-
-Before you start, make sure to sign in into npm package manager (credentials are in the shared password manager).
-
-Then
-
-```
-./maestro-sdk/rn/scripts/publish.sh
-```
-
-Note that version name is imported automatically from `gradle.properties` and is set to match Maestro version.
