@@ -10,19 +10,14 @@ import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo
 import com.github.tomakehurst.wiremock.junit5.WireMockTest
 import com.google.common.truth.Truth.assertThat
 import maestro.js.JsEngine
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.mozilla.javascript.RhinoException
 
 @WireMockTest
-class JsEngineTest {
+abstract class JsEngineTest {
 
     lateinit var engine: JsEngine
-
-    @BeforeEach
-    fun setUp() {
-        engine = JsEngine()
-        engine.init()
-    }
 
     @Test
     fun `HTTP - Make GET request`(wiremockInfo: WireMockRuntimeInfo) {
@@ -50,7 +45,7 @@ class JsEngineTest {
         val result = engine.evaluateScript(script)
 
         // Then
-        assertThat(result).isEqualTo("GET Endpoint")
+        assertThat(result.toString()).isEqualTo("GET Endpoint")
     }
 
     @Test
@@ -85,7 +80,7 @@ class JsEngineTest {
         val result = engine.evaluateScript(script)
 
         // Then
-        assertThat(result).isEqualTo("GET Endpoint with auth")
+        assertThat(result.toString()).isEqualTo("GET Endpoint with auth")
     }
 
     @Test
@@ -130,7 +125,46 @@ class JsEngineTest {
         val result = engine.evaluateScript(script)
 
         // Then
-        assertThat(result).isEqualTo("POST endpoint")
+        assertThat(result.toString()).isEqualTo("POST endpoint")
     }
 
+    @Test
+    fun `Allow sharing output object between scripts`() {
+        engine.evaluateScript("output.foo = 'foo'")
+        val foo = engine.evaluateScript("output.foo")
+        assertThat(foo.toString()).isEqualTo("foo")
+    }
+
+    @Test
+    fun `Undeclared variables are falsy`() {
+        val result = engine.evaluateScript("!!foo").toString()
+        assertThat(result).isEqualTo("false")
+    }
+
+    @Test
+    fun `Environment variables are accessible across scopes`() {
+        engine.putEnv("FOO", "foo")
+
+        var result = engine.evaluateScript("FOO").toString()
+        assertThat(result).isEqualTo("foo")
+
+        engine.enterScope()
+
+        result = engine.evaluateScript("FOO").toString()
+        assertThat(result).isEqualTo("foo")
+    }
+
+    @Test
+    fun `Inline environment variables are accessible across scopes`() {
+        var result = engine.evaluateScript("FOO", env = mapOf("FOO" to "foo")).toString()
+        assertThat(result).isEqualTo("foo")
+
+        result = engine.evaluateScript("FOO").toString()
+        assertThat(result).isEqualTo("foo")
+
+        engine.enterScope()
+
+        result = engine.evaluateScript("FOO").toString()
+        assertThat(result).isEqualTo("foo")
+    }
 }

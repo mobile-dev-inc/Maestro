@@ -2775,6 +2775,26 @@ class IntegrationTest {
         driver.assertEventCount(Event.Tap(Point(50, 50)), 2)
     }
 
+    @Test
+    fun `Case 102 - GraalJs config`() {
+        // given
+        val commands = readCommands("102_graaljs")
+        val driver = driver { }
+
+        // when
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // then
+        driver.assertEvents(
+            listOf(
+                Event.InputText("foo"),
+                Event.InputText("bar"),
+            )
+        )
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

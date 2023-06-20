@@ -27,8 +27,9 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
-import maestro.js.Js
+import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
+import maestro.js.RhinoJsEngine
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -57,8 +58,9 @@ class Orchestra(
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
-    private val jsEngine: JsEngine = JsEngine(),
 ) {
+
+    private lateinit var jsEngine: JsEngine
 
     private var copiedText: String? = null
 
@@ -77,11 +79,12 @@ class Orchestra(
         commands: List<MaestroCommand>,
         initState: OrchestraAppState? = null,
     ): Boolean {
-        jsEngine.init()
-
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
+
+        initJsEngine(config)
+
         val state = initState ?: config?.initFlow?.let {
             runInitFlow(it) ?: return false
         }
@@ -127,7 +130,7 @@ class Orchestra(
         commands: List<MaestroCommand>,
         config: MaestroConfig? = null
     ): Boolean {
-        jsEngine.init()
+        initJsEngine(config)
 
         commands
             .forEachIndexed { index, command ->
@@ -165,6 +168,15 @@ class Orchestra(
                 }
             }
         return true
+    }
+
+    @Synchronized
+    private fun initJsEngine(config: MaestroConfig?) {
+        if (this::jsEngine.isInitialized) {
+            jsEngine.close()
+        }
+        val shouldUseGraalJs = config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
+        jsEngine = if (shouldUseGraalJs) GraalJsEngine() else RhinoJsEngine()
     }
 
     private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
@@ -296,8 +308,7 @@ class Orchestra(
 
     private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
         command.env.forEach { (name, value) ->
-            val cleanValue = Js.sanitizeJs(value)
-            jsEngine.evaluateScript("var $name = '$cleanValue'")
+            jsEngine.putEnv(name, value)
         }
 
         return false
@@ -928,7 +939,7 @@ class Orchestra(
         copiedText = resolveText(result.element.treeNode.attributes)
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
 
-        jsEngine.evaluateScript("maestro.copiedText = '${Js.sanitizeJs(copiedText ?: "")}'")
+        jsEngine.setCopiedText(copiedText)
 
         return true
     }
