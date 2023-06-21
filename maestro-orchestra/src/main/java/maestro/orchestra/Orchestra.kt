@@ -222,7 +222,6 @@ class Orchestra(
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
             is TravelCommand -> travelCommand(command)
-            is AssertOutgoingRequestsCommand -> assertOutgoingRequestsCommand(command)
             is StartRecordingCommand -> startRecordingCommand(command)
             is StopRecordingCommand -> stopRecordingCommand()
             else -> true
@@ -231,19 +230,6 @@ class Orchestra(
                 timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
-    }
-
-    private fun assertOutgoingRequestsCommand(command: AssertOutgoingRequestsCommand): Boolean {
-        val matched = maestro.assertOutgoingRequest(
-            path = command.path,
-            assertHeaderIsPresent = command.headersPresent,
-            assertHttpMethod = command.httpMethodIs,
-            assertRequestBodyContains = command.requestBodyContains,
-            assertHeadersAndValues = command.headersAndValues,
-        )
-
-        if (!matched) throw MaestroException.OutgoingRequestAssertionFailure("Outgoing request assertion failed: ${command.description()}")
-        return true
     }
 
     private fun travelCommand(command: TravelCommand): Boolean {

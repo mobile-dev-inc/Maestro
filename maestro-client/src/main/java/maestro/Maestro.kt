@@ -565,27 +565,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return driver.isUnicodeInputSupported()
     }
 
-    fun assertOutgoingRequest(
-        path: String? = null,
-        assertHeaderIsPresent: List<String> = emptyList(),
-        assertHeadersAndValues: Map<String, String> = emptyMap(),
-        assertHttpMethod: String? = null,
-        assertRequestBodyContains: String? = null,
-    ): Boolean {
-        val events = AssertOutgoingRequestService.getMockEvents(sessionId)
-        if (events.isEmpty()) return false
-
-        val rules = OutgoingRequestRules(
-            path = path,
-            headersPresent = assertHeaderIsPresent,
-            headersAndValues = assertHeadersAndValues,
-            httpMethodIs = assertHttpMethod,
-            requestBodyContains = assertRequestBodyContains,
-        )
-        val matched = AssertOutgoingRequestService.match(events, rules)
-        return matched.isNotEmpty()
-    }
-
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

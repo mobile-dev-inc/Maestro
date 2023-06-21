@@ -747,23 +747,6 @@ data class TravelCommand(
 
 }
 
-data class AssertOutgoingRequestsCommand(
-    val path: String? = null,
-    val headersPresent: List<String> = emptyList(),
-    val headersAndValues: Map<String, String> = emptyMap(),
-    val httpMethodIs: String? = null,
-    val requestBodyContains: String? = null,
-) : Command {
-    override fun description(): String {
-        return "Assert outgoing requests to $path"
-    }
-
-    override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
-    }
-}
-
-
 data class StartRecordingCommand(val path: String) : Command {
 
     override fun description(): String {
