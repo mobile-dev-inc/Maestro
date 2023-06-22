@@ -3,16 +3,13 @@ package xcuitest
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.api.GetRunningAppRequest
 import maestro.logger.Logger
-import okhttp3.HttpUrl
 import okhttp3.Interceptor
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import xcuitest.api.EraseTextRequest
 import xcuitest.api.InputTextRequest
@@ -26,11 +23,10 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class XCTestDriverClient(
-    private val host: String = "localhost",
-    private val port: Int,
     private val installer: XCTestInstaller,
     private val logger: Logger,
 ) {
+    private lateinit var client: XCTestClient
 
     private var isShuttingDown = false
 
@@ -44,7 +40,8 @@ class XCTestDriverClient(
         logger.info("[Start] Uninstalling xctest ui runner app")
         installer.uninstall()
         logger.info("[Done] Uninstalling xctest ui runner app")
-        installer.start()
+        client = installer.start()
+            ?: throw XCTestDriverUnreachable("Failed to reach XCUITest Server in restart")
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -59,7 +56,7 @@ class XCTestDriverClient(
     private val mapper = jacksonObjectMapper()
 
     fun subTree(appId: String): Response {
-        val url = xctestAPIBuilder("subTree")
+        val url = client.xctestAPIBuilder("subTree")
             .addQueryParameter("appId", appId)
             .build()
 
@@ -72,7 +69,7 @@ class XCTestDriverClient(
     }
 
     fun screenshot(compressed: Boolean): Response {
-        val url = xctestAPIBuilder("screenshot")
+        val url = client.xctestAPIBuilder("screenshot")
             .addQueryParameter("compressed", compressed.toString())
             .build()
 
@@ -85,7 +82,7 @@ class XCTestDriverClient(
     }
 
     fun isScreenStatic(): Response {
-        val url = xctestAPIBuilder("isScreenStatic")
+        val url = client.xctestAPIBuilder("isScreenStatic")
             .build()
 
         val request = Request.Builder()
@@ -106,16 +103,18 @@ class XCTestDriverClient(
         startY: Double,
         endX: Double,
         endY: Double,
-        duration: Double
+        duration: Double,
     ): Response {
-        return executeJsonRequest("swipe", SwipeRequest(
-            appId = appId,
-            startX = startX,
-            startY = startY,
-            endX = endX,
-            endY = endY,
-            duration = duration
-        ))
+        return executeJsonRequest(
+            "swipe", SwipeRequest(
+                appId = appId,
+                startX = startX,
+                startY = startY,
+                endX = endX,
+                endY = endY,
+                duration = duration
+            )
+        )
     }
 
     fun swipeV2(
@@ -124,16 +123,18 @@ class XCTestDriverClient(
         startY: Double,
         endX: Double,
         endY: Double,
-        duration: Double
+        duration: Double,
     ): Response {
-        return executeJsonRequest("swipeV2", SwipeRequest(
-            appId = appId,
-            startX = startX,
-            startY = startY,
-            endX = endX,
-            endY = endY,
-            duration = duration
-        ))
+        return executeJsonRequest(
+            "swipeV2", SwipeRequest(
+                appId = appId,
+                startX = startX,
+                startY = startY,
+                endX = endX,
+                endY = endY,
+                duration = duration
+            )
+        )
     }
 
     fun inputText(
@@ -145,13 +146,15 @@ class XCTestDriverClient(
     fun tap(
         x: Float,
         y: Float,
-        duration: Double? = null
+        duration: Double? = null,
     ): Response {
-        return executeJsonRequest("touch", TouchRequest(
-            x = x,
-            y = y,
-            duration = duration
-        ))
+        return executeJsonRequest(
+            "touch", TouchRequest(
+                x = x,
+                y = y,
+                duration = duration
+            )
+        )
     }
 
     fun pressKey(name: String): Response {
@@ -182,21 +185,13 @@ class XCTestDriverClient(
         executeJsonRequest("setPermissions", SetPermissionsRequest(permissions))
     }
 
-    private fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
-        return HttpUrl.Builder()
-            .scheme("http")
-            .host(host)
-            .addPathSegment(pathSegment)
-            .port(port)
-    }
-
-    private fun executeJsonRequest(url: String, body: Any): Response {
+    private fun executeJsonRequest(pathSegment: String, body: Any): Response {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
 
         val requestBuilder = Request.Builder()
             .addHeader("Content-Type", "application/json")
-            .url(xctestAPIBuilder(url).build())
+            .url(client.xctestAPIBuilder(pathSegment).build())
             .post(bodyData)
 
         return okHttpClient.newCall(requestBuilder.build()).execute()
@@ -207,11 +202,10 @@ class XCTestDriverClient(
         try {
             it.proceed(request)
         } catch (connectException: IOException) {
-            if (installer.start()) {
+            installer.start()?.let { newClient ->
+                client = newClient
                 it.proceed(request)
-            } else {
-                throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in RetryOnError")
-            }
+            } ?: throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in RetryOnError")
         }
     })
 

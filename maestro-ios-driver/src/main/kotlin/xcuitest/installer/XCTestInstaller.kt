@@ -1,8 +1,9 @@
 package xcuitest.installer
 
-interface XCTestInstaller: AutoCloseable {
+import xcuitest.XCTestClient
 
-    fun start(): Boolean
+interface XCTestInstaller: AutoCloseable {
+    fun start(): XCTestClient?
 
     fun uninstall()
 

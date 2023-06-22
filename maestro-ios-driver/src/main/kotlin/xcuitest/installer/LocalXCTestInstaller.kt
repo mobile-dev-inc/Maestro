@@ -2,6 +2,7 @@ package xcuitest.installer
 
 import maestro.logger.Logger
 import maestro.utils.MaestroTimer
+import maestro.utils.SocketUtils
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -11,6 +12,7 @@ import okio.sink
 import okio.source
 import org.rauschig.jarchivelib.ArchiverFactory
 import util.XCRunnerCLIUtils
+import xcuitest.XCTestClient
 import java.io.File
 import java.net.ConnectException
 import java.util.concurrent.TimeUnit
@@ -18,7 +20,8 @@ import java.util.concurrent.TimeUnit
 class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
-    private val port: Int,
+    private val host: String = "localhost",
+    defaultPort: Int? = null,
 ) : XCTestInstaller {
     // Set this flag to allow using a test runner started from Xcode
     // When this flag is set, maestro will not install, run, stop or remove the xctest runner.
@@ -27,6 +30,8 @@ class LocalXCTestInstaller(
     private val tempDir = "${System.getenv("TMPDIR")}/$deviceId"
 
     private var xcTestProcess: Process? = null
+
+    private val port = defaultPort ?: SocketUtils.nextFreePort(9800, 9900)
 
     override fun uninstall() {
         if (useXcodeTestRunner) {
@@ -55,11 +60,11 @@ class LocalXCTestInstaller(
         }
     }
 
-    override fun start(): Boolean {
+    override fun start(): XCTestClient? {
         if (useXcodeTestRunner) {
             repeat(20) {
                 if (ensureOpen()) {
-                    return true
+                    return XCTestClient(host, port)
                 }
                 logger.info("==> Start XCTest runner to continue flow")
                 Thread.sleep(500)
@@ -77,13 +82,13 @@ class LocalXCTestInstaller(
             logger.info("[Start] Ensure XCUITest runner is running on $deviceId")
             if (ensureOpen()) {
                 logger.info("[Done] Ensure XCUITest runner is running on $deviceId")
-                return true
+                return XCTestClient(host, port)
             } else {
                 logger.info("[Failed] Ensure XCUITest runner is running on $deviceId")
                 logger.info("[Retry] Retrying setup() ${i}th time")
             }
         }
-        return false
+        return null
     }
 
     override fun isChannelAlive(): Boolean {
@@ -110,6 +115,7 @@ class LocalXCTestInstaller(
                 .addPathSegment(pathSegment)
                 .port(port)
         }
+
         val url = xctestAPIBuilder("subTree")
             .addQueryParameter("appId", SPRINGBOARD_BUNDLE_ID)
             .build()
@@ -132,14 +138,16 @@ class LocalXCTestInstaller(
             .inputStream.source().buffer().readUtf8()
             .trim()
 
-        if (!processOutput.contains(UI_TEST_RUNNER_APP_BUNDLE_ID)) {
-            logger.info("Not able to find ui test runner app, going to install now")
-            val tempDir = File(tempDir).apply { mkdir() }
-            val xctestRunFile = File("$tempDir/maestro-driver-ios-config.xctestrun")
+        logger.info("[Start] Writing xctest run file")
+        val tempDir = File(tempDir).apply { mkdir() }
+        val xctestRunFile = File("$tempDir/maestro-driver-ios-config.xctestrun")
+        writeFileToDestination(XCTEST_RUN_PATH, xctestRunFile)
+        logger.info("[Done] Writing xctest run file")
 
-            logger.info("[Start] Writing xctest run file")
-            writeFileToDestination(XCTEST_RUN_PATH, xctestRunFile)
-            logger.info("[Done] Writing xctest run file")
+        if (processOutput.contains(UI_TEST_RUNNER_APP_BUNDLE_ID)) {
+            stop()
+        } else {
+            logger.info("Not able to find ui test runner app, going to install now")
 
             logger.info("[Start] Writing maestro-driver-iosUITests-Runner app")
             extractZipToApp("maestro-driver-iosUITests-Runner", UI_TEST_RUNNER_PATH)
@@ -148,17 +156,15 @@ class LocalXCTestInstaller(
             logger.info("[Start] Writing maestro-driver-ios app")
             extractZipToApp("maestro-driver-ios", UI_TEST_HOST_PATH)
             logger.info("[Done] Writing maestro-driver-ios app")
-
-            logger.info("[Start] Running XcUITest with xcode build command")
-            xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
-                deviceId,
-                xctestRunFile.absolutePath,
-                port
-            )
-            logger.info("[Done] Running XcUITest with xcode build command")
-        } else {
-            logger.info("UI test runner already installed and running")
         }
+
+        logger.info("[Start] Running XcUITest with xcode build command")
+        xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
+            deviceId,
+            xctestRunFile.absolutePath,
+            port
+        )
+        logger.info("[Done] Running XcUITest with xcode build command")
     }
 
     override fun close() {

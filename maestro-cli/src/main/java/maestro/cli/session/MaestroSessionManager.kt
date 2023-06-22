@@ -164,6 +164,7 @@ object MaestroSessionManager {
                 },
                 device = selectedDevice.device,
             )
+
             selectedDevice.platform == Platform.ANDROID -> MaestroSession(
                 maestro = pickAndroidDevice(
                     selectedDevice.host,
@@ -172,6 +173,7 @@ object MaestroSessionManager {
                 ),
                 device = null,
             )
+
             selectedDevice.platform == Platform.IOS -> MaestroSession(
                 maestro = pickIOSDevice(
                     selectedDevice.host,
@@ -181,10 +183,12 @@ object MaestroSessionManager {
                 ),
                 device = null,
             )
+
             selectedDevice.platform == Platform.WEB -> MaestroSession(
                 maestro = pickWebDevice(isStudio),
                 device = null
             )
+
             else -> error("Unable to create Maestro session")
         }
     }
@@ -291,12 +295,11 @@ object MaestroSessionManager {
         val xcTestInstaller = LocalXCTestInstaller(
             logger = IOSDriverLogger(LocalXCTestInstaller::class.java),
             deviceId = deviceId,
-            port = defaultXcTestPort
+            host = defaultHost,
+            defaultPort = defaultXcTestPort
         )
 
         val xcTestDriverClient = XCTestDriverClient(
-            host = defaultHost,
-            port = defaultXcTestPort,
             installer = xcTestInstaller,
             logger = IOSDriverLogger(XCTestDriverClient::class.java),
         )
@@ -347,7 +350,6 @@ object MaestroSessionManager {
         fun close() {
             maestro.close()
         }
-
     }
 
     private class CustomSignalHandler() : SignalHandler {

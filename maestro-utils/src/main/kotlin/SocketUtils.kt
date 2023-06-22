@@ -19,23 +19,23 @@
 
 package maestro.utils
 
-import java.io.IOException
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.NetworkInterface
-import java.net.Socket
+import java.net.ServerSocket
+import kotlin.random.Random
 
 object SocketUtils {
 
-    /**
-     * Checks whether the port can be connected to.
-     */
-    fun isPortOpen(host: String, port: Int): Boolean {
-        return try {
-            Socket(host, port).use { true }
-        } catch (ignored: IOException) {
-            false
+    fun nextFreePort(from: Int, to: Int): Int {
+        val mid = (to - from) / 2 + from
+        val range = Random.nextInt(from, mid)..Random.nextInt(mid, to)
+        range.forEach { port ->
+            try {
+                ServerSocket(port).use { return port }
+            } catch (ignore: Exception) {}
         }
+        throw IllegalStateException("Failed to retrieve an available port")
     }
 
     fun localIp(): String {

@@ -20,7 +20,6 @@
 package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
-import com.google.protobuf.duration
 import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.WebDriver
