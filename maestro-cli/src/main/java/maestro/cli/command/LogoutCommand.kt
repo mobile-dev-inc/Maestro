@@ -33,7 +33,7 @@ class LogoutCommand : Callable<Int> {
 
         // TODO reuse
         private fun message(message: String) {
-            println(Ansi.ansi().render("@|cyan \n$message |@"))
+            println(Ansi.ansi().render("@|cyan \n$message|@"))
         }
 
     }
