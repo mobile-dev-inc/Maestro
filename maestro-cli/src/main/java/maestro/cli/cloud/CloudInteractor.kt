@@ -37,7 +37,7 @@ class CloudInteractor(
 
     fun upload(
         flowFile: File,
-        appFile: File,
+        appFile: File?,
         async: Boolean,
         mapping: File? = null,
         apiKey: String? = null,
@@ -50,6 +50,7 @@ class CloudInteractor(
         env: Map<String, String> = emptyMap(),
         androidApiLevel: Int? = null,
         iOSVersion: String? = null,
+        appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
@@ -57,6 +58,7 @@ class CloudInteractor(
         reportOutput: File? = null,
         testSuiteName: String? = null
     ): Int {
+        if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
@@ -74,34 +76,39 @@ class CloudInteractor(
             println()
             val progressBar = ProgressBar(20)
 
-            val appFileToSend = if (appFile.isZip()) {
-                appFile
-            } else {
-                val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
+            // Binary id or Binary file
+            var appFileToSend: File? = null
+            if (appFile != null && appBinaryId == null) {
+                appFileToSend = if (appFile.isZip()) {
+                    appFile
+                } else {
+                    val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
 
-                // An awkward API of Archiver that has a different behaviour depending on
-                // whether we call a vararg method or a normal method. The *arrayOf() construct
-                // forces compiler to choose vararg method.
-                @Suppress("RemoveRedundantSpreadOperator")
-                archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                    // An awkward API of Archiver that has a different behaviour depending on
+                    // whether we call a vararg method or a normal method. The *arrayOf() construct
+                    // forces compiler to choose vararg method.
+                    @Suppress("RemoveRedundantSpreadOperator")
+                    archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                }
             }
 
-            val (teamId, appId, uploadId) = client.upload(
-                authToken,
-                appFileToSend.toPath(),
-                workspaceZip,
-                uploadName,
-                mapping?.toPath(),
-                repoOwner,
-                repoName,
-                branch,
-                commitSha,
-                pullRequestId,
-                env,
-                androidApiLevel,
-                iOSVersion,
-                includeTags,
-                excludeTags,
+            val (teamId, appId, uploadId, appBinaryIdResponse) = client.upload(
+                authToken =  authToken,
+                appFile = appFileToSend?.toPath(),
+                workspaceZip = workspaceZip,
+                uploadName = uploadName,
+                mappingFile = mapping?.toPath(),
+                repoOwner = repoOwner,
+                repoName = repoName,
+                branch = branch,
+                commitSha = commitSha,
+                pullRequestId = pullRequestId,
+                env = env,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
+                appBinaryId = appBinaryId,
+                includeTags = includeTags,
+                excludeTags = excludeTags,
             ) { totalBytes, bytesWritten ->
                 progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
             }
@@ -109,11 +116,13 @@ class CloudInteractor(
 
             if (async) {
                 PrintUtils.message("✅ Upload successful! View the results of your upload below:")
+                if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
                 PrintUtils.message(uploadUrl(uploadId, teamId, appId))
 
                 return 0
             } else {
                 PrintUtils.message("Visit the web console for more details about the upload: ${uploadUrl(uploadId, teamId, appId)}")
+                if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
                 PrintUtils.message("Waiting for analyses to complete...")
                 println()
 

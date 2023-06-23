@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
@@ -41,37 +42,43 @@ import java.util.concurrent.Callable
 )
 class CloudCommand : Callable<Int> {
 
+    @CommandLine.Spec
+    var spec: CommandLine.Model.CommandSpec? = null
+
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
 
-    @CommandLine.Parameters(description = ["App binary to run your Flows against"])
-    private lateinit var appFile: File
+    @CommandLine.Parameters(hidden = true, arity = "0..2", description = ["App file and/or Flow file i.e <appFile> <flowFile>"])
+    private lateinit var files: List<File>
 
-    @CommandLine.Parameters(description = ["Flow file or directory"])
-    private lateinit var flowFile: File
+    @Option(names = ["--app-file"], description = ["App binary to run your Flows against"])
+    private var appFile: File? = null
 
-    @Option(order = 0, names = ["--apiKey"], description = ["API key"])
+    @Option(order = 1, names = ["--flows"], description = ["A Flow filepath or a folder path that contains Flows"])
+    private lateinit var flowsFile: File
+
+    @Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
     private var apiKey: String? = null
 
-    @Option(order = 1, names = ["--apiUrl"], description = ["API base URL"])
+    @Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
     private var apiUrl: String = "https://api.mobile.dev"
 
     @Option(order = 2, names = ["--mapping"], description = ["dSYM file (iOS) or Proguard mapping file (Android)"])
     private var mapping: File? = null
 
-    @Option(order = 3, names = ["--repoOwner"], description = ["Repository owner (ie: GitHub organization or user slug)"])
+    @Option(order = 3, names = ["--repo-owner", "--repoOwner"], description = ["Repository owner (ie: GitHub organization or user slug)"])
     private var repoOwner: String? = null
 
-    @Option(order = 4, names = ["--repoName"], description = ["Repository name (ie: GitHub repo slug)"])
+    @Option(order = 4, names = ["--repo-name", "--repoName"], description = ["Repository name (ie: GitHub repo slug)"])
     private var repoName: String? = null
 
     @Option(order = 5, names = ["--branch"], description = ["The branch this upload originated from"])
     private var branch: String? = null
 
-    @Option(order = 6, names = ["--commitSha"], description = ["The commit SHA of this upload"])
+    @Option(order = 6, names = ["--commit-sha", "--commitSha"], description = ["The commit SHA of this upload"])
     private var commitSha: String? = null
 
-    @Option(order = 7, names = ["--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
+    @Option(order = 7, names = ["--pull-request-id", "--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
     private var pullRequestId: String? = null
 
     @Option(order = 8, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
@@ -126,49 +133,90 @@ class CloudCommand : Callable<Int> {
     @Option(order = 16, names = ["--ios-version"], description = ["iOS version to run your flow against"])
     private var iOSVersion: String? = null
 
+    @Option(order = 17, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
+    private var appBinaryId: String? = null
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
     override fun call(): Int {
+
+        validateFiles()
+        validateWorkSpace()
+
+        // Upload
+        return CloudInteractor(
+            client = ApiClient(apiUrl),
+            failOnTimeout = failOnCancellation,
+        ).upload(
+            async = async,
+            flowFile = flowsFile,
+            appFile = appFile,
+            mapping = mapping,
+            env = env.withInjectedShellEnvVars(),
+            uploadName = uploadName,
+            repoOwner = repoOwner,
+            repoName = repoName,
+            branch = branch,
+            commitSha = commitSha,
+            pullRequestId = pullRequestId,
+            apiKey = apiKey,
+            androidApiLevel = androidApiLevel,
+            iOSVersion = iOSVersion,
+            appBinaryId = appBinaryId,
+            includeTags = includeTags,
+            excludeTags = excludeTags,
+            reportFormat = format,
+            reportOutput = output,
+            failOnCancellation = failOnCancellation,
+            testSuiteName = testSuiteName
+        )
+    }
+
+    private fun validateWorkSpace() {
         try {
             PrintUtils.message("Evaluating workspace...")
             WorkspaceExecutionPlanner
                 .plan(
-                    input = flowFile.toPath().toAbsolutePath(),
+                    input = flowsFile.toPath().toAbsolutePath(),
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                 )
-
-
-            return CloudInteractor(
-                client = ApiClient(apiUrl),
-                failOnTimeout = failOnCancellation,
-            ).upload(
-                async = async,
-                flowFile = flowFile,
-                appFile = appFile,
-                mapping = mapping,
-                env = env.withInjectedShellEnvVars(),
-                uploadName = uploadName,
-                repoOwner = repoOwner,
-                repoName = repoName,
-                branch = branch,
-                commitSha = commitSha,
-                pullRequestId = pullRequestId,
-                apiKey = apiKey,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
-                includeTags = includeTags,
-                excludeTags = excludeTags,
-                reportFormat = format,
-                reportOutput = output,
-                failOnCancellation = failOnCancellation,
-                testSuiteName = testSuiteName
-            )
         } catch (e: Exception) {
-            PrintUtils.err("Upload aborted. Received error when evaluating workspace: ${e.message}")
-            return 1
+            throw CliError("Upload aborted. Received error when evaluating workspace: ${e.message}")
         }
+    }
+
+    private fun validateFiles() {
+
+        // Maintains backwards compatibility for this syntax: maestro cloud <appFile> <workspace>
+        // App file can be optional now
+        if (this::files.isInitialized) {
+            when (files.size) {
+                2 -> {
+                    appFile = files[0]
+                    flowsFile = files[1]
+                }
+                1 -> {
+                    flowsFile = files[0]
+                }
+            }
+        }
+
+        val hasApp = appFile != null || appBinaryId != null
+        val hasWorkspace = this::flowsFile.isInitialized
+
+        if (!hasApp && !hasWorkspace) {
+            throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--flows"), "Missing required parameters: '--app-file', " +
+                "'--flows'. " +
+                "Example:" +
+                " maestro cloud --app-file <path> --flows <path>")
+        }
+
+        if (!hasApp) throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--app-file"), "Missing required parameter for option '--app-file' or " +
+            "'--app-binary-id'")
+        if (!hasWorkspace) throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--flows"), "Missing required parameter for option '--flows'")
+
     }
 
 }
