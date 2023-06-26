@@ -91,7 +91,8 @@ class GraalJsEngine(
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 
-        context.eval("js", """
+        context.eval(
+            "js", """
             // Prevent a reference error on referencing undeclared variables. Enables patterns like {MY_ENV_VAR || 'default-value'}.
             // Instead of throwing an error, undeclared variables will evaluate to undefined.
             Object.setPrototypeOf(globalThis, new Proxy(Object.prototype, {
@@ -107,9 +108,9 @@ class GraalJsEngine(
                 var yPercent = Math.ceil(y * 100) + '%'
                 return xPercent + ',' + yPercent
             }
-        """.trimIndent())
+        """.trimIndent()
+        )
 
         return context
     }
-
 }

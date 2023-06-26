@@ -39,6 +39,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
+import okhttp3.OkHttpClient
 import okio.buffer
 import okio.sink
 import java.io.File
@@ -51,6 +52,7 @@ class Orchestra(
     private val screenshotsDir: File? = null,
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
+    private val httpClient: OkHttpClient? = null,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
@@ -176,7 +178,11 @@ class Orchestra(
             jsEngine.close()
         }
         val shouldUseGraalJs = config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
-        jsEngine = if (shouldUseGraalJs) GraalJsEngine() else RhinoJsEngine()
+        jsEngine = if (shouldUseGraalJs) {
+            httpClient?.let { GraalJsEngine(it) } ?: GraalJsEngine()
+        } else {
+            httpClient?.let { RhinoJsEngine(it) } ?: RhinoJsEngine()
+        }
     }
 
     private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
