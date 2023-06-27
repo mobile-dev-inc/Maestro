@@ -1,6 +1,7 @@
 appId: org.wikimedia.wikipedia
 ---
-- launchApp
+- launchApp:
+    clearState: true
 - swipe:
     direction: LEFT
     duration: 400
