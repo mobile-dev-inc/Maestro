@@ -1,9 +1,9 @@
-import { withRouter } from 'storybook-addon-react-router-v6';
+import { withRouter } from "storybook-addon-react-router-v6";
 
-import '../src/index.css'
-import {installMocks} from "../src/mocks";
+import "../src/style/index.css";
+import { installMocks } from "../src/api/mocks";
 
-installMocks()
+installMocks();
 
 export const decorators = [withRouter];
 
@@ -15,4 +15,4 @@ export const parameters = {
       date: /Date$/,
     },
   },
-}
+};
