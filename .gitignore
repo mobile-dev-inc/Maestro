@@ -9,5 +9,5 @@ local.properties
 
 bin
 
-**/.idea/*
+.idea
 
