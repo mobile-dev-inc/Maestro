@@ -56,8 +56,8 @@ class TestSuiteInteractor(
                 )
             val flowFiles = plan.flowsToRun
 
-            if (flowFiles.isEmpty()) {
-                throw CliError("No flow returned from the tag filter used")
+            if (flowFiles.isEmpty() && plan.sequence?.flows?.isEmpty() == true) {
+                throw CliError("No flows returned from the tag filter used")
             }
 
             runTestSuite(

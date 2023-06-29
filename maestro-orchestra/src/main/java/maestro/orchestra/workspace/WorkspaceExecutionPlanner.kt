@@ -39,7 +39,7 @@ object WorkspaceExecutionPlanner {
         val globalIncludeTags = workspaceConfig.includeTags?.toList() ?: emptyList()
         val globalExcludeTags = workspaceConfig.excludeTags?.toList() ?: emptyList()
 
-        // filter out all Flow files
+        // retrieve all Flow files
         val unsortedFlowFiles = Files.walk(input)
             .filter { path ->
                 matchers.any { matcher -> matcher.matches(path) }
