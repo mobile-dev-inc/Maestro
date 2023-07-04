@@ -233,7 +233,7 @@ class XCTestDriverClient(
             } else {
                 val message = "Failed request for XCTest server"
                 val responseBody = """
-                    { "message" : "$message" }
+                    { "exceptionMessage": "${connectException.localizedMessage}, "stackTrace": "${connectException.stackTraceToString()} }
                 """.trimIndent().toResponseBody("application/json; charset=utf-8".toMediaType())
 
                 Response.Builder()
