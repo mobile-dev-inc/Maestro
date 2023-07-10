@@ -10,6 +10,8 @@ sealed class UiState {
     data class Running(
         val device: Device? = null,
         val initCommands: List<CommandState> = emptyList(),
+        val onFlowStartCommands: List<CommandState> = emptyList(),
+        val onFlowCompleteCommands: List<CommandState> = emptyList(),
         val commands: List<CommandState>,
     ) : UiState()
 

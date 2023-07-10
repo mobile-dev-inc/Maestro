@@ -24,6 +24,8 @@ import maestro.orchestra.MaestroCommand
 data class CommandState(
     val status: CommandStatus,
     val command: MaestroCommand,
+    val subOnStartCommands: List<CommandState>?,
+    val subOnCompleteCommands: List<CommandState>?,
     val numberOfRuns: Int? = null,
     val subCommands: List<CommandState>? = null,
     val logMessages: List<String> = emptyList(),

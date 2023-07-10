@@ -41,7 +41,7 @@ sealed interface Command {
 sealed interface CompositeCommand : Command {
 
     fun subCommands(): List<MaestroCommand>
-
+    fun config(): MaestroConfig?
 }
 
 data class SwipeCommand(
@@ -563,10 +563,15 @@ data class RunFlowCommand(
     val commands: List<MaestroCommand>,
     val condition: Condition? = null,
     val sourceDescription: String? = null,
+    val config: MaestroConfig?,
 ) : CompositeCommand {
 
     override fun subCommands(): List<MaestroCommand> {
         return commands
+    }
+
+    override fun config(): MaestroConfig? {
+        return config
     }
 
     override fun description(): String {
@@ -586,6 +591,7 @@ data class RunFlowCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
+            config = config?.evaluateScripts(jsEngine),
         )
     }
 
@@ -613,6 +619,10 @@ data class RepeatCommand(
 
     override fun subCommands(): List<MaestroCommand> {
         return commands
+    }
+
+    override fun config(): MaestroConfig? {
+        return null
     }
 
     override fun description(): String {

@@ -50,8 +50,15 @@ class PlainTextResultView: ResultView {
                 println("  > Init Flow")
             }
 
-
             renderCommandsPlainText(state.initCommands)
+        }
+
+        if (state.onFlowStartCommands.isNotEmpty()) {
+            if (shouldPrintStep()) {
+                println("  > On Flow Start")
+            }
+
+            renderCommandsPlainText(state.onFlowStartCommands)
         }
 
         if (shouldPrintStep()) {
@@ -59,6 +66,14 @@ class PlainTextResultView: ResultView {
         }
 
         renderCommandsPlainText(state.commands)
+
+        if (state.onFlowCompleteCommands.isNotEmpty()) {
+            if (shouldPrintStep()) {
+                println("  > On Flow Complete")
+            }
+
+            renderCommandsPlainText(state.onFlowCompleteCommands)
+        }
     }
 
     private fun renderCommandsPlainText(commands: List<CommandState>, indent: Int = 0) {
@@ -77,7 +92,21 @@ class PlainTextResultView: ResultView {
                 println("  ".repeat(indent) + "${c?.description()}...")
             }
 
+            if (command.subOnStartCommands != null) {
+                if (shouldPrintStep()) {
+                    println("  > On Flow Start")
+                }
+                renderCommandsPlainText(command.subOnStartCommands, indent = indent + 1)
+            }
+
             renderCommandsPlainText(command.subCommands, indent = indent + 1)
+
+            if (command.subOnCompleteCommands != null) {
+                if (shouldPrintStep()) {
+                    println("  > On Flow Complete")
+                }
+                renderCommandsPlainText(command.subOnCompleteCommands, indent = indent + 1)
+            }
 
             if (shouldPrintStep()) {
                 println("  ".repeat(indent) + "${c?.description()}... " + status(command.status))

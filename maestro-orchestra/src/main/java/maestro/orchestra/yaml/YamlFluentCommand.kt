@@ -38,6 +38,7 @@ import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
@@ -240,11 +241,16 @@ data class YamlFluentCommand(
             }
             ?: runFlow(flowPath, runFlow)
 
+        val config = runFlow.file?.let {
+            readConfig(flowPath, runFlow.file)
+        }
+
         return MaestroCommand(
             RunFlowCommand(
                 commands = commands,
                 condition = runFlow.`when`?.toCondition(),
                 sourceDescription = runFlow.file,
+                config
             )
         )
     }
@@ -314,6 +320,11 @@ data class YamlFluentCommand(
         val runFlowPath = resolvePath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
             .withEnv(command.env)
+    }
+
+    private fun readConfig(flowPath: Path, commandFile: String): MaestroConfig? {
+        val runFlowPath = resolvePath(flowPath, commandFile)
+        return YamlCommandReader.readConfig(runFlowPath).toCommand(flowPath).applyConfigurationCommand?.config
     }
 
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {

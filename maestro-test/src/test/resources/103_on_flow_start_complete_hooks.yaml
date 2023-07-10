@@ -1,0 +1,10 @@
+appId: com.example.app
+onFlowStart:
+  - runScript: "103_setup.js"
+  - inputText: "test1"
+onFlowComplete:
+  - runScript: "103_teardown.js"
+  - inputText: "test2"
+---
+- tapOn:
+    point: 100,200

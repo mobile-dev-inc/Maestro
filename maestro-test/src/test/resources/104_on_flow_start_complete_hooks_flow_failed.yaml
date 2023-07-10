@@ -1,0 +1,8 @@
+appId: com.example.app
+onFlowStart:
+  - inputText: "test1"
+onFlowComplete:
+  - inputText: "test2"
+---
+- assertVisible:
+    id: "element_id"

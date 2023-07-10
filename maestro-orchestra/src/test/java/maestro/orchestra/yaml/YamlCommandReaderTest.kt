@@ -8,6 +8,8 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroInitFlow
+import maestro.orchestra.MaestroOnFlowComplete
+import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
@@ -301,6 +303,32 @@ internal class YamlCommandReaderTest {
         @YamlFile("021_launchApp_syntaxError.yaml") e: SyntaxError,
     ) {
         assertThat(e.message).contains("Cannot deserialize value of type")
+    }
+
+    @Test
+    fun onFlowStartCompleteHooks(
+        @YamlFile("022_on_flow_start_complete.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(
+                config = MaestroConfig(
+                    appId = "com.example.app",
+                    onFlowStart = MaestroOnFlowStart(
+                        commands = commands(
+                            BackPressCommand()
+                        )
+                    ),
+                    onFlowComplete = MaestroOnFlowComplete(
+                        commands = commands(
+                            ScrollCommand()
+                        )
+                    )
+                )
+            ),
+            LaunchAppCommand(
+                appId = "com.example.app"
+            )
+        )
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
