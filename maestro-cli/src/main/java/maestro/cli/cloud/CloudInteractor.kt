@@ -117,11 +117,12 @@ class CloudInteractor(
             if (async) {
                 PrintUtils.message("✅ Upload successful! View the results of your upload below:")
                 if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
-                PrintUtils.message(uploadUrl(uploadId, teamId, appId))
+                PrintUtils.message(uploadUrl(uploadId, teamId, appId, client.domain))
 
                 return 0
             } else {
-                PrintUtils.message("Visit the web console for more details about the upload: ${uploadUrl(uploadId, teamId, appId)}")
+                PrintUtils.message("Visit the web console for more details about the upload: ${uploadUrl(uploadId, teamId, appId, client.domain)}")
+
                 if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
                 PrintUtils.message("Waiting for analyses to complete...")
                 println()
@@ -206,7 +207,7 @@ class CloudInteractor(
         } while (System.currentTimeMillis() - startTime < waitTimeoutMs)
 
         PrintUtils.warn("Upload did not complete in time due to an issue on mobile.dev side. Follow the results of your upload below:")
-        println(uploadUrl(uploadId, teamId, appId))
+        println(uploadUrl(uploadId, teamId, appId, client.domain))
 
         return if (failOnTimeout) {
             PrintUtils.err("FAIL")
@@ -234,6 +235,7 @@ class CloudInteractor(
                     uploadId = upload.uploadId,
                     teamId = teamId,
                     appId = appId,
+                    domain = client.domain,
                 )
             )
         )

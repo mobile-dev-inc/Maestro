@@ -79,6 +79,7 @@ object TestSuiteStatusView {
                     suite.uploadDetails.uploadId.toString(),
                     suite.uploadDetails.teamId,
                     suite.uploadDetails.appId,
+                    suite.uploadDetails.domain,
                 )
             )
             println()
@@ -112,8 +113,9 @@ object TestSuiteStatusView {
     fun uploadUrl(
         uploadId: String,
         teamId: String,
-        appId: String
-    ) = "https://console.mobile.dev/uploads/$uploadId?teamId=$teamId&appId=$appId"
+        appId: String,
+        domain: String = "mobile.dev",
+    ) = "https://console.$domain/uploads/$uploadId?teamId=$teamId&appId=$appId"
 
     private fun flowWord(count: Int) = if (count == 1) "Flow" else "Flows"
 
@@ -135,6 +137,7 @@ object TestSuiteStatusView {
             val uploadId: UUID,
             val teamId: String,
             val appId: String,
+            val domain: String,
         )
 
         companion object {
@@ -168,6 +171,7 @@ fun main() {
             uploadId = UUID.randomUUID(),
             teamId = "teamid",
             appId = "appid",
+            domain = "mobile.dev",
         ),
         status = FlowStatus.CANCELED,
         flows = listOf(

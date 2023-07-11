@@ -47,6 +47,14 @@ class ApiClient(
 
     private val BASE_RETRY_DELAY_MS = 3000L
 
+    val domain: String
+        get() {
+            val regex = "https?://[^.]+.([a-zA-Z0-9.-]*).*".toRegex()
+            val matchResult = regex.matchEntire(baseUrl)
+            val domain = matchResult?.groups?.get(1)?.value
+            return domain ?: "mobile.dev"
+        }
+
     fun sendErrorReport(exception: Exception, commandLine: String) {
         post<Unit>(
             path = "/maestro/error",
