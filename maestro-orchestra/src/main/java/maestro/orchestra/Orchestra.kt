@@ -99,7 +99,7 @@ class Orchestra(
         onFlowStart(commands)
 
         config?.onFlowStart?.commands?.let {
-            executeCommands(it)
+            executeCommands(it, config)
         }
 
         try {
@@ -113,7 +113,7 @@ class Orchestra(
             throw e
         } finally {
             config?.onFlowComplete?.commands?.let {
-                executeCommands(it)
+                executeCommands(it, config)
             }
         }
     }
@@ -515,12 +515,8 @@ class Orchestra(
         return true
     }
 
-    private fun runSubFlow(commands: List<MaestroCommand>, config: MaestroConfig?, subflowConfig: MaestroConfig?): Boolean {
+    private fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
         jsEngine.enterScope()
-
-        subflowConfig?.onFlowStart?.commands?.let {
-            executeCommands(it)
-        }
 
         return try {
             commands
@@ -555,11 +551,21 @@ class Orchestra(
                 }
                 .any { it }
         } finally {
-            subflowConfig?.onFlowComplete?.commands?.let {
-                executeCommands(it)
-            }
-
             jsEngine.leaveScope()
+        }
+    }
+
+    private fun runSubFlow(commands: List<MaestroCommand>, config: MaestroConfig?, subflowConfig: MaestroConfig?): Boolean {
+        subflowConfig?.onFlowStart?.commands?.let {
+            executeSubflowCommands(it, config)
+        }
+
+        try {
+            return executeSubflowCommands(commands, config)
+        } finally {
+            subflowConfig?.onFlowComplete?.commands?.let {
+                executeSubflowCommands(it, config)
+            }
         }
     }
 

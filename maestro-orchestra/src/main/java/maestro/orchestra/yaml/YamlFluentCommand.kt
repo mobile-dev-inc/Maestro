@@ -324,7 +324,7 @@ data class YamlFluentCommand(
 
     private fun readConfig(flowPath: Path, commandFile: String): MaestroConfig? {
         val runFlowPath = resolvePath(flowPath, commandFile)
-        return YamlCommandReader.readConfig(runFlowPath).toCommand(flowPath).applyConfigurationCommand?.config
+        return YamlCommandReader.readConfig(runFlowPath).toCommand(runFlowPath).applyConfigurationCommand?.config
     }
 
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
