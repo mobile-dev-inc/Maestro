@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.30.0 - 2023-07-13
+
+- Feature: onFlowStart / onFlowComplete hooks
+- Feature: Maestro Studio revamp
+  - improved design
+  - search components panel
+  - improved drag-and-drop
+- Feature: Introduce `--app-binary-id` parameter for Maestro Cloud upload action to be able to re-use a previously uploaded app for different flows
+- Feature: Implement Experimental GraalJsEngine (ECMAScript 2022 compliant)
+- Fix: Save xctest xcodebuild logs output to system temp dir
+- Fix: Close existing screen recording if it was left open.
+  - Thanks, @carlosmuvi, for the contribution!
+- Fix: Execute sequential Flows even if no other Flows are present
+- Fix: Various XCTestClient connection improvements
+- Deprecate: `assertOutgoingRequestsCommand`
+- Deprecate: Network Mocking feature
+- Deprecate: Maestro Mock Server feature
+
 ## 1.29.0 - 2023-06-19
 
 - Feature: Add test duration measurement and display
