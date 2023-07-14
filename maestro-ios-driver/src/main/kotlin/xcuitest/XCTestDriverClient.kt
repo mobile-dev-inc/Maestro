@@ -27,6 +27,9 @@ class XCTestDriverClient(
     private val logger: Logger,
 ) {
     private lateinit var client: XCTestClient
+    constructor(installer: XCTestInstaller, logger: Logger, client: XCTestClient): this(installer, logger) {
+        this.client = client
+    }
 
     private var isShuttingDown = false
 

@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory
 import sun.misc.Signal
 import sun.misc.SignalHandler
 import util.XCRunnerCLIUtils
+import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.LocalXCTestInstaller
 import java.util.UUID
@@ -302,6 +303,7 @@ object MaestroSessionManager {
         val xcTestDriverClient = XCTestDriverClient(
             installer = xcTestInstaller,
             logger = IOSDriverLogger(XCTestDriverClient::class.java),
+            client = XCTestClient(defaultHost, defaultXcTestPort)
         )
 
         val xcTestDevice = XCTestIOSDevice(
