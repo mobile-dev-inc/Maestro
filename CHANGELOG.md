@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.30.1 - 2023-07-14
+
+- Fix: Allow running `maestro studio` and `maestro test` simultaneusly
+- Fix: Connection improvements
+
 ## 1.30.0 - 2023-07-13
 
 - Feature: onFlowStart / onFlowComplete hooks
