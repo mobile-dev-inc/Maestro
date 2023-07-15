@@ -50,7 +50,7 @@ class XCTestDriverClient(
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .addRetryInterceptor()
+        .addRetryOnErrorInterceptor()
         .addReturnOkOnShutdownInterceptor()
         .build()
 
@@ -200,25 +200,16 @@ class XCTestDriverClient(
         return okHttpClient.newCall(requestBuilder.build()).execute()
     }
 
-    private fun OkHttpClient.Builder.addRetryInterceptor() = addInterceptor(Interceptor { chain ->
-        var exception: IOException? = null
-        repeat(3) {
-            try {
-                val response = chain.proceed(chain.request())
-                if (response.isSuccessful) {
-                    return@Interceptor response
-                }
-            } catch (e: IOException) {
-                installer.start()?.let {
-                    client = it
-                }
-                exception = e
-            }
-            Thread.sleep(200L)
+    private fun OkHttpClient.Builder.addRetryOnErrorInterceptor() = addInterceptor(Interceptor {
+        val request = it.request()
+        try {
+            it.proceed(request)
+        } catch (connectException: IOException) {
+            installer.start()?.let { newClient ->
+                client = newClient
+                it.proceed(request)
+            } ?: throw XCTestDriverUnreachable("Failed to reach out XCUITest Server in RetryOnError")
         }
-
-        exception?.let { throw it }
-            ?: throw XCTestDriverUnreachable("Failed to reach out XCUITest Server after 3 attempts")
     })
 
     private fun OkHttpClient.Builder.addReturnOkOnShutdownInterceptor() = addNetworkInterceptor(Interceptor {
