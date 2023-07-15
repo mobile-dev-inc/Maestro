@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.30.2 - 2023-07-14
+
+- Revert connection improvements (from 1.30.1)
+
 ## 1.30.1 - 2023-07-14
 
 - Fix: Allow running `maestro studio` and `maestro test` simultaneusly
