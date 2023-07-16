@@ -35,7 +35,7 @@ export default function CommandRow({
           className="pointer-events-none"
         />
       </div>
-      <pre className="font-mono flex-grow cursor-default overflow-x-scroll text-sm text-gray-900 dark:text-white py-3 overflow-scroll">
+      <pre className="font-mono flex-grow cursor-default overflow-x-scroll text-sm text-gray-900 dark:text-white py-3 overflow-scroll pr-10">
         {command.yaml}
       </pre>
       <div className="bg-gradient-to-r from-transparent to-white dark:to-slate-900 w-10 absolute top-0 right-0 bottom-0 pointer-events-none rounded-lg" />

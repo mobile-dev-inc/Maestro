@@ -159,6 +159,7 @@ interface InputProps
   rightIconClassName?: string;
   success?: boolean | string | null;
   error?: boolean | string | null;
+  inputClassName?: string;
 }
 
 interface TextareaProps
@@ -271,6 +272,7 @@ const Input = forwardRef(
       error,
       className,
       disabled,
+      inputClassName,
       ...rest
     }: InputProps,
     ref: React.ForwardedRef<HTMLInputElement>
@@ -307,7 +309,12 @@ const Input = forwardRef(
           )}
           <input
             ref={ref}
-            className="flex-grow border-none bg-transparent placeholder:text-gray-400 autofill:shadow-[0_0_0_30px_white_inset_!important] focus:outline-none disabled:cursor-not-allowed"
+            className={clsx(
+              twMerge(
+                "flex-grow border-none bg-transparent placeholder:text-gray-400 autofill:shadow-[0_0_0_30px_white_inset_!important] focus:outline-none disabled:cursor-not-allowed",
+                inputClassName
+              )
+            )}
             disabled={disabled}
             {...rest}
           />

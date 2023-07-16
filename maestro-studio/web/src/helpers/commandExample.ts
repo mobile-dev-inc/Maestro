@@ -3,6 +3,7 @@ import YAML from "yaml";
 
 const YAML_STRINGIFY_OPTIONS: YAML.SchemaOptions = {
   toStringDefaults: {
+    lineWidth: 0,
     defaultKeyType: "PLAIN",
     defaultStringType: "QUOTE_DOUBLE",
   },

@@ -1,4 +1,4 @@
-import React, { Fragment, useMemo, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../design-system/button";
 import { Input } from "../design-system/input";
 import { DeviceScreen, UIElement } from "../../helpers/models";
@@ -27,19 +27,27 @@ export default function ElementsPanel({
   closePanel,
   onHint,
 }: ElementsPanelProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState<string>("");
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const sortedElements: UIElement[] = useMemo(() => {
     const filteredElements = deviceScreen.elements.filter((element) => {
-      if (!element.text && !element.resourceId) return false;
-
-      const modifiedText = element.text?.replace(/0/g, "");
-      const modifiedResourceId = element.resourceId?.replace(/0/g, "");
+      if (
+        !element.text &&
+        !element.resourceId &&
+        !element.hintText &&
+        !element.accessibilityText
+      )
+        return false;
 
       return (
         !query ||
-        modifiedText?.toLowerCase().includes(query.toLowerCase()) ||
-        modifiedResourceId?.toLowerCase().includes(query.toLowerCase()) ||
+        element.text?.toLowerCase().includes(query.toLowerCase()) ||
+        element.resourceId?.toLowerCase().includes(query.toLowerCase()) ||
         element.hintText?.toLowerCase().includes(query.toLowerCase()) ||
         element.accessibilityText?.toLowerCase().includes(query.toLowerCase())
       );
@@ -68,11 +76,14 @@ export default function ElementsPanel({
       />
       <div className="px-8 py-6 border-b border-slate-200 dark:border-slate-800">
         <Input
+          ref={inputRef}
           onChange={(e) => setQuery(e.target.value)}
           size="sm"
           leftIcon="RiSearchLine"
+          leftIconClassName="absolute left-1.5 top-1/2 transform -translate-y-1/2 pointer-events-none"
+          inputClassName="px-6"
           placeholder="Text or Id"
-          className="w-full rounded-md"
+          className="relative w-full rounded-md p-0"
         />
       </div>
       <div className="px-8 py-6 flex-grow overflow-y-scroll overflow-x-hidden">
@@ -96,7 +107,7 @@ export default function ElementsPanel({
                   onMouseEnter={onMouseEnter}
                   onMouseLeave={onMouseLeave}
                   isHovered={hoveredElement?.id === item?.id}
-                  query={query}
+                  query={query as string}
                   text={item.resourceId as string}
                   elementType="id"
                 />
@@ -107,11 +118,34 @@ export default function ElementsPanel({
                   isHovered={hoveredElement?.id === item?.id}
                   onMouseEnter={onMouseEnter}
                   onMouseLeave={onMouseLeave}
-                  query={query}
+                  query={query as string}
                   text={item.text as string}
                   elementType="text"
                 />
               )}
+              {item.hintText !== "" && item.hintText !== " " && (
+                <ElementListItem
+                  onClick={onClick}
+                  isHovered={hoveredElement?.id === item?.id}
+                  onMouseEnter={onMouseEnter}
+                  onMouseLeave={onMouseLeave}
+                  query={query as string}
+                  text={item.hintText as string}
+                  elementType="hintText"
+                />
+              )}
+              {item.accessibilityText !== "" &&
+                item.accessibilityText !== " " && (
+                  <ElementListItem
+                    onClick={onClick}
+                    isHovered={hoveredElement?.id === item?.id}
+                    onMouseEnter={onMouseEnter}
+                    onMouseLeave={onMouseLeave}
+                    query={query as string}
+                    text={item.accessibilityText as string}
+                    elementType="accessibilityText"
+                  />
+                )}
             </Fragment>
           );
         })}
@@ -124,7 +158,7 @@ interface ElementListItemProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   query: string;
   text: string;
-  elementType: "id" | "text";
+  elementType: "id" | "text" | "hintText" | "accessibilityText";
   isHovered: boolean;
 }
 
@@ -138,36 +172,31 @@ const ElementListItem = ({
   if (!text) {
     return null;
   }
-  const textParts: string[] = text.split(query);
+
+  const regEx = new RegExp(`(${query.toString()})`, "gi");
+  const textParts: string[] = text.split(regEx);
+
   return (
     <button
       className={clsx(
-        "px-2 py-1.5 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition w-full",
+        "px-2 py-2 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition w-full text-sm font-bold text-left",
         isHovered && "text-blue-500"
       )}
+      style={{ overflowWrap: "anywhere" }}
       {...rest}
     >
-      <div className="max-w-full flex gap-2">
-        <p className="truncate text-sm font-bold">
-          {textParts.map((part, index) => (
-            <>
-              {index < textParts.length - 1 ? (
-                <>
-                  <span>{part}</span>
-                  <span className="text-purple-500 dark:text-purple-400">
-                    {query}
-                  </span>
-                </>
-              ) : (
-                part
-              )}
-            </>
-          ))}
-        </p>
-        <p className="text-sm font-bold text-gray-400 whitespace-nowrap">
-          • {elementType}
-        </p>
-      </div>
+      {textParts.map((part, index) => (
+        <>
+          {index % 2 === 0 ? (
+            <span>{part}</span>
+          ) : (
+            <span className="text-purple-500 dark:text-purple-400">
+              {query}
+            </span>
+          )}
+        </>
+      ))}
+      <span className="text-gray-400 whitespace-nowrap"> • {elementType}</span>
     </button>
   );
 };
