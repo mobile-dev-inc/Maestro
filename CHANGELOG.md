@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.30.3 - 2023-07-17
+
+- Update: Maestro Studio revamp improvements
+  - wrapped element names in sidebar 
+  - sidebar text always visible
+  - add "hintText" and "accesbilityText" in sidebar
+  - improve sidebar search
+  - fixed highlight issues in search
+  - various other small improvements
+
 ## 1.30.2 - 2023-07-14
 
 - Revert connection improvements (from 1.30.1)
