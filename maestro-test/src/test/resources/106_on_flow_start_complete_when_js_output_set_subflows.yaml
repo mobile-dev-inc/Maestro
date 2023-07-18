@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- runFlow: "106_subflow.yaml"
+- evalScript: ${ console.log(output.setup_subflow_result); }
+- evalScript: ${ console.log(output.teardown_subflow_result); }

@@ -1,0 +1,7 @@
+appId: com.example.app
+onFlowStart:
+  - runScript: "106_setup.js"
+onFlowComplete:
+  - runScript: "106_teardown.js"
+---
+- evalScript: ${ console.log('subflow'); }

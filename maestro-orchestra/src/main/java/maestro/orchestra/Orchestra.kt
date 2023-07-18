@@ -99,11 +99,19 @@ class Orchestra(
         onFlowStart(commands)
 
         config?.onFlowStart?.commands?.let {
-            executeCommands(it, config)
+            executeCommands(
+                commands = it,
+                config = config,
+                shouldReinitJsEngine = false,
+            )
         }
 
         try {
-            val flowSuccess = executeCommands(commands, config).also {
+            val flowSuccess = executeCommands(
+                commands = commands,
+                config = config,
+                shouldReinitJsEngine = false,
+            ).also {
                 // close existing screen recording, if left open.
                 screenRecording?.close()
             }
@@ -113,7 +121,11 @@ class Orchestra(
             throw e
         } finally {
             config?.onFlowComplete?.commands?.let {
-                executeCommands(it, config)
+                executeCommands(
+                    commands = it,
+                    config = config,
+                    shouldReinitJsEngine = false,
+                )
             }
         }
     }
@@ -148,9 +160,12 @@ class Orchestra(
 
     fun executeCommands(
         commands: List<MaestroCommand>,
-        config: MaestroConfig? = null
+        config: MaestroConfig? = null,
+        shouldReinitJsEngine: Boolean = true,
     ): Boolean {
-        initJsEngine(config)
+        if (shouldReinitJsEngine) {
+            initJsEngine(config)
+        }
 
         commands
             .forEachIndexed { index, command ->

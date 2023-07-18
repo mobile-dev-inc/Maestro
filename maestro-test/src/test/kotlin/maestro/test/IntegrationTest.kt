@@ -2853,6 +2853,59 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 105 - execute onFlowStart and onFlowComplete when js output is set`() {
+        // Given
+        val commands = readCommands("105_on_flow_start_complete_when_js_output_set")
+
+        val driver = driver {
+        }
+        val receivedLogs = mutableListOf<String>()
+
+        // when
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "setup",
+            "teardown",
+        ).inOrder()
+    }
+
+    @Test
+    fun `Case 106 - execute onFlowStart and onFlowComplete when js output is set with subflows`() {
+// Given
+        val commands = readCommands("106_on_flow_start_complete_when_js_output_set_subflows")
+
+        val driver = driver {
+        }
+        val receivedLogs = mutableListOf<String>()
+
+        // when
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "subflow",
+            "setup subflow",
+            "teardown subflow",
+        ).inOrder()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
