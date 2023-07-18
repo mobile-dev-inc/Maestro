@@ -1,10 +1,7 @@
 package ios
 
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.expect
-import com.github.michaelbull.result.getOrThrow
-import com.github.michaelbull.result.recoverIf
-import com.github.michaelbull.result.runCatching
+import com.github.michaelbull.result.*
+import hierarchy.AXElement
 import hierarchy.XCUIElement
 import ios.device.DeviceInfo
 import ios.idb.IdbIOSDevice
@@ -14,6 +11,7 @@ import okio.Sink
 import java.io.File
 import java.io.InputStream
 import java.util.UUID
+import hierarchy.ViewHierarchy
 
 class LocalIOSDevice(
     override val deviceId: String?,
@@ -40,6 +38,11 @@ class LocalIOSDevice(
                         .getOrThrow()
                 }
             )
+
+    }
+
+    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
+        return xcTestDevice.viewHierarchy()
     }
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {

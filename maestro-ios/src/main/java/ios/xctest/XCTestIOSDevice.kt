@@ -5,7 +5,9 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
+import hierarchy.AXElement
 import hierarchy.Error
+import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
 import ios.IOSDevice
 import ios.IOSScreenRecording
@@ -60,6 +62,16 @@ class XCTestIOSDevice(
             is Ok -> result
             is Err -> Err(result.error)
         }
+    }
+
+    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
+        val installedApps = getInstalledApps()
+        val result = runCatching {
+            val viewHierarchy = client.viewHierarchy(installedApps)
+            logger.info("Using new viewHierarchy call to get view hierarchy. Depth received: ${viewHierarchy.depth}")
+            viewHierarchy
+        }
+        return result
     }
 
     private fun getViewHierarchy(appId: String): Result<XCUIElement, Throwable> {

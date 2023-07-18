@@ -3,6 +3,8 @@ package ios.simctl
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
+import hierarchy.AXElement
+import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
 import ios.IOSDevice
 import ios.IOSScreenRecording
@@ -32,6 +34,10 @@ class SimctlIOSDevice(
     }
 
     override fun contentDescriptor(): Result<XCUIElement, Throwable> {
+        TODO("Not yet implemented")
+    }
+
+    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
         TODO("Not yet implemented")
     }
 

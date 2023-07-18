@@ -20,7 +20,13 @@
 		52049BE0293503A200807AA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 52049BDF293503A200807AA3 /* Assets.xcassets */; };
 		52049BE3293503A200807AA3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52049BE1293503A200807AA3 /* LaunchScreen.storyboard */; };
 		52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */; };
+		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
+		610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */; };
+		610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */; };
+		6124329C2A4B368100F5F619 /* ViewHierarchyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */; };
+		6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329D2A4DA5BB00F5F619 /* AXElement.swift */; };
+		612432A02A4DA72F00F5F619 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329F2A4DA72F00F5F619 /* Logger.swift */; };
 		612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 612DE40129801F71003C2BE0 /* XCTest.framework */; platformFilter = ios; };
 		612DE4122984114B003C2BE0 /* RunnerDaemonProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */; };
 		612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE413298426EF003C2BE0 /* EventRecord.swift */; };
@@ -77,6 +83,12 @@
 		52049BE4293503A200807AA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITests.swift; sourceTree = "<group>"; };
+		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandler.swift; sourceTree = "<group>"; };
+		610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AXClientSwizzler.swift; sourceTree = "<group>"; };
+		6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyRequest.swift; sourceTree = "<group>"; };
+		6124329D2A4DA5BB00F5F619 /* AXElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElement.swift; sourceTree = "<group>"; };
+		6124329F2A4DA72F00F5F619 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		612DE40129801F71003C2BE0 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerDaemonProxy.swift; sourceTree = "<group>"; };
 		612DE413298426EF003C2BE0 /* EventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRecord.swift; sourceTree = "<group>"; };
@@ -179,6 +191,7 @@
 		612DE410298410F9003C2BE0 /* XCTest */ = {
 			isa = PBXGroup;
 			children = (
+				610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */,
 				612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */,
 				612DE413298426EF003C2BE0 /* EventRecord.swift */,
 				613E87D6299A64BD00FF8551 /* PointerEventPath.swift */,
@@ -200,6 +213,8 @@
 				61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */,
 				61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */,
 				945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */,
+				6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */,
+				6124329D2A4DA5BB00F5F619 /* AXElement.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -222,6 +237,7 @@
 			isa = PBXGroup;
 			children = (
 				943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */,
+				610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
 				61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */,
@@ -242,6 +258,7 @@
 			isa = PBXGroup;
 			children = (
 				94826F4329DB082100795E9B /* SystemPermissionHelper.swift */,
+				522785802A54410D008DBC0A /* AppError.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -251,6 +268,7 @@
 			children = (
 				94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */,
 				F328D3E52A2A98E7000546D3 /* StringExtensions.swift */,
+				6124329F2A4DA72F00F5F619 /* Logger.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -313,7 +331,7 @@
 					};
 					52049BF2293503A200807AA3 = {
 						CreatedOnToolsVersion = 13.4.1;
-						LastSwiftMigration = 1420;
+						LastSwiftMigration = 1430;
 						TestTargetID = 52049BD22935039F00807AA3;
 					};
 				};
@@ -375,12 +393,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */,
 				612DE4122984114B003C2BE0 /* RunnerDaemonProxy.swift in Sources */,
 				61C0AFEB29C863BB005D1FC5 /* PressButtonHandler.swift in Sources */,
 				94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */,
+				612432A02A4DA72F00F5F619 /* Logger.swift in Sources */,
 				9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */,
 				61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */,
 				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
+				610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */,
 				F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */,
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
 				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
@@ -397,6 +418,7 @@
 				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
 				32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */,
 				943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */,
+				6124329C2A4B368100F5F619 /* ViewHierarchyRequest.swift in Sources */,
 				61C0AFE529C7AAB3005D1FC5 /* PressKeyRequest.swift in Sources */,
 				61C0AFF329C8C040005D1FC5 /* DeviceInfoResponse.swift in Sources */,
 				94256BAD298D39DE00CDB55D /* ScreenDiffHandler.swift in Sources */,
@@ -404,7 +426,9 @@
 				32097965297092A800340282 /* InputTextRequest.swift in Sources */,
 				52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */,
 				61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */,
+				6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */,
 				32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */,
+				522785812A54410D008DBC0A /* AppError.swift in Sources */,
 				320979632970925500340282 /* InputTextRouteHandler.swift in Sources */,
 				9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */,
 				32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */,
@@ -561,7 +585,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2P56S3D7L7;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -590,7 +614,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2P56S3D7L7;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -630,6 +654,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -655,6 +680,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "maestro-driver-ios";

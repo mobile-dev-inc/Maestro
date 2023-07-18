@@ -26,6 +26,8 @@ import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.runCatching
 import com.google.protobuf.ByteString
+import hierarchy.AXElement
+import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
@@ -117,6 +119,10 @@ class IdbIOSDevice(
             val accessibilityNode: XCUIElement = mapper.readValue(accessibilityResponse.json)
             accessibilityNode
         }
+    }
+
+    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
+        TODO("Not yet implemented")
     }
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {

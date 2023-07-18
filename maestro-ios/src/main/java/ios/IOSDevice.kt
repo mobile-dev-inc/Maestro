@@ -20,6 +20,8 @@
 package ios
 
 import com.github.michaelbull.result.Result
+import hierarchy.AXElement
+import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
 import ios.device.DeviceInfo
 import okio.Sink
@@ -36,6 +38,8 @@ interface IOSDevice : AutoCloseable {
     fun deviceInfo(): Result<DeviceInfo, Throwable>
 
     fun contentDescriptor(): Result<XCUIElement, Throwable>
+
+    fun viewHierarchy(): Result<ViewHierarchy, Throwable>
 
     fun tap(x: Int, y: Int): Result<Unit, Throwable>
 

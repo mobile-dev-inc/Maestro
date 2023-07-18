@@ -1,6 +1,9 @@
 package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import hierarchy.AXElement
+import hierarchy.Error
+import hierarchy.ViewHierarchy
 import maestro.api.GetRunningAppRequest
 import maestro.logger.Logger
 import okhttp3.Interceptor
@@ -18,9 +21,11 @@ import xcuitest.api.PressKeyRequest
 import xcuitest.api.SetPermissionsRequest
 import xcuitest.api.SwipeRequest
 import xcuitest.api.TouchRequest
+import xcuitest.api.ViewHierarchyRequest
 import xcuitest.installer.XCTestInstaller
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KClass
 
 class XCTestDriverClient(
     private val installer: XCTestInstaller,
@@ -48,8 +53,8 @@ class XCTestDriverClient(
     }
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(40, TimeUnit.SECONDS)
+        .readTimeout(100, TimeUnit.SECONDS)
         .addRetryOnErrorInterceptor()
         .addReturnOkOnShutdownInterceptor()
         .build()
@@ -69,6 +74,14 @@ class XCTestDriverClient(
             .build()
 
         return okHttpClient.newCall(request).execute()
+    }
+
+    fun viewHierarchy(installedApps: Set<String>): ViewHierarchy {
+        return executeJsonRequest(
+            "viewHierarchy",
+            ViewHierarchyRequest(installedApps),
+            ViewHierarchy::class
+        )
     }
 
     fun screenshot(compressed: Boolean): Response {
@@ -97,7 +110,7 @@ class XCTestDriverClient(
     }
 
     fun runningAppId(appIds: Set<String>): Response {
-        return executeJsonRequest("runningApp", GetRunningAppRequest(appIds))
+        return executeJsonRequestUNCHECKED("runningApp", GetRunningAppRequest(appIds))
     }
 
     fun swipe(
@@ -108,7 +121,7 @@ class XCTestDriverClient(
         endY: Double,
         duration: Double,
     ): Response {
-        return executeJsonRequest(
+        return executeJsonRequestUNCHECKED(
             "swipe", SwipeRequest(
                 appId = appId,
                 startX = startX,
@@ -128,22 +141,20 @@ class XCTestDriverClient(
         endY: Double,
         duration: Double,
     ): Response {
-        return executeJsonRequest(
-            "swipeV2", SwipeRequest(
-                appId = appId,
-                startX = startX,
-                startY = startY,
-                endX = endX,
-                endY = endY,
-                duration = duration
-            )
-        )
+        return executeJsonRequestUNCHECKED("swipeV2", SwipeRequest(
+            appId = appId,
+            startX = startX,
+            startY = startY,
+            endX = endX,
+            endY = endY,
+            duration = duration
+        ))
     }
 
     fun inputText(
         text: String,
     ): Response {
-        return executeJsonRequest("inputText", InputTextRequest(text))
+        return executeJsonRequestUNCHECKED("inputText", InputTextRequest(text))
     }
 
     fun tap(
@@ -151,29 +162,27 @@ class XCTestDriverClient(
         y: Float,
         duration: Double? = null,
     ): Response {
-        return executeJsonRequest(
-            "touch", TouchRequest(
-                x = x,
-                y = y,
-                duration = duration
-            )
-        )
+        return executeJsonRequestUNCHECKED("touch", TouchRequest(
+            x = x,
+            y = y,
+            duration = duration
+        ))
     }
 
     fun pressKey(name: String): Response {
-        return executeJsonRequest("pressKey", PressKeyRequest(name))
+        return executeJsonRequestUNCHECKED("pressKey", PressKeyRequest(name))
     }
 
     fun pressButton(name: String): Response {
-        return executeJsonRequest("pressButton", PressButtonRequest(name))
+        return executeJsonRequestUNCHECKED("pressButton", PressButtonRequest(name))
     }
 
     fun eraseText(charactersToErase: Int): Response {
-        return executeJsonRequest("eraseText", EraseTextRequest(charactersToErase))
+        return executeJsonRequestUNCHECKED("eraseText", EraseTextRequest(charactersToErase))
     }
 
     fun deviceInfo(): Response {
-        return executeJsonRequest("deviceInfo", Unit)
+        return executeJsonRequestUNCHECKED("deviceInfo", Unit)
     }
 
     fun isChannelAlive(): Boolean {
@@ -185,10 +194,11 @@ class XCTestDriverClient(
     }
 
     fun setPermissions(permissions: Map<String, String>) {
-        executeJsonRequest("setPermissions", SetPermissionsRequest(permissions))
+        executeJsonRequestUNCHECKED("setPermissions", SetPermissionsRequest(permissions))
     }
 
-    private fun executeJsonRequest(pathSegment: String, body: Any): Response {
+
+    private fun executeJsonRequestUNCHECKED(pathSegment: String, body: Any): Response {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
 
@@ -197,7 +207,34 @@ class XCTestDriverClient(
             .url(client.xctestAPIBuilder(pathSegment).build())
             .post(bodyData)
 
-        return okHttpClient.newCall(requestBuilder.build()).execute()
+        return okHttpClient
+            .newCall(requestBuilder.build())
+            .execute()
+    }
+
+    private fun executeJsonRequest(url: String, body: Any): Response {
+        val response = executeJsonRequestUNCHECKED(url, body)
+
+        if (!response.isSuccessful) {
+            val error = response.body.use { responseBody ->
+                responseBody?.let { mapper.readValue(it.bytes(), Error::class.java) }
+            }
+
+            error("Request for $url failed, status code ${response.code}, error response: $error")
+        }
+
+        return response
+    }
+
+    private inline fun <reified T: Any> executeJsonRequest(url: String, body: Any, type: KClass<T>): T {
+        val response = executeJsonRequest(url, body)
+
+        return response.body.use { responseBody ->
+            responseBody ?: error("Missing response body for mapping to $type")
+
+            mapper.readValue(responseBody.bytes(), T::class.java)
+                ?: error("Response body '${String(responseBody.bytes()).take(10)}...' not mappable to $type")
+        }
     }
 
     private fun OkHttpClient.Builder.addRetryOnErrorInterceptor() = addInterceptor(Interceptor {

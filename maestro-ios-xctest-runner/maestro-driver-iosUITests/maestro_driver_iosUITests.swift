@@ -5,6 +5,12 @@ class maestro_driver_iosUITests: XCTestCase {
     private static var swizzledOutIdle = false
 
     override func setUpWithError() throws {
+        // XCTest internals sometimes use XCTAssert* instead of exceptions.
+        // Setting `continueAfterFailure` so that the xctest runner does not stop
+        // when an XCTest internal error happes (eg: when using .allElementsBoundByIndex
+        // on a ReactNative app)
+        continueAfterFailure = true
+
         // Disable waiting for quiescence
         if !maestro_driver_iosUITests.swizzledOutIdle { // ensure the swizzle only happens once
             let original = class_getInstanceMethod(objc_getClass("XCUIApplicationProcess") as? AnyClass, Selector(("waitForQuiescenceIncludingAnimationsIdle:")))
@@ -16,11 +22,6 @@ class maestro_driver_iosUITests: XCTestCase {
             method_exchangeImplementations(original, replaced)
             maestro_driver_iosUITests.swizzledOutIdle = true
         }
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
-        continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
     
     @objc func replace_waitForQuiescenceIncludingAnimationsIdle() {
