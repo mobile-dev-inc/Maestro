@@ -135,7 +135,7 @@ const ReplView = ({
         )}
       </div>
       <form
-        className="border-t border-slate-100 shadow-up dark:border-slate-800 px-12 pt-6 pb-8 gap-2 flex flex-col"
+        className="border-t border-slate-100 shadow-up dark:border-slate-800 px-12 pt-6 pb-8 gap-2 flex flex-col z-10"
         onSubmit={(e: React.FormEvent) => {
           e.preventDefault();
           runCommand();

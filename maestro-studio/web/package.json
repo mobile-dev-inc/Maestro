@@ -28,6 +28,7 @@
     "react-contenteditable": "^3.3.6",
     "react-copy-to-clipboard": "^5.1.0",
     "react-dom": "^18.2.0",
+    "react-draggable": "^4.4.5",
     "react-hotkeys-hook": "^4.3.5",
     "react-icons": "^4.9.0",
     "react-router-dom": "^6.8.1",

@@ -14,10 +14,10 @@ type GestureEvent = {
 const createGestureEvent = (
   e: React.MouseEvent<HTMLDivElement, MouseEvent>
 ): GestureEvent => {
-  const { offsetLeft, offsetTop } = e.currentTarget;
+  const { top, left } = e.currentTarget.getBoundingClientRect();
   return {
-    x: e.pageX - offsetLeft,
-    y: e.pageY - offsetTop,
+    x: e.pageX - left,
+    y: e.pageY - top,
     timestamp: e.timeStamp,
   };
 };
@@ -107,10 +107,8 @@ const InteractableDevice = ({
   const metaKeyDown = useMetaKeyDown();
 
   const onTapGesture = (x: number, y: number) => {
-    API.repl.runCommand(`
-      tapOn:
-        point: "${Math.round(100 * x)}%,${Math.round(100 * y)}%"
-    `);
+    API.repl.runCommand(`- tapOn:
+    point: "${Math.round(100 * x)}%,${Math.round(100 * y)}%"`);
   };
 
   const onSwipeGesture = (
