@@ -48,8 +48,8 @@ class XCTestDriverClient(
     }
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .addRetryOnErrorInterceptor()
         .addReturnOkOnShutdownInterceptor()
         .build()
