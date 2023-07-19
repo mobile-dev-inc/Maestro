@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.30.4 - 2023-07-19
+
+- Fix: correctly resolve external parameters for onStart/Complete hooks
+- Fix: reuse JSEngine for all executeCommands (hooks, main commands, subflows) actions
+
 ## 1.30.3 - 2023-07-17
 
 - Update: Maestro Studio revamp improvements
