@@ -2881,7 +2881,7 @@ class IntegrationTest {
 
     @Test
     fun `Case 106 - execute onFlowStart and onFlowComplete when js output is set with subflows`() {
-// Given
+        // Given
         val commands = readCommands("106_on_flow_start_complete_when_js_output_set_subflows")
 
         val driver = driver {
@@ -2904,6 +2904,37 @@ class IntegrationTest {
             "setup subflow",
             "teardown subflow",
         ).inOrder()
+    }
+
+    @Test
+    fun `Case 107 - execute defineVariablesCommand before onFlowStart and onFlowComplete are executed`() {
+        // Given
+        val commands = readCommands("107_define_variables_command_before_hooks")
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+        val receivedLogs = mutableListOf<String>()
+
+        // when
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "com.example.app",
+        ).inOrder()
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app")
+            )
+        )
     }
 
     private fun orchestra(
