@@ -41,7 +41,7 @@ class XCTestIOSDevice(
                     if (!response.isSuccessful) {
                         val message = "${response.code} ${response.message} - $bodyString"
                         logger.info("Device info failed: $message")
-                        throw UnknownFailure(message)
+                        return Err(UnknownFailure(message))
                     }
 
                     bodyString ?: throw UnknownFailure("Error: response body missing")
