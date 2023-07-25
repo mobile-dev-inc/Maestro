@@ -1,7 +1,6 @@
 package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import hierarchy.AXElement
 import hierarchy.Error
 import hierarchy.ViewHierarchy
 import maestro.api.GetRunningAppRequest
@@ -134,7 +133,7 @@ class XCTestDriverClient(
     }
 
     fun swipeV2(
-        appId: String,
+        installedApps: Set<String>,
         startX: Double,
         startY: Double,
         endX: Double,
@@ -142,12 +141,12 @@ class XCTestDriverClient(
         duration: Double,
     ): Response {
         return executeJsonRequestUNCHECKED("swipeV2", SwipeRequest(
-            appId = appId,
             startX = startX,
             startY = startY,
             endX = endX,
             endY = endY,
-            duration = duration
+            duration = duration,
+            appIds = installedApps
         ))
     }
 

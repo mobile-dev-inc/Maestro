@@ -26,7 +26,8 @@ struct SwipeRouteHandlerV2: HTTPHandler {
         let description = "Swipe from \(request.start) to \(request.end) with \(request.duration) duration"
         logger.info("\(description)")
 
-        let eventTarget = EventTarget(bundleId: request.appId)
+        let runningAppId = RunningApp.getForegroundAppId(request.appIds ?? [])
+        let eventTarget = EventTarget(bundleId: runningAppId)
         try await eventTarget.dispatchEvent(description: description) {
             EventRecord(orientation: .portrait)
                 .addSwipeEvent(

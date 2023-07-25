@@ -5,7 +5,6 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
-import hierarchy.AXElement
 import hierarchy.Error
 import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
@@ -156,12 +155,12 @@ class XCTestIOSDevice(
     ): Result<Unit, Throwable> {
         return runCatching {
             client.swipeV2(
-                appId = activeAppId() ?: error("Unable to obtain active app id"),
+                installedApps = getInstalledApps(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
                 endY = yEnd,
-                duration = duration
+                duration = duration,
             ).use {}
         }
     }
