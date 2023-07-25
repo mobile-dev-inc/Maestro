@@ -192,10 +192,10 @@ class XCTestDriverClient(
         installer.close()
     }
 
-    fun setPermissions(permissions: Map<String, String>) {
-        executeJsonRequestUNCHECKED("setPermissions", SetPermissionsRequest(permissions))
+    fun setPermissions(permissions: Map<String, String>): Response {
+        val response = executeJsonRequestUNCHECKED("setPermissions", SetPermissionsRequest(permissions))
+        return response.use { it }
     }
-
 
     private fun executeJsonRequestUNCHECKED(pathSegment: String, body: Any): Response {
         val mediaType = "application/json; charset=utf-8".toMediaType()

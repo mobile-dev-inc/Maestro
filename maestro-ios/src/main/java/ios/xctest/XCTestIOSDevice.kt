@@ -308,9 +308,9 @@ class XCTestIOSDevice(
         return client.runningAppId(appIds).use { response ->
             response.body.use { body ->
                 val runningAppBundleId = if (response.isSuccessful) {
-                    body?.let { body ->
+                    body?.let {
                         val responseBody: GetRunningAppIdResponse = mapper.readValue(
-                            String(body.bytes()),
+                            String(it.bytes()),
                             GetRunningAppIdResponse::class.java
                         )
                         val runningAppId = responseBody.runningAppBundleId
