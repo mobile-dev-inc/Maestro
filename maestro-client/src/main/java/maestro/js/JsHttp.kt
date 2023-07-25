@@ -107,6 +107,7 @@ class JsHttp(
         resultBuilder["ok"] = response.isSuccessful
         resultBuilder["status"] = response.code
         resultBuilder["body"] = response.body?.string()
+        resultBuilder["headers"] = response.headers.toMultimap()
 
         return resultBuilder.build()
     }

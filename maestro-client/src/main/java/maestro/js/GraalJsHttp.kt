@@ -88,6 +88,7 @@ class GraalJsHttp(
             "ok" to response.isSuccessful,
             "status" to response.code,
             "body" to response.body?.string(),
+            "headers" to response.headers.toMultimap()
         ))
     }
 }
