@@ -1,5 +1,6 @@
 package maestro.js
 
+import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -107,9 +108,16 @@ class JsHttp(
         resultBuilder["ok"] = response.isSuccessful
         resultBuilder["status"] = response.code
         resultBuilder["body"] = response.body?.string()
-        resultBuilder["headers"] = response.headers.toMultimap()
+        resultBuilder["headers"] = convertHeaders(response.headers)
 
         return resultBuilder.build()
+    }
+
+    private fun convertHeaders(headers: Headers): NativeObject {
+        val headersMap = headers.toMultimap().mapValues { (_, values) -> values.joinToString(",") }
+        val headersNativeObject = NativeObject()
+        headersMap.forEach { (key, value) -> headersNativeObject.put(key, headersNativeObject, value) }
+        return headersNativeObject
     }
 
     private class JsObjectBuilder {

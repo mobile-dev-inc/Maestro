@@ -1,13 +1,12 @@
 package maestro.test
 
-import com.google.common.truth.Truth
+import com.github.tomakehurst.wiremock.client.WireMock
+import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo
+import com.google.common.net.HttpHeaders
 import com.google.common.truth.Truth.assertThat
 import maestro.js.GraalJsEngine
-import org.graalvm.polyglot.PolyglotException
-import org.graalvm.polyglot.Value
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class GraalJsEngineTest : JsEngineTest() {
 

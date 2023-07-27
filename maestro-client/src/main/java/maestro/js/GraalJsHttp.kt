@@ -1,9 +1,11 @@
 package maestro.js
 
+import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.graalvm.polyglot.HostAccess.Export
+import org.graalvm.polyglot.proxy.ProxyArray
 import org.graalvm.polyglot.proxy.ProxyObject
 
 class GraalJsHttp(
@@ -88,7 +90,15 @@ class GraalJsHttp(
             "ok" to response.isSuccessful,
             "status" to response.code,
             "body" to response.body?.string(),
-            "headers" to response.headers.toMultimap()
+            "headers" to convertHeaders(response.headers)
         ))
     }
+
+    private fun convertHeaders(headers: Headers): ProxyObject {
+        val headersMap = headers.toMultimap().mapValues { (_, values) ->
+            values.joinToString(",")
+        }
+        return ProxyObject.fromMap(headersMap)
+    }
+
 }
