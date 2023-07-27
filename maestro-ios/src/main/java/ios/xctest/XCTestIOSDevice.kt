@@ -12,6 +12,7 @@ import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
 import maestro.logger.Logger
+import maestro.utils.DepthTracker
 import okio.Sink
 import okio.buffer
 import xcuitest.XCTestDriverClient
@@ -67,6 +68,7 @@ class XCTestIOSDevice(
         val installedApps = getInstalledApps()
         val result = runCatching {
             val viewHierarchy = client.viewHierarchy(installedApps)
+            DepthTracker.trackDepth(viewHierarchy.depth)
             logger.info("Using new viewHierarchy call to get view hierarchy. Depth received: ${viewHierarchy.depth}")
             viewHierarchy
         }

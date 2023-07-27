@@ -65,6 +65,15 @@ class ApiClient(
         )
     }
 
+    fun sendScreenReport(maxDepth: Int) {
+        post<Unit>(
+            path = "/maestro/screen",
+            body = mapOf(
+                "maxDepth" to maxDepth
+            )
+        )
+    }
+
     fun getLatestCliVersion(
         freshInstall: Boolean,
     ): CliVersion {
