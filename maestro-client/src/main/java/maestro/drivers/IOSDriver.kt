@@ -61,7 +61,6 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
 ) : Driver {
 
-    private val executor by lazy { Executors.newSingleThreadExecutor() }
     private val deviceInfo by lazy {
         iosDevice.deviceInfo().expect {}
     }
@@ -423,33 +422,25 @@ class IOSDriver(
     override fun backPress() {}
 
     override fun hideKeyboard() {
-        val future = executor.submit {
-            dismissKeyboardIntroduction()
+        dismissKeyboardIntroduction()
 
-            if (isKeyboardHidden()) return@submit
+        if (isKeyboardHidden()) return
 
-            swipe(
-                start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-                end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.47)),
-                durationMs = 50,
-            )
+        swipe(
+            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
+            end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.47)),
+            durationMs = 50,
+        )
 
-            if (isKeyboardHidden()) return@submit
+        if (isKeyboardHidden()) return
 
-            swipe(
-                start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-                end = Point(widthPercentToPoint(0.47), heightPercentToPoint(0.5)),
-                durationMs = 50,
-            )
+        swipe(
+            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
+            end = Point(widthPercentToPoint(0.47), heightPercentToPoint(0.5)),
+            durationMs = 50,
+        )
 
-            waitForAppToSettle(null, null)
-        }
-        try {
-            future.get(5, TimeUnit.SECONDS)
-        } catch (_: Exception) {
-            // swallow the timeout and exceptions
-            future.cancel(true)
-        }
+        waitForAppToSettle(null, null)
     }
 
     private fun isKeyboardHidden(): Boolean {
