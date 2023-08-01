@@ -169,8 +169,10 @@ class XCTestIOSDevice(
 
     override fun input(text: String): Result<Unit, Throwable> {
         return runCatching {
+            val appIds = getInstalledApps()
             client.inputText(
                 text = text,
+                appIds = appIds,
             ).use {
                 if (!it.isSuccessful) {
                     if (it.code == 404) {

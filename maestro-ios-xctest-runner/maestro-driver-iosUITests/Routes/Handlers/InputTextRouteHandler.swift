@@ -23,6 +23,9 @@ struct InputTextRouteHandler : HTTPHandler {
 
         do {
             let start = Date()
+            
+            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
+            await waitUntilKeyboardIsPresented(appId: appId)
 
             // due to different keyboard input listener events (i.e. autocorrection or hardware keyboard connection)
             // characters after the first on are often skipped, so we'll input it with lower typing frequency
@@ -60,5 +63,13 @@ struct InputTextRouteHandler : HTTPHandler {
         """
         let errorData = Data(jsonString.utf8)
         return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+    }
+    
+    private func waitUntilKeyboardIsPresented(appId: String?) async {
+        try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
+            guard let appId = appId else { return true }
+
+            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+        }
     }
 }
