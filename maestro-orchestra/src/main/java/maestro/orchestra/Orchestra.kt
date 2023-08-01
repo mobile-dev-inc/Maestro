@@ -102,35 +102,41 @@ class Orchestra(
         // filter out DefineVariablesCommand to not execute it twice
         val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
-        config?.onFlowStart?.commands?.let {
-            executeCommands(
-                commands = it,
-                config = config,
-                shouldReinitJsEngine = false,
-            )
-        }
-
+        var flowSuccess = false
+        var exception: Throwable? = null
         try {
-            val flowSuccess = executeCommands(
-                commands = filteredCommands,
-                config = config,
-                shouldReinitJsEngine = false,
-            ).also {
-                // close existing screen recording, if left open.
-                screenRecording?.close()
-            }
-
-            return flowSuccess
-        } catch (e: Throwable) {
-            throw e
-        } finally {
-            config?.onFlowComplete?.commands?.let {
+            val onStartSuccess = config?.onFlowStart?.commands?.let {
                 executeCommands(
                     commands = it,
                     config = config,
                     shouldReinitJsEngine = false,
                 )
+            } ?: true
+
+            if (onStartSuccess) {
+                flowSuccess = executeCommands(
+                    commands = filteredCommands,
+                    config = config,
+                    shouldReinitJsEngine = false,
+                ).also {
+                    // close existing screen recording, if left open.
+                    screenRecording?.close()
+                }
             }
+        } catch (e: Throwable) {
+            exception = e
+        } finally {
+            val onCompleteSuccess = config?.onFlowComplete?.commands?.let {
+                executeCommands(
+                    commands = it,
+                    config = config,
+                    shouldReinitJsEngine = false,
+                )
+            } ?: true
+
+            exception?.let { throw it }
+
+            return onCompleteSuccess && flowSuccess
         }
     }
 
@@ -579,16 +585,26 @@ class Orchestra(
         // filter out DefineVariablesCommand to not execute it twice
         val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
-        subflowConfig?.onFlowStart?.commands?.let {
-            executeSubflowCommands(it, config)
-        }
-
+        var exception: Throwable? = null
+        var flowSuccess = false
         try {
-            return executeSubflowCommands(filteredCommands, config)
-        } finally {
-            subflowConfig?.onFlowComplete?.commands?.let {
+            val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
                 executeSubflowCommands(it, config)
+            } ?: true
+
+            if (onStartSuccess) {
+                flowSuccess = executeSubflowCommands(filteredCommands, config)
             }
+        } catch (e: Throwable) {
+            exception = e
+        } finally {
+            val onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
+                executeSubflowCommands(it, config)
+            } ?: true
+
+            exception?.let { throw it }
+
+            return onCompleteSuccess && flowSuccess
         }
     }
 

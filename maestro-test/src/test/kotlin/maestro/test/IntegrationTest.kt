@@ -2937,6 +2937,61 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 108 - fail the flow and skip commands in case of onStart hook failure`() {
+        // Given
+        val commands = readCommands("108_failed_start_hook")
+        val driver = driver {
+        }
+        val receivedLogs = mutableListOf<String>()
+
+        // When & Then
+        assertThrows<MaestroException.AssertionFailure> {
+            val result = Maestro(driver).use {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
+
+            assertThat(result).isFalse()
+        }
+        assertThat(receivedLogs).containsExactly(
+            "on start",
+            "on complete",
+        ).inOrder()
+    }
+
+    @Test
+    fun `Case 109 - fail the flow and execute commands in case of onComplete hook failure`() {
+        // Given
+        val commands = readCommands("109_failed_complete_hook")
+        val driver = driver {
+        }
+        val receivedLogs = mutableListOf<String>()
+
+        // When & Then
+        assertThrows<MaestroException.AssertionFailure> {
+            val result = Maestro(driver).use {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
+
+            assertThat(result).isFalse()
+        }
+        assertThat(receivedLogs).containsExactly(
+            "on start",
+            "main flow",
+            "on complete",
+        ).inOrder()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
