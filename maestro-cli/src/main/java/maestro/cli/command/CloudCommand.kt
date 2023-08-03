@@ -99,8 +99,7 @@ class CloudCommand : Callable<Int> {
         names = ["--include-tags"],
         description = ["List of tags that will remove the Flows that does not have the provided tags"],
         split = ",",
-
-        )
+    )
     private var includeTags: List<String> = emptyList()
 
     @Option(
@@ -140,6 +139,9 @@ class CloudCommand : Callable<Int> {
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
+    @Option(hidden = true, names = ["--disable-notifications"], description = ["Do not send the notifications configured in config.yaml"])
+    private var disableNotifications = false
+
     override fun call(): Int {
 
         validateFiles()
@@ -170,7 +172,8 @@ class CloudCommand : Callable<Int> {
             reportFormat = format,
             reportOutput = output,
             failOnCancellation = failOnCancellation,
-            testSuiteName = testSuiteName
+            testSuiteName = testSuiteName,
+            disableNotifications = disableNotifications,
         )
     }
 

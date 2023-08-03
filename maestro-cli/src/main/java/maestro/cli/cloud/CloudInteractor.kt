@@ -56,7 +56,8 @@ class CloudInteractor(
         excludeTags: List<String> = emptyList(),
         reportFormat: ReportFormat = ReportFormat.NOOP,
         reportOutput: File? = null,
-        testSuiteName: String? = null
+        testSuiteName: String? = null,
+        disableNotifications: Boolean = false,
     ): Int {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
@@ -109,6 +110,7 @@ class CloudInteractor(
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
+                disableNotifications = disableNotifications,
             ) { totalBytes, bytesWritten ->
                 progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
             }
