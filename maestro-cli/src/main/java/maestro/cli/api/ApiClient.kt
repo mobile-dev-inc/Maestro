@@ -328,10 +328,12 @@ class ApiClient(
 
         response.use {
             if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+
                 if (response.code >= 500) {
-                    return retry("Upload failed with status code ${response.code}")
+                    return retry("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
-                    throw CliError("Upload request failed (${response.code}): ${response.body?.string()}")
+                    throw CliError("Upload request failed (${response.code}): $errorMessage")
                 }
             }
 
