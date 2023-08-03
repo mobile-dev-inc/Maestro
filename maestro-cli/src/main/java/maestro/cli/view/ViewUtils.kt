@@ -22,6 +22,10 @@ fun String.bold(): String {
     return "@|bold $this|@".render()
 }
 
+fun String.yellow(): String {
+    return "@|yellow $this|@".render()
+}
+
 fun String.faint(): String {
     return "@|faint $this|@".render()
 }

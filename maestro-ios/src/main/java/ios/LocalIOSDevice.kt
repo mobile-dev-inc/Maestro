@@ -1,7 +1,6 @@
 package ios
 
 import com.github.michaelbull.result.*
-import hierarchy.AXElement
 import hierarchy.XCUIElement
 import ios.device.DeviceInfo
 import ios.idb.IdbIOSDevice
@@ -12,6 +11,10 @@ import java.io.File
 import java.io.InputStream
 import java.util.UUID
 import hierarchy.ViewHierarchy
+import maestro.utils.Insight
+import maestro.utils.Insights
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class LocalIOSDevice(
     override val deviceId: String?,
@@ -19,6 +22,8 @@ class LocalIOSDevice(
     private val xcTestDevice: XCTestIOSDevice,
     private val simctlIOSDevice: SimctlIOSDevice,
 ) : IOSDevice {
+
+    private val executor by lazy { Executors.newSingleThreadScheduledExecutor() }
 
     override fun open() {
         idbIOSDevice.open()
@@ -38,11 +43,29 @@ class LocalIOSDevice(
                         .getOrThrow()
                 }
             )
-
     }
 
     override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
-        return xcTestDevice.viewHierarchy()
+        var isViewHierarchyInProgress = true
+        val future = executor.schedule(
+            {
+                if (isViewHierarchyInProgress) {
+                    Insights.report(
+                        Insight(
+                            message = "Retrieving the hierarchy is taking longer than usual. This might be due to a " +
+                                    "deep hierarchy in the current view. Please wait a bit more to complete the operation.",
+                            level = Insight.Level.WARNING,
+                        )
+                    )
+                }
+            }, 15, TimeUnit.SECONDS
+        )
+        val result = xcTestDevice.viewHierarchy()
+        isViewHierarchyInProgress = false
+        if (!future.isDone) {
+            future.cancel(false)
+        }
+        return result
     }
 
     override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
@@ -143,8 +166,8 @@ class LocalIOSDevice(
 
     override fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable> {
         return runCatching {
-            simctlIOSDevice.setPermissions(id, permissions).expect {  }
-            xcTestDevice.setPermissions(id, permissions).expect {  }
+            simctlIOSDevice.setPermissions(id, permissions).expect { }
+            xcTestDevice.setPermissions(id, permissions).expect { }
         }
     }
 

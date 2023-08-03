@@ -59,3 +59,8 @@ export type MockEvent = {
   bodyAsString?: string,
   headers?: {[key: string]: string}
 }
+
+export type BannerMessage = {
+  level: 'info' | 'warning' | 'error' | 'none'
+  message: string
+}

@@ -34,6 +34,7 @@ java {
 dependencies {
     implementation(project(":maestro-orchestra"))
     implementation(project(":maestro-client"))
+    implementation(project(":maestro-utils"))
     implementation platform("org.http4k:http4k-bom:4.34.2.0")
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)

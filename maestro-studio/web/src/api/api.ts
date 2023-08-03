@@ -1,4 +1,5 @@
 import {
+  BannerMessage,
   DeviceScreen,
   FormattedFlow,
   MockEvent,
@@ -66,6 +67,15 @@ export const API = {
   },
   getDeviceScreen: async (): Promise<DeviceScreen> => {
     return makeRequest("GET", `/api/device-screen`);
+  },
+  useBannerMessage: (
+    config?: SWRConfiguration<DeviceScreen>
+  ): SWRResponse<BannerMessage> => {
+    return useSWR(
+      "/api/banner-message",
+      (url) => makeRequest("GET", url),
+      config
+    );
   },
   repl: {
     useRepl,

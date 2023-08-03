@@ -2,6 +2,8 @@ package maestro.cli.runner.resultview
 
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
+import maestro.utils.Insight
+import maestro.utils.chunkStringByWordCount
 
 class PlainTextResultView: ResultView {
 
@@ -121,15 +123,28 @@ class PlainTextResultView: ResultView {
                     if (shouldPrintStep()) {
                         print("  ".repeat(indent) + "${c?.description()}...")
                     }
-                    registerStep()
                 }
 
                 CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED -> {
                     registerStep()
                     if (shouldPrintStep()) {
                         println(" " + status(command.status))
+                        renderInsight(command.insight, indent + 1)
                     }
                 }
+            }
+        }
+    }
+
+    private fun renderInsight(insight: Insight, indent: Int) {
+        if (insight.level != Insight.Level.NONE) {
+            println("\n")
+            val level = insight.level.toString().lowercase().replaceFirstChar(Char::uppercase)
+            print(" ".repeat(indent) + level + ":")
+            insight.message.chunkStringByWordCount(12).forEach { chunkedMessage ->
+                print(" ".repeat(indent))
+                print(chunkedMessage)
+                print("\n")
             }
         }
     }

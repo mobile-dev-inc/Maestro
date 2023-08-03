@@ -25,7 +25,11 @@ import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.green
+import maestro.cli.view.yellow
+import maestro.utils.Insights
+import maestro.utils.chunkStringByWordCount
 import picocli.CommandLine
+import java.lang.StringBuilder
 
 @CommandLine.Command(
     name = "hierarchy",
@@ -44,6 +48,15 @@ class PrintHierarchyCommand : Runnable {
 
     override fun run() {
         MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+            Insights.onInsightsUpdated {
+                val message = StringBuilder()
+                val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
+                message.append(level.yellow() + ": ")
+                it.message.chunkStringByWordCount(12).forEach { chunkedMessage ->
+                    message.append("$chunkedMessage ")
+                }
+                println(message.toString())
+            }
             val hierarchy = jacksonObjectMapper()
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 .writerWithDefaultPrettyPrinter()

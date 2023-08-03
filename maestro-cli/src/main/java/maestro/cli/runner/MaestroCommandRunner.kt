@@ -35,6 +35,7 @@ import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.OrchestraAppState
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.Insight
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.IdentityHashMap
@@ -222,6 +223,7 @@ object MaestroCommandRunner {
                         ?.subCommands()
                         ?.let { toCommandStates(it, commandStatuses, commandMetadata) },
                     logMessages = commandMetadata[command]?.logMessages ?: emptyList(),
+                    insight = commandMetadata[command]?.insight ?: Insight("", Insight.Level.NONE)
                 )
             }
     }

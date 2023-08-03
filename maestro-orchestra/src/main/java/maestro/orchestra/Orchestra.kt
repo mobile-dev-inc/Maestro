@@ -37,6 +37,8 @@ import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
+import maestro.utils.Insight
+import maestro.utils.Insights
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
@@ -196,6 +198,14 @@ class Orchestra(
                     )
                 updateMetadata(command, metadata)
 
+                Insights.onInsightsUpdated { insight ->
+                    updateMetadata(
+                        command,
+                        getMetadata(command).copy(
+                            insight = insight
+                        )
+                    )
+                }
                 try {
                     executeCommand(evaluatedCommand, config)
                     onCommandComplete(index, command)
@@ -1037,7 +1047,8 @@ class Orchestra(
     data class CommandMetadata(
         val numberOfRuns: Int? = null,
         val evaluatedCommand: MaestroCommand? = null,
-        val logMessages: List<String> = emptyList()
+        val logMessages: List<String> = emptyList(),
+        val insight: Insight = Insight("", Insight.Level.NONE),
     )
 
     enum class ErrorResolution {
@@ -1050,7 +1061,6 @@ class Orchestra(
         val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
         private const val MAX_ERASE_CHARACTERS = 50
-        private const val MAX_LAUNCH_ARGUMENT_PAIRS_ALLOWED = 1
     }
 }
 

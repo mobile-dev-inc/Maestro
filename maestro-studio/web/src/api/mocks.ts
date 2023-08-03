@@ -176,6 +176,15 @@ const handlers = [
       })
     );
   }),
+  rest.get("/api/banner-message", (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        level: 'warning',
+        message: 'Retrieving the hierarchy is taking longer than usual. This might be due to a deep hierarchy in the current view. Please wait a bit more to complete the operation.',
+      })
+    )
+  })
 ];
 
 export const installMocks = () => {
