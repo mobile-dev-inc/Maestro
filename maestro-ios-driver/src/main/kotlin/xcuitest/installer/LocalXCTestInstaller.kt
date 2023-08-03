@@ -116,8 +116,7 @@ class LocalXCTestInstaller(
                 .port(port)
         }
 
-        val url = xctestAPIBuilder("subTree")
-            .addQueryParameter("appId", SPRINGBOARD_BUNDLE_ID)
+        val url = xctestAPIBuilder("status")
             .build()
 
         val request = Request.Builder()

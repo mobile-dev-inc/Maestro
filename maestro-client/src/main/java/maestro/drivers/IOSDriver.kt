@@ -180,10 +180,7 @@ class IOSDriver(
     }
 
     override fun contentDescriptor(): TreeNode {
-        return when (val contentDescriptorResult = iosDevice.contentDescriptor()) {
-            is Ok -> mapHierarchy(contentDescriptorResult.value)
-            is Err -> TreeNode()
-        }
+        return viewHierarchy()
     }
 
     fun viewHierarchy(): TreeNode {

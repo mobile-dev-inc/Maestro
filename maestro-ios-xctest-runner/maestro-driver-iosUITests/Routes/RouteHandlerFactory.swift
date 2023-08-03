@@ -32,6 +32,8 @@ class RouteHandlerFactory {
             return SetPermissionsHandler()
         case .viewHierarchy:
             return ViewHierarchyHandler()
+        case .status:
+            return StatusHandler()
         }
     }
 }
