@@ -31,6 +31,8 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.PrintUtils
+import maestro.debuglog.DebugLogStore
+import maestro.debuglog.LogConfig
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
 import okio.buffer
@@ -80,6 +82,12 @@ class TestCommand : Callable<Int> {
     private var output: File? = null
 
     @Option(
+        names = ["--debug-output"],
+        description = ["Configures the debug output in this path, instead of default"]
+    )
+    private var debugOutput: String? = null
+
+    @Option(
         names = ["--include-tags"],
         description = ["List of tags that will remove the Flows that does not have the provided tags"],
         split = ",",
@@ -122,6 +130,9 @@ class TestCommand : Callable<Int> {
             else parent?.deviceId
 
         env = env.withInjectedShellEnvVars()
+
+        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
+        val path = TestDebugReporter.getDebugOutputPath()
         
         return MaestroSessionManager.newSession(parent?.host, parent?.port, deviceId) { session ->
             val maestro = session.maestro
@@ -149,7 +160,8 @@ class TestCommand : Callable<Int> {
                             (output ?: File("report$extension"))
                                 .sink()
                                 .buffer()
-                        }
+                        },
+                    debugOutput = debugOutput
                 )
 
                 if (suiteResult.passed) {
@@ -163,7 +175,7 @@ class TestCommand : Callable<Int> {
                     TestRunner.runContinuous(maestro, device, flowFile, env)
                 } else {
                     val resultView = if (DisableAnsiMixin.ansiEnabled) AnsiResultView() else PlainTextResultView()
-                    val resultSingle = TestRunner.runSingle(maestro, device, flowFile, env, resultView)
+                    val resultSingle = TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
                     if (resultSingle == 1) {
                         printExitDebugMessage()
                     }
@@ -176,6 +188,6 @@ class TestCommand : Callable<Int> {
     private fun printExitDebugMessage() {
         println()
         println("==== Debug output (logs & screenshots) ====")
-        PrintUtils.message(TestDebugReporter.path.absolutePathString())
+        PrintUtils.message(TestDebugReporter.getDebugOutputPath().absolutePathString())
     }
 }

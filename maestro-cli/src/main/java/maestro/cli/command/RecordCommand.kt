@@ -23,16 +23,20 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.api.ApiClient
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.ProgressBar
+import maestro.debuglog.DebugLogStore
+import maestro.debuglog.LogConfig
 import okio.sink
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
+import kotlin.io.path.absolutePathString
 
 @CommandLine.Command(
     name = "record",
@@ -57,6 +61,12 @@ class RecordCommand : Callable<Int> {
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
+    @Option(
+        names = ["--debug-output"],
+        description = ["Configures the debug output in this path, instead of default"]
+    )
+    private var debugOutput: String? = null
+
     override fun call(): Int {
         if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
@@ -68,6 +78,10 @@ class RecordCommand : Callable<Int> {
         if (parent?.platform != null) {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
+
+
+        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
+        val path = TestDebugReporter.getDebugOutputPath()
 
         return MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
             val maestro = session.maestro
@@ -84,7 +98,7 @@ class RecordCommand : Callable<Int> {
             val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
             val exitCode = screenRecording.sink().use { out ->
                 maestro.startScreenRecording(out).use {
-                    TestRunner.runSingle(maestro, device, flowFile, env, resultView)
+                    TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
                 }
             }
 

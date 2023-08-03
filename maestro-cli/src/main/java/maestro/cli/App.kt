@@ -95,12 +95,7 @@ fun main(args: Array<String>) {
     System.setProperty("apple.awt.UIElement", "true")
 
     // logs & debug output
-    val debugOutputPath = TestDebugReporter.path
-    LogConfig.configure(debugOutputPath.absolutePathString() + "/maestro.log")
-
     val logger = LoggerFactory.getLogger(App::class.java)
-    TestDebugReporter.logSystemInfo()
-    DebugLogStore.logSystemInfo()
 
     Dependencies.install()
     Updates.fetchUpdatesAsync()

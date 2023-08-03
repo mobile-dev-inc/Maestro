@@ -16,6 +16,7 @@ import maestro.cli.runner.resultview.UiState
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.debuglog.DebugLogStore
+import maestro.debuglog.LogConfig
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.OrchestraAppState
@@ -23,7 +24,13 @@ import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.concurrent.thread
+import kotlin.io.path.absolutePathString
 
 object TestRunner {
 
@@ -34,11 +41,13 @@ object TestRunner {
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
-        resultView: ResultView
+        resultView: ResultView,
+        debugOutputPath: Path
     ): Int {
 
         // debug
         val debug = FlowDebugMetadata()
+
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
@@ -52,7 +61,7 @@ object TestRunner {
             )
         }
 
-        TestDebugReporter.saveFlow(flowFile.name, debug)
+        TestDebugReporter.saveFlow(flowFile.name, debug, debugOutputPath)
         if (debug.exception != null) PrintUtils.err("${debug.exception?.message}")
 
         return if (result.get()?.flowSuccess == true) 0 else 1

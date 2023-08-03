@@ -15,6 +15,8 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
+import maestro.debuglog.DebugLogStore
+import maestro.debuglog.LogConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -22,6 +24,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
+import kotlin.io.path.absolutePathString
 import kotlin.math.roundToLong
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
@@ -40,12 +43,14 @@ class TestSuiteInteractor(
         input: File,
         reportOut: Sink?,
         env: Map<String, String>,
+        debugOutput: String?
     ): TestExecutionSummary {
         return if (input.isFile) {
             runTestSuite(
                 WorkspaceExecutionPlanner.ExecutionPlan(flowsToRun = listOf(input.toPath())),
                 reportOut,
                 env,
+                debugOutput
             )
         } else {
             val plan = WorkspaceExecutionPlanner
@@ -64,6 +69,7 @@ class TestSuiteInteractor(
                 plan,
                 reportOut,
                 env,
+                debugOutput
             )
         }
     }
@@ -72,6 +78,7 @@ class TestSuiteInteractor(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
         reportOut: Sink?,
         env: Map<String, String>,
+        debugOutput: String?
     ): TestExecutionSummary {
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
 
@@ -83,7 +90,7 @@ class TestSuiteInteractor(
         // first run sequence of flows if present
         val flowSequence = executionPlan.sequence
         for (flow in flowSequence?.flows ?: emptyList()) {
-            val result = runFlow(flow.toFile(), env, maestro)
+            val result = runFlow(flow.toFile(), env, maestro, debugOutput)
             flowResults.add(result)
 
             if (result.status == FlowStatus.ERROR) {
@@ -98,7 +105,7 @@ class TestSuiteInteractor(
 
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
-            val result = runFlow(flow.toFile(), env, maestro)
+            val result = runFlow(flow.toFile(), env, maestro, debugOutput)
 
             if (result.status == FlowStatus.ERROR) {
                 passed = false
@@ -150,6 +157,7 @@ class TestSuiteInteractor(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,
+        debugOutput: String?
     ): TestExecutionSummary.FlowResult {
         var flowName: String = flowFile.nameWithoutExtension
         var flowStatus: FlowStatus
@@ -184,6 +192,9 @@ class TestSuiteInteractor(
 
             return result.getOrNull()
         }
+
+        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
+        val path = TestDebugReporter.getDebugOutputPath()
 
         val flowTimeMillis = measureTimeMillis {
             try {
@@ -248,7 +259,7 @@ class TestSuiteInteractor(
         }
         val flowDuration = (flowTimeMillis / 1000f).roundToLong().seconds
 
-        TestDebugReporter.saveFlow(flowName, debug)
+        TestDebugReporter.saveFlow(flowName, debug, path)
 
         TestSuiteStatusView.showFlowCompletion(
             TestSuiteViewModel.FlowResult(

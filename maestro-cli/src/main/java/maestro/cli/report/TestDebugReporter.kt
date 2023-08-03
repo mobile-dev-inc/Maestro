@@ -6,6 +6,8 @@ import maestro.Driver
 import maestro.MaestroException
 import maestro.TreeNode
 import maestro.cli.runner.CommandStatus
+import maestro.debuglog.DebugLogStore
+import maestro.debuglog.LogConfig
 import maestro.orchestra.MaestroCommand
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -21,34 +23,25 @@ import java.time.temporal.ChronoUnit
 import java.util.IdentityHashMap
 import java.util.Properties
 import kotlin.io.path.absolutePathString
-import kotlin.math.log
+import kotlin.io.path.exists
 
 object TestDebugReporter {
 
     private val logger = LoggerFactory.getLogger(TestDebugReporter::class.java)
-
-    private val dateFormat = "yyyy-MM-dd_HHmmss"
     private val mapper = ObjectMapper()
-
     private val parentPath = Paths.get(System.getProperty("user.home"), ".maestro", "tests")
-    val path: Path
+
+    private var debugOutputPath: Path? = null
+    private var debugOutputPathAsString: String? = null
 
     init {
-
-        // folder
-        val dateFormatter = DateTimeFormatter.ofPattern(dateFormat)
-        val folderName = dateFormatter.format(LocalDateTime.now())
-
-        path = Paths.get(System.getProperty("user.home"), ".maestro", "tests", folderName)
-
-        Files.createDirectories(path)
 
         // json
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL)
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
     }
 
-    fun saveFlow(flowName: String, data: FlowDebugMetadata) {
+    fun saveFlow(flowName: String, data: FlowDebugMetadata, path: Path) {
 
         // commands
         val commandMetadata = data.commands
@@ -115,6 +108,29 @@ object TestDebugReporter {
         logger.info("Architecture: $architecture")
         logger.info("---------------------")
     }
+
+    fun install(debugOutputPathAsString: String?) {
+        this.debugOutputPathAsString = debugOutputPathAsString
+        val path = getDebugOutputPath()
+        LogConfig.configure(path.absolutePathString() + "/maestro.log")
+        logSystemInfo()
+        DebugLogStore.logSystemInfo()
+    }
+
+    fun getDebugOutputPath(): Path {
+        if (debugOutputPath != null) return debugOutputPath as Path
+
+        val dateFormat = "yyyy-MM-dd_HHmmss"
+        val dateFormatter = DateTimeFormatter.ofPattern(dateFormat)
+        val folderName = dateFormatter.format(LocalDateTime.now())
+        val debugOutput = Paths.get(debugOutputPathAsString ?: System.getProperty("user.home"), ".maestro", "tests", folderName)
+        if (!debugOutput.exists()) {
+            Files.createDirectories(debugOutput)
+        }
+        debugOutputPath = debugOutput
+        return debugOutput
+    }
+
 }
 
 private data class CommandDebugWrapper(
