@@ -7,7 +7,7 @@ plugins {
 dependencies {
     api project(':maestro-orchestra-models')
     implementation project(':maestro-client')
-    implementation project(':maestro-utils')
+    api project(':maestro-utils')
 
     api(libs.square.okio)
     api(libs.jackson.core.databind)

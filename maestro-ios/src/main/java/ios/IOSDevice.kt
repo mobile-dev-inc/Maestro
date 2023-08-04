@@ -77,22 +77,6 @@ interface IOSDevice : AutoCloseable {
     fun uninstall(id: String): Result<Unit, Throwable>
 
     /**
-     * Pulls files from app container
-     *
-     * @param id bundle id of the app
-     * @param file output directory
-     */
-    fun pullAppState(id: String, file: File): Result<Unit, Throwable>
-
-    /**
-     * Pushes files to app container
-     *
-     * @param id bundle id of the app
-     * @param file file or directory (if directory, it pushes contents of that directory)
-     */
-    fun pushAppState(id: String, file: File): Result<Unit, Throwable>
-
-    /**
      * Clears state of a given application.
      *
      * @param id = bundle id of the app to clear

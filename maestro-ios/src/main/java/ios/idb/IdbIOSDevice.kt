@@ -26,14 +26,12 @@ import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.runCatching
 import com.google.protobuf.ByteString
-import hierarchy.AXElement
 import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
 import idb.CompanionServiceGrpc
 import idb.HIDEventKt
 import idb.Idb
 import idb.Idb.RecordResponse
-import idb.PushRequestKt.inner
 import idb.accessibilityInfoRequest
 import idb.clearKeychainRequest
 import idb.fileContainer
@@ -45,8 +43,6 @@ import idb.mkdirRequest
 import idb.openUrlRequest
 import idb.payload
 import idb.point
-import idb.pullRequest
-import idb.pushRequest
 import idb.recordRequest
 import idb.rmRequest
 import idb.setLocationRequest
@@ -64,7 +60,6 @@ import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.source
-import java.io.File
 import java.io.InputStream
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -248,57 +243,6 @@ class IdbIOSDevice(
                     throw e
                 }
             }
-        }
-    }
-
-    override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {
-        return runWithRestartRecovery {
-            val observer = BlockingStreamObserver<Idb.PullResponse>()
-            asyncStub.pull(pullRequest {
-                container = fileContainer {
-                    kind = Idb.FileContainer.Kind.APPLICATION
-                    bundleId = id
-                }
-                srcPath = "/"
-                dstPath = file.absolutePath
-            }, observer)
-            observer.awaitResult()
-        }
-    }
-
-    override fun pushAppState(id: String, file: File): Result<Unit, Throwable> {
-        return runWithRestartRecovery {
-            val observer = BlockingStreamObserver<Idb.PushResponse>()
-            val stream = asyncStub.push(observer)
-
-            stream.onNext(pushRequest {
-                inner = inner {
-                    container = fileContainer {
-                        kind = Idb.FileContainer.Kind.APPLICATION
-                        bundleId = id
-                    }
-                    dstPath = "/"
-                }
-            })
-
-            if (file.isDirectory) {
-                file.listFiles()?.map { it.absolutePath }?.forEach {
-                    stream.onNext(pushRequest {
-                        payload = payload {
-                            filePath = it
-                        }
-                    })
-                }
-            } else {
-                stream.onNext(pushRequest {
-                    payload = payload {
-                        filePath = file.absolutePath
-                    }
-                })
-            }
-
-            stream.onCompleted()
-            observer.awaitResult()
         }
     }
 

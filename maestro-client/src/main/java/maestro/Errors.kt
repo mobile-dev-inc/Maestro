@@ -53,4 +53,5 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
         message: String,
     ) : MaestroException(message)
 
+    class DeprecatedCommand(message: String) : MaestroException(message)
 }

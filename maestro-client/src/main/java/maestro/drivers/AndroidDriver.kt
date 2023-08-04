@@ -216,14 +216,6 @@ class AndroidDriver(
         // No op
     }
 
-    override fun pullAppState(appId: String, outFile: File) {
-        AndroidAppFiles.pull(dadb, appId, outFile)
-    }
-
-    override fun pushAppState(appId: String, stateFile: File) {
-        AndroidAppFiles.push(dadb, appId, stateFile)
-    }
-
     override fun tap(point: Point) {
         blockingStub.tap(
             tapRequest {

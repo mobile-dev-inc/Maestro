@@ -3,7 +3,6 @@ package ios.simctl
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
-import hierarchy.AXElement
 import hierarchy.ViewHierarchy
 import hierarchy.XCUIElement
 import ios.IOSDevice
@@ -75,14 +74,6 @@ class SimctlIOSDevice(
         return runCatching {
             LocalSimulatorUtils.uninstall(deviceId, id)
         }
-    }
-
-    override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
-    }
-
-    override fun pushAppState(id: String, file: File): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
     }
 
     override fun clearAppState(id: String): Result<Unit, Throwable> {

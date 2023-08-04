@@ -95,18 +95,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.clearKeychain()
     }
 
-    fun pullAppState(appId: String, outFile: File) {
-        LOGGER.info("Pulling app state: $appId")
-
-        driver.pullAppState(appId, outFile)
-    }
-
-    fun pushAppState(appId: String, stateFile: File) {
-        LOGGER.info("Pushing app state: $appId")
-
-        driver.pushAppState(appId, stateFile)
-    }
-
     fun backPress() {
         LOGGER.info("Pressing back")
 

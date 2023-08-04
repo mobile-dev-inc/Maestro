@@ -123,29 +123,6 @@ class IOSDriver(
         iosDevice.clearKeychain().expect {}
     }
 
-    override fun pullAppState(appId: String, outFile: File) {
-        if (!outFile.exists()) outFile.createNewFile()
-        val tmpDir = Files.createTempDirectory("maestro_state_")
-
-        iosDevice.pullAppState(appId, tmpDir.toFile()).getOrThrow {
-            MaestroException.UnableToPullState("Unable to pull state for $appId. ${it.message}")
-        }
-
-        FileUtils.zipDir(tmpDir, outFile.toPath())
-        FileUtils.deleteDir(tmpDir)
-    }
-
-    override fun pushAppState(appId: String, stateFile: File) {
-        val tmpDir = Files.createTempDirectory("maestro_state_")
-        FileUtils.unzip(stateFile.toPath(), tmpDir)
-
-        iosDevice.pushAppState(appId, tmpDir.toFile()).getOrThrow {
-            MaestroException.UnableToPushState("Unable to push state for $appId. ${it.message}")
-        }
-
-        FileUtils.deleteDir(tmpDir)
-    }
-
     override fun tap(point: Point) {
         iosDevice.tap(point.x, point.y).expect {}
     }

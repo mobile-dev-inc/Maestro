@@ -56,7 +56,6 @@ object TestRunner {
                 device,
                 resultView,
                 commands,
-                cachedAppState = null,
                 debug
             )
         }
@@ -113,7 +112,6 @@ object TestRunner {
                                 device,
                                 resultView,
                                 commands,
-                                cachedAppState = cachedAppState,
                                 FlowDebugMetadata()
                             )
                         }.get()

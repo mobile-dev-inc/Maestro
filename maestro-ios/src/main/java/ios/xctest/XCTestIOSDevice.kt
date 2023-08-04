@@ -18,7 +18,6 @@ import okio.buffer
 import xcuitest.XCTestDriverClient
 import xcuitest.api.GetRunningAppIdResponse
 import xcuitest.api.IsScreenStaticResponse
-import java.io.File
 import java.io.InputStream
 import java.util.UUID
 
@@ -188,14 +187,6 @@ class XCTestIOSDevice(
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {
-        error("Not supported")
-    }
-
-    override fun pullAppState(id: String, file: File): Result<Unit, Throwable> {
-        error("Not supported")
-    }
-
-    override fun pushAppState(id: String, file: File): Result<Unit, Throwable> {
         error("Not supported")
     }
 

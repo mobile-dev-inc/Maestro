@@ -553,19 +553,9 @@ class IntegrationTest {
                 MaestroCommand(
                     ApplyConfigurationCommand(
                         config = MaestroConfig(
-                            appId = "com.example.app",
-                            initFlow = MaestroInitFlow(
-                                appId = "com.example.app",
-                                commands = listOf(
-                                    MaestroCommand(
-                                        LaunchAppCommand(
-                                            appId = "com.example.app"
-                                        )
-                                    )
-                                ),
-                            )
+                            appId = "com.example.app"
                         )
-                    ),
+                    )
                 ),
                 MaestroCommand(
                     LaunchAppCommand(
@@ -614,71 +604,53 @@ class IntegrationTest {
 
     @Test
     fun `Case 023 - runFlow with initFlow`() {
-        // Given
-        val commands = readCommands("024_init_flow_init_state")
-        val initFlow = YamlCommandReader.getConfig(commands)!!.initFlow!!
+        assertThrows<MaestroException.DeprecatedCommand> {
+            val commands = readCommands("024_init_flow_init_state")
+            val initFlow = YamlCommandReader.getConfig(commands)!!.initFlow!!
 
-        val driver = driver {
-            element {
-                text = "Hello"
-                bounds = Bounds(0, 0, 100, 100)
+            val driver = driver {
+                element {
+                    text = "Hello"
+                    bounds = Bounds(0, 0, 100, 100)
+                }
+            }
+            driver.addInstalledApp("com.example.app")
+
+            val otherDriver = driver {
+                element {
+                    text = "Hello"
+                    bounds = Bounds(0, 0, 100, 100)
+                }
+            }
+            otherDriver.addInstalledApp("com.example.app")
+            val state = Maestro(driver).use {
+                orchestra(it).runInitFlow(initFlow)
+            }!!
+            Maestro(otherDriver).use {
+                orchestra(it).runFlow(commands, state)
             }
         }
-        driver.addInstalledApp("com.example.app")
-
-        val otherDriver = driver {
-            element {
-                text = "Hello"
-                bounds = Bounds(0, 0, 100, 100)
-            }
-        }
-        otherDriver.addInstalledApp("com.example.app")
-
-        // When
-        val state = Maestro(driver).use {
-            orchestra(it).runInitFlow(initFlow)
-        }!!
-
-        Maestro(otherDriver).use {
-            orchestra(it).runFlow(commands, state)
-        }
-
-        // Then
-        // No test failure
-        otherDriver.assertPushedAppState(
-            listOf(
-                Event.LaunchApp("com.example.app"),
-            )
-        )
-        otherDriver.assertHasEvent(Event.Tap(Point(50, 50)))
     }
 
     @Test
     fun `Case 024 - runFlow with initState`() {
-        // Given
-        val commands = readCommands("023_init_flow")
+        assertThrows<MaestroException.DeprecatedCommand> {
+            // Given
+            val commands = readCommands("023_init_flow")
 
-        val driver = driver {
-            element {
-                text = "Hello"
-                bounds = Bounds(0, 0, 100, 100)
+            val driver = driver {
+                element {
+                    text = "Hello"
+                    bounds = Bounds(0, 0, 100, 100)
+                }
+            }
+            driver.addInstalledApp("com.example.app")
+
+            // When
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
             }
         }
-        driver.addInstalledApp("com.example.app")
-
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
-        }
-
-        // Then
-        // No test failure
-        driver.assertPushedAppState(
-            listOf(
-                Event.LaunchApp("com.example.app"),
-            )
-        )
-        driver.assertHasEvent(Event.Tap(Point(50, 50)))
     }
 
     @Test
