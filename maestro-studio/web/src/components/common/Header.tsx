@@ -1,19 +1,25 @@
 import { ThemeToggle } from "../common/theme";
-import { API } from '../../api/api';
-import clsx from 'clsx';
+import { API } from "../../api/api";
+import clsx from "clsx";
 
 const HeaderBanner = () => {
-  const { data } = API.useBannerMessage({ refreshInterval: 1000 })
-  if (!data?.level || data.level === 'none') return null
+  const { data } = API.useBannerMessage({ refreshInterval: 1000 });
+  if (!data?.level || data.level === "none") return null;
 
-  const bgColor = { info: 'bg-blue-100', warning: 'bg-amber-100', error: 'bg-red-100' }[data.level]
+  const bgColor = {
+    info: "bg-blue-100 dark:bg-blue-900",
+    warning: "bg-amber-100 dark:bg-amber-900",
+    error: "bg-red-100 dark:bg-red-900",
+  }[data.level];
 
   return (
-    <div className={clsx("flex py-3 px-7", bgColor)}>
+    <div
+      className={clsx("py-3 px-7 text-sm text-center font-semibold", bgColor)}
+    >
       <span>{data.message}</span>
     </div>
-  )
-}
+  );
+};
 
 const Header = () => (
   <div className="flex flex-col">
