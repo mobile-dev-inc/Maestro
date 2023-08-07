@@ -4,7 +4,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
-import hierarchy.XCUIElement
 import ios.IOSDevice
 import ios.IOSScreenRecording
 import ios.device.DeviceInfo
@@ -29,10 +28,6 @@ class SimctlIOSDevice(
     }
 
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
-        TODO("Not yet implemented")
-    }
-
-    override fun contentDescriptor(): Result<XCUIElement, Throwable> {
         TODO("Not yet implemented")
     }
 

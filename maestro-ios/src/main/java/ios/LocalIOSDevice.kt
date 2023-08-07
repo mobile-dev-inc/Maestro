@@ -1,9 +1,7 @@
 package ios
 
 import com.github.michaelbull.result.*
-import hierarchy.XCUIElement
 import ios.device.DeviceInfo
-import ios.idb.IdbIOSDevice
 import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import okio.Sink
@@ -17,7 +15,6 @@ import java.util.concurrent.TimeUnit
 
 class LocalIOSDevice(
     override val deviceId: String?,
-    private val idbIOSDevice: IdbIOSDevice,
     private val xcTestDevice: XCTestIOSDevice,
     private val simctlIOSDevice: SimctlIOSDevice,
 ) : IOSDevice {
@@ -25,23 +22,11 @@ class LocalIOSDevice(
     private val executor by lazy { Executors.newSingleThreadScheduledExecutor() }
 
     override fun open() {
-        idbIOSDevice.open()
         xcTestDevice.open()
     }
 
     override fun deviceInfo(): Result<DeviceInfo, Throwable> {
         return xcTestDevice.deviceInfo()
-    }
-
-    override fun contentDescriptor(): Result<XCUIElement, Throwable> {
-        return xcTestDevice.contentDescriptor()
-            .recoverIf(
-                { it is XCTestIOSDevice.IllegalArgumentSnapshotFailure },
-                {
-                    idbIOSDevice.contentDescriptor()
-                        .getOrThrow()
-                }
-            )
     }
 
     override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
@@ -142,11 +127,10 @@ class LocalIOSDevice(
     }
 
     override fun isShutdown(): Boolean {
-        return idbIOSDevice.isShutdown() && xcTestDevice.isShutdown()
+        return xcTestDevice.isShutdown()
     }
 
     override fun close() {
-        idbIOSDevice.close()
         xcTestDevice.close()
         simctlIOSDevice.close()
     }

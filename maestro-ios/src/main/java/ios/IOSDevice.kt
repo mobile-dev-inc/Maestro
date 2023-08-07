@@ -22,7 +22,6 @@ package ios
 import com.github.michaelbull.result.Result
 import hierarchy.AXElement
 import hierarchy.ViewHierarchy
-import hierarchy.XCUIElement
 import ios.device.DeviceInfo
 import okio.Sink
 import java.io.File
@@ -36,8 +35,6 @@ interface IOSDevice : AutoCloseable {
     fun open()
 
     fun deviceInfo(): Result<DeviceInfo, Throwable>
-
-    fun contentDescriptor(): Result<XCUIElement, Throwable>
 
     fun viewHierarchy(): Result<ViewHierarchy, Throwable>
 

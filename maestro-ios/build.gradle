@@ -3,43 +3,11 @@ plugins {
     id "kotlin"
     id "idea"
     id "com.vanniktech.maven.publish"
-    id "com.google.protobuf"
-}
-
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:${libs.versions.googleProtobuf.get()}"
-    }
-    plugins {
-        grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:${libs.versions.grpc.get()}"
-        }
-    }
-    generateProtoTasks {
-        all().each { task ->
-            task.plugins {
-                grpc {}
-            }
-            task.builtins {
-                kotlin {}
-            }
-        }
-    }
-}
-
-compileKotlin {
-    dependsOn generateProto
-}
-
-kotlin.sourceSets.all {
-    // Prevent build warnings for grpc's generated opt-in code
-    languageSettings.optIn("kotlin.RequiresOptIn")
 }
 
 sourceSets {
     main {
         java {
-            srcDirs += 'build/generated/source/proto/main/grpc'
             srcDirs += 'build/generated/source/proto/main/java'
             srcDirs += 'build/generated/source/proto/main/kotlin'
         }
@@ -50,11 +18,6 @@ dependencies {
     implementation project(':maestro-utils')
     implementation project(':maestro-ios-driver')
 
-    implementation(libs.grpc.kotlin.stub)
-    implementation(libs.grpc.stub)
-    implementation(libs.grpc.protobuf)
-    implementation(libs.grpc.okhttp)
-    implementation(libs.google.protobuf.kotlin)
     implementation(libs.kotlin.result)
     implementation(libs.slf4j)
     implementation(libs.square.okio)
