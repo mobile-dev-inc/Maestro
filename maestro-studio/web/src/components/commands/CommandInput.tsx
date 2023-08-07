@@ -3,6 +3,14 @@ import { TextAreaProps } from "../../helpers/models";
 import { twMerge } from "tailwind-merge";
 import clsx from "clsx";
 
+interface CommandInputProps {
+  value: string;
+  setValue: (value: string) => void;
+  resize?: "automatic" | "vertical" | "none";
+  error?: boolean | string | null;
+  onSubmit?: () => void;
+}
+
 const CommandInput = ({
   value,
   setValue,
@@ -11,13 +19,7 @@ const CommandInput = ({
   onSubmit,
   className,
   ...rest
-}: {
-  value: string;
-  setValue: (value: string) => void;
-  resize?: "automatic" | "vertical" | "none";
-  error?: boolean | string | null;
-  onSubmit?: () => void;
-} & TextAreaProps) => {
+}: CommandInputProps & TextAreaProps) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.metaKey && e.key === "Enter") {
       onSubmit && onSubmit();
@@ -36,6 +38,7 @@ const CommandInput = ({
   return (
     <InputWrapper error={error}>
       <TextArea
+        id="commandInputBox"
         value={value}
         rows={2}
         resize={resize}

@@ -1,4 +1,5 @@
-import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import _ from "lodash";
 import { Button } from "../design-system/button";
 import { Input } from "../design-system/input";
 import { DeviceScreen, UIElement } from "../../helpers/models";
@@ -29,6 +30,8 @@ export default function ElementsPanel({
   onHint,
 }: ElementsPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const previousSortedElementsRef = useRef<UIElement[] | null>(null);
+  const elementRefs = useRef<(HTMLElement | null)[]>([]);
   const [query, setQuery] = useState<string>("");
   const [width, setWidth] = useState(
     localStorage.sidebarWidth ? parseInt(localStorage.sidebarWidth) : 264
@@ -92,6 +95,62 @@ export default function ElementsPanel({
     });
   }, [query, deviceScreen.elements]);
 
+  /**
+   * Change hovered element in case sortedElements chang
+   */
+  useEffect(() => {
+    // Check if the contents of sortedElements have changed
+    const didElementsChange = !_.isEqual(
+      previousSortedElementsRef.current,
+      sortedElements
+    );
+
+    if (didElementsChange) {
+      setHoveredElement(sortedElements[0]);
+    }
+
+    // Update the ref with the current value for the next comparison
+    previousSortedElementsRef.current = sortedElements;
+  }, [sortedElements, setHoveredElement]);
+
+  /**
+   * Keyboard Events
+   */
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const currentIndex = hoveredElement
+      ? sortedElements.findIndex((el) => el.id === hoveredElement.id)
+      : -1;
+
+    let newIndex = -1;
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        newIndex =
+          currentIndex + 1 >= sortedElements.length ? 0 : currentIndex + 1;
+        setHoveredElement(sortedElements[newIndex]);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        newIndex =
+          currentIndex <= 0 ? sortedElements.length - 1 : currentIndex - 1;
+        setHoveredElement(sortedElements[newIndex]);
+        break;
+      case "Enter":
+        event.preventDefault();
+        if (hoveredElement) {
+          onElementSelected(hoveredElement);
+        }
+        return; // Add a return here to avoid scrolling on Enter
+      default:
+        break;
+    }
+    // Scroll the new hovered element into view
+    elementRefs.current[newIndex]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  };
+
   return (
     <div
       style={{
@@ -111,6 +170,7 @@ export default function ElementsPanel({
         <Input
           ref={inputRef}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           size="sm"
           leftIcon="RiSearchLine"
           leftIconClassName="absolute left-1.5 top-1/2 transform -translate-y-1/2 pointer-events-none"
@@ -120,7 +180,7 @@ export default function ElementsPanel({
         />
       </div>
       <div className="px-8 py-6 flex-grow overflow-y-scroll overflow-x-hidden">
-        {sortedElements.map((item: UIElement) => {
+        {sortedElements.map((item: UIElement, index: number) => {
           const onClick = () => onElementSelected(item);
           const onMouseEnter = () => {
             setHoveredElement(item);
@@ -133,7 +193,10 @@ export default function ElementsPanel({
             }
           };
           return (
-            <Fragment key={item.id}>
+            <div
+              key={item.id}
+              ref={(ref) => (elementRefs.current[index] = ref)}
+            >
               {item.resourceId !== "" && item.resourceId !== " " && (
                 <ElementListItem
                   onClick={onClick}
@@ -179,7 +242,7 @@ export default function ElementsPanel({
                     elementType="accessibilityText"
                   />
                 )}
-            </Fragment>
+            </div>
           );
         })}
       </div>
@@ -223,8 +286,10 @@ const ElementListItem = ({
   return (
     <button
       className={clsx(
-        "px-2 py-2 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition w-full text-sm font-bold text-left",
-        isHovered && "text-blue-500"
+        "px-2 py-2 rounded-md transition w-full text-sm font-bold text-left",
+        isHovered
+          ? "text-blue-500 bg-slate-100 dark:bg-slate-800"
+          : "bg-transparent"
       )}
       style={{ overflowWrap: "anywhere" }}
       {...rest}

@@ -22,6 +22,26 @@ const InteractPage = () => {
   const inspectedElement =
     deviceScreen?.elements?.find((e) => e.id === inspectedElementId) || null;
 
+  const onEdit = (example: CommandExample) => {
+    if (example.status === "unavailable") return;
+    setInput(example.content.trim());
+    setInspectedElementId(null);
+
+    // find textarea by id and focus on it if it exists
+    setTimeout(() => {
+      const textarea = document.getElementById("commandInputBox");
+      if (textarea) {
+        textarea.focus();
+      }
+    }, 0);
+  };
+
+  const onRun = (example: CommandExample) => {
+    if (example.status === "unavailable") return;
+    API.repl.runCommand(example.content);
+    setInspectedElementId(null);
+  };
+
   useEffect(() => {
     let running = true;
     (async () => {
@@ -87,7 +107,6 @@ const InteractPage = () => {
             onInspectElement={(e) => setInspectedElementId(e?.id || null)}
           />
         </DeviceWrapperAspectRatio>
-
         <p className="text-xs text-center">
           Hold CMD (⌘) down to freely tap and swipe on the device screen
         </p>
@@ -104,16 +123,8 @@ const InteractPage = () => {
         <ActionModal
           deviceScreen={deviceScreen}
           uiElement={inspectedElement}
-          onEdit={(example: CommandExample) => {
-            if (example.status === "unavailable") return;
-            setInput(example.content.trim());
-            setInspectedElementId(null);
-          }}
-          onRun={(example: CommandExample) => {
-            if (example.status === "unavailable") return;
-            API.repl.runCommand(example.content);
-            setInspectedElementId(null);
-          }}
+          onEdit={onEdit}
+          onRun={onRun}
           open={!!inspectedElement}
           onClose={() => setInspectedElementId(null)}
         />

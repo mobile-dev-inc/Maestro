@@ -48,7 +48,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={twMerge(
         clsx(
-          "fixed z-50 block w-full rounded-b-md border bg-white dark:bg-slate-900 border-gray-200 dark:border-gray-900 shadow-xl animate-in data-[state=open]:fade-in-90 data-[state=open]:slide-in-from-bottom-10 sm:max-w-2xl sm:rounded-xl sm:zoom-in-90 data-[state=open]:sm:slide-in-from-bottom-0",
+          "fixed max-h-[90vh] overflow-auto z-50 block w-full rounded-b-md border bg-white dark:bg-slate-900 border-gray-200 dark:border-gray-900 shadow-xl animate-in data-[state=open]:fade-in-90 data-[state=open]:slide-in-from-bottom-10 sm:max-w-2xl sm:rounded-xl sm:zoom-in-90 data-[state=open]:sm:slide-in-from-bottom-0",
           className
         )
       )}

@@ -90,19 +90,21 @@ const toPercent = (n: number, total: number) =>
   `${Math.round((100 * n) / total)}%`;
 
 const InteractableDevice = ({
+  deviceScreen,
+  onInspectElement,
   hoveredElement,
   setHoveredElement,
-  deviceScreen,
   onHint,
   inspectedElement,
-  onInspectElement,
+  enableGestureControl = true,
 }: {
-  hoveredElement: UIElement | null;
-  setHoveredElement: (element: UIElement | null) => void;
   deviceScreen: DeviceScreen;
-  onHint: (hint: string | null) => void;
   inspectedElement: UIElement | null;
-  onInspectElement: (element: UIElement | null) => void;
+  hoveredElement?: UIElement | null;
+  setHoveredElement?: (element: UIElement | null) => void;
+  onHint?: (hint: string | null) => void;
+  onInspectElement?: (element: UIElement | null) => void;
+  enableGestureControl?: boolean;
 }) => {
   const metaKeyDown = useMetaKeyDown();
 
@@ -162,8 +164,8 @@ const InteractableDevice = ({
   const onHover = (element: UIElement | null, mouse: MousePosition | null) => {
     const mouseHint = mouse == null ? null : getMouseHint(mouse);
     const elementHint = element == null ? null : getElementHint(element);
-    onHint(elementHint || mouseHint);
-    setHoveredElement(element?.id ? element : null);
+    onHint && onHint(elementHint || mouseHint);
+    setHoveredElement && setHoveredElement(element?.id ? element : null);
   };
 
   return (
@@ -174,7 +176,7 @@ const InteractableDevice = ({
       }}
       onTap={onTapGesture}
       onSwipe={onSwipeGesture}
-      gesturesEnabled={metaKeyDown}
+      gesturesEnabled={enableGestureControl ? metaKeyDown : false}
     >
       <AnnotatedScreenshot
         deviceScreen={deviceScreen}
@@ -182,7 +184,7 @@ const InteractableDevice = ({
         onElementSelected={onInspectElement}
         hoveredElement={hoveredElement}
         onHover={onHover}
-        annotationsEnabled={!metaKeyDown}
+        annotationsEnabled={enableGestureControl ? !metaKeyDown : true}
       />
     </GestureDiv>
   );

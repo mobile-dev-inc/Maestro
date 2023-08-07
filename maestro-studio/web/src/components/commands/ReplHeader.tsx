@@ -1,6 +1,6 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { CopyToClipboard } from "react-copy-to-clipboard";
+import copy from "copy-to-clipboard";
 import { Checkbox } from "../design-system/checkbox";
 import { Button } from "../design-system/button";
 
@@ -84,11 +84,17 @@ export default function ReplHeader({
               Copy
             </Button>
           ) : (
-            <CopyToClipboard text={copyText} onCopy={onCommandCopy}>
-              <Button variant="quaternary" size="sm" leftIcon="RiFileCopyLine">
-                Copy
-              </Button>
-            </CopyToClipboard>
+            <Button
+              onClick={() => {
+                copy(copyText);
+                onCommandCopy();
+              }}
+              variant="quaternary"
+              size="sm"
+              leftIcon="RiFileCopyLine"
+            >
+              Copy
+            </Button>
           )}
           <Button
             variant="quaternary-red"
