@@ -1,5 +1,5 @@
 import { DeviceScreen, UIElement } from "../../helpers/models";
-import React, { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 import useMouse, { MousePosition } from "@react-hook/mouse-position";
 
 type AnnotationState = "default" | "hidden" | "hovered" | "selected";
@@ -24,7 +24,7 @@ const Annotation = ({
   const w = `${(width / deviceWidth) * 100}%`;
   const h = `${(height / deviceHeight) * 100}%`;
 
-  let className = "border border-dashed border-pink-400/20";
+  let className = "border border-dashed border-pink-400/60";
   let style: CSSProperties = {};
 
   if (state === "hovered") {
