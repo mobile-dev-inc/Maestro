@@ -35,9 +35,9 @@ const DeviceWrapperAspectRatio = ({
   }, [aspectRatio]);
 
   return (
-    <div ref={containerRef} className="relative flex-grow">
+    <div ref={containerRef} className="relative flex-1">
       <div
-        className="h-full max-w-full mx-auto grid place-items-center"
+        className="h-full max-w-full absolute top-0 left-0 right-0 bottom-0 mx-auto grid place-items-center"
         style={{ width }}
         {...rest}
       >
