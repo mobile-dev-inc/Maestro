@@ -447,6 +447,16 @@ const ActionCommandListItem = ({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            onRun(command);
+          }}
+          variant="primary"
+          size="sm"
+          icon="RiPlayLine"
+        />
+        <Button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             onEdit(command);
           }}
           variant="secondary"
