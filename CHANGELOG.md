@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.31.0 - 2023-08-10
+
+- Fix: Warning shown from OkHttp for leaking response bodies on CLI
+  - Closing response bodies for retries done on the XCUITest driver
+  - Closing response bodies for permissions
+  - Removing different thread execution done on hideKeyboard
+- Fix: Scroll for React native apps on screens with large view hierarchies on iOS
+- Fix: Showing more descriptive errors on flow file not found during maestro cloud command.
+- Fix: Input text characters being skipped or being appended later in the test on iOS
+- Fix: Crash in debug output generation when maestro flow contains "/"’
+- Fix: Resolved issue where tapping on the device in maestro studio produced inaccurate click locations due to incorrect coordinates. Now fixed for accurate device interaction
+- Fix: In Maestro Studio, the issue of window resizing causing devices to overflow off the screen has been resolved.
+- Feature: Add headers to HTTP response for API calls done with Maestro. Thanks, Jesse Willoughby! for this contribution.
+- Feature: Now it is possible to configure the path with the –debug-output option for debugging information that maestro dumps in the user directory by default.
+- Feature: Enhanced Maestro Studio with keyboard accessibility, streamlining navigation and facilitating the copy, run, and edit commands using the keyboard.
+- Change: Fail the test if any of the onFlowStart or onFlowComplete hooks fail
+- Change: Removed IDB on iOS. This may impact the performance of maestro commands like tapOn and assertVisible on iOS screens with large view hierarchies.
+  - Studio and CLI will now provide insights and warnings in case the hierarchy of these screens becomes extensive.
+- Change: In Maestro Studio, we've integrated screenshots of selected elements alongside their corresponding commands.
+- Change: In Maestro Studio, double-clicking will now execute the command.
+
 ## 1.30.4 - 2023-07-19
 
 - Fix: correctly resolve external parameters for onStart/Complete hooks
