@@ -195,7 +195,7 @@ class Orchestra(
                     )
                 updateMetadata(command, metadata)
 
-                Insights.onInsightsUpdated { insight ->
+                val callback: (Insight) -> Unit = { insight ->
                     updateMetadata(
                         command,
                         getMetadata(command).copy(
@@ -203,6 +203,7 @@ class Orchestra(
                         )
                     )
                 }
+                Insights.onInsightsUpdated(callback)
                 try {
                     executeCommand(evaluatedCommand, config)
                     onCommandComplete(index, command)
@@ -218,6 +219,7 @@ class Orchestra(
                         }
                     }
                 }
+                Insights.unregisterListener(callback)
             }
         return true
     }

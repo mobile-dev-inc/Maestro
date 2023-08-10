@@ -160,7 +160,8 @@ class IOSDriver(
         LOGGER.info("Depth of the screen is ${hierarchyResult?.depth ?: 0}")
         if (hierarchyResult?.depth != null && hierarchyResult.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +
-                    "is ${hierarchyResult.depth}. If you are using React native, consider migrating to the new " +
+                    "is ${hierarchyResult.depth}. This might affect the execution time of your test. " +
+                    "If you are using React native, consider migrating to the new " +
                     "architecture where view flattening is available. For more information on the " +
                     "migration process, please visit: https://reactnative.dev/docs/new-architecture-intro"
             Insights.report(Insight(message, Insight.Level.INFO))

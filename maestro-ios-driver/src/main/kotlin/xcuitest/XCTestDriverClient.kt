@@ -62,19 +62,6 @@ class XCTestDriverClient(
 
     private val mapper = jacksonObjectMapper()
 
-    fun subTree(appId: String): Response {
-        val url = client.xctestAPIBuilder("subTree")
-            .addQueryParameter("appId", appId)
-            .build()
-
-        val request = Request.Builder()
-            .get()
-            .url(url)
-            .build()
-
-        return okHttpClient.newCall(request).execute()
-    }
-
     fun viewHierarchy(installedApps: Set<String>): ViewHierarchy {
         return executeJsonRequest(
             "viewHierarchy",

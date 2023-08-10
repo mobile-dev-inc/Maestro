@@ -13,6 +13,10 @@ object Insights {
     fun onInsightsUpdated(callback: (Insight) -> Unit) {
         listeners.add(callback)
     }
+
+    fun unregisterListener(callback: (Insight) -> Unit) {
+        listeners.remove(callback)
+    }
 }
 
 data class Insight(
