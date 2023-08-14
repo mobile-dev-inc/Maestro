@@ -179,7 +179,7 @@ export default function ElementsPanel({
           className="relative w-full rounded-md p-0"
         />
       </div>
-      <div className="px-8 py-6 flex-grow overflow-y-scroll overflow-x-hidden">
+      <div className="px-8 py-6 flex-grow overflow-y-scroll overflow-x-hidden hide-scrollbar">
         {sortedElements.map((item: UIElement, index: number) => {
           const onClick = () => onElementSelected(item);
           const onMouseEnter = () => {

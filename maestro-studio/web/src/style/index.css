@@ -17,3 +17,12 @@ body,
 input::placeholder {
   @apply text-slate-400;
 }
+
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0; /* For vertical scrollbars */
+  height: 0; /* For horizontal scrollbars */
+}

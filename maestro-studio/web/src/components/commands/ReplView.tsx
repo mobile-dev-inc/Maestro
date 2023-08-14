@@ -88,7 +88,7 @@ const ReplView = ({
 
   return (
     <>
-      <div className="pt-6 pb-8 flex-grow overflow-scroll">
+      <div className="pt-6 pb-8 flex-grow overflow-auto hide-scrollbar">
         {repl.commands.length > 0 ? (
           <div className="flex flex-col">
             <div className="px-12">

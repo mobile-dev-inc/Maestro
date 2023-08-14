@@ -438,7 +438,7 @@ const ActionCommandListItem = ({
           : "border-slate-200 dark:border-slate-800"
       )}
     >
-      <pre className="overflow-x-scroll font-mono text-gray-700 dark:text-white flex-grow pt-3 pb-5 pl-3 pr-40">
+      <pre className="overflow-auto font-mono text-gray-700 dark:text-white flex-grow pt-3 pb-5 pl-3 pr-40 hide-scrollbar">
         {command.content}
       </pre>
       <div className="bg-gradient-to-r from-transparent to-white dark:to-slate-900 w-80 absolute top-0 right-0 bottom-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all" />
