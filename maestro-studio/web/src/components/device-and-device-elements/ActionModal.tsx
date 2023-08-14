@@ -432,7 +432,7 @@ const ActionCommandListItem = ({
       onClick={() => setSelectedCommand(command)}
       onDoubleClick={() => onRun(command)}
       className={clsx(
-        `relative border rounded-md flex gap-2 overflow-hidden cursor-pointer`,
+        `relative border rounded-md flex gap-2 overflow-hidden cursor-pointer group`,
         selected
           ? "border-purple-500 ring-4 ring-offset-0 ring-purple-100/20"
           : "border-slate-200 dark:border-slate-800"
@@ -441,7 +441,7 @@ const ActionCommandListItem = ({
       <pre className="overflow-x-scroll font-mono text-gray-700 dark:text-white flex-grow pt-3 pb-5 pl-3 pr-40">
         {command.content}
       </pre>
-      <div className="bg-gradient-to-r from-transparent to-white dark:to-slate-900 w-80 absolute top-0 right-0 bottom-0 pointer-events-none" />
+      <div className="bg-gradient-to-r from-transparent to-white dark:to-slate-900 w-80 absolute top-0 right-0 bottom-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all" />
       <div className="absolute flex gap-2 right-2 top-2">
         <Button
           onClick={(e) => {
@@ -449,6 +449,7 @@ const ActionCommandListItem = ({
             e.stopPropagation();
             onRun(command);
           }}
+          className="opacity-0 group-hover:opacity-100"
           variant="primary"
           size="sm"
           icon="RiPlayLine"
@@ -459,6 +460,7 @@ const ActionCommandListItem = ({
             e.stopPropagation();
             onEdit(command);
           }}
+          className="opacity-0 group-hover:opacity-100"
           variant="secondary"
           size="sm"
           icon="RiCodeLine"
@@ -472,6 +474,7 @@ const ActionCommandListItem = ({
               e.stopPropagation();
               copyCommand(command.content);
             }}
+            className="opacity-0 group-hover:opacity-100"
             variant="tertiary"
             size="sm"
             icon="RiFileCopyLine"
