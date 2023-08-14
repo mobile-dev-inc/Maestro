@@ -20,11 +20,20 @@ export default function SelectedElementViewer({
     if (deviceRef.current && uiElement.bounds) {
       // Set the wrapper height to be used & increase height if element is big
       let currentWrapperHeight = defaultWrapperSize;
-      if (uiElement.bounds.height > currentWrapperHeight) {
+      const maxHeight =
+        defaultWrapperSize * (deviceScreen.height / deviceScreen.width) - 4;
+      // Chromium Screen (Smaller height)
+      if (deviceScreen.height < deviceScreen.width) {
+        containerElementRef.current &&
+          (containerElementRef.current.style.height = `${maxHeight}px`);
+        return;
+      }
+      // Selected element is large in height
+      else if (uiElement.bounds.height > deviceScreen.width) {
         currentWrapperHeight = Math.min(
           defaultWrapperSize * (uiElement.bounds.height / deviceScreen.width) +
-            100,
-          deviceScreen.height
+            5000,
+          maxHeight
         );
         containerElementRef.current &&
           (containerElementRef.current.style.height = `${currentWrapperHeight}px`);
@@ -66,7 +75,7 @@ export default function SelectedElementViewer({
         style={{ height: defaultWrapperSize + "px" }}
         className="relative overflow-hidden rounded-lg border border-black/20 dark:border-white/20"
       >
-        <div ref={deviceRef} className="absolute -top-1 -left-1 -right-1">
+        <div ref={deviceRef} className="absolute -top-1 -left-2 -right-2">
           <InteractableDevice
             enableGestureControl={false}
             deviceScreen={deviceScreen}
