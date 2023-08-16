@@ -164,8 +164,8 @@ class XCTestDriverClient(
         return executeJsonRequestUNCHECKED("pressButton", PressButtonRequest(name))
     }
 
-    fun eraseText(charactersToErase: Int): Response {
-        return executeJsonRequestUNCHECKED("eraseText", EraseTextRequest(charactersToErase))
+    fun eraseText(charactersToErase: Int, appIds: Set<String>): Response {
+        return executeJsonRequestUNCHECKED("eraseText", EraseTextRequest(charactersToErase, appIds))
     }
 
     fun deviceInfo(): Response {

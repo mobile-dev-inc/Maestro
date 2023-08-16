@@ -18,6 +18,9 @@ struct EraseTextHandler: HTTPHandler {
             let errorData = handleError(message: "incorrect request body provided")
             return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
         }
+        
+        let appId = RunningApp.getForegroundAppId(requestBody.appIds)
+        await waitUntilKeyboardIsPresented(appId: appId)
 
         let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: requestBody.charactersToErase)
         var eventPath = PointerEventPath.pathForTextInput()
@@ -35,5 +38,13 @@ struct EraseTextHandler: HTTPHandler {
          { "errorMessage" : \(message) }
         """
         return Data(jsonString.utf8)
+    }
+    
+    private func waitUntilKeyboardIsPresented(appId: String?) async {
+        try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
+            guard let appId = appId else { return true }
+
+            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+        }
     }
 }
