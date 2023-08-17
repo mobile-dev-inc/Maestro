@@ -2,11 +2,12 @@ package maestro.studio
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.http.content.files
 import io.ktor.server.http.content.static
 import io.ktor.server.http.content.staticRootFolder
-import io.ktor.server.response.respondText
+import io.ktor.server.response.*
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import maestro.ElementFilter
@@ -33,12 +34,15 @@ object DeviceScreenService {
 
     private val savedScreenshots = mutableListOf<File>()
 
+    private var lastViewHierarchy: TreeNode? = null
+
     fun routes(routing: Routing, maestro: Maestro) {
         routing.get("/api/device-screen") {
             val tree: TreeNode
             val screenshotFile: File
             synchronized(DeviceScreenService) {
                 tree = maestro.viewHierarchy().root
+                lastViewHierarchy = tree
                 screenshotFile = takeScreenshot(maestro)
                 savedScreenshots.add(screenshotFile)
                 while (savedScreenshots.size > MAX_SCREENSHOTS) {
@@ -58,6 +62,14 @@ object DeviceScreenService {
                 .writerWithDefaultPrettyPrinter()
                 .writeValueAsString(deviceScreen)
             call.respondText(response)
+        }
+        routing.get("/api/last-view-hierarchy") {
+            if (lastViewHierarchy == null) {
+                call.respond(HttpStatusCode.NotFound, "No view hierarchy available")
+            } else {
+                val response = jacksonObjectMapper().writeValueAsString(lastViewHierarchy)
+                call.respond(response)
+            }
         }
         routing.static("/screenshot") {
             staticRootFolder = SCREENSHOT_DIR.toFile()
