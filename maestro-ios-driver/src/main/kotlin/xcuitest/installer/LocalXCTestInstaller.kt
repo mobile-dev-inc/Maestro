@@ -1,6 +1,6 @@
 package xcuitest.installer
 
-import maestro.logger.Logger
+import logger.Logger
 import maestro.utils.MaestroTimer
 import maestro.utils.SocketUtils
 import okhttp3.HttpUrl

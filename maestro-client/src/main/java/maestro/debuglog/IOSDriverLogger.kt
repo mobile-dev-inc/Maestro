@@ -1,6 +1,6 @@
 package maestro.debuglog
 
-import maestro.logger.Logger
+import logger.Logger
 import org.slf4j.LoggerFactory
 
 class IOSDriverLogger(val clazz: Class<*>) : Logger {
@@ -9,6 +9,12 @@ class IOSDriverLogger(val clazz: Class<*>) : Logger {
         LoggerFactory.getLogger(clazz).info(message)
         loggerFor(clazz).info(message)
     }
+
+    override fun error(message: String) {
+        LoggerFactory.getLogger(clazz).error(message)
+        loggerFor(clazz).error(message)
+    }
+
 
     companion object {
         private var loggers = mutableMapOf<Class<*>, java.util.logging.Logger>()
