@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import clsx from "clsx";
 
 import InteractableDevice from "../components/device-and-device-elements/InteractableDevice";
 import ReplView from "../components/commands/ReplView";
-import { DeviceScreen, UIElement } from "../helpers/models";
-import { API, wait } from "../api/api";
+import { UIElement } from "../helpers/models";
+import { API } from "../api/api";
 import ActionModal from "../components/device-and-device-elements/ActionModal";
 import { CommandExample } from "../helpers/commandExample";
 import ElementsPanel from "../components/device-and-device-elements/ElementsPanel";
@@ -13,7 +13,7 @@ import DeviceWrapperAspectRatio from "../components/device-and-device-elements/D
 
 const InteractPage = () => {
   const [showElementsPanel, setShowElementsPanel] = useState<boolean>(false);
-  const [deviceScreen, setDeviceScreen] = useState<DeviceScreen>();
+  const { deviceScreen } = API.useDeviceScreen();
   const [input, setInput] = useState("");
   const [footerHint, setFooterHint] = useState<string | null>();
   const [hoveredElement, setHoveredElement] = useState<UIElement | null>(null);
@@ -41,24 +41,6 @@ const InteractPage = () => {
     API.repl.runCommand(example.content);
     setInspectedElementId(null);
   };
-
-  useEffect(() => {
-    let running = true;
-    (async () => {
-      while (running) {
-        try {
-          const deviceScreen = await API.getDeviceScreen();
-          setDeviceScreen(deviceScreen);
-        } catch (e) {
-          console.error(e);
-          await wait(1000);
-        }
-      }
-    })();
-    return () => {
-      running = false;
-    };
-  }, [setDeviceScreen]);
 
   if (!deviceScreen) return null;
 

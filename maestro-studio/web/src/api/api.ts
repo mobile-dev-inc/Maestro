@@ -1,12 +1,6 @@
-import {
-  BannerMessage,
-  DeviceScreen,
-  FormattedFlow,
-  MockEvent,
-  Repl,
-  ReplCommand,
-} from "../helpers/models";
+import { BannerMessage, DeviceScreen, FormattedFlow, MockEvent, Repl, ReplCommand, } from "../helpers/models";
 import useSWR, { mutate, SWRConfiguration, SWRResponse } from "swr";
+import useSWRSubscription, { SWRSubscriptionResponse } from 'swr/subscription';
 
 export type ReplResponse = {
   repl?: Repl;
@@ -48,28 +42,36 @@ const makeRequest = async <T>(
   return await response.json();
 };
 
+const useSse = <T>(url: string): SWRSubscriptionResponse<T> => {
+  return useSWRSubscription<T, any, string>(url, (key, { next }) => {
+    const eventSource = new EventSource(key);
+    eventSource.onmessage = e => {
+      const repl: T = JSON.parse(e.data)
+      next(null, repl)
+    }
+    eventSource.onerror = error => {
+      next(error)
+    }
+    return () => eventSource.close()
+  })
+}
+
 const useRepl = (): ReplResponse => {
-  const { data: repl, error } = useSWR<Repl>("/api/repl/watch");
+  const { data: repl, error } = useSse<Repl>('/api/repl/sse')
   return { repl, error };
+};
+
+const useDeviceScreen = (): { deviceScreen?: DeviceScreen, error?: any } => {
+  const { data: deviceScreen, error } = useSse<DeviceScreen>('/api/device-screen/sse')
+  return { deviceScreen, error };
 };
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export const API = {
-  useDeviceScreen: (
-    config?: SWRConfiguration<DeviceScreen>
-  ): SWRResponse<DeviceScreen> => {
-    return useSWR(
-      "/api/device-screen",
-      (url) => makeRequest("GET", url),
-      config
-    );
-  },
-  getDeviceScreen: async (): Promise<DeviceScreen> => {
-    return makeRequest("GET", `/api/device-screen`);
-  },
+  useDeviceScreen,
   useBannerMessage: (
-    config?: SWRConfiguration<DeviceScreen>
+    config?: SWRConfiguration<BannerMessage>
   ): SWRResponse<BannerMessage> => {
     return useSWR(
       "/api/banner-message",
@@ -91,7 +93,7 @@ export const API = {
     reorderCommands: async (ids: string[]) => {
       makeRequest("POST", "/api/repl/command/reorder", { ids });
       mutate<Repl>(
-        "/api/repl/watch",
+        "/api/repl/sse",
         (repl) => {
           if (!repl) return undefined;
           const newCommands: ReplCommand[] = [];
@@ -118,21 +120,3 @@ export const API = {
     );
   },
 };
-
-const startReplLongPoll = async () => {
-  let replVersion = -1;
-  while (true) {
-    try {
-      const repl: Repl = await makeRequest(
-        "GET",
-        `/api/repl/watch?currentVersion=${replVersion}`
-      );
-      mutate("/api/repl/watch", repl, { revalidate: false });
-      replVersion = repl.version;
-    } catch (e) {
-      await wait(1000);
-    }
-  }
-};
-
-startReplLongPoll();

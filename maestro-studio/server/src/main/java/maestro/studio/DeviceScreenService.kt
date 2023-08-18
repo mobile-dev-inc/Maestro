@@ -3,24 +3,20 @@ package maestro.studio
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.http.*
-import io.ktor.server.application.call
-import io.ktor.server.http.content.files
-import io.ktor.server.http.content.static
-import io.ktor.server.http.content.staticRootFolder
+import io.ktor.server.application.*
+import io.ktor.server.http.content.*
 import io.ktor.server.response.*
-import io.ktor.server.routing.Routing
-import io.ktor.server.routing.get
+import io.ktor.server.routing.*
+import io.ktor.utils.io.*
 import maestro.ElementFilter
 import maestro.Filters
-import maestro.Filters.asFilter
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.orchestra.Orchestra
 import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
 import java.nio.file.Path
-import java.util.IdentityHashMap
-import java.util.UUID
+import java.util.*
 import java.util.regex.Pattern
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -37,31 +33,16 @@ object DeviceScreenService {
     private var lastViewHierarchy: TreeNode? = null
 
     fun routes(routing: Routing, maestro: Maestro) {
-        routing.get("/api/device-screen") {
-            val tree: TreeNode
-            val screenshotFile: File
-            synchronized(DeviceScreenService) {
-                tree = maestro.viewHierarchy().root
-                lastViewHierarchy = tree
-                screenshotFile = takeScreenshot(maestro)
-                savedScreenshots.add(screenshotFile)
-                while (savedScreenshots.size > MAX_SCREENSHOTS) {
-                    savedScreenshots.removeFirst().delete()
+        // Ktor SSE sample project: https://github.com/ktorio/ktor-samples/blob/main/sse/src/main/kotlin/io/ktor/samples/sse/SseApplication.kt
+        routing.get("/api/device-screen/sse") {
+            call.response.cacheControl(CacheControl.NoCache(null))
+            call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
+                while (true) {
+                    val deviceScreen = getDeviceScreen(maestro)
+                    writeStringUtf8("data: $deviceScreen\n\n")
+                    flush()
                 }
             }
-
-            val deviceInfo = maestro.deviceInfo()
-
-            val deviceWidth = deviceInfo.widthGrid
-            val deviceHeight = deviceInfo.heightGrid
-
-            val elements = treeToElements(tree)
-            val deviceScreen = DeviceScreen("/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements)
-            val response = jacksonObjectMapper()
-                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                .writerWithDefaultPrettyPrinter()
-                .writeValueAsString(deviceScreen)
-            call.respondText(response)
         }
         routing.get("/api/last-view-hierarchy") {
             if (lastViewHierarchy == null) {
@@ -131,6 +112,31 @@ object DeviceScreenService {
             val id = createElementId()
             UIElement(id, bounds, resourceId, resourceIdIndex, text, hintText, accessibilityText, textIndex)
         }
+    }
+
+    private fun getDeviceScreen(maestro: Maestro): String {
+        val tree: TreeNode
+        val screenshotFile: File
+        synchronized(DeviceScreenService) {
+            tree = maestro.viewHierarchy().root
+            lastViewHierarchy = tree
+            screenshotFile = takeScreenshot(maestro)
+            savedScreenshots.add(screenshotFile)
+            while (savedScreenshots.size > MAX_SCREENSHOTS) {
+                savedScreenshots.removeFirst().delete()
+            }
+        }
+
+        val deviceInfo = maestro.deviceInfo()
+
+        val deviceWidth = deviceInfo.widthGrid
+        val deviceHeight = deviceInfo.heightGrid
+
+        val elements = treeToElements(tree)
+        val deviceScreen = DeviceScreen("/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements)
+        return jacksonObjectMapper()
+            .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+            .writeValueAsString(deviceScreen)
     }
 
     private fun TreeNode.bounds(): UIElementBounds? {

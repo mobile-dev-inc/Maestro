@@ -3,24 +3,23 @@ package maestro.studio
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
-import io.ktor.server.request.receiveStream
-import io.ktor.server.response.respond
-import io.ktor.server.response.respondText
+import io.ktor.server.response.*
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.ktor.utils.io.*
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.trySendBlocking
+import kotlinx.coroutines.flow.callbackFlow
 import maestro.Maestro
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.yaml.YamlFluentCommand
-import java.io.IOException
 import java.nio.file.Paths
 import java.util.UUID
 import kotlin.concurrent.thread
@@ -57,14 +56,14 @@ private data class FormattedFlow(
 private class ReplState {
 
     private val entries = mutableListOf<ReplEntry>()
-    private var replVersion = 0
+    private val listeners = mutableSetOf<(Repl) -> Any>()
 
     @Synchronized
     fun toModel(): Repl {
         val commands = entries.map { entry ->
             ReplCommand(entry.id, entry.yaml, entry.status)
         }
-        return Repl(replVersion, commands)
+        return Repl(commands)
     }
 
     @Synchronized
@@ -100,17 +99,25 @@ private class ReplState {
         notifyChange()
     }
 
-    // Wait for a change in the repl state or 1 second, whichever comes first
-    @Synchronized
-    fun waitForChange(currentReplVersion: Int) {
-        if (replVersion > currentReplVersion) return
-        (this as Object).wait()
+    fun startListening(listener: (Repl) -> Unit) {
+        synchronized(listeners) {
+            val repl = toModel()
+            listeners.add(listener)
+            listener(repl)
+        }
     }
 
-    @Synchronized
+    fun stopListening(listener: (Repl) -> Unit) {
+        synchronized(listeners) {
+            listeners.add(listener)
+        }
+    }
+
     private fun notifyChange() {
-        replVersion++
-        (this as Object).notifyAll()
+        synchronized(listeners) {
+            val repl = toModel()
+            listeners.forEach { it(repl) }
+        }
     }
 }
 
@@ -123,11 +130,24 @@ object ReplService {
         routing.get("/api/repl") {
             call.respondRepl()
         }
-        routing.get("/api/repl/watch") {
-            val currentReplVersion = call.parameters["currentVersion"]?.toIntOrNull()
-                ?: throw HttpException(HttpStatusCode.BadRequest, "Must specify current repl version")
-            state.waitForChange(currentReplVersion)
-            call.respondRepl()
+        // Ktor SSE sample project: https://github.com/ktorio/ktor-samples/blob/main/sse/src/main/kotlin/io/ktor/samples/sse/SseApplication.kt
+        routing.get("/api/repl/sse") {
+            call.response.cacheControl(CacheControl.NoCache(null))
+            call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
+                val replFlow = callbackFlow {
+                    val listener: (Repl) -> Unit = { trySendBlocking(it) }
+                    state.startListening(listener)
+                    awaitClose {
+                        state.stopListening(listener)
+                    }
+                }
+                replFlow.collect { repl ->
+                    val response = jacksonObjectMapper().writeValueAsString(repl)
+                    writeStringUtf8("data: $response\n")
+                    writeStringUtf8("\n")
+                    flush()
+                }
+            }
         }
         routing.post("/api/repl/command") {
             val request = call.parseBody<RunCommandRequest>()
