@@ -166,7 +166,7 @@ object DeviceScreenService {
         val screenshotFile = SCREENSHOT_DIR.resolve(name).toFile()
         screenshotFile.deleteOnExit()
         try {
-            maestro.takeScreenshot(screenshotFile)
+            maestro.takeScreenshot(screenshotFile, true)
         } catch (ignore: Exception) {
             // ignore intermittent screenshot errors
         }

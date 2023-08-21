@@ -462,7 +462,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.close()
     }
 
-    fun takeScreenshot(outFile: File) {
+    fun takeScreenshot(outFile: File, compressed: Boolean) {
         LOGGER.info("Taking screenshot: $outFile")
 
         val absoluteOutFile = outFile.absoluteFile
@@ -472,7 +472,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
                 .sink()
                 .buffer()
                 .use {
-                    ScreenshotUtils.takeScreenshot(it, false, driver)
+                    ScreenshotUtils.takeScreenshot(it, compressed, driver)
                 }
         } else {
             throw MaestroException.DestinationIsNotWritable(

@@ -623,7 +623,7 @@ class Orchestra(
             ?.let { File(it, pathStr) }
             ?: File(pathStr)
 
-        maestro.takeScreenshot(file)
+        maestro.takeScreenshot(file, false)
 
         return false
     }
