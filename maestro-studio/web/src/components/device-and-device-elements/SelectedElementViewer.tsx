@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 import InteractableDevice from "./InteractableDevice";
-import { DeviceScreen, UIElement } from "../../helpers/models";
+import { UIElement } from "../../helpers/models";
+import { useDeviceContext } from "../../context/DeviceContext";
 
 export default function SelectedElementViewer({
-  deviceScreen,
   uiElement,
 }: {
-  deviceScreen: DeviceScreen;
-  uiElement: UIElement;
+  uiElement: UIElement | null;
 }) {
+  const { deviceScreen } = useDeviceContext();
   const defaultWrapperSize = 320;
   const containerElementRef = useRef<HTMLDivElement>(null);
   const deviceRef = useRef<HTMLDivElement>(null);
@@ -17,6 +17,10 @@ export default function SelectedElementViewer({
    * Set The element size and position based on Element selected
    */
   useEffect(() => {
+    if (!uiElement || !deviceScreen) {
+      return;
+    }
+
     if (deviceRef.current && uiElement.bounds) {
       // Set the wrapper height to be used & increase height if element is big
       let currentWrapperHeight = defaultWrapperSize;
@@ -60,27 +64,26 @@ export default function SelectedElementViewer({
         maxTopValue
       )}px`;
     }
-  }, [deviceScreen.height, deviceScreen.width, uiElement.bounds]);
+  }, [deviceScreen, uiElement]);
 
   return (
     <div
       className="hidden md:block"
-      style={{
-        width: defaultWrapperSize + "px",
-        minWidth: defaultWrapperSize + "px",
-      }}
+      style={{ width: defaultWrapperSize + "px" }}
     >
       <div
-        ref={containerElementRef}
-        style={{ height: defaultWrapperSize + "px" }}
-        className="relative overflow-hidden rounded-lg border border-black/20 dark:border-white/20"
+        style={{
+          minWidth: defaultWrapperSize + "px",
+        }}
       >
-        <div ref={deviceRef} className="absolute -top-1 -left-2 -right-2">
-          <InteractableDevice
-            enableGestureControl={false}
-            deviceScreen={deviceScreen}
-            inspectedElement={uiElement}
-          />
+        <div
+          ref={containerElementRef}
+          style={{ height: defaultWrapperSize + "px" }}
+          className="relative overflow-hidden rounded-lg border border-black/20 dark:border-white/20"
+        >
+          <div ref={deviceRef} className="absolute -top-1 -left-2 -right-2">
+            <InteractableDevice enableGestureControl={false} />
+          </div>
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, ReactNode } from "react";
+import { useDeviceContext } from "../../context/DeviceContext";
 
 interface AspectRatioContainerProps
   extends React.HTMLAttributes<HTMLDivElement> {
-  aspectRatio: number;
   children: ReactNode;
 }
 
@@ -12,10 +12,10 @@ interface AspectRatioContainerProps
  * So created this wrapper div that will calculate the width dynamically and then we can place aspect ratio inside it
  */
 const DeviceWrapperAspectRatio = ({
-  aspectRatio,
   children,
   ...rest
 }: AspectRatioContainerProps) => {
+  const { deviceScreen } = useDeviceContext();
   const [width, setWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -23,7 +23,7 @@ const DeviceWrapperAspectRatio = ({
     const updateWidth = () => {
       if (containerRef.current) {
         const { height } = containerRef.current.getBoundingClientRect();
-        const newWidth = height * aspectRatio;
+        const newWidth = height * (deviceScreen!.width / deviceScreen!.height);
         setWidth(newWidth);
       }
     };
@@ -32,7 +32,7 @@ const DeviceWrapperAspectRatio = ({
     return () => {
       window.removeEventListener("resize", updateWidth);
     };
-  }, [aspectRatio]);
+  }, [deviceScreen]);
 
   return (
     <div ref={containerRef} className="relative flex-1">

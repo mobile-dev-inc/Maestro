@@ -1,8 +1,12 @@
 import { DeviceScreen, UIElement } from "../../helpers/models";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import useMouse, { MousePosition } from "@react-hook/mouse-position";
+import { useDeviceContext } from "../../context/DeviceContext";
 
 type AnnotationState = "default" | "hidden" | "hovered" | "selected";
+
+const toPercent = (n: number, total: number) =>
+  `${Math.round((100 * n) / total)}%`;
 
 const Annotation = ({
   element,
@@ -104,9 +108,12 @@ const pointInBounds = (
 };
 
 const getHoveredElement = (
-  deviceScreen: DeviceScreen,
+  deviceScreen: DeviceScreen | undefined,
   mouse: MousePosition
 ): UIElement | null => {
+  if (!deviceScreen) {
+    return null;
+  }
   const hoveredList = deviceScreen.elements.filter((element) => {
     if (!element.bounds) return false;
     const {
@@ -142,23 +149,66 @@ const getHoveredElement = (
 };
 
 export const AnnotatedScreenshot = ({
-  deviceScreen,
-  selectedElement,
-  onElementSelected,
-  hoveredElement,
-  onHover,
   annotationsEnabled = true,
 }: {
-  deviceScreen: DeviceScreen;
-  selectedElement: UIElement | null;
-  onElementSelected?: (element: UIElement | null) => void;
-  hoveredElement?: UIElement | null;
-  onHover: (element: UIElement | null, mouse: MousePosition | null) => void;
   annotationsEnabled?: boolean;
 }) => {
+  const {
+    deviceScreen,
+    hoveredElement,
+    inspectedElement,
+    setInspectedElement,
+    setFooterHint,
+    setHoveredElement,
+  } = useDeviceContext();
   const ref = useRef(null);
   const [hasMouseLeft, setHasMouseLeft] = useState<boolean>(false);
   const mouse = useMouse(ref, { enterDelay: 100, leaveDelay: 100 });
+
+  const getMouseHint = (mouse: MousePosition): string | null => {
+    if (
+      typeof mouse.x !== "number" ||
+      typeof mouse.y !== "number" ||
+      typeof mouse.elementWidth !== "number" ||
+      typeof mouse.elementHeight !== "number"
+    ) {
+      return null;
+    }
+    const x = toPercent(mouse.x, mouse.elementWidth);
+    const y = toPercent(mouse.y, mouse.elementHeight);
+    return `${x}, ${y}`;
+  };
+
+  const getElementHint = useCallback(
+    (element: UIElement): string => {
+      if (!deviceScreen) {
+        return `0%, 0%`;
+      }
+      if (element.resourceId) return element.resourceId;
+      if (element.text) return element.text;
+      if (!element.bounds) return "";
+      const cx = toPercent(
+        element.bounds.x + element.bounds.width / 2,
+        deviceScreen.width
+      );
+      const cy = toPercent(
+        element.bounds.y + element.bounds.height / 2,
+        deviceScreen.height
+      );
+      return `${cx}, ${cy}`;
+    },
+    [deviceScreen]
+  );
+
+  const onHover = useCallback(
+    (element: UIElement | null, mouse: MousePosition | null) => {
+      const mouseHint = mouse == null ? null : getMouseHint(mouse);
+      const elementHint = element == null ? null : getElementHint(element);
+      setFooterHint(elementHint || mouseHint);
+      setHoveredElement(element?.id ? element : null);
+    },
+    [getElementHint, setFooterHint, setHoveredElement] // This is where you put dependencies for the onHover function
+  );
 
   useEffect(() => {
     if (mouse.isOver) {
@@ -173,13 +223,13 @@ export const AnnotatedScreenshot = ({
       setHasMouseLeft(true);
       onHover(null, null);
     }
-  }, [deviceScreen, mouse, onHover, annotationsEnabled, hasMouseLeft]);
+  }, [deviceScreen, mouse, annotationsEnabled, hasMouseLeft, onHover]);
 
   const createAnnotation = (element: UIElement) => {
     let state: AnnotationState = "default";
-    if (selectedElement?.id === element?.id) {
+    if (inspectedElement?.id === element?.id) {
       state = "selected";
-    } else if (selectedElement !== null) {
+    } else if (inspectedElement !== null) {
       state = "hidden";
     } else if (hoveredElement?.id === element?.id) {
       state = "hovered";
@@ -188,31 +238,31 @@ export const AnnotatedScreenshot = ({
       <Annotation
         key={element.id}
         element={element}
-        deviceWidth={deviceScreen.width}
-        deviceHeight={deviceScreen.height}
+        deviceWidth={deviceScreen?.width || 0}
+        deviceHeight={deviceScreen?.height || 0}
         state={state}
         onClick={() => {
-          if (selectedElement) {
-            onElementSelected && onElementSelected(null);
+          if (inspectedElement) {
+            setInspectedElement(null);
           } else {
-            onElementSelected && onElementSelected(element);
+            setInspectedElement(element);
           }
         }}
       />
     );
   };
 
-  const focusedElement = selectedElement || hoveredElement;
+  const focusedElement = inspectedElement || hoveredElement;
 
   const createCrosshairs = () => {
     if (annotationsEnabled || !mouse.isOver) {
       const bounds = focusedElement?.bounds;
-      if (!bounds) return null;
+      if (!bounds || !deviceScreen) return null;
       const { x, y, width, height } = bounds;
       const cx = (x + width / 2) / deviceScreen.width;
       const cy = (y + height / 2) / deviceScreen.height;
       const color =
-        focusedElement === selectedElement ? "bg-pink-400" : "bg-blue-400";
+        focusedElement === inspectedElement ? "bg-pink-400" : "bg-blue-400";
       return <Crosshairs cx={cx} cy={cy} color={color} />;
     } else {
       if (mouse.x && mouse.y && mouse.elementWidth && mouse.elementHeight) {
@@ -234,21 +284,25 @@ export const AnnotatedScreenshot = ({
       ref={ref}
       className="relative overflow-hidden"
       style={{
-        aspectRatio: deviceScreen.width / deviceScreen.height,
+        aspectRatio: deviceScreen
+          ? deviceScreen.width / deviceScreen.height
+          : 1,
       }}
       onClick={() => {
-        if (selectedElement) onElementSelected && onElementSelected(null);
+        if (inspectedElement) {
+          setInspectedElement(null);
+        }
       }}
     >
       <img
         className="h-full pointer-events-none select-none"
-        src={deviceScreen.screenshot}
+        src={deviceScreen?.screenshot || undefined}
         alt="screenshot"
       />
       {createCrosshairs()}
       {(annotationsEnabled || !mouse.isOver) && (
         <div className="w-full h-full">
-          {deviceScreen.elements.map(createAnnotation)}
+          {deviceScreen?.elements.map(createAnnotation)}
         </div>
       )}
     </div>

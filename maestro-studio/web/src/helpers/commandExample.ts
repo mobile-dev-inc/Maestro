@@ -191,9 +191,12 @@ const toConditionalExample = (selector: Selector): CommandExample => {
 };
 
 export const getCommandExamples = (
-  deviceScreen: DeviceScreen,
-  uiElement: UIElement
+  deviceScreen?: DeviceScreen,
+  uiElement?: UIElement | null
 ): CommandExample[] => {
+  if (!deviceScreen || !uiElement) {
+    return [];
+  }
   const selectors = getSelectors(uiElement, deviceScreen);
   const commands: CommandExample[] = [
     ...selectors.map(toTapExample),

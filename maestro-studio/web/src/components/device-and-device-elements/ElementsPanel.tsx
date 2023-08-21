@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import _ from "lodash";
 import { Button } from "../design-system/button";
 import { Input } from "../design-system/input";
-import { DeviceScreen, UIElement } from "../../helpers/models";
+import { UIElement } from "../../helpers/models";
 import clsx from "clsx";
 import Draggable from "react-draggable";
+import { useDeviceContext } from "../../context/DeviceContext";
 
 const compare = (a: string | undefined, b: string | undefined) => {
   if (!a) return b ? 1 : 0;
@@ -13,22 +14,17 @@ const compare = (a: string | undefined, b: string | undefined) => {
 };
 
 interface ElementsPanelProps {
-  deviceScreen: DeviceScreen;
-  onElementSelected: (element: UIElement | null) => void;
-  hoveredElement: UIElement | null;
-  setHoveredElement: (element: UIElement | null) => void;
   closePanel: () => void;
-  onHint: (hint: string | null) => void;
 }
 
-export default function ElementsPanel({
-  deviceScreen,
-  onElementSelected,
-  hoveredElement,
-  setHoveredElement,
-  closePanel,
-  onHint,
-}: ElementsPanelProps) {
+export default function ElementsPanel({ closePanel }: ElementsPanelProps) {
+  const {
+    deviceScreen,
+    hoveredElement,
+    setHoveredElement,
+    setInspectedElement,
+    setFooterHint,
+  } = useDeviceContext();
   const inputRef = useRef<HTMLInputElement>(null);
   const previousSortedElementsRef = useRef<UIElement[] | null>(null);
   const elementRefs = useRef<(HTMLElement | null)[]>([]);
@@ -64,6 +60,9 @@ export default function ElementsPanel({
   }, []);
 
   const sortedElements: UIElement[] = useMemo(() => {
+    if (!deviceScreen) {
+      return [];
+    }
     const filteredElements = deviceScreen.elements.filter((element) => {
       if (
         !element.text &&
@@ -93,7 +92,7 @@ export default function ElementsPanel({
 
       return compare(a.text, b.text) || compare(a.resourceId, b.resourceId);
     });
-  }, [query, deviceScreen.elements]);
+  }, [query, deviceScreen]);
 
   /**
    * Change hovered element in case sortedElements chang
@@ -138,7 +137,7 @@ export default function ElementsPanel({
       case "Enter":
         event.preventDefault();
         if (hoveredElement) {
-          onElementSelected(hoveredElement);
+          setInspectedElement(hoveredElement);
         }
         return; // Add a return here to avoid scrolling on Enter
       default:
@@ -181,13 +180,13 @@ export default function ElementsPanel({
       </div>
       <div className="px-8 py-6 flex-grow overflow-y-scroll overflow-x-hidden hide-scrollbar">
         {sortedElements.map((item: UIElement, index: number) => {
-          const onClick = () => onElementSelected(item);
+          const onClick = () => setInspectedElement(item);
           const onMouseEnter = () => {
             setHoveredElement(item);
-            onHint(item?.resourceId || item?.text || null);
+            setFooterHint(item?.resourceId || item?.text || null);
           };
           const onMouseLeave = () => {
-            onHint(null);
+            setFooterHint(null);
             if (hoveredElement?.id === item.id) {
               setHoveredElement(null);
             }

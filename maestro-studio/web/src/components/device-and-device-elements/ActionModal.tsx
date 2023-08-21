@@ -15,7 +15,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "../design-system/dialog";
-import { DeviceScreen, UIElement } from "../../helpers/models";
 import {
   Tabs,
   TabsList,
@@ -36,26 +35,22 @@ import clsx from "clsx";
 import { Icon } from "../design-system/icon";
 import { EnterKey } from "../design-system/utils/images";
 import KeyboardKey from "../design-system/keyboard-key";
+import { useDeviceContext } from "../../context/DeviceContext";
 
 interface ActionModalProps {
   children?: ReactNode;
-  deviceScreen: DeviceScreen;
-  uiElement: UIElement;
-  open: boolean;
   onEdit: (example: CommandExample) => void;
   onRun: (example: CommandExample) => void;
-  onClose: () => void;
 }
 
 export default function ActionModal({
   children,
-  deviceScreen,
-  uiElement,
-  open,
-  onClose,
   onEdit,
   onRun,
 }: ActionModalProps) {
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const { deviceScreen, inspectedElement, setInspectedElement } =
+    useDeviceContext();
   const inputElementRef = useRef<HTMLInputElement>(null);
   const prevCommandListRef = useRef<Record<string, CommandExample[]>>();
   const [query, setQuery] = useState<string>("");
@@ -73,11 +68,11 @@ export default function ActionModal({
   const { unfilteredExamples, fuse } = useMemo(() => {
     const unfilteredExamples = getCommandExamples(
       deviceScreen,
-      uiElement
+      inspectedElement
     ).filter((item: CommandExample) => item.status === "available");
     const fuse = new Fuse(unfilteredExamples, { keys: ["title", "content"] });
     return { unfilteredExamples, fuse };
-  }, [deviceScreen, uiElement]);
+  }, [deviceScreen, inspectedElement]);
 
   /**
    * Filtering and getting the new command lists
@@ -114,7 +109,6 @@ export default function ActionModal({
       currentTab?: string;
     }) => {
       if (direction === "first") {
-        console.log("here", commandList, currentTab);
         if (commandList && currentTab) {
           setSelectedCommand(commandList[currentTab][0]);
         }
@@ -247,7 +241,10 @@ export default function ActionModal({
           break;
         case "Enter":
           e.preventDefault();
-          if ((e.ctrlKey && !e.altKey && !e.shiftKey) || e.metaKey) {
+          if (
+            (isMac && e.metaKey) ||
+            (!isMac && e.ctrlKey && !e.altKey && !e.shiftKey)
+          ) {
             selectedCommand && onRun(selectedCommand);
           } else {
             selectedCommand && onEdit(selectedCommand);
@@ -255,14 +252,20 @@ export default function ActionModal({
           break;
         case "KeyD":
           e.preventDefault();
-          if ((e.ctrlKey && !e.altKey && !e.shiftKey) || e.metaKey) {
+          if (
+            (isMac && e.metaKey) ||
+            (!isMac && e.ctrlKey && !e.altKey && !e.shiftKey)
+          ) {
             const documentation = selectedCommand?.documentation;
             if (!documentation) return;
             window.open(documentation, "_blank", "noreferrer");
           }
           break;
         case "KeyC":
-          if ((e.ctrlKey && !e.altKey && !e.shiftKey) || e.metaKey) {
+          if (
+            (isMac && e.metaKey) ||
+            (!isMac && e.ctrlKey && !e.altKey && !e.shiftKey)
+          ) {
             e.preventDefault();
             if (typeof selectedCommand?.content === "string") {
               copyCommand(selectedCommand.content);
@@ -278,6 +281,7 @@ export default function ActionModal({
       }
     },
     [
+      isMac,
       copyCommand,
       onEdit,
       onRun,
@@ -292,24 +296,34 @@ export default function ActionModal({
    * Add Keyboard Actions
    */
   useEffect(() => {
-    if (open) {
-      window.addEventListener("keydown", handleKeyPress);
-      return () => {
-        window.removeEventListener("keydown", handleKeyPress);
-      };
+    function conditionalHandleKeyPress(event: KeyboardEvent) {
+      if (!inspectedElement) return;
+      handleKeyPress(event);
     }
-  }, [handleKeyPress, open]);
+    if (inspectedElement) {
+      const timeoutId = setTimeout(() => {
+        window.addEventListener("keydown", conditionalHandleKeyPress);
+      }, 0); // Introducing a delay to bypass current event loop
+
+      return () => {
+        clearTimeout(timeoutId); // Clear timeout in case the component unmounts before it executes
+        window.removeEventListener("keydown", conditionalHandleKeyPress);
+      };
+    } else {
+      window.removeEventListener("keydown", conditionalHandleKeyPress);
+    }
+  }, [handleKeyPress, inspectedElement]);
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog
+      open={!!inspectedElement}
+      onOpenChange={() => setInspectedElement(null)}
+    >
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-5xl w-[95vw]">
         <KeyboardShortcutsHeader />
-        <div className="flex gap-12 p-8 items-stretch">
-          <SelectedElementViewer
-            deviceScreen={deviceScreen}
-            uiElement={uiElement}
-          />
+        <div className="flex gap-20 p-8 items-stretch">
+          <SelectedElementViewer uiElement={inspectedElement} />
           <div className="flex-grow min-w-0">
             <DialogHeader className="pb-4">
               <DialogTitle className="text-left">
@@ -486,9 +500,7 @@ const ActionCommandListItem = ({
 };
 
 const KeyboardShortcutsHeader = () => {
-  const isMac = () => {
-    return window.navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-  };
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
   return (
     <div className="hidden md:flex pl-8 pr-12 py-3 border-b border-slate-200 dark:border-slate-800 gap-x-8 gap-y-3 flex-wrap">
@@ -512,7 +524,7 @@ const KeyboardShortcutsHeader = () => {
       <div className="flex gap-2">
         <p>Copy:</p>
         <div className="flex gap-1">
-          {isMac() ? (
+          {isMac ? (
             <KeyboardKey>
               <Icon iconName="RiCommandLine" size="16" />
             </KeyboardKey>
@@ -525,7 +537,7 @@ const KeyboardShortcutsHeader = () => {
       <div className="flex gap-2">
         <p>Doc:</p>
         <div className="flex gap-1">
-          {isMac() ? (
+          {isMac ? (
             <KeyboardKey>
               <Icon iconName="RiCommandLine" size="16" />
             </KeyboardKey>
@@ -546,7 +558,7 @@ const KeyboardShortcutsHeader = () => {
       <div className="flex gap-2">
         <p>Run:</p>
         <div className="flex gap-1">
-          {isMac() ? (
+          {isMac ? (
             <KeyboardKey>
               <Icon iconName="RiCommandLine" size="16" />
             </KeyboardKey>
