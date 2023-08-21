@@ -157,9 +157,9 @@ class IOSDriver(
 
     fun viewHierarchy(): TreeNode {
         LOGGER.info("Requesting view hierarchy of the screen")
-        val hierarchyResult = iosDevice.viewHierarchy().get()
-        LOGGER.info("Depth of the screen is ${hierarchyResult?.depth ?: 0}")
-        if (hierarchyResult?.depth != null && hierarchyResult.depth > WARNING_MAX_DEPTH) {
+        val hierarchyResult = iosDevice.viewHierarchy().expect {  }
+        LOGGER.info("Depth of the screen is ${hierarchyResult.depth}")
+        if (hierarchyResult.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +
                     "is ${hierarchyResult.depth}. This might affect the execution time of your test. " +
                     "If you are using React native, consider migrating to the new " +
@@ -169,7 +169,7 @@ class IOSDriver(
         } else {
             Insights.report(Insight("", Insight.Level.NONE))
         }
-        val hierarchy = hierarchyResult?.axElement ?: return TreeNode()
+        val hierarchy = hierarchyResult.axElement
         return mapViewHierarchy(hierarchy)
     }
 

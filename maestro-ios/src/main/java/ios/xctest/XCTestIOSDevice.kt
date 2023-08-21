@@ -56,7 +56,7 @@ class XCTestIOSDevice(
         val result = runCatching {
             val viewHierarchy = client.viewHierarchy(installedApps)
             DepthTracker.trackDepth(viewHierarchy.depth)
-            logger.info("Using new viewHierarchy call to get view hierarchy. Depth received: ${viewHierarchy.depth}")
+            logger.info("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
         }
         return result

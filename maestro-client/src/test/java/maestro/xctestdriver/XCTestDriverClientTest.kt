@@ -40,7 +40,7 @@ class XCTestDriverClientTest {
         assertThat(response.message).contains(
             "A timeout occurred while waiting for a response from the XCUITest server."
         )
-        mockXCTestInstaller.assertInstallationRetries(3)
+        mockXCTestInstaller.assertInstallationRetries(5)
         mockWebServer.shutdown()
     }
 
@@ -179,6 +179,6 @@ class XCTestDriverClientTest {
         assertThat(networkErrorModel.userFriendlyMessage).contains(
             "Unable to establish a connection to the XCUITest server."
         )
-        mockXCTestInstaller.assertInstallationRetries(3)
+        mockXCTestInstaller.assertInstallationRetries(5)
     }
 }

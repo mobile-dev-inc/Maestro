@@ -14,7 +14,7 @@ import org.rauschig.jarchivelib.ArchiverFactory
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import java.io.File
-import java.net.ConnectException
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class LocalXCTestInstaller(
@@ -93,21 +93,21 @@ class LocalXCTestInstaller(
 
     override fun isChannelAlive(): Boolean {
         return XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId) &&
-            subTreeOfRunnerApp().use { it.isSuccessful }
+            xcTestDriverStatusCheck().use { it.isSuccessful }
     }
 
     private fun ensureOpen(): Boolean {
         XCRunnerCLIUtils.ensureAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
         return MaestroTimer.retryUntilTrue(10_000, 100) {
             try {
-                subTreeOfRunnerApp().use { it.isSuccessful }
-            } catch (ignore: ConnectException) {
+                xcTestDriverStatusCheck().use { it.isSuccessful }
+            } catch (ignore: IOException) {
                 false
             }
         }
     }
 
-    private fun subTreeOfRunnerApp(): Response {
+    private fun xcTestDriverStatusCheck(): Response {
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
@@ -125,8 +125,8 @@ class LocalXCTestInstaller(
             .build()
 
         val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(40, TimeUnit.SECONDS)
+            .readTimeout(100, TimeUnit.SECONDS)
             .build()
         return okHttpClient.newCall(request).execute()
     }
