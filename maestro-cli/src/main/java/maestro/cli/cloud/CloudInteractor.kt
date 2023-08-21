@@ -23,6 +23,7 @@ import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 
@@ -32,7 +33,7 @@ class CloudInteractor(
     private val waitTimeoutMs: Long = TimeUnit.MINUTES.toMillis(30),
     private val minPollIntervalMs: Long = TimeUnit.SECONDS.toMillis(10),
     private val maxPollingRetries: Int = 3,
-    private val failOnTimeout: Boolean = false,
+    private val failOnTimeout: Boolean = true,
 ) {
 
     fun upload(
@@ -94,7 +95,7 @@ class CloudInteractor(
             }
 
             val (teamId, appId, uploadId, appBinaryIdResponse) = client.upload(
-                authToken =  authToken,
+                authToken = authToken,
                 appFile = appFileToSend?.toPath(),
                 workspaceZip = workspaceZip,
                 uploadName = uploadName,
@@ -123,7 +124,16 @@ class CloudInteractor(
 
                 return 0
             } else {
-                PrintUtils.message("Visit the web console for more details about the upload: ${uploadUrl(uploadId, teamId, appId, client.domain)}")
+                PrintUtils.message(
+                    "Visit the web console for more details about the upload: ${
+                        uploadUrl(
+                            uploadId,
+                            teamId,
+                            appId,
+                            client.domain
+                        )
+                    }"
+                )
 
                 if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
                 PrintUtils.message("Waiting for analyses to complete...")
@@ -208,15 +218,23 @@ class CloudInteractor(
             Thread.sleep(pollingInterval)
         } while (System.currentTimeMillis() - startTime < waitTimeoutMs)
 
-        PrintUtils.warn("Upload did not complete in time due to an issue on mobile.dev side. Follow the results of your upload below:")
-        println(uploadUrl(uploadId, teamId, appId, client.domain))
+        val consoleUrl = uploadUrl(uploadId, teamId, appId, client.domain)
+        val displayedMin = TimeUnit.MILLISECONDS.toMinutes(waitTimeoutMs)
+
+        PrintUtils.warn("Waiting for flows to complete has timed out ($displayedMin minutes)")
+        PrintUtils.warn("* To extend the timeout, run maestro with this option `maestro cloud --result-wait-timeout=<timeout in minutes>`")
+
+        PrintUtils.warn("* Follow the results of your upload here:\n$consoleUrl")
+
 
         return if (failOnTimeout) {
-            PrintUtils.err("FAIL")
+            PrintUtils.message("Process will exit with code 1 (FAIL)")
+            PrintUtils.message("* To change exit code on Timeout, run maestro with this option: `maestro cloud --fail-on-timeout=<true|false>`")
 
             1
         } else {
-            PrintUtils.warn("SKIPPED")
+            PrintUtils.message("Process will exit with code 0 (SUCCESS)")
+            PrintUtils.message("* To change exit code on Timeout, run maestro with this option: `maestro cloud --fail-on-timeout=<true|false>`")
 
             0
         }
@@ -242,9 +260,12 @@ class CloudInteractor(
             )
         )
 
-        val passed = if (upload.status == UploadStatus.Status.CANCELED && failOnCancellation) {
-            false
-        } else upload.status != UploadStatus.Status.ERROR
+        val isCancelled = upload.status == UploadStatus.Status.CANCELED
+        val isFailure = upload.status == UploadStatus.Status.ERROR
+        val containsFailure =
+            upload.flows.find { it.status == UploadStatus.Status.ERROR } != null // status can be cancelled but also contain flow with failure
+
+        val failed = isFailure || containsFailure || isCancelled && failOnCancellation
 
         val reportOutputSink = reportFormat.fileExtension
             ?.let { extension ->
@@ -254,13 +275,22 @@ class CloudInteractor(
             }
 
         if (reportOutputSink != null) {
-            saveReport(reportFormat, passed, upload, reportOutputSink, testSuiteName)
+            saveReport(reportFormat, !failed, upload, reportOutputSink, testSuiteName)
         }
 
-        return if (!passed) {
-            1
-        } else {
+
+        return if (!failed) {
+            PrintUtils.message("Process will exit with code 0 (SUCCESS)")
+            if (isCancelled) {
+                PrintUtils.message("* To change exit code on Cancellation, run maestro with this option: `maestro cloud --fail-on-cancellation=<true|false>`")
+            }
             0
+        } else {
+            PrintUtils.message("Process will exit with code 1 (FAIL)")
+            if (isCancelled && !containsFailure) {
+                PrintUtils.message("* To change exit code on cancellation, run maestro with this option: `maestro cloud --fail-on-cancellation=<true|false>`")
+            }
+            1
         }
     }
 

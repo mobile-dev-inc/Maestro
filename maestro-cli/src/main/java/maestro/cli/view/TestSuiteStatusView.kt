@@ -39,7 +39,11 @@ object TestSuiteStatusView {
     fun showSuiteResult(
         suite: TestSuiteViewModel,
     ) {
-        if (suite.status == FlowStatus.ERROR) {
+        val hasError = suite.flows.find { it.status == FlowStatus.ERROR } != null
+        val canceledFlows = suite.flows
+            .filter { it.status == FlowStatus.CANCELED }
+
+        if (suite.status == FlowStatus.ERROR || hasError) {
             val failedFlows = suite.flows
                 .filter { it.status == FlowStatus.ERROR }
 
@@ -48,12 +52,14 @@ object TestSuiteStatusView {
                 bold = true,
             )
 
+            if (canceledFlows.isNotEmpty()) {
+                PrintUtils.warn("${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
+            }
+
         } else {
             val passedFlows = suite.flows
                 .filter { it.status == FlowStatus.SUCCESS || it.status == FlowStatus.WARNING }
 
-            val canceledFlows = suite.flows
-                .filter { it.status == FlowStatus.CANCELED }
 
             if (passedFlows.isNotEmpty()) {
                 val durationMessage = suite.duration?.let { " in $it" } ?: ""
@@ -63,11 +69,11 @@ object TestSuiteStatusView {
                 )
 
                 if (canceledFlows.isNotEmpty()) {
-                    println("(${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled)")
+                    PrintUtils.warn("${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
                 }
             } else {
                 println()
-                println("Upload Canceled")
+                PrintUtils.err("All flows were canceled")
             }
         }
         println()
