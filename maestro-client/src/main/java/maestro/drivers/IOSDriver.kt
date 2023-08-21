@@ -156,6 +156,7 @@ class IOSDriver(
     }
 
     fun viewHierarchy(): TreeNode {
+        LOGGER.info("Requesting view hierarchy of the screen")
         val hierarchyResult = iosDevice.viewHierarchy().get()
         LOGGER.info("Depth of the screen is ${hierarchyResult?.depth ?: 0}")
         if (hierarchyResult?.depth != null && hierarchyResult.depth > WARNING_MAX_DEPTH) {

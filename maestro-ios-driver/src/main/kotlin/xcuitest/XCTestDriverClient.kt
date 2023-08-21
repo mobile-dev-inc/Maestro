@@ -216,6 +216,7 @@ class XCTestDriverClient(
                 String(it)
             }
             val code = response.code
+            logger.error("Request for $url failed, status code ${code}, body: $responseBodyAsString")
             error("Request for $url failed, status code ${code}, body: $responseBodyAsString")
         }
 
@@ -246,6 +247,7 @@ class XCTestDriverClient(
         return@Interceptor when (response.code) {
             RETRY_RESPONSE_CODE -> {
                 networkErrorHandler.retryConnection(chain.call(), response) {
+                    logger.info("Reinitialized the xctest client after reestablishing connection")
                     client = it
                 }
             }
