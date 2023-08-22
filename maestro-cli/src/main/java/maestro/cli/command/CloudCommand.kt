@@ -30,7 +30,6 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
-import java.nio.file.Files
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 
@@ -186,16 +185,11 @@ class CloudCommand : Callable<Int> {
     }
 
     private fun validateWorkSpace() {
-        val flowPath = flowsFile.toPath().toAbsolutePath()
-        if (Files.notExists(flowPath)) {
-            throw CliError("Flow file path $flowsFile does not exist")
-        }
-
         try {
             PrintUtils.message("Evaluating workspace...")
             WorkspaceExecutionPlanner
                 .plan(
-                    input = flowPath,
+                    input = flowsFile.toPath().toAbsolutePath(),
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                 )

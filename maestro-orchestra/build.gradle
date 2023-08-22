@@ -15,6 +15,7 @@ dependencies {
     api(libs.jackson.dataformat.yaml)
 
     testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.params)
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     testImplementation(libs.google.truth)
@@ -33,4 +34,5 @@ plugins.withId("com.vanniktech.maven.publish") {
 
 test {
     useJUnitPlatform()
+    environment("PROJECT_DIR", projectDir.absolutePath)
 }

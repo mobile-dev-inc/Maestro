@@ -31,9 +31,9 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.PrintUtils
-import maestro.debuglog.DebugLogStore
-import maestro.debuglog.LogConfig
+import maestro.orchestra.error.ValidationError
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
 import okio.buffer
 import okio.sink
@@ -114,15 +114,14 @@ class TestCommand : Callable<Int> {
     }
 
     override fun call(): Int {
-        if (!flowFile.exists()) {
-            throw CommandLine.ParameterException(
-                commandSpec.commandLine(),
-                "File not found: $flowFile"
-            )
-        }
-
         if (parent?.platform != null) {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
+        }
+
+        val executionPlan = try {
+            WorkspaceExecutionPlanner.plan(flowFile.toPath().toAbsolutePath(), includeTags, excludeTags)
+        } catch (e: ValidationError) {
+            throw CliError(e.message)
         }
 
         val deviceId =
@@ -150,10 +149,8 @@ class TestCommand : Callable<Int> {
                     maestro = maestro,
                     device = device,
                     reporter = ReporterFactory.buildReporter(format, testSuiteName),
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
                 ).runTestSuite(
-                    input = flowFile,
+                    executionPlan = executionPlan,
                     env = env,
                     reportOut = format.fileExtension
                         ?.let { extension ->

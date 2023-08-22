@@ -19,6 +19,8 @@
 
 package maestro.cli
 
+import java.util.Properties
+import kotlin.system.exitProcess
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
@@ -35,14 +37,9 @@ import maestro.cli.update.Updates
 import maestro.cli.util.ErrorReporter
 import maestro.cli.view.box
 import maestro.debuglog.DebugLogStore
-import maestro.debuglog.LogConfig
-import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
-import java.util.Properties
-import kotlin.io.path.absolutePathString
-import kotlin.system.exitProcess
 
 @Command(
     name = "maestro",
@@ -94,9 +91,6 @@ fun main(args: Array<String>) {
     // https://stackoverflow.com/a/17544259
     System.setProperty("apple.awt.UIElement", "true")
 
-    // logs & debug output
-    val logger = LoggerFactory.getLogger(App::class.java)
-
     Dependencies.install()
     Updates.fetchUpdatesAsync()
 
@@ -113,7 +107,6 @@ fun main(args: Array<String>) {
                 ex.stackTraceToString()
             }
 
-            logger.error(message)
             println()
             cmd.err.println(
                 cmd.colorScheme.errorText(message)

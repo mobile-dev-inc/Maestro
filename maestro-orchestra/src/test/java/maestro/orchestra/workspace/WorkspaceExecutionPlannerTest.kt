@@ -171,13 +171,15 @@ internal class WorkspaceExecutionPlannerTest {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
             input = path("/workspaces/010_global_include_tags"),
-            includeTags = listOf("featureA"),
+            includeTags = listOf("featureB"),
             excludeTags = listOf(),
         )
 
         // Then
         assertThat(plan.flowsToRun).containsExactly(
             path("/workspaces/010_global_include_tags/flowA.yaml"),
+            path("/workspaces/010_global_include_tags/flowA_subflow.yaml"),
+            path("/workspaces/010_global_include_tags/flowB.yaml"),
         )
     }
 

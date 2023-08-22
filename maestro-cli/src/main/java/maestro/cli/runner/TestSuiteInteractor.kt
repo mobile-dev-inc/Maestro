@@ -6,17 +6,11 @@ import maestro.cli.CliError
 import maestro.cli.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
-import maestro.cli.report.CommandDebugMetadata
-import maestro.cli.report.FlowDebugMetadata
-import maestro.cli.report.ScreenshotDebugMetadata
-import maestro.cli.report.TestDebugReporter
-import maestro.cli.report.TestSuiteReporter
+import maestro.cli.report.*
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
-import maestro.debuglog.DebugLogStore
-import maestro.debuglog.LogConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -24,7 +18,6 @@ import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
-import kotlin.io.path.absolutePathString
 import kotlin.math.roundToLong
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
@@ -33,53 +26,20 @@ class TestSuiteInteractor(
     private val maestro: Maestro,
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
-    private val includeTags: List<String> = emptyList(),
-    private val excludeTags: List<String> = emptyList(),
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
 
     fun runTestSuite(
-        input: File,
-        reportOut: Sink?,
-        env: Map<String, String>,
-        debugOutput: String?
-    ): TestExecutionSummary {
-        return if (input.isFile) {
-            runTestSuite(
-                WorkspaceExecutionPlanner.ExecutionPlan(flowsToRun = listOf(input.toPath())),
-                reportOut,
-                env,
-                debugOutput
-            )
-        } else {
-            val plan = WorkspaceExecutionPlanner
-                .plan(
-                    input = input.toPath().toAbsolutePath(),
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
-                )
-            val flowFiles = plan.flowsToRun
-
-            if (flowFiles.isEmpty() && plan.sequence?.flows?.isEmpty() == true) {
-                throw CliError("No flows returned from the tag filter used")
-            }
-
-            runTestSuite(
-                plan,
-                reportOut,
-                env,
-                debugOutput
-            )
-        }
-    }
-
-    private fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
         reportOut: Sink?,
         env: Map<String, String>,
         debugOutput: String?
     ): TestExecutionSummary {
+        if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence?.flows?.isEmpty() == true) {
+            throw CliError("No flows returned from the tag filter used")
+        }
+
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
 
         PrintUtils.message("Waiting for flows to complete...")
