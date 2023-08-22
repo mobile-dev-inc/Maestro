@@ -20,6 +20,9 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.core.JacksonException
+import com.fasterxml.jackson.core.JsonParseException
+import com.fasterxml.jackson.core.JsonProcessingException
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat

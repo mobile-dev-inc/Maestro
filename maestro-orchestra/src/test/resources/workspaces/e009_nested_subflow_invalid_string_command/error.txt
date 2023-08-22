@@ -1,0 +1,4 @@
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e009_nested_subflow_invalid_string_command/workspace/Flow.yaml
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e009_nested_subflow_invalid_string_command/workspace/./subflow/SubFlowA.yaml
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e009_nested_subflow_invalid_string_command/workspace/./subflow/./SubFlowB.yaml:3
+Cannot construct instance of `maestro.orchestra.yaml.YamlFluentCommand`, problem: Invalid command: "invalidCommand"

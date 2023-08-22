@@ -1,0 +1,2 @@
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e007_single_flow_malformatted_command/workspace/Flow.yaml:4
+Unrecognized field "invalidOption" (class maestro.orchestra.yaml.YamlLaunchApp), not marked as ignorable

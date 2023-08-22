@@ -1,0 +1,2 @@
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e011_missing_dashes/workspace/Flow.yaml:3
+Cannot deserialize value of type `java.util.ArrayList<maestro.orchestra.yaml.YamlFluentCommand>` from String value (token `JsonToken.VALUE_STRING`)

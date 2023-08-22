@@ -4,15 +4,15 @@ import maestro.MaestroException
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.NoInputException
-import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.orchestra.error.ValidationError
 import org.mozilla.javascript.EcmaError
 
 object ErrorViewUtils {
 
     fun exceptionToMessage(e: Exception): String {
         return when (e) {
-            is SyntaxError -> "Could not parse Flow file:\n\n${e.message}"
+            is ValidationError -> e.message
             is NoInputException -> "No commands found in Flow file"
             is InvalidInitFlowFile -> "initFlow file is invalid: ${e.initFlowPath}"
             is InvalidFlowFile -> "Flow file is invalid: ${e.flowPath}"

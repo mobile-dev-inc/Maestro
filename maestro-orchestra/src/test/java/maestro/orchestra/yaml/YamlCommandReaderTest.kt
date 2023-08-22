@@ -1,26 +1,23 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
-import maestro.MaestroException
+import java.nio.file.FileSystems
+import java.nio.file.Paths
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.Command
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
-import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.ScrollCommand
-import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlExceptionExtension
 import maestro.orchestra.yaml.junit.YamlFile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.nio.file.FileSystems
-import java.nio.file.Paths
 
 @Suppress("JUnitMalformedDeclaration")
 @ExtendWith(YamlCommandsExtension::class, YamlExceptionExtension::class)
@@ -85,9 +82,9 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun initFlow(
-        @YamlFile("007_initFlow.yaml") e: MaestroException.DeprecatedCommand,
+        @YamlFile("007_initFlow.yaml") e: SyntaxError,
     ) {
-        /* check if parsing the file results in the exception parameter type */
+        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
     }
 
     @Test
@@ -127,9 +124,9 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun initFlow_file(
-        @YamlFile("011_initFlow_file.yaml") e: MaestroException.DeprecatedCommand,
+        @YamlFile("011_initFlow_file.yaml") e: SyntaxError,
     ) {
-        /* check if parsing the file results in the exception parameter type */
+        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
     }
 
     @Test
@@ -148,16 +145,16 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun initFlow_invalidFile(
-        @YamlFile("013_initFlow_invalidFile.yaml") e: MaestroException.DeprecatedCommand,
+        @YamlFile("013_initFlow_invalidFile.yaml") e: SyntaxError,
     ) {
-        /* check if parsing the file results in the exception parameter type */
+        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
     }
 
     @Test
     fun initFlow_recursive(
-        @YamlFile("014_initFlow_recursive.yaml") e: MaestroException.DeprecatedCommand,
+        @YamlFile("014_initFlow_recursive.yaml") e: SyntaxError,
     ) {
-        /* check if parsing the file results in the exception parameter type */
+        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
     }
 
     @Test

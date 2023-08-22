@@ -19,38 +19,35 @@
 
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import java.nio.file.Path
+import kotlin.io.path.absolute
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.isDirectory
+import kotlin.io.path.readText
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
-import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
-import java.nio.file.Path
-import java.nio.file.Paths
-import kotlin.io.path.absolute
-import kotlin.io.path.inputStream
-import kotlin.io.path.isDirectory
 
 object YamlCommandReader {
 
-    private val YAML = YAMLFactory().apply {
+    val MAPPER = ObjectMapper(YAMLFactory().apply {
         disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-    }
-
-    val MAPPER = ObjectMapper(YAML).apply {
+    }).apply {
         registerModule(KotlinModule.Builder().build())
     }
 
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
-    fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors {
+    fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors(flowPath) {
         val (config, commands) = readConfigAndCommands(flowPath)
         val maestroCommands = commands
             .flatMap { it.toCommands(flowPath, config.appId) }
@@ -64,16 +61,14 @@ object YamlCommandReader {
         return config
     }
 
-    fun readWorkspaceConfig(configPath: Path): WorkspaceConfig = try {
-        mapParsingErrors {
-            MAPPER.readValue(configPath.inputStream(), WorkspaceConfig::class.java)
-        }
-    } catch (ignored: NoInputException) {
-        WorkspaceConfig()
+    fun readWorkspaceConfig(configPath: Path): WorkspaceConfig = mapParsingErrors(configPath) {
+        val config = configPath.readText()
+        if (config.isBlank()) return@mapParsingErrors WorkspaceConfig()
+        MAPPER.readValue(config, WorkspaceConfig::class.java)
     }
 
     // Files to watch for changes. Includes any referenced files.
-    fun getWatchFiles(flowPath: Path): List<Path> = mapParsingErrors {
+    fun getWatchFiles(flowPath: Path): List<Path> = mapParsingErrors(flowPath) {
         val (config, commands) = readConfigAndCommands(flowPath)
         val configWatchFiles = config.getWatchFiles(flowPath)
         val commandWatchFiles = commands.flatMap { it.getWatchFiles(flowPath) }
@@ -91,48 +86,64 @@ object YamlCommandReader {
     }
 
     private fun readConfigAndCommands(flowPath: Path): Pair<YamlConfig, List<YamlFluentCommand>> {
-        val parser = YAML.createParser(flowPath.inputStream())
-        val nodes = parser.readValuesAs(JsonNode::class.java)
+        val flowContent = flowPath.readText()
+
+        // Check for sections
+        var parser = MAPPER.createParser(flowContent)
+
+        val sectionCount = parser.readValuesAs(JsonNode::class.java)
             .asSequence()
             .toList()
             .filter { !it.isNull }
-        if (nodes.size != 2) {
+            .size
+        if (sectionCount != 2) {
             throw SyntaxError(
-                "Flow files must contain a config section and a commands section. " +
-                    "Found ${nodes.size} section${if (nodes.size == 1) "" else "s"}: $flowPath"
+                """
+                    Flow files must contain a config section and a commands section separated by "---". For example:
+                    
+                    appId: com.example
+                    ---
+                    - launchApp
+                """.trimIndent()
             )
         }
-        val config: YamlConfig = MAPPER.convertValue(nodes[0], YamlConfig::class.java)
-        val commands = MAPPER.convertValue(
-            nodes[1],
+
+        // Parse sections
+        parser = MAPPER.createParser(flowContent)
+
+        val config: YamlConfig = parser.readValueAs(YamlConfig::class.java)
+        val commands = parser.readValueAs<List<YamlFluentCommand>>(
             object : TypeReference<List<YamlFluentCommand>>() {}
         )
         return config to commands
     }
 
-    private fun <T> mapParsingErrors(block: () -> T): T {
+    private fun <T> mapParsingErrors(path: Path, block: () -> T): T {
         try {
             return block()
-        } catch (e: JsonMappingException) {
-            val message = e.message ?: throw SyntaxError("Invalid syntax")
-
-            when {
-                message.contains("Unrecognized field") -> throw SyntaxError(message)
-                message.contains("Cannot construct instance") -> throw SyntaxError(message)
-                message.contains("Cannot deserialize") -> throw SyntaxError(message)
-                message.contains("No content to map") -> throw NoInputException
-                else -> throw SyntaxError(message)
-            }
-        } catch (e: IllegalArgumentException) {
-            val message = e.message ?: throw e
-
-            when {
-                message.contains("value failed for JSON property") -> throw SyntaxError(message)
-                message.contains("Unrecognized field") -> throw SyntaxError(message)
-                message.contains("Cannot construct instance") -> throw SyntaxError(message)
-                message.contains("Cannot deserialize") -> throw SyntaxError(message)
-                else -> throw e
-            }
+        } catch (e: Throwable) {
+            val message = getErrorMessage(path, e)
+            throw SyntaxError(message)
         }
+    }
+
+    private fun getErrorMessage(path: Path, e: Throwable): String {
+        val prefix = "Failed to parse file: ${path.absolutePathString()}"
+
+        val jsonException = getJsonProcessingException(e) ?: return "$prefix\n${e.message ?: e.toString()}"
+
+        val lineNumber = jsonException.location?.lineNr ?: -1
+        val originalMessage = jsonException.originalMessage
+
+        val header = if (lineNumber != -1) "$prefix:$lineNumber" else prefix
+
+        return "$header\n$originalMessage"
+    }
+
+    private fun getJsonProcessingException(e: Throwable): JsonProcessingException? {
+        if (e is JsonProcessingException) return e
+        val cause = e.cause
+        if (cause == null || cause == e) return null
+        return getJsonProcessingException(cause)
     }
 }

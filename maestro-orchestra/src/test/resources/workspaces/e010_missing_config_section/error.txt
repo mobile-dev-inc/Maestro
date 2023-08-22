@@ -1,0 +1,6 @@
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e010_missing_config_section/workspace/Flow.yaml
+Flow files must contain a config section and a commands section separated by "---". For example:
+
+appId: com.example
+---
+- launchApp
