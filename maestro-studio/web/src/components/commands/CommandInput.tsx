@@ -47,7 +47,9 @@ const CommandInput = ({
           setValue(e.target.value);
         }}
         onKeyDown={handleKeyDown}
-        className={twMerge(clsx("font-mono font-normal", className))}
+        textAreaClassName={twMerge(
+          clsx("font-mono font-normal pb-12", className)
+        )}
         {...rest}
       />
       <InputHint />

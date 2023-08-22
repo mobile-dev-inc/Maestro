@@ -8,6 +8,7 @@ import { Button } from "../design-system/button";
 import ReplHeader from "./ReplHeader";
 import CommandInput from "./CommandInput";
 import CommandList from "./CommandList";
+import { EnterKey } from "../design-system/utils/images";
 
 const getFlowText = (selected: ReplCommand[]): string => {
   return selected
@@ -88,10 +89,10 @@ const ReplView = ({
 
   return (
     <>
-      <div className="pt-6 pb-8 flex-grow overflow-auto hide-scrollbar">
+      <div className="pt-6 pb-8 px-12 overflow-auto hide-scrollbar">
         {repl.commands.length > 0 ? (
           <div className="flex flex-col">
-            <div className="px-12">
+            <div>
               <ReplHeader
                 onSelectAll={() => setSelected(repl.commands.map((c) => c.id))}
                 onDeselectAll={() => setSelected([])}
@@ -103,7 +104,7 @@ const ReplView = ({
                 onDelete={onDelete}
               />
             </div>
-            <div className="pr-12 pl-6">
+            <div className="-ml-6 py-5 -mr-1">
               <CommandList
                 onReorder={onReorder}
                 commands={repl.commands}
@@ -121,8 +122,8 @@ const ReplView = ({
             </div>
           </div>
         ) : (
-          <div className="flex px-12 flex-col items-center pt-4">
-            <div className="p-4 bg-slate-200 dark:bg-slate-800 rounded-lg mb-4">
+          <div className="flex px-12 flex-col items-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-4">
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-3xl mb-4 shadow-xl">
               <Icon iconName="RiCodeLine" size="20" />
             </div>
             <p className="text-center text-base font-semibold mb-1">
@@ -133,34 +134,35 @@ const ReplView = ({
             </p>
           </div>
         )}
-      </div>
-      <form
-        className="border-t border-slate-100 shadow-up dark:border-slate-800 px-12 pt-6 pb-8 gap-2 flex flex-col z-10"
-        onSubmit={(e: React.FormEvent) => {
-          e.preventDefault();
-          runCommand();
-        }}
-      >
-        <CommandInput
-          setValue={(value) => {
-            setReplError(null);
-            onInput(value);
+        <form
+          className="mb-8 gap-2 flex flex-col relative"
+          onSubmit={(e: React.FormEvent) => {
+            e.preventDefault();
+            runCommand();
           }}
-          value={input}
-          error={replError}
-          placeholder="Enter a command, then press CMD + ENTER to run"
-          onSubmit={runCommand}
-        />
-        <Button
-          disabled={!input || !!replError}
-          type="submit"
-          leftIcon="RiPlayLine"
-          size="sm"
-          className="w-full"
         >
-          Run (CMD + ENTER)
-        </Button>
-      </form>
+          <CommandInput
+            setValue={(value) => {
+              setReplError(null);
+              onInput(value);
+            }}
+            value={input}
+            error={replError}
+            placeholder="Enter a command"
+            onSubmit={runCommand}
+          />
+          <Button
+            disabled={!input || !!replError}
+            type="submit"
+            leftIcon="RiCommandLine"
+            size="sm"
+            className="absolute bottom-2 right-2 text-lg font-medium"
+          >
+            +
+            <EnterKey className="w-4" />
+          </Button>
+        </form>
+      </div>
       {formattedFlow && (
         <SaveFlowModal
           formattedFlow={formattedFlow}

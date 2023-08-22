@@ -43,7 +43,7 @@ export default function CommandList({
                     {...provided.draggableProps}
                     className={twMerge(
                       clsx(
-                        "group relative flex flex-row bg-white rounded-lg border border-transparent dark:bg-slate-900 dark:active:bg-slate-900",
+                        "group relative flex flex-row bg-white rounded-lg border border-transparent dark:bg-slate-900 dark:active:bg-slate-900 overflow-hidden",
                         snapshot.isDragging &&
                           "shadow-md border-slate-100 dark:border-slate-700"
                       )
@@ -55,7 +55,7 @@ export default function CommandList({
                     >
                       <Button
                         variant="quaternary"
-                        className="text-gray-900/40 dark:text-white/40 py-5 my-0.5 pointer-events-none"
+                        className="text-gray-900/40 dark:text-white/40 py-4 my-0.5 pointer-events-none"
                         tabIndex={-1}
                         size="xs"
                         iconElement={

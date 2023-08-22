@@ -23,24 +23,26 @@ export default function CommandRow({
     <div
       className={twMerge(
         clsx(
-          "flex flex-row border-b border-slate-100 dark:border-slate-800 gap-3 w-[calc(100%-24px)] relative overflow-hidden",
+          "flex flex-row gap-3 w-[calc(100%-24px)] relative overflow-hidden py-1 pr-1",
           isDragging && "border-transparent"
         )
       )}
     >
-      <div onClick={onClick} className="py-3 cursor-pointer">
+      <div onClick={onClick} className="py-1 cursor-pointer">
         <Checkbox
           size="sm"
           checked={selected}
           className="pointer-events-none"
         />
       </div>
-      <pre className="font-mono flex-grow cursor-default overflow-auto text-sm text-gray-900 dark:text-white py-3 pr-10 hide-scrollbar">
-        {command.yaml}
-      </pre>
-      <div className="bg-gradient-to-r from-transparent to-white dark:to-slate-900 w-10 absolute top-0 right-0 bottom-0 pointer-events-none rounded-lg" />
-      <div className="absolute top-4 right-1">
-        <StatusIcon status={command.status} />
+      <div className="relative flex-grow">
+        <pre className="font-mono bg-gray-100 dark:bg-slate-800/50 cursor-default overflow-auto text-sm text-gray-900 dark:text-white px-2 py-1 pr-10 hide-scrollbar min-h-full flex items-center rounded-xl">
+          {command.yaml}
+        </pre>
+        <div className="bg-gradient-to-r from-transparent to-gray-100 dark:to-slate-800/50 w-10 absolute top-0 right-0 bottom-0 pointer-events-none rounded-xl" />
+        <div className="absolute top-2 right-2">
+          <StatusIcon status={command.status} />
+        </div>
       </div>
     </div>
   );

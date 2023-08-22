@@ -53,7 +53,7 @@ const inputVariants = cva(
 );
 
 const textareaVariants = cva(
-  "block transition bg-white dark:bg-slate-800 cursor-text w-full text-gray-900 dark:text-white border border-slate-200 dark:border-slate-700 justify-center font-semibold transition ring-4 focus:outline-none focus:shadow-e2 ring-ring ring-offset-0 ring-transparent focus:ring-purple-100 dark:focus:ring-purple-100/20 focus:border-purple-500 dark:focus:border-purple-500 focus:hover:border-purple-500 ring-offset-background disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-disabled disabled:hover:border-slate-300",
+  "block transition bg-white dark:bg-slate-800/50 cursor-text w-full text-gray-900 dark:text-white border border-slate-200 dark:border-slate-700 justify-center font-semibold transition ring-4 focus:outline-none focus:shadow-e2 ring-ring ring-offset-0 ring-transparent focus:ring-purple-100 dark:focus:ring-purple-100/20 focus:border-purple-500 dark:focus:border-purple-500 focus:hover:border-purple-500 ring-offset-background disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-disabled disabled:hover:border-slate-300",
   {
     variants: {
       size: {
@@ -169,6 +169,7 @@ interface TextareaProps
   error?: boolean | string | null;
   resize?: "automatic" | "vertical" | "none";
   showResizeIcon?: boolean;
+  textAreaClassName?: string;
 }
 
 interface InputHintProps extends HtmlHTMLAttributes<HTMLElement> {
@@ -344,6 +345,7 @@ function TextArea({
   success,
   error,
   className,
+  textAreaClassName,
   resize,
   onChange,
   showResizeIcon = true,
@@ -385,7 +387,7 @@ function TextArea({
               error: !!error,
               className: clsx(
                 (resize === "none" || resize === "automatic") && "resize-none",
-                className
+                textAreaClassName
               ),
             })
           )
