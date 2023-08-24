@@ -106,6 +106,7 @@ picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "pico
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 square-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "squareOkhttp" }
+square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "squareOkhttp" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 square-retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "squareRetrofit" }
