@@ -33,8 +33,8 @@
           bounds: getNodeBounds(node),
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor) {
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.title || node.htmlFor
+      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+        attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.title || node.htmlFor || node.attributes['data-testid']?.value
       }
 
       if (node.tagName.toLowerCase() === 'body') {
