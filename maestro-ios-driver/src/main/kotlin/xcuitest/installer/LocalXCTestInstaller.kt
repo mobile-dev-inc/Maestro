@@ -60,7 +60,7 @@ class LocalXCTestInstaller(
         logger.info("[Done] Stop XCUITest runner")
     }
 
-    override fun start(): XCTestClient? {
+    override fun start(source: Source): XCTestClient? {
         if (useXcodeTestRunner) {
             repeat(20) {
                 if (ensureOpen()) {
@@ -73,6 +73,8 @@ class LocalXCTestInstaller(
         }
 
         stop()
+
+        logger.info("Starting xctest runner with source $source")
 
         repeat(3) { i ->
             logger.info("[Start] Install XCUITest runner on $deviceId")

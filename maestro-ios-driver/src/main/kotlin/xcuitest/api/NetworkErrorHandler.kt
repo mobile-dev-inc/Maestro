@@ -8,6 +8,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import util.PrintUtils
 import xcuitest.XCTestClient
 import xcuitest.api.NetworkException.Companion.toUserNetworkException
+import xcuitest.installer.Source
 import xcuitest.installer.XCTestInstaller
 import kotlin.math.log
 
@@ -67,7 +68,7 @@ class NetworkErrorHandler(
         reInitializeInstaller: (XCTestClient) -> Unit
     ): Response {
         return if (retry < MAX_RETRY) {
-            xcTestInstaller.start()?.let {
+            xcTestInstaller.start(Source.RETRY)?.let {
                 reInitializeInstaller(it)
             }
             response.close()
@@ -96,7 +97,7 @@ class NetworkErrorHandler(
     ): Response {
         logger.info("Got Network exception in application layer: $networkException")
         return if (networkException.shouldRetryDriverInstallation() && retry < MAX_RETRY) {
-            xcTestInstaller.start()?.let {
+            xcTestInstaller.start(Source.RETRY)?.let {
                 reInitializeInstaller(it)
             }
             retry++
