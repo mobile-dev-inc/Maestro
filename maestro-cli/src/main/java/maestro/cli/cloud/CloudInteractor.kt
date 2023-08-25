@@ -2,8 +2,11 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
+import maestro.cli.api.DeviceInfo
+import maestro.cli.api.UploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
+import maestro.cli.device.Platform
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
@@ -16,6 +19,7 @@ import maestro.cli.view.ProgressBar
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
+import maestro.cli.view.box
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -94,7 +98,7 @@ class CloudInteractor(
                 }
             }
 
-            val (teamId, appId, uploadId, appBinaryIdResponse) = client.upload(
+            val (teamId, appId, uploadId, appBinaryIdResponse, deviceInfo) = client.upload(
                 authToken = authToken,
                 appFile = appFileToSend?.toPath(),
                 workspaceZip = workspaceZip,
@@ -115,15 +119,23 @@ class CloudInteractor(
             ) { totalBytes, bytesWritten ->
                 progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
             }
+
             println()
 
             if (async) {
-                PrintUtils.message("✅ Upload successful! View the results of your upload below:")
-                if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
+                PrintUtils.message("✅ Upload successful!")
+
+                if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel)
+                PrintUtils.message("View the results of your upload below:")
                 PrintUtils.message(uploadUrl(uploadId, teamId, appId, client.domain))
+
+                if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
 
                 return 0
             } else {
+
+                if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel)
+
                 PrintUtils.message(
                     "Visit the web console for more details about the upload: ${
                         uploadUrl(
@@ -136,6 +148,7 @@ class CloudInteractor(
                 )
 
                 if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
+
                 PrintUtils.message("Waiting for analyses to complete...")
                 println()
 
@@ -152,6 +165,24 @@ class CloudInteractor(
             }
         }
     }
+
+    private fun printDeviceInfo(deviceInfo: DeviceInfo, iOSVersion: String?, androidApiLevel: Int?) {
+
+        val platform = Platform.fromString(deviceInfo.platform)
+
+        val line1 = "Maestro Cloud device specs:\n* ${deviceInfo.displayInfo}"
+        val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+
+        val version = when(platform) {
+            Platform.ANDROID -> "${androidApiLevel ?: 30}" // todo change with constant from DeviceConfigAndroid
+            Platform.IOS -> "${iOSVersion ?: 15}" // todo change with constant from DeviceConfigIos
+            else -> return
+        }
+
+        val line3 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version`"
+        PrintUtils.message("$line1\n\n$line2\n\n$line3".box())
+    }
+
 
     private fun waitForCompletion(
         authToken: String,
