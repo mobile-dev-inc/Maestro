@@ -115,7 +115,7 @@ const ElementHighInfo = ({
   }
 
   return (
-    <div className="bg-gray-100 pl-3 py-1 pr-1 rounded-lg mb-2 flex gap-3 items-start">
+    <div className="bg-gray-100 dark:bg-slate-800 pl-3 py-1 pr-1 rounded-lg mb-2 flex gap-3 items-start">
       <p className="text-sm py-1 min-w-[32px]">{label}:</p>
       <p
         className="text-sm font-semibold flex-grow py-1"
