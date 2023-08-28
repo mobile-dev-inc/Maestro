@@ -35,6 +35,12 @@ class StudioCommand : Callable<Int> {
     )
     private var debugOutput: String? = null
 
+    @CommandLine.Option(
+        names = ["--no-window"],
+        description = ["When set, a browser window will not be automatically opened"]
+    )
+    private var noWindow: Boolean? = null
+
     override fun call(): Int {
         if (parent?.platform != null) {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
@@ -65,7 +71,7 @@ class StudioCommand : Callable<Int> {
 
     private fun tryOpenUrl(studioUrl: String) {
         try {
-            if (Desktop.isDesktopSupported()) {
+            if (Desktop.isDesktopSupported() && noWindow != true) {
                 Desktop.getDesktop().browse(URI(studioUrl))
             }
         } catch (ignore: Exception) {
