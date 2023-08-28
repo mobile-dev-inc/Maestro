@@ -16,7 +16,7 @@ struct ScreenshotHandler: HTTPHandler {
         let image = compressed ? fullScreenshot.image.jpegData(compressionQuality: 0.5) : fullScreenshot.pngRepresentation
         
         guard let image = image else {
-            let errorData = handleError(message: "no image data received from sreenshot() operation")
+            let errorData = handleError(message: "no image data received from screenshot() operation")
             return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
         }
         
