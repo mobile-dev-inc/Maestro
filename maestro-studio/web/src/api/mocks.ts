@@ -2,10 +2,9 @@ import { delay, http, HttpResponse } from "msw";
 import { MockEvent, ReplCommand } from "../helpers/models";
 import { sampleElements } from "../helpers/sampleElements";
 import { wait } from "./api";
-import { setupWorker } from 'msw/browser';
+import { setupWorker } from "msw/browser";
 
 class SseController {
-
   private data?: string;
   private controllers: ReadableStreamDefaultController[] = [];
 
@@ -19,8 +18,8 @@ class SseController {
     });
     return new HttpResponse(stream, {
       headers: {
-        'Content-Type': 'text/event-stream'
-      }
+        "Content-Type": "text/event-stream",
+      },
     });
   }
 
@@ -30,7 +29,7 @@ class SseController {
   }
 
   private notifyControllers() {
-    this.controllers.forEach(controller => {
+    this.controllers.forEach((controller) => {
       this.notifyController(controller);
     });
   }
@@ -47,21 +46,27 @@ let commands: ReplCommand[] = [];
 const replSseController = new SseController();
 const deviceScreenSseController = new SseController();
 
-deviceScreenSseController.sendEvent(JSON.stringify({
-  screenshot: "/sample-screenshot.png",
-  width: 1080,
-  height: 2340,
-  elements: sampleElements,
-}))
+deviceScreenSseController.sendEvent(
+  JSON.stringify({
+    screenshot: "/sample-screenshot.png",
+    width: 1080,
+    height: 2340,
+    elements: sampleElements,
+  })
+);
 
-const refreshRepl = () => replSseController.sendEvent(JSON.stringify({ commands }));
+const refreshRepl = () =>
+  replSseController.sendEvent(JSON.stringify({ commands }));
 
-refreshRepl()
+refreshRepl();
 
 const replResponse = (init?: ResponseInit) => {
-  return new Response(JSON.stringify({
-    commands,
-  }), init);
+  return new Response(
+    JSON.stringify({
+      commands,
+    }),
+    init
+  );
 };
 
 const runCommands = async (ids: string[]) => {
@@ -80,10 +85,10 @@ const runCommand = async (id: string) => {
   if (!command) return;
   await wait(200);
   command.status = "running";
-  refreshRepl()
+  refreshRepl();
   await wait(500);
   command.status = "success";
-  refreshRepl()
+  refreshRepl();
 };
 
 const createCommand = (yaml: string) => {
@@ -104,16 +109,17 @@ const handlers = [
     return replSseController.newResponse();
   }),
   http.post<any, any>("/api/repl/command", async ({ request }) => {
-    const { yaml, ids }: { yaml?: string; ids?: string[] } = await request.json();
+    const { yaml, ids }: { yaml?: string; ids?: string[] } =
+      await request.json();
     if (yaml) {
       if (yaml.includes("error")) {
-        return new Response("Invalid command", { status: 400 })
+        return new Response("Invalid command", { status: 400 });
       }
       createCommand(yaml);
     } else if (ids) {
       runCommands(ids);
     } else {
-      return new Response(null, { status: 400 })
+      return new Response(null, { status: 400 });
     }
     return replResponse();
   }),
@@ -141,7 +147,7 @@ const handlers = [
     return replResponse();
   }),
   http.get("/api/device-screen/sse", async () => {
-    return deviceScreenSseController.newResponse()
+    return deviceScreenSseController.newResponse();
   }),
   http.post<any, any>("/api/repl/command/format", async ({ request }) => {
     const { ids }: { ids: string[] } = await request.json();
@@ -149,10 +155,12 @@ const handlers = [
       .filter((c) => ids.includes(c.id))
       .map((c) => (c.yaml.endsWith("\n") ? c.yaml : `${c.yaml}\n`))
       .join("");
-    return new Response(JSON.stringify({
-      config: "appId: com.example.app",
-      commands: contentString,
-    }))
+    return new Response(
+      JSON.stringify({
+        config: "appId: com.example.app",
+        commands: contentString,
+      })
+    );
   }),
   http.get("/api/mock-server/data", async () => {
     const projectId = "1803cbd0-7258-4878-a16c-1ef0022d2f4a";
@@ -200,19 +208,34 @@ const handlers = [
       events.push(event);
     }
 
-    await delay(500)
+    await delay(500);
 
-    return new Response(JSON.stringify({
-      projectId,
-      events,
-    }))
+    return new Response(
+      JSON.stringify({
+        projectId,
+        events,
+      })
+    );
   }),
   http.get("/api/banner-message", () => {
-    return new Response(JSON.stringify({
-      level: 'warning',
-      message: 'Retrieving the hierarchy is taking longer than usual. This might be due to a deep hierarchy in the current view. Please wait a bit more to complete the operation.',
-    }))
-  })
+    return new Response(
+      JSON.stringify({
+        level: "warning",
+        message:
+          "Retrieving the hierarchy is taking longer than usual. This might be due to a deep hierarchy in the current view. Please wait a bit more to complete the operation.",
+      })
+    );
+  }),
+  http.get("/api/auth-token", () => {
+    return new Response("faketoken123456");
+  }),
+  http.get("https://api.mobile.dev/mai/generate-command", () => {
+    return new Response(
+      JSON.stringify({
+        command: '- tapOn: "Search"',
+      })
+    );
+  }),
 ];
 
 export const installMocks = () => {

@@ -13,15 +13,19 @@ import { useDeviceContext } from "../../context/DeviceContext";
 import { Spinner } from "../design-system/spinner";
 
 const InteractPageLayout = () => {
-  const { isLoading, deviceScreen, footerHint, setInspectedElement } =
-    useDeviceContext();
+  const {
+    isLoading,
+    deviceScreen,
+    footerHint,
+    setInspectedElement,
+    setCurrentCommandValue,
+  } = useDeviceContext();
 
   const [showElementsPanel, setShowElementsPanel] = useState<boolean>(false);
-  const [input, setInput] = useState("");
 
   const onEdit = (example: CommandExample) => {
     if (example.status === "unavailable") return;
-    setInput(example.content.trim());
+    setCurrentCommandValue(example.content.trim());
     setInspectedElement(null);
     // find textarea by id and focus on it if it exists
     setTimeout(() => {
@@ -83,7 +87,7 @@ const InteractPageLayout = () => {
         )}
       </div>
       <div className="flex flex-col flex-1 h-full overflow-hidden border-l border-slate-200 dark:border-slate-800 relative dark:bg-slate-900 dark:text-white">
-        <ReplView input={input} onInput={setInput} />
+        <ReplView />
       </div>
       <ActionModal onEdit={onEdit} onRun={onRun} />
     </div>

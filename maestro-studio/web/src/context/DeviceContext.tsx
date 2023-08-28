@@ -4,9 +4,11 @@ import {
   ReactNode,
   useState,
   useEffect,
+  useRef,
 } from "react";
 import { UIElement, DeviceScreen } from "../helpers/models";
 import { API } from "../api/api";
+import _ from "lodash";
 
 interface DeviceContextType {
   isLoading: boolean;
@@ -17,6 +19,8 @@ interface DeviceContextType {
   deviceScreen: DeviceScreen | undefined;
   footerHint: string | null;
   setFooterHint: (id: string | null) => void;
+  currentCommandValue: string;
+  setCurrentCommandValue: (id: string) => void;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
@@ -30,20 +34,50 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
   children,
   defaultInspectedElement = null, // Default value
 }) => {
-  const { deviceScreen, error }: { deviceScreen?: DeviceScreen; error?: any } =
-    API.useDeviceScreen();
+  const { deviceScreen: fetchedDeviceScreen, error } = API.useDeviceScreen();
+
+  const prevDeviceScreenRef = useRef<DeviceScreen | undefined>();
+  const [deviceScreenState, setDeviceScreenState] =
+    useState<DeviceScreen | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredElement, setHoveredElement] = useState<UIElement | null>(null);
   const [inspectedElement, setInspectedElement] = useState<UIElement | null>(
     defaultInspectedElement
   );
   const [footerHint, setFooterHint] = useState<string | null>(null);
+  const [currentCommandValue, setCurrentCommandValue] = useState<string>("");
 
+  /**
+   * Update device only when it is changed.
+   * This is to stop unnecessary renders inside the app
+   */
   useEffect(() => {
-    if (deviceScreen || error) {
-      setIsLoading(false);
+    if (fetchedDeviceScreen) {
+      // Check if other device data (besides screenshot) has changed before setting it
+      const { screenshot: screenshotFetched, ...restOfFetchedData } =
+        fetchedDeviceScreen;
+      let restOfPrevData = {};
+      if (prevDeviceScreenRef.current) {
+        const { screenshot: __, ...restData } = prevDeviceScreenRef.current;
+        restOfPrevData = restData;
+      }
+      if (!_.isEqual(restOfPrevData, restOfFetchedData)) {
+        setDeviceScreenState(fetchedDeviceScreen);
+        prevDeviceScreenRef.current = fetchedDeviceScreen;
+      }
     }
-  }, [deviceScreen, error]);
+  }, [fetchedDeviceScreen]);
+
+  /**
+   * It currently loading, set loading false when deviceScreenState or error is recieved
+   */
+  useEffect(() => {
+    if (isLoading) {
+      if (deviceScreenState || error) {
+        setIsLoading(false);
+      }
+    }
+  }, [deviceScreenState, error, isLoading]);
 
   return (
     <DeviceContext.Provider
@@ -55,7 +89,9 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
         setInspectedElement,
         footerHint,
         setFooterHint,
-        deviceScreen,
+        deviceScreen: deviceScreenState,
+        currentCommandValue,
+        setCurrentCommandValue,
       }}
     >
       {children}

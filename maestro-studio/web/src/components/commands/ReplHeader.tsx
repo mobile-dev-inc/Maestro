@@ -3,11 +3,12 @@ import clsx from "clsx";
 import copy from "copy-to-clipboard";
 import { Checkbox } from "../design-system/checkbox";
 import { Button } from "../design-system/button";
+import { ConfirmationDialog } from "../common/ConfirmationDialog";
 
 interface ReplHeaderProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
-  selected: number;
+  selectedLength: number;
   copyText: string;
   allSelected: boolean;
   onPlay: () => void;
@@ -18,7 +19,7 @@ interface ReplHeaderProps {
 export default function ReplHeader({
   onSelectAll,
   onDeselectAll,
-  selected,
+  selectedLength,
   copyText,
   allSelected,
   onPlay,
@@ -42,7 +43,7 @@ export default function ReplHeader({
       <div
         className={clsx(
           "py-2",
-          selected > 0
+          selectedLength > 0
             ? "text-gray-900 dark:text-white"
             : "text-gray-400 dark:text-gray-600"
         )}
@@ -51,17 +52,19 @@ export default function ReplHeader({
           size="sm"
           checked={allSelected}
           onChange={() => {
-            if (selected === 0) {
+            if (selectedLength === 0) {
               onSelectAll();
             } else {
               onDeselectAll();
             }
           }}
-          indeterminate={selected > 0 && !allSelected}
-          label={selected > 0 ? `${selected} Selected` : "Select All"}
+          indeterminate={selectedLength > 0 && !allSelected}
+          label={
+            selectedLength > 0 ? `${selectedLength} Selected` : "Select All"
+          }
         />
       </div>
-      {selected > 0 && (
+      {selectedLength > 0 && (
         <div className="flex gap-0 flex-wrap justify-end">
           <Button
             variant="quaternary"
@@ -96,14 +99,24 @@ export default function ReplHeader({
               Copy
             </Button>
           )}
-          <Button
-            variant="quaternary-red"
-            size="sm"
-            leftIcon="RiDeleteBinLine"
-            onClick={onDelete}
+
+          <ConfirmationDialog
+            title={`Delete (${selectedLength}) command${
+              selectedLength === 1 ? "" : "s"
+            }?`}
+            content={`Click confirm to delete the selected command${
+              selectedLength === 1 ? "" : "s"
+            }.`}
+            mainAction={onDelete}
           >
-            Delete
-          </Button>
+            <Button
+              variant="quaternary-red"
+              size="sm"
+              leftIcon="RiDeleteBinLine"
+            >
+              Delete
+            </Button>
+          </ConfirmationDialog>
         </div>
       )}
     </div>

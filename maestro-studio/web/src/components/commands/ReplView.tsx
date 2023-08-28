@@ -3,12 +3,10 @@ import { API } from "../../api/api";
 import { Icon } from "../design-system/icon";
 import { FormattedFlow, ReplCommand } from "../../helpers/models";
 import { SaveFlowModal } from "./SaveFlowModal";
-import { useConfirmationDialog } from "../common/ConfirmationDialog";
-import { Button } from "../design-system/button";
 import ReplHeader from "./ReplHeader";
-import CommandInput from "./CommandInput";
 import CommandList from "./CommandList";
-import { EnterKey } from "../design-system/utils/images";
+import CommandCreator from "./CommandCreator";
+import { useDeviceContext } from "../../context/DeviceContext";
 
 const getFlowText = (selected: ReplCommand[]): string => {
   return selected
@@ -16,13 +14,8 @@ const getFlowText = (selected: ReplCommand[]): string => {
     .join("");
 };
 
-const ReplView = ({
-  input,
-  onInput,
-}: {
-  input: string;
-  onInput: (input: string) => void;
-}) => {
+const ReplView = () => {
+  const { currentCommandValue, setCurrentCommandValue } = useDeviceContext();
   const listRef = useRef<HTMLElement>();
   const [replError, setReplError] = useState<string | null>(null);
   const [_selected, setSelected] = useState<string[]>([]);
@@ -31,10 +24,6 @@ const ReplView = ({
   const { error, repl } = API.repl.useRepl();
   const listSize = repl?.commands.length || 0;
   const previousListSize = useRef(0);
-
-  const [showConfirmationDialog, Dialog] = useConfirmationDialog(() =>
-    API.repl.deleteCommands(selectedIds)
-  );
 
   // Scroll to bottom when new commands are added
   useEffect(() => {
@@ -59,11 +48,11 @@ const ReplView = ({
   const selectedIds = selectedCommands.map((c) => c.id);
 
   const runCommand = async () => {
-    if (!input) return;
+    if (!currentCommandValue) return;
     setReplError(null);
     try {
-      await API.repl.runCommand(input);
-      onInput("");
+      await API.repl.runCommand(currentCommandValue);
+      setCurrentCommandValue("");
     } catch (e: any) {
       setReplError(e.message || "Failed to run command");
     }
@@ -82,7 +71,7 @@ const ReplView = ({
     API.repl.formatFlow(selectedIds).then(setFormattedFlow);
   };
   const onDelete = () => {
-    showConfirmationDialog();
+    API.repl.deleteCommands(selectedIds);
   };
 
   const flowText = getFlowText(selectedCommands);
@@ -96,7 +85,7 @@ const ReplView = ({
               <ReplHeader
                 onSelectAll={() => setSelected(repl.commands.map((c) => c.id))}
                 onDeselectAll={() => setSelected([])}
-                selected={selectedIds.length}
+                selectedLength={selectedIds.length}
                 allSelected={selectedIds.length === repl.commands.length}
                 copyText={flowText}
                 onPlay={onPlay}
@@ -134,34 +123,11 @@ const ReplView = ({
             </p>
           </div>
         )}
-        <form
-          className="mb-8 gap-2 flex flex-col relative"
-          onSubmit={(e: React.FormEvent) => {
-            e.preventDefault();
-            runCommand();
-          }}
-        >
-          <CommandInput
-            setValue={(value) => {
-              setReplError(null);
-              onInput(value);
-            }}
-            value={input}
-            error={replError}
-            placeholder="Enter a command"
-            onSubmit={runCommand}
-          />
-          <Button
-            disabled={!input || !!replError}
-            type="submit"
-            leftIcon="RiCommandLine"
-            size="sm"
-            className="absolute bottom-2 right-2 text-lg font-medium"
-          >
-            +
-            <EnterKey className="w-4" />
-          </Button>
-        </form>
+        <CommandCreator
+          onSubmit={runCommand}
+          error={replError}
+          setError={setReplError}
+        />
       </div>
       {formattedFlow && (
         <SaveFlowModal
@@ -171,14 +137,6 @@ const ReplView = ({
           }}
         />
       )}
-      <Dialog
-        title={`Delete (${selectedIds.length}) command${
-          selectedIds.length === 1 ? "" : "s"
-        }?`}
-        content={`Click confirm to delete the selected command${
-          selectedIds.length === 1 ? "" : "s"
-        }.`}
-      />
     </>
   );
 };

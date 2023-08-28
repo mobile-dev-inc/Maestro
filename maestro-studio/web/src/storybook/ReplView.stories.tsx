@@ -1,11 +1,14 @@
 import ReplView from "../components/commands/ReplView";
-import { useState } from "react";
+import { DeviceProvider } from "../context/DeviceContext";
 
 export default {
   title: "ReplView",
 };
 
 export const Main = () => {
-  const [input, setInput] = useState("");
-  return <ReplView input={input} onInput={setInput} />;
+  return (
+    <DeviceProvider>
+      <ReplView />
+    </DeviceProvider>
+  );
 };
