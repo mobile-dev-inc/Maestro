@@ -152,7 +152,7 @@ const AiInput = () => {
       let errorMessage;
       if (_.get(error, "name") === "AbortError") {
         errorMessage = "Request was aborted!";
-      } else if (_.get(error, "status") === "429") {
+      } else if (_.get(error, "status") === "429" && !openAiToken) {
         errorMessage = (
           <>
             Exceeded the rate limit.{" "}

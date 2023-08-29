@@ -6,6 +6,9 @@ import {
   MockEvent,
   Repl,
   ReplCommand,
+  ViewHeirarchyType,
+  AiResponseType,
+  AuthType,
 } from "../helpers/models";
 import useSWR, { mutate, SWRConfiguration, SWRResponse } from "swr";
 import useSWRSubscription, { SWRSubscriptionResponse } from "swr/subscription";
@@ -103,9 +106,7 @@ export const API = {
       config
     );
   },
-  useAuth: (
-    config?: SWRConfiguration<string | null>
-  ): SWRResponse<string | null> => {
+  useAuth: (config?: SWRConfiguration<AuthType>): SWRResponse<AuthType> => {
     return useSWR(
       "/api/auth-token",
       () => makeRequest("GET", "/api/auth"),
@@ -162,7 +163,7 @@ export const API = {
       config
     );
   },
-  lastViewHeirarchy: async () => {
+  lastViewHeirarchy: async (): Promise<ViewHeirarchyType> => {
     return makeRequest("GET", "/api/last-view-hierarchy");
   },
   saveOpenAiToken: async (token: string) => {
@@ -183,7 +184,7 @@ export const API = {
     token: string | null | undefined;
     openAiToken: string | null | undefined;
     signal?: AbortSignal;
-  }): Promise<any> => {
+  }): Promise<AiResponseType> => {
     const response = await fetch(
       "https://api.mobile.dev/mai/generate-command",
       {
