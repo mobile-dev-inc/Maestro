@@ -77,9 +77,6 @@ dependencies {
     implementation(libs.google.findbugs)
     implementation(libs.axml)
     implementation(libs.selenium)
-    implementation((libs.webdrivermanager)) {
-        exclude group: 'org.slf4j', module: 'slf4j-api'
-    }
     api(libs.slf4j)
     api(libs.logback) {
         exclude group: 'org.slf4j', module: 'slf4j-api'
