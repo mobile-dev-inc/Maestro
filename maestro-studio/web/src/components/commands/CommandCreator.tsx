@@ -43,18 +43,6 @@ export default function CommandCreator({
     setCurrentCommandValue(value);
   };
 
-  const isHiddenFeatureActive = localStorage.getItem("hidden_feature_active");
-
-  if (!isHiddenFeatureActive) {
-    return (
-      <CommandForm
-        onSubmit={onSubmit}
-        error={error}
-        setValue={handleSetValue}
-      />
-    );
-  }
-
   return (
     <div>
       <AuthModal
