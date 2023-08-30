@@ -16,6 +16,7 @@ object DeviceService {
         when (device.platform) {
             Platform.IOS -> {
                 try {
+                    LocalSimulatorUtils.bootSimulator(device.modelId)
                     LocalSimulatorUtils.launchSimulator(device.modelId)
                     LocalSimulatorUtils.awaitLaunch(device.modelId)
                 } catch (e: SimctlError) {

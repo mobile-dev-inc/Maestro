@@ -56,7 +56,7 @@ object LocalSimulatorUtils {
         return process.inputStream.bufferedReader().readLine()
     }
 
-    fun launchSimulator(deviceId: String) {
+    fun bootSimulator(deviceId: String) {
         runCommand(
             listOf(
                 "xcrun",
@@ -65,7 +65,8 @@ object LocalSimulatorUtils {
                 deviceId
             )
         )
-
+    }
+    fun launchSimulator(deviceId: String) {
         val simulatorPath = "${xcodePath()}/Applications/Simulator.app"
         var exceptionToThrow: Exception? = null
 
