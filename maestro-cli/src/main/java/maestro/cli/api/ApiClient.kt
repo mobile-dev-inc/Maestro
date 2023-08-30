@@ -346,15 +346,20 @@ class ApiClient(
             val teamId = analysisRequest["teamId"] as String
             val appId = responseBody["targetId"] as String
             val appBinaryIdResponse = responseBody["appBinaryId"] as? String
-            val deviceInfoStr = responseBody["deviceInfo"] as? String
+            val deviceInfoStr = responseBody["deviceInfo"] as? Map<String, Any>
 
-            val deviceInfo = runCatching {
-                if (responseBody["deviceInfo"] != null) JSON.readValue(deviceInfoStr, DeviceInfo::class.java) else null
-            }.getOrNull()
+            val deviceInfo = deviceInfoStr?.let {
+                DeviceInfo(
+                    platform = it["platform"] as String,
+                    displayInfo = it["displayInfo"] as String,
+                    isDefaultOsVersion = it["isDefaultOsVersion"] as Boolean
+                )
+            }
 
             return UploadResponse(teamId, appId, uploadId, appBinaryIdResponse, deviceInfo)
         }
     }
+
 
     private inline fun <reified T> post(path: String, body: Any): Result<T, Response> {
         val bodyBytes = JSON.writeValueAsBytes(body)
