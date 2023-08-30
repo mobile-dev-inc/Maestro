@@ -1,6 +1,7 @@
 package maestro.cli.report
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import maestro.Driver
 import maestro.MaestroException
@@ -44,14 +45,17 @@ object TestDebugReporter {
     fun saveFlow(flowName: String, data: FlowDebugMetadata, path: Path) {
 
         // commands
-        val commandMetadata = data.commands
-        if (commandMetadata.isNotEmpty()) {
-
-            val commandsFilename = "commands-(${flowName.replace("/", "_")}).json"
-            val file = File(path.absolutePathString(), commandsFilename)
-            commandMetadata.map { CommandDebugWrapper(it.key, it.value) }.let {
-                mapper.writeValue(file, it)
+        try {
+            val commandMetadata = data.commands
+            if (commandMetadata.isNotEmpty()) {
+                val commandsFilename = "commands-(${flowName.replace("/", "_")}).json"
+                val file = File(path.absolutePathString(), commandsFilename)
+                commandMetadata.map { CommandDebugWrapper(it.key, it.value) }.let {
+                    mapper.writeValue(file, it)
+                }
             }
+        } catch (e: JsonMappingException) {
+            logger.error("Unable to parse commands", e)
         }
 
         // screenshots
