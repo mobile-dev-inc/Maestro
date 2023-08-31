@@ -1,5 +1,10 @@
 package maestro.cli.device
 
+import maestro.cli.CliError
+import maestro.cli.model.DeviceStartOptions
+import maestro.cli.util.DeviceConfigAndroid
+import maestro.cli.util.DeviceConfigIos
+import maestro.cli.util.PrintUtils
 import org.fusesource.jansi.Ansi.ansi
 
 object PickDeviceView {
@@ -11,10 +16,44 @@ object PickDeviceView {
     fun pickDeviceToStart(devices: List<Device>): Device {
         printIndexedDevices(devices)
 
-        println("No running devices detected. Choose a device to boot and run on.")
+        println("Choose a device to boot and run on.")
         printEnterNumberPrompt()
 
         return pickIndex(devices)
+    }
+
+    fun requestDeviceOptions(): DeviceStartOptions {
+        PrintUtils.message("Please specify a device platform [android, ios, web]:")
+        val platform = readlnOrNull()?.lowercase()?.let {
+            when (it) {
+                "android" -> Platform.ANDROID
+                "ios" -> Platform.IOS
+                "web" -> Platform.WEB
+                else -> throw CliError("Unsupported platform: $it")
+            }
+        } ?: throw CliError("Please specify a platform")
+
+        val version = platform.let {
+            when (it) {
+                Platform.IOS -> {
+                    PrintUtils.message("Please specify iOS version ${DeviceConfigIos.versions}: Press ENTER for default (${DeviceConfigIos.defaultVersion})")
+                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigIos.defaultVersion
+                }
+
+                Platform.ANDROID -> {
+                    PrintUtils.message("Please specify Android version ${DeviceConfigAndroid.versions}: Press ENTER for default (${DeviceConfigAndroid.defaultVersion})")
+                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigAndroid.defaultVersion
+                }
+
+                Platform.WEB -> 0
+            }
+        }
+
+        return DeviceStartOptions(
+            platform = platform,
+            osVersion = version,
+            forceCreate = false
+        )
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {

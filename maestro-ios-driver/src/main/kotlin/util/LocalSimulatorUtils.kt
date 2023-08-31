@@ -25,8 +25,8 @@ object LocalSimulatorUtils {
         return jacksonObjectMapper().readValue(json)
     }
 
-    fun awaitLaunch(deviceId: String) {
-        MaestroTimer.withTimeout(30000) {
+    fun awaitLaunch(deviceId: String, timeout: Long= 30000) {
+        MaestroTimer.withTimeout(timeout) {
             if (list()
                     .devices
                     .values
