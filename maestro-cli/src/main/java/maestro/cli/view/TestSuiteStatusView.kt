@@ -12,7 +12,7 @@ import kotlin.time.Duration.Companion.seconds
 object TestSuiteStatusView {
 
     fun showFlowCompletion(result: FlowResult) {
-        printStatus(result.status)
+        printStatus(result.status, result.cancellationReason)
 
         val durationString = result.duration?.let { " ($it)" }.orEmpty()
         print(" ${result.name}$durationString")
@@ -92,7 +92,7 @@ object TestSuiteStatusView {
         }
     }
 
-    private fun printStatus(status: FlowStatus) {
+    private fun printStatus(status: FlowStatus, cancellationReason: UploadStatus.CancellationReason?) {
         val color = when (status) {
             FlowStatus.SUCCESS,
             FlowStatus.WARNING -> Ansi.Color.GREEN
@@ -105,7 +105,12 @@ object TestSuiteStatusView {
             FlowStatus.ERROR -> "Failed"
             FlowStatus.PENDING -> "Pending"
             FlowStatus.RUNNING -> "Running"
-            FlowStatus.CANCELED -> "Canceled"
+            FlowStatus.CANCELED -> when (cancellationReason) {
+                UploadStatus.CancellationReason.TIMEOUT -> "Timeout"
+                UploadStatus.CancellationReason.OVERLAPPING_BENCHMARK -> "Skipped"
+                UploadStatus.CancellationReason.BENCHMARK_DEPENDENCY_FAILED -> "Skipped"
+                else -> "Canceled"
+            }
         }
 
         print(
@@ -137,6 +142,7 @@ object TestSuiteStatusView {
             val status: FlowStatus,
             val duration: Duration? = null,
             val error: String? = null,
+            val cancellationReason: UploadStatus.CancellationReason? = null
         )
 
         data class UploadDetails(
@@ -160,8 +166,9 @@ object TestSuiteStatusView {
 
             fun UploadStatus.FlowResult.toViewModel() = FlowResult(
                 name = name,
-                status = FlowStatus.from(status),
-                error = errors.firstOrNull()
+                status = FlowStatus.from(status, ),
+                error = errors.firstOrNull(),
+                cancellationReason = cancellationReason
             )
 
         }

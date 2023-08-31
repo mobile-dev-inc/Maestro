@@ -438,6 +438,7 @@ data class UploadStatus(
         val name: String,
         val status: Status,
         val errors: List<String>,
+        val cancellationReason: CancellationReason? = null
     )
 
     enum class Status {
@@ -447,6 +448,13 @@ data class UploadStatus(
         ERROR,
         CANCELED,
         WARNING,
+    }
+
+    enum class CancellationReason {
+        BENCHMARK_DEPENDENCY_FAILED,
+        INFRA_ERROR,
+        OVERLAPPING_BENCHMARK,
+        TIMEOUT
     }
 }
 
