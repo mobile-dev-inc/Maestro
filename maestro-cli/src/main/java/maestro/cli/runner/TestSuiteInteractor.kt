@@ -18,6 +18,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Path
 import kotlin.math.roundToLong
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
@@ -34,7 +35,7 @@ class TestSuiteInteractor(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
         reportOut: Sink?,
         env: Map<String, String>,
-        debugOutput: String?
+        debugOutputPath: Path
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence?.flows?.isEmpty() == true) {
             throw CliError("No flows returned from the tag filter used")
@@ -50,7 +51,7 @@ class TestSuiteInteractor(
         // first run sequence of flows if present
         val flowSequence = executionPlan.sequence
         for (flow in flowSequence?.flows ?: emptyList()) {
-            val result = runFlow(flow.toFile(), env, maestro, debugOutput)
+            val result = runFlow(flow.toFile(), env, maestro, debugOutputPath)
             flowResults.add(result)
 
             if (result.status == FlowStatus.ERROR) {
@@ -65,7 +66,7 @@ class TestSuiteInteractor(
 
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
-            val result = runFlow(flow.toFile(), env, maestro, debugOutput)
+            val result = runFlow(flow.toFile(), env, maestro, debugOutputPath)
 
             if (result.status == FlowStatus.ERROR) {
                 passed = false
@@ -117,7 +118,7 @@ class TestSuiteInteractor(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,
-        debugOutput: String?
+        debugOutputPath: Path
     ): TestExecutionSummary.FlowResult {
         var flowName: String = flowFile.nameWithoutExtension
         var flowStatus: FlowStatus
@@ -152,9 +153,6 @@ class TestSuiteInteractor(
 
             return result.getOrNull()
         }
-
-        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
-        val path = TestDebugReporter.getDebugOutputPath()
 
         val flowTimeMillis = measureTimeMillis {
             try {
@@ -219,7 +217,7 @@ class TestSuiteInteractor(
         }
         val flowDuration = (flowTimeMillis / 1000f).roundToLong().seconds
 
-        TestDebugReporter.saveFlow(flowName, debug, path)
+        TestDebugReporter.saveFlow(flowName, debug, debugOutputPath)
 
         TestSuiteStatusView.showFlowCompletion(
             TestSuiteViewModel.FlowResult(

@@ -30,7 +30,6 @@ object TestDebugReporter {
 
     private val logger = LoggerFactory.getLogger(TestDebugReporter::class.java)
     private val mapper = ObjectMapper()
-    private val parentPath = Paths.get(System.getProperty("user.home"), ".maestro", "tests")
 
     private var debugOutputPath: Path? = null
     private var debugOutputPathAsString: String? = null
@@ -72,12 +71,12 @@ object TestDebugReporter {
         }
     }
 
-    fun deleteOldFiles(path: Path = parentPath, days: Long = 14) {
+    fun deleteOldFiles(days: Long = 14) {
         try {
             val currentTime = Instant.now()
             val daysLimit = currentTime.minus(Duration.of(days, ChronoUnit.DAYS))
 
-            Files.walk(path)
+            Files.walk(getDebugOutputPath())
                 .filter {
                     val fileTime = Files.getAttribute(it, "basic:lastModifiedTime") as FileTime
                     val isOlderThanLimit = fileTime.toInstant().isBefore(daysLimit)
@@ -94,7 +93,7 @@ object TestDebugReporter {
         }
     }
 
-    fun logSystemInfo() {
+    private fun logSystemInfo() {
         val appVersion = runCatching {
             val props = Driver::class.java.classLoader.getResourceAsStream("version.properties").use {
                 Properties().apply { load(it) }

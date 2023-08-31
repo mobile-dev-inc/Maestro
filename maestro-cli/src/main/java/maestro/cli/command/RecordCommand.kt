@@ -28,15 +28,12 @@ import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.ProgressBar
-import maestro.debuglog.DebugLogStore
-import maestro.debuglog.LogConfig
 import okio.sink
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
-import kotlin.io.path.absolutePathString
 
 @CommandLine.Command(
     name = "record",
@@ -165,6 +162,8 @@ class RecordCommand : Callable<Int> {
 
                 Thread.sleep(2000)
             }
+
+            TestDebugReporter.deleteOldFiles()
 
             exitCode
         }

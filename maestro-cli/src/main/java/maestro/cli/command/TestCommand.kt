@@ -131,7 +131,7 @@ class TestCommand : Callable<Int> {
         env = env.withInjectedShellEnvVars()
 
         TestDebugReporter.install(debugOutputPathAsString = debugOutput)
-        val path = TestDebugReporter.getDebugOutputPath()
+        val debugOutputPath = TestDebugReporter.getDebugOutputPath()
         
         return MaestroSessionManager.newSession(parent?.host, parent?.port, deviceId) { session ->
             val maestro = session.maestro
@@ -158,9 +158,10 @@ class TestCommand : Callable<Int> {
                                 .sink()
                                 .buffer()
                         },
-                    debugOutput = debugOutput
+                    debugOutputPath = debugOutputPath
                 )
 
+                TestDebugReporter.deleteOldFiles()
                 if (suiteResult.passed) {
                     0
                 } else {
@@ -169,13 +170,15 @@ class TestCommand : Callable<Int> {
                 }
             } else {
                 if (continuous) {
+                    TestDebugReporter.deleteOldFiles()
                     TestRunner.runContinuous(maestro, device, flowFile, env)
                 } else {
                     val resultView = if (DisableAnsiMixin.ansiEnabled) AnsiResultView() else PlainTextResultView()
-                    val resultSingle = TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
+                    val resultSingle = TestRunner.runSingle(maestro, device, flowFile, env, resultView, debugOutputPath)
                     if (resultSingle == 1) {
                         printExitDebugMessage()
                     }
+                    TestDebugReporter.deleteOldFiles()
                     return@newSession resultSingle
                 }
             }

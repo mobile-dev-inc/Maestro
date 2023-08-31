@@ -66,6 +66,8 @@ class StudioCommand : Callable<Int> {
 
             Thread.currentThread().join()
         }
+
+        TestDebugReporter.deleteOldFiles()
         return 0
     }
 

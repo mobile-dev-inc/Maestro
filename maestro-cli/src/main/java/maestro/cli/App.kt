@@ -22,7 +22,6 @@ package maestro.cli
 import maestro.cli.command.*
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.LogoutCommand
-import maestro.cli.report.TestDebugReporter
 import maestro.cli.update.Updates
 import maestro.cli.util.ErrorReporter
 import maestro.cli.view.box
@@ -117,7 +116,6 @@ fun main(args: Array<String>) {
     val exitCode = commandLine
         .execute(*args)
 
-    TestDebugReporter.deleteOldFiles()
     DebugLogStore.finalizeRun()
 
     val newVersion = Updates.checkForUpdates()
