@@ -2,7 +2,6 @@ package maestro.ios
 
 import com.google.common.truth.Truth.assertThat
 import xcuitest.XCTestClient
-import xcuitest.installer.Source
 import xcuitest.installer.XCTestInstaller
 
 class MockXCTestInstaller(
@@ -11,7 +10,7 @@ class MockXCTestInstaller(
 
     private var attempts = 0
 
-    override fun start(source: Source): XCTestClient? {
+    override fun start(): XCTestClient? {
         attempts++
         for (i in 0..simulator.installationRetryCount) {
             assertThat(simulator.runningApps()).doesNotContain("dev.mobile.maestro-driver-iosUITests.xctrunner")

@@ -15,7 +15,6 @@ import java.io.IOException
 import java.net.ConnectException
 import xcuitest.api.NetworkErrorHandler
 import xcuitest.api.NetworkErrorHandler.Companion.RETRY_RESPONSE_CODE
-import xcuitest.installer.Source
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
@@ -47,7 +46,7 @@ class XCTestDriverClient(
         installer.uninstall()
         logger.info("[Done] Uninstalling xctest ui runner app")
         logger.info("[Start] Installing xctest ui runner app")
-        client = installer.start(Source.DRIVER_OPEN)
+        client = installer.start()
             ?: throw XCTestDriverUnreachable("Failed to reach XCUITest Server in restart")
         logger.info("[Done] Installing xctest ui runner app")
     }
