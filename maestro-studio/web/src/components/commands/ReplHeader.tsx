@@ -39,7 +39,7 @@ export default function ReplHeader({
   };
 
   return (
-    <div className="flex justify-between w-full border-b border-slate-100 dark:border-slate-800 flex-wrap">
+    <div className="flex justify-between w-full border-b border-slate-100 dark:border-slate-800 flex-wrap pt-4">
       <div
         className={clsx(
           "py-2",

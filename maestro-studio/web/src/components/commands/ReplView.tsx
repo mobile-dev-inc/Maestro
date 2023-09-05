@@ -78,21 +78,21 @@ const ReplView = () => {
 
   return (
     <>
-      <div className="pt-6 pb-8 px-12 overflow-auto hide-scrollbar">
-        {repl.commands.length > 0 ? (
-          <div className="flex flex-col">
-            <div>
-              <ReplHeader
-                onSelectAll={() => setSelected(repl.commands.map((c) => c.id))}
-                onDeselectAll={() => setSelected([])}
-                selectedLength={selectedIds.length}
-                allSelected={selectedIds.length === repl.commands.length}
-                copyText={flowText}
-                onPlay={onPlay}
-                onExport={onExport}
-                onDelete={onDelete}
-              />
-            </div>
+      {repl.commands.length > 0 ? (
+        <div className="flex flex-col h-full">
+          <div className="px-12">
+            <ReplHeader
+              onSelectAll={() => setSelected(repl.commands.map((c) => c.id))}
+              onDeselectAll={() => setSelected([])}
+              selectedLength={selectedIds.length}
+              allSelected={selectedIds.length === repl.commands.length}
+              copyText={flowText}
+              onPlay={onPlay}
+              onExport={onExport}
+              onDelete={onDelete}
+            />
+          </div>
+          <div className="px-12 overflow-auto pb-20 hide-scrollbar">
             <div className="-ml-6 py-5 -mr-1">
               <CommandList
                 onReorder={onReorder}
@@ -109,8 +109,15 @@ const ReplView = () => {
                 }}
               />
             </div>
+            <CommandCreator
+              onSubmit={runCommand}
+              error={replError}
+              setError={setReplError}
+            />
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div className="px-12 py-6">
           <div className="flex px-12 flex-col items-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-4">
             <div className="p-4 bg-white dark:bg-slate-900 rounded-3xl mb-4 shadow-xl">
               <Icon iconName="RiCodeLine" size="20" />
@@ -122,13 +129,16 @@ const ReplView = () => {
               Write command below OR select an element, then a command to add it
             </p>
           </div>
-        )}
-        <CommandCreator
-          onSubmit={runCommand}
-          error={replError}
-          setError={setReplError}
-        />
-      </div>
+          <CommandCreator
+            onSubmit={runCommand}
+            error={replError}
+            setError={setReplError}
+          />
+        </div>
+      )}
+      {/* <div className="px-12">
+        
+      </div> */}
       {formattedFlow && (
         <SaveFlowModal
           formattedFlow={formattedFlow}

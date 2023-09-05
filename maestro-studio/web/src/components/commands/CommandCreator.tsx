@@ -96,6 +96,7 @@ const DefaultInput = () => {
  * AI Input Form
  ************************************************/
 const AiInput = () => {
+  const aiCommandFormRef = useRef<HTMLFormElement>(null)
   const abortControllerRef = useRef<any>(null);
   const { authToken, openAiToken, deleteOpenAiToken } = useAuth();
   const { setCurrentCommandValue } = useDeviceContext();
@@ -112,6 +113,7 @@ const AiInput = () => {
 
   useEffect(() => {
     aiInputRef.current?.focus();
+    aiCommandFormRef.current?.scrollIntoView({ block: "end", inline: "nearest" });
   }, []);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -200,7 +202,7 @@ const AiInput = () => {
         open={showApiKeyModal}
         onOpenChange={(val) => setShowApiKeyModal(val)}
       />
-      <form className="relative" onSubmit={handleFormSubmit}>
+      <form ref={aiCommandFormRef} className="relative pb-10" onSubmit={handleFormSubmit}>
         <InputWrapper error={formStates.error}>
           <Input
             ref={aiInputRef}
@@ -222,31 +224,34 @@ const AiInput = () => {
         >
           <EnterKey className="w-4" />
         </Button>
-      </form>
-      {openAiToken && (
-        <div className="mt-2 bg-blue-100 px-4 py-2 rounded-lg flex flex-col md:flex-row gap-2 md:items-center">
-          <p className="text-sm font-medium flex-grow">
-            Your openai API key: {openAiToken}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowApiKeyModal(true)}
-              variant="secondary"
-              className="min-w-[85px]"
-            >
-              Update API
-            </Button>
-            <Button
-              onClick={deleteOpenAiToken}
-              variant="secondary-red"
-              leftIcon="RiDeleteBin2Line"
-              className="min-w-[88px]"
-            >
-              Remove API
-            </Button>
+        {openAiToken && (
+          <div className="mt-2 bg-blue-100 px-4 py-2 rounded-lg flex flex-col md:flex-row gap-2 md:items-center">
+            <p className="text-sm font-medium flex-grow">
+              Your openai API key: {openAiToken}
+            </p>
+            <div className="flex gap-2">
+              <Button
+              type="button"
+                onClick={() => setShowApiKeyModal(true)}
+                variant="secondary"
+                className="min-w-[85px]"
+              >
+                Update API
+              </Button>
+              <Button
+              type="button"
+                onClick={deleteOpenAiToken}
+                variant="secondary-red"
+                leftIcon="RiDeleteBin2Line"
+                className="min-w-[88px]"
+              >
+                Remove API
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </form>
+      
     </>
   );
 };
@@ -263,6 +268,7 @@ const CommandForm = ({
   error: string | null;
   setValue: (val: string) => void;
 }) => {
+  const commandForm = useRef<HTMLFormElement>(null);
   const commandInputRef = useRef<HTMLTextAreaElement>(null);
   const { currentCommandValue } = useDeviceContext();
 
@@ -270,6 +276,7 @@ const CommandForm = ({
     const input = commandInputRef.current;
     if (input) {
       input.focus();
+      commandForm.current?.scrollIntoView({ block: "end", inline: "nearest" });
       const len = input.value.length;
       input.selectionStart = len;
       input.selectionEnd = len;
@@ -282,7 +289,7 @@ const CommandForm = ({
   };
 
   return (
-    <form className="gap-2 flex flex-col relative" onSubmit={handleFormSubmit}>
+    <form ref={commandForm} className="gap-2 flex flex-col relative pb-10" onSubmit={handleFormSubmit}>
       <CommandInput
         ref={commandInputRef}
         setValue={setValue}
@@ -296,7 +303,7 @@ const CommandForm = ({
         type="submit"
         leftIcon="RiCommandLine"
         size="sm"
-        className="absolute bottom-2 right-2 text-lg font-medium"
+        className="absolute top-2 right-2 text-lg font-medium"
       >
         +
         <EnterKey className="w-4" />
