@@ -57,18 +57,34 @@ object EnvUtils {
     }
 
     fun getMacOSArchitecture(): MACOS_ARCHITECTURE {
-        return runCatching {
-            val processBuilder = ProcessBuilder("uname", "-m")
-            val process = processBuilder.start()
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
+        fun runCommand(command: String, argument: String): Boolean {
+            return try {
+                val processBuilder = ProcessBuilder(command, argument)
+                val process = processBuilder.start()
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
 
-            when (reader.readLine()) {
-                "x86_64" -> MACOS_ARCHITECTURE.x86_64
-                "arm64" -> MACOS_ARCHITECTURE.ARM64
-                else -> MACOS_ARCHITECTURE.UNKNOWN
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    if (line!!.endsWith(": 1")) {
+                        return true
+                    }
+                }
+                false
+            } catch (ignore: Exception) {
+                false
             }
-        }.getOrNull() ?: MACOS_ARCHITECTURE.UNKNOWN
+        }
+
+        // Prefer sysctl over 'uname -m' due to Rosetta making it unreliable
+        val isArm64 = runCommand("sysctl", "hw.optional.arm64")
+        val isX86_64 = runCommand("sysctl", "hw.optional.x86_64")
+        return when {
+            isArm64 -> MACOS_ARCHITECTURE.ARM64
+            isX86_64 -> MACOS_ARCHITECTURE.x86_64
+            else -> MACOS_ARCHITECTURE.UNKNOWN
+        }
     }
+
 }
 
 enum class MACOS_ARCHITECTURE {
