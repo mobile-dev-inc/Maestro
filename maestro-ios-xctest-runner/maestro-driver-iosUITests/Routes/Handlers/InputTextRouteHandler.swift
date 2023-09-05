@@ -36,6 +36,9 @@ struct InputTextRouteHandler : HTTPHandler {
             let eventRecord = EventRecord(orientation: .portrait)
             _ = eventRecord.add(eventPath)
             try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+
+            // wait 500 ms before dispatching next input text request to avoid iOS dropping characters
+            try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * 0.5))
             
             if (requestBody.text.count > Constants.slowInputCharactersCount) {
                 let remainingText = String(requestBody.text.suffix(requestBody.text.count - Constants.slowInputCharactersCount))
