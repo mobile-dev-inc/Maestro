@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.32.0 - 20223-09-06
+
+Studio
+- Feature: Support writing Flows using AI (more info to come 🚀)
+- Feature: Maestro Studio can now run in multiple tabs simultaneously
+- Feature: Added element id and copy option for it
+- Tweak: Hide action buttons till command is hovered
+- Tweak: Hide Unnecessary Scrollbars
+- Tweak: Repl view scroll improvements
+- Tweak: Improve Maestro Studio performance
+- Fix: Selected element size
+- Fix: Performance issues with maestro studio device refresh
+- Fix: Fixed dark mode for element id
+
+CLI
+- Feature: New command to start or create a Maestro recommended device (docs)
+- Feature: Support id selection for testID with react-native-web (community contribution)
+- Feature: Control if browser automatically opens when running Maestro Studio via --no-window (community contribution)
+- Tweak: Show cancellation reason when available (Maestro Cloud)
+- Tweak: Update selenium-java and remove webdrivermanager to support Chrome 116+
+- Tweak: Show device type when running on Maestro Cloud
+- Tweak: Added better messaging and recovery options for Maestro Cloud uploads (useful for CI)
+- Tweak: Added better error messages for missing workspace and yaml validation errors
+- Tweak: Added file name and line number in yaml parsing error messages
+- Fix: Input text and erase text stability improvements for iOS
+- Fix: Leaking response body on iOS & better error handling for iOS Driver
+- Fix: Fixed Maestro Cloud wrong exit code when flow failed
+- Fix: Debug commands parsing would crash maestro
+- Fix: Cleaning up debug logs
+
+
+
+
 ## 1.31.0 - 2023-08-10
 
 - Fix: Warning shown from OkHttp for leaking response bodies on CLI
