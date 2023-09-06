@@ -6,8 +6,6 @@ import Network
 
 @MainActor
 struct EraseTextHandler: HTTPHandler {
-    private let typingFrequency = 30
-
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
@@ -15,29 +13,37 @@ struct EraseTextHandler: HTTPHandler {
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         guard let requestBody = try? JSONDecoder().decode(EraseTextRequest.self, from: request.body) else {
-            let errorData = handleError(message: "incorrect request body provided")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+            return errorResponse(message: "incorrect request body provided")
         }
         
-        let appId = RunningApp.getForegroundAppId(requestBody.appIds)
-        await waitUntilKeyboardIsPresented(appId: appId)
+        do {
+            let start = Date()
+            
+            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
+            await waitUntilKeyboardIsPresented(appId: appId)
 
-        let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: requestBody.charactersToErase)
-        var eventPath = PointerEventPath.pathForTextInput()
-        eventPath.type(text: deleteText, typingSpeed: typingFrequency)
-        let eventRecord = EventRecord(orientation: .portrait)
-        _ = eventRecord.add(eventPath)
-        try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+            let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: requestBody.charactersToErase)
+            
+            try await TextInputHelper.inputText(deleteText)
+            
+            let duration = Date().timeIntervalSince(start)
+            logger.info("Erase text duration took \(duration)")
+            return HTTPResponse(statusCode: .ok)
+        } catch {
+            logger.error("Error erasing text of \(requestBody.charactersToErase) characters: \(error)")
+            return errorResponse(message: "internal error")
+        }
 
         return HTTPResponse(statusCode: .ok)
     }
-
-    private func handleError(message: String) -> Data {
-        logger.error("Failed - \(message)")
+    
+    private func errorResponse(message: String) -> HTTPResponse {
+        logger.error("Failed to erase text - \(message)")
         let jsonString = """
          { "errorMessage" : \(message) }
         """
-        return Data(jsonString.utf8)
+        let errorData = Data(jsonString.utf8)
+        return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
     }
     
     private func waitUntilKeyboardIsPresented(appId: String?) async {

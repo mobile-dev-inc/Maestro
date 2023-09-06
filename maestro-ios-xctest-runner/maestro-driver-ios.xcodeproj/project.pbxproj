@@ -52,6 +52,7 @@
 		943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */; };
 		945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */; };
 		945DD44D29D6F73B004D8ECF /* SetPermissionsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */; };
+		9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */; };
 		94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94826F4329DB082100795E9B /* SystemPermissionHelper.swift */; };
 		9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9494CBD02982F719009C987C /* ScreenshotHandler.swift */; };
 		949535FC299FD67E00FD0159 /* XCTestHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */; };
@@ -117,6 +118,7 @@
 		943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningAppRouteHandler.swift; sourceTree = "<group>"; };
 		945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetPermissionsRequest.swift; sourceTree = "<group>"; };
 		945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetPermissionsHandler.swift; sourceTree = "<group>"; };
+		9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInputHelper.swift; sourceTree = "<group>"; };
 		94826F4329DB082100795E9B /* SystemPermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPermissionHelper.swift; sourceTree = "<group>"; };
 		9494CBD02982F719009C987C /* ScreenshotHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotHandler.swift; sourceTree = "<group>"; };
 		949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCTestHTTPServer.swift; sourceTree = "<group>"; };
@@ -268,6 +270,7 @@
 				94826F4329DB082100795E9B /* SystemPermissionHelper.swift */,
 				522785802A54410D008DBC0A /* AppError.swift */,
 				941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */,
+				9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -424,6 +427,7 @@
 				61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */,
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
+				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,
 				61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */,
 				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
 				32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */,
