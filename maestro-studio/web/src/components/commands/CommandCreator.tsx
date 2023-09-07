@@ -175,8 +175,8 @@ const AiInput = () => {
 
   if (formStates.isLoading) {
     return (
-      <div className="flex px-3 h-10 items-center gap-2 relative">
-        <div className="absolute top-0 left-0 right-0 bottom-0 rounded-xl bg-gray-100 dark:bg-slate-800/40 animate-pulse z-0" />
+      <div className="ai-loader flex px-3 h-10 items-center gap-2 relative rounded-xl">
+        <div className="absolute top-0.5 left-0.5 right-0.5 bottom-0.5 rounded-[10px] bg-white dark:bg-gray-900 z-0" />
         <Spinner size="18" className="relative z-10" />
         <p className="flex-grow text-sm font-semibold relative z-10">
           {userInput}

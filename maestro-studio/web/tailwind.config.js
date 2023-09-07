@@ -5,8 +5,8 @@ module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     fontFamily: {
-      sans: ["'Space Grotesk'", "sans-serif"],
-      mono: ["'Space Mono'", "monospace"],
+      sans: ["'Inter'", "sans-serif"],
+      mono: ["'JetBrains Mono'", "monospace"],
     },
     extend: {
       colors: {
