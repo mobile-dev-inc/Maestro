@@ -48,6 +48,7 @@ import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import kotlin.collections.set
 
 class IOSDriver(
@@ -73,7 +74,7 @@ class IOSDriver(
     }
 
     override fun open() {
-        iosDevice.open()
+        awaitLaunch()
     }
 
     override fun close() {
@@ -452,10 +453,31 @@ class IOSDriver(
         return (percent * widthPoints).toInt()
     }
 
+    private fun awaitLaunch() {
+        val startTime = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+            runCatching {
+                iosDevice.open()
+                return
+            }
+            Thread.sleep(100)
+        }
+
+        throw TimeoutException("Maestro iOS driver did not start up in time")
+    }
+
+    private fun getStartupTimeout(): Long = runCatching {
+        System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
+    }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
+
     companion object {
         const val NAME = "iOS Simulator"
 
         private val LOGGER = LoggerFactory.getLogger(IOSDevice::class.java)
+
+        private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
+        private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
 
         private const val ELEMENT_TYPE_CHECKBOX = 12
         private const val ELEMENT_TYPE_SWITCH = 40
