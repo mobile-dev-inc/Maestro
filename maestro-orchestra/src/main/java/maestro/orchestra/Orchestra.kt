@@ -27,6 +27,7 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
+import maestro.device.DeviceConfigManager
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
@@ -47,6 +48,7 @@ import okio.sink
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Files
+import java.nio.file.Path
 
 class Orchestra(
     private val maestro: Maestro,
@@ -55,6 +57,7 @@ class Orchestra(
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
+    private val deviceConfigManager: DeviceConfigManager = DeviceConfigManager(maestro),
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
@@ -127,6 +130,7 @@ class Orchestra(
         } catch (e: Throwable) {
             exception = e
         } finally {
+            deviceConfigManager.resetMedia()
             val onCompleteSuccess = config?.onFlowComplete?.commands?.let {
                 executeCommands(
                     commands = it,
@@ -282,6 +286,7 @@ class Orchestra(
             is TravelCommand -> travelCommand(command)
             is StartRecordingCommand -> startRecordingCommand(command)
             is StopRecordingCommand -> stopRecordingCommand()
+            is AddMediaCommand -> addMediaCommand(command.mediaPaths)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -297,6 +302,11 @@ class Orchestra(
             speedMPS = command.speedMPS ?: 4.0,
         )
 
+        return true
+    }
+
+    private fun addMediaCommand(mediaPaths: List<String>): Boolean {
+        maestro.addMedia(mediaPaths)
         return true
     }
 

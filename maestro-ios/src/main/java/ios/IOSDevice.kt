@@ -150,6 +150,10 @@ interface IOSDevice : AutoCloseable {
     fun pressButton(name: String)
 
     fun eraseText(charactersToErase: Int)
+
+    fun addMedia(path: String)
+
+    fun deleteMedia()
 }
 
 interface IOSScreenRecording : AutoCloseable

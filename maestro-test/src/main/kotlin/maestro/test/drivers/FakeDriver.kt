@@ -21,19 +21,10 @@ package maestro.test.drivers
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
-import maestro.Capability
-import maestro.DeviceInfo
-import maestro.Driver
-import maestro.KeyCode
-import maestro.MaestroException
-import maestro.Platform
-import maestro.Point
-import maestro.ScreenRecording
-import maestro.SwipeDirection
-import maestro.TreeNode
-import maestro.ViewHierarchy
+import maestro.*
 import maestro.utils.ScreenshotUtils
 import okio.Sink
+import okio.Source
 import okio.buffer
 import java.awt.image.BufferedImage
 import java.io.File
@@ -372,6 +363,18 @@ class FakeDriver : Driver {
         events.add(Event.SetPermissions(appId, permissions))
     }
 
+    override fun addMedia(mediaFiles: List<File>) {
+        ensureOpen()
+
+        mediaFiles.forEach { _ -> events.add(Event.AddMedia) }
+    }
+
+    override fun removeMedia() {
+        ensureOpen()
+
+        events.add(Event.DeleteMedia)
+    }
+
     sealed class Event {
 
         data class Tap(
@@ -454,6 +457,10 @@ class FakeDriver : Driver {
             val appId: String,
             val permissions: Map<String, String>,
         ) : Event()
+
+        object AddMedia : Event()
+
+        object DeleteMedia: Event()
 
         object StartRecording : Event()
 

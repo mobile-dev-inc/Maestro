@@ -1,0 +1,2 @@
+Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e013_invalid_media_file/workspace/Flow.yaml
+Media file at ./assets/invalid_android.png in flow file: {PROJECT_DIR}/src/test/resources/workspaces/e013_invalid_media_file/workspace/Flow.yaml not found

@@ -3,18 +3,28 @@ package util
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
+import org.apache.commons.io.FileUtils
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import util.CommandLineUtils.runCommand
 import java.io.File
 import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
+import kotlin.io.path.absolutePathString
 import kotlin.io.path.createTempDirectory
+import kotlin.io.path.name
 
 object LocalSimulatorUtils {
 
     data class SimctlError(override val message: String): Throwable(message)
+
     private val homedir = System.getProperty("user.home")
+
+    private lateinit var photosDataBackupDir: Path
+    private lateinit var dcimBackupDir: Path
+
 
     fun list(): SimctlList {
         val command = listOf("xcrun", "simctl", "list", "-j")
@@ -262,6 +272,53 @@ object LocalSimulatorUtils {
                 bundleId
             )
         )
+    }
+
+    fun backupPhotosDataDir(deviceId: String) {
+        val photoDataDir = "${homedir}/Library/Developer/CoreSimulator/Devices/$deviceId/data/Media/PhotoData"
+        val photosDirPath = Paths.get(photoDataDir)
+        photosDataBackupDir = Files.createTempDirectory(photosDirPath.name)
+        FileUtils.copyDirectory(photosDirPath.toFile(), photosDataBackupDir.toFile())
+    }
+
+    fun backupDcimDir(deviceId: String) {
+        val dcimDir = "${homedir}/Library/Developer/CoreSimulator/Devices/$deviceId/data/Media/DCIM"
+        val dcimDirPath = Paths.get(dcimDir)
+        dcimBackupDir = Files.createTempDirectory(dcimDirPath.name)
+        FileUtils.copyDirectory(dcimDirPath.toFile(), dcimBackupDir.toFile())
+    }
+
+    fun photoDataBackupExists(): Boolean {
+        return ::photosDataBackupDir.isInitialized
+    }
+
+    fun dcimBackupExists(): Boolean {
+        return ::dcimBackupDir.isInitialized
+    }
+
+    fun addMedia(deviceId: String, path: String) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "addmedia",
+                deviceId,
+                path
+            )
+        )
+    }
+
+    fun removeMedia(deviceId: String) {
+        val dcimDir = "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Media/DCIM"
+        val photoDataDir = "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Media/PhotoData"
+
+        runCommand(listOf("rm" ,"-rf", "$dcimDir/*"))
+        runCommand(listOf("rm" ,"-rf", "$photoDataDir/*"))
+
+        FileUtils.copyDirectory(dcimBackupDir.toFile(), Paths.get(dcimDir).toFile())
+        FileUtils.copyDirectory(photosDataBackupDir.toFile(), Paths.get(photoDataDir).toFile())
+        FileUtils.deleteQuietly(photosDataBackupDir.toFile())
+        FileUtils.deleteQuietly(dcimBackupDir.toFile())
     }
 
     fun clearKeychain(deviceId: String) {

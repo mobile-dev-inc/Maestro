@@ -32,7 +32,7 @@ object WorkspaceExecutionPlanner {
 
         // retrieve all Flow files
 
-        val unfilteredFlowFiles = Files.walk(input).filter(this::isFlowFile).toList()
+        val unfilteredFlowFiles = Files.walk(input).filter{ isFlowFile(it) }.toList()
         if (unfilteredFlowFiles.isEmpty()) {
             throw ValidationError("""
                 Flow directory does not contain any Flow files: ${input.absolutePathString()}
@@ -103,6 +103,13 @@ object WorkspaceExecutionPlanner {
             normalFlows = normalFlows.sortedBy { it.name }
         }
 
+        // validation of media files for add media command
+        allFlows.forEach {
+            val commands = YamlCommandReader.readCommands(it).mapNotNull { maestroCommand ->  maestroCommand.addMediaCommand }
+            val mediaPaths = commands.flatMap { addMediaCommand -> addMediaCommand.mediaPaths }
+            YamlCommandsPathValidator.validatePathsExistInWorkspace(input, it, mediaPaths)
+        }
+
         return ExecutionPlan(
             flowsToRun = normalFlows,
             FlowSequence(
@@ -144,14 +151,6 @@ object WorkspaceExecutionPlanner {
             }
         }
         return null
-    }
-
-    private fun isFlowFile(path: Path): Boolean {
-        if (!path.isRegularFile()) return false // Not a file
-        val extension = path.extension
-        if (extension != "yaml" && extension != "yml") return false // Not YAML
-        if (path.nameWithoutExtension == "config") return false // Config file
-        return true
     }
 
     private fun toYamlListString(strings: List<String>): String {

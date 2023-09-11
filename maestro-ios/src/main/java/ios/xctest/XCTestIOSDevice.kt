@@ -89,6 +89,14 @@ class XCTestIOSDevice(
         client.pressButton(name).use {}
     }
 
+    override fun addMedia(path: String) {
+        error("Not supported")
+    }
+
+    override fun deleteMedia() {
+        error("Not supported")
+    }
+
     override fun scroll(
         xStart: Double,
         yStart: Double,

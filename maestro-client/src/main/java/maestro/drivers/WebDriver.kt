@@ -10,10 +10,10 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
-import maestro.UiElement
 import maestro.ViewHierarchy
 import maestro.utils.ScreenshotUtils
 import okio.Sink
+import maestro.NamedSource
 import okio.buffer
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
@@ -367,6 +367,14 @@ class WebDriver(val isStudio: Boolean) : Driver {
 
     override fun setPermissions(appId: String, permissions: Map<String, String>) {
         // no-op for web
+    }
+
+    override fun addMedia(mediaFiles: List<File>) {
+        // noop for web
+    }
+
+    override fun removeMedia() {
+        // noop for web
     }
 
     companion object {

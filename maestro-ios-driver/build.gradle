@@ -19,6 +19,7 @@ dependencies {
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.google.truth)
+    implementation "commons-io:commons-io:2.11.0"
 }
 
 java {

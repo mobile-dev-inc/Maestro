@@ -3,7 +3,6 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
-import android.content.Intent
 import android.graphics.Bitmap
 import android.location.Criteria
 import android.location.Location
@@ -46,22 +45,14 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.protobuf.ByteString
+import io.grpc.Status
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
-import maestro_android.MaestroAndroid
-import maestro_android.MaestroDriverGrpc
-import maestro_android.checkWindowUpdatingResponse
-import maestro_android.deviceInfo
-import maestro_android.eraseAllTextResponse
-import maestro_android.inputTextResponse
-import maestro_android.launchAppResponse
-import maestro_android.screenshotResponse
-import maestro_android.setLocationResponse
-import maestro_android.tapResponse
-import maestro_android.viewHierarchyResponse
+import maestro_android.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 import kotlin.system.measureTimeMillis
 
 /**
@@ -215,6 +206,33 @@ class Service(
 
         responseObserver.onNext(tapResponse {})
         responseObserver.onCompleted()
+    }
+
+    override fun addMedia(responseObserver: StreamObserver<MaestroAndroid.AddMediaResponse>): StreamObserver<MaestroAndroid.AddMediaRequest> {
+        return object : StreamObserver<MaestroAndroid.AddMediaRequest> {
+
+            var outputStream: OutputStream? = null
+
+            override fun onNext(value: MaestroAndroid.AddMediaRequest) {
+                if (outputStream == null) {
+                    outputStream = MediaStorage.getOutputStream(
+                        value.mediaName,
+                        value.mediaExt
+                    )
+                }
+                value.payload.data.writeTo(outputStream)
+            }
+
+            override fun onError(t: Throwable) {
+                responseObserver.onError(t.internalError())
+            }
+
+            override fun onCompleted() {
+                responseObserver.onNext(addMediaResponse {  })
+                responseObserver.onCompleted()
+            }
+
+        }
     }
 
     override fun eraseAllText(
@@ -396,7 +414,13 @@ class Service(
         uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
     }
 
-    companion object {
-        private const val LENGTH_KEY_VALUE_PAIR = 2
+    internal fun Throwable.internalError() = Status.INTERNAL.withDescription(message).asException()
+
+    enum class FileType(val ext: String, val mimeType: String) {
+        JPG("jpg", "image/jpg"),
+        JPEG("jpeg", "image/jpeg"),
+        PNG("png", "image/png"),
+        GIF("gif", "image/gif"),
+        MP4("mp4", "video/mp4"),
     }
 }

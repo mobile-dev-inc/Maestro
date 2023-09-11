@@ -1,0 +1,6 @@
+appId: com.apple.mobileslideshow
+---
+- addMedia:
+    - "./maestro-orchestra/src/test/resources/media/assets/sample_video.mp4"
+- launchApp
+- assertVisible: All Photos

@@ -149,4 +149,12 @@ class LocalIOSDevice(
     override fun eraseText(charactersToErase: Int) {
         xcTestDevice.eraseText(charactersToErase)
     }
+
+    override fun addMedia(path: String) {
+        simctlIOSDevice.addMedia(path)
+    }
+
+    override fun deleteMedia() {
+        simctlIOSDevice.deleteMedia()
+    }
 }

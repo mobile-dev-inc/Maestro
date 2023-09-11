@@ -1,0 +1,17 @@
+appId: com.google.android.apps.photos
+---
+- addMedia:
+    - "../assets/sample_video.mp4"
+- launchApp:
+    appId: com.google.android.apps.photos
+- runFlow:
+    when:
+      visible: Update Now
+    commands:
+      - tapOn:
+          text: Update Now
+          optional: true
+      - back
+# assert that photo is taken
+- assertVisible: "Video taken on.*"
+- tapOn: "Video taken on.*"

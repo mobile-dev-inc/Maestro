@@ -29,9 +29,11 @@ import maestro.utils.SocketUtils
 import okio.Sink
 import okio.buffer
 import okio.sink
+import okio.source
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import kotlin.system.measureTimeMillis
 
@@ -45,6 +47,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     private var screenRecordingInProgress = false
+    private var isMediaAdded = false
 
     fun deviceName(): String {
         return driver.name()
@@ -456,6 +459,22 @@ class Maestro(private val driver: Driver) : AutoCloseable {
 
         driver.openLink(link, appId, autoVerify, browser)
         waitForAppToSettle()
+    }
+
+    fun addMedia(fileNames: List<String>) {
+        val mediaFiles = fileNames.map { File(it) }
+        driver.addMedia(mediaFiles)
+        isMediaAdded = true
+    }
+
+    fun removeMedia() {
+        if (isMediaAdded) {
+            driver.removeMedia()
+        }
+    }
+
+    fun shouldResetMedia(): Boolean {
+        return isMediaAdded
     }
 
     override fun close() {

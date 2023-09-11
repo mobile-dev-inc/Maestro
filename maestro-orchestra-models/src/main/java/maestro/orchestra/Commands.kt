@@ -27,6 +27,7 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.util.InputRandomTextHelper
+import java.nio.file.Path
 
 sealed interface Command {
 
@@ -766,6 +767,19 @@ data class StartRecordingCommand(val path: String) : Command {
     override fun evaluateScripts(jsEngine: JsEngine): StartRecordingCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+        )
+    }
+}
+
+data class AddMediaCommand(val mediaPaths: List<String>): Command {
+
+    override fun description(): String {
+        return "Adding media files(${mediaPaths.size}) to the device"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) }
         )
     }
 }

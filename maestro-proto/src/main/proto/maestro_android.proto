@@ -21,6 +21,8 @@ service MaestroDriver {
   rpc isWindowUpdating(CheckWindowUpdatingRequest) returns (CheckWindowUpdatingResponse) {}
 
   rpc launchApp(LaunchAppRequest) returns (LaunchAppResponse) {}
+
+  rpc addMedia(stream AddMediaRequest) returns (AddMediaResponse) {}
 }
 
 message LaunchAppRequest {
@@ -92,4 +94,16 @@ message CheckWindowUpdatingRequest {
 
 message CheckWindowUpdatingResponse {
   bool isWindowUpdating = 1;
+}
+
+message AddMediaRequest {
+  Payload payload = 1;
+  string media_name = 2;
+  string media_ext = 3;
+}
+
+message AddMediaResponse { }
+
+message Payload {
+  bytes data = 1;
 }

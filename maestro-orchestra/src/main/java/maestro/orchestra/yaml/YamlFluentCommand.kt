@@ -20,50 +20,16 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
-import com.fasterxml.jackson.core.JacksonException
-import com.fasterxml.jackson.core.JsonParseException
-import com.fasterxml.jackson.core.JsonProcessingException
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
-import maestro.orchestra.AssertConditionCommand
-import maestro.orchestra.BackPressCommand
-import maestro.orchestra.ClearKeychainCommand
-import maestro.orchestra.Condition
-import maestro.orchestra.CopyTextFromCommand
-import maestro.orchestra.ElementSelector
-import maestro.orchestra.ElementTrait
-import maestro.orchestra.EraseTextCommand
-import maestro.orchestra.EvalScriptCommand
-import maestro.orchestra.HideKeyboardCommand
-import maestro.orchestra.InputRandomCommand
-import maestro.orchestra.InputRandomType
-import maestro.orchestra.InputTextCommand
-import maestro.orchestra.LaunchAppCommand
-import maestro.orchestra.MaestroCommand
-import maestro.orchestra.MaestroConfig
-import maestro.orchestra.OpenLinkCommand
-import maestro.orchestra.PasteTextCommand
-import maestro.orchestra.PressKeyCommand
-import maestro.orchestra.RepeatCommand
-import maestro.orchestra.RunFlowCommand
-import maestro.orchestra.RunScriptCommand
-import maestro.orchestra.ScrollCommand
-import maestro.orchestra.ScrollUntilVisibleCommand
-import maestro.orchestra.SetLocationCommand
-import maestro.orchestra.StartRecordingCommand
-import maestro.orchestra.StopAppCommand
-import maestro.orchestra.StopRecordingCommand
-import maestro.orchestra.SwipeCommand
-import maestro.orchestra.TakeScreenshotCommand
-import maestro.orchestra.TapOnElementCommand
-import maestro.orchestra.TapOnPointV2Command
-import maestro.orchestra.TravelCommand
-import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.*
 import maestro.orchestra.error.InvalidFlowFile
+import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
 import java.nio.file.Path
+import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
@@ -102,6 +68,7 @@ data class YamlFluentCommand(
     val travel: YamlTravelCommand? = null,
     val startRecording: YamlStartRecording? = null,
     val stopRecording: YamlStopRecording? = null,
+    val addMedia: YamlAddMedia? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -135,6 +102,11 @@ data class YamlFluentCommand(
                             scriptCondition = assertTrue,
                         )
                     )
+                )
+            )
+            addMedia != null -> listOf(
+                MaestroCommand(
+                    addMediaCommand = addMediaCommand(addMedia, flowPath)
                 )
             )
             inputText != null -> listOf(MaestroCommand(InputTextCommand(inputText)))
@@ -222,6 +194,28 @@ data class YamlFluentCommand(
             }
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    private fun addMediaCommand(addMedia: YamlAddMedia, flowPath: Path): AddMediaCommand {
+        if (addMedia.files == null || addMedia.files.any { it == null }) {
+            throw SyntaxError("Invalid addMedia command: media files cannot be empty")
+        }
+
+        val mediaPaths = addMedia.files.filterNotNull().map {
+            val path = flowPath.fileSystem.getPath(it)
+
+            val resolvedPath = if (path.isAbsolute) {
+                path
+            } else {
+                flowPath.resolveSibling(path).toAbsolutePath()
+            }
+            if (!resolvedPath.exists()) {
+                throw MediaFileNotFound("Media file at $path in flow file: $flowPath not found", path)
+            }
+            resolvedPath
+        }
+        val mediaAbsolutePathStrings = mediaPaths.mapNotNull { it.absolutePathString() }
+        return AddMediaCommand(mediaAbsolutePathStrings)
     }
 
     private fun runFlowCommand(

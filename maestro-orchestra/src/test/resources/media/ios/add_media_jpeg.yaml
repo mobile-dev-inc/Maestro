@@ -1,0 +1,6 @@
+appId: com.apple.mobileslideshow
+---
+- addMedia:
+    - "../assets/android_jpeg.jpeg"
+- launchApp
+- assertVisible: All Photos

@@ -11,3 +11,5 @@ bin
 
 .idea
 
+# media assets
+maestro-orchestra/src/test/resources/media/assets/*
