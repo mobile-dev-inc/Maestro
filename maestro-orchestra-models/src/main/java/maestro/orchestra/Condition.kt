@@ -8,7 +8,8 @@ data class Condition(
     val platform: Platform? = null,
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
-    val scriptCondition: String? = null
+    val scriptCondition: String? = null,
+    val label: String? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): Condition {
@@ -20,6 +21,10 @@ data class Condition(
     }
 
     fun description(): String {
+        if(label != null){
+            return label
+        }
+
         val descriptions = mutableListOf<String>()
 
         platform?.let {

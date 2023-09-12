@@ -1104,7 +1104,6 @@ class IntegrationTest {
         driver.assertEvents(
             listOf(
                 Event.HideKeyboard,
-                Event.HideKeyboard,
             )
         )
     }
@@ -2347,7 +2346,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `085 - Open link with auto verify`() {
+    fun `Case 085 - Open link with auto verify`() {
         // Given
         val commands = readCommands("085_open_link_auto_verify")
 
@@ -2368,7 +2367,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `086 - launchApp sets all permissions to allow`() {
+    fun `Case 086 - launchApp sets all permissions to allow`() {
         // Given
         val commands = readCommands("086_launchApp_sets_all_permissions_to_allow")
         val driver = driver {}
@@ -2389,7 +2388,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `087 - launchApp with all permissions to deny`() {
+    fun `Case 087 - launchApp with all permissions to deny`() {
         // Given
         val commands = readCommands("087_launchApp_with_all_permissions_to_deny")
         val driver = driver {}
@@ -2410,7 +2409,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `088 - launchApp with all permissions to deny and notification to allow`() {
+    fun `Case 088 - launchApp with all permissions to deny and notification to allow`() {
         // Given
         val commands = readCommands("088_launchApp_with_all_permissions_to_deny_and_notification_to_allow")
         val driver = driver {}
@@ -2431,7 +2430,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `089 - launchApp with SMS permissions`() {
+    fun `Case 089 - launchApp with SMS permissions`() {
         // Given
         val commands = readCommands("089_launchApp_with_sms_permission_group_to_allow")
         val driver = driver {}
@@ -2452,7 +2451,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `090 - Travel`() {
+    fun `Case 090 - Travel`() {
         // Given
         val commands = readCommands("090_travel")
         val driver = driver {}
@@ -2475,7 +2474,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `091 - Assert visible by index`() {
+    fun `Case 091 - Assert visible by index`() {
         // Given
         val commands = readCommands("091_assert_visible_by_index")
         val driver = driver {
@@ -2503,7 +2502,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `092 - Log messages`() {
+    fun `Case 092 - Log messages`() {
         // Given
         val commands = readCommands("092_log_messages")
         val driver = driver {
@@ -2529,7 +2528,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `093 - JS default values`() {
+    fun `Case 093 - JS default values`() {
         // Given
         val commands = readCommands("093_js_default_value")
         val driver = driver {
@@ -2546,7 +2545,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `094 - Subflow with inlined commands`() {
+    fun `Case 094 - Subflow with inlined commands`() {
         // Given
         val commands = readCommands("094_runFlow_inline")
         val driver = driver {
@@ -2562,7 +2561,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `095 - Launch arguments`() {
+    fun `Case 095 - Launch arguments`() {
         // Given
         val commands = readCommands("095_launch_arguments")
         val driver = driver {
@@ -2587,7 +2586,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `096 - platform condition`() {
+    fun `Case 096 - platform condition`() {
         // Given
         val commands = readCommands("096_platform_condition")
         val driver = driver {
