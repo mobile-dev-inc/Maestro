@@ -162,7 +162,12 @@ struct ViewHierarchyHandler: HTTPHandler {
         if try element.snapshot().children.count > 1 {
             return element
         }
-        return try findRecoveryElement(element.children(matching: .other).firstMatch)
+        let firstOtherElement = element.children(matching: .other).firstMatch
+        if (firstOtherElement.exists) {
+            return try findRecoveryElement(firstOtherElement)
+        } else {
+            return element
+        }
     }
 
     private func elementHierarchy(xcuiElement: XCUIElement) throws -> AXElement {
