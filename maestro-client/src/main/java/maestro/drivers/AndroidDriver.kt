@@ -42,10 +42,7 @@ import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.*
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -242,8 +239,12 @@ class AndroidDriver(
             // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
             // Trying to recover once by giving it a bit of time to settle.
 
+            LOGGER.error("Failed to get view hierarchy", ignored)
+
             MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
-            blockingStub.viewHierarchy(viewHierarchyRequest {})
+
+            // If the connection is broken, getting the view hierarchy will wait indefinitely
+            getViewHierarchyWithTimeout() ?: throw ignored
         }
 
         val document = documentBuilderFactory
@@ -251,6 +252,18 @@ class AndroidDriver(
             .parse(response.hierarchy.byteInputStream())
 
         return mapHierarchy(document)
+    }
+
+    private fun getViewHierarchyWithTimeout(): MaestroAndroid.ViewHierarchyResponse? {
+        val future: Future<MaestroAndroid.ViewHierarchyResponse> = Executors.newSingleThreadExecutor().submit<MaestroAndroid.ViewHierarchyResponse> {
+            blockingStub.viewHierarchy(viewHierarchyRequest {})
+        }
+        return try {
+            future.get(5, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            LOGGER.error("Timeout while fetching view hierarchy", e)
+            null
+        }
     }
 
     override fun scrollVertical() {
