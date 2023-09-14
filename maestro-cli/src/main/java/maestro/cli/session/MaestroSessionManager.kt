@@ -48,6 +48,7 @@ import kotlin.system.exitProcess
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
+    private const val defaultXctestHost = "[::1]"
     private const val defaultIdbPort = 10882
     private const val defaultXcTestPort = 22087
 
@@ -276,14 +277,14 @@ object MaestroSessionManager {
         val xcTestInstaller = LocalXCTestInstaller(
             logger = IOSDriverLogger(LocalXCTestInstaller::class.java),
             deviceId = deviceId,
-            host = defaultHost,
+            host = defaultXctestHost,
             defaultPort = defaultXcTestPort
         )
 
         val xcTestDriverClient = XCTestDriverClient(
             installer = xcTestInstaller,
             logger = IOSDriverLogger(XCTestDriverClient::class.java),
-            client = XCTestClient(defaultHost, defaultXcTestPort)
+            client = XCTestClient(defaultXctestHost, defaultXcTestPort)
         )
 
         val xcTestDevice = XCTestIOSDevice(

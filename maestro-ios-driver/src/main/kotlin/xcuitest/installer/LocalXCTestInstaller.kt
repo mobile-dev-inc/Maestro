@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
-    private val host: String = "localhost",
+    private val host: String = "[::1]",
     defaultPort: Int? = null,
 ) : XCTestInstaller {
     // Set this flag to allow using a test runner started from Xcode
@@ -111,7 +111,7 @@ class LocalXCTestInstaller(
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
-                .host("localhost")
+                .host("[::1]")
                 .addPathSegment(pathSegment)
                 .port(port)
         }
