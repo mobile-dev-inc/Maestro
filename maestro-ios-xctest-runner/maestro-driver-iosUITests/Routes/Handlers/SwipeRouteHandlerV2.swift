@@ -10,16 +10,16 @@ struct SwipeRouteHandlerV2: HTTPHandler {
     )
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        let decoder = JSONDecoder()
-
-        guard let requestBody = try? decoder.decode(SwipeRequest.self, from: request.body) else {
-            let errorData = handleError(message: "incorrect request body provided")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+        guard let requestBody = try? JSONDecoder().decode(SwipeRequest.self, from: request.body) else {
+            return AppError(type: .precondition, message: "incorrect request body provided for swipe request v2").httpResponse
         }
-
-        try await swipePrivateAPI(requestBody)
-
-        return HTTPResponse(statusCode: .ok)
+        
+        do {
+            try await swipePrivateAPI(requestBody)
+            return HTTPResponse(statusCode: .ok)
+        } catch let error {
+            return AppError(message: "Swipe v2 request failure. Error: \(error.localizedDescription)").httpResponse
+        }
     }
 
     func swipePrivateAPI(_ request: SwipeRequest) async throws {
@@ -35,13 +35,5 @@ struct SwipeRouteHandlerV2: HTTPHandler {
                     end: request.end,
                     duration: request.duration)
         }
-    }
-
-    private func handleError(message: String) -> Data {
-        logger.error("Failed to swipe - \(message)")
-        let jsonString = """
-         { "errorMessage" : \(message) }
-        """
-        return Data(jsonString.utf8)
     }
 }

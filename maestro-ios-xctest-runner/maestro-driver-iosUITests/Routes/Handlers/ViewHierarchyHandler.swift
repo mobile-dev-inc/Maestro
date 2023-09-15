@@ -19,10 +19,9 @@ struct ViewHierarchyHandler: HTTPHandler {
             return AppError(type: .precondition, message: "incorrect request body provided").httpResponse
         }
 
-        let runningAppIds = requestBody.appIds
-        let app = getForegroundApp(runningAppIds)
-
         do {
+            let runningAppIds = requestBody.appIds
+            let app = getForegroundApp(runningAppIds)
             guard let app = app else {
                 let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
                 let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())

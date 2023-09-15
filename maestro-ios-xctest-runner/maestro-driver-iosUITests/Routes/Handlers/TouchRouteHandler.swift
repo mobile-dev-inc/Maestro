@@ -13,8 +13,7 @@ struct TouchRouteHandler: HTTPHandler {
         let decoder = JSONDecoder()
         
         guard let requestBody = try? decoder.decode(TouchRequest.self, from: request.body) else {
-            let errorData = handleError(message: "incorrect request body provided")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+            return AppError(type: .precondition, message: "incorrect request body provided for tap route").httpResponse
         }
         
         if requestBody.duration != nil {
@@ -22,14 +21,13 @@ struct TouchRouteHandler: HTTPHandler {
         } else {
             logger.info("Tapping \(requestBody.x), \(requestBody.y)")
         }
-        
-        let eventRecord = EventRecord(orientation: .portrait)
-        _ = eventRecord.addPointerTouchEvent(
-            at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)),
-            touchUpAfter: requestBody.duration
-        )
 
         do {
+            let eventRecord = EventRecord(orientation: .portrait)
+            _ = eventRecord.addPointerTouchEvent(
+                at: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)),
+                touchUpAfter: requestBody.duration
+            )
             let start = Date()
             try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
             let duration = Date().timeIntervalSince(start)
@@ -37,16 +35,7 @@ struct TouchRouteHandler: HTTPHandler {
             return HTTPResponse(statusCode: .ok)
         } catch {
             logger.error("Error tapping: \(error)")
-            return HTTPResponse(statusCode: .internalServerError)
+            return AppError(message: "Error tapping point: \(error.localizedDescription)").httpResponse
         }
     }
-    
-    private func handleError(message: String) -> Data {
-        logger.error("Failed to tap - \(message)")
-        let jsonString = """
-         { "errorMessage" : \(message) }
-        """
-        return Data(jsonString.utf8)
-    }
-    
 }

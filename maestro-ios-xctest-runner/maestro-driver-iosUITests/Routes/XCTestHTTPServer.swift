@@ -2,7 +2,6 @@ import FlyingFox
 import Foundation
 
 enum Route: String, CaseIterable {
-    case subTree
     case runningApp
     case swipe
     case swipeV2

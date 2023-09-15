@@ -10,27 +10,16 @@ struct SetPermissionsHandler: HTTPHandler {
     )
     
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
-        let decoder = JSONDecoder()
-        
-        guard let requestBody = try? decoder.decode(SetPermissionsRequest.self, from: request.body) else {
-            let errorData = handleError(message: "incorrect request body provided")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+        guard let requestBody = try? JSONDecoder().decode(SetPermissionsRequest.self, from: request.body) else {
+            return AppError(type: .precondition, message: "incorrect request body provided for set permissions").httpResponse
         }
         
-        if let encoded = try? JSONEncoder().encode(requestBody.permissions) {
-            UserDefaults.standard.set(encoded, forKey: "permissions")
+        do {
+            let permissionsMap = try JSONEncoder().encode(requestBody.permissions)
+            UserDefaults.standard.set(permissionsMap, forKey: "permissions")
             return HTTPResponse(statusCode: .ok)
-        } else {
-            let errorData = handleError(message: "failed to save permissions data")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+        } catch let error {
+            return AppError(message: "Failure in setting permissions. Error: \(error.localizedDescription)").httpResponse
         }
-    }
-    
-    private func handleError(message: String) -> Data {
-        logger.error("Failed to set app permissions - \(message)")
-        let jsonString = """
-         { "errorMessage" : \(message) }
-        """
-        return Data(jsonString.utf8)
     }
 }

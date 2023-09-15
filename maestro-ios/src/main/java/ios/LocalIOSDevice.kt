@@ -1,7 +1,7 @@
 package ios
 
 import com.github.michaelbull.result.*
-import ios.device.DeviceInfo
+import xcuitest.api.DeviceInfo
 import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import okio.Sink
@@ -25,11 +25,11 @@ class LocalIOSDevice(
         xcTestDevice.open()
     }
 
-    override fun deviceInfo(): Result<DeviceInfo, Throwable> {
+    override fun deviceInfo(): DeviceInfo {
         return xcTestDevice.deviceInfo()
     }
 
-    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
+    override fun viewHierarchy(): ViewHierarchy {
         var isViewHierarchyInProgress = true
         val future = executor.schedule(
             {
@@ -52,12 +52,12 @@ class LocalIOSDevice(
         return result
     }
 
-    override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
+    override fun tap(x: Int, y: Int) {
         return xcTestDevice.tap(x, y)
     }
 
-    override fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable> {
-        return xcTestDevice.longPress(x, y, durationMs)
+    override fun longPress(x: Int, y: Int, durationMs: Long) {
+        xcTestDevice.longPress(x, y, durationMs)
     }
 
     override fun pressKey(name: String) {
@@ -74,12 +74,12 @@ class LocalIOSDevice(
         xEnd: Double,
         yEnd: Double,
         duration: Double
-    ): Result<Unit, Throwable> {
-        return xcTestDevice.scrollV2(xStart, yStart, xEnd, yEnd, duration)
+    ) {
+        xcTestDevice.scrollV2(xStart, yStart, xEnd, yEnd, duration)
     }
 
-    override fun input(text: String): Result<Unit, Throwable> {
-        return xcTestDevice.input(text)
+    override fun input(text: String) {
+        xcTestDevice.input(text)
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {
@@ -114,8 +114,8 @@ class LocalIOSDevice(
         return simctlIOSDevice.openLink(link)
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
-        return xcTestDevice.takeScreenshot(out, compressed)
+    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+        xcTestDevice.takeScreenshot(out, compressed)
     }
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
@@ -135,15 +135,13 @@ class LocalIOSDevice(
         simctlIOSDevice.close()
     }
 
-    override fun isScreenStatic(): Result<Boolean, Throwable> {
+    override fun isScreenStatic(): Boolean {
         return xcTestDevice.isScreenStatic()
     }
 
-    override fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable> {
-        return runCatching {
-            simctlIOSDevice.setPermissions(id, permissions).expect { }
-            xcTestDevice.setPermissions(id, permissions).expect { }
-        }
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        simctlIOSDevice.setPermissions(id, permissions)
+        xcTestDevice.setPermissions(id, permissions)
     }
 
     override fun eraseText(charactersToErase: Int) {

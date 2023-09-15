@@ -1,20 +1,17 @@
 package ios.xctest
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
 import ios.IOSDevice
+import ios.IOSDeviceErrors
 import ios.IOSScreenRecording
-import ios.device.DeviceInfo
+import xcuitest.api.DeviceInfo
 import logger.Logger
 import maestro.utils.DepthTracker
+import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.buffer
 import xcuitest.XCTestDriverClient
-import xcuitest.api.GetRunningAppIdResponse
-import xcuitest.api.IsScreenStaticResponse
 import java.io.InputStream
 import java.util.UUID
 
@@ -29,64 +26,49 @@ class XCTestIOSDevice(
         client.restartXCTestRunnerService()
     }
 
-    override fun deviceInfo(): Result<DeviceInfo, Throwable> {
-        return runCatching {
-            client.deviceInfo().use { response ->
-                response.body.use { body ->
-                    val bodyString = body?.bytes()?.let { String(it) }
-                    if (!response.isSuccessful) {
-                        val message = "${response.code} ${response.message} - $bodyString"
-                        logger.info("Device info failed: $message")
-                        return Err(UnknownFailure(message))
-                    }
-
-                    bodyString ?: throw UnknownFailure("Error: response body missing")
-
-                    val deviceInfo = mapper.readValue(bodyString, DeviceInfo::class.java)
-                    logger.info("Device info $deviceInfo")
-
-                    deviceInfo
-                }
-            }
+    override fun deviceInfo(): DeviceInfo {
+        return execute {
+            val deviceInfo = client.deviceInfo()
+            logger.info("Device info $deviceInfo")
+            deviceInfo
         }
     }
 
-    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
-        val installedApps = getInstalledApps()
-        val result = runCatching {
+    override fun viewHierarchy(): ViewHierarchy {
+        return execute {
+            val installedApps = getInstalledApps()
             val viewHierarchy = client.viewHierarchy(installedApps)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.info("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
         }
-        return result
     }
 
-    override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
-        return runCatching {
+    override fun tap(x: Int, y: Int) {
+        execute {
             client.tap(
                 x = x.toFloat(),
                 y = y.toFloat(),
-            ).use {}
+            )
         }
     }
 
-    override fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable> {
-        return runCatching {
+    override fun longPress(x: Int, y: Int, durationMs: Long) {
+        execute {
             client.tap(
                 x = x.toFloat(),
                 y = y.toFloat(),
                 duration = durationMs.toDouble() / 1000
-            ).use {}
+            )
         }
     }
 
     override fun pressKey(name: String) {
-        client.pressKey(name).use {}
+        execute { client.pressKey(name) }
     }
 
     override fun pressButton(name: String) {
-        client.pressButton(name).use {}
+        execute { client.pressButton(name) }
     }
 
     override fun addMedia(path: String) {
@@ -103,16 +85,16 @@ class XCTestIOSDevice(
         xEnd: Double,
         yEnd: Double,
         duration: Double,
-    ): Result<Unit, Throwable> {
-        return runCatching {
+    ) {
+        execute {
             client.swipe(
-                appId = activeAppId() ?: error("Unable to obtain active app id"),
+                appId = activeAppId(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
                 endY = yEnd,
                 duration = duration
-            ).use {}
+            )
         }
     }
 
@@ -122,8 +104,8 @@ class XCTestIOSDevice(
         xEnd: Double,
         yEnd: Double,
         duration: Double,
-    ): Result<Unit, Throwable> {
-        return runCatching {
+    ) {
+        execute {
             client.swipeV2(
                 installedApps = getInstalledApps(),
                 startX = xStart,
@@ -131,24 +113,18 @@ class XCTestIOSDevice(
                 endX = xEnd,
                 endY = yEnd,
                 duration = duration,
-            ).use {}
+            )
         }
     }
 
-    override fun input(text: String): Result<Unit, Throwable> {
-        return runCatching {
-            val appIds = getInstalledApps()
-            client.inputText(
-                text = text,
-                appIds = appIds,
-            ).use {
-                if (!it.isSuccessful) {
-                    if (it.code == 404) {
-                        throw InputFieldNotFound()
-                    }
-                }
-            }
-        }
+    override fun input(text: String) {
+       execute {
+           val appIds = getInstalledApps()
+           client.inputText(
+               text = text,
+               appIds = appIds,
+           )
+       }
     }
 
     override fun install(stream: InputStream): Result<Unit, Throwable> {
@@ -183,22 +159,10 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
-        return runCatching {
-            client.screenshot(compressed).use { response ->
-                response.body.use { body ->
-                    body ?: throw UnknownFailure("Error - body for snapshot request not available")
-
-                    if (response.isSuccessful) {
-                        out.buffer().use {
-                            it.write(body.bytes())
-                        }
-                    } else {
-                        val errorResponse = String(body.bytes()).trim()
-                        throw UnknownFailure(errorResponse)
-                    }
-                }
-            }
+    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+        execute {
+            val bytes = client.screenshot(compressed)
+            out.buffer().use { it.write(bytes) }
         }
     }
 
@@ -218,95 +182,57 @@ class XCTestIOSDevice(
         client.close()
     }
 
-    override fun isScreenStatic(): Result<Boolean, Throwable> {
-        return runCatching {
-            client.isScreenStatic().use { response ->
-                response.body.use { body ->
-                    body ?: throw UnknownFailure("Error - body for isScreenStatic request not available")
-
-                    if (response.isSuccessful) {
-                        val responseBody: IsScreenStaticResponse = mapper.readValue(
-                            String(body.bytes()),
-                            IsScreenStaticResponse::class.java
-                        )
-                        val isScreenStatic = responseBody.isScreenStatic
-                        logger.info("Screen diff request finished with isScreenStatic = $isScreenStatic")
-                        isScreenStatic
-                    } else {
-                        val errorResponse = String(body.bytes()).trim()
-                        logger.info("Screen diff request failed with error = $errorResponse")
-                        throw UnknownFailure(errorResponse)
-                    }
-                }
-            }
+    override fun isScreenStatic(): Boolean {
+        return execute {
+            val isScreenStatic = client.isScreenStatic().isScreenStatic
+            logger.info("Screen diff request finished with isScreenStatic = $isScreenStatic")
+            isScreenStatic
         }
     }
 
-    override fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable> {
-        return runCatching {
-            val mutable = permissions.toMutableMap()
-            if (mutable.containsKey("all")) {
-                val value = mutable.remove("all")
-                allPermissions.forEach {
-                    when (value) {
-                        "allow" -> mutable.putIfAbsent(it, "allow")
-                        "deny" -> mutable.putIfAbsent(it, "deny")
-                        "unset" -> mutable.putIfAbsent(it, "unset")
-                        else -> throw IllegalArgumentException("Permission 'all' can be set to 'allow', 'deny' or 'unset', not '$value'")
-                    }
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        val mutable = permissions.toMutableMap()
+        if (mutable.containsKey("all")) {
+            val value = mutable.remove("all")
+            allPermissions.forEach {
+                when (value) {
+                    "allow" -> mutable.putIfAbsent(it, "allow")
+                    "deny" -> mutable.putIfAbsent(it, "deny")
+                    "unset" -> mutable.putIfAbsent(it, "unset")
+                    else -> throw IllegalArgumentException("Permission 'all' can be set to 'allow', 'deny' or 'unset', not '$value'")
                 }
             }
-
-            client.setPermissions(mutable)
         }
+
+        execute { client.setPermissions(mutable) }
     }
 
     override fun eraseText(charactersToErase: Int) {
         val appIds = getInstalledApps()
-        client.eraseText(charactersToErase, appIds).use {}
+        execute { client.eraseText(charactersToErase, appIds) }
     }
 
-    private fun activeAppId(): String? {
-        val appIds = getInstalledApps()
-        logger.info("installed apps: $appIds")
+    private fun activeAppId(): String {
+        return execute {
+            val appIds = getInstalledApps()
+            logger.info("installed apps: $appIds")
 
-        return client.runningAppId(appIds).use { response ->
-            response.body.use { body ->
-                val runningAppBundleId = if (response.isSuccessful) {
-                    body?.let {
-                        val responseBody: GetRunningAppIdResponse = mapper.readValue(
-                            String(it.bytes()),
-                            GetRunningAppIdResponse::class.java
-                        )
-                        val runningAppId = responseBody.runningAppBundleId
-                        logger.info("Running app id response received $runningAppId")
-                        runningAppId
-                    }
-                } else {
-                    val bodyString = response.body?.let { String(it.bytes()) } ?: ""
-                    val code = response.code
-                    logger.info("request to resolve running app id failed with exception - Code: $code Body: $bodyString")
-
-                    return null
-                }
-
-                logger.info("found running app id $runningAppBundleId")
-
-                runningAppBundleId
-            }
+            client.runningAppId(appIds).runningAppBundleId
         }
     }
 
-    class IllegalArgumentSnapshotFailure : Throwable("Failed to capture view hierarchy due to kAXErrorIllegalArgument")
-    class InputFieldNotFound : Throwable("Unable to find focused input field")
-    class UnknownFailure(errorResponse: String) : Throwable(errorResponse)
+    private fun <T> execute(call: () -> T): T {
+        return try {
+            call()
+        } catch (appCrashException: XCUITestServerError.AppCrash) {
+            throw IOSDeviceErrors.AppCrash(
+                "App crashed, please check diagnostic logs: " +
+                        "~/Library/Logs/DiagnosticReports directory"
+            )
+        }
+    }
 
     companion object {
-
-        private const val VIEW_HIERARCHY_SNAPSHOT_ERROR_CODE = "illegal-argument-snapshot-failure"
-
-        private val mapper by lazy { jacksonObjectMapper() }
-
         private val allPermissions = listOf(
             "notifications"
         )

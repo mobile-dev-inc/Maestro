@@ -6,7 +6,7 @@ import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
 import ios.IOSDevice
 import ios.IOSScreenRecording
-import ios.device.DeviceInfo
+import xcuitest.api.DeviceInfo
 import okio.Sink
 import okio.buffer
 import okio.source
@@ -27,19 +27,19 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun deviceInfo(): Result<DeviceInfo, Throwable> {
+    override fun deviceInfo(): DeviceInfo {
         TODO("Not yet implemented")
     }
 
-    override fun viewHierarchy(): Result<ViewHierarchy, Throwable> {
+    override fun viewHierarchy(): ViewHierarchy {
         TODO("Not yet implemented")
     }
 
-    override fun tap(x: Int, y: Int): Result<Unit, Throwable> {
+    override fun tap(x: Int, y: Int) {
         TODO("Not yet implemented")
     }
 
-    override fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable> {
+    override fun longPress(x: Int, y: Int, durationMs: Long) {
         TODO("Not yet implemented")
     }
 
@@ -51,11 +51,11 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun scroll(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double): Result<Unit, Throwable> {
+    override fun scroll(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double) {
         TODO("Not yet implemented")
     }
 
-    override fun input(text: String): Result<Unit, Throwable> {
+    override fun input(text: String) {
         TODO("Not yet implemented")
     }
 
@@ -110,7 +110,7 @@ class SimctlIOSDevice(
         }
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable> {
+    override fun takeScreenshot(out: Sink, compressed: Boolean) {
         TODO("Not yet implemented")
     }
 
@@ -170,14 +170,12 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun isScreenStatic(): Result<Boolean, Throwable> {
+    override fun isScreenStatic(): Boolean {
         TODO("Not yet implemented")
     }
 
-    override fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable> {
-        return runCatching {
-            LocalSimulatorUtils.setPermissions(deviceId, id, permissions)
-        }
+    override fun setPermissions(id: String, permissions: Map<String, String>) {
+        LocalSimulatorUtils.setPermissions(deviceId, id, permissions)
     }
 
     override fun eraseText(charactersToErase: Int) {

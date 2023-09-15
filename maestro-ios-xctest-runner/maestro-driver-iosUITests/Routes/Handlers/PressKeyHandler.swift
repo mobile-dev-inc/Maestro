@@ -14,24 +14,19 @@ struct PressKeyHandler: HTTPHandler {
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         guard let requestBody = try? JSONDecoder().decode(PressKeyRequest.self, from: request.body) else {
-            let errorData = handleError(message: "incorrect request body provided")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+            return AppError(type: .precondition, message: "Incorrect request body for press key handler").httpResponse
         }
 
-        var eventPath = PointerEventPath.pathForTextInput()
-        eventPath.type(text: requestBody.xctestKey, typingSpeed: typingFrequency)
-        let eventRecord = EventRecord(orientation: .portrait)
-        _ = eventRecord.add(eventPath)
-        try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+        do {
+            var eventPath = PointerEventPath.pathForTextInput()
+            eventPath.type(text: requestBody.xctestKey, typingSpeed: typingFrequency)
+            let eventRecord = EventRecord(orientation: .portrait)
+            _ = eventRecord.add(eventPath)
+            try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
 
-        return HTTPResponse(statusCode: .ok)
-    }
-
-    private func handleError(message: String) -> Data {
-        logger.error("Failed - \(message)")
-        let jsonString = """
-         { "errorMessage" : \(message) }
-        """
-        return Data(jsonString.utf8)
+            return HTTPResponse(statusCode: .ok)
+        } catch let error {
+            return AppError(message: "Press key handler failed, error: \(error.localizedDescription)").httpResponse
+        }
     }
 }

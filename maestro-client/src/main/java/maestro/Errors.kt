@@ -29,6 +29,8 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 
     class UnableToPushState(message: String) : MaestroException(message)
 
+    class AppCrash(message: String): MaestroException(message)
+
     open class AssertionFailure(
         message: String,
         val hierarchyRoot: TreeNode,

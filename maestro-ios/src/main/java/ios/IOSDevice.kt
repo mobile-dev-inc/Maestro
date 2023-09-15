@@ -20,11 +20,9 @@
 package ios
 
 import com.github.michaelbull.result.Result
-import hierarchy.AXElement
 import hierarchy.ViewHierarchy
-import ios.device.DeviceInfo
+import xcuitest.api.DeviceInfo
 import okio.Sink
-import java.io.File
 import java.io.InputStream
 import java.util.UUID
 
@@ -34,13 +32,13 @@ interface IOSDevice : AutoCloseable {
 
     fun open()
 
-    fun deviceInfo(): Result<DeviceInfo, Throwable>
+    fun deviceInfo(): DeviceInfo
 
-    fun viewHierarchy(): Result<ViewHierarchy, Throwable>
+    fun viewHierarchy(): ViewHierarchy
 
-    fun tap(x: Int, y: Int): Result<Unit, Throwable>
+    fun tap(x: Int, y: Int)
 
-    fun longPress(x: Int, y: Int, durationMs: Long): Result<Unit, Throwable>
+    fun longPress(x: Int, y: Int, durationMs: Long)
 
     fun scroll(
         xStart: Double,
@@ -48,14 +46,12 @@ interface IOSDevice : AutoCloseable {
         xEnd: Double,
         yEnd: Double,
         duration: Double,
-    ): Result<Unit, Throwable>
+    )
 
     /**
      * Inputs text into the currently focused element.
      */
-    fun input(
-        text: String,
-    ): Result<Unit, Throwable>
+    fun input(text: String)
 
     /**
      * Installs application on the device.
@@ -116,7 +112,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param out - output sink
      */
-    fun takeScreenshot(out: Sink, compressed: Boolean): Result<Unit, Throwable>
+    fun takeScreenshot(out: Sink, compressed: Boolean)
 
     /**
      * Start a screen recording
@@ -141,9 +137,9 @@ interface IOSDevice : AutoCloseable {
     /**
      * @return false if 2 consequent screenshots are equal, true if screen is static
      */
-    fun isScreenStatic(): Result<Boolean, Throwable>
+    fun isScreenStatic(): Boolean
 
-    fun setPermissions(id: String, permissions: Map<String, String>): Result<Unit, Throwable>
+    fun setPermissions(id: String, permissions: Map<String, String>)
 
     fun pressKey(name: String)
 

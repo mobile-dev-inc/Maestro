@@ -1,9 +1,11 @@
 package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import xcuitest.api.Error
 import hierarchy.ViewHierarchy
-import maestro.api.GetRunningAppRequest
+import xcuitest.api.GetRunningAppRequest
 import logger.Logger
+import maestro.utils.network.XCUITestServerError
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -18,7 +20,6 @@ import xcuitest.api.NetworkErrorHandler.Companion.RETRY_RESPONSE_CODE
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.KClass
 
 class XCTestDriverClient(
     private val installer: XCTestInstaller,
@@ -68,40 +69,32 @@ class XCTestDriverClient(
     private val mapper = jacksonObjectMapper()
 
     fun viewHierarchy(installedApps: Set<String>): ViewHierarchy {
-        return executeJsonRequest(
+        val responseString = executeJsonRequest(
             "viewHierarchy",
-            ViewHierarchyRequest(installedApps),
-            ViewHierarchy::class
+            ViewHierarchyRequest(installedApps)
         )
+        return mapper.readValue(responseString, ViewHierarchy::class.java)
     }
 
-    fun screenshot(compressed: Boolean): Response {
+    fun screenshot(compressed: Boolean): ByteArray {
         val url = client.xctestAPIBuilder("screenshot")
             .addQueryParameter("compressed", compressed.toString())
             .build()
 
-        val request = Request.Builder()
-            .get()
-            .url(url)
-            .build()
-
-        return okHttpClient.newCall(request).execute()
+        return executeJsonRequest(url)
     }
 
-    fun isScreenStatic(): Response {
-        val url = client.xctestAPIBuilder("isScreenStatic")
-            .build()
-
-        val request = Request.Builder()
-            .get()
-            .url(url)
-            .build()
-
-        return okHttpClient.newCall(request).execute()
+    fun isScreenStatic(): IsScreenStaticResponse {
+        val responseString = executeJsonRequest("isScreenStatic")
+        return mapper.readValue(responseString, IsScreenStaticResponse::class.java)
     }
 
-    fun runningAppId(appIds: Set<String>): Response {
-        return executeJsonRequestUNCHECKED("runningApp", GetRunningAppRequest(appIds))
+    fun runningAppId(appIds: Set<String>): GetRunningAppIdResponse {
+        val response = executeJsonRequest(
+            "runningApp",
+            GetRunningAppRequest(appIds)
+        )
+        return mapper.readValue(response, GetRunningAppIdResponse::class.java)
     }
 
     fun swipe(
@@ -111,9 +104,9 @@ class XCTestDriverClient(
         endX: Double,
         endY: Double,
         duration: Double,
-    ): Response {
-        return executeJsonRequestUNCHECKED(
-            "swipe", SwipeRequest(
+    ) {
+        executeJsonRequest("swipe",
+            SwipeRequest(
                 appId = appId,
                 startX = startX,
                 startY = startY,
@@ -131,50 +124,53 @@ class XCTestDriverClient(
         endX: Double,
         endY: Double,
         duration: Double,
-    ): Response {
-        return executeJsonRequestUNCHECKED("swipeV2", SwipeRequest(
-            startX = startX,
-            startY = startY,
-            endX = endX,
-            endY = endY,
-            duration = duration,
-            appIds = installedApps
-        ))
+    ) {
+        executeJsonRequest("swipeV2",
+            SwipeRequest(
+                startX = startX,
+                startY = startY,
+                endX = endX,
+                endY = endY,
+                duration = duration,
+                appIds = installedApps
+            )
+        )
     }
 
     fun inputText(
         text: String,
         appIds: Set<String>,
-    ): Response {
-        return executeJsonRequestUNCHECKED("inputText", InputTextRequest(text, appIds))
+    ) {
+        executeJsonRequest("inputText", InputTextRequest(text, appIds))
     }
 
     fun tap(
         x: Float,
         y: Float,
         duration: Double? = null,
-    ): Response {
-        return executeJsonRequestUNCHECKED("touch", TouchRequest(
+    ) {
+        executeJsonRequest("touch", TouchRequest(
             x = x,
             y = y,
             duration = duration
         ))
     }
 
-    fun pressKey(name: String): Response {
-        return executeJsonRequestUNCHECKED("pressKey", PressKeyRequest(name))
+    fun pressKey(name: String) {
+        executeJsonRequest("pressKey", PressKeyRequest(name))
     }
 
-    fun pressButton(name: String): Response {
-        return executeJsonRequestUNCHECKED("pressButton", PressButtonRequest(name))
+    fun pressButton(name: String) {
+        executeJsonRequest("pressButton", PressButtonRequest(name))
     }
 
-    fun eraseText(charactersToErase: Int, appIds: Set<String>): Response {
-        return executeJsonRequestUNCHECKED("eraseText", EraseTextRequest(charactersToErase, appIds))
+    fun eraseText(charactersToErase: Int, appIds: Set<String>) {
+        executeJsonRequest("eraseText", EraseTextRequest(charactersToErase, appIds))
     }
 
-    fun deviceInfo(httpUrl: HttpUrl = client.xctestAPIBuilder("deviceInfo").build()): Response {
-        return executeJsonRequestUNCHECKED(httpUrl, Unit)
+    fun deviceInfo(httpUrl: HttpUrl = client.xctestAPIBuilder("deviceInfo").build()): DeviceInfo {
+        val response = executeJsonRequest(httpUrl, Unit)
+        return mapper.readValue(response, DeviceInfo::class.java)
     }
 
     fun isChannelAlive(): Boolean {
@@ -185,26 +181,11 @@ class XCTestDriverClient(
         installer.close()
     }
 
-    fun setPermissions(permissions: Map<String, String>): Response {
-        val response = executeJsonRequestUNCHECKED("setPermissions", SetPermissionsRequest(permissions))
-        return response.use { it }
+    fun setPermissions(permissions: Map<String, String>) {
+        executeJsonRequest("setPermissions", SetPermissionsRequest(permissions))
     }
 
-    private fun executeJsonRequestUNCHECKED(pathSegment: String, body: Any): Response {
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
-
-        val requestBuilder = Request.Builder()
-            .addHeader("Content-Type", "application/json")
-            .url(client.xctestAPIBuilder(pathSegment).build())
-            .post(bodyData)
-
-        return okHttpClient
-            .newCall(requestBuilder.build())
-            .execute()
-    }
-
-    private fun executeJsonRequestUNCHECKED(httpUrl: HttpUrl, body: Any): Response {
+    private fun executeJsonRequest(httpUrl: HttpUrl, body: Any): String {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
 
@@ -215,32 +196,107 @@ class XCTestDriverClient(
 
         return okHttpClient
             .newCall(requestBuilder.build())
-            .execute()
+            .execute().use { processResponse(it, httpUrl.toString()) }
     }
 
-    private fun executeJsonRequest(url: String, body: Any): Response {
-        val response = executeJsonRequestUNCHECKED(url, body)
+    private fun executeJsonRequest(httpUrl: HttpUrl): ByteArray {
+        val request = Request.Builder()
+            .get()
+            .url(httpUrl)
+            .build()
 
-        if (!response.isSuccessful) {
-            val responseBodyAsString = response.body?.bytes()?.let {
-                String(it)
+        return okHttpClient
+            .newCall(request)
+            .execute().use {
+                val bytes = it.body?.bytes() ?: ByteArray(0)
+                if (!it.isSuccessful) {
+                    //handle exception
+                    val responseBodyAsString = String(bytes)
+                    handleExceptions(it.code, request.url.pathSegments.first(), responseBodyAsString)
+                }
+                bytes
             }
-            val code = response.code
-            logger.error("Request for $url failed, status code ${code}, body: $responseBodyAsString")
-            error("Request for $url failed, status code ${code}, body: $responseBodyAsString")
-        }
-
-        return response
     }
 
-    private inline fun <reified T: Any> executeJsonRequest(url: String, body: Any, type: KClass<T>): T {
-        val response = executeJsonRequest(url, body)
+    private fun executeJsonRequest(pathSegment: String, body: Any): String {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
 
-        return response.body.use { responseBody ->
-            responseBody ?: error("Missing response body for mapping to $type")
+        val requestBuilder = Request.Builder()
+            .addHeader("Content-Type", "application/json")
+            .url(client.xctestAPIBuilder(pathSegment).build())
+            .post(bodyData)
 
-            mapper.readValue(responseBody.bytes(), T::class.java)
-                ?: error("Response body '${String(responseBody.bytes()).take(10)}...' not mappable to $type")
+        return okHttpClient
+            .newCall(requestBuilder.build())
+            .execute().use { processResponse(it, pathSegment) }
+    }
+
+    private fun executeJsonRequest(pathSegment: String): String {
+        val requestBuilder = Request.Builder()
+            .url(client.xctestAPIBuilder(pathSegment).build())
+            .get()
+
+        return okHttpClient
+            .newCall(requestBuilder.build())
+            .execute().use { processResponse(it, pathSegment) }
+    }
+
+    private fun processResponse(response: Response, url: String): String {
+        val responseBodyAsString = response.body?.bytes()?.let { bytes -> String(bytes) } ?: ""
+
+        return if (!response.isSuccessful) {
+            val code = response.code
+            handleExceptions(code, url, responseBodyAsString)
+        } else {
+            responseBodyAsString
+        }
+    }
+
+    private fun handleExceptions(
+        code: Int,
+        pathString: String,
+        responseBodyAsString: String,
+    ): String {
+        val error = mapper.readValue(responseBodyAsString, Error::class.java)
+        when {
+            code in 400..499 -> {
+                logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
+                throw XCUITestServerError.BadRequest(
+                    "Request for $pathString failed with bad request ${code}, body: $responseBodyAsString",
+                    responseBodyAsString
+                )
+            }
+            code == NetworkErrorHandler.NO_RETRY_RESPONSE_CODE -> {
+                logger.error("Request for $pathString failed, because of XCUITest server got crashed/exit, body: $responseBodyAsString")
+                throw XCUITestServerError.NetworkError(
+                    "Request for $pathString failed, because of XCUITest server got crashed/exit, body: $responseBodyAsString"
+                )
+            }
+            error.errorMessage.contains("Lost connection to the application.*".toRegex()) -> {
+                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
+                throw XCUITestServerError.AppCrash(
+                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                )
+            }
+            error.errorMessage.contains("Application [a-zA-Z0-9.]+ is not running".toRegex()) -> {
+                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
+                throw XCUITestServerError.AppCrash(
+                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                )
+            }
+            error.errorMessage.contains("Error getting main window kAXErrorCannotComplete") -> {
+                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
+                throw XCUITestServerError.AppCrash(
+                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                )
+            }
+            else -> {
+                logger.error("Request for $pathString failed, because of unknown reason, body: $responseBodyAsString")
+                throw XCUITestServerError.UnknownFailure(
+                    "Request for $pathString failed, code: ${code}, body: $responseBodyAsString"
+                )
+            }
         }
     }
 

@@ -16,18 +16,9 @@ struct ScreenshotHandler: HTTPHandler {
         let image = compressed ? fullScreenshot.image.jpegData(compressionQuality: 0.5) : fullScreenshot.pngRepresentation
         
         guard let image = image else {
-            let errorData = handleError(message: "no image data received from screenshot() operation")
-            return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
+            return AppError(type: .precondition, message: "incorrect request body received for screenshot request").httpResponse
         }
         
         return HTTPResponse(statusCode: .ok, body: image)
-    }
-    
-    private func handleError(message: String) -> Data {
-        logger.error("Failed to capture simulator's screenshot - \(message)")
-        let jsonString = """
-         { "errorMessage" : \(message) }
-        """
-        return Data(jsonString.utf8)
     }
 }

@@ -13,7 +13,7 @@ struct EraseTextHandler: HTTPHandler {
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         guard let requestBody = try? JSONDecoder().decode(EraseTextRequest.self, from: request.body) else {
-            return errorResponse(message: "incorrect request body provided")
+            return AppError(type: .precondition, message: "incorrect request body for erase text request").httpResponse
         }
         
         do {
@@ -29,21 +29,10 @@ struct EraseTextHandler: HTTPHandler {
             let duration = Date().timeIntervalSince(start)
             logger.info("Erase text duration took \(duration)")
             return HTTPResponse(statusCode: .ok)
-        } catch {
+        } catch let error {
             logger.error("Error erasing text of \(requestBody.charactersToErase) characters: \(error)")
-            return errorResponse(message: "internal error")
+            return AppError(message: "Failure in doing erase text, error: \(error.localizedDescription)").httpResponse
         }
-
-        return HTTPResponse(statusCode: .ok)
-    }
-    
-    private func errorResponse(message: String) -> HTTPResponse {
-        logger.error("Failed to erase text - \(message)")
-        let jsonString = """
-         { "errorMessage" : \(message) }
-        """
-        let errorData = Data(jsonString.utf8)
-        return HTTPResponse(statusCode: HTTPStatusCode.badRequest, body: errorData)
     }
     
     private func waitUntilKeyboardIsPresented(appId: String?) async {

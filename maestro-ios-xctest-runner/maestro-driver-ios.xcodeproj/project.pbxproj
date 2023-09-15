@@ -48,7 +48,6 @@
 		941AE8EF2A77D4B20097C02A /* TimeoutHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */; };
 		94256BAD298D39DE00CDB55D /* ScreenDiffHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */; };
 		943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */; };
-		943A9084293F5CC400C85136 /* SubTreeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */; };
 		943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */; };
 		945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */; };
 		945DD44D29D6F73B004D8ECF /* SetPermissionsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */; };
@@ -114,7 +113,6 @@
 		941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeoutHelper.swift; sourceTree = "<group>"; };
 		94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDiffHandler.swift; sourceTree = "<group>"; };
 		943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteHandlerFactory.swift; sourceTree = "<group>"; };
-		943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubTreeRouteHandler.swift; sourceTree = "<group>"; };
 		943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningAppRouteHandler.swift; sourceTree = "<group>"; };
 		945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetPermissionsRequest.swift; sourceTree = "<group>"; };
 		945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetPermissionsHandler.swift; sourceTree = "<group>"; };
@@ -245,7 +243,6 @@
 		943A9082293F5CA700C85136 /* Handlers */ = {
 			isa = PBXGroup;
 			children = (
-				943A9083293F5CC400C85136 /* SubTreeRouteHandler.swift */,
 				610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
@@ -418,7 +415,6 @@
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
 				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
 				52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */,
-				943A9084293F5CC400C85136 /* SubTreeRouteHandler.swift in Sources */,
 				945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */,
 				613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */,
 				94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */,
