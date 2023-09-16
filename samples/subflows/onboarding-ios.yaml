@@ -1,14 +1,11 @@
 appId: org.wikimedia.wikipedia
 ---
-- launchApp:
-    clearState: true
-- swipe:
-    direction: LEFT
-    duration: 400
-- swipe:
-    direction: LEFT
-    duration: 400
-- swipe:
-    direction: LEFT
-    duration: 400
+- launchApp
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          direction: LEFT
+          duration: 400
+      - waitForAnimationToEnd
 - tapOn: Get started
