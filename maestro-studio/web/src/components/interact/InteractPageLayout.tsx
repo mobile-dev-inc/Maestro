@@ -3,7 +3,6 @@ import clsx from "clsx";
 
 import InteractableDevice from "../device-and-device-elements/InteractableDevice";
 import ReplView from "../commands/ReplView";
-import { API } from "../../api/api";
 import ActionModal from "../device-and-device-elements/ActionModal";
 import { Button } from "../design-system/button";
 import { CommandExample } from "../../helpers/commandExample";
@@ -11,6 +10,7 @@ import ElementsPanel from "../device-and-device-elements/ElementsPanel";
 import DeviceWrapperAspectRatio from "../device-and-device-elements/DeviceWrapperAspectRatio";
 import { useDeviceContext } from "../../context/DeviceContext";
 import { Spinner } from "../design-system/spinner";
+import { useRepl } from '../../context/ReplContext';
 
 const InteractPageLayout = () => {
   const {
@@ -20,6 +20,7 @@ const InteractPageLayout = () => {
     setInspectedElement,
     setCurrentCommandValue,
   } = useDeviceContext();
+  const { runCommandYaml } = useRepl();
 
   const [showElementsPanel, setShowElementsPanel] = useState<boolean>(false);
 
@@ -36,10 +37,10 @@ const InteractPageLayout = () => {
     }, 0);
   };
 
-  const onRun = (example: CommandExample) => {
+  const onRun = async (example: CommandExample) => {
     if (example.status === "unavailable") return;
-    API.repl.runCommand(example.content);
     setInspectedElement(null);
+    await runCommandYaml(example.content);
   };
 
   if (isLoading)

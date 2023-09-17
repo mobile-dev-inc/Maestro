@@ -35,6 +35,7 @@
     "swr": "^2.1.5",
     "tailwind-merge": "^1.13.2",
     "typescript": "^4.9.3",
+    "uuid": "^9.0.0",
     "web-vitals": "^2.1.4",
     "yaml": "^2.2.1"
   },
@@ -88,6 +89,7 @@
     "@storybook/testing-library": "^0.0.13",
     "@types/file-saver": "^2.0.5",
     "@types/react-beautiful-dnd": "^13.1.4",
+    "@types/uuid": "^9.0.3",
     "autoprefixer": "^10.4.13",
     "babel-plugin-named-exports-order": "^0.0.2",
     "msw": "^0.0.0-fetch.rc-16",

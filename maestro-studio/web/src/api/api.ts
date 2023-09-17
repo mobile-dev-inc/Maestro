@@ -1,27 +1,14 @@
 import _ from "lodash";
 import {
+  AiResponseType,
+  AuthType,
   BannerMessage,
   DeviceScreen,
   FormattedFlow,
-  MockEvent,
-  Repl,
-  ReplCommand,
-  ViewHeirarchyType,
-  AiResponseType,
-  AuthType,
+  ViewHierarchyType,
 } from "../helpers/models";
-import useSWR, { mutate, SWRConfiguration, SWRResponse } from "swr";
+import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import useSWRSubscription, { SWRSubscriptionResponse } from "swr/subscription";
-
-export type ReplResponse = {
-  repl?: Repl;
-  error?: any;
-};
-
-type GetMockDataResponse = {
-  projectId: string;
-  events: MockEvent[];
-};
 
 export class HttpError extends Error {
   constructor(public status: number, public message: string) {
@@ -82,11 +69,6 @@ const useSse = <T>(url: string): SWRSubscriptionResponse<T> => {
   });
 };
 
-const useRepl = (): ReplResponse => {
-  const { data: repl, error } = useSse<Repl>("/api/repl/sse");
-  return { repl, error };
-};
-
 const useDeviceScreen = (): { deviceScreen?: DeviceScreen; error?: any } => {
   const { data: deviceScreen, error } = useSse<DeviceScreen>(
     "/api/device-screen/sse"
@@ -94,18 +76,7 @@ const useDeviceScreen = (): { deviceScreen?: DeviceScreen; error?: any } => {
   return { deviceScreen, error };
 };
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
 export const API = {
-  useAuthToken: (
-    config?: SWRConfiguration<string | null>
-  ): SWRResponse<string | null> => {
-    return useSWR(
-      "/api/auth-token",
-      () => makeRequest("GET", "/api/auth-token", undefined, "text"),
-      config
-    );
-  },
   useAuth: (config?: SWRConfiguration<AuthType>): SWRResponse<AuthType> => {
     return useSWR(
       "/api/auth-token",
@@ -123,47 +94,13 @@ export const API = {
       config
     );
   },
-  repl: {
-    useRepl,
-    runCommand: async (yaml: string): Promise<Repl> => {
-      return makeRequest("POST", "/api/repl/command", { yaml });
-    },
-    runCommandsById: async (ids: string[]): Promise<Repl> => {
-      return makeRequest("POST", "/api/repl/command", { ids });
-    },
-    deleteCommands: async (ids: string[]): Promise<Repl> => {
-      return makeRequest("DELETE", "/api/repl/command", { ids });
-    },
-    reorderCommands: async (ids: string[]) => {
-      makeRequest("POST", "/api/repl/command/reorder", { ids });
-      mutate<Repl>(
-        "/api/repl/sse",
-        (repl) => {
-          if (!repl) return undefined;
-          const newCommands: ReplCommand[] = [];
-          const idsAsSet = new Set(ids);
-          repl.commands
-            .filter((c) => !!c && idsAsSet.has(c.id))
-            .forEach((c) => newCommands.push(c));
-          return { ...repl, commands: newCommands };
-        },
-        {
-          revalidate: false,
-        }
-      );
-    },
-    formatFlow: async (ids: string[]): Promise<FormattedFlow> => {
-      return makeRequest("POST", "/api/repl/command/format", { ids });
-    },
+  runCommand: async (yaml: string, dryRun?: boolean): Promise<void> => {
+    await makeRequest("POST", "/api/run-command", { yaml, dryRun });
   },
-  useMockData: (config?: SWRConfiguration) => {
-    return useSWR<GetMockDataResponse>(
-      "/api/mock-server/data",
-      fetcher,
-      config
-    );
+  formatFlow: async (commands: string[]): Promise<FormattedFlow> => {
+    return makeRequest("POST", "/api/format-flow", { commands });
   },
-  lastViewHeirarchy: async (): Promise<ViewHeirarchyType> => {
+  lastViewHierarchy: async (): Promise<ViewHierarchyType> => {
     return makeRequest("GET", "/api/last-view-hierarchy");
   },
   saveOpenAiToken: async (token: string) => {

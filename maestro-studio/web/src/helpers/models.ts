@@ -54,19 +54,6 @@ export type FormattedFlow = {
   commands: string;
 };
 
-export type MockEvent = {
-  timestamp: string;
-  path: string;
-  matched: boolean;
-  response: any;
-  statusCode: number;
-  method: string;
-  sessionId: string;
-  projectId: string;
-  bodyAsString?: string;
-  headers?: { [key: string]: string };
-};
-
 export type BannerMessage = {
   level: "info" | "warning" | "error" | "none";
   message: string;
@@ -86,13 +73,13 @@ export type AttributesType = {
   value?: string;
 };
 
-export type ViewHeirarchyType = {
+export type ViewHierarchyType = {
   attributes: AttributesType;
   checked: boolean;
   enabled: boolean;
   focused: boolean;
   selected: boolean;
-  children?: ViewHeirarchyType[];
+  children?: ViewHierarchyType[];
 };
 
 export type AiResponseType = {

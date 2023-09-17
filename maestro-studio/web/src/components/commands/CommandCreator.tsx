@@ -121,7 +121,7 @@ const AiInput = () => {
     e.preventDefault();
     setFormStates({ isLoading: true, error: null });
     try {
-      const viewHeir = await API.lastViewHeirarchy();
+      const viewHeir = await API.lastViewHierarchy();
       const response = await API.generateCommandWithAI({
         screen: viewHeir,
         userInput,

@@ -16,13 +16,31 @@ import maestro.orchestra.Orchestra
 import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
+import maestro.orchestra.MaestroCommand
+import maestro.orchestra.yaml.YamlCommandReader
+import maestro.orchestra.yaml.YamlFluentCommand
 
-object DeviceScreenService {
+private data class RunCommandRequest(
+    val yaml: String,
+    val dryRun: Boolean?,
+)
+
+private data class FormatCommandsRequest(
+    val commands: List<String>,
+)
+
+private data class FormattedFlow(
+    val config: String,
+    val commands: String,
+)
+
+object DeviceService {
 
     private const val MAX_SCREENSHOTS = 10
 
@@ -33,6 +51,29 @@ object DeviceScreenService {
     private var lastViewHierarchy: TreeNode? = null
 
     fun routes(routing: Routing, maestro: Maestro) {
+        routing.post("/api/run-command") {
+            val request = call.parseBody<RunCommandRequest>()
+            try {
+                val commands = YamlCommandReader.MAPPER.readValue(request.yaml, YamlFluentCommand::class.java)
+                    .toCommands(Paths.get(""), "")
+                if (request.dryRun != true) {
+                    executeCommands(maestro, commands)
+                }
+                val response = jacksonObjectMapper().writeValueAsString(commands)
+                call.respond(response)
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, e.message ?: "Failed to run command")
+            }
+        }
+        routing.post("/api/format-flow") {
+            val request = call.parseBody<FormatCommandsRequest>()
+            val commands = request.commands.map { YamlCommandReader.MAPPER.readValue(it, YamlFluentCommand::class.java).toCommands(Paths.get(""), "") }
+            val inferredAppId = commands.flatten().firstNotNullOfOrNull { it.launchAppCommand?.appId }
+            val commandsString = YamlCommandReader.MAPPER.writeValueAsString(request.commands.map { YamlCommandReader.MAPPER.readTree(it) })
+            val formattedFlow = FormattedFlow("appId: $inferredAppId", commandsString)
+            val response = jacksonObjectMapper().writeValueAsString(formattedFlow)
+            call.respondText(response)
+        }
         // Ktor SSE sample project: https://github.com/ktorio/ktor-samples/blob/main/sse/src/main/kotlin/io/ktor/samples/sse/SseApplication.kt
         routing.get("/api/device-screen/sse") {
             call.response.cacheControl(CacheControl.NoCache(null))
@@ -57,6 +98,16 @@ object DeviceScreenService {
             files(".")
         }
     }
+
+    private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>): Throwable? {
+        var failure: Throwable? = null
+        val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
+            failure = throwable
+            Orchestra.ErrorResolution.FAIL
+        }).executeCommands(commands)
+        return if (result) null else (failure ?: RuntimeException("Command execution failed"))
+    }
+
     private fun treeToElements(tree: TreeNode): List<UIElement> {
         fun gatherElements(tree: TreeNode, list: MutableList<TreeNode>): List<TreeNode> {
             tree.children.forEach { child ->
@@ -117,7 +168,7 @@ object DeviceScreenService {
     private fun getDeviceScreen(maestro: Maestro): String {
         val tree: TreeNode
         val screenshotFile: File
-        synchronized(DeviceScreenService) {
+        synchronized(DeviceService) {
             tree = maestro.viewHierarchy().root
             lastViewHierarchy = tree
             screenshotFile = takeScreenshot(maestro)

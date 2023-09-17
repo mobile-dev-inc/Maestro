@@ -1,10 +1,10 @@
 import React, { MouseEventHandler, useState } from "react";
 import { DivProps } from "../../helpers/models";
-import { API } from "../../api/api";
 import { AnnotatedScreenshot } from "./AnnotatedScreenshot";
 import { isHotkeyPressed } from "react-hotkeys-hook";
 import { useDeviceContext } from "../../context/DeviceContext";
 import clsx from "clsx";
+import { useRepl } from '../../context/ReplContext';
 
 const useMetaKeyDown = () => {
   return isHotkeyPressed("meta");
@@ -16,14 +16,15 @@ export default function InteractableDevice({
   enableGestureControl?: boolean;
 }) {
   const { deviceScreen } = useDeviceContext();
+  const { runCommandYaml } = useRepl();
   const metaKeyDown = useMetaKeyDown();
 
-  const onTapGesture = (x: number, y: number) => {
-    API.repl.runCommand(`- tapOn:
+  const onTapGesture = async (x: number, y: number) => {
+    await runCommandYaml(`- tapOn:
     point: "${Math.round(100 * x)}%,${Math.round(100 * y)}%"`);
   };
 
-  const onSwipeGesture = (
+  const onSwipeGesture = async (
     startX: number,
     startY: number,
     endX: number,
@@ -34,7 +35,7 @@ export default function InteractableDevice({
     const startYPercent = Math.round(startY * 100);
     const endXPercent = Math.round(endX * 100);
     const endYPercent = Math.round(endY * 100);
-    API.repl.runCommand(`
+    await runCommandYaml(`
       swipe:
         start: "${startXPercent}%,${startYPercent}%"
         end: "${endXPercent}%,${endYPercent}%"

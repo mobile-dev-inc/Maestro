@@ -7,6 +7,7 @@ import ReplHeader from "./ReplHeader";
 import CommandList from "./CommandList";
 import CommandCreator from "./CommandCreator";
 import { useDeviceContext } from "../../context/DeviceContext";
+import { useRepl } from '../../context/ReplContext';
 
 const getFlowText = (selected: ReplCommand[]): string => {
   return selected
@@ -17,11 +18,10 @@ const getFlowText = (selected: ReplCommand[]): string => {
 const ReplView = () => {
   const { currentCommandValue, setCurrentCommandValue } = useDeviceContext();
   const listRef = useRef<HTMLElement>();
-  const [replError, setReplError] = useState<string | null>(null);
   const [_selected, setSelected] = useState<string[]>([]);
   const [formattedFlow, setFormattedFlow] =
     useState<FormattedFlow | null>(null);
-  const { error, repl } = API.repl.useRepl();
+  const { repl, errorMessage, setErrorMessage, reorderCommands, deleteCommands, runCommandYaml, runCommandIds } = useRepl();
   const listSize = repl?.commands.length || 0;
   const previousListSize = useRef(0);
 
@@ -34,10 +34,6 @@ const ReplView = () => {
     previousListSize.current = listSize;
   }, [listSize]);
 
-  if (error) {
-    return <div>Error fetching repl</div>;
-  }
-
   if (!repl) {
     return null;
   }
@@ -47,31 +43,29 @@ const ReplView = () => {
     .filter((c): c is ReplCommand => !!c);
   const selectedIds = selectedCommands.map((c) => c.id);
 
-  const runCommand = async () => {
+  // TODO handle invalid yaml
+  const onCommandSubmit = async () => {
     if (!currentCommandValue) return;
-    setReplError(null);
-    try {
-      await API.repl.runCommand(currentCommandValue);
-      setCurrentCommandValue("");
-    } catch (e: any) {
-      setReplError(e.message || "Failed to run command");
-    }
+    const success = await runCommandYaml(currentCommandValue);
+    if (success) setCurrentCommandValue('');
   };
 
   const onReorder = (newOrder: ReplCommand[]) => {
-    API.repl.reorderCommands(newOrder.map((c) => c.id));
+    reorderCommands(newOrder.map((c) => c.id));
   };
 
-  const onPlay = () => {
-    API.repl.runCommandsById(selectedIds);
+  const onPlay = async () => {
+    await runCommandIds(selectedIds);
   };
 
   const onExport = () => {
     if (selectedIds.length === 0) return;
-    API.repl.formatFlow(selectedIds).then(setFormattedFlow);
+    const commands = selectedIds.map(id => repl.commands.find(command => command.id === id)?.yaml).filter(Boolean) as string[]
+    API.formatFlow(commands).then(setFormattedFlow);
   };
+
   const onDelete = () => {
-    API.repl.deleteCommands(selectedIds);
+    deleteCommands(selectedIds);
   };
 
   const flowText = getFlowText(selectedCommands);
@@ -110,9 +104,9 @@ const ReplView = () => {
               />
             </div>
             <CommandCreator
-              onSubmit={runCommand}
-              error={replError}
-              setError={setReplError}
+              onSubmit={onCommandSubmit}
+              error={errorMessage}
+              setError={setErrorMessage}
             />
           </div>
         </div>
@@ -130,9 +124,9 @@ const ReplView = () => {
             </p>
           </div>
           <CommandCreator
-            onSubmit={runCommand}
-            error={replError}
-            setError={setReplError}
+            onSubmit={onCommandSubmit}
+            error={errorMessage}
+            setError={setErrorMessage}
           />
         </div>
       )}
