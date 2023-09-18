@@ -151,8 +151,4 @@ class LocalIOSDevice(
     override fun addMedia(path: String) {
         simctlIOSDevice.addMedia(path)
     }
-
-    override fun deleteMedia() {
-        simctlIOSDevice.deleteMedia()
-    }
 }

@@ -30,7 +30,7 @@ class AndroidMediaStoreTest {
 
         // then
         val exists = dadb.fileExists(expectedMediaPath)
-        assertThat(exists).isFalse()
+        assertThat(exists).isTrue()
     }
 
     @Test
@@ -48,9 +48,9 @@ class AndroidMediaStoreTest {
         val pngExists = dadb.fileExists("/sdcard/Pictures/android.png")
         val gifExists = dadb.fileExists("/sdcard/Pictures/android_gif.gif")
         val mp4Exists = dadb.fileExists("/sdcard/Movies/sample_video.mp4")
-        assertThat(pngExists).isFalse()
-        assertThat(mp4Exists).isFalse()
-        assertThat(gifExists).isFalse()
+        assertThat(pngExists).isTrue()
+        assertThat(mp4Exists).isTrue()
+        assertThat(gifExists).isTrue()
     }
 
     companion object {

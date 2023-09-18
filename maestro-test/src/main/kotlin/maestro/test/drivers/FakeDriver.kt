@@ -369,12 +369,6 @@ class FakeDriver : Driver {
         mediaFiles.forEach { _ -> events.add(Event.AddMedia) }
     }
 
-    override fun removeMedia() {
-        ensureOpen()
-
-        events.add(Event.DeleteMedia)
-    }
-
     sealed class Event {
 
         data class Tap(
@@ -459,8 +453,6 @@ class FakeDriver : Driver {
         ) : Event()
 
         object AddMedia : Event()
-
-        object DeleteMedia: Event()
 
         object StartRecording : Event()
 

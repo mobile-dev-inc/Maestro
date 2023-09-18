@@ -449,14 +449,6 @@ class IOSDriver(
         iosDevice.addMedia(namedSource.path)
     }
 
-    override fun removeMedia() {
-        runCatching {
-            LOGGER.info("[Start] Deleting media files")
-            iosDevice.deleteMedia()
-            LOGGER.info("[Done] Deleting media files")
-        }
-    }
-
     private fun isScreenStatic(): Boolean {
         return runDeviceCall { iosDevice.isScreenStatic() }
     }

@@ -75,10 +75,6 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun deleteMedia() {
-        error("Not supported")
-    }
-
     override fun scroll(
         xStart: Double,
         yStart: Double,

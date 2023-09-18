@@ -601,16 +601,6 @@ class AndroidDriver(
         responseObserver.awaitResult()
     }
 
-    override fun removeMedia() {
-        runCatching {
-            LOGGER.info("[Start] Removing media files")
-            dadb.shell("rm -rf /sdcard/Pictures/*")
-            dadb.shell("rm -rf /sdcard/Movies/*")
-            dadb.shell("rm -rf /sdcard/Music/*")
-            LOGGER.info("[Done] Removing media files")
-        }
-    }
-
     private fun setAllPermissions(appId: String, permissionValue: String) {
         val permissionsResult = runCatching {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)

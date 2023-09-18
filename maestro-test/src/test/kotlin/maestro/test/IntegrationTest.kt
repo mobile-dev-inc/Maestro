@@ -2976,7 +2976,7 @@ class IntegrationTest {
         }
 
         // then
-        driver.assertEvents(listOf(Event.AddMedia, Event.DeleteMedia))
+        driver.assertEvents(listOf(Event.AddMedia))
     }
 
     @Test
@@ -2991,7 +2991,7 @@ class IntegrationTest {
         }
 
         // then
-        driver.assertEvents(listOf(Event.AddMedia, Event.AddMedia, Event.AddMedia, Event.DeleteMedia))
+        driver.assertEvents(listOf(Event.AddMedia, Event.AddMedia, Event.AddMedia))
     }
 
     private fun orchestra(

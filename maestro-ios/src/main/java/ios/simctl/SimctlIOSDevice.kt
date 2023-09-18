@@ -143,21 +143,7 @@ class SimctlIOSDevice(
     }
 
     override fun addMedia(path: String) {
-        backupSimulatorMedia()
         LocalSimulatorUtils.addMedia(deviceId, path)
-    }
-
-    private fun backupSimulatorMedia() {
-        if (!LocalSimulatorUtils.photoDataBackupExists()) {
-            LocalSimulatorUtils.backupPhotosDataDir(deviceId)
-        }
-        if (!LocalSimulatorUtils.dcimBackupExists()) {
-            LocalSimulatorUtils.backupDcimDir(deviceId)
-        }
-    }
-
-    override fun deleteMedia() {
-        LocalSimulatorUtils.removeMedia(deviceId)
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {

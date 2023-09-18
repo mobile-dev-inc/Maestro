@@ -47,7 +47,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     }
 
     private var screenRecordingInProgress = false
-    private var isMediaAdded = false
 
     fun deviceName(): String {
         return driver.name()
@@ -464,17 +463,6 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun addMedia(fileNames: List<String>) {
         val mediaFiles = fileNames.map { File(it) }
         driver.addMedia(mediaFiles)
-        isMediaAdded = true
-    }
-
-    fun removeMedia() {
-        if (isMediaAdded) {
-            driver.removeMedia()
-        }
-    }
-
-    fun shouldResetMedia(): Boolean {
-        return isMediaAdded
     }
 
     override fun close() {
