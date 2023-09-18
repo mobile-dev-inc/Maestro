@@ -347,7 +347,9 @@ data class AssertConditionCommand(
     val label: String? = null,
 ) : Command {
 
-    fun timeoutMs() = timeout?.toLong()
+    fun timeoutMs(): Long? {
+        return timeout?.replace("_", "")?.toLong()
+    }
 
     override fun description(): String {
         return label ?: "Assert that ${condition.description()}"
