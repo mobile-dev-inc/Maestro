@@ -533,6 +533,43 @@ internal class YamlCommandReaderTest {
         )
     }
 
+    @Test
+    fun commands_with_string_non_string(@YamlFile("024_string_non_string_commands.yaml") commands: List<Command>,) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(
+                config= MaestroConfig(appId= "com.example.app")
+            ),
+            InputTextCommand(text = "correct horse battery staple"),
+            InputTextCommand(text = "correct horse battery staple"),
+            InputTextCommand(text = "4"),
+            InputTextCommand(text = "false"),
+            InputTextCommand(text = "1683113805263"),
+            InputTextCommand(text = "4.12"),
+            AssertConditionCommand(
+                condition = Condition(
+                    scriptCondition = "true"
+                )
+            ),
+            AssertConditionCommand(
+                condition = Condition(
+                    scriptCondition = "323"
+                )
+            ),
+            EvalScriptCommand(
+                scriptString = "true"
+            ),
+            EvalScriptCommand(
+                scriptString = "2 + 1"
+            ),
+            EvalScriptCommand(
+                scriptString = "2"
+            ),
+            EvalScriptCommand(
+                scriptString = "false == false"
+            )
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }

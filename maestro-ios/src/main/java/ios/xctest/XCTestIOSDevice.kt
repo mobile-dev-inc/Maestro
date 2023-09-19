@@ -222,7 +222,7 @@ class XCTestIOSDevice(
             call()
         } catch (appCrashException: XCUITestServerError.AppCrash) {
             throw IOSDeviceErrors.AppCrash(
-                "App crashed, please check diagnostic logs: " +
+                "App crashed or stopped while executing flow, please check diagnostic logs for any existing crash: " +
                         "~/Library/Logs/DiagnosticReports directory"
             )
         }
