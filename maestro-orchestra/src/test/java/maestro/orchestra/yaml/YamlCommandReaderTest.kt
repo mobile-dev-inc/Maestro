@@ -566,7 +566,34 @@ internal class YamlCommandReaderTest {
             ),
             EvalScriptCommand(
                 scriptString = "false == false"
-            )
+            ),
+            TapOnElementCommand(
+                ElementSelector(
+                    textRegex = "Hello",
+                ),
+                retryIfNoChange = true,
+                waitUntilVisible = false,
+                longPress = false
+            ),
+            TapOnElementCommand(
+                selector = ElementSelector(textRegex = "Hello"),
+                repeat = TapRepeat(2, TapOnElementCommand.DEFAULT_REPEAT_DELAY),
+                retryIfNoChange = true,
+                waitUntilVisible = false,
+                longPress = false
+            ),
+            TapOnElementCommand(
+                selector = ElementSelector(textRegex = "Hello"),
+                longPress = true,
+                retryIfNoChange = true,
+                waitUntilVisible = false
+            ),
+            AssertConditionCommand(
+                condition = Condition(
+                    visible = ElementSelector(textRegex = "Hello"),
+                ),
+            ),
+            CopyTextFromCommand(ElementSelector(textRegex = "Hello"))
         )
     }
 

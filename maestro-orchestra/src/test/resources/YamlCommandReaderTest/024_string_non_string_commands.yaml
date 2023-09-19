@@ -12,3 +12,8 @@ appId: com.example.app
 - evalScript: 2 + 1
 - evalScript: 2
 - evalScript: false == false
+- tapOn: "Hello"
+- doubleTapOn: "Hello"
+- longPressOn: "Hello"
+- assertVisible: "Hello"
+- copyTextFrom: "Hello"
