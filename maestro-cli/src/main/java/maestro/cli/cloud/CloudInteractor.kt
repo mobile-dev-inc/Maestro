@@ -253,7 +253,7 @@ class CloudInteractor(
         val displayedMin = TimeUnit.MILLISECONDS.toMinutes(waitTimeoutMs)
 
         PrintUtils.warn("Waiting for flows to complete has timed out ($displayedMin minutes)")
-        PrintUtils.warn("* To extend the timeout, run maestro with this option `maestro cloud --result-wait-timeout=<timeout in minutes>`")
+        PrintUtils.warn("* To extend the timeout, run maestro with this option `maestro cloud --timeout=<timeout in minutes>`")
 
         PrintUtils.warn("* Follow the results of your upload here:\n$consoleUrl")
 
