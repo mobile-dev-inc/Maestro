@@ -19,7 +19,6 @@ internal class MaestroCommandSerializationTest {
                 retryIfNoChange = false,
                 waitUntilVisible = true,
                 longPress = false,
-                label = "My Tap"
             )
         )
 
@@ -38,8 +37,7 @@ internal class MaestroCommandSerializationTest {
                 },
                 "retryIfNoChange" : false,
                 "waitUntilVisible" : true,
-                "longPress" : false,
-                "label" : "My Tap"
+                "longPress" : false
               }
             }
           """.trimIndent()
@@ -60,7 +58,6 @@ internal class MaestroCommandSerializationTest {
                 retryIfNoChange = false,
                 waitUntilVisible = true,
                 longPress = false,
-                label = "My TapOnPoint"
             )
         )
 
@@ -77,8 +74,7 @@ internal class MaestroCommandSerializationTest {
                 "y" : 100,
                 "retryIfNoChange" : false,
                 "waitUntilVisible" : true,
-                "longPress" : false,
-                "label" : "My TapOnPoint"
+                "longPress" : false
               }
             }
           """.trimIndent()
@@ -96,7 +92,6 @@ internal class MaestroCommandSerializationTest {
                 point = "20,30",
                 retryIfNoChange = false,
                 longPress = false,
-                label = "My TapOnPointV2"
             )
         )
 
@@ -111,8 +106,7 @@ internal class MaestroCommandSerializationTest {
               "tapOnPointV2Command" : {
                 "point" : "20,30",
                 "retryIfNoChange" : false,
-                "longPress" : false,
-                "label" : "My TapOnPointV2"
+                "longPress" : false
               }
             }
           """.trimIndent()

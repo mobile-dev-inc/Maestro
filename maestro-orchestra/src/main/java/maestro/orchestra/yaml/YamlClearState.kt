@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlClearState(
     val appId: String? = null,
-    val label: String? = null,
 ) {
     companion object {
         @JvmStatic
