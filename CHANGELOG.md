@@ -1,6 +1,19 @@
 # Changelog
 
-## 1.32.0 - 20223-09-06
+## 1.33.0 - 2023-09-21
+
+- Feature: Adds MAESTRO_DRIVER_STARTUP_TIMEOUT to iOS driver to configure timeout to start iOS driver, used in CI/CD environment with performance limitations. Thanks, Jesse Farsong for contributing.
+- Feature: Introducing the "addMedia" command that enables adding images and videos directly to the devices.
+- Change: Improved Studio's user interface:
+   - Updated fonts to align with company branding.
+   - Introduced a distinct loading animation for better clarity when AI is processing commands.
+- Fix: Crash resulting in Error: No matches found for first query match sequence: `Children matching type Other` due to resolving root element for a snapshot operation on iOS
+- Fix: Android driver getting stuck when the device was disconnected
+- Fix: XCTestUnreachable exceptions due to missing IPv6 config on /etc/hosts
+- Fix: Handling app crash errors from XCUITest drivers gracefully  
+- Fix: Timeouts can be separated with `_`. For example 10_000 for 10000
+
+## 1.32.0 - 2023-09-06
 
 Studio
 - Feature: Support writing Flows using AI (more info to come 🚀)
