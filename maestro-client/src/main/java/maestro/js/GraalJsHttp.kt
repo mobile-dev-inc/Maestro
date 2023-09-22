@@ -1,11 +1,11 @@
 package maestro.js
 
+import maestro.utils.HttpUtils.toMultipartBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.graalvm.polyglot.HostAccess.Export
-import org.graalvm.polyglot.proxy.ProxyArray
 import org.graalvm.polyglot.proxy.ProxyObject
 
 class GraalJsHttp(
@@ -71,8 +71,13 @@ class GraalJsHttp(
             .url(url)
 
         val body = params?.get("body") as? String
+        val multipartForm = params?.get("multipartForm") as? Map<*, *>
 
-        requestBuilder.method(method, body?.toRequestBody())
+        if (multipartForm == null) {
+            requestBuilder.method(method, body?.toRequestBody())
+        } else {
+            requestBuilder.method(method, multipartForm.toMultipartBody())
+        }
 
         val headers: Map<*, *> = params?.get("headers") as? Map<*, *> ?: emptyMap<Any, Any>()
 

@@ -1,5 +1,6 @@
 package maestro.js
 
+import maestro.utils.HttpUtils.toMultipartBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -79,8 +80,13 @@ class JsHttp(
                     it.toString()
                 }
             }
+        val multipartForm = params?.get("multipartForm") as? Map<*, *>
 
-        requestBuilder.method(method, body?.toRequestBody())
+        if (multipartForm == null) {
+            requestBuilder.method(method, body?.toRequestBody())
+        } else {
+            requestBuilder.method(method, multipartForm.toMultipartBody())
+        }
 
         params
             ?.get("headers")

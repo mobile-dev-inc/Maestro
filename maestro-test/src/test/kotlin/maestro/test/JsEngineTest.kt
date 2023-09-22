@@ -9,6 +9,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.stubFor
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo
 import com.github.tomakehurst.wiremock.junit5.WireMockTest
+import com.github.tomakehurst.wiremock.matching.MultipartValuePatternBuilder
 import com.google.common.net.HttpHeaders
 import com.google.common.truth.Truth.assertThat
 import maestro.js.JsEngine
@@ -207,5 +208,49 @@ abstract class JsEngineTest {
 
         // Then
         assertThat(result.toString()).isEqualTo("GET Endpoint application/json first,second")
+    }
+
+    @Test
+    fun `HTTP - Make POST request with multipart form`(wiremockInfo: WireMockRuntimeInfo) {
+        // Given
+        val port = wiremockInfo.httpPort
+        stubFor(
+            post("/json")
+                .withMultipartRequestBody(
+                    MultipartValuePatternBuilder("uploadType")
+                        .withBody(equalTo("import"))
+                )
+                .withMultipartRequestBody(
+                    MultipartValuePatternBuilder("data")
+                )
+                .willReturn(
+                    okJson(
+                        """
+                            {
+                                "message": "POST endpoint"
+                            }
+                        """.trimIndent()
+                    )
+                )
+        )
+
+        val script = """
+            var response = http.post('http://localhost:$port/json', {
+                multipartForm: {
+                    "uploadType": "import",
+                    "data": {
+                        "filePath": filePath
+                    }
+                }
+            });
+
+            json(response.body).message
+        """.trimIndent()
+
+        // When
+        val result = engine.evaluateScript(script)
+
+        // Then
+        assertThat(result.toString()).isEqualTo("POST endpoint")
     }
 }
