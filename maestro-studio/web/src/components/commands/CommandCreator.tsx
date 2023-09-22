@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useDeviceContext } from "../../context/DeviceContext";
 import AuthModal from "../common/AuthModal";
 import { Button } from "../design-system/button";
-import { Input, InputHint, InputWrapper } from "../design-system/input";
+import { Input, InputHint, InputWrapper, TextArea } from "../design-system/input";
 import { AiSparkles, EnterKey } from "../design-system/utils/images";
 import CommandInput from "./CommandInput";
 import { API } from "../../api/api";
@@ -75,7 +75,7 @@ export default function CommandCreator({
  * Default Placed Input
  ************************************************/
 const DefaultInput = () => {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { currentCommandValue, setCurrentCommandValue } = useDeviceContext();
 
   useEffect(() => {
@@ -83,11 +83,13 @@ const DefaultInput = () => {
   }, []);
 
   return (
-    <Input
+    <TextArea
       ref={inputRef}
       placeholder="Press ‘space’ for AI, or type commands…"
       value={currentCommandValue}
       onChange={(e) => setCurrentCommandValue(e.target.value)}
+      rows={1}
+      resize="none"
     />
   );
 };
