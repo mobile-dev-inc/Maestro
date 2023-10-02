@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.33.1 - 2023-10-03
+- Feature: support for multipart form data file upload in Javascript, thanks @maciejkrolik
+- Fix: setPermissions produces error on Xcode 15
+- Fix: Maestro studio - include enter key in command editor on initial paste
+
 ## 1.33.0 - 2023-09-21
 
 - Feature: Adds MAESTRO_DRIVER_STARTUP_TIMEOUT to iOS driver to configure timeout to start iOS driver, used in CI/CD environment with performance limitations. Thanks, Jesse Farsong for contributing.
