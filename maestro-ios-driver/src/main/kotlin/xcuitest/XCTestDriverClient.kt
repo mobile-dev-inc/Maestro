@@ -291,6 +291,12 @@ class XCTestDriverClient(
                     "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
                 )
             }
+            error.errorMessage.contains("Error getting main window.*".toRegex()) -> {
+                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
+                throw XCUITestServerError.AppCrash(
+                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                )
+            }
             else -> {
                 logger.error("Request for $pathString failed, because of unknown reason, body: $responseBodyAsString")
                 throw XCUITestServerError.UnknownFailure(

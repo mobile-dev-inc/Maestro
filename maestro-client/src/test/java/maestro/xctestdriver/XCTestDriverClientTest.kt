@@ -213,7 +213,8 @@ class XCTestDriverClientTest {
             return arrayOf(
                 "Application com.app.id is not running",
                 "Lost connection to the application (pid 19985).",
-                "Error getting main window kAXErrorCannotComplete"
+                "Error getting main window kAXErrorCannotComplete",
+                "Error getting main window Unknown kAXError value -25218"
             )
         }
     }
