@@ -81,12 +81,6 @@ object XCRunnerCLIUtils {
         )
     }
 
-    fun ensureAppAlive(bundleId: String, deviceId: String) {
-        MaestroTimer.retryUntilTrue(timeoutMs = 4000, delayMs = 300) {
-            isAppAlive(bundleId, deviceId)
-        }
-    }
-
     private fun runningApps(deviceId: String): Map<String, Int?> {
         val process = ProcessBuilder(
             "xcrun",
