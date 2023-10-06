@@ -4,6 +4,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.workspace.ExecutionOrderPlanner.getFlowsToRunInSequence
 import maestro.orchestra.yaml.YamlCommandReader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -32,7 +33,7 @@ object WorkspaceExecutionPlanner {
 
         // retrieve all Flow files
 
-        val unfilteredFlowFiles = Files.walk(input).filter{ isFlowFile(it) }.toList()
+        val unfilteredFlowFiles = Files.walk(input).filter { isFlowFile(it) }.toList()
         if (unfilteredFlowFiles.isEmpty()) {
             throw ValidationError("""
                 Flow directory does not contain any Flow files: ${input.absolutePathString()}
@@ -94,7 +95,13 @@ object WorkspaceExecutionPlanner {
 
         // Handle sequential execution
 
-        val flowsToRunInSequence = getFlowsToRunInSequence(allFlows, configPerFlowFile, workspaceConfig) ?: emptyList()
+        val pathsByName = allFlows.associateBy {
+            val config = configPerFlowFile[it]
+            (config?.name ?: parseFileName(it))
+        }
+        val flowsToRunInSequence = workspaceConfig.executionOrder?.flowsOrder?.let {
+            getFlowsToRunInSequence(pathsByName, it)
+        } ?: emptyList()
         var normalFlows = allFlows - flowsToRunInSequence.toSet()
 
         if (workspaceConfig.local?.deterministicOrder == true) {
@@ -130,40 +137,21 @@ object WorkspaceExecutionPlanner {
                 .takeIf { it.exists() }
     }
 
-    private fun parseFileName(file: Path): String {
-        return file.fileName.toString().substringBeforeLast(".")
-    }
-
-    private fun getFlowsToRunInSequence(
-        list: List<Path>,
-        configPerFlowFile: Map<Path, MaestroConfig?>,
-        workspaceConfig: WorkspaceConfig)
-    : List<Path>? {
-        if (workspaceConfig.executionOrder?.flowsOrder?.isNotEmpty() == true) {
-            val flowsOrder = workspaceConfig.executionOrder?.flowsOrder!!.distinct()
-
-            return flowsOrder.map { flowName ->
-                list.find {
-                    val config = configPerFlowFile[it]
-                    val name = config?.name ?: parseFileName(it)
-                    flowName == name
-                } ?: error("Could not find Flow with name $flowName")
-            }
-        }
-        return null
-    }
-
     private fun toYamlListString(strings: List<String>): String {
         return strings.joinToString("\n") { "- $it" }
     }
 
+    private fun parseFileName(file: Path): String {
+        return file.fileName.toString().substringBeforeLast(".")
+    }
+
     data class FlowSequence(
         val flows: List<Path>,
-        val continueOnFailure: Boolean? = true
+        val continueOnFailure: Boolean? = true,
     )
 
     data class ExecutionPlan(
         val flowsToRun: List<Path>,
-        val sequence: FlowSequence? = null
+        val sequence: FlowSequence? = null,
     )
 }
