@@ -23,7 +23,8 @@ enum class KeyCode(
     REMOTE_NEXT("Remote Media Next"),
     REMOTE_PREVIOUS("Remote Media Previous"),
     REMOTE_REWIND("Remote Media Rewind"),
-    REMOTE_FAST_FORWARD("Remote Media Fast Forward");
+    REMOTE_FAST_FORWARD("Remote Media Fast Forward"),
+    POWER("Power");
 
     companion object {
         fun getByName(name: String): KeyCode? {

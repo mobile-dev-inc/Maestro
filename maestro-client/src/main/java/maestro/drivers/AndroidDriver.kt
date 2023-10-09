@@ -226,6 +226,7 @@ class AndroidDriver(
             KeyCode.REMOTE_PREVIOUS -> 88
             KeyCode.REMOTE_REWIND -> 89
             KeyCode.REMOTE_FAST_FORWARD -> 90
+            KeyCode.POWER -> 26
         }
 
         dadb.shell("input keyevent $intCode")

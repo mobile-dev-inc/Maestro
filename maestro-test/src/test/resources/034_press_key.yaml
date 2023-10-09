@@ -18,3 +18,4 @@ appId: com.example.app
 - pressKey: Remote Media Previous
 - pressKey: REMOTE MEDIA REWIND
 - pressKey: Remote Media Fast Forward
+- pressKey: power
