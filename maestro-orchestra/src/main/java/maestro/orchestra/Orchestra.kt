@@ -19,14 +19,8 @@
 
 package maestro.orchestra
 
-import maestro.DeviceInfo
-import maestro.ElementFilter
-import maestro.Filters
+import maestro.*
 import maestro.Filters.asFilter
-import maestro.FindElementResult
-import maestro.Maestro
-import maestro.MaestroException
-import maestro.ScreenRecording
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
@@ -36,7 +30,6 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
-import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -47,7 +40,6 @@ import okio.sink
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Files
-import java.nio.file.Path
 
 class Orchestra(
     private val maestro: Maestro,
@@ -395,14 +387,24 @@ class Orchestra(
         val endTime = System.currentTimeMillis() + command.timeout
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
+
+        var retryCenterCount = 0
+        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
+
         do {
             try {
                 val element = findElement(command.selector, 500).element
                 val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
-                if (visibility >= command.visibilityPercentageNormalized) {
+
+                if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
+                    if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
+                        return true
+                    }
+                    retryCenterCount++
+                }
+                else if (visibility >= command.visibilityPercentageNormalized) {
                     return true
                 }
-
             } catch (ignored: MaestroException.ElementNotFound) {
             }
             maestro.swipeFromCenter(direction, durationMs = command.scrollDuration)

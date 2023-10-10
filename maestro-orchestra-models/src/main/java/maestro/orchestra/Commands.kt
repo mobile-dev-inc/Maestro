@@ -94,7 +94,8 @@ data class ScrollUntilVisibleCommand(
     val direction: ScrollDirection,
     val scrollDuration: Long,
     val visibilityPercentage: Int,
-    val timeout: Long = DEFAULT_TIMEOUT_IN_MILLIS
+    val timeout: Long = DEFAULT_TIMEOUT_IN_MILLIS,
+    val centerElement: Boolean
 ) : Command {
 
     val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
@@ -113,6 +114,7 @@ data class ScrollUntilVisibleCommand(
         const val DEFAULT_TIMEOUT_IN_MILLIS = 20 * 1000L
         const val DEFAULT_SCROLL_DURATION = 40
         const val DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE = 100
+        const val DEFAULT_CENTER_ELEMENT = false
     }
 }
 
