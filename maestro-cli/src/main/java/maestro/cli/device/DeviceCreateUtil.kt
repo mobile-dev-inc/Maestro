@@ -5,21 +5,28 @@ import maestro.cli.util.*
 
 internal object DeviceCreateUtil {
 
-    fun getOrCreateDevice(platform: Platform, osVersion: Int?, forceCreate: Boolean): Device.AvailableForLaunch {
+    fun getOrCreateDevice(platform: Platform,
+                          osVersion: Int?,
+                          language: String?,
+                          country: String?,
+                          forceCreate: Boolean): Device.AvailableForLaunch {
         return when (platform) {
             Platform.ANDROID -> {
-                getOrCreateAndroidDevice(osVersion, forceCreate)
+                getOrCreateAndroidDevice(osVersion, language, country, forceCreate)
             }
 
             Platform.IOS -> {
-                getOrCreateIosDevice(osVersion, forceCreate)
+                getOrCreateIosDevice(osVersion, language, country, forceCreate)
             }
 
             else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
         }
     }
 
-    private fun getOrCreateIosDevice(version: Int?, forceCreate: Boolean): Device.AvailableForLaunch {
+    private fun getOrCreateIosDevice(version: Int?,
+                                     language: String?,
+                                     country: String?,
+                                     forceCreate: Boolean): Device.AvailableForLaunch {
         if (version !in DeviceConfigIos.versions) {
             throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
         }
@@ -70,12 +77,17 @@ internal object DeviceCreateUtil {
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
             description = deviceName,
-            platform = Platform.IOS
+            platform = Platform.IOS,
+            language = language,
+            country = country,
         )
 
     }
 
-    private fun getOrCreateAndroidDevice(version: Int?, forceCreate: Boolean): Device.AvailableForLaunch {
+    private fun getOrCreateAndroidDevice(version: Int?,
+                                         language: String?,
+                                         country: String?,
+                                         forceCreate: Boolean): Device.AvailableForLaunch {
         if (version !in DeviceConfigAndroid.versions) {
             throw CliError("Provided Android version is not supported. Please use one of ${DeviceConfigAndroid.versions}")
         }
@@ -151,7 +163,9 @@ internal object DeviceCreateUtil {
         return Device.AvailableForLaunch(
             modelId = deviceLaunchId,
             description = deviceLaunchId,
-            platform = Platform.ANDROID
+            platform = Platform.ANDROID,
+            language = language,
+            country = country,
         )
     }
 }

@@ -71,10 +71,12 @@ object PickDeviceInteractor {
                     return Device.AvailableForLaunch(
                         platform = Platform.WEB,
                         description = "Chromium Desktop Browser (Experimental)",
-                        modelId = "chromium"
+                        modelId = "chromium",
+                        language = null,
+                        country = null,
                     )
                 }
-                return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, options.forceCreate)
+                return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, null, null, options.forceCreate)
             }
             "2" -> {
                 PrintUtils.clearConsole()

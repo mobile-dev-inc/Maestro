@@ -144,6 +144,9 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serial.gson)
 
+    implementation('org.apache.commons:commons-lang3:3.13.0')
+    implementation('org.lsposed.hiddenapibypass:hiddenapibypass:4.3')
+
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.uiautomator)
