@@ -1,6 +1,16 @@
-package maestro.cli.device
+package maestro.utils
 
-object LocaleConstants {
+import maestro.Platform
+
+open class LocaleValidationException(message: String): Exception(message)
+
+class LocaleValidationIosException : LocaleValidationException("Failed to validate iOS device locale")
+class LocaleValidationAndroidLanguageException(val language: String) : LocaleValidationException("Failed to validate Android device language")
+class LocaleValidationAndroidCountryException(val country: String) : LocaleValidationException("Failed to validate Android device country")
+class LocaleValidationNotSupportedPlatformException : LocaleValidationException("Failed to validate device locale - not supported platform provided")
+class LocaleValidationWrongLocaleFormatException : LocaleValidationException("Failed to validate device locale - wrong locale format is used")
+
+object LocaleUtils {
     val ANDROID_SUPPORTED_LANGUAGES = listOf(
         "ar" to "Arabic",
         "bg" to "Bulgarian",
@@ -98,11 +108,11 @@ object LocaleConstants {
 
     val IOS_SUPPORTED_LOCALES = listOf(
         "en_AU" to "Australia",
-        "nl_BE" to "Belgium",
-        "fr_BE" to "Belgium",
+        "nl_BE" to "Belgium (Dutch)",
+        "fr_BE" to "Belgium (French)",
         "ms_BN" to "Brunei Darussalam",
-        "en_CA" to "Canada",
-        "fr_CA" to "Canada",
+        "en_CA" to "Canada (English)",
+        "fr_CA" to "Canada (French)",
         "cs_CZ" to "Czech Republic",
         "fi_FI" to "Finland",
         "de_DE" to "Germany",
@@ -131,18 +141,20 @@ object LocaleConstants {
         "tr_TR" to "Turkey",
         "en_GB" to "UK",
         "uk_UA" to "Ukraine",
-        "es_US" to "US",
-        "en_US" to "USA",
+        "es_US" to "USA (Spanish)",
+        "en_US" to "USA (English)",
         "vi_VN" to "Vietnam",
         "pt-BR" to "Brazil",
         "zh-Hans" to "China (Simplified)",
         "zh-Hant" to "China (Traditional)",
         "zh-HK" to "Hong Kong",
-        "en-IN" to "India",
+        "en-IN" to "India (English)",
         "en-IE" to "Ireland",
         "es-419" to "Latin America",
         "es-MX" to "Mexico",
-        "en-ZA" to "South Africa"
+        "en-ZA" to "South Africa",
+        "es_ES" to "Spain",
+        "fr_FR" to "France",
     )
 
     fun findIOSLocale(language: String, country: String): String? {
@@ -150,10 +162,57 @@ object LocaleConstants {
 
         for (pair in IOS_SUPPORTED_LOCALES) {
             if (searchedPair.matches(pair.first)) {
+                println("found locale ${pair.first}")
                 return pair.first
             }
         }
 
         return null
+    }
+
+    fun parseLocaleParams(deviceLocale: String, platform: Platform): Pair<String, String> {
+        var parts = deviceLocale.split("_")
+
+        if (parts.size == 2) {
+            val language = parts[0]
+            val country = parts[1]
+
+            validateLocale(language, country, platform)
+
+            return Pair(language, country)
+        } else {
+            parts = deviceLocale.split("-")
+
+            if (parts.size == 2) {
+                val language = parts[0]
+                val country = parts[1]
+
+                validateLocale(language, country, platform)
+
+                return Pair(language, country)
+            }
+
+            throw LocaleValidationWrongLocaleFormatException()
+        }
+    }
+
+    private fun validateLocale(language: String, country: String, platform: Platform) {
+        when (platform) {
+            Platform.IOS -> {
+                if (findIOSLocale(language, country) == null) {
+                    throw LocaleValidationIosException()
+                }
+            }
+            Platform.ANDROID -> {
+                if (!ANDROID_SUPPORTED_LANGUAGES.map { it.first }.contains(language)) {
+                    throw LocaleValidationAndroidLanguageException(language)
+                }
+
+                if (!ANDROID_SUPPORTED_COUNTRIES.map { it.first }.contains(country)) {
+                    throw LocaleValidationAndroidCountryException(country)
+                }
+            }
+            else -> throw LocaleValidationNotSupportedPlatformException()
+        }
     }
 }

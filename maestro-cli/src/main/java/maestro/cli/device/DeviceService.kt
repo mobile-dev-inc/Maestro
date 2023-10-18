@@ -6,6 +6,7 @@ import maestro.cli.util.AndroidEnvUtils
 import maestro.cli.util.AvdDevice
 import maestro.cli.util.PrintUtils
 import maestro.drivers.AndroidDriver
+import maestro.utils.LocaleUtils
 import maestro.utils.MaestroTimer
 import okio.buffer
 import okio.source
@@ -28,7 +29,7 @@ object DeviceService {
                     if (device.language != null && device.country != null) {
                         PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
                         LocalSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
-                        LocaleConstants.findIOSLocale(device.language, device.country)?.let {
+                        LocaleUtils.findIOSLocale(device.language, device.country)?.let {
                             LocalSimulatorUtils.setDeviceLocale(device.modelId, it)
                         }
                         LocalSimulatorUtils.reboot(device.modelId)
