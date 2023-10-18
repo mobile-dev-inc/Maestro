@@ -26,6 +26,7 @@ import hierarchy.AXElement
 import ios.IOSDevice
 import ios.IOSDeviceErrors
 import maestro.*
+import maestro.MaestroDriverStartupException.*
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.utils.*
@@ -472,7 +473,7 @@ class IOSDriver(
             Thread.sleep(100)
         }
 
-        throw TimeoutException("Maestro iOS driver did not start up in time")
+        throw IOSDriverTimeoutException("Maestro iOS driver did not start up in time")
     }
 
     private fun <T> runDeviceCall(call: () -> T): T {

@@ -26,6 +26,7 @@ import dadb.AdbShellStream
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import maestro.*
+import maestro.MaestroDriverStartupException.*
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
@@ -95,7 +96,7 @@ class AndroidDriver(
             instrumentationSession?.close()
             Thread.sleep(100)
         }
-        throw TimeoutException("Maestro instrumentation could not be initialized")
+        throw AndroidInstrumentationSetupFailure("Maestro instrumentation could not be initialized")
     }
 
     private fun allocateForwarder() {
@@ -122,7 +123,7 @@ class AndroidDriver(
             Thread.sleep(100)
         }
 
-        throw TimeoutException("Maestro Android driver did not start up in time")
+        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time")
     }
 
     override fun close() {
