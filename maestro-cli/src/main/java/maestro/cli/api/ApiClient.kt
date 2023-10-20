@@ -244,6 +244,7 @@ class ApiClient(
         maxRetryCount: Int = 3,
         completedRetries: Int = 0,
         disableNotifications: Boolean,
+        deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
@@ -264,6 +265,7 @@ class ApiClient(
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
+        deviceLocale?.let { requestPart["deviceLocale"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -312,6 +314,7 @@ class ApiClient(
                 progressListener = progressListener,
                 appBinaryId = appBinaryId,
                 disableNotifications = disableNotifications,
+                deviceLocale = deviceLocale,
             )
         }
 
@@ -352,7 +355,8 @@ class ApiClient(
                 DeviceInfo(
                     platform = it["platform"] as String,
                     displayInfo = it["displayInfo"] as String,
-                    isDefaultOsVersion = it["isDefaultOsVersion"] as Boolean
+                    isDefaultOsVersion = it["isDefaultOsVersion"] as Boolean,
+                    deviceLocale = responseBody["deviceLocale"] as String
                 )
             }
 
@@ -423,7 +427,8 @@ data class UploadResponse(
 data class DeviceInfo(
     val platform: String,
     val displayInfo: String,
-    val isDefaultOsVersion: Boolean
+    val isDefaultOsVersion: Boolean,
+    val deviceLocale: String,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
