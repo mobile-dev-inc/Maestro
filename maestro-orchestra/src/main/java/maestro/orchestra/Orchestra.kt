@@ -222,7 +222,8 @@ class Orchestra(
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        val shouldUseGraalJs = config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
+        val shouldUseGraalJs =
+            config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
         jsEngine = if (shouldUseGraalJs) {
             httpClient?.let { GraalJsEngine(it) } ?: GraalJsEngine()
         } else {
@@ -317,7 +318,7 @@ class Orchestra(
 
     private fun isOptional(condition: Condition): Boolean {
         return condition.visible?.optional == true
-            || condition.notVisible?.optional == true
+                || condition.notVisible?.optional == true
     }
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
@@ -389,7 +390,8 @@ class Orchestra(
         val deviceInfo = maestro.deviceInfo()
 
         var retryCenterCount = 0
-        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
+        val maxRetryCenterCount =
+            4 // for when the list is no longer scrollable (last element) but the element is visible
 
         do {
             try {
@@ -401,8 +403,7 @@ class Orchestra(
                         return true
                     }
                     retryCenterCount++
-                }
-                else if (visibility >= command.visibilityPercentageNormalized) {
+                } else if (visibility >= command.visibilityPercentageNormalized) {
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
@@ -410,7 +411,10 @@ class Orchestra(
             maestro.swipeFromCenter(direction, durationMs = command.scrollDuration)
         } while (System.currentTimeMillis() < endTime)
 
-        throw MaestroException.ElementNotFound("No visible element found: ${command.selector.description()}", maestro.viewHierarchy().root)
+        throw MaestroException.ElementNotFound(
+            "No visible element found: ${command.selector.description()}",
+            maestro.viewHierarchy().root
+        )
     }
 
     private fun hideKeyboardCommand(): Boolean {
@@ -598,7 +602,11 @@ class Orchestra(
         }
     }
 
-    private fun runSubFlow(commands: List<MaestroCommand>, config: MaestroConfig?, subflowConfig: MaestroConfig?): Boolean {
+    private fun runSubFlow(
+        commands: List<MaestroCommand>,
+        config: MaestroConfig?,
+        subflowConfig: MaestroConfig?
+    ): Boolean {
         executeDefineVariablesCommands(commands, config)
         // filter out DefineVariablesCommand to not execute it twice
         val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
@@ -738,7 +746,7 @@ class Orchestra(
         command: TapOnElementCommand,
         retryIfNoChange: Boolean,
         waitUntilVisible: Boolean,
-        config: MaestroConfig?,
+        config: MaestroConfig?
     ): Boolean {
         return try {
             val result = findElement(command.selector)
@@ -749,7 +757,8 @@ class Orchestra(
                 waitUntilVisible,
                 command.longPress ?: false,
                 config?.appId,
-                tapRepeat = command.repeat
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
             true
@@ -764,7 +773,7 @@ class Orchestra(
 
     private fun tapOnPoint(
         command: TapOnPointCommand,
-        retryIfNoChange: Boolean,
+        retryIfNoChange: Boolean
     ): Boolean {
         maestro.tap(
             command.x,
@@ -797,7 +806,8 @@ class Orchestra(
                 percentY = percentY,
                 retryIfNoChange = command.retryIfNoChange ?: true,
                 longPress = command.longPress ?: false,
-                tapRepeat = command.repeat
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
         } else {
             val (x, y) = point.split(",")
@@ -810,7 +820,8 @@ class Orchestra(
                 y = y,
                 retryIfNoChange = command.retryIfNoChange ?: true,
                 longPress = command.longPress ?: false,
-                tapRepeat = command.repeat
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
         }
 
@@ -914,7 +925,12 @@ class Orchestra(
             ?.let { descendantSelectors ->
                 val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
                 descriptions += "Contains descendants: $descendantDescriptions"
-                filters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it, deviceInfo).filterFunc })
+                filters += Filters.containsDescendants(descendantSelectors.map {
+                    buildFilter(
+                        it,
+                        deviceInfo
+                    ).filterFunc
+                })
             }
 
         selector.traits
@@ -1004,7 +1020,12 @@ class Orchestra(
             }
 
             direction != null -> maestro.swipe(swipeDirection = direction, duration = command.duration)
-            start != null && end != null -> maestro.swipe(startPoint = start, endPoint = end, duration = command.duration)
+            start != null && end != null -> maestro.swipe(
+                startPoint = start,
+                endPoint = end,
+                duration = command.duration
+            )
+
             else -> error("Illegal arguments for swiping")
         }
         return true

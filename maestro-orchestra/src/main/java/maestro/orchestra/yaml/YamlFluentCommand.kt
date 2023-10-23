@@ -391,13 +391,19 @@ data class YamlFluentCommand(
             TapRepeat(count, d)
         }
 
+        val waitToSettleTimeoutMs = (tapOn as? YamlElementSelector)?.waitToSettleTimeoutMs?.let {
+            if (it > TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS) TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS
+            else it
+        }
+
         return if (point != null) {
             MaestroCommand(
                 TapOnPointV2Command(
                     point = point,
                     retryIfNoChange = retryIfNoChange,
                     longPress = longPress,
-                    repeat = repeat
+                    repeat = repeat,
+                    waitToSettleTimeoutMs = waitToSettleTimeoutMs
                 )
             )
         } else {
@@ -407,7 +413,8 @@ data class YamlFluentCommand(
                     retryIfNoChange = retryIfNoChange,
                     waitUntilVisible = waitUntilVisible,
                     longPress = longPress,
-                    repeat = repeat
+                    repeat = repeat,
+                    waitToSettleTimeoutMs = waitToSettleTimeoutMs
                 )
             )
         }

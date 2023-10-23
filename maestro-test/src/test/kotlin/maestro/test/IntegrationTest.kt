@@ -10,7 +10,6 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
-import maestro.orchestra.MaestroInitFlow
 import maestro.orchestra.Orchestra
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.util.Env.withEnv
@@ -29,6 +28,7 @@ import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import maestro.orchestra.error.SyntaxError
+import kotlin.system.measureTimeMillis
 
 class IntegrationTest {
 
@@ -3023,6 +3023,34 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 113 - Tap on element - with app settle timeout`() {
+        // Given
+        val commands = readCommands("113_tap_on_element_settle_timeout")
+
+        val driver = driver {
+            element {
+                mutatingText = {
+                    "The time is ${System.nanoTime()}"
+                }
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        var elapsedTime: Long
+        Maestro(driver).use { maestro ->
+            elapsedTime = measureTimeMillis {
+                orchestra(maestro).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        assertThat(elapsedTime).isAtMost(1000)
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
@@ -3063,4 +3091,5 @@ class IntegrationTest {
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         return YamlCommandReader.readCommands(Paths.get(resource.toURI()))
     }
+
 }

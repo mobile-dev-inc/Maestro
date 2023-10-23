@@ -343,8 +343,8 @@ class FakeDriver : Driver {
         }
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?): ViewHierarchy? {
-        return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
+        return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
     }
 
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {

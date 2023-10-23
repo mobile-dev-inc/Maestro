@@ -519,24 +519,24 @@ class AndroidDriver(
         return false
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?): ViewHierarchy? {
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return if (appId != null) {
-            waitForWindowToSettle(appId, initialHierarchy)
+            waitForWindowToSettle(appId, initialHierarchy, timeoutMs)
         } else {
-            ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+            ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
         }
     }
 
-    private fun waitForWindowToSettle(appId: String, initialHierarchy: ViewHierarchy?): ViewHierarchy {
+    private fun waitForWindowToSettle(appId: String, initialHierarchy: ViewHierarchy?, timeoutMs: Int? = null): ViewHierarchy {
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
-
+        var hierarchy: ViewHierarchy? = null
         do {
             if (blockingStub.isWindowUpdating(checkWindowUpdatingRequest { this.appId = appId }).isWindowUpdating) {
-                ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+                 hierarchy = ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
             }
         } while (System.currentTimeMillis() < endTime)
 
-        return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
+        return hierarchy ?: ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
     }
 
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {

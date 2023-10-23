@@ -35,6 +35,7 @@ data class FakeLayoutElement(
     var color: Color = Color.BLACK,
     var onClick: (FakeLayoutElement) -> Unit = {},
     val children: MutableList<FakeLayoutElement> = mutableListOf(),
+    var mutatingText: (() -> String)? = null
 ) {
 
     fun toTreeNode(): TreeNode {
@@ -44,7 +45,9 @@ data class FakeLayoutElement(
             attributes += "bounds" to "${it.left},${it.top},${it.right},${it.bottom}"
         }
 
-        text?.let {
+        val textNode = if (mutatingText != null) mutatingText!!() else text
+
+        textNode?.let {
             attributes += "text" to it
         }
 
