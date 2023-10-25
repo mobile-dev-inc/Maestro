@@ -72,7 +72,7 @@ internal object DeviceCreateUtil {
             }
         }
 
-        if (existingDeviceId == null) PrintUtils.message("Created simulator with name $deviceName and UUID $deviceUUID)")
+        if (existingDeviceId == null) PrintUtils.message("Created simulator with name $deviceName and UUID $deviceUUID")
 
         return Device.AvailableForLaunch(
             modelId = deviceUUID,

@@ -57,7 +57,7 @@ object LocalSimulatorUtils {
                     .devices
                     .values
                     .flatten()
-                    .find { it.udid == deviceId }
+                    .find { it.udid.equals(deviceId, ignoreCase = true) }
                     ?.state == "Booted"
             ) true else null
         } ?: throw SimctlError("Device $deviceId did not boot in time")
@@ -69,10 +69,10 @@ object LocalSimulatorUtils {
                     .devices
                     .values
                     .flatten()
-                    .find { it.udid == deviceId }
-                    ?.state != "Booted"
+                    .find { it.udid.equals(deviceId, ignoreCase = true) }
+                    ?.state == "Shutdown"
             ) true else null
-        } ?: throw SimctlError("Device $deviceId did not boot in time")
+        } ?: throw SimctlError("Device $deviceId did not shutdown in time")
     }
 
     private fun xcodePath(): String {
