@@ -53,6 +53,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import java.lang.IllegalStateException
+import java.util.IllegalFormatException
 import kotlin.system.measureTimeMillis
 
 /**
@@ -99,86 +101,98 @@ class Service(
         request: MaestroAndroid.LaunchAppRequest,
         responseObserver: StreamObserver<MaestroAndroid.LaunchAppResponse>
     ) {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        try {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val intent = context.packageManager.getLaunchIntentForPackage(request.packageName)
+            val intent = context.packageManager.getLaunchIntentForPackage(request.packageName)
 
-        if (intent == null) {
-            Log.e("Maestro", "No launcher intent found for package ${request.packageName}")
-            responseObserver.onError(RuntimeException("No launcher intent found for package ${request.packageName}"))
-            return
-        }
-
-        request.argumentsList
-            .forEach {
-                when (it.type) {
-                    String::class.java.name -> intent.putExtra(it.key, it.value)
-                    Boolean::class.java.name -> intent.putExtra(it.key, it.value.toBoolean())
-                    Int::class.java.name -> intent.putExtra(it.key, it.value.toInt())
-                    Double::class.java.name -> intent.putExtra(it.key, it.value.toDouble())
-                    Long::class.java.name -> intent.putExtra(it.key, it.value.toLong())
-                    else -> intent.putExtra(it.key, it.value)
-                }
+            if (intent == null) {
+                Log.e("Maestro", "No launcher intent found for package ${request.packageName}")
+                responseObserver.onError(RuntimeException("No launcher intent found for package ${request.packageName}"))
+                return
             }
-        context.startActivity(intent)
 
-        responseObserver.onNext(launchAppResponse { })
-        responseObserver.onCompleted()
+            request.argumentsList
+                .forEach {
+                    when (it.type) {
+                        String::class.java.name -> intent.putExtra(it.key, it.value)
+                        Boolean::class.java.name -> intent.putExtra(it.key, it.value.toBoolean())
+                        Int::class.java.name -> intent.putExtra(it.key, it.value.toInt())
+                        Double::class.java.name -> intent.putExtra(it.key, it.value.toDouble())
+                        Long::class.java.name -> intent.putExtra(it.key, it.value.toLong())
+                        else -> intent.putExtra(it.key, it.value)
+                    }
+                }
+            context.startActivity(intent)
+
+            responseObserver.onNext(launchAppResponse { })
+            responseObserver.onCompleted()
+        } catch (t: Throwable) {
+            responseObserver.onError(t.internalError())
+        }
     }
 
     override fun deviceInfo(
         request: MaestroAndroid.DeviceInfoRequest,
         responseObserver: StreamObserver<MaestroAndroid.DeviceInfo>
     ) {
-        val windowManager = InstrumentationRegistry.getInstrumentation()
-            .context
-            .getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        try {
+            val windowManager = InstrumentationRegistry.getInstrumentation()
+                .context
+                .getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val displayMetrics = DisplayMetrics()
-        windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+            val displayMetrics = DisplayMetrics()
+            windowManager.defaultDisplay.getRealMetrics(displayMetrics)
 
-        responseObserver.onNext(
-            deviceInfo {
-                widthPixels = displayMetrics.widthPixels
-                heightPixels = displayMetrics.heightPixels
-            }
-        )
-        responseObserver.onCompleted()
+            responseObserver.onNext(
+                deviceInfo {
+                    widthPixels = displayMetrics.widthPixels
+                    heightPixels = displayMetrics.heightPixels
+                }
+            )
+            responseObserver.onCompleted()
+        } catch (t: Throwable) {
+            responseObserver.onError(t.internalError())
+        }
     }
 
     override fun viewHierarchy(
         request: MaestroAndroid.ViewHierarchyRequest,
         responseObserver: StreamObserver<MaestroAndroid.ViewHierarchyResponse>
     ) {
-        refreshAccessibilityCache()
-        val stream = ByteArrayOutputStream()
+        try {
+            refreshAccessibilityCache()
+            val stream = ByteArrayOutputStream()
 
-        val ms = measureTimeMillis {
-            if (toastAccessibilityListener.getToastAccessibilityNode() != null && !toastAccessibilityListener.isTimedOut()) {
-                Log.d("Maestro", "Requesting view hierarchy with toast")
-                ViewHierarchy.dump(
-                    uiDevice,
-                    uiAutomation,
-                    stream,
-                    toastAccessibilityListener.getToastAccessibilityNode()
-                )
-            } else {
-                Log.d("Maestro", "Requesting view hierarchy")
-                ViewHierarchy.dump(
-                    uiDevice,
-                    uiAutomation,
-                    stream
-                )
+            val ms = measureTimeMillis {
+                if (toastAccessibilityListener.getToastAccessibilityNode() != null && !toastAccessibilityListener.isTimedOut()) {
+                    Log.d("Maestro", "Requesting view hierarchy with toast")
+                    ViewHierarchy.dump(
+                        uiDevice,
+                        uiAutomation,
+                        stream,
+                        toastAccessibilityListener.getToastAccessibilityNode()
+                    )
+                } else {
+                    Log.d("Maestro", "Requesting view hierarchy")
+                    ViewHierarchy.dump(
+                        uiDevice,
+                        uiAutomation,
+                        stream
+                    )
+                }
             }
+            Log.d("Maestro", "View hierarchy received in $ms ms")
+
+            responseObserver.onNext(
+                viewHierarchyResponse {
+                    hierarchy = stream.toString(Charsets.UTF_8.name())
+                }
+            )
+            responseObserver.onCompleted()
+        } catch (t: Throwable) {
+            responseObserver.onError(t.internalError())
         }
-        Log.d("Maestro", "View hierarchy received in $ms ms")
-
-        responseObserver.onNext(
-            viewHierarchyResponse {
-                hierarchy = stream.toString(Charsets.UTF_8.name())
-            }
-        )
-        responseObserver.onCompleted()
     }
 
     /**
@@ -199,13 +213,17 @@ class Service(
         request: MaestroAndroid.TapRequest,
         responseObserver: StreamObserver<MaestroAndroid.TapResponse>
     ) {
-        uiDevice.clickExt(
-            request.x,
-            request.y
-        )
+        try {
+            uiDevice.clickExt(
+                request.x,
+                request.y
+            )
 
-        responseObserver.onNext(tapResponse {})
-        responseObserver.onCompleted()
+            responseObserver.onNext(tapResponse {})
+            responseObserver.onCompleted()
+        } catch (t: Throwable) {
+            responseObserver.onError(t.internalError())
+        }
     }
 
     override fun addMedia(responseObserver: StreamObserver<MaestroAndroid.AddMediaResponse>): StreamObserver<MaestroAndroid.AddMediaRequest> {
@@ -239,29 +257,37 @@ class Service(
         request: MaestroAndroid.EraseAllTextRequest,
         responseObserver: StreamObserver<MaestroAndroid.EraseAllTextResponse>
     ) {
-        val charactersToErase = request.charactersToErase
-        Log.d("Maestro", "Erasing text $charactersToErase")
+        try {
+            val charactersToErase = request.charactersToErase
+            Log.d("Maestro", "Erasing text $charactersToErase")
 
-        for (i in 0..charactersToErase) {
-            uiDevice.pressDelete()
+            for (i in 0..charactersToErase) {
+                uiDevice.pressDelete()
+            }
+
+            responseObserver.onNext(eraseAllTextResponse { })
+            responseObserver.onCompleted()
+        } catch (t: Throwable) {
+            responseObserver.onError(t.internalError())
         }
-
-        responseObserver.onNext(eraseAllTextResponse { })
-        responseObserver.onCompleted()
     }
 
     override fun inputText(
         request: MaestroAndroid.InputTextRequest,
         responseObserver: StreamObserver<MaestroAndroid.InputTextResponse>
     ) {
-        Log.d("Maestro", "Inputting text")
-        request.text.forEach {
-            setText(it.toString())
-            Thread.sleep(75)
-        }
+        try {
+            Log.d("Maestro", "Inputting text")
+            request.text.forEach {
+                setText(it.toString())
+                Thread.sleep(75)
+            }
 
-        responseObserver.onNext(inputTextResponse { })
-        responseObserver.onCompleted()
+            responseObserver.onNext(inputTextResponse { })
+            responseObserver.onCompleted()
+        } catch (e: Throwable) {
+            responseObserver.onError(e.internalError())
+        }
     }
 
     override fun screenshot(
@@ -277,7 +303,7 @@ class Service(
             responseObserver.onCompleted()
         } else {
             Log.e("Maestro", "Failed to compress bitmap")
-            responseObserver.onError(Throwable("Failed to compress bitmap"))
+            responseObserver.onError(Throwable("Failed to compress bitmap").internalError())
         }
     }
 
@@ -285,76 +311,84 @@ class Service(
         request: MaestroAndroid.CheckWindowUpdatingRequest,
         responseObserver: StreamObserver<MaestroAndroid.CheckWindowUpdatingResponse>
     ) {
-        responseObserver.onNext(checkWindowUpdatingResponse {
-            isWindowUpdating = uiDevice.waitForWindowUpdate(request.appId, 500)
-        })
-        responseObserver.onCompleted()
+        try {
+            responseObserver.onNext(checkWindowUpdatingResponse {
+                isWindowUpdating = uiDevice.waitForWindowUpdate(request.appId, 500)
+            })
+            responseObserver.onCompleted()
+        } catch(e: Throwable) {
+            responseObserver.onError(e.internalError())
+        }
     }
 
     override fun setLocation(
         request: MaestroAndroid.SetLocationRequest,
         responseObserver: StreamObserver<MaestroAndroid.SetLocationResponse>
     ) {
-        locationCounter++
-        val version = locationCounter
+        try {
+            locationCounter++
+            val version = locationCounter
 
-        geoHandler.removeCallbacksAndMessages(null)
+            geoHandler.removeCallbacksAndMessages(null)
 
-        val latitude = request.latitude
-        val longitude = request.longitude
-        val accuracy = 1F
+            val latitude = request.latitude
+            val longitude = request.longitude
+            val accuracy = 1F
 
-        val locMgr = InstrumentationRegistry.getInstrumentation()
-            .context
-            .getSystemService(LOCATION_SERVICE) as LocationManager
+            val locMgr = InstrumentationRegistry.getInstrumentation()
+                .context
+                .getSystemService(LOCATION_SERVICE) as LocationManager
 
-        locMgr.addTestProvider(
-            LocationManager.GPS_PROVIDER,
-            false,
-            true,
-            false,
-            false,
-            true,
-            false,
-            false,
-            Criteria.POWER_LOW,
-            Criteria.ACCURACY_FINE
-        )
+            locMgr.addTestProvider(
+                LocationManager.GPS_PROVIDER,
+                false,
+                true,
+                false,
+                false,
+                true,
+                false,
+                false,
+                Criteria.POWER_LOW,
+                Criteria.ACCURACY_FINE
+            )
 
-        val newLocation = Location(LocationManager.GPS_PROVIDER)
+            val newLocation = Location(LocationManager.GPS_PROVIDER)
 
-        newLocation.latitude = latitude
-        newLocation.longitude = longitude
-        newLocation.accuracy = accuracy
-        newLocation.altitude = 0.0
-        locMgr.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
+            newLocation.latitude = latitude
+            newLocation.longitude = longitude
+            newLocation.accuracy = accuracy
+            newLocation.altitude = 0.0
+            locMgr.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
 
-        fun postLocation() {
-            geoHandler.post {
-                if (locationCounter != version) {
-                    return@post
+            fun postLocation() {
+                geoHandler.post {
+                    if (locationCounter != version) {
+                        return@post
+                    }
+
+                    newLocation.setTime(System.currentTimeMillis())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                        newLocation.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                    }
+                    locMgr.setTestProviderStatus(
+                        LocationManager.GPS_PROVIDER,
+                        LocationProvider.AVAILABLE,
+                        null, System.currentTimeMillis()
+                    )
+
+                    locMgr.setTestProviderLocation(LocationManager.GPS_PROVIDER, newLocation)
+
+                    postLocation()
                 }
-
-                newLocation.setTime(System.currentTimeMillis())
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                    newLocation.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                }
-                locMgr.setTestProviderStatus(
-                    LocationManager.GPS_PROVIDER,
-                    LocationProvider.AVAILABLE,
-                    null, System.currentTimeMillis()
-                )
-
-                locMgr.setTestProviderLocation(LocationManager.GPS_PROVIDER, newLocation)
-
-                postLocation()
             }
+
+            postLocation()
+
+            responseObserver.onNext(setLocationResponse { })
+            responseObserver.onCompleted()
+        } catch (t: Throwable) {
+            responseObserver.onError(t.internalError())
         }
-
-        postLocation()
-
-        responseObserver.onNext(setLocationResponse { })
-        responseObserver.onCompleted()
     }
 
     private fun setText(text: String) {

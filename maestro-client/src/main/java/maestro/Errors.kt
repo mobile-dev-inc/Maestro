@@ -31,6 +31,8 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 
     class AppCrash(message: String): MaestroException(message)
 
+    class DriverTimeout(message: String): MaestroException(message)
+
     open class AssertionFailure(
         message: String,
         val hierarchyRoot: TreeNode,

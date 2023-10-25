@@ -11,7 +11,7 @@ contributions in the following types:
   - Unless you feel adventurous and wouldn't mind discarding your work in the worst-case scenario, we advise to open an issue or a PR with a suggestion first where you will 
     describe the problem you are trying to solve and the solution you have in mind. This will allow us to discuss the problem and the solution you have in mind.
 
-### Sidenote on refactoring
+### Side-note on refactoring
 
 Our opinion on refactorings is generally that of - don't fix it if it isn't broken. Though we acknowledge that there are multiple areas where code could've been structured in a 
 cleaner way, we believe there are no massive tech debt issues in the codebase. As each change has a probability of introducing a problem (despite all the test coverage), be 
@@ -36,7 +36,7 @@ There are 3 ways to test your changes:
 - Unit tests
   - All the other tests in the projects. Run them via `./gradlew test` (or from IDE) 
 
-## Architetural considerations
+## Architectural considerations
 
 Keep the following things in mind when working on a PR:
 
