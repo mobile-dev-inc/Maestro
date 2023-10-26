@@ -47,8 +47,15 @@ object LocalSimulatorUtils {
     }
 
     fun awaitLaunch(deviceId: String) {
-        val command = listOf("xcrun", "simctl", "bootstatus", deviceId)
-        runCommand(command, waitForCompletion = true)
+        MaestroTimer.withTimeout(60000) {
+            if (list()
+                    .devices
+                    .values
+                    .flatten()
+                    .find { it.udid.equals(deviceId, ignoreCase = true) }
+                    ?.state == "Booted"
+            ) true else null
+        } ?: throw SimctlError("Device $deviceId did not boot in time")
     }
 
     fun awaitShutdown(deviceId: String, timeoutMs: Long = 60000) {
