@@ -14,17 +14,14 @@ struct StatusHandler: HTTPHandler {
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> HTTPResponse {
         do {
-            let springboardApplication = XCUIApplication(bundleIdentifier: StatusHandler.springboardBundleId)
-            let snapshotDictionary = try springboardApplication.snapshot().dictionaryRepresentation
-            let springboardHierarchy = AXElement(snapshotDictionary)
-            let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
-            let body = try JSONEncoder().encode(springBoardViewHierarchy)
-            return HTTPResponse(statusCode: .ok, body: body)
+            let statusResponse = StatusResponse(status: String(describing: Status.ok))
+            let responseBody = try JSONEncoder().encode(statusResponse)
+            return HTTPResponse(statusCode: .ok, body: responseBody)
         }
         catch let error as AppError {
            return error.httpResponse
        } catch let error {
-           return AppError(message: "Snapshot failure while getting view hierarchy. Error: \(error.localizedDescription)").httpResponse
+           return AppError(message: "Error in passing status \(error.localizedDescription)").httpResponse
        }
     }
 }
