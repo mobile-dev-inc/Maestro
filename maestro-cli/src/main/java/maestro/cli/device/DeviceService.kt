@@ -15,7 +15,7 @@ import util.LocalSimulatorUtils
 import util.LocalSimulatorUtils.SimctlError
 import util.SimctlList
 import java.io.File
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -35,7 +35,7 @@ object DeviceService {
                         LocalSimulatorUtils.reboot(device.modelId)
                     }
                     LocalSimulatorUtils.launchSimulator(device.modelId)
-                    LocalSimulatorUtils.awaitLaunch(device.modelId, 60000)
+                    LocalSimulatorUtils.awaitLaunch(device.modelId)
                 } catch (e: SimctlError) {
                     logger.error("Failed to launch simulator", e)
                     throw CliError(e.message)
@@ -197,7 +197,7 @@ object DeviceService {
     private fun device(
         runtimeNameByIdentifier: Map<String, String>,
         runtime: Map.Entry<String, List<SimctlList.Device>>,
-        device: SimctlList.Device
+        device: SimctlList.Device,
     ): Device {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
@@ -258,7 +258,6 @@ object DeviceService {
         }
     }
 
-
     /**
      * Creates an iOS simulator
      *
@@ -295,7 +294,6 @@ object DeviceService {
             } catch (ignore: IllegalArgumentException) {
                 throw IllegalStateException("Unable to create device. No UUID was generated")
             }
-
         }
     }
 
@@ -314,7 +312,7 @@ object DeviceService {
         systemImage: String,
         tag: String,
         abi: String,
-        force: Boolean = false
+        force: Boolean = false,
     ): String {
         val avd = requireAvdManagerBinary()
         val command = mutableListOf(
@@ -374,7 +372,6 @@ object DeviceService {
         }.getOrNull() ?: emptyList()
     }
 
-
     /**
      * @return true is Android system image is already installed
      */
@@ -394,7 +391,6 @@ object DeviceService {
 
                 return output.contains(image)
             }
-
         } catch (e: Exception) {
             logger.error("Unable to detect if SDK package is installed", e)
         }
@@ -423,7 +419,6 @@ object DeviceService {
 
                 return output.contains(image)
             }
-
         } catch (e: Exception) {
             logger.error("Unable to install if SDK package is installed", e)
         }
