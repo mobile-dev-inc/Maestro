@@ -162,7 +162,6 @@ object LocaleUtils {
 
         for (pair in IOS_SUPPORTED_LOCALES) {
             if (searchedPair.matches(pair.first)) {
-                println("found locale ${pair.first}")
                 return pair.first
             }
         }
