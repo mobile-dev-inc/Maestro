@@ -136,6 +136,9 @@ class CloudCommand : Callable<Int> {
     @Option(order = 17, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
     private var appBinaryId: String? = null
 
+    @Option(order = 18, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
+    private var deviceLocale: String? = null
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
@@ -181,6 +184,7 @@ class CloudCommand : Callable<Int> {
             failOnCancellation = failOnCancellation,
             testSuiteName = testSuiteName,
             disableNotifications = disableNotifications,
+            deviceLocale = deviceLocale,
         )
     }
 
