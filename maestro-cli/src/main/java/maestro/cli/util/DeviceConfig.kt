@@ -23,7 +23,7 @@ data class DeviceConfigAndroid(
     val abi: String
 ) {
     companion object {
-        val versions = listOf(33, 31, 30, 29, 28)
+        val versions = listOf(34, 33, 31, 30, 29, 28)
         val defaultVersion = 30
 
         fun createConfig(version: Int, device: AvdDevice, architecture: MACOS_ARCHITECTURE): DeviceConfigAndroid {
