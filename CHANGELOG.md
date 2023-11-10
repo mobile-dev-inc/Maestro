@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.34.1 - 2023-11-9
+- Feature: add support `--device-locale` parameter for `maestro cloud` command
+- Feature: add support iOS17 for `maestro start-device` command
+- Feature: add support Android API level 34 for `maestro start-device` command
+
 ## 1.34.0 - 2023-10-24
 - Feature: support `--device-locale` parameter for `maestro start-device`
 - Feature: add `centerElement` parameter for `scrollUntilVisible`. Center element will attempt to stop scrolling when the element is near the center of the screen.
