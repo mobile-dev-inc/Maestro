@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.34.2 - 2023-11-13
+- Tweak: Include view class in view hierarchy attributes from the Android driver
+
+
 ## 1.34.1 - 2023-11-9
 - Feature: add support `--device-locale` parameter for `maestro cloud` command
 - Feature: add support iOS17 for `maestro start-device` command
