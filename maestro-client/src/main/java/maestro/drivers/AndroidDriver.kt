@@ -24,6 +24,7 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
+import dadb.adbserver.AdbServer
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -785,6 +786,10 @@ class AndroidDriver(
 
             if (node.hasAttribute("selected")) {
                 attributesBuilder["selected"] = node.getAttribute("selected")
+            }
+
+            if (node.hasAttribute("class")) {
+                attributesBuilder["class"] = node.getAttribute("class")
             }
 
             attributesBuilder
