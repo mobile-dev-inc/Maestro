@@ -172,8 +172,9 @@ class CloudInteractor(
 
         val platform = Platform.fromString(deviceInfo.platform)
 
-        val line1 = "Maestro Cloud device specs:\n* ${deviceInfo.displayInfo}"
+        val line1 = "Maestro Cloud device specs:\n* ${deviceInfo.displayInfo} - ${deviceInfo.deviceLocale}"
         val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+        val line3 = "To change device locale use this option: --device-locale=<device_locale>"
 
         val version = when(platform) {
             Platform.ANDROID -> "${androidApiLevel ?: 30}" // todo change with constant from DeviceConfigAndroid
@@ -181,8 +182,8 @@ class CloudInteractor(
             else -> return
         }
 
-        val line3 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version`"
-        PrintUtils.message("$line1\n\n$line2\n\n$line3".box())
+        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
+        PrintUtils.message("$line1\n\n$line2\n\n$line3\n\n$line4".box())
     }
 
 
