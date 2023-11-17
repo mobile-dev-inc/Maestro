@@ -3051,6 +3051,54 @@ class IntegrationTest {
         driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
     }
 
+    @Test
+    fun `Case 114 - child of selector`() {
+        // Given
+        val commands = readCommands("114_child_of_selector")
+
+        val driver = driver {
+            element {
+                id = "id1"
+                bounds = Bounds(0, 0, 200, 600)
+
+                element {
+                    bounds = Bounds(0, 0, 200, 200)
+                    text = "parent_id_1"
+                    element {
+                        text = "child_id"
+                        bounds = Bounds(0, 0, 100, 200)
+                    }
+                }
+                element {
+                    bounds = Bounds(0, 200, 200, 400)
+                    text = "parent_id_2"
+                    element {
+                        text = "child_id"
+                        bounds = Bounds(0, 200, 100, 400)
+                    }
+                }
+                element {
+                    bounds = Bounds(0, 400, 200, 600)
+                    text = "parent_id_3"
+                    element {
+                        text = "child_id_1"
+                        bounds = Bounds(0, 400, 100, 600)
+                    }
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failures
+        driver.assertNoInteraction()
+
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

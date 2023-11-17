@@ -840,18 +840,54 @@ class Orchestra(
                     lookupTimeoutMs
                 }
             )
-
         val (description, filterFunc) = buildFilter(
             selector,
             deviceInfo(),
         )
+        if (selector.childOf != null) {
+            val parentViewHierarchy = findElementViewHierarchy(
+                selector.childOf,
+                timeout
+            )
+            return maestro.findElementWithTimeout(
+                timeout,
+                filterFunc,
+                parentViewHierarchy
+            ) ?: throw MaestroException.ElementNotFound(
+                "Element not found: $description",
+                parentViewHierarchy.root,
+            )
+        }
+
 
         return maestro.findElementWithTimeout(
             timeoutMs = timeout,
-            filter = filterFunc,
+            filter = filterFunc
         ) ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             maestro.viewHierarchy().root,
+        )
+    }
+
+    private fun findElementViewHierarchy(
+        selector: ElementSelector?,
+        timeout: Long
+    ): ViewHierarchy {
+        if (selector == null) {
+            return maestro.viewHierarchy()
+        }
+        val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout);
+        val (description, filterFunc) = buildFilter(
+            selector,
+            deviceInfo(),
+        )
+        return maestro.findElementWithTimeout(
+            timeout,
+            filterFunc,
+            parentViewHierarchy
+        )?.hierarchy ?: throw MaestroException.ElementNotFound(
+            "Element not found: $description",
+            parentViewHierarchy.root,
         )
     }
 

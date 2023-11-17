@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- assertVisible:
+    text: "child_id"
+    childOf:
+      text: "parent_id_1"
+- assertNotVisible:
+    text: "child_id"
+    childOf:
+      text: "parent_id_3"

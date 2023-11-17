@@ -510,6 +510,7 @@ data class YamlFluentCommand(
             checked = selector.checked,
             focused = selector.focused,
             optional = selector.optional ?: false,
+            childOf = selector.childOf?.let { toElementSelector(it) }
         )
     }
 

@@ -425,22 +425,29 @@ class Maestro(private val driver: Driver) : AutoCloseable {
     fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
         LOGGER.info("Looking for element by size: $width x $height (tolerance $tolerance) (timeout $timeoutMs)")
 
-        return findElementWithTimeout(timeoutMs, Filters.sizeMatches(width, height, tolerance).asFilter())?.element
+        return findElementWithTimeout(
+            timeoutMs,
+            Filters.sizeMatches(width, height, tolerance).asFilter()
+        )?.element
     }
 
     fun findElementWithTimeout(
         timeoutMs: Long,
         filter: ElementFilter,
+        viewHierarchy: ViewHierarchy? = null
     ): FindElementResult? {
-        var hierarchy = ViewHierarchy(TreeNode())
+        var hierarchy = viewHierarchy ?: ViewHierarchy(TreeNode())
         val element = MaestroTimer.withTimeout(timeoutMs) {
-            hierarchy = viewHierarchy()
+            hierarchy = viewHierarchy ?: viewHierarchy()
             filter(hierarchy.aggregate()).firstOrNull()
         }?.toUiElementOrNull()
 
         return if (element == null) {
             null
         } else {
+            if (viewHierarchy != null) {
+                hierarchy = ViewHierarchy(element.treeNode)
+            }
             return FindElementResult(element, hierarchy)
         }
     }

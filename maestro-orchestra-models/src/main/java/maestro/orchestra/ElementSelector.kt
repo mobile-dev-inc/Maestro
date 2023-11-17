@@ -39,6 +39,7 @@ data class ElementSelector(
     val selected: Boolean? = null,
     val checked: Boolean? = null,
     val focused: Boolean? = null,
+    val childOf: ElementSelector? = null
 ) {
 
     data class SizeSelector(
@@ -58,6 +59,7 @@ data class ElementSelector(
             containsChild = containsChild?.evaluateScripts(jsEngine),
             containsDescendants = containsDescendants?.map { it.evaluateScripts(jsEngine) },
             index = index?.evaluateScripts(jsEngine),
+            childOf = childOf?.evaluateScripts(jsEngine)
         )
     }
 
@@ -114,6 +116,10 @@ data class ElementSelector(
 
         index?.let {
             descriptions.add("Index: ${it.toDoubleOrNull()?.toInt() ?: it}")
+        }
+
+        childOf?.let {
+            descriptions.add("Child of: ${it.description()}")
         }
 
         val combined = descriptions.joinToString(", ")
