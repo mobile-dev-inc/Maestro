@@ -2,15 +2,15 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
 
-data class YamlClearState(
-    val appId: String? = null,
+data class YamlPressKey (
+    val key: String,
     val label: String? = null,
-) {
+){
     companion object {
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun parse(appId: String) = YamlClearState(
-            appId = appId,
+        fun parse(key: String) = YamlPressKey(
+            key = key,
         )
     }
 }

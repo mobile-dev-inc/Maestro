@@ -15,18 +15,24 @@ import maestro.directionValueOfOrNull
 @JsonDeserialize(using = YamlSwipeDeserializer::class)
 interface YamlSwipe {
     val duration: Long
+    val label: String?
 }
 
-data class YamlSwipeDirection(val direction: SwipeDirection, override val duration: Long = DEFAULT_DURATION_IN_MILLIS) : YamlSwipe
-data class YamlCoordinateSwipe(val start: String, val end: String, override val duration: Long = DEFAULT_DURATION_IN_MILLIS) : YamlSwipe
-data class YamlRelativeCoordinateSwipe(val start: String, val end: String, override val duration: Long = DEFAULT_DURATION_IN_MILLIS) : YamlSwipe
+data class YamlSwipeDirection(
+    val direction: SwipeDirection, override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+                              override val label: String? = null
+) : YamlSwipe
+data class YamlCoordinateSwipe(val start: String, val end: String, override val duration: Long = DEFAULT_DURATION_IN_MILLIS, override val label: String? = null) : YamlSwipe
+
+data class YamlRelativeCoordinateSwipe(val start: String, val end: String, override val duration: Long = DEFAULT_DURATION_IN_MILLIS, override val label: String? = null) : YamlSwipe
 
 @JsonDeserialize(`as` = YamlSwipeElement::class)
 data class YamlSwipeElement(
     @JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_PROPERTIES])
     val direction: SwipeDirection,
     val from: YamlElementSelectorUnion,
-    override val duration: Long = DEFAULT_DURATION_IN_MILLIS
+    override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    override val label: String? = null
 ) : YamlSwipe
 
 private const val DEFAULT_DURATION_IN_MILLIS = 400L
@@ -38,13 +44,14 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         val root: TreeNode = mapper.readTree(parser)
         val input = root.fieldNames().asSequence().toList()
         val duration = getDuration(root)
+        val label = getLabel(root)
         when {
             input.contains("start") || input.contains("end") -> {
                 check(root.get("direction") == null) { "You cannot provide direction with start/end swipe." }
                 check(root.get("start") != null && root.get("end") != null) {
                     "You need to provide both start and end coordinates, to swipe with coordinates"
                 }
-                return resolveCoordinateSwipe(root, duration)
+                return resolveCoordinateSwipe(root, duration, label)
             }
             input.contains("direction") -> {
                 check(root.get("start") == null && root.get("end") == null) {
@@ -60,7 +67,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 }
                 val isDirectionalSwipe = input == listOf("direction", "duration") || input == listOf("direction")
                 return if (isDirectionalSwipe) {
-                    YamlSwipeDirection(SwipeDirection.valueOf(direction.uppercase()), duration)
+                    YamlSwipeDirection(SwipeDirection.valueOf(direction.uppercase()), duration, label)
                 } else {
                     mapper.convertValue(root, YamlSwipeElement::class.java)
                 }
@@ -77,7 +84,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         }
     }
 
-    private fun resolveCoordinateSwipe(root: TreeNode, duration: Long): YamlSwipe {
+    private fun resolveCoordinateSwipe(root: TreeNode, duration: Long, label: String?): YamlSwipe {
         when {
             isRelativeSwipe(root) -> {
                 val start = root.path("start").toString().replace("\"", "")
@@ -103,13 +110,15 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 return YamlRelativeCoordinateSwipe(
                     start,
                     end,
-                    duration
+                    duration,
+                    label,
                 )
             }
             else -> return YamlCoordinateSwipe(
                 root.path("start").toString().replace("\"", ""),
                 root.path("end").toString().replace("\"", ""),
-                duration
+                duration,
+                label,
             )
         }
     }
@@ -123,6 +132,14 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
             DEFAULT_DURATION_IN_MILLIS
         } else {
             root.path("duration").toString().replace("\"", "").toLong()
+        }
+    }
+
+    private fun getLabel(root: TreeNode): String? {
+        return if (root.path("label").isMissingNode) {
+            null
+        } else {
+            root.path("label").toString()
         }
     }
 

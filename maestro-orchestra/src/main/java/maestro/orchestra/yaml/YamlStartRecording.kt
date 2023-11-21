@@ -3,7 +3,8 @@ package maestro.orchestra.yaml
 import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlStartRecording(
-    val path: String
+    val path: String,
+    val label: String? = null,
 ) {
 
     companion object {
@@ -18,4 +19,6 @@ data class YamlStartRecording(
     }
 }
 
-class YamlStopRecording
+data class YamlStopRecording(
+    val label: String? = null,
+)

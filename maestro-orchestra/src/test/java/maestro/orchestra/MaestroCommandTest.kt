@@ -29,4 +29,17 @@ internal class MaestroCommandTest {
         assertThat(description)
             .isEqualTo("Press back")
     }
+
+    @Test
+    fun `description (with a label)`() {
+        // given
+        val maestroCommand = MaestroCommand(SetLocationCommand(12.5266, 78.2150, "Set Location to Test Laboratory"))
+
+        // when
+        val description = maestroCommand.description()
+
+        // then
+        assertThat(description)
+            .isEqualTo("Set Location to Test Laboratory")
+    }
 }

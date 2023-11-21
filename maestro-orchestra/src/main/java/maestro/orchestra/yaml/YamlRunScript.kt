@@ -6,6 +6,7 @@ data class YamlRunScript(
     val file: String,
     val env: Map<String, String> = emptyMap(),
     val `when`: YamlCondition? = null,
+    val label: String? = null,
 ) {
 
     companion object {
