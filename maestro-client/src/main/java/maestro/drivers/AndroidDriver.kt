@@ -784,6 +784,10 @@ class AndroidDriver(
                 attributesBuilder["checked"] = node.getAttribute("checked")
             }
 
+            if (node.hasAttribute("scrollable")) {
+                attributesBuilder["scrollable"] = node.getAttribute("scrollable")
+            }
+
             if (node.hasAttribute("selected")) {
                 attributesBuilder["selected"] = node.getAttribute("selected")
             }
