@@ -57,38 +57,60 @@ object EnvUtils {
     }
 
     fun getMacOSArchitecture(): MACOS_ARCHITECTURE {
-        fun runCommand(command: String, argument: String): Boolean {
-            return try {
-                val processBuilder = ProcessBuilder(command, argument)
-                val process = processBuilder.start()
-                val reader = BufferedReader(InputStreamReader(process.inputStream))
+        return determineArchitectureDetectionStrategy().detectArchitecture()
+    }
 
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    if (line!!.endsWith(": 1")) {
-                        return true
-                    }
-                }
-                false
-            } catch (ignore: Exception) {
-                false
-            }
+    private fun determineArchitectureDetectionStrategy(): ArchitectureDetectionStrategy {
+        return if (runProcess("uname").contains("Linux")) {
+            ArchitectureDetectionStrategy.LinuxArchitectureDetection
+        } else {
+            ArchitectureDetectionStrategy.MacOsArchitectureDetection
         }
+    }
+}
 
-        // Prefer sysctl over 'uname -m' due to Rosetta making it unreliable
-        val isArm64 = runCommand("sysctl", "hw.optional.arm64")
-        val isX86_64 = runCommand("sysctl", "hw.optional.x86_64")
-        return when {
-            isArm64 -> MACOS_ARCHITECTURE.ARM64
-            isX86_64 -> MACOS_ARCHITECTURE.x86_64
-            else -> MACOS_ARCHITECTURE.UNKNOWN
+sealed interface ArchitectureDetectionStrategy {
+
+    fun detectArchitecture(): MACOS_ARCHITECTURE
+
+    object MacOsArchitectureDetection : ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): MACOS_ARCHITECTURE {
+            fun runSysctl(property: String) = runProcess("sysctl", property).any { it.endsWith(": 1") }
+
+            // Prefer sysctl over 'uname -m' due to Rosetta making it unreliable
+            val isArm64 = runSysctl("hw.optional.arm64")
+            val isX86_64 = runSysctl("hw.optional.x86_64")
+            return when {
+                isArm64 -> MACOS_ARCHITECTURE.ARM64
+                isX86_64 -> MACOS_ARCHITECTURE.x86_64
+                else -> MACOS_ARCHITECTURE.UNKNOWN
+            }
         }
     }
 
+    object LinuxArchitectureDetection : ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): MACOS_ARCHITECTURE {
+            return when (runProcess("uname", "-m").first()) {
+                "x86_64" -> MACOS_ARCHITECTURE.x86_64
+                "arm64" -> MACOS_ARCHITECTURE.ARM64
+                else -> MACOS_ARCHITECTURE.UNKNOWN
+            }
+        }
+
+    }
 }
 
 enum class MACOS_ARCHITECTURE {
     x86_64,
     ARM64,
     UNKNOWN
+}
+
+private fun runProcess(program: String, vararg arguments: String): List<String> {
+    val process = ProcessBuilder(program, *arguments).start()
+    return try {
+        process.inputStream.reader().use { it.readLines().map(String::trim) }
+    } catch (ignore: Exception) {
+        emptyList()
+    }
 }
