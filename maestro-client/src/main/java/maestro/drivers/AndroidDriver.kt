@@ -88,9 +88,15 @@ class AndroidDriver(
 
     private fun startInstrumentationSession() {
         val startTime = System.currentTimeMillis()
-        val instrumentationCommand = "am instrument -w -m -e debug false " +
-                "-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' " +
-                "dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n"
+        val apiLevel = getDeviceApiLevel()
+
+        val instrumentationCommand = buildString {
+            append("am instrument -w ")
+            if (apiLevel >= 26) append("-m ")
+            append("-e debug false ")
+            append("-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' ")
+            append("dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n")
+        }
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             instrumentationSession = dadb.openShell(instrumentationCommand)
@@ -104,6 +110,15 @@ class AndroidDriver(
         }
         throw AndroidInstrumentationSetupFailure("Maestro instrumentation could not be initialized")
     }
+
+    private fun getDeviceApiLevel(): Int {
+        val response = dadb.openShell("getprop ro.build.version.sdk").readAll()
+        if (response.exitCode != 0) {
+            throw IOException("Failed to get device API level: ${response.errorOutput}")
+        }
+        return response.output.trim().toIntOrNull() ?: throw IOException("Invalid API level: ${response.output}")
+    }
+
 
     private fun allocateForwarder() {
         PORT_TO_FORWARDER[hostPort]?.close()
