@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.34.4 - 2023-12-27
+- Fix: Failures due to swipe ranges going beyond screen dimensions
+- Change: Adding escape key in `pressKey` API
+- Tweak: Avoid returning `Result` in IOSDriver install and clearAppState
+
+## 1.34.3 - 2023-11-21
+- Tweak: Include scrollable attribute in view hierarchy from Android Driver
+- Feature: Custom labels for readability of maestro commands
+- Feature: Adding childOf selector 
+- Tweak: Message of start-device command to show locale as well
+
 ## 1.34.2 - 2023-11-13
 - Tweak: Include view class in view hierarchy attributes from the Android driver
 
