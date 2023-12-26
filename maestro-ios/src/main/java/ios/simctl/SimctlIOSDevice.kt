@@ -1,6 +1,5 @@
 package ios.simctl
 
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
@@ -59,10 +58,8 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun install(stream: InputStream): Result<Unit, Throwable> {
-        return runCatching {
-            LocalSimulatorUtils.install(deviceId, stream)
-        }
+    override fun install(stream: InputStream) {
+        LocalSimulatorUtils.install(deviceId, stream)
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {
@@ -71,9 +68,8 @@ class SimctlIOSDevice(
         }
     }
 
-    override fun clearAppState(id: String): Result<Unit, Throwable> {
+    override fun clearAppState(id: String) {
         LocalSimulatorUtils.clearAppState(deviceId, id)
-        return Ok(Unit)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {

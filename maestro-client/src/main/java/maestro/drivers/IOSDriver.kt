@@ -203,23 +203,21 @@ class IOSDriver(
         )
     }
 
-    private fun validate(start: Point, end: Point) {
+    private fun validate(start: Point, end: Point): Pair<Point, Point> {
         val screenWidth = widthPoints
         val screenHeight = heightPoints
 
-        if (start.x < 0 || start.x > screenWidth) {
-            error("x value of start point (${start.x}) needs to be between 0 and $screenWidth")
-        }
-        if (end.x < 0 || end.x > screenWidth) {
-            error("x value of end point (${end.x}) needs to be between 0 and $screenWidth")
-        }
+        val validatedStart = Point(
+            x = start.x.coerceIn(0, screenWidth),
+            y = start.y.coerceIn(0, screenHeight)
+        )
 
-        if (start.y < 0 || start.y > screenHeight) {
-            error("y value of start point (${start.y}) needs to be between 0 and $screenHeight")
-        }
-        if (end.y < 0 || end.y > screenHeight) {
-            error("y value of end point (${end.y}) needs to be between 0 and $screenHeight")
-        }
+        val validatedEnd = Point(
+            x = end.x.coerceIn(0, screenWidth),
+            y = end.y.coerceIn(0, screenHeight)
+        )
+
+        return Pair(validatedStart, validatedEnd)
     }
 
     override fun swipe(
@@ -227,15 +225,18 @@ class IOSDriver(
         end: Point,
         durationMs: Long
     ) {
-        validate(start, end)
+        val validatedPoints = validate(start, end)
+
+        val startPoint = validatedPoints.first
+        val endPoint = validatedPoints.second
 
         runDeviceCall {
             waitForAppToSettle(null, null)
             iosDevice.scroll(
-                xStart = start.x.toDouble(),
-                yStart = start.y.toDouble(),
-                xEnd = end.x.toDouble(),
-                yEnd = end.y.toDouble(),
+                xStart = startPoint.x.toDouble(),
+                yStart = startPoint.y.toDouble(),
+                xEnd = endPoint.x.toDouble(),
+                yEnd = endPoint.y.toDouble(),
                 duration = durationMs.toDouble() / 1000
             )
         }

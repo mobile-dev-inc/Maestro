@@ -58,7 +58,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param stream - input stream of zipped .app bundle
      */
-    fun install(stream: InputStream): Result<Unit, Throwable>
+    fun install(stream: InputStream)
 
     /**
      * Uninstalls the app.
@@ -74,7 +74,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param id = bundle id of the app to clear
      */
-    fun clearAppState(id: String): Result<Unit, Throwable>
+    fun clearAppState(id: String)
 
     /**
      * Clears device keychain.

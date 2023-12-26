@@ -82,16 +82,16 @@ class LocalIOSDevice(
         xcTestDevice.input(text)
     }
 
-    override fun install(stream: InputStream): Result<Unit, Throwable> {
-        return simctlIOSDevice.install(stream)
+    override fun install(stream: InputStream) {
+        simctlIOSDevice.install(stream)
     }
 
     override fun uninstall(id: String): Result<Unit, Throwable> {
         return simctlIOSDevice.uninstall(id)
     }
 
-    override fun clearAppState(id: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.clearAppState(id)
+    override fun clearAppState(id: String) {
+        simctlIOSDevice.clearAppState(id)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {

@@ -24,6 +24,7 @@ enum class KeyCode(
     REMOTE_PREVIOUS("Remote Media Previous"),
     REMOTE_REWIND("Remote Media Rewind"),
     REMOTE_FAST_FORWARD("Remote Media Fast Forward"),
+    ESCAPE("Escape"),
     POWER("Power");
 
     companion object {
