@@ -108,6 +108,10 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.hideKeyboard()
     }
 
+    fun isKeyboardVisible(): Boolean {
+        return driver.isKeyboardVisible()
+    }
+
     fun swipe(
         swipeDirection: SwipeDirection? = null,
         startPoint: Point? = null,

@@ -100,6 +100,8 @@ interface IOSDevice : AutoCloseable {
      */
     fun stop(id: String): Result<Unit, Throwable>
 
+    fun isKeyboardVisible(): Boolean
+
     /**
      * Opens a link
      *

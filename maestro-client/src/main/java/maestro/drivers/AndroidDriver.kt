@@ -19,6 +19,7 @@
 
 package maestro.drivers
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.ByteString
 import dadb.AdbShellPacket
 import dadb.AdbShellResponse
@@ -296,6 +297,18 @@ class AndroidDriver(
 
     override fun scrollVertical() {
         swipe(SwipeDirection.UP, 400)
+    }
+
+    override fun isKeyboardVisible(): Boolean {
+        val root = contentDescriptor().let {
+            val deviceInfo = deviceInfo()
+            val filtered = it.filterOutOfBounds(
+                width = deviceInfo.widthGrid,
+                height = deviceInfo.heightGrid
+            )
+            filtered ?: it
+        }
+        return "com.google.android.inputmethod.latin:id" in jacksonObjectMapper().writeValueAsString(root)
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {

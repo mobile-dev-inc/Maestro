@@ -234,6 +234,10 @@ class WebDriver(val isStudio: Boolean) : Driver {
         scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
     }
 
+    override fun isKeyboardVisible(): Boolean {
+        TODO("Not yet implemented")
+    }
+
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         // TODO validate implementation and ensure it works properly
         val driver = ensureOpen()

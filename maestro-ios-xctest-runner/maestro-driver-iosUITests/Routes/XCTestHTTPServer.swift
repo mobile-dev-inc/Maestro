@@ -16,6 +16,7 @@ enum Route: String, CaseIterable {
     case setPermissions
     case viewHierarchy
     case status
+    case keyboard
     
     func toHTTPRoute() -> HTTPRoute {
         return HTTPRoute(rawValue)

@@ -32,6 +32,8 @@ class RouteHandlerFactory {
             return ViewHierarchyHandler()
         case .status:
             return StatusHandler()
+        case .keyboard:
+            return KeyboardRouteHandler()
         }
     }
 }

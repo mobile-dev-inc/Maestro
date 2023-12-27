@@ -24,6 +24,9 @@
 		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
 		52E35D432A654F67001D97A8 /* RunningApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E35D422A654F67001D97A8 /* RunningApp.swift */; };
+		52F0B1B12B3C25BC00C6471A /* KeyboardRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */; };
+		52F0B1B32B3C26DF00C6471A /* KeyboardHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */; };
+		52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */; };
 		52F33A942AE6823100692902 /* StatusResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F33A932AE6823100692902 /* StatusResponse.swift */; };
 		610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */; };
 		610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */; };
@@ -90,6 +93,9 @@
 		52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITests.swift; sourceTree = "<group>"; };
 		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		52E35D422A654F67001D97A8 /* RunningApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningApp.swift; sourceTree = "<group>"; };
+		52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardRouteHandler.swift; sourceTree = "<group>"; };
+		52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHandlerRequest.swift; sourceTree = "<group>"; };
+		52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHandlerResponse.swift; sourceTree = "<group>"; };
 		52F33A932AE6823100692902 /* StatusResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusResponse.swift; sourceTree = "<group>"; };
 		610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandler.swift; sourceTree = "<group>"; };
 		610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AXClientSwizzler.swift; sourceTree = "<group>"; };
@@ -225,6 +231,8 @@
 				6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */,
 				6124329D2A4DA5BB00F5F619 /* AXElement.swift */,
 				52F33A932AE6823100692902 /* StatusResponse.swift */,
+				52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */,
+				52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -260,6 +268,7 @@
 				61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */,
 				945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */,
 				52047F772A7A638E00BF982D /* StatusHandler.swift */,
+				52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -406,6 +415,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */,
+				52F0B1B32B3C26DF00C6471A /* KeyboardHandlerRequest.swift in Sources */,
 				612DE4122984114B003C2BE0 /* RunnerDaemonProxy.swift in Sources */,
 				61C0AFEB29C863BB005D1FC5 /* PressButtonHandler.swift in Sources */,
 				94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */,
@@ -418,6 +428,7 @@
 				F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */,
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
 				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
+				52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */,
 				52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */,
 				945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */,
 				613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */,
@@ -448,6 +459,7 @@
 				52E35D432A654F67001D97A8 /* RunningApp.swift in Sources */,
 				9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */,
 				32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */,
+				52F0B1B12B3C25BC00C6471A /* KeyboardRouteHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

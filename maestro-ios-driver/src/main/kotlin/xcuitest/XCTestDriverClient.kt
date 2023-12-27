@@ -84,6 +84,14 @@ class XCTestDriverClient(
         return executeJsonRequest(url)
     }
 
+    fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
+        val response = executeJsonRequest(
+            "keyboard",
+            KeyboardInfoRequest(installedApps)
+        )
+        return mapper.readValue(response, KeyboardInfoResponse::class.java)
+    }
+
     fun isScreenStatic(): IsScreenStaticResponse {
         val responseString = executeJsonRequest("isScreenStatic")
         return mapper.readValue(responseString, IsScreenStaticResponse::class.java)

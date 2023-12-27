@@ -203,6 +203,10 @@ class IOSDriver(
         )
     }
 
+    override fun isKeyboardVisible(): Boolean {
+        return runDeviceCall { iosDevice.isKeyboardVisible() }
+    }
+
     private fun validate(start: Point, end: Point): Pair<Point, Point> {
         val screenWidth = widthPoints
         val screenHeight = heightPoints

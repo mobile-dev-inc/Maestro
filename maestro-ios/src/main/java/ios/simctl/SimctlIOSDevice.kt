@@ -100,6 +100,10 @@ class SimctlIOSDevice(
         }
     }
 
+    override fun isKeyboardVisible(): Boolean {
+        error("Not Supported")
+    }
+
     override fun openLink(link: String): Result<Unit, Throwable> {
         return runCatching {
             LocalSimulatorUtils.openURL(deviceId, link)

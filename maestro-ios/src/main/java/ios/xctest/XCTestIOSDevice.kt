@@ -151,6 +151,11 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
+    override fun isKeyboardVisible(): Boolean {
+        val appIds = getInstalledApps()
+        return execute { client.keyboardInfo(appIds).isKeyboardVisible }
+    }
+
     override fun openLink(link: String): Result<Unit, Throwable> {
         error("Not supported")
     }

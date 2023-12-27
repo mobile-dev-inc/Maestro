@@ -102,4 +102,29 @@ struct AXElement: Codable {
 
         return max ?? 1
     }
+    
+    
+    func filterAllChildrenNotInKeyboardBounds(_ keyboardFrame: CGRect) -> [AXElement] {
+        var filteredChildren = [AXElement]()
+                
+        // Function to recursively filter children
+        func filterChildrenRecursively(_ element: AXElement) {
+            // Check if the element's frame intersects with the keyboard frame
+            if let x = element.frame["X"], let y = element.frame["Y"],
+               let width = element.frame["Width"], let height = element.frame["Height"] {
+                let childFrame = CGRect(x: x, y: y, width: width, height: height)
+                if !keyboardFrame.intersects(childFrame) {
+                    // If it does not intersect, append the element
+                    filteredChildren.append(element)
+                }
+            }
+            
+            // Continue recursion with children
+            element.children?.forEach { filterChildrenRecursively($0) }
+        }
+                
+        // Start the recursive filtering
+        filterChildrenRecursively(self)
+        return filteredChildren
+    }
 }
