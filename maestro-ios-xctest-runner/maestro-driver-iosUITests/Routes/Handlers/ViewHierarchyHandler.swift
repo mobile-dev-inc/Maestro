@@ -67,7 +67,10 @@ struct ViewHierarchyHandler: HTTPHandler {
         let keyboard = app.keyboards.firstMatch
         if (keyboard.exists) {
             let filteredChildren = appHierarchy.filterAllChildrenNotInKeyboardBounds(keyboard.frame)
-            appHierarchy.children = filteredChildren
+            return AXElement(children: [
+                springboardHierarchy,
+                AXElement(children: filteredChildren),
+            ].compactMap { $0 })
         }
 
         return AXElement(children: [

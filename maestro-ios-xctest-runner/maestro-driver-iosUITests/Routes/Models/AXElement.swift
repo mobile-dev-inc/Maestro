@@ -108,23 +108,31 @@ struct AXElement: Codable {
         var filteredChildren = [AXElement]()
                 
         // Function to recursively filter children
-        func filterChildrenRecursively(_ element: AXElement) {
+        func filterChildrenRecursively(_ element: AXElement, _ ancestorAdded: Bool) {
             // Check if the element's frame intersects with the keyboard frame
-            if let x = element.frame["X"], let y = element.frame["Y"],
-               let width = element.frame["Width"], let height = element.frame["Height"] {
-                let childFrame = CGRect(x: x, y: y, width: width, height: height)
-                if !keyboardFrame.intersects(childFrame) {
-                    // If it does not intersect, append the element
-                    filteredChildren.append(element)
-                }
+            let childFrame = CGRect(
+                x: element.frame["X"] ?? 0,
+                y: element.frame["Y"] ?? 0,
+                width: element.frame["Width"] ?? 0,
+                height: element.frame["Height"] ?? 0
+            )
+            
+            var currentAncestorAdded = ancestorAdded
+
+            // If it does not intersect, and no ancestor has been added, append the element
+            if !keyboardFrame.intersects(childFrame) && !ancestorAdded {
+                filteredChildren.append(element)
+                currentAncestorAdded = true // Prevent adding descendants of this element
             }
             
             // Continue recursion with children
-            element.children?.forEach { filterChildrenRecursively($0) }
+            element.children?.forEach { child in
+                filterChildrenRecursively(child, currentAncestorAdded)
+            }
         }
                 
-        // Start the recursive filtering
-        filterChildrenRecursively(self)
+        // Start the recursive filtering with no ancestor added
+        filterChildrenRecursively(self, false)
         return filteredChildren
     }
 }
