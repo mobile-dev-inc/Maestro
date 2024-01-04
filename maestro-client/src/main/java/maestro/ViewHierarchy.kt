@@ -24,9 +24,9 @@ import maestro.UiElement.Companion.toUiElement
 @JvmInline
 value class ViewHierarchy(val root: TreeNode) {
     companion object {
-        fun from(driver: Driver): ViewHierarchy {
+        fun from(driver: Driver, excludeKeyboardElements: Boolean): ViewHierarchy {
             val deviceInfo = driver.deviceInfo()
-            val root = driver.contentDescriptor().let {
+            val root = driver.contentDescriptor(excludeKeyboardElements).let {
                 val filtered = it.filterOutOfBounds(
                     width = deviceInfo.widthGrid,
                     height = deviceInfo.heightGrid

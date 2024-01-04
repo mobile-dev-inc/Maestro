@@ -51,7 +51,7 @@ interface Driver {
 
     fun pressKey(code: KeyCode)
 
-    fun contentDescriptor(): TreeNode
+    fun contentDescriptor(excludeKeyboardElements: Boolean = false): TreeNode
 
     fun scrollVertical()
 

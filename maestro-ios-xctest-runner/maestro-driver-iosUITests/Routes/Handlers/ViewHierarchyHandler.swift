@@ -30,7 +30,7 @@ struct ViewHierarchyHandler: HTTPHandler {
             }
 
             let appViewHierarchy = try logger.measure(message: "View hierarchy snapshot for \(app)") {
-                try getAppViewHierarchy(app: app)
+                try getAppViewHierarchy(app: app, excludeKeyboardElements: requestBody.excludeKeyboardElements)
             }
             let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
             
@@ -49,7 +49,7 @@ struct ViewHierarchyHandler: HTTPHandler {
             .first { app in app.state == .runningForeground }
     }
 
-    func getAppViewHierarchy(app: XCUIApplication) throws -> AXElement {
+    func getAppViewHierarchy(app: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
         SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(springboardApplication: springboardApplication)
         // Fetch the view hierarchy of the springboard application
         // to make it possible to interact with the home screen.
@@ -62,10 +62,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             springboardHierarchy = nil
         }
 
-        var appHierarchy = try getHierarchyWithFallback(app)
+        let appHierarchy = try getHierarchyWithFallback(app)
         
         let keyboard = app.keyboards.firstMatch
-        if (keyboard.exists) {
+        if (excludeKeyboardElements && keyboard.exists) {
             let filteredChildren = appHierarchy.filterAllChildrenNotInKeyboardBounds(keyboard.frame)
             return AXElement(children: [
                 springboardHierarchy,

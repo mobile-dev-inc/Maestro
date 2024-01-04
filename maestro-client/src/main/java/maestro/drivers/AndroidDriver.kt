@@ -25,11 +25,9 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
-import dadb.adbserver.AdbServer
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import ios.IOSDeviceErrors
 import maestro.*
 import maestro.MaestroDriverStartupException.*
 import maestro.UiElement.Companion.toUiElementOrNull
@@ -263,14 +261,39 @@ class AndroidDriver(
         Thread.sleep(300)
     }
 
-    override fun contentDescriptor(): TreeNode {
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         val response = callViewHierarchy()
 
         val document = documentBuilderFactory
             .newDocumentBuilder()
             .parse(response.hierarchy.byteInputStream())
 
-        return mapHierarchy(document)
+        val treeNode = mapHierarchy(document)
+        return if (excludeKeyboardElements) {
+            treeNode.excludeKeyboardElements() ?: treeNode
+        } else {
+            treeNode
+        }
+    }
+
+    private fun TreeNode.excludeKeyboardElements(): TreeNode? {
+        val filtered = children.mapNotNull {
+            it.excludeKeyboardElements()
+        }.toList()
+
+        val resourceId = attributes["resource-id"]
+        if (resourceId != null && resourceId.startsWith("com.google.android.inputmethod.latin:id/")) {
+            return null
+        }
+        return TreeNode(
+            attributes = attributes,
+            children = filtered,
+            clickable = clickable,
+            enabled = enabled,
+            focused = focused,
+            checked = checked,
+            selected = selected
+        )
     }
 
     private fun callViewHierarchy(attempt: Int = 1): MaestroAndroid.ViewHierarchyResponse {

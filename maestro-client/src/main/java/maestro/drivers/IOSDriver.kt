@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.TimeoutException
 import kotlin.collections.set
 
 class IOSDriver(
@@ -139,13 +138,13 @@ class IOSDriver(
         }
     }
 
-    override fun contentDescriptor(): TreeNode {
-        return runDeviceCall { viewHierarchy() }
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
+        return runDeviceCall { viewHierarchy(excludeKeyboardElements) }
     }
 
-    private fun viewHierarchy(): TreeNode {
+    private fun viewHierarchy(filterOutKeyboardElements: Boolean): TreeNode {
         LOGGER.info("Requesting view hierarchy of the screen")
-        val hierarchyResult = iosDevice.viewHierarchy()
+        val hierarchyResult = iosDevice.viewHierarchy(filterOutKeyboardElements)
         LOGGER.info("Depth of the screen is ${hierarchyResult.depth}")
         if (hierarchyResult.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +

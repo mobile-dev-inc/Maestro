@@ -161,7 +161,7 @@ class WebDriver(val isStudio: Boolean) : Driver {
         driver.close()
     }
 
-    override fun contentDescriptor(): TreeNode {
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         ensureOpen()
 
         // retrieve view hierarchy from DOM

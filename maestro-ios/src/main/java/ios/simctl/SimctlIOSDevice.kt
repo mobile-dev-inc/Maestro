@@ -30,7 +30,7 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun viewHierarchy(): ViewHierarchy {
+    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         TODO("Not yet implemented")
     }
 

@@ -96,7 +96,7 @@ class ScreenshotUtils {
         }
 
         private fun viewHierarchy(driver: Driver): ViewHierarchy {
-            return ViewHierarchy.from(driver)
+            return ViewHierarchy.from(driver, false)
         }
     }
 }

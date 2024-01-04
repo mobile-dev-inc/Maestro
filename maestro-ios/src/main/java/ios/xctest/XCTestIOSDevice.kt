@@ -34,10 +34,10 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun viewHierarchy(): ViewHierarchy {
+    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         return execute {
             val installedApps = getInstalledApps()
-            val viewHierarchy = client.viewHierarchy(installedApps)
+            val viewHierarchy = client.viewHierarchy(installedApps, excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.info("Depth received: ${viewHierarchy.depth}")
             viewHierarchy

@@ -142,7 +142,7 @@ class FakeDriver : Driver {
         events += Event.PressKey(code)
     }
 
-    override fun contentDescriptor(): TreeNode {
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         ensureOpen()
 
         return layout.toTreeNode()
