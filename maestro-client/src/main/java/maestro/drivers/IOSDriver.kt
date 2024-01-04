@@ -142,9 +142,9 @@ class IOSDriver(
         return runDeviceCall { viewHierarchy(excludeKeyboardElements) }
     }
 
-    private fun viewHierarchy(filterOutKeyboardElements: Boolean): TreeNode {
+    private fun viewHierarchy(excludeKeyboardElements: Boolean): TreeNode {
         LOGGER.info("Requesting view hierarchy of the screen")
-        val hierarchyResult = iosDevice.viewHierarchy(filterOutKeyboardElements)
+        val hierarchyResult = iosDevice.viewHierarchy(excludeKeyboardElements)
         LOGGER.info("Depth of the screen is ${hierarchyResult.depth}")
         if (hierarchyResult.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +

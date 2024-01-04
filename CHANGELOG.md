@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.34.5 - 2024-1-4
+- Feature: Adds a parameter to exclude all the keyboard elements from hierarchy
+
 ## 1.34.4 - 2023-12-27
 - Fix: Failures due to swipe ranges going beyond screen dimensions
 - Change: Adding escape key in `pressKey` API
