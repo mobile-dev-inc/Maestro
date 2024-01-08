@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.35.0 - 2024-1-8
+- Change: Adds view class to Android hierarchy output
+- Change: Improves description of maestro start-device command to include device locale as well
+- Change: Adds scrollable attribute to Android view hierarchy output
+- Feature: Adds childOf attribute to selector to select from children of a container
+- Feature: Adds label attribute to customize the CLI output of maestro commands
+- Fix: Fixing “Unsupported architecture UNKNOWN” on linux environment when calling maestro attempts to create devices
+- Fix: Allow maestro to work below API level 25 for Android
+- Fix: IllegalArgumentException on swipe operation for iOS if the coordinates beyond device width and height are selected
+
 ## 1.34.5 - 2024-1-4
 - Feature: Adds a parameter to exclude all the keyboard elements from hierarchy
 
