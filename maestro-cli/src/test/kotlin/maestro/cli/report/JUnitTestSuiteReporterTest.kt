@@ -53,8 +53,8 @@ class JUnitTestSuiteReporterTest {
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
                   <testsuite name="Test Suite" device="iPhone 14" tests="2" failures="0" time="1915">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="1494"/>
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="1494" status="WARNING"/>
                   </testsuite>
                 </testsuites>
                 
@@ -106,8 +106,8 @@ class JUnitTestSuiteReporterTest {
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
                   <testsuite name="Test Suite" tests="2" failures="1" time="552">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="131">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="131" status="ERROR">
                       <failure>Error message</failure>
                     </testcase>
                   </testsuite>
@@ -160,8 +160,8 @@ class JUnitTestSuiteReporterTest {
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
                   <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0" time="421">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B"/>
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" status="WARNING"/>
                   </testsuite>
                 </testsuites>
                 

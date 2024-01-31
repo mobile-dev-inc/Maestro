@@ -262,7 +262,7 @@ internal class YamlCommandReaderTest {
         val resource = this::class.java.getResource("/YamlCommandReaderTest/flow.zip")!!.toURI()
         assertThat(resource.scheme).isEqualTo("file")
 
-        val commands = FileSystems.newFileSystem(Paths.get(resource), null).use { fs ->
+        val commands = FileSystems.newFileSystem(Paths.get(resource), null as ClassLoader?).use { fs ->
             YamlCommandReader.readCommands(fs.getPath("flow.yaml"))
         }
 

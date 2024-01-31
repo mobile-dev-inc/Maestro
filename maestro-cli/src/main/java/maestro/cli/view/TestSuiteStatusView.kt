@@ -164,11 +164,14 @@ object TestSuiteStatusView {
                 }
             )
 
-            fun UploadStatus.FlowResult.toViewModel() = FlowResult(
+            fun UploadStatus.FlowResult.toViewModel(
+                duration: Duration? = null
+            ) = FlowResult(
                 name = name,
                 status = FlowStatus.from(status, ),
                 error = errors.firstOrNull(),
-                cancellationReason = cancellationReason
+                cancellationReason = cancellationReason,
+                duration = duration
             )
 
         }

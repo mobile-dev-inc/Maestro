@@ -8,6 +8,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.*
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
@@ -215,7 +216,7 @@ class TestSuiteInteractor(
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
             }
         }
-        val flowDuration = (flowTimeMillis / 1000f).roundToLong().seconds
+        val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
 
         TestDebugReporter.saveFlow(flowName, debug, debugOutputPath)
 
