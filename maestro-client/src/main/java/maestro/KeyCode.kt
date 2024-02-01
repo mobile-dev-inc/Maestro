@@ -25,8 +25,8 @@ enum class KeyCode(
     REMOTE_REWIND("Remote Media Rewind"),
     REMOTE_FAST_FORWARD("Remote Media Fast Forward"),
     ESCAPE("Escape"),
-    POWER("Power");
-
+    POWER("Power"),
+    TAB("Tab");
     companion object {
         fun getByName(name: String): KeyCode? {
             val lowercaseName = name.lowercase()

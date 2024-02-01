@@ -19,3 +19,5 @@ appId: com.example.app
 - pressKey: REMOTE MEDIA REWIND
 - pressKey: Remote Media Fast Forward
 - pressKey: power
+- pressKey: Tab
+

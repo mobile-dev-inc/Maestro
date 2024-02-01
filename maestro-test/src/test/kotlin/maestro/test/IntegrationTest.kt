@@ -988,6 +988,7 @@ class IntegrationTest {
         driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_REWIND))
         driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_FAST_FORWARD))
         driver.assertHasEvent(Event.PressKey(KeyCode.POWER))
+        driver.assertHasEvent(Event.PressKey(KeyCode.TAB))
     }
 
     @Test
