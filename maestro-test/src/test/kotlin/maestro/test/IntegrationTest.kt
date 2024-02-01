@@ -989,6 +989,15 @@ class IntegrationTest {
         driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_FAST_FORWARD))
         driver.assertHasEvent(Event.PressKey(KeyCode.POWER))
         driver.assertHasEvent(Event.PressKey(KeyCode.TAB))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_SYSTEM_NAVIGATION_UP))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_BUTTON_A))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_BUTTON_B))
+        driver.assertHasEvent(Event.PressKey(KeyCode.REMOTE_MENU))
+        driver.assertHasEvent(Event.PressKey(KeyCode.TV_INPUT))
+        driver.assertHasEvent(Event.PressKey(KeyCode.TV_INPUT_HDMI_1))
+        driver.assertHasEvent(Event.PressKey(KeyCode.TV_INPUT_HDMI_2))
+        driver.assertHasEvent(Event.PressKey(KeyCode.TV_INPUT_HDMI_3))
     }
 
     @Test

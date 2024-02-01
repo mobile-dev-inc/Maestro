@@ -256,6 +256,15 @@ class AndroidDriver(
             KeyCode.POWER -> 26
             KeyCode.ESCAPE -> 111
             KeyCode.TAB -> 62
+            KeyCode.REMOTE_SYSTEM_NAVIGATION_UP -> 280
+            KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN -> 281
+            KeyCode.REMOTE_BUTTON_A -> 96
+            KeyCode.REMOTE_BUTTON_B -> 97
+            KeyCode.REMOTE_MENU -> 82
+            KeyCode.TV_INPUT -> 178
+            KeyCode.TV_INPUT_HDMI_1 -> 243
+            KeyCode.TV_INPUT_HDMI_2 -> 244
+            KeyCode.TV_INPUT_HDMI_3 -> 245
         }
 
         dadb.shell("input keyevent $intCode")
