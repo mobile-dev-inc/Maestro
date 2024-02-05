@@ -38,7 +38,7 @@ class CloudInteractor(
     private val auth: Auth = Auth(client),
     private val waitTimeoutMs: Long = TimeUnit.MINUTES.toMillis(30),
     private val minPollIntervalMs: Long = TimeUnit.SECONDS.toMillis(10),
-    private val maxPollingRetries: Int = 3,
+    private val maxPollingRetries: Int = 5,
     private val failOnTimeout: Boolean = true,
 ) {
 
@@ -216,7 +216,7 @@ class CloudInteractor(
                     continue
                 }
 
-                if (e.statusCode == 500 || e.statusCode == 502) {
+                if (e.statusCode == 500 || e.statusCode == 502 || e.statusCode == 404) {
                     if (++retryCounter <= maxPollingRetries) {
                         // retry on 500
                         Thread.sleep(pollingInterval)
