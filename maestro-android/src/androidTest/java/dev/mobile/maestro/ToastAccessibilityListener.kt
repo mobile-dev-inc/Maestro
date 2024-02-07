@@ -1,7 +1,7 @@
 package dev.mobile.maestro
 
 import android.app.UiAutomation
-import android.graphics.Rect
+import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -22,7 +22,13 @@ object ToastAccessibilityListener : UiAutomation.OnAccessibilityEventListener {
             accessibilityEvent.className.toString().contains(Toast::class.jvmName)
         ) {
             recentToastTimeMillis = System.currentTimeMillis()
-            toastNode = AccessibilityNodeInfo().apply {
+            // Constructor for AccessibilityNodeInfo is only available on Android API 30+
+            val nodeInfo = if (Build.VERSION.SDK_INT < 30) {
+                AccessibilityNodeInfo.obtain()
+            } else {
+                AccessibilityNodeInfo()
+            }
+            toastNode = nodeInfo.apply {
                 text = accessibilityEvent.text.first().toString()
                 className = Toast::class.jvmName
                 isVisibleToUser = true
