@@ -1,6 +1,15 @@
 # Changelog
 
-## 1.35.0 - 2024-1-8
+## 1.36.0 - 2024-02-15
+
+- Feature: Add support for extra keys to Android TV
+- Feature: Add support for pressing tab key on Android
+- Feature: Add status and time to report.xml
+- Fix: Extend retry to handle 404 in upload status call
+- Fix: Crashes caused by toasts on Android API < 30
+
+## 1.35.0 - 2024-01-08
+
 - Change: Adds view class to Android hierarchy output
 - Change: Improves description of maestro start-device command to include device locale as well
 - Change: Adds scrollable attribute to Android view hierarchy output
@@ -10,30 +19,35 @@
 - Fix: Allow maestro to work below API level 25 for Android
 - Fix: IllegalArgumentException on swipe operation for iOS if the coordinates beyond device width and height are selected
 
-## 1.34.5 - 2024-1-4
+## 1.34.5 - 2024-01-04
+
 - Feature: Adds a parameter to exclude all the keyboard elements from hierarchy
 
 ## 1.34.4 - 2023-12-27
+
 - Fix: Failures due to swipe ranges going beyond screen dimensions
 - Change: Adding escape key in `pressKey` API
 - Tweak: Avoid returning `Result` in IOSDriver install and clearAppState
 
 ## 1.34.3 - 2023-11-21
+
 - Tweak: Include scrollable attribute in view hierarchy from Android Driver
 - Feature: Custom labels for readability of maestro commands
-- Feature: Adding childOf selector 
+- Feature: Adding childOf selector
 - Tweak: Message of start-device command to show locale as well
 
 ## 1.34.2 - 2023-11-13
+
 - Tweak: Include view class in view hierarchy attributes from the Android driver
 
-
 ## 1.34.1 - 2023-11-9
+
 - Feature: add support `--device-locale` parameter for `maestro cloud` command
 - Feature: add support iOS17 for `maestro start-device` command
 - Feature: add support Android API level 34 for `maestro start-device` command
 
 ## 1.34.0 - 2023-10-24
+
 - Feature: support `--device-locale` parameter for `maestro start-device`
 - Feature: add `centerElement` parameter for `scrollUntilVisible`. Center element will attempt to stop scrolling when the element is near the center of the screen.
 - Feature: add `power` button support for `pressKey` on Android
@@ -43,6 +57,7 @@
 - Fix: improve `TimeoutException` for driver startup
 
 ## 1.33.1 - 2023-10-03
+
 - Feature: support for multipart form data file upload in Javascript, thanks @maciejkrolik
 - Fix: setPermissions produces error on Xcode 15
 - Fix: Maestro studio - include enter key in command editor on initial paste
@@ -52,17 +67,18 @@
 - Feature: Adds MAESTRO_DRIVER_STARTUP_TIMEOUT to iOS driver to configure timeout to start iOS driver, used in CI/CD environment with performance limitations. Thanks, Jesse Farsong for contributing.
 - Feature: Introducing the "addMedia" command that enables adding images and videos directly to the devices.
 - Change: Improved Studio's user interface:
-   - Updated fonts to align with company branding.
-   - Introduced a distinct loading animation for better clarity when AI is processing commands.
+  - Updated fonts to align with company branding.
+  - Introduced a distinct loading animation for better clarity when AI is processing commands.
 - Fix: Crash resulting in Error: No matches found for first query match sequence: `Children matching type Other` due to resolving root element for a snapshot operation on iOS
 - Fix: Android driver getting stuck when the device was disconnected
 - Fix: XCTestUnreachable exceptions due to missing IPv6 config on /etc/hosts
-- Fix: Handling app crash errors from XCUITest drivers gracefully  
+- Fix: Handling app crash errors from XCUITest drivers gracefully
 - Fix: Timeouts can be separated with `_`. For example 10_000 for 10000
 
 ## 1.32.0 - 2023-09-06
 
 Studio
+
 - Feature: Support writing Flows using AI (more info to come 🚀)
 - Feature: Maestro Studio can now run in multiple tabs simultaneously
 - Feature: Added element id and copy option for it
@@ -75,6 +91,7 @@ Studio
 - Fix: Fixed dark mode for element id
 
 CLI
+
 - Feature: New command to start or create a Maestro recommended device (docs)
 - Feature: Support id selection for testID with react-native-web (community contribution)
 - Feature: Control if browser automatically opens when running Maestro Studio via --no-window (community contribution)
@@ -89,9 +106,6 @@ CLI
 - Fix: Fixed Maestro Cloud wrong exit code when flow failed
 - Fix: Debug commands parsing would crash maestro
 - Fix: Cleaning up debug logs
-
-
-
 
 ## 1.31.0 - 2023-08-10
 
@@ -122,7 +136,7 @@ CLI
 ## 1.30.3 - 2023-07-17
 
 - Update: Maestro Studio revamp improvements
-  - wrapped element names in sidebar 
+  - wrapped element names in sidebar
   - sidebar text always visible
   - add "hintText" and "accesbilityText" in sidebar
   - improve sidebar search
