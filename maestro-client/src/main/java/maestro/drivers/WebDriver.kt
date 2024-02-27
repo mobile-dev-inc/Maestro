@@ -276,7 +276,8 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
-        TODO("Not yet implemented")
+        // Ignoring elementPoint to enable a rudimentary implementation of scrollUntilVisible for web
+        swipe(direction, durationMs)
     }
 
     fun swipe(start: Point, end: Point) {
