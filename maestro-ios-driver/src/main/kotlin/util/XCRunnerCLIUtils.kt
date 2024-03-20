@@ -122,8 +122,13 @@ object XCRunnerCLIUtils {
         return runningApps(deviceId)[bundleId]
     }
 
-    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int): Process {
+    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int, enableXCTestOutputFileLogging: Boolean = false): Process {
         val date = dateFormatter.format(LocalDateTime.now())
+        val outputFile = if (enableXCTestOutputFileLogging) {
+            File(logDirectory, "xctest_runner_$date.log")
+        } else {
+            null
+        }
         val logOutputDir = Files.createTempDirectory("maestro_xctestrunner_xcodebuild_output")
         return CommandLineUtils.runCommand(
             listOf(
@@ -137,7 +142,7 @@ object XCRunnerCLIUtils {
                 logOutputDir.absolutePathString()
             ),
             waitForCompletion = false,
-            outputFile = File(logDirectory, "xctest_runner_$date.log"),
+            outputFile = outputFile,
             params = mapOf("TEST_RUNNER_PORT" to port.toString())
         )
     }
