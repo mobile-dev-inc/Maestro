@@ -34,12 +34,12 @@ kotlin.sourceSets.all {
 android {
     namespace 'dev.mobile.maestro'
 
-    compileSdk 31
+    compileSdk 34
 
     defaultConfig {
         applicationId "dev.mobile.maestro"
         minSdk 24
-        targetSdk 31
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
