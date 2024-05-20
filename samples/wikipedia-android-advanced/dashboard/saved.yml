@@ -1,4 +1,4 @@
-appId: org.wikimedia
+appId: org.wikipedia
 ---
 - tapOn: "Saved"
 - tapOn: "Default list for your saved articles"

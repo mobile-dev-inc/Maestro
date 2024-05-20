@@ -1,4 +1,4 @@
-appId: org.wikimedia
+appId: org.wikipedia
 ---
 - tapOn: "Explore"
 - scrollUntilVisible:
