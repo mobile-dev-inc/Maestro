@@ -57,6 +57,10 @@ object Updates {
     }
 
     fun checkForUpdates(): CliVersion? {
+        // Disable update check, when MAESTRO_DISABLE_UPDATE_CHECK is set to "true" e.g. when installed by a package manager. e.g. nix
+        if (System.getenv("MAESTRO_DISABLE_UPDATE_CHECK")?.toBoolean() == true) {
+            return null
+        }
         return try {
             getFuture().get(3, TimeUnit.SECONDS)
         } catch (e: Exception) {
