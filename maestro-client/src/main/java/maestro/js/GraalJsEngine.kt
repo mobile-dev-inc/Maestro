@@ -25,6 +25,7 @@ class GraalJsEngine(
         .writeTimeout(5, TimeUnit.MINUTES)
         .protocols(listOf(Protocol.HTTP_1_1))
         .build(),
+    platform: String = "unknown",
 ) : JsEngine {
 
     private val openContexts = HashSet<Context>()
@@ -35,6 +36,8 @@ class GraalJsEngine(
     private val envBinding = HashMap<String, String>()
 
     private var onLogMessage: (String) -> Unit = {}
+
+    private var platform = platform
 
     override fun close() {
         openContexts.forEach { it.close() }
@@ -90,6 +93,8 @@ class GraalJsEngine(
         context.getBindings("js").putMember("http", httpBinding)
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
+
+        maestroBinding["platform"] = platform
 
         context.eval(
             "js", """

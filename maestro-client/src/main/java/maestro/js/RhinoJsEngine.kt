@@ -12,6 +12,7 @@ class RhinoJsEngine(
         .writeTimeout(5, TimeUnit.MINUTES)
         .protocols(listOf(Protocol.HTTP_1_1))
         .build(),
+    platform: String = "unknown",
 ) : JsEngine {
 
     private val context = Context.enter()
@@ -44,7 +45,7 @@ class RhinoJsEngine(
 
         context.evaluateString(
             currentScope,
-            Js.initScript,
+            Js.initScriptWithPlatform(platform),
             "maestro-runtime",
             1,
             null

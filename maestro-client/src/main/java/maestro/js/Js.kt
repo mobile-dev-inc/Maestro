@@ -16,9 +16,14 @@ object Js {
         
         const output = {}
         const maestro = {
-            copiedText: ''
+            copiedText: '',
+            platform: 'unknown'
         }
     """.trimIndent()
+
+    fun initScriptWithPlatform(platform: String): String {
+        return initScript.replace("platform: 'unknown'", "platform: '$platform'")
+    }
 
     fun sanitizeJs(text: String): String {
         return text

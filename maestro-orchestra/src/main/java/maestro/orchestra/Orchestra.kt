@@ -224,10 +224,11 @@ class Orchestra(
         }
         val shouldUseGraalJs =
             config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
+        val platform = maestro.deviceInfo().platform.toString().lowercase()
         jsEngine = if (shouldUseGraalJs) {
-            httpClient?.let { GraalJsEngine(it) } ?: GraalJsEngine()
+            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
         } else {
-            httpClient?.let { RhinoJsEngine(it) } ?: RhinoJsEngine()
+            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
         }
     }
 
