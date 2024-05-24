@@ -5,6 +5,7 @@ enum class ReportFormat(
 ) {
 
     JUNIT(".xml"),
+    HTML(".html"),
     NOOP(null),
 
 }
