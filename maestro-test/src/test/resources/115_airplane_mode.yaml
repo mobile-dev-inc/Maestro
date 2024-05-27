@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- setAirplaneMode: enabled
+- setAirplaneMode: disabled
+- toggleAirplaneMode

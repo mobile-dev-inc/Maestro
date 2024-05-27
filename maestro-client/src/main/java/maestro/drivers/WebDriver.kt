@@ -378,6 +378,14 @@ class WebDriver(val isStudio: Boolean) : Driver {
         // noop for web
     }
 
+    override fun isAirplaneModeEnabled(): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override fun setAirplaneMode(enabled: Boolean) {
+        TODO("Not yet implemented")
+    }
+
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
     }

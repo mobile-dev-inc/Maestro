@@ -440,6 +440,15 @@ class IOSDriver(
         LOGGER.info("[Done] Adding media files")
     }
 
+    override fun isAirplaneModeEnabled(): Boolean {
+        LOGGER.warn("Airplane mode is not available on iOS simulators")
+        return false
+    }
+
+    override fun setAirplaneMode(enabled: Boolean) {
+        LOGGER.warn("Airplane mode is not available on iOS simulators")
+    }
+
     private fun addMediaToDevice(mediaFile: File) {
         val namedSource = NamedSource(
             mediaFile.name,

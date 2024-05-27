@@ -581,6 +581,14 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         return driver.isUnicodeInputSupported()
     }
 
+    fun isAirplaneModeEnabled(): Boolean {
+        return driver.isAirplaneModeEnabled()
+    }
+
+    fun setAirplaneModeState(enabled: Boolean) {
+        driver.setAirplaneMode(enabled)
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

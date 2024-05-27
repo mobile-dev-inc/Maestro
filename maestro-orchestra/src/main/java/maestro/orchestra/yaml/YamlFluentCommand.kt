@@ -74,6 +74,8 @@ data class YamlFluentCommand(
     val startRecording: YamlStartRecording? = null,
     val stopRecording: YamlStopRecording? = null,
     val addMedia: YamlAddMedia? = null,
+    val setAirplaneMode: YamlSetAirplaneMode? = null,
+    val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -211,6 +213,8 @@ data class YamlFluentCommand(
                 val tapRepeat = TapRepeat(2, delay)
                 listOf(tapCommand(doubleTapOn, tapRepeat = tapRepeat))
             }
+            setAirplaneMode != null -> listOf(MaestroCommand(SetAirplaneModeCommand(setAirplaneMode.value)))
+            toggleAirplaneMode != null -> listOf(MaestroCommand(ToggleAirplaneModeCommand))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -665,6 +669,10 @@ data class YamlFluentCommand(
 
                 "stopRecording" -> YamlFluentCommand(
                     stopRecording = YamlStopRecording()
+                )
+
+                "toggleAirplaneMode" -> YamlFluentCommand(
+                    toggleAirplaneMode = YamlToggleAirplaneMode()
                 )
 
                 else -> throw SyntaxError("Invalid command: \"$stringCommand\"")

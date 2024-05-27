@@ -3108,6 +3108,16 @@ class IntegrationTest {
 
     }
 
+    @Test
+    fun `Case 115 - airplane mode`()  {
+        val commands = readCommands("115_airplane_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

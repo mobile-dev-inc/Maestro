@@ -278,12 +278,28 @@ class Orchestra(
             is StartRecordingCommand -> startRecordingCommand(command)
             is StopRecordingCommand -> stopRecordingCommand()
             is AddMediaCommand -> addMediaCommand(command.mediaPaths)
+            is SetAirplaneModeCommand -> setAirplaneMode(command)
+            is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             else -> true
         }.also { mutating ->
             if (mutating) {
                 timeMsOfLastInteraction = System.currentTimeMillis()
             }
         }
+    }
+
+    private fun setAirplaneMode(command: SetAirplaneModeCommand): Boolean {
+        when (command.value) {
+            AirplaneValue.Enable -> maestro.setAirplaneModeState(true)
+            AirplaneValue.Disable -> maestro.setAirplaneModeState(false)
+        }
+
+        return true
+    }
+
+    private fun toggleAirplaneMode(): Boolean {
+        maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
+        return true
     }
 
     private fun travelCommand(command: TravelCommand): Boolean {

@@ -54,6 +54,8 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
     ) : MaestroException(message)
 
     class DeprecatedCommand(message: String) : MaestroException(message)
+
+    class NoRootAccess(message: String) : MaestroException(message)
 }
 
 sealed class MaestroDriverStartupException(override val message: String): RuntimeException() {

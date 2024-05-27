@@ -665,6 +665,50 @@ class AndroidDriver(
         LOGGER.info("[Done] Adding media files")
     }
 
+    override fun isAirplaneModeEnabled(): Boolean {
+        return when (val result = shell("cmd connectivity airplane-mode").trim()) {
+            "No shell command implementation.", "" -> {
+                LOGGER.debug("Falling back to old airplane mode read method")
+                when (val fallbackResult = shell("settings get global airplane_mode_on").trim()) {
+                    "0" -> false
+                    "1" -> true
+                    else -> throw IllegalStateException("Received invalid response from while trying to read airplane mode state: $fallbackResult")
+                }
+            }
+            "disabled" -> false
+            "enabled" -> true
+            else -> throw IllegalStateException("Received invalid response while trying to read airplane mode state: $result")
+        }
+    }
+
+    override fun setAirplaneMode(enabled: Boolean) {
+        // fallback to old way on API < 28
+        if (getDeviceApiLevel() < 28) {
+            val num = if (enabled) 1 else 0
+            shell("settings put global airplane_mode_on $num")
+            // We need to broadcast the change to really apply it
+            broadcastAirplaneMode(enabled)
+            return
+        }
+        val value = if (enabled) "enable" else "disable"
+        shell("cmd connectivity airplane-mode $value")
+    }
+
+    private fun broadcastAirplaneMode(enabled: Boolean) {
+        val command = "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $enabled"
+        try {
+            shell(command)
+        } catch (e: IOException) {
+            if (e.message?.contains("Security exception: Permission Denial:") == true) {
+                try {
+                    shell("su root $command")
+                } catch (e: IOException) {
+                    throw MaestroException.NoRootAccess("Failed to broadcast airplane mode change. Make sure to run an emulator with root access for API < 28")
+                }
+            }
+        }
+    }
+
     fun setDeviceLocale(country: String, language: String): Int {
         dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
         val response = dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")

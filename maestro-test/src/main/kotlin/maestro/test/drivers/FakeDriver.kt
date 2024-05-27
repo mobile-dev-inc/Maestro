@@ -43,6 +43,8 @@ class FakeDriver : Driver {
 
     private var currentText: String = ""
 
+    private var airplaneMode: Boolean = false
+
     override fun name(): String {
         return "Fake Device"
     }
@@ -376,6 +378,14 @@ class FakeDriver : Driver {
         ensureOpen()
 
         mediaFiles.forEach { _ -> events.add(Event.AddMedia) }
+    }
+
+    override fun isAirplaneModeEnabled(): Boolean {
+        return this.airplaneMode
+    }
+
+    override fun setAirplaneMode(enabled: Boolean) {
+        this.airplaneMode = enabled
     }
 
     sealed class Event {
