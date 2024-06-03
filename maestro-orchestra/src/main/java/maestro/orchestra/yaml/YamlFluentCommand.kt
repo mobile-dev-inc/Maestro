@@ -61,6 +61,7 @@ data class YamlFluentCommand(
     val takeScreenshot: YamlTakeScreenshot? = null,
     val extendedWaitUntil: YamlExtendedWaitUntil? = null,
     val stopApp: YamlStopApp? = null,
+    val killApp: YamlKillApp? = null,
     val clearState: YamlClearState? = null,
     val runFlow: YamlRunFlow? = null,
     val setLocation: YamlSetLocation? = null,
@@ -150,6 +151,14 @@ data class YamlFluentCommand(
                     StopAppCommand(
                         appId = stopApp.appId ?: appId,
                         label = stopApp.label
+                    )
+                )
+            )
+            killApp != null -> listOf(
+                MaestroCommand(
+                    KillAppCommand(
+                        appId = killApp.appId ?: appId,
+                        label = killApp.label
                     )
                 )
             )
@@ -615,6 +624,10 @@ data class YamlFluentCommand(
 
                 "stopApp" -> YamlFluentCommand(
                     stopApp = YamlStopApp()
+                )
+
+                "killApp" -> YamlFluentCommand(
+                    killApp = YamlKillApp()
                 )
 
                 "clearState" -> YamlFluentCommand(

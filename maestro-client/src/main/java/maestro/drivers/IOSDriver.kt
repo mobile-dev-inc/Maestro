@@ -100,6 +100,11 @@ class IOSDriver(
         iosDevice.stop(appId)
     }
 
+    override fun killApp(appId: String) {
+        // On iOS there is no Process Death like on Android so this command will be a synonym to the stop command
+        stopApp(appId)
+    }
+
     override fun clearAppState(appId: String) {
         iosDevice.clearAppState(appId)
     }

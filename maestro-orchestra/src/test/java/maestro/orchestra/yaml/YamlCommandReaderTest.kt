@@ -37,6 +37,7 @@ import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
+import maestro.orchestra.KillAppCommand
 import maestro.orchestra.StopRecordingCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
@@ -605,6 +606,20 @@ internal class YamlCommandReaderTest {
             ClearKeychainCommand(),
             PasteTextCommand(),
             PasteTextCommand(),
+        )
+    }
+
+    @Test
+    fun killApp(
+        @YamlFile("025_killApp.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            KillAppCommand(
+                appId = "com.example.app"
+            ),
         )
     }
 

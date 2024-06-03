@@ -41,6 +41,8 @@ interface Driver {
 
     fun stopApp(appId: String)
 
+    fun killApp(appId: String)
+
     fun clearAppState(appId: String)
 
     fun clearKeychain()

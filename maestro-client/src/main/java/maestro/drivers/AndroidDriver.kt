@@ -206,6 +206,11 @@ class AndroidDriver(
         shell("am force-stop $appId")
     }
 
+    override fun killApp(appId: String) {
+        // Kill is the adb command needed to trigger System-initiated Process Death
+        shell("am kill $appId")
+    }
+
     override fun clearAppState(appId: String) {
         if (!isPackageInstalled(appId)) {
             return

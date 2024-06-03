@@ -538,6 +538,22 @@ data class StopAppCommand(
     }
 }
 
+data class KillAppCommand(
+    val appId: String,
+    val label: String? = null
+) : Command {
+
+    override fun description(): String {
+        return label ?: "Kill $appId"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            appId = appId.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class ClearStateCommand(
     val appId: String,
     val label: String? = null,

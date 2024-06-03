@@ -3117,6 +3117,25 @@ class IntegrationTest {
             orchestra(it).runFlow(commands)
         }
     }
+    
+    @Test
+    fun `Case 116 - Kill app`() {
+        // Given
+        val commands = readCommands("115_kill_app")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.KillApp("com.example.app"))
+        driver.assertHasEvent(Event.KillApp("another.app"))
+    }
 
     private fun orchestra(
         maestro: Maestro,
