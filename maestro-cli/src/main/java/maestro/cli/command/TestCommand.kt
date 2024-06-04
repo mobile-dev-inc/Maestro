@@ -88,6 +88,12 @@ class TestCommand : Callable<Int> {
     private var debugOutput: String? = null
 
     @Option(
+        names = ["--flatten-debug-output"],
+        description = ["All file outputs from the test case are created in the folder without subfolders or timestamps for each run. It can be used with --debug-output. Useful for CI."]
+    )
+    private var flattenDebugOutput: Boolean = false
+
+    @Option(
         names = ["--include-tags"],
         description = ["List of tags that will remove the Flows that does not have the provided tags"],
         split = ",",
@@ -130,7 +136,7 @@ class TestCommand : Callable<Int> {
 
         env = env.withInjectedShellEnvVars()
 
-        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
+        TestDebugReporter.install(debugOutputPathAsString = debugOutput, flattenDebugOutput = flattenDebugOutput)
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
         
         return MaestroSessionManager.newSession(parent?.host, parent?.port, deviceId) { session ->
@@ -161,7 +167,9 @@ class TestCommand : Callable<Int> {
                     debugOutputPath = debugOutputPath
                 )
 
-                TestDebugReporter.deleteOldFiles()
+                if (!flattenDebugOutput) {
+                    TestDebugReporter.deleteOldFiles()
+                }
                 if (suiteResult.passed) {
                     0
                 } else {
@@ -170,7 +178,9 @@ class TestCommand : Callable<Int> {
                 }
             } else {
                 if (continuous) {
-                    TestDebugReporter.deleteOldFiles()
+                    if(!flattenDebugOutput){
+                        TestDebugReporter.deleteOldFiles()
+                    }
                     TestRunner.runContinuous(maestro, device, flowFile, env)
                 } else {
                     val resultView = if (DisableAnsiMixin.ansiEnabled) AnsiResultView() else PlainTextResultView()
@@ -178,7 +188,9 @@ class TestCommand : Callable<Int> {
                     if (resultSingle == 1) {
                         printExitDebugMessage()
                     }
-                    TestDebugReporter.deleteOldFiles()
+                    if(!flattenDebugOutput){
+                        TestDebugReporter.deleteOldFiles()
+                    }
                     return@newSession resultSingle
                 }
             }
