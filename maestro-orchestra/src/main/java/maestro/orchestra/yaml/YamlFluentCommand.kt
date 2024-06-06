@@ -222,8 +222,8 @@ data class YamlFluentCommand(
                 val tapRepeat = TapRepeat(2, delay)
                 listOf(tapCommand(doubleTapOn, tapRepeat = tapRepeat))
             }
-            setAirplaneMode != null -> listOf(MaestroCommand(SetAirplaneModeCommand(setAirplaneMode.value)))
-            toggleAirplaneMode != null -> listOf(MaestroCommand(ToggleAirplaneModeCommand))
+            setAirplaneMode != null -> listOf(MaestroCommand(SetAirplaneModeCommand(setAirplaneMode.value, setAirplaneMode.label)))
+            toggleAirplaneMode != null -> listOf(MaestroCommand(ToggleAirplaneModeCommand(toggleAirplaneMode.label)))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -247,7 +247,7 @@ data class YamlFluentCommand(
             resolvedPath
         }
         val mediaAbsolutePathStrings = mediaPaths.mapNotNull { it.absolutePathString() }
-        return AddMediaCommand(mediaAbsolutePathStrings)
+        return AddMediaCommand(mediaAbsolutePathStrings, addMedia.label)
     }
 
     private fun runFlowCommand(

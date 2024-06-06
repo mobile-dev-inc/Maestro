@@ -1,3 +1,5 @@
 package maestro.orchestra.yaml
 
-class YamlToggleAirplaneMode
+data class YamlToggleAirplaneMode(
+    val label: String? = null,
+)

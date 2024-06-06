@@ -65,7 +65,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                         "3. UP or up\n" +
                         "4. DOWN or down"
                 }
-                val isDirectionalSwipe = input == listOf("direction", "duration") || input == listOf("direction")
+                val isDirectionalSwipe = isDirectionalSwipe(input)
                 return if (isDirectionalSwipe) {
                     YamlSwipeDirection(SwipeDirection.valueOf(direction.uppercase()), duration, label)
                 } else {
@@ -139,8 +139,12 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         return if (root.path("label").isMissingNode) {
             null
         } else {
-            root.path("label").toString()
+            root.path("label").toString().replace("\"", "")
         }
     }
 
+    private fun isDirectionalSwipe(input: List<String>): Boolean {
+        return input == listOf("direction", "duration") || input == listOf("direction") ||
+                input == listOf("direction", "label") || input == listOf("direction", "duration", "label")
+    }
 }

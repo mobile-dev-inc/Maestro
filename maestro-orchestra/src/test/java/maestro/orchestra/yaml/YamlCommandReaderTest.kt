@@ -1,11 +1,12 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
-import java.nio.file.FileSystems
-import java.nio.file.Paths
 import maestro.KeyCode
 import maestro.ScrollDirection
+import maestro.SwipeDirection
 import maestro.TapRepeat
+import maestro.orchestra.AddMediaCommand
+import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
@@ -21,6 +22,7 @@ import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
 import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
+import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -34,14 +36,16 @@ import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
+import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
-import maestro.orchestra.KillAppCommand
 import maestro.orchestra.StopRecordingCommand
+import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
+import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.SyntaxError
@@ -50,6 +54,8 @@ import maestro.orchestra.yaml.junit.YamlExceptionExtension
 import maestro.orchestra.yaml.junit.YamlFile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.nio.file.FileSystems
+import java.nio.file.Paths
 
 @Suppress("JUnitMalformedDeclaration")
 @ExtendWith(YamlCommandsExtension::class, YamlExceptionExtension::class)
@@ -507,6 +513,21 @@ internal class YamlCommandReaderTest {
             WaitForAnimationToEndCommand(
                 timeout = 4000,
                 label = "Wait for the thing to stop spinning"
+            ),
+            SwipeCommand(
+                direction = SwipeDirection.DOWN,
+                label = "Swipe down a bit"
+            ),
+            AddMediaCommand(
+                mediaPaths = listOf(Paths.get("build/resources/test/YamlCommandReaderTest/023_image.png").toAbsolutePath().toString()),
+                label = "Add a picture to the device"
+            ),
+            SetAirplaneModeCommand(
+                value = AirplaneValue.Enable,
+                label = "Turn on airplane mode for testing"
+            ),
+            ToggleAirplaneModeCommand(
+                label = "Toggle airplane mode for testing"
             ),
             RepeatCommand(
                 condition = Condition(visible = ElementSelector(textRegex = "Some important text")),

@@ -112,6 +112,18 @@ appId: com.example.app
 - waitForAnimationToEnd:
     timeout: 4000
     label: "Wait for the thing to stop spinning"
+- swipe:
+    direction: DOWN
+    label: "Swipe down a bit"
+- addMedia:
+      files:
+          - "023_image.png"
+      label: "Add a picture to the device"
+- setAirplaneMode:
+      value: enabled
+      label: "Turn on airplane mode for testing"
+- toggleAirplaneMode:
+      label: "Toggle airplane mode for testing"
 
 # Repeats
 - repeat:
