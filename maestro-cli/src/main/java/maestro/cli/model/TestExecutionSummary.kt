@@ -5,13 +5,15 @@ import kotlin.time.Duration
 data class TestExecutionSummary(
     val passed: Boolean,
     val suites: List<SuiteResult>,
-    val deviceName: String? = null,
+    val passedCount: Int? = null,
+    val totalTests: Int? = null,
 ) {
 
     data class SuiteResult(
         val passed: Boolean,
         val flows: List<FlowResult>,
         val duration: Duration? = null,
+        val deviceName: String? = null,
     )
 
     data class FlowResult(

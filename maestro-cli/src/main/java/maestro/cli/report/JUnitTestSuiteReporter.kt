@@ -34,7 +34,7 @@ class JUnitTestSuiteReporter(
                         .map { suite ->
                             TestSuite(
                                 name = testSuiteName ?: "Test Suite",
-                                device = summary.deviceName,
+                                device = suite.deviceName,
                                 failures = suite.flows.count { it.status == FlowStatus.ERROR },
                                 time = suite.duration?.inWholeSeconds?.toString(),
                                 tests = suite.flows.size,

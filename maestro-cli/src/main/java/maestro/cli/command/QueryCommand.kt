@@ -60,7 +60,12 @@ class QueryCommand : Runnable {
     lateinit var commandSpec: Model.CommandSpec
 
     override fun run() {
-        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+        MaestroSessionManager.newSession(
+            host = parent?.host,
+            port = parent?.port,
+            driverHostPort = parent?.port,
+            deviceId = parent?.deviceId
+        ) { session ->
             val filters = mutableListOf<ElementFilter>()
 
             text?.let {

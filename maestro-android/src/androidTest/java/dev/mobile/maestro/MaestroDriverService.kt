@@ -48,13 +48,22 @@ import com.google.protobuf.ByteString
 import io.grpc.Status
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
-import maestro_android.*
+import maestro_android.MaestroAndroid
+import maestro_android.MaestroDriverGrpc
+import maestro_android.addMediaResponse
+import maestro_android.checkWindowUpdatingResponse
+import maestro_android.deviceInfo
+import maestro_android.eraseAllTextResponse
+import maestro_android.inputTextResponse
+import maestro_android.launchAppResponse
+import maestro_android.screenshotResponse
+import maestro_android.setLocationResponse
+import maestro_android.tapResponse
+import maestro_android.viewHierarchyResponse
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
-import java.lang.IllegalStateException
-import java.util.IllegalFormatException
 import kotlin.system.measureTimeMillis
 
 /**
@@ -76,7 +85,11 @@ class MaestroDriverService {
         val uiDevice = UiDevice.getInstance(instrumentation)
         val uiAutomation = instrumentation.uiAutomation
 
-        NettyServerBuilder.forPort(7001)
+        val port = InstrumentationRegistry.getArguments().getString("port", "7001").toInt()
+
+        println("Server running on port [ $port ]")
+
+        NettyServerBuilder.forPort(port)
             .addService(Service(uiDevice, uiAutomation))
             .build()
             .start()
@@ -85,7 +98,6 @@ class MaestroDriverService {
             Thread.sleep(100)
         }
     }
-
 }
 
 class Service(

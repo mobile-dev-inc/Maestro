@@ -17,6 +17,7 @@ import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
+import okio.sink
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -95,14 +96,16 @@ class TestSuiteInteractor(
 
         val summary = TestExecutionSummary(
             passed = passed,
-            deviceName = device?.description,
             suites = listOf(
                 TestExecutionSummary.SuiteResult(
                     passed = passed,
                     flows = flowResults,
-                    duration = suiteDuration
+                    duration = suiteDuration,
+                    deviceName = device?.description,
                 )
-            )
+            ),
+            passedCount = flowResults.count { it.status == FlowStatus.SUCCESS },
+            totalTests = flowResults.size
         )
 
         if (reportOut != null) {

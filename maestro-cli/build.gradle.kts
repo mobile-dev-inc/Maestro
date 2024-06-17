@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.jarchivelib)
     implementation(libs.commons.codec)
+    implementation(libs.kotlinx.coroutines.core)
     implementation("org.jetbrains.kotlinx:kotlinx-html:$kotlinxHtmlVersion")
 
     testImplementation(libs.junit.jupiter.api)

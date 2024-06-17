@@ -29,7 +29,8 @@ import maestro.debuglog.DebugLogStore
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
-import java.util.*
+import java.util.Properties
+import kotlin.random.Random
 import kotlin.system.exitProcess
 
 @Command(
@@ -66,7 +67,7 @@ class App {
     @Option(names = ["--port"], hidden = true)
     var port: Int? = null
 
-    @Option(names = ["--device", "--udid"], description = ["(Optional) Select a device to run on explicitly"])
+    @Option(names = ["--device", "--udid"], description = ["(Optional) Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "])
     var deviceId: String? = null
 }
 

@@ -48,7 +48,13 @@ class StudioCommand : Callable<Int> {
 
         TestDebugReporter.install(debugOutputPathAsString = debugOutput)
 
-        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId, true) { session ->
+        MaestroSessionManager.newSession(
+            host = parent?.host,
+            port = parent?.port,
+            driverHostPort = parent?.port,
+            deviceId = parent?.deviceId,
+            isStudio = true
+        ) { session ->
             val port = getFreePort()
             MaestroStudio.start(port, session.maestro)
 

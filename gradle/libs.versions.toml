@@ -17,19 +17,19 @@ apkParser =  "2.6.10"
 appdirs = "1.2.1"
 axml = "2.1.2"
 commons-codec = "1.15"
+commonsLang3 = "3.13.0"
 dadb = "1.2.6"
 detekt = "1.19.0"
-googleAndroidMaterial = "1.6.0"
 googleFindbugs = "3.0.2"
 googleGson = "2.9.0"
 googleProtobuf = "3.21.9"
-googleProtobufKotlinLite = "3.21.9"
 googleProtobufPlugin = "0.9.1"
 googleTruth = "1.1.3"
 graaljs = "22.0.0" # Latest version that supports Java 8
 grpc = "1.50.2"
 grpcKotlinStub = "1.3.0"
 imageComparison = "4.4.0"
+hiddenapibypass = "4.3"
 jackson = "2.13.4"
 jansi = "2.4.0"
 jarchivelib = "1.2.0"
@@ -47,10 +47,12 @@ squareRetrofit = "2.9.0"
 squareMockWebServer = "4.11.0"
 wiremock = "2.35.0"
 logback="1.2.6"
+coroutines = "1.6.3"
 
 [libraries]
 android-tools-apkparser = { module = "com.android.tools.apkparser:apkanalyzer", version.ref = "androidToolsApkParser" }
 android-tools-sdk = { module = "com.android.tools:sdk-common", version.ref = "androidToolsSdk" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidxAppcompat" }
 androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidxConstraintlayout" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
@@ -61,8 +63,8 @@ apk-parser = { module = "net.dongliu:apk-parser", version.ref = "apkParser" }
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 axml = { module = "de.upb.cs.swt:axml", version.ref = "axml" }
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commonsLang3" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
-google-android-material = { module = "com.google.android.material:material", version.ref = "googleAndroidMaterial" }
 google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "googleGson" }
 google-protobuf = { module = "com.google.protobuf:protoc", version.ref = "googleProtobuf" }
@@ -79,6 +81,7 @@ grpc-protobuf-kotlin = { module = "io.grpc:grpc-protobuf-kotlin", version.ref = 
 grpc-protobuf-lite = { module = "io.grpc:grpc-protobuf-lite", version.ref = "grpc" }
 grpc-protoc-gen-java = { module = "io.grpc:protoc-gen-grpc-java", version.ref = "grpc"}
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapibypass" }
 image-comparison = { module = "com.github.romankh3:image-comparison", version.ref = "imageComparison" }
 jackson-core-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml", version.ref = "jackson" }

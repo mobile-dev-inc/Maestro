@@ -1,45 +1,28 @@
 package maestro.cli.db
 
 import java.io.File
-import java.io.RandomAccessFile
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
-class KeyValueStore(
-    private val dbFile: File
-) {
+class KeyValueStore(private val dbFile: File) {
+    private val lock = ReentrantReadWriteLock()
 
-    fun get(key: String): String? {
-        val db = getCurrentDB()
-        return db[key]
-    }
+    fun get(key: String): String? = lock.read { getCurrentDB()[key] }
 
-    fun set(key: String, value: String) {
+    fun set(key: String, value: String) = lock.write {
         val db = getCurrentDB()
         db[key] = value
         commit(db)
     }
 
-    fun delete(key: String) {
+    fun delete(key: String) = lock.write {
         val db = getCurrentDB()
         db.remove(key)
         commit(db)
     }
 
-    fun keys(): List<String> {
-        val db = getCurrentDB()
-        return db.keys.toList()
-    }
-
-    fun <T> withExclusiveLock(block: () -> T): T {
-        val channel = RandomAccessFile(dbFile, "rw").channel
-
-        val lock = channel.lock()
-        return try {
-            block()
-        } finally {
-            lock.release()
-            channel.close()
-        }
-    }
+    fun keys(): List<String> = lock.read { getCurrentDB().keys.toList() }
 
     private fun getCurrentDB(): MutableMap<String, String> {
         return dbFile
@@ -57,5 +40,4 @@ class KeyValueStore(
                 .joinToString("\n")
         )
     }
-
 }

@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.device.DeviceCreateUtil
 import maestro.cli.device.DeviceService
@@ -26,6 +27,9 @@ import java.util.concurrent.Callable
     ]
 )
 class StartDeviceCommand : Callable<Int> {
+
+    @CommandLine.ParentCommand
+    private val parent: App? = null
 
     @CommandLine.Option(
         order = 0,
@@ -87,9 +91,12 @@ class StartDeviceCommand : Callable<Int> {
         try {
             val (deviceLanguage, deviceCountry) = LocaleUtils.parseLocaleParams(locale, maestroPlatform)
 
-            DeviceCreateUtil.getOrCreateDevice(p, o, deviceLanguage, deviceCountry, forceCreate).let {
+            DeviceCreateUtil.getOrCreateDevice(p, o, deviceLanguage, deviceCountry, forceCreate).let { device ->
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
-                DeviceService.startDevice(it)
+                DeviceService.startDevice(
+                    device = device,
+                    driverHostPort = parent?.port
+                )
             }
         } catch (e: LocaleValidationIosException) {
             val locales = LocaleUtils.IOS_SUPPORTED_LOCALES.joinToString("\n")

@@ -80,7 +80,12 @@ class RecordCommand : Callable<Int> {
         TestDebugReporter.install(debugOutputPathAsString = debugOutput)
         val path = TestDebugReporter.getDebugOutputPath()
 
-        return MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+        return MaestroSessionManager.newSession(
+            host = parent?.host,
+            port = parent?.port,
+            driverHostPort = parent?.port,
+            deviceId = parent?.deviceId
+        ) { session ->
             val maestro = session.maestro
             val device = session.device
 

@@ -29,7 +29,8 @@ import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import maestro.*
-import maestro.MaestroDriverStartupException.*
+import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
+import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
@@ -46,16 +47,24 @@ import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
 import java.util.UUID
-import java.util.concurrent.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
+private const val DefaultDriverHostPort = 7001
+
 class AndroidDriver(
     private val dadb: Dadb,
-    private val hostPort: Int = 7001,
+    hostPort: Int? = null,
+    private var emulatorName: String = "",
 ) : Driver {
+    private var open = false
+    private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
-    private val channel = ManagedChannelBuilder.forAddress("localhost", hostPort)
+    private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
@@ -72,8 +81,9 @@ class AndroidDriver(
     }
 
     override fun open() {
+        allocateForwarder()
         installMaestroApks()
-        startInstrumentationSession()
+        startInstrumentationSession(hostPort)
 
         try {
             awaitLaunch()
@@ -81,11 +91,9 @@ class AndroidDriver(
             instrumentationSession?.close()
             return
         }
-
-        allocateForwarder()
     }
 
-    private fun startInstrumentationSession() {
+    private fun startInstrumentationSession(port: Int = 7001) {
         val startTime = System.currentTimeMillis()
         val apiLevel = getDeviceApiLevel()
 
@@ -94,9 +102,11 @@ class AndroidDriver(
             if (apiLevel >= 26) append("-m ")
             append("-e debug false ")
             append("-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' ")
+            append("-e port $port ")
             append("dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n")
         }
 
+        open = true
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             instrumentationSession = dadb.openShell(instrumentationCommand)
 
@@ -127,7 +137,7 @@ class AndroidDriver(
 
         PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
             hostPort,
-            7001
+            hostPort
         )
         PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
     }
@@ -137,13 +147,13 @@ class AndroidDriver(
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             runCatching {
-                dadb.open("tcp:7001").close()
+                dadb.open("tcp:$hostPort").close()
                 return
             }
             Thread.sleep(100)
         }
 
-        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time")
+        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time  ---  emulator [ ${emulatorName} ] & port  [ dadb.open( tcp:${hostPort} ) ]")
     }
 
     override fun close() {
@@ -184,6 +194,9 @@ class AndroidDriver(
         launchArguments: Map<String, Any>,
         sessionId: UUID?,
     ) {
+        if(!open) // pick device flow, no open() invocation
+            open()
+
         if (!isPackageInstalled(appId)) {
             throw IllegalArgumentException("Package $appId is not installed")
         }

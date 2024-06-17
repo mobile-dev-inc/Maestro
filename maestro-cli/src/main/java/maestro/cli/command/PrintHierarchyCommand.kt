@@ -47,7 +47,12 @@ class PrintHierarchyCommand : Runnable {
     private val parent: App? = null
 
     override fun run() {
-        MaestroSessionManager.newSession(parent?.host, parent?.port, parent?.deviceId) { session ->
+        MaestroSessionManager.newSession(
+            host = parent?.host,
+            port = parent?.port,
+            driverHostPort = parent?.port,
+            deviceId = parent?.deviceId,
+        ) { session ->
             Insights.onInsightsUpdated {
                 val message = StringBuilder()
                 val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)

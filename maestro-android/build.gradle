@@ -26,7 +26,7 @@ protobuf {
     }
 }
 
-kotlin.sourceSets.all {
+kotlin.sourceSets.configureEach {
     // Prevent build warnings for grpc's generated opt-in code
     languageSettings.optIn("kotlin.RequiresOptIn")
 }
@@ -116,8 +116,17 @@ tasks.register("copyMaestroServer", Copy) {
     }
 }
 
-tasks.named("assemble") { finalizedBy("copyMaestroAndroid") }
-tasks.named("assembleAndroidTest") { finalizedBy("copyMaestroServer") }
+tasks.named("assemble") {
+    lint.enabled = false
+    lintVitalRelease.enabled = false
+    finalizedBy("copyMaestroAndroid")
+}
+
+tasks.named("assembleAndroidTest") {
+    lint.enabled = false
+    lintVitalRelease.enabled = false
+    finalizedBy("copyMaestroServer")
+}
 
 sourceSets {
     generated {
@@ -144,8 +153,8 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serial.gson)
 
-    implementation('org.apache.commons:commons-lang3:3.13.0')
-    implementation('org.lsposed.hiddenapibypass:hiddenapibypass:4.3')
+    implementation(libs.commons.lang3)
+    implementation(libs.hiddenapibypass)
 
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.espresso.core)

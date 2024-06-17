@@ -70,10 +70,6 @@ object SessionStore {
         }
     }
 
-    fun <T> withExclusiveLock(block: () -> T): T {
-        return keyValueStore.withExclusiveLock(block)
-    }
-
     private fun key(sessionId: String, platform: Platform): String {
         return "${platform}_$sessionId"
     }

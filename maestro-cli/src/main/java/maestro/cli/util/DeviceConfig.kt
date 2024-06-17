@@ -27,7 +27,7 @@ data class DeviceConfigAndroid(
         val defaultVersion = 30
 
         fun createConfig(version: Int, device: AvdDevice, architecture: MACOS_ARCHITECTURE): DeviceConfigAndroid {
-            val name = "Maestro_${device.name.replace(" ", "_")}_API_$version"
+            val name = "Maestro_${device.name.replace(" ", "_")}_API_${version}"
             val tag = "google_apis"
             val systemImage = when (architecture) {
                 MACOS_ARCHITECTURE.x86_64 -> "x86_64"
