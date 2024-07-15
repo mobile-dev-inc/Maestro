@@ -55,7 +55,10 @@ class App {
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
 
-    @Option(names = ["-v", "--version"], versionHelp = true)
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
+
+    @Option(names = ["-v", "--version"], versionHelp = true, description = ["Display CLI version"])
     var requestedVersion: Boolean? = false
 
     @Option(names = ["-p", "--platform"], hidden = true)

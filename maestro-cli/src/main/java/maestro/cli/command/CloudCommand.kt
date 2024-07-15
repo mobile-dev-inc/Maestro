@@ -21,6 +21,7 @@ package maestro.cli.command
 
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
@@ -48,6 +49,9 @@ class CloudCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
+
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
 
     @CommandLine.Parameters(hidden = true, arity = "0..2", description = ["App file and/or Flow file i.e <appFile> <flowFile>"])
     private lateinit var files: List<File>

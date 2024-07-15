@@ -1,6 +1,7 @@
 package maestro.cli.command
 
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.PrintUtils.message
@@ -17,6 +18,9 @@ class LoginCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
+
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
 
     @CommandLine.Option(names = ["--apiUrl"], description = ["API base URL"])
     private var apiUrl: String = "https://api.mobile.dev"

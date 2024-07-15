@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Semaphore
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.cli.device.DeviceService
 import maestro.cli.device.PickDeviceView
@@ -65,6 +66,9 @@ class TestCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
+
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null

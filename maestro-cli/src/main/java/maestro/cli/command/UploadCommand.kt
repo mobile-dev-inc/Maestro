@@ -20,6 +20,7 @@
 package maestro.cli.command
 
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -40,6 +41,9 @@ class UploadCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
+
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
 
     @CommandLine.Parameters(description = ["App binary to run your Flows against"])
     private lateinit var appFile: File

@@ -22,6 +22,7 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
@@ -45,6 +46,9 @@ class RecordCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var disableANSIMixin: DisableAnsiMixin? = null
+
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null

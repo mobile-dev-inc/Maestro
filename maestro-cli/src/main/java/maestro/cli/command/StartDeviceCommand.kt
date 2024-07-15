@@ -2,6 +2,7 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.cli.device.DeviceService
 import maestro.cli.device.Platform
@@ -27,6 +28,9 @@ import java.util.concurrent.Callable
     ]
 )
 class StartDeviceCommand : Callable<Int> {
+
+    @CommandLine.Mixin
+    var showHelpMixin: ShowHelpMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null
