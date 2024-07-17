@@ -302,7 +302,8 @@ class TestCommand : Callable<Int> {
                                 if (!flattenDebugOutput) {
                                     TestDebugReporter.deleteOldFiles()
                                 }
-                                return@newSession Triple(resultSingle, 1, null)
+                                val result = if (resultSingle == 0) 1 else 0
+                                return@newSession Triple(result, 1, null)
                             }
                         }
                     }
