@@ -13,7 +13,7 @@ androidxCore = "1.9.0"
 androidxEspresso = "3.4.0"
 androidxTestJunit = "1.1.3"
 androidxUiautomator = "2.3.0"
-apkParser =  "2.6.10"
+apkParser = "2.6.10"
 appdirs = "1.2.1"
 axml = "2.1.2"
 commons-codec = "1.15"
@@ -46,7 +46,7 @@ squareOkio = "3.2.0"
 squareRetrofit = "2.9.0"
 squareMockWebServer = "4.11.0"
 wiremock = "2.35.0"
-logback="1.2.6"
+logback = "1.2.6"
 coroutines = "1.6.3"
 
 [libraries]
@@ -79,7 +79,7 @@ grpc-okhttp = { module = "io.grpc:grpc-okhttp", version.ref = "grpc" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-protobuf-kotlin = { module = "io.grpc:grpc-protobuf-kotlin", version.ref = "grpc" }
 grpc-protobuf-lite = { module = "io.grpc:grpc-protobuf-lite", version.ref = "grpc" }
-grpc-protoc-gen-java = { module = "io.grpc:protoc-gen-grpc-java", version.ref = "grpc"}
+grpc-protoc-gen-java = { module = "io.grpc:protoc-gen-grpc-java", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapibypass" }
 image-comparison = { module = "com.github.romankh3:image-comparison", version.ref = "imageComparison" }
@@ -87,6 +87,7 @@ jackson-core-databind = { module = "com.fasterxml.jackson.core:jackson-databind"
 jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml", version.ref = "jackson" }
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
 jansi = { module = "org.fusesource.jansi:jansi", version.ref = "jansi" }
 jarchivelib = { module = "org.rauschig:jarchivelib", version.ref = "jarchivelib" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }

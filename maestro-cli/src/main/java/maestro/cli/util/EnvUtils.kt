@@ -1,18 +1,50 @@
 package maestro.cli.util
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import maestro.cli.api.CliVersion
+import maestro.cli.update.Updates
+import maestro.cli.view.red
+import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.Properties
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 object EnvUtils {
+    private const val PROD_API_URL = "https://api.mobile.dev"
 
-    fun androidHome(): String? {
-        return System.getenv("ANDROID_HOME")
-            ?: System.getenv("ANDROID_SDK_ROOT")
-            ?: System.getenv("ANDROID_SDK_HOME")
-            ?: System.getenv("ANDROID_SDK")
-            ?: System.getenv("ANDROID")
+    val OS_NAME: String = System.getProperty("os.name")
+    val OS_ARCH: String = System.getProperty("os.arch")
+    val OS_VERSION: String = System.getProperty("os.version")
+
+    val CLI_VERSION: CliVersion? = getCLIVersion()
+
+    fun getVersion(): CliVersion? {
+        return getCLIVersion().apply {
+            if (this == null) {
+                System.err.println("\nWarning: Failed to parse current version".red())
+            }
+        }
+    }
+
+    val BASE_API_URL: String
+        get() = System.getenv("MAESTRO_API_URL") ?: PROD_API_URL
+
+    /**
+     * Where Maestro config and state files were located before v1.37.0.
+     */
+    fun legacyMaestroHome(): Path {
+        return Paths.get(System.getProperty("user.home"), ".maestro")
+    }
+
+    fun xdgStateHome(): Path {
+        if (System.getenv("XDG_STATE_HOME") != null) {
+            return Paths.get(System.getenv("XDG_STATE_HOME"), "maestro")
+        }
+
+        return Paths.get(System.getProperty("user.home"), ".maestro")
     }
 
     fun maestroCloudApiKey(): String? {
@@ -42,18 +74,37 @@ object EnvUtils {
         return false
     }
 
-    fun getJavaVersion(): String? {
-        return runCatching {
-            val processBuilder = ProcessBuilder("java", "-version")
-            val process = processBuilder.start()
-            val reader = BufferedReader(InputStreamReader(process.errorStream)) // java -version prints to error stream
+    /**
+     * Returns major version of Java, e.g. 8, 11, 17, 21.
+     */
+    fun getJavaVersion(): Int {
+        // Adapted from https://stackoverflow.com/a/2591122/7009800
+        val version = System.getProperty("java.version")
+        return if (version.startsWith("1.")) {
+            version.substring(2, 3).toInt()
+        } else {
+            val dot = version.indexOf(".")
+            if (dot != -1) version.substring(0, dot).toInt() else 0
+        }
+    }
 
-            val javaVersionLine = reader.readLine()
-            val versionPattern = "\"(.*?)\"".toRegex() // capture the version between double quotes
-            val matchResult = versionPattern.find(javaVersionLine)
+    fun getFlutterVersionAndChannel(): Pair<String?, String?> {
+        val stdout = runProcess(
+            "flutter",
+            "--no-version-check", "--version", "--machine",
+        ).joinToString(separator = "")
 
-            return matchResult?.groups?.get(1)?.value // return matched version or null if not found
-        }.getOrNull()
+        val mapper = jacksonObjectMapper()
+        val version = runCatching {
+            val obj: Map<String, String> = mapper.readValue(stdout)
+            obj["flutterVersion"].toString()
+        }
+        val channel = runCatching {
+            val obj: Map<String, String> = mapper.readValue(stdout)
+            obj["channel"].toString()
+        }
+
+        return Pair(first = version.getOrNull(), second = channel.getOrNull())
     }
 
     fun getMacOSArchitecture(): MACOS_ARCHITECTURE {
@@ -66,6 +117,20 @@ object EnvUtils {
         } else {
             ArchitectureDetectionStrategy.MacOsArchitectureDetection
         }
+    }
+
+    private fun getCLIVersion(): CliVersion? {
+        val props = try {
+            Updates::class.java.classLoader.getResourceAsStream("version.properties").use {
+                Properties().apply { load(it) }
+            }
+        } catch (e: Exception) {
+            return null
+        }
+
+        val versionString = props["version"] as? String ?: return null
+
+        return CliVersion.parse(versionString)
     }
 }
 
@@ -106,7 +171,7 @@ enum class MACOS_ARCHITECTURE {
     UNKNOWN
 }
 
-private fun runProcess(program: String, vararg arguments: String): List<String> {
+internal fun runProcess(program: String, vararg arguments: String): List<String> {
     val process = ProcessBuilder(program, *arguments).start()
     return try {
         process.inputStream.reader().use { it.readLines().map(String::trim) }

@@ -8,9 +8,11 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import maestro.cli.CliError
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.AnalyticsReport
 import maestro.cli.runner.resultview.AnsiResultView
-import maestro.cli.update.Updates
 import maestro.cli.util.CiUtils
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -33,7 +35,6 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
-import kotlin.io.use
 
 class ApiClient(
     private val baseUrl: String,
@@ -75,11 +76,16 @@ class ApiClient(
         )
     }
 
-    fun getLatestCliVersion(
-        freshInstall: Boolean,
-    ): CliVersion {
+    fun sendAnalyticsReport(analyticsReport: AnalyticsReport) {
+        post<Unit>(
+            path = "/maestro/analytics",
+            body = analyticsReport,
+        )
+    }
+
+    fun getLatestCliVersion(): CliVersion {
         val request = Request.Builder()
-            .header("X-FRESH-INSTALL", if (freshInstall) "true" else "false")
+            .header("X-FRESH-INSTALL", if (!Analytics.hasRunBefore) "true" else "false")
             .url("$baseUrl/maestro/version")
             .get()
             .build()
@@ -507,13 +513,12 @@ data class CliVersion(
 class SystemInformationInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val newRequest = chain.request().newBuilder()
-            .header("X-UUID", Updates.DEVICE_UUID)
-            .header("X-VERSION", Updates.CLI_VERSION.toString())
-            .header("X-OS", Updates.OS_NAME)
-            .header("X-OSARCH", Updates.OS_ARCH)
+            .header("X-UUID", Analytics.uuid)
+            .header("X-VERSION", EnvUtils.getVersion().toString())
+            .header("X-OS", EnvUtils.OS_NAME)
+            .header("X-OSARCH", EnvUtils.OS_ARCH)
             .build()
 
         return chain.proceed(newRequest)
     }
-
 }

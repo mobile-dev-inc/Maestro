@@ -1,7 +1,6 @@
 package maestro.cli.util
 
 import maestro.cli.api.ApiClient
-import maestro.cli.update.Updates.BASE_API_URL
 import picocli.CommandLine
 import java.security.MessageDigest
 import java.util.concurrent.Executors
@@ -24,7 +23,7 @@ object ErrorReporter {
         }
 
         val task = executor.submit {
-            ApiClient(BASE_API_URL).sendErrorReport(
+            ApiClient(EnvUtils.BASE_API_URL).sendErrorReport(
                 exception,
                 scrubbedArgs.joinToString(" ")
             )

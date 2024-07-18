@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.jackson.module.kotlin)
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.jackson.dataformat.xml)
+    implementation(libs.jackson.datatype.jsr310)
     implementation(libs.jansi)
     implementation(libs.square.okhttp)
     implementation(libs.ktor.client.core)

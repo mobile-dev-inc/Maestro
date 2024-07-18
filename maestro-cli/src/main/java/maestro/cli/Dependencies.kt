@@ -4,13 +4,12 @@ import maestro.cli.util.Unpacker.binaryDependency
 import maestro.cli.util.Unpacker.unpack
 
 object Dependencies {
-
-    val APPLESIMUTILS = binaryDependency("applesimutils")
+    private val appleSimUtils = binaryDependency("applesimutils")
 
     fun install() {
         unpack(
-            "deps/applesimutils",
-            APPLESIMUTILS
+            jarPath = "deps/applesimutils",
+            target = appleSimUtils,
         )
     }
 
