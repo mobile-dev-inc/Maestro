@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.37.0 - 2024-07-25
+
+[**Release Medium post**](https://blog.mobile.dev/whats-new-in-maestro-1-37-0-581431428562)
+
+### New features
+
+- **Sharding tests for parallel execution on many devices 🎉** ([#1732](https://github.com/mobile-dev-inc/maestro/pull/1732) by [Kaan](https://github.com/sdfgsdfgd))
+
+  You can now pass `--shards` argument to `maestro test` to split up your test suite into chunks that run in parallel. If you have feedback or suggestions about this huge new feature, please share them with us in [issue #1818](https://github.com/mobile-dev-inc/maestro/issues/1818).
+
+- **Reports in HTML** ([#1750](https://github.com/mobile-dev-inc/maestro/pull/1750) by [Depa Panjie Purnama](https://github.com/depapp))
+
+  To see it, run `maestro test --format HTML <your-flow.yaml>`
+
+- **Homebrew is back!**
+
+  If you prefer to switch your installation of Maestro to use Homebrew:
+    1. `rm -rf ~/.maestro`
+    2. `brew tap mobile-dev-inc/tap && brew install maestro` 🎉
+
+    Script install method is still supported.
+
+- **Current platform exposed in JavaScript** ([#1747](https://github.com/mobile-dev-inc/maestro/pull/1747) by [Dan Caseley](https://github.com/Fishbowler))
+
+  In JavaScript, you can now access `maestro.platform` to express logic that depends on whether the test runs on iOS or Android.
+- **Control airplane mode** ([#1672](https://github.com/mobile-dev-inc/maestro/pull/1672) by [NyCodeGHG](https://github.com/NyCodeGHG))
+
+  New commands: `setAirplaneMode` and `toggleAirplaneMode`. Android-only because of iOS simulator restrictions.
+- **New `killApp` command** ([#1727](https://github.com/mobile-dev-inc/maestro/pull/1727) by [Alexandre Favre](https://github.com/alexandrefavre4))
+
+  To trigger a System-Initiated Process Death on Android. On iOS, works the same as `stopApp`.
+
+### Bug fixes
+
+- Fix cleaning up retries in iOS driver ([#1669](https://github.com/mobile-dev-inc/maestro/pull/1669))
+- Fix some commands not respecting custom labels ([#1762](https://github.com/mobile-dev-inc/maestro/pull/1762) by [Dan Caseley](https://github.com/Fishbowler))
+- Fix “Protocol family unavailable” when rerunning iOS tests ([#1671](https://github.com/mobile-dev-inc/maestro/pull/1671) by [Stanisław Chmiela](https://github.com/sjchmiela))
+
 ## 1.36.0 - 2024-02-15
 
 - Feature: Add support for extra keys to Android TV
