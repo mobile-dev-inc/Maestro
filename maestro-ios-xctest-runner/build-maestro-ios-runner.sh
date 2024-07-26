@@ -1,3 +1,9 @@
+
+if [ "$PWD" != "maestro" ]; then
+  echo "This script must be run from the maestro root directory"
+  exit 1
+fi
+
 ## Build the UI test
 ## TODO: make destination generic for iOS 15 simulator
 rm -rf ./build/Products || exit 1

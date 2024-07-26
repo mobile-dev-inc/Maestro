@@ -34,7 +34,43 @@ There are 3 ways to test your changes:
 - Manual testing
   - Run `./maestro` instead of `maestro` to use your local code.
 - Unit tests
-  - All the other tests in the projects. Run them via `./gradlew test` (or from IDE) 
+  - All the other tests in the projects. Run them via `./gradlew test` (or from IDE)
+
+If you made changes to the CLI, rebuilt it with `./gradlew :maestro-cli:installDist`. This will generate a startup shell
+script in `./maestro-cli/build/install/maestro/bin/maestro`. Use it instead of globally installed `maestro`.
+
+If you made changes to the iOS XCUITest driver, rebuild it by running `./maestro-ios-xctest-runner/build-maestro-ios-runner.sh`.
+
+### Running on Android
+
+Maestro requires 2 artifacts to run on Android:
+
+- `maestro-app.apk` - the host app. Does nothing.
+- `maestro-server.apk` - the test runner app. Starts an HTTP server inside an infinite JUnit/UIAutomator test.
+
+These artifacts are built by `./gradlew :maestro-android:assemble` and `./gradlew :maestro-android:assembleAndroidTest`, respectively.
+They are placed in `maestro-android/build/outputs/apk`, and are copied over to `maestro-client/src/main/resources`.
+
+### Running on iOS
+
+Maestro requires 3 artifacts to run on iOS:
+
+- `maestro-driver-ios` - the host app for the test runner. Does nothing and is not installed.
+- `maestro-driver-iosUITests-Runner.app` - the test runner app. Starts an HTTP server inside an infinite XCTest. 
+- `maestro-driver-ios-config.xctestrun` - the configuration file required to run the test runner app.
+
+These artifacts are built by the `build-maestro-ios-runner.sh` script. It places them in `maestro-ios-driver/src/main/resources`.
+
+### Artifacts and the CLI
+
+`maestro-cli` depends on both `maestro-ios-driver` and `maestro-client`. This is how the CLI gets these artifacts.
+
+## Debugging
+
+Maestro stores logs for every test run in the following locations:
+
+- CLI Logs: `~/.maestro/tests/*/maestro.log`
+- iOS test runner logs: `~/Library/Logs/maestro/xctest_runner_logs`
 
 ## Architectural considerations
 
