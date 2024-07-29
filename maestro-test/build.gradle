@@ -1,11 +1,25 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+
 plugins {
     id "kotlin"
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(KotlinJvmCompile).configureEach {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_1_8
+    }
+}
+
 dependencies {
     implementation project(":maestro-orchestra")
-    implementation project(':maestro-client')
-    implementation project(':maestro-utils')
+    implementation project(":maestro-client")
+    implementation project(":maestro-utils")
 
     implementation(libs.google.truth)
     implementation(libs.square.okio)
