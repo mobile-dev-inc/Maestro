@@ -16,10 +16,10 @@ object IOSEnvUtils {
             val installedRuntimes = topLevelDirs
                 .map { it.resolve("Library/Developer/CoreSimulator/Profiles/Runtimes") }
                 .map { it.listFiles() }
-                .reduce { acc, list -> acc + list }
-                .map { file -> file.nameWithoutExtension }
+                .reduceOrNull { acc, list -> acc + list }
+                ?.map { file -> file.nameWithoutExtension }
 
-            return installedRuntimes
+            return installedRuntimes ?: emptyList()
         }
 
     val xcodeVersion: String?
