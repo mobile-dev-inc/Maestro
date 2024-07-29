@@ -6,6 +6,7 @@ import maestro.cli.api.CliVersion
 import maestro.cli.update.Updates
 import maestro.cli.view.red
 import java.io.File
+import java.io.IOException
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Properties
@@ -89,10 +90,15 @@ object EnvUtils {
     }
 
     fun getFlutterVersionAndChannel(): Pair<String?, String?> {
-        val stdout = runProcess(
-            "flutter",
-            "--no-version-check", "--version", "--machine",
-        ).joinToString(separator = "")
+        val stdout = try {
+             runProcess(
+                "flutter",
+                "--no-version-check", "--version", "--machine",
+            ).joinToString(separator = "")
+        } catch (e: IOException) {
+            // Flutter is probably not installed
+            return Pair(first = null, second = null)
+        }
 
         val mapper = jacksonObjectMapper()
         val version = runCatching {

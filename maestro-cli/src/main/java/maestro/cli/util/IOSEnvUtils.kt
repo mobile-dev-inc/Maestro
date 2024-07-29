@@ -1,5 +1,6 @@
 package maestro.cli.util
 
+import java.io.IOException
 import kotlin.io.path.Path
 
 object IOSEnvUtils {
@@ -23,7 +24,12 @@ object IOSEnvUtils {
 
     val xcodeVersion: String?
         get() {
-            val lines = runProcess("xcodebuild", "-version")
+            val lines = try {
+                runProcess("xcodebuild", "-version")
+            } catch (e: IOException) {
+                // Xcode toolchain is probably not installed
+                return null
+            }
 
             if (lines.size == 2 && lines.first().contains(' ')) {
                 // Correct xcodebuild invocation is always 2 lines. Example:
