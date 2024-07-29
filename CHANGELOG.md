@@ -1,8 +1,6 @@
 # Changelog
 
-## 1.37.0 - 2024-07-25
-
-[**Release Medium post**](https://blog.mobile.dev/whats-new-in-maestro-1-37-0-581431428562)
+## 1.37.0 - 2024-07-29
 
 ### New features
 
