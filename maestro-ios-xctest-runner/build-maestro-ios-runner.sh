@@ -1,5 +1,5 @@
 
-if [ "$PWD" != "maestro" ]; then
+if [ "$(basename "$PWD")" != "maestro" ]; then
   echo "This script must be run from the maestro root directory"
   exit 1
 fi
