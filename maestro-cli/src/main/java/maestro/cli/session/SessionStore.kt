@@ -9,12 +9,8 @@ object SessionStore {
 
     private val keyValueStore by lazy {
         KeyValueStore(
-            Paths
-                .get(
-                    System.getProperty("user.home"),
-                    ".maestro",
-                    "sessions"
-                )
+            dbFile = Paths
+                .get(System.getProperty("user.home"), ".maestro", "sessions")
                 .toFile()
                 .also { it.parentFile.mkdirs() }
         )
@@ -23,8 +19,8 @@ object SessionStore {
     fun heartbeat(sessionId: String, platform: Platform) {
         synchronized(keyValueStore) {
             keyValueStore.set(
-                key(sessionId, platform),
-                System.currentTimeMillis().toString()
+                key = key(sessionId, platform),
+                value = System.currentTimeMillis().toString(),
             )
 
             pruneInactiveSessions()

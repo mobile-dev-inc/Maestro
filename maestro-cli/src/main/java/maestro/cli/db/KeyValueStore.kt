@@ -8,6 +8,10 @@ import kotlin.concurrent.write
 class KeyValueStore(private val dbFile: File) {
     private val lock = ReentrantReadWriteLock()
 
+    init {
+        dbFile.createNewFile()
+    }
+
     fun get(key: String): String? = lock.read { getCurrentDB()[key] }
 
     fun set(key: String, value: String) = lock.write {

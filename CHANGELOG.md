@@ -1,18 +1,36 @@
 # Changelog
 
+## 1.37.3 - 2024-07-29
+
+### Bug fixes
+
+Fix `FileNotFoundException: ~.maestro/sessions` ([#1843](https://github.com/mobile-dev-inc/maestro/pull/1843)) 
+
+## 1.37.2 - 2024-07-29
+
+### Bug fixes
+
+- Fix `UnsupportedOperationException: Empty collection can't be reduced` ([#1840](https://github.com/mobile-dev-inc/maestro/pull/1840))
+
+## 1.37.1 - 2024-07-29
+
+### Bug fixes
+
+- Fix crash when `flutter` or `xcodebuild` is not installed ([#1839](https://github.com/mobile-dev-inc/maestro/pull/1839))
+
 ## 1.37.0 - 2024-07-29
 
 ### New features
 
-- **Sharding tests for parallel execution on many devices 🎉** ([#1732](https://github.com/mobile-dev-inc/maestro/pull/1732) by [Kaan](https://github.com/sdfgsdfgd))
+- **Sharding tests for parallel execution on many devices 🎉** ([#1732](https://github.com/mobile-dev-inc/maestro/pull/1732) by [Kaan](https://github.com/sdfgsdfgd))
 
   You can now pass `--shards` argument to `maestro test` to split up your test suite into chunks that run in parallel. If you have feedback or suggestions about this huge new feature, please share them with us in [issue #1818](https://github.com/mobile-dev-inc/maestro/issues/1818).
 
-- **Reports in HTML** ([#1750](https://github.com/mobile-dev-inc/maestro/pull/1750) by [Depa Panjie Purnama](https://github.com/depapp))
+- **Reports in HTML** ([#1750](https://github.com/mobile-dev-inc/maestro/pull/1750) by [Depa Panjie Purnama](https://github.com/depapp))
 
   To see it, run `maestro test --format HTML <your-flow.yaml>`
 
-- **Homebrew is back!**
+- **Homebrew is back!**
 
   If you prefer to switch your installation of Maestro to use Homebrew:
     1. `rm -rf ~/.maestro`
