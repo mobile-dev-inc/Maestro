@@ -50,7 +50,7 @@ class TestSuiteInteractor(
 
     suspend fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
-        reportOut: Sink?,
+        reportOut: File?,
         env: Map<String, String>,
         debugOutputPath: Path,
         testOutputDir: Path? = null

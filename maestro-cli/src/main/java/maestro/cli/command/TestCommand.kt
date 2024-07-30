@@ -533,9 +533,12 @@ class TestCommand : Callable<Int> {
         val reporter = ReporterFactory.buildReporter(format, testSuiteName)
 
         format.fileExtension?.let { extension ->
-            (output ?: File("report$extension")).sink()
-        }?.also { sink ->
-            reporter.report(this, sink)
+            (output ?: File("report$extension"))
+        }?.also { file ->
+            reporter.report(
+                this,
+                file,
+            )
         }
     }
 
