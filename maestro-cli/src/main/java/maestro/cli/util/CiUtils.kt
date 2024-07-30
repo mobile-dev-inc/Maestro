@@ -1,13 +1,20 @@
 package maestro.cli.util
 
 object CiUtils {
+
+    // When adding a new CI, also add the first version of Maestro that supports it.
     private val ciEnvVarMap = mapOf(
-        "JENKINS_HOME" to "jenkins",
-        "BITRISE_IO" to "bitrise",
-        "CIRCLECI" to "circleci",
-        "GITLAB_CI" to "gitlab",
-        "GITHUB_ACTIONS" to "github",
+        "APPVEYOR" to "appveyor", // since v1.37.4
         "BITBUCKET_BUILD_NUMBER" to "bitbucket",
+        "BITRISE_IO" to "bitrise",
+        "BUILDKITE" to "buildkite", // since v1.37.4
+        "CIRCLECI" to "circleci",
+        "CIRRUS_CI" to "cirrusci", // since v1.37.4
+        "DRONE" to "drone", // since v1.37.4
+        "GITHUB_ACTIONS" to "github",
+        "GITLAB_CI" to "gitlab",
+        "JENKINS_HOME" to "jenkins",
+        "TEAMCITY_VERSION" to "teamcity", // since v1.37.4
         "CI" to "ci"
     )
 
@@ -22,10 +29,12 @@ object CiUtils {
             return mdevCiEnvVar
         }
 
-        for (ciVar in ciEnvVarMap.entries) {
+        for (ciEnvVar in ciEnvVarMap.entries) {
             try {
-                if (isTruthy(System.getenv(ciVar.key).lowercase())) return ciVar.value
-            } catch (e: Exception) {}
+                if (isTruthy(System.getenv(ciEnvVar.key).lowercase())) return ciEnvVar.value
+            } catch (e: Exception) {
+                // We don't care
+            }
         }
 
         return null

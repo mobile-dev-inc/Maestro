@@ -1,10 +1,14 @@
 # Changelog
 
+## 1.37.4 - 2024-07-30
+
+- Don't ask for analytics permission on CI + add `MAESTRO_CLI_NO_ANALYTICS` env var ([#1848](https://github.com/mobile-dev-inc/maestro/pull/1848))
+
 ## 1.37.3 - 2024-07-29
 
 ### Bug fixes
 
-Fix `FileNotFoundException: ~.maestro/sessions` ([#1843](https://github.com/mobile-dev-inc/maestro/pull/1843)) 
+- Fix `FileNotFoundException: ~.maestro/sessions` ([#1843](https://github.com/mobile-dev-inc/maestro/pull/1843)) 
 
 ## 1.37.2 - 2024-07-29
 

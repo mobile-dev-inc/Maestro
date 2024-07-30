@@ -34,6 +34,10 @@ object Analytics {
     private val analyticsStatePath: Path = EnvUtils.xdgStateHome().resolve("analytics.json")
     private val legacyUuidPath: Path = EnvUtils.legacyMaestroHome().resolve("uuid")
 
+    private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
+    private val analyticsDisabledWithEnvVar: Boolean
+        get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
+
     private val JSON = jacksonObjectMapper().apply {
         registerModule(JavaTimeModule())
         enable(SerializationFeature.INDENT_OUTPUT)
@@ -73,6 +77,21 @@ object Analytics {
     fun maybeAskToEnableAnalytics() {
         if (hasRunBefore) return
 
+        // Fix for https://github.com/mobile-dev-inc/maestro/issues/1846
+        if (CiUtils.getCiProvider() != null) {
+            if (!analyticsDisabledWithEnvVar) {
+                println("CI detected, analytics was automatically enabled.")
+                println("To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.")
+            } else {
+                println("CI detected and $DISABLE_ANALYTICS_ENV_VAR environment variable set, analytics disabled.")
+            }
+            return
+        }
+
+        if (analyticsDisabledWithEnvVar) {
+            return
+        }
+
         while (!Thread.interrupted()) {
             println("Maestro CLI would like to collect anonymous usage data to improve the product.")
             print("Enable analytics? [Y/n] ")
@@ -99,8 +118,12 @@ object Analytics {
             return
         }
 
+        if (analyticsDisabledWithEnvVar) {
+            logger.trace("Analytics disabled with env var, not uploading")
+        }
+
         if (!analyticsState.enabled) {
-            logger.trace("Analytics disabled, not uploading")
+            logger.trace("Analytics disabled with config file, not uploading")
             return
         }
 
