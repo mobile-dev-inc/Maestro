@@ -1,9 +1,10 @@
+import org.jreleaser.model.Stereotype
 import java.util.Properties
 
 plugins {
     kotlin("jvm")
     application
-    id("org.jreleaser") version "1.0.0"
+    id("org.jreleaser") version "1.13.1"
     id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
@@ -92,35 +93,57 @@ jreleaser {
     gitRootSearch.set(true)
 
     project {
-        website.set("https://maestro.mobile.dev")
-        description.set("Maestro CLI")
+        name.set("Maestro CLI")
+        description.set("The easiest way to automate UI testing for your mobile app")
+        links {
+            homepage.set("https://maestro.mobile.dev")
+            bugTracker.set("https://github.com/mobile-dev-inc/maestro/issues")
+        }
         authors.set(listOf("Dmitry Zaytsev", "Amanjeet Singh", "Leland Takamine", "Arthur Saveliev", "Axel Niklasson", "Berik Visschers"))
         license.set("Apache-2.0")
-    }
-
-    release {
-        github {
-            owner.set("mobile-dev-inc")
-            name.set("maestro")
-            tagName.set("cli-$CLI_VERSION")
-            releaseName.set("CLI $CLI_VERSION")
-            overwrite.set(true)
-        }
+        copyright.set("mobile.dev 2024")
     }
 
     distributions {
         create("maestro") {
+            stereotype.set(Stereotype.CLI)
+
+            executable {
+                name.set("maestro")
+            }
+
             artifact {
                 setPath("build/distributions/maestro.zip")
             }
-            brew {
-                setActive("RELEASE")
-                formulaName.set("Maestro")
-
-                repoTap {
-                    owner.set("mobile-dev-inc")
-                    name.set("homebrew-tap")
+            
+            release {
+                github {
+                    repoOwner.set("mobile-dev-inc")
+                    name.set("maestro")
+                    tagName.set("cli-$CLI_VERSION")
+                    releaseName.set("CLI $CLI_VERSION")
+                    overwrite.set(true)
                 }
+            }
+        }
+    }
+
+    packagers {
+        brew {
+            setActive("RELEASE")
+            extraProperties.put("skipJava", "true")
+            formulaName.set("Maestro")
+
+            // The default template path
+            templateDirectory.set(file("src/jreleaser/distributions/maestro/brew"))
+
+            repoTap {
+                repoOwner.set("mobile-dev-inc")
+                name.set("homebrew-tap")
+            }
+
+            dependencies {
+                dependency("openjdk")
             }
         }
     }
