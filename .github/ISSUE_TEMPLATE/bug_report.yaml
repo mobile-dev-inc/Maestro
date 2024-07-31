@@ -116,6 +116,7 @@ body:
       description: |
         Include information about machine you're running Maestro on:
       
+        - Java version (e.g. OpenJDK 17, Eclipse Temurin 8). To find it, run `java -version`
         - OS and its version (e.g. macOS 13.1 Ventura, Ubuntu 24.04, Arch (btw))
         - Processor architecture (x86_64, arm64)
       placeholder: |
