@@ -10,6 +10,7 @@ import io.grpc.ManagedChannelBuilder
 import ios.IOSDevice
 import ios.idb.IdbIOSDevice
 import java.io.File
+import maestro.android.AndroidDriver
 
 /*
  *
@@ -39,7 +40,8 @@ private fun executeAndroidCommands() {
     val dadb = Dadb.create("localhost", 5555)
     val androidApk = File("./examples/samples/src/main/resources/android-app-debug.apk")
     dadb.install(androidApk)
-    val maestro = Maestro.android(dadb)
+    val driver = AndroidDriver(dadb)
+    val maestro = Maestro.android(driver)
     val launchAppCommand = MaestroCommand(launchAppCommand = LaunchAppCommand("dev.mobile.sample"))
     val tapViewDetailsCommand = MaestroCommand(
         tapOnElement = TapOnElementCommand(ElementSelector(textRegex = "VIEW DETAILS"))
