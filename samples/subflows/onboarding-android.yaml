@@ -1,6 +1,7 @@
 appId: org.wikipedia
 ---
-- launchApp
+- launchApp:
+    clearState: true
 - tapOn:
     id: "org.wikipedia:id/fragment_onboarding_forward_button"
 - tapOn:
