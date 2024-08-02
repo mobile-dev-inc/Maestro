@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.37.6
+
+Released on 2024-08-02
+
+- Print stack trace on 3rd retry ([#1877](https://github.com/mobile-dev-inc/maestro/pull/1877))
+
 ## 1.37.5
 
 Released on 2024-08-02
