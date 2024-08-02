@@ -291,12 +291,13 @@ class ApiClient(
 
         val body = bodyBuilder.build()
 
-        fun retry(message: String): UploadResponse {
+        fun retry(message: String, e: Throwable? = null): UploadResponse {
             if (completedRetries >= maxRetryCount) {
+                e?.printStackTrace()
                 throw CliError(message)
             }
 
-            PrintUtils.message("$message, retrying...")
+            PrintUtils.message("$message, retrying (${completedRetries+1}/$maxRetryCount)...")
             Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
 
             return upload(
@@ -333,7 +334,7 @@ class ApiClient(
 
             client.newCall(request).execute()
         } catch (e: IOException) {
-            return retry("Upload failed due to socket exception")
+            return retry("Upload failed due to socket exception", e)
         }
 
         response.use {
