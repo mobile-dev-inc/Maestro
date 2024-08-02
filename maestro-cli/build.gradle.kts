@@ -1,3 +1,4 @@
+import org.jreleaser.model.Active.ALWAYS
 import org.jreleaser.model.Stereotype
 import java.util.Properties
 
@@ -128,6 +129,7 @@ jreleaser {
                         // GitHub removes dots Markdown headers (1.37.5 becomes 1375)
                         extraProperties.put("versionHeader", CLI_VERSION.replace(".", ""))
 
+                        formatted.set(ALWAYS)
                         content.set("""
                             [See changelog in the CHANGELOG.md file][link]
 

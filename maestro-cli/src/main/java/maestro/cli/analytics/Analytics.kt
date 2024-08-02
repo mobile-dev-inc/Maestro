@@ -82,13 +82,16 @@ object Analytics {
             if (!analyticsDisabledWithEnvVar) {
                 println("CI detected, analytics was automatically enabled.")
                 println("To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.")
+                saveAnalyticsState(granted = true)
             } else {
                 println("CI detected and $DISABLE_ANALYTICS_ENV_VAR environment variable set, analytics disabled.")
+                saveAnalyticsState(granted = false)
             }
             return
         }
 
         if (analyticsDisabledWithEnvVar) {
+            saveAnalyticsState(granted = false)
             return
         }
 
@@ -102,7 +105,7 @@ object Analytics {
                 if (granted) "Usage data collection enabled. Thank you!"
                 else "Usage data collection disabled."
             )
-            saveAnalyticsState(granted)
+            saveAnalyticsState(granted = granted)
             return
         }
 
@@ -121,6 +124,7 @@ object Analytics {
 
             if (analyticsDisabledWithEnvVar) {
                 logger.trace("Analytics disabled with env var, not uploading")
+                return
             }
 
             if (!analyticsState.enabled) {
