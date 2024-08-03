@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="CLI" type="JetRunConfigurationType">
+    <option name="MAIN_CLASS_NAME" value="maestro.cli.AppKt" />
+    <module name="maestro.maestro-cli.main" />
+    <option name="PROGRAM_PARAMETERS" value="$Prompt$" />
+    <option name="WORKING_DIRECTORY" value="$FilePrompt$" />
+    <shortenClasspath name="NONE" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
