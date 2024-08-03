@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+
+set -eu
+
+command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
+
+[ "$(basename "$PWD")" = "e2e" ] || { echo "must be run from e2e directory" && exit 1; }
+
+selected_app="${1:-}"
+
+FAILED=false
+for file in ./flows/*; do
+	filename="$(basename "$file")"
+
+	if [ -z "$selected_app" ] || [ "$selected_app" = "$filename" ]; then
+		cd "$file" || exit 1
+		maestro --device emulator-5554 test . || FAILED=true
+		cd - >/dev/null || exit 1
+	fi
+done
+
+if [ "$FAILED" = true ]; then
+  echo "Some tests failed"
+  exit 1
+fi

@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+
+set -eu
+
+[ "$(basename "$PWD")" = "e2e" ] || { echo "must be run from e2e directory" && exit 1; }
+
+command -v adb >/dev/null 2>&1 || { echo "adb is required" && exit 1; }
+
+for file in ./apps/*; do
+	filename="$(basename "$file")"
+	echo "install $filename"
+
+	extension="${file##*.}"
+	if [ "$extension" = "apk" ]; then
+		adb install -r "$file" >/dev/null
+	elif [ "$extension" = "app" ] && [ "$(uname)" = "Darwin" ]; then
+		xcrun simctl install booted "$file"
+	else
+		echo "unknown file extension $extension"
+	fi
+done

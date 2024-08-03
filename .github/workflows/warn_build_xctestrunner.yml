@@ -1,9 +1,6 @@
 name: Warn Build XCTest runner
 
 on:
-  push:
-    paths:
-      - 'maestro-ios-xctest-runner/**'
   pull_request:
     paths:
       - 'maestro-ios-xctest-runner/**'
