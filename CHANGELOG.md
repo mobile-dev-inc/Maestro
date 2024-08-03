@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.37.7
+
+Released on 2024-08-03
+
+- Fix cryptic "Socket Exception" when `CI` env var is set, once and for all (#1882)
+
 ## 1.37.6
 
 Released on 2024-08-02
