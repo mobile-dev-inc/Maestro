@@ -7,7 +7,7 @@ plugins {
 
 application {
     applicationName = 'maestro-studio'
-    mainClassName = 'maestro.studio.ServerKt'
+    mainClass = 'maestro.studio.ServerKt'
 }
 
 plugins.withId("com.vanniktech.maven.publish") {
@@ -23,6 +23,10 @@ def copyWebFiles = tasks.register("copyWebFiles", Copy.class) {
 }
 
 tasks.compileJava {
+    dependsOn(copyWebFiles)
+}
+
+tasks.processResources {
     dependsOn(copyWebFiles)
 }
 
