@@ -298,7 +298,8 @@ object MaestroSessionManager {
             logger = IOSDriverLogger(LocalXCTestInstaller::class.java),
             deviceId = deviceId,
             host = defaultXctestHost,
-            defaultPort = driverHostPort ?: defaultXcTestPort
+            defaultPort = driverHostPort ?: defaultXcTestPort,
+            enableXCTestOutputFileLogging = true,
         )
 
         val xcTestDriverClient = XCTestDriverClient(

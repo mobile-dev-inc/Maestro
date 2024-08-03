@@ -1,5 +1,6 @@
 import XCTest
 import FlyingFox
+import os
 
 class maestro_driver_iosUITests: XCTestCase {
     private static var swizzledOutIdle = false
