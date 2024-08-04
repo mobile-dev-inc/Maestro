@@ -90,12 +90,13 @@ jobs:
             ./install_apps
             ./run_tests
 
-      - name: Save logcat output
+      - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: logcat
-          path: artifacts/logcat.log
+          name: maestro-e2e-output
+          path: ~/.maestro
+          retention-days: 3
   
   test-cloud:
     runs-on: ubuntu-latest
