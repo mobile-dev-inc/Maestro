@@ -1,13 +1,13 @@
 plugins {
-    id 'maven-publish'
-    id 'kotlin'
-    id "com.vanniktech.maven.publish"
+    id("maven-publish")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.mavenPublish)
 }
 
 dependencies {
-    api project(':maestro-orchestra-models')
-    implementation project(':maestro-client')
-    api project(':maestro-utils')
+    api(project(":maestro-orchestra-models"))
+    implementation(project(":maestro-client"))
+    api(project(":maestro-utils"))
 
     api(libs.square.okio)
     api(libs.jackson.core.databind)

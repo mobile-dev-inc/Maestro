@@ -1,9 +1,8 @@
 plugins {
-    id 'maven-publish'
-    id "kotlin"
-    id "idea"
-    id "com.vanniktech.maven.publish"
-    id "com.google.protobuf"
+    id("maven-publish")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.protobuf)
 }
 
 protobuf {

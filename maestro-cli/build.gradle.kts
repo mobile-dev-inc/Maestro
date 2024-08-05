@@ -2,11 +2,12 @@ import org.jreleaser.model.Active.ALWAYS
 import org.jreleaser.model.Stereotype
 import java.util.Properties
 
+@Suppress("DSL_SCOPE_VIOLATION")
 plugins {
-    kotlin("jvm")
     application
-    id("org.jreleaser") version "1.13.1"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.jreleaser)
+    alias(libs.plugins.shadow)
 }
 
 group = "dev.mobile"
@@ -30,7 +31,6 @@ tasks.named<JavaExec>("run") {
 }
 
 dependencies {
-    val kotlinxHtmlVersion = "0.8.0"
     implementation(project(path = ":maestro-utils"))
     annotationProcessor(libs.picocli.codegen)
 
@@ -53,7 +53,7 @@ dependencies {
     implementation(libs.jarchivelib)
     implementation(libs.commons.codec)
     implementation(libs.kotlinx.coroutines.core)
-    implementation("org.jetbrains.kotlinx:kotlinx-html:$kotlinxHtmlVersion")
+    implementation(libs.kotlinx.html)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -133,7 +133,7 @@ jreleaser {
                         content.set("""
                             [See changelog in the CHANGELOG.md file][link]
 
-                            [link]: https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#{{versionHeader}}
+                            [link]: https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#{{changelogVersionHeader}}
                         """.trimIndent()
                         )
                     }

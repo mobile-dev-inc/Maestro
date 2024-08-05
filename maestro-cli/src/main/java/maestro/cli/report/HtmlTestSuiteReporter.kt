@@ -1,11 +1,8 @@
 package maestro.cli.report
 
 import maestro.cli.model.TestExecutionSummary
-import maestro.cli.report.TestDebugReporter
 import okio.Sink
 import okio.buffer
-import java.io.BufferedReader
-import java.io.FileReader
 import kotlinx.html.*
 import kotlinx.html.stream.appendHTML
 
@@ -30,7 +27,8 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
   }
 
   private fun buildHtmlReport(summary: TestExecutionSummary): String {
-    var failedTest = getFailedTest(summary)
+    val failedTest = getFailedTest(summary)
+
     return buildString {
       appendHTML().html {
         head {
@@ -75,7 +73,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                       br{}
                       p(classes = "card-text") {
                         failedTest.forEach { test ->
-                          +"${test}"
+                          +test
                           br{}
                         }
                       }
@@ -87,18 +85,18 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                   div(classes = "card mb-4") {
                     div(classes = "card-header") {
                       h5(classes = "mb-0") {
-                        button(classes = "$buttonClass") {
+                        button(classes = buttonClass) {
                           attributes["type"] = "button"
                           attributes["data-bs-toggle"] = "collapse"
                           attributes["data-bs-target"] = "#${flow.name}"
                           attributes["aria-expanded"] = "false"
-                          attributes["aria-controls"] = "${flow.name}"
+                          attributes["aria-controls"] = flow.name
                           +"${flow.name} : ${flow.status}"
                         }
                       }
                     }
                     div(classes = "collapse") {
-                      id = "${flow.name}"
+                      id = flow.name
                       div(classes = "card-body") {
                         p(classes = "card-text") {
                           +"Status: ${flow.status}"
@@ -109,7 +107,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                         }
                         if(flow.failure != null) {
                           p(classes = "card-text text-danger"){
-                            +"${flow.failure.message}"
+                            +flow.failure.message
                           }
                         }
                       }

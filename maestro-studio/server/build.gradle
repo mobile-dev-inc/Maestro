@@ -1,13 +1,13 @@
 plugins {
-    id 'maven-publish'
-    id "kotlin"
-    id 'application'
-    id "com.vanniktech.maven.publish"
+    id("maven-publish")
+    id("application")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.mavenPublish)
 }
 
 application {
-    applicationName = 'maestro-studio'
-    mainClass = 'maestro.studio.ServerKt'
+    applicationName = "maestro-studio"
+    mainClass = "maestro.studio.ServerKt"
 }
 
 plugins.withId("com.vanniktech.maven.publish") {
@@ -17,9 +17,9 @@ plugins.withId("com.vanniktech.maven.publish") {
 }
 
 def copyWebFiles = tasks.register("copyWebFiles", Copy.class) {
-    dependsOn(':maestro-studio:web:build')
-    from(new File(project(':maestro-studio:web').projectDir, 'build'))
-    into(new File(projectDir, 'src/main/resources/web'))
+    dependsOn(":maestro-studio:web:build")
+    from(new File(project(":maestro-studio:web").projectDir, "build"))
+    into(new File(projectDir, "src/main/resources/web"))
 }
 
 tasks.compileJava {
@@ -39,7 +39,7 @@ dependencies {
     implementation(project(":maestro-orchestra"))
     implementation(project(":maestro-client"))
     implementation(project(":maestro-utils"))
-    implementation platform("org.http4k:http4k-bom:4.34.2.0")
+    implementation platform("org.http4k:http4k-bom:4.34.2.0") // TODO remove
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.cors)
