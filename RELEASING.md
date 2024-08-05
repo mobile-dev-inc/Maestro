@@ -30,3 +30,11 @@
 1. Trigger the [Publish CLI Github action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-cli.yml)
 2. Test installing the cli by running `curl -Ls "https://get.maestro.mobile.dev" | bash`
 3. Check the version number `maestro --version`
+
+## Publish Maven Central
+
+1. Trigger the [Publish Release action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-release.yml)
+   - ATTENTION: Wait for it to finish
+3. Go to [OSS Sonatype](https://s01.oss.sonatype.org/) and login with user/password
+4. Go to Staging Repositories, select the repository uploaded from the trigger above.
+5. Click "Close" and then "Release". Each of these operations take a couple minutes to complete
