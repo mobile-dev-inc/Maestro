@@ -10,8 +10,7 @@ import io.grpc.ManagedChannelBuilder
 import ios.IOSDevice
 import ios.idb.IdbIOSDevice
 import java.io.File
-import maestro.android.AndroidDriver
-
+import maestro.drivers.AndroidDriver
 /*
  *
  *  Copyright (c) 2022 mobile.dev inc.
