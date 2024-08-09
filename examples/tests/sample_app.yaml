@@ -1,7 +1,0 @@
-appId: dev.mobile.sample
----
-- launchApp
-- tapOn:
-    text: View Details
-- assertVisible:
-    text: .*detailed content.*
