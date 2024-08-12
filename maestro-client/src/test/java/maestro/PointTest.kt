@@ -4,6 +4,12 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import org.junit.jupiter.api.Test
 
+/**
+ * Maestro Cloud uses Gson for serialization. This test ensures that Point class
+ * can be deserialized correctly.
+ *
+ * See https://github.com/mobile-dev-inc/maestro/pull/627
+ */
 internal class PointTest {
 
     @Test
