@@ -89,6 +89,11 @@ Keep the following things in mind when working on a PR:
   - For that reason, `MaestroCommand` class should be JSON-serializable (and is a reason we haven't moved to `sealed class`)
 - We do not use mocks. Use fakes instead (e.g. `FakeDriver`).
 
+This graph (generated with [`./gradlew :generateDependencyGraph`][graph_plugin] in [PR #1834][pr_1834]) may be helpful
+to visualize relations between subprojects:
+
+![Project dependency graph](assets/project-dependency-graph.svg)
+
 ## How to
 
 ### Add new command
@@ -101,3 +106,6 @@ Follow these steps:
 - Handle command in `Orchestra` class.
   - If this is a new functionality, you might need to add new methods to `Maestro` and `Driver` APIs.
 - Add a new test to `IntegrationTest`.
+
+[graph_plugin]: https://github.com/vanniktech/gradle-dependency-graph-generator-plugin
+[pr_1834]: https://github.com/mobile-dev-inc/maestro/pull/1834
