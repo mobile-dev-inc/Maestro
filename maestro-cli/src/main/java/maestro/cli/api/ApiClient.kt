@@ -462,11 +462,16 @@ data class UploadStatus(
         WARNING,
     }
 
+
+    // These values must match backend monorepo models
+    // in package models.benchmark.BenchmarkCancellationReason
     enum class CancellationReason {
         BENCHMARK_DEPENDENCY_FAILED,
         INFRA_ERROR,
         OVERLAPPING_BENCHMARK,
-        TIMEOUT
+        TIMEOUT,
+        CANCELED_BY_USER,
+        RUN_EXPIRED,
     }
 }
 

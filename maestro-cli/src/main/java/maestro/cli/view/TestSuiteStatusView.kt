@@ -109,7 +109,9 @@ object TestSuiteStatusView {
                 UploadStatus.CancellationReason.TIMEOUT -> "Timeout"
                 UploadStatus.CancellationReason.OVERLAPPING_BENCHMARK -> "Skipped"
                 UploadStatus.CancellationReason.BENCHMARK_DEPENDENCY_FAILED -> "Skipped"
-                else -> "Canceled"
+                UploadStatus.CancellationReason.CANCELED_BY_USER -> "Canceled by user"
+                UploadStatus.CancellationReason.RUN_EXPIRED -> "Run expired"
+                else -> "Canceled (unknown reason)"
             }
         }
 
