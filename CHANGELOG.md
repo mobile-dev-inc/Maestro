@@ -1,10 +1,19 @@
 # Changelog
 
+## 1.37.8
+
+Released on 2024-08-14
+
+- Fix sharding on Android failing on all but one devices (quick hotfix) ([#1867](https://github.com/mobile-dev-inc/maestro/pull/1867))
+- Fix CLI crash when flow is canceled on Maestro Cloud ([#1912](https://github.com/mobile-dev-inc/maestro/pull/1912))
+- Fix iOS landscape mode ([caveats apply](https://github.com/mobile-dev-inc/maestro/pull/1809#issuecomment-2249917209)) ([#1809](https://github.com/mobile-dev-inc/maestro/pull/1809))
+- Skip search engine selection when running on the web ([#1869](https://github.com/mobile-dev-inc/maestro/pull/1869))
+
 ## 1.37.7
 
 Released on 2024-08-03
 
-- Fix cryptic "Socket Exception" when `CI` env var is set, once and for all (#1882)
+- Fix cryptic "Socket Exception" when `CI` env var is set, once and for all ([#1882](https://github.com/mobile-dev-inc/maestro/pull/1882))
 
 ## 1.37.6
 
