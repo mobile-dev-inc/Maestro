@@ -22,8 +22,8 @@ class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
     private val host: String = "[::1]",
-    private val enableXCTestOutputFileLogging: Boolean,
-    defaultPort: Int,
+    private val enableXCTestOutputFileLogging: Boolean = false,
+    defaultPort: Int? = null
 ) : XCTestInstaller {
     // Set this flag to allow using a test runner started from Xcode
     // When this flag is set, maestro will not install, run, stop or remove the xctest runner.
@@ -107,16 +107,9 @@ class LocalXCTestInstaller(
     private fun ensureOpen(): Boolean {
         return MaestroTimer.retryUntilTrue(10_000, 200) {
             try {
-                val appAlive = XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
-                logger.info("[Start] Perform XCUITest runner status check on $deviceId, appAlive: $appAlive")
-                appAlive &&
-                    xcTestDriverStatusCheck().use {
-                        logger.info("[Done] Perform XCUITest runner status check on $deviceId")
-
-                        it.isSuccessful
-                    }
+                XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId) &&
+                    xcTestDriverStatusCheck().use { it.isSuccessful }
             } catch (ignore: IOException) {
-                logger.info("[Failed] Perform XCUITest runner status check on $deviceId, error: $ignore")
                 false
             }
         }
@@ -175,10 +168,10 @@ class LocalXCTestInstaller(
 
         logger.info("[Start] Running XcUITest with xcode build command")
         xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
-            deviceId = deviceId,
-            xcTestRunFilePath = xctestRunFile.absolutePath,
-            port = port,
-            enableXCTestOutputFileLogging = enableXCTestOutputFileLogging,
+            deviceId,
+            xctestRunFile.absolutePath,
+            port,
+            enableXCTestOutputFileLogging,
         )
         logger.info("[Done] Running XcUITest with xcode build command")
     }

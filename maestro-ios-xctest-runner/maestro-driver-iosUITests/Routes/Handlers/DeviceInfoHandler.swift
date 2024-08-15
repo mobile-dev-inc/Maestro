@@ -17,12 +17,11 @@ struct DeviceInfoHandler: HTTPHandler {
             let springboardApp = XCUIApplication(bundleIdentifier: springboardBundleId)
             let screenSize = springboardApp.frame.size
 
-            let (width, height) = ScreenSizeHelper.actualScreenSize()
             let deviceInfo = DeviceInfoResponse(
-                widthPoints: Int(width),
-                heightPoints: Int(height),
-                widthPixels: Int(CGFloat(width) * UIScreen.main.scale),
-                heightPixels: Int(CGFloat(height) * UIScreen.main.scale)
+                widthPoints: Int(screenSize.width),
+                heightPoints: Int(screenSize.height),
+                widthPixels: Int(screenSize.width * UIScreen.main.scale),
+                heightPixels: Int(screenSize.height * UIScreen.main.scale)
             )
 
             let responseBody = try JSONEncoder().encode(deviceInfo)
