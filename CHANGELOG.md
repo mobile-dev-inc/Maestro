@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.37.9
+
+Released on 2024-08-15
+
+- Revert iOS landscape mode fix ([#1916](https://github.com/mobile-dev-inc/maestro/pull/1916))
+
 ## 1.37.8
 
 Released on 2024-08-14
