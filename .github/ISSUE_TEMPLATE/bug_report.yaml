@@ -4,12 +4,11 @@ body:
   - type: markdown
     attributes:
       value: >
-        ### Thank you for using Maestro
+        ### Thank you for using Maestro!
 
 
-        Before creating a new issue, please first search the 
-        [existing issues database] and make sure it hasn't been reported
-        before.
+        Before creating a new issue, please first search the [existing issues]
+        and make sure it hasn't been reported before.
 
 
         If you are sure that you have found a bug that hasn't been reported yet,
@@ -20,7 +19,7 @@ body:
         ---
 
 
-        [existing issues database]: https://github.com/mobile-dev-inc/maestro
+        [existing issues]: https://github.com/mobile-dev-inc/maestro
   - type: checkboxes
     attributes:
       label: Is there an existing issue for this?
