@@ -10,15 +10,9 @@ body:
         We can't wait to hear your idea!
 
 
-        If you're looking for support, check out our docs or consider asking a
-        question on our Discussions or Stack Overflow:
-
-          - https://maestro.mobile.dev
-          - https://github.com/leancodepl/patrol/discussions
-          - https://stackoverflow.com/questions/tagged/flutter-patrol
-
-        First, please search the [existing issues] to see if an issue already
-        exists for the feature you need.
+        First though, please search the [existing issues] to see if an issue
+        already exists for the feature you need. Maybe someone already did the
+        job for you and you don't need to fill this template.
 
 
         ---
@@ -30,7 +24,7 @@ body:
         mind that duplicates and unsufficiently described feature requests will
         be closed.
 
-        [existing issues]: https://github.com/leancodepl/patrol/issues
+        [existing issues]: https://github.com/mobile-dev-inc/maestro/issues
   - type: textarea
     attributes:
       label: Use case
