@@ -1,6 +1,0 @@
-appId: com.example.app
-initFlow:
-  - launchApp:
-      clearState: true
----
-- launchApp

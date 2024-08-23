@@ -1,4 +1,2 @@
-- config:
-    initFlow:
-      - launchApp: com.example
+- nonExistentCommand
 - launchApp: com.example

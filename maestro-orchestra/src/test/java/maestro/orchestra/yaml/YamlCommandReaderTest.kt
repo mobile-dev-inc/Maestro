@@ -119,13 +119,6 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun initFlow(
-        @YamlFile("007_initFlow.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
-    }
-
-    @Test
     fun config_unknownKeys(
         @YamlFile("008_config_unknownKeys.yaml") commands: List<Command>,
     ) {
@@ -158,41 +151,6 @@ internal class YamlCommandReaderTest {
         @YamlFile("010_invalidCommand_string.yaml") e: SyntaxError,
     ) {
         assertThat(e.message).contains("Invalid command: \"invalid\"")
-    }
-
-    @Test
-    fun initFlow_file(
-        @YamlFile("011_initFlow_file.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
-    }
-
-    @Test
-    fun initFlow_emptyString(
-        @YamlFile("012_initFlow_emptyString.yaml") commands: List<Command>,
-    ) {
-        assertThat(commands).containsExactly(
-            ApplyConfigurationCommand(MaestroConfig(
-                appId = "com.example.app",
-            )),
-            LaunchAppCommand(
-                appId = "com.example.app",
-            ),
-        )
-    }
-
-    @Test
-    fun initFlow_invalidFile(
-        @YamlFile("013_initFlow_invalidFile.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
-    }
-
-    @Test
-    fun initFlow_recursive(
-        @YamlFile("014_initFlow_recursive.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).containsMatch("initFlow command used at.*is deprecated")
     }
 
     @Test

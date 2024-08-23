@@ -23,7 +23,6 @@ import io.ktor.util.encodeBase64
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
 import maestro.utils.Insight
-import maestro.utils.Insights
 import maestro.utils.chunkStringByWordCount
 import org.fusesource.jansi.Ansi
 
@@ -66,12 +65,6 @@ class AnsiResultView(
             render("Running on ${state.device.description}\n")
         }
         render("\n")
-        if (state.initCommands.isNotEmpty()) {
-            render(" ║\n")
-            render(" ║  > Init Flow\n")
-            render(" ║\n")
-            renderCommands(state.initCommands)
-        }
         if (state.onFlowStartCommands.isNotEmpty()) {
             render(" ║\n")
             render(" ║  > On Flow Start\n")

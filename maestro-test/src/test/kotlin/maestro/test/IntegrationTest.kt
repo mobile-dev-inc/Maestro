@@ -604,57 +604,6 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 023 - runFlow with initFlow`() {
-        assertThrows<SyntaxError> {
-            val commands = readCommands("024_init_flow_init_state")
-            val initFlow = YamlCommandReader.getConfig(commands)!!.initFlow!!
-
-            val driver = driver {
-                element {
-                    text = "Hello"
-                    bounds = Bounds(0, 0, 100, 100)
-                }
-            }
-            driver.addInstalledApp("com.example.app")
-
-            val otherDriver = driver {
-                element {
-                    text = "Hello"
-                    bounds = Bounds(0, 0, 100, 100)
-                }
-            }
-            otherDriver.addInstalledApp("com.example.app")
-            val state = Maestro(driver).use {
-                orchestra(it).runInitFlow(initFlow)
-            }!!
-            Maestro(otherDriver).use {
-                orchestra(it).runFlow(commands, state)
-            }
-        }
-    }
-
-    @Test
-    fun `Case 024 - runFlow with initState`() {
-        assertThrows<SyntaxError> {
-            // Given
-            val commands = readCommands("023_init_flow")
-
-            val driver = driver {
-                element {
-                    text = "Hello"
-                    bounds = Bounds(0, 0, 100, 100)
-                }
-            }
-            driver.addInstalledApp("com.example.app")
-
-            // When
-            Maestro(driver).use {
-                orchestra(it).runFlow(commands)
-            }
-        }
-    }
-
-    @Test
     fun `Case 025 - Tap on element relative position using shortcut`() {
         // Given
         val commands = readCommands("025_element_relative_position_shortcut")

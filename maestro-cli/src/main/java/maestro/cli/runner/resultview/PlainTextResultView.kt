@@ -47,14 +47,6 @@ class PlainTextResultView: ResultView {
             }
         }
 
-        if (state.initCommands.isNotEmpty()) {
-            if (shouldPrintStep()) {
-                println("  > Init Flow")
-            }
-
-            renderCommandsPlainText(state.initCommands)
-        }
-
         if (state.onFlowStartCommands.isNotEmpty()) {
             if (shouldPrintStep()) {
                 println("  > On Flow Start")

@@ -9,7 +9,6 @@ data class MaestroConfig(
     val appId: String? = null,
     val name: String? = null,
     val tags: List<String>? = emptyList(),
-    val initFlow: MaestroInitFlow? = null,
     val ext: Map<String, Any?> = emptyMap(),
     val onFlowStart: MaestroOnFlowStart? = null,
     val onFlowComplete: MaestroOnFlowComplete? = null,
@@ -19,22 +18,8 @@ data class MaestroConfig(
         return copy(
             appId = appId?.evaluateScripts(jsEngine),
             name = name?.evaluateScripts(jsEngine),
-            initFlow = initFlow?.evaluateScripts(jsEngine),
             onFlowComplete = onFlowComplete?.evaluateScripts(jsEngine),
             onFlowStart = onFlowStart?.evaluateScripts(jsEngine),
-        )
-    }
-
-}
-
-data class MaestroInitFlow(
-    val appId: String,
-    val commands: List<MaestroCommand>,
-) {
-
-    fun evaluateScripts(jsEngine: JsEngine): MaestroInitFlow {
-        return copy(
-            appId = appId.evaluateScripts(jsEngine),
         )
     }
 

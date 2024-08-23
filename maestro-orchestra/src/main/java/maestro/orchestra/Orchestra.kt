@@ -19,8 +19,15 @@
 
 package maestro.orchestra
 
-import maestro.*
+import maestro.DeviceInfo
+import maestro.ElementFilter
+import maestro.Filters
 import maestro.Filters.asFilter
+import maestro.FindElementResult
+import maestro.Maestro
+import maestro.MaestroException
+import maestro.ScreenRecording
+import maestro.ViewHierarchy
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
@@ -30,6 +37,7 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -39,7 +47,6 @@ import okio.buffer
 import okio.sink
 import java.io.File
 import java.lang.Long.max
-import java.nio.file.Files
 
 class Orchestra(
     private val maestro: Maestro,
@@ -68,27 +75,12 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    /**
-     * If initState is provided, initialize app disk state with the provided OrchestraAppState and skip
-     * any initFlow execution. Otherwise, initialize app state with initFlow if defined.
-     */
-    fun runFlow(
-        commands: List<MaestroCommand>,
-        initState: OrchestraAppState? = null,
-    ): Boolean {
+    fun runFlow(commands: List<MaestroCommand>): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
 
         initJsEngine(config)
-
-        val state = initState ?: config?.initFlow?.let {
-            runInitFlow(it) ?: return false
-        }
-
-        if (state != null) {
-            maestro.clearAppState(state.appId)
-        }
 
         onFlowStart(commands)
 
@@ -132,32 +124,6 @@ class Orchestra(
 
             return onCompleteSuccess && flowSuccess
         }
-    }
-
-    /**
-     * Run the initFlow and return the resulting app OrchestraAppState which can be used to initialize
-     * app disk state when past into Orchestra.runFlow.
-     */
-    fun runInitFlow(
-        initFlow: MaestroInitFlow,
-    ): OrchestraAppState? {
-        val success = runFlow(
-            initFlow.commands,
-        )
-        if (!success) return null
-
-        maestro.stopApp(initFlow.appId)
-
-        val stateFile = if (stateDir == null) {
-            Files.createTempFile(null, ".state")
-        } else {
-            Files.createTempFile(stateDir.toPath(), null, ".state")
-        }
-
-        return OrchestraAppState(
-            appId = initFlow.appId,
-            file = stateFile.toFile(),
-        )
     }
 
     fun executeCommands(
@@ -356,7 +322,7 @@ class Orchestra(
             )
 
             // We do not actually know if there were any mutations, but we assume there were
-            return true
+            true
         } else {
             throw CommandSkipped
         }
@@ -1152,8 +1118,3 @@ class Orchestra(
         private const val MAX_ERASE_CHARACTERS = 50
     }
 }
-
-data class OrchestraAppState(
-    val appId: String,
-    val file: File,
-)

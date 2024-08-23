@@ -2,7 +2,6 @@ package maestro.cli.view
 
 import maestro.MaestroException
 import maestro.orchestra.error.InvalidFlowFile
-import maestro.orchestra.error.InvalidInitFlowFile
 import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.error.ValidationError
@@ -14,7 +13,6 @@ object ErrorViewUtils {
         return when (e) {
             is ValidationError -> e.message
             is NoInputException -> "No commands found in Flow file"
-            is InvalidInitFlowFile -> "initFlow file is invalid: ${e.initFlowPath}"
             is InvalidFlowFile -> "Flow file is invalid: ${e.flowPath}"
             is UnicodeNotSupportedError -> "Unicode character input is not supported: ${e.text}. Please use ASCII characters. Follow the issue: https://github.com/mobile-dev-inc/maestro/issues/146"
             is InterruptedException -> "Interrupted"

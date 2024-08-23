@@ -19,7 +19,6 @@
 
 package maestro.cli.runner
 
-import io.ktor.client.utils.EmptyContent.status
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.device.Device
@@ -31,9 +30,7 @@ import maestro.cli.runner.resultview.UiState
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
-import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
-import maestro.orchestra.OrchestraAppState
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.Insight
 import org.slf4j.LoggerFactory
@@ -50,9 +47,8 @@ object MaestroCommandRunner {
         view: ResultView,
         commands: List<MaestroCommand>,
         debug: FlowDebugMetadata
-    ): Result {
+    ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
-        val initFlow = config?.initFlow
         val onFlowComplete = config?.onFlowComplete
         val onFlowStart = config?.onFlowStart
 
@@ -92,11 +88,6 @@ object MaestroCommandRunner {
             view.setState(
                 UiState.Running(
                     device = device,
-                    initCommands = toCommandStates(
-                        initFlow?.commands ?: emptyList(),
-                        commandStatuses,
-                        commandMetadata
-                    ),
                     onFlowStartCommands = toCommandStates(
                         onFlowStart?.commands ?: emptyList(),
                         commandStatuses,
@@ -183,8 +174,7 @@ object MaestroCommandRunner {
         )
 
         val flowSuccess = orchestra.runFlow(commands)
-
-        return Result(flowSuccess = flowSuccess, cachedAppState = null)
+        return flowSuccess
     }
 
     private fun toCommandStates(
@@ -216,10 +206,4 @@ object MaestroCommandRunner {
                 )
             }
     }
-
-    data class Result(
-        val flowSuccess: Boolean,
-        val cachedAppState: OrchestraAppState?
-    )
 }
-
