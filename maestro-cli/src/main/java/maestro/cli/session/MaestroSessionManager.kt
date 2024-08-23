@@ -49,7 +49,6 @@ import kotlin.system.exitProcess
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
     private const val defaultXctestHost = "[::1]"
-    private const val defaultIdbPort = 10882
     private const val defaultXcTestPort = 22087
 
     private val executor = Executors.newScheduledThreadPool(1)
@@ -210,20 +209,6 @@ object MaestroSessionManager {
             }
 
             dadb.close()
-
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun isIOS(host: String?, port: Int?): Boolean {
-        return try {
-            val channel = ManagedChannelBuilder.forAddress(host ?: defaultHost, port ?: defaultIdbPort)
-                .usePlaintext()
-                .build()
-
-            channel.shutdownNow()
 
             true
         } catch (_: Exception) {
