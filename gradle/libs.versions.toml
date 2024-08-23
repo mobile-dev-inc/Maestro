@@ -7,7 +7,7 @@
 # https://blog.gradle.org/best-practices-naming-version-catalog-entries
 
 [versions]
-androidPlugin = "4.2.1"
+androidPlugin = "7.4.2"
 androidxEspresso = "3.6.1"
 androidxTestJunit = "1.2.1"
 androidxUiautomator = "2.3.0"
@@ -15,7 +15,7 @@ apkParser = "2.6.10"
 appdirs = "1.2.1"
 axml = "2.1.2"
 commons-codec = "1.17.0"
-commons-lang3 = "3.14.0"
+commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
 commons-io = "2.16.1"
 dadb = "1.2.7"
 detekt = "1.19.0"
@@ -33,7 +33,7 @@ jackson = "2.17.1"
 jansi = "2.4.1"
 jarchivelib = "1.2.0"
 junit = "5.10.2"
-kotlin = "1.8.0"
+kotlin = "1.8.22"
 kotlinResult = "1.1.18"
 ktor = "2.3.6"
 mozillaRhino = "1.7.14"

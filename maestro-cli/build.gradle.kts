@@ -1,4 +1,5 @@
 import org.jreleaser.model.Active.ALWAYS
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jreleaser.model.Stereotype
 import java.util.Properties
 
@@ -63,6 +64,12 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+    }
 }
 
 tasks.create("createProperties") {

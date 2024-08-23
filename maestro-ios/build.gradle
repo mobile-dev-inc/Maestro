@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
 plugins {
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
@@ -33,6 +35,12 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.named("compileKotlin", KotlinCompilationTask) {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+    }
 }
 
 plugins.withId("com.vanniktech.maven.publish") {

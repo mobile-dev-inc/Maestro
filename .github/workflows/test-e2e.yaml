@@ -13,11 +13,11 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 8
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 8
+          java-version: 11
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -109,7 +109,7 @@ jobs:
         with:
           name: maestro-cli
 
-      - name: Set up JDK 8
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: zulu

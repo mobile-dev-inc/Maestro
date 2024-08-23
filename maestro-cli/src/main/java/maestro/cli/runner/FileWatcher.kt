@@ -1,7 +1,5 @@
 package maestro.cli.runner
 
-import com.sun.nio.file.SensitivityWatchEventModifier
-import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds
@@ -27,7 +25,6 @@ class FileWatcher {
                     StandardWatchEventKinds.ENTRY_DELETE,
                     StandardWatchEventKinds.ENTRY_MODIFY,
                 ),
-                SensitivityWatchEventModifier.HIGH,
             )
             watchKeys.add(watchKey)
         }
