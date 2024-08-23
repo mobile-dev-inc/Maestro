@@ -12,13 +12,14 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: 11
 
-      - uses: gradle/gradle-build-action@v2
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Publish CLI
         run: ./gradlew :maestro-cli:jreleaserFullRelease --no-daemon --no-parallel

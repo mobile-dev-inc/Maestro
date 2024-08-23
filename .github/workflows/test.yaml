@@ -1,21 +1,21 @@
 name: Test
 
 on:
+  workflow_dispatch:
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    if: github.repository == 'mobile-dev-inc/maestro'
 
     steps:
-      - name: Checkout
+      - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Install JDK
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: 11
 
       - name: Set up Gradle
@@ -25,10 +25,11 @@ jobs:
         run: ./gradlew test
 
 
-  validation:
+  validate-gradle-wrapper:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Clone repository
         uses: actions/checkout@v4
 
       - name: Validate Gradle Wrapper
