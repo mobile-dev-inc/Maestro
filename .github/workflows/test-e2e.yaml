@@ -2,7 +2,8 @@ name: Test E2E
 
 on:
   workflow_dispatch:
-  pull_request:
+  # If "pull_request" is used, secret for Maestro Cloud is not be available
+  pull_request_target:
 
 jobs:
   build:
