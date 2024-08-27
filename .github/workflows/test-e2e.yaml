@@ -35,14 +35,14 @@ jobs:
           retention-days: 1
 
   test-local:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'mobile-dev-inc/maestro'
     needs: build
     
     env:
-      EMULATOR_API_LEVEL: 33
-      EMULATOR_TARGET: google_apis
-      EMULATOR_ARCH: x86_64
+      ANDROID_HOME: /home/runner/androidsdk
+      ANDROID_SDK_ROOT: /home/runner/androidsdk
+      ANDROID_OS_IMAGE: system-images;android-28;google_apis;x86_64
 
     steps:
       - name: Enable KVM group perms
@@ -58,7 +58,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 17
+          java-version: 8
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -75,20 +75,79 @@ jobs:
           maestro --help
           maestro --version
 
-      - name: Start emulator and run a Flow
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ env.EMULATOR_API_LEVEL }}
-          target: ${{ env.EMULATOR_TARGET }}
-          arch: ${{ env.EMULATOR_ARCH }}
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          working-directory: ${{ github.workspace }}/e2e
-          script: |
-            ./download_apps
-            ./install_apps
-            ./run_tests
+      - name: Set up bartekpacia/scripts (for install_android_sdk script)
+        run: |
+          git clone https://github.com/bartekpacia/scripts.git $HOME/scripts
+          echo "$HOME/scripts/bin" >> $GITHUB_PATH
+
+      - name: Set up android-wait-for-emulator script
+        run: |
+          curl -fsSl -O https://raw.githubusercontent.com/travis-ci/travis-cookbooks/master/community-cookbooks/android-sdk/files/default/android-wait-for-emulator
+          chmod +x ./android-wait-for-emulator
+          mv ./android-wait-for-emulator $HOME/scripts/bin
+
+      - name: Set up Android Command-line Tools
+        run: |
+          # v8, latest working on Java 8. Source: https://stackoverflow.com/a/78890086/7009800
+          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
+
+      - name: Set up Android SDK components
+        run: |
+          yes | sdkmanager --install emulator
+          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
+          yes | sdkmanager --install "platform-tools"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          yes | sdkmanager --install "platforms;android-34"
+          yes | sdkmanager --install "$ANDROID_OS_IMAGE"
+
+      - name: Create AVD
+        run: |
+          avdmanager -s create avd \
+            --package "$ANDROID_OS_IMAGE" \
+            --name "MyAVD"
+
+          cat << EOF >> ~/.android/avd/MyAVD.avd/config.ini
+          hw.cpu.ncore=2
+          hw.gpu.enabled=yes
+          hw.gpu.mode=swiftshader_indirect
+          hw.ramSize=3072
+          disk.dataPartition.size=4G
+          vm.heapSize=576
+          hw.lcd.density=440
+          hw.lcd.height=2220
+          hw.lcd.width=1080
+          EOF
+
+      - name: Run AVD
+        run: |
+          emulator @MyAVD \
+            -verbose -no-snapshot-save -no-window -noaudio -no-boot-anim -accel on -camera-back none \
+            >~/emulator_stdout.log \
+            2>~/emulator_stderr.log &
+
+      - name: Wait for AVD to start up
+        run: |
+          android-wait-for-emulator
+
+          # This is also a prerequiste
+          while true; do
+            adb shell service list | grep 'package' && echo 'service "package" is active!' && break
+            echo 'waiting for service "package" to start'
+            sleep 1
+          done
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./run_tests
 
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v4
