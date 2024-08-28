@@ -2,8 +2,7 @@ name: Test E2E
 
 on:
   workflow_dispatch:
-  # If "pull_request" is used, secret for Maestro Cloud is not be available
-  pull_request_target:
+  pull_request:
 
 jobs:
   build:
@@ -35,7 +34,8 @@ jobs:
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
-  test-local:
+  test-local-android:
+    name: Test on Android
     runs-on: ubuntu-24.04
     if: github.repository == 'mobile-dev-inc/maestro'
     needs: build
@@ -157,52 +157,3 @@ jobs:
           name: maestro-e2e-output
           path: ~/.maestro
           retention-days: 3
-  
-  test-cloud:
-    runs-on: ubuntu-latest
-    if: github.repository == 'mobile-dev-inc/maestro'
-    needs: build
-  
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: maestro-cli
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: zulu
-          java-version: 8
-
-      - name: Add Maestro CLI executable to PATH
-        run: |
-          unzip maestro.zip -d maestro_extracted
-          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
-
-      - name: Check if Maestro CLI executable starts up
-        run: |
-          maestro --help
-          maestro --version
-
-      - name: maestro download-samples
-        run: maestro download-samples
-
-      - name: Run iOS test
-        run: |
-          maestro cloud \
-            --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
-            --timeout 180 \
-            --fail-on-cancellation \
-            --include-tags advanced \
-            samples/sample.zip \
-            samples
-
-      - name: Run Android test
-        run: |
-          maestro cloud \
-            --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
-            --fail-on-cancellation \
-            --include-tags advanced \
-            samples/sample.apk \
-            samples
