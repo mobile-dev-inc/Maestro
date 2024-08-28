@@ -144,14 +144,33 @@ jobs:
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps
 
+      - name: Start screen recording of AVD
+        run: |
+          adb shell screenrecord /sdcard/screenrecord.mp4 &
+
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
         run: ./run_tests
 
+      - name: Stop screen recording of AVD
+        run: |
+          adb shell pkill -SIGINT screenrecord
+          sleep 5 # prevent video file corruption
+          adb pull /sdcard/screenrecord.mp4 ~/maestro_screenrecord.mp4
+
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: success() || failure()
         with:
           name: maestro-e2e-output
           path: ~/.maestro
-          retention-days: 3
+          retention-days: 7
+
+      - name: Upload screen recording of AVD
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: maestro_screenrecord.mp4
+          path: ~/maestro_screenrecord.mp4
+          retention-days: 7
+
