@@ -36,7 +36,7 @@ jobs:
 
   test-local-android:
     name: Test on Android
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: github.repository == 'mobile-dev-inc/maestro'
     needs: build
     

@@ -7,7 +7,9 @@ on:
 
 jobs:
   test-cloud-production:
-    # this job is the same as e2e-production in mobile-dev-inc/monorepo
+    # This job is copied from "e2e-production" in mobile-dev-inc/monorepo.
+    # We want it here so open-source users can also have some visibility into it.
+
     runs-on: ubuntu-latest
     if: github.repository == 'mobile-dev-inc/maestro'
 
@@ -38,7 +40,7 @@ jobs:
             --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
             --timeout 180 \
             --fail-on-cancellation \
-            --include-tags=advanced 
+            --include-tags=advanced \
             samples/sample.zip samples
 
       - name: Run Android test
