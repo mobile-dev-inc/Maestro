@@ -17,9 +17,7 @@ jobs:
         with:
           distribution: zulu
           java-version: 11
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+          cache: gradle
 
       - name: Test
         run: ./gradlew test
