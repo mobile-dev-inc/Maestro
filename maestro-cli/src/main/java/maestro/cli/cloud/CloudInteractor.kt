@@ -2,8 +2,11 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
+import maestro.cli.api.RobinUploadResponse
 import maestro.cli.api.DeviceInfo
 import maestro.cli.api.UploadStatus
+import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.MaestroCloudUploadResponse
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
 import maestro.cli.model.RunningFlow
@@ -66,6 +69,7 @@ class CloudInteractor(
         testSuiteName: String? = null,
         disableNotifications: Boolean = false,
         deviceLocale: String? = null,
+        projectId: String? = null,
     ): Int {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
@@ -75,7 +79,7 @@ class CloudInteractor(
         val authToken = apiKey              // Check for API key
             ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
             ?: EnvUtils.maestroCloudApiKey()        // Resolve API key from shell if set
-            ?: auth.triggerSignInFlow()     // Otherwise, trigger the sign-in flow
+            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
 
         PrintUtils.message("Uploading Flow(s)...")
 
@@ -101,7 +105,7 @@ class CloudInteractor(
                 }
             }
 
-            val (teamId, appId, uploadId, appBinaryIdResponse, deviceInfo) = client.upload(
+            val response = client.upload(
                 authToken = authToken,
                 appFile = appFileToSend?.toPath(),
                 workspaceZip = workspaceZip,
@@ -120,57 +124,114 @@ class CloudInteractor(
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
-            ) { totalBytes, bytesWritten ->
-                progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
-            }
+                projectId = projectId,
+                progressListener = { totalBytes, bytesWritten ->
+                    progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
+                }
+            )
 
-            println()
-
-            if (async) {
-                PrintUtils.message("✅ Upload successful!")
-
-                if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel)
-                PrintUtils.message("View the results of your upload below:")
-                PrintUtils.message(uploadUrl(uploadId, teamId, appId, client.domain))
-
-                if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
-
-                return 0
-            } else {
-
-                if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel)
-
-                PrintUtils.message(
-                    "Visit the web console for more details about the upload: ${
-                        uploadUrl(
-                            uploadId,
-                            teamId,
-                            appId,
-                            client.domain
-                        )
-                    }"
-                )
-
-                if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
-
-                PrintUtils.message("Waiting for analyses to complete...")
-                println()
-
-                return waitForCompletion(
-                    authToken = authToken,
-                    uploadId = uploadId,
-                    teamId = teamId,
-                    appId = appId,
-                    failOnCancellation = failOnCancellation,
-                    reportFormat = reportFormat,
-                    reportOutput = reportOutput,
-                    testSuiteName = testSuiteName,
-                )
+            when (response) {
+                is RobinUploadResponse -> {
+                    println()
+                    val project = requireNotNull(projectId)
+                    val appId = response.appId
+                    val uploadUrl = uploadUrl(project, appId, client.domain)
+                    val deviceMessage = if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+                    val appBinaryIdResponseId = if (appBinaryId != null) response.appBinaryId else null
+                    return printMaestroCloudResponse(
+                        async,
+                        authToken,
+                        failOnCancellation,
+                        reportFormat,
+                        reportOutput,
+                        testSuiteName,
+                        uploadUrl,
+                        deviceMessage,
+                        appId,
+                        appBinaryIdResponseId,
+                        response.uploadId,
+                        projectId,
+                    )
+                }
+                is MaestroCloudUploadResponse -> {
+                    println()
+                    val deviceInfo = response.deviceInfo
+                    val teamId = response.teamId
+                    val appId = response.appId
+                    val uploadId = response.uploadId
+                    val appBinaryIdResponse = response.appBinaryId
+                    val uploadUrl = uploadUrl(uploadId, teamId, appId, client.domain)
+                    val deviceInfoMessage = if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel) else ""
+                    return printMaestroCloudResponse(
+                        async = async,
+                        authToken = authToken,
+                        failOnCancellation = failOnCancellation,
+                        reportFormat= reportFormat,
+                        reportOutput = reportOutput,
+                        testSuiteName = testSuiteName,
+                        uploadUrl = uploadUrl,
+                        deviceInfoMessage = deviceInfoMessage,
+                        appId = appId,
+                        appBinaryIdResponse = appBinaryIdResponse,
+                        uploadId = uploadId
+                    )
+                }
             }
         }
     }
 
-    private fun printDeviceInfo(deviceInfo: DeviceInfo, iOSVersion: String?, androidApiLevel: Int?) {
+    private fun printMaestroCloudResponse(
+        async: Boolean,
+        authToken: String,
+        failOnCancellation: Boolean,
+        reportFormat: ReportFormat,
+        reportOutput: File?,
+        testSuiteName: String?,
+        uploadUrl: String,
+        deviceInfoMessage: String,
+        appId: String,
+        appBinaryIdResponse: String?,
+        uploadId: String,
+        projectId: String? = null
+    ): Int {
+        if (async) {
+            PrintUtils.message("✅ Upload successful!")
+
+            println(deviceInfoMessage)
+            PrintUtils.message("View the results of your upload below:")
+            PrintUtils.message(uploadUrl)
+
+            if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
+
+            return 0
+        } else {
+
+            println(deviceInfoMessage)
+
+            PrintUtils.message(
+                "Visit the web console for more details about the upload: $uploadUrl"
+            )
+
+            if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
+
+            PrintUtils.message("Waiting for analyses to complete...")
+            println()
+
+            return waitForCompletion(
+                authToken = authToken,
+                uploadId = uploadId,
+                appId = appId,
+                failOnCancellation = failOnCancellation,
+                reportFormat = reportFormat,
+                reportOutput = reportOutput,
+                testSuiteName = testSuiteName,
+                uploadUrl = uploadUrl,
+                projectId = projectId,
+            )
+        }
+    }
+
+    private fun printDeviceInfo(deviceInfo: DeviceInfo, iOSVersion: String?, androidApiLevel: Int?): String {
 
         val platform = Platform.fromString(deviceInfo.platform)
 
@@ -181,23 +242,37 @@ class CloudInteractor(
         val version = when(platform) {
             Platform.ANDROID -> "${androidApiLevel ?: 30}" // todo change with constant from DeviceConfigAndroid
             Platform.IOS -> "${iOSVersion ?: 15}" // todo change with constant from DeviceConfigIos
-            else -> return
+            else -> return ""
         }
 
         val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
-        PrintUtils.message("$line1\n\n$line2\n\n$line3\n\n$line4".box())
+        return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
+    }
+
+    private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
+        val platform = Platform.fromString(deviceConfiguration.platform)
+
+        val line1 = "Maestro Cloud device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}"
+        val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+        val line3 = "To change device locale use this option: --device-locale=<device_locale>"
+
+        val version = deviceConfiguration.osVersion
+
+        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
+        return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
     }
 
 
     private fun waitForCompletion(
         authToken: String,
         uploadId: String,
-        teamId: String,
         appId: String,
         failOnCancellation: Boolean,
         reportFormat: ReportFormat,
         reportOutput: File?,
-        testSuiteName: String?
+        testSuiteName: String?,
+        uploadUrl: String,
+        projectId: String?
     ): Int {
         val startTime = System.currentTimeMillis()
 
@@ -207,7 +282,7 @@ class CloudInteractor(
         var retryCounter = 0
         do {
             val upload = try {
-                client.uploadStatus(authToken, uploadId)
+                client.uploadStatus(authToken, uploadId, projectId)
             } catch (e: ApiClient.ApiException) {
                 if (e.statusCode == 429) {
                     // back off through extending sleep duration with 25%
@@ -227,7 +302,8 @@ class CloudInteractor(
                 throw CliError("Failed to fetch the status of an upload $uploadId. Status code = ${e.statusCode}")
             }
 
-            for (uploadFlowResult in upload.flows) {
+            val flows = upload.flows
+            for (uploadFlowResult in flows) {
                 if (runningFlows.flows.none { it.name == uploadFlowResult.name }) {
                     runningFlows.flows.add(RunningFlow(name = uploadFlowResult.name))
                 }
@@ -259,25 +335,24 @@ class CloudInteractor(
                 return handleSyncUploadCompletion(
                     upload = upload,
                     runningFlows = runningFlows,
-                    teamId = teamId,
                     appId = appId,
                     failOnCancellation = failOnCancellation,
                     reportFormat = reportFormat,
                     reportOutput = reportOutput,
                     testSuiteName = testSuiteName,
+                    uploadUrl = uploadUrl
                 )
             }
 
             Thread.sleep(pollingInterval)
         } while (System.currentTimeMillis() - startTime < waitTimeoutMs)
 
-        val consoleUrl = uploadUrl(uploadId, teamId, appId, client.domain)
         val displayedMin = TimeUnit.MILLISECONDS.toMinutes(waitTimeoutMs)
 
         PrintUtils.warn("Waiting for flows to complete has timed out ($displayedMin minutes)")
         PrintUtils.warn("* To extend the timeout, run maestro with this option `maestro cloud --timeout=<timeout in minutes>`")
 
-        PrintUtils.warn("* Follow the results of your upload here:\n$consoleUrl")
+        PrintUtils.warn("* Follow the results of your upload here:\n$uploadUrl")
 
 
         return if (failOnTimeout) {
@@ -296,22 +371,22 @@ class CloudInteractor(
     private fun handleSyncUploadCompletion(
         upload: UploadStatus,
         runningFlows: RunningFlows,
-        teamId: String,
         appId: String,
         failOnCancellation: Boolean,
         reportFormat: ReportFormat,
         reportOutput: File?,
-        testSuiteName: String?
+        testSuiteName: String?,
+        uploadUrl: String,
     ): Int {
         TestSuiteStatusView.showSuiteResult(
             upload.toViewModel(
                 TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
                     uploadId = upload.uploadId,
-                    teamId = teamId,
                     appId = appId,
                     domain = client.domain,
                 )
-            )
+            ),
+            uploadUrl
         )
 
         val isCancelled = upload.status == UploadStatus.Status.CANCELED

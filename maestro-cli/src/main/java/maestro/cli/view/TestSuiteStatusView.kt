@@ -4,6 +4,7 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.model.FlowStatus
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.FlowResult
+import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import org.fusesource.jansi.Ansi
 import java.util.UUID
 import kotlin.time.Duration
@@ -38,6 +39,7 @@ object TestSuiteStatusView {
 
     fun showSuiteResult(
         suite: TestSuiteViewModel,
+        uploadUrl: String,
     ) {
         val hasError = suite.flows.find { it.status == FlowStatus.ERROR } != null
         val canceledFlows = suite.flows
@@ -80,14 +82,7 @@ object TestSuiteStatusView {
 
         if (suite.uploadDetails != null) {
             println("==== View details in the console ====")
-            PrintUtils.message(
-                uploadUrl(
-                    suite.uploadDetails.uploadId.toString(),
-                    suite.uploadDetails.teamId,
-                    suite.uploadDetails.appId,
-                    suite.uploadDetails.domain,
-                )
-            )
+            PrintUtils.message(uploadUrl)
             println()
         }
     }
@@ -130,6 +125,18 @@ object TestSuiteStatusView {
         domain: String = "mobile.dev",
     ) = "https://console.$domain/uploads/$uploadId?teamId=$teamId&appId=$appId"
 
+    fun uploadUrl(
+        projectId: String,
+        appId: String,
+        domain: String = ""
+    ): String {
+        return if (domain.contains("localhost")) {
+            "http://localhost:3000/project/$projectId/maestro-tests/app/$appId"
+        } else {
+            "https://copilot.mobile.dev/project/$projectId/maestro-tests/app/$appId"
+        }
+    }
+
     private fun flowWord(count: Int) = if (count == 1) "Flow" else "Flows"
 
     data class TestSuiteViewModel(
@@ -148,8 +155,7 @@ object TestSuiteStatusView {
         )
 
         data class UploadDetails(
-            val uploadId: UUID,
-            val teamId: String,
+            val uploadId: String,
             val appId: String,
             val domain: String,
         )
@@ -184,13 +190,13 @@ object TestSuiteStatusView {
 
 // Helped launcher to play around with presentation
 fun main() {
+    val uploadDetails = TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
+        uploadId = UUID.randomUUID().toString(),
+        appId = "appid",
+        domain = "mobile.dev",
+    )
     val status = TestSuiteStatusView.TestSuiteViewModel(
-        uploadDetails = TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
-            uploadId = UUID.randomUUID(),
-            teamId = "teamid",
-            appId = "appid",
-            domain = "mobile.dev",
-        ),
+        uploadDetails = uploadDetails,
         status = FlowStatus.CANCELED,
         flows = listOf(
             FlowResult(
@@ -216,5 +222,11 @@ fun main() {
             TestSuiteStatusView.showFlowCompletion(it)
         }
 
-    TestSuiteStatusView.showSuiteResult(status)
+    val uploadUrl = uploadUrl(
+        uploadDetails.uploadId.toString(),
+        "teamid",
+        uploadDetails.appId,
+        uploadDetails.domain,
+    )
+    TestSuiteStatusView.showSuiteResult(status, uploadUrl)
 }

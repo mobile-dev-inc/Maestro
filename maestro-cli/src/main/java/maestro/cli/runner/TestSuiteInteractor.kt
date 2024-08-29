@@ -91,7 +91,8 @@ class TestSuiteInteractor(
                             duration = it.duration,
                         )
                     },
-            )
+            ),
+            uploadUrl = ""
         )
 
         val summary = TestExecutionSummary(
