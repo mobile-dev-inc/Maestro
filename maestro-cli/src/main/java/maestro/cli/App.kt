@@ -20,21 +20,26 @@
 package maestro.cli
 
 import maestro.cli.analytics.Analytics
-import maestro.cli.command.*
+import maestro.cli.command.BugReportCommand
+import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
+import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
+import maestro.cli.command.PrintHierarchyCommand
+import maestro.cli.command.QueryCommand
+import maestro.cli.command.RecordCommand
+import maestro.cli.command.StartDeviceCommand
+import maestro.cli.command.StudioCommand
+import maestro.cli.command.TestCommand
+import maestro.cli.command.UploadCommand
 import maestro.cli.update.Updates
-import maestro.cli.util.AndroidEnvUtils
-import maestro.cli.util.EnvUtils
 import maestro.cli.util.ErrorReporter
-import maestro.cli.util.IOSEnvUtils
 import maestro.cli.view.box
 import maestro.debuglog.DebugLogStore
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
 import java.util.Properties
-import kotlin.random.Random
 import kotlin.system.exitProcess
 
 @Command(
@@ -74,7 +79,10 @@ class App {
     @Option(names = ["--port"], hidden = true)
     var port: Int? = null
 
-    @Option(names = ["--device", "--udid"], description = ["(Optional) Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "])
+    @Option(
+        names = ["--device", "--udid"],
+        description = ["(Optional) Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
+    )
     var deviceId: String? = null
 }
 
@@ -114,7 +122,7 @@ fun main(args: Array<String>) {
             println()
 
             // make errors red
-            cmd.colorScheme =  CommandLine.Help.ColorScheme.Builder()
+            cmd.colorScheme = CommandLine.Help.ColorScheme.Builder()
                 .errors(CommandLine.Help.Ansi.Style.fg_red)
                 .build()
 

@@ -20,7 +20,11 @@
 package maestro.cli.command
 
 import io.ktor.util.collections.ConcurrentSet
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import maestro.cli.App
 import maestro.cli.CliError
@@ -220,7 +224,8 @@ class TestCommand : Callable<Int> {
                     // Acquire lock to execute device creation block
                     deviceCreationSemaphore.acquire()
 
-                    val deviceId = deviceIds.getOrNull(shardIndex)                  // 1. Reuse existing device if deviceId provided
+                    val deviceId =
+                        deviceIds.getOrNull(shardIndex)                  // 1. Reuse existing device if deviceId provided
                             ?: initialActiveDevices.elementAtOrNull(shardIndex)     // 2. Reuse existing device if connected device found
                             ?: run { // 3. Create a new device
                                 val cfg = allDeviceConfigs.first()
@@ -234,7 +239,11 @@ class TestCommand : Callable<Int> {
                                     shardIndex
                                 )
 
-                                DeviceService.startDevice(deviceCreated, driverHostPort, initialActiveDevices + currentActiveDevices).instanceId.also {
+                                DeviceService.startDevice(
+                                    deviceCreated,
+                                    driverHostPort,
+                                    initialActiveDevices + currentActiveDevices
+                                ).instanceId.also {
                                     currentActiveDevices.add(it)
                                     delay(2.seconds)
                                 }
@@ -256,6 +265,8 @@ class TestCommand : Callable<Int> {
                         val device = session.device
 
                         if (flowFile.isDirectory || format != ReportFormat.NOOP) {
+                            // Run multiple flows
+
                             if (continuous) {
                                 throw CommandLine.ParameterException(
                                     commandSpec.commandLine(),
@@ -277,13 +288,17 @@ class TestCommand : Callable<Int> {
                             if (!flattenDebugOutput) {
                                 TestDebugReporter.deleteOldFiles()
                             }
-                            Triple(suiteResult.passedCount, suiteResult.totalTests, suiteResult)
+
+                            return@newSession Triple(suiteResult.passedCount, suiteResult.totalTests, suiteResult)
                         } else {
+                            // Run a single flow
+
                             if (continuous) {
                                 if (!flattenDebugOutput) {
                                     TestDebugReporter.deleteOldFiles()
                                 }
                                 TestRunner.runContinuous(maestro, device, flowFile, env)
+
                             } else {
                                 val resultView =
                                     if (DisableAnsiMixin.ansiEnabled) AnsiResultView()
@@ -360,6 +375,7 @@ class TestCommand : Callable<Int> {
             )
         }
     }
+
     private fun List<TestExecutionSummary>.mergeSummaries(): TestExecutionSummary? = reduceOrNull { acc, summary ->
         TestExecutionSummary(
             passed = acc.passed && summary.passed,

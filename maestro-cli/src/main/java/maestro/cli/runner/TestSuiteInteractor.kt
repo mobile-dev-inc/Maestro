@@ -6,7 +6,12 @@ import maestro.cli.CliError
 import maestro.cli.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
-import maestro.cli.report.*
+import maestro.cli.report.SingleScreenFlowAIOutput
+import maestro.cli.report.CommandDebugMetadata
+import maestro.cli.report.FlowAIOutput
+import maestro.cli.report.FlowDebugOutput
+import maestro.cli.report.TestDebugReporter
+import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
@@ -16,15 +21,19 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
+import okio.Buffer
 import okio.Sink
-import okio.sink
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
-import kotlin.math.roundToLong
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Similar to [TestRunner], but:
+ *  * can run many flows at once
+ *  * does not support continuous mode
+ */
 class TestSuiteInteractor(
     private val maestro: Maestro,
     private val device: Device? = null,
@@ -49,12 +58,14 @@ class TestSuiteInteractor(
         println()
 
         var passed = true
+        val aiOutputs = mutableListOf<FlowAIOutput>()
 
         // first run sequence of flows if present
         val flowSequence = executionPlan.sequence
         for (flow in flowSequence?.flows ?: emptyList()) {
-            val result = runFlow(flow.toFile(), env, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flow.toFile(), env, maestro, debugOutputPath)
             flowResults.add(result)
+            aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
                 passed = false
@@ -68,7 +79,8 @@ class TestSuiteInteractor(
 
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
-            val result = runFlow(flow.toFile(), env, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flow.toFile(), env, maestro, debugOutputPath)
+            aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
                 passed = false
@@ -116,6 +128,9 @@ class TestSuiteInteractor(
             )
         }
 
+        // TODO(bartekpacia): Should it also be saving to debugOutputPath?
+        TestDebugReporter.saveSuggestions(aiOutputs, debugOutputPath)
+
         return summary
     }
 
@@ -124,18 +139,23 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path
-    ): TestExecutionSummary.FlowResult {
+    ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
+        // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
+        //  (i.e. consider them also part of the test output)
+        //  See #1973
+
         var flowName: String = flowFile.nameWithoutExtension
         var flowStatus: FlowStatus
         var errorMessage: String? = null
 
-        // debug
-        val debug = FlowDebugMetadata()
-        val debugCommands = debug.commands
-        val debugScreenshots = debug.screenshots
+        val debugOutput = FlowDebugOutput()
+        val aiOutput = FlowAIOutput(
+            flowName = flowFile.nameWithoutExtension,
+            flowFile = flowFile,
+        )
 
         fun takeDebugScreenshot(status: CommandStatus): File? {
-            val containsFailed = debugScreenshots.any { it.status == CommandStatus.FAILED }
+            val containsFailed = debugOutput.screenshots.any { it.status == CommandStatus.FAILED }
 
             // Avoids duplicate failed images from parent commands
             if (containsFailed && status == CommandStatus.FAILED) {
@@ -146,8 +166,8 @@ class TestSuiteInteractor(
                 val out = File.createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
                     .also { it.deleteOnExit() } // save to another dir before exiting
                 maestro.takeScreenshot(out, false)
-                debugScreenshots.add(
-                    ScreenshotDebugMetadata(
+                debugOutput.screenshots.add(
+                    FlowDebugOutput.Screenshot(
                         screenshot = out,
                         timestamp = System.currentTimeMillis(),
                         status = status
@@ -159,33 +179,42 @@ class TestSuiteInteractor(
             return result.getOrNull()
         }
 
+        fun writeAIscreenshot(buffer: Buffer): File {
+            val out = File
+                .createTempFile("ai-screenshot-${System.currentTimeMillis()}", ".png")
+                .also { it.deleteOnExit() }
+            out.outputStream().use { it.write(buffer.readByteArray()) }
+            return out
+        }
+
         val flowTimeMillis = measureTimeMillis {
             try {
-                val commands = YamlCommandReader.readCommands(flowFile.toPath())
+                val commands = YamlCommandReader
+                    .readCommands(flowFile.toPath())
                     .withEnv(env)
 
-                val config = YamlCommandReader.getConfig(commands)
+                YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
 
                 val orchestra = Orchestra(
                     maestro = maestro,
                     onCommandStart = { _, command ->
                         logger.info("${command.description()} RUNNING")
-                        debugCommands[command] = CommandDebugMetadata(
+                        debugOutput.commands[command] = CommandDebugMetadata(
                             timestamp = System.currentTimeMillis(),
                             status = CommandStatus.RUNNING
                         )
                     },
                     onCommandComplete = { _, command ->
                         logger.info("${command.description()} COMPLETED")
-                        debugCommands[command]?.let {
+                        debugOutput.commands[command]?.let {
                             it.status = CommandStatus.COMPLETED
                             it.calculateDuration()
                         }
                     },
                     onCommandFailed = { _, command, e ->
                         logger.info("${command.description()} FAILED")
-                        if (e is MaestroException) debug.exception = e
-                        debugCommands[command]?.let {
+                        if (e is MaestroException) debugOutput.exception = e
+                        debugOutput.commands[command]?.let {
                             it.status = CommandStatus.FAILED
                             it.calculateDuration()
                             it.error = e
@@ -196,21 +225,27 @@ class TestSuiteInteractor(
                     },
                     onCommandSkipped = { _, command ->
                         logger.info("${command.description()} SKIPPED")
-                        debugCommands[command]?.let {
+                        debugOutput.commands[command]?.let {
                             it.status = CommandStatus.SKIPPED
                         }
                     },
                     onCommandReset = { command ->
                         logger.info("${command.description()} PENDING")
-                        debugCommands[command]?.let {
+                        debugOutput.commands[command]?.let {
                             it.status = CommandStatus.PENDING
                         }
                     },
+                    onCommandGeneratedOutput = { command, defects, screenshot ->
+                        logger.info("${command.description()} generated output")
+                        val screenshotPath = writeAIscreenshot(screenshot)
+                        aiOutput.screenOutputs.add(
+                            SingleScreenFlowAIOutput(
+                                screenshotPath = screenshotPath,
+                                defects = defects,
+                            )
+                        )
+                    }
                 )
-
-                config?.name?.let {
-                    flowName = it
-                }
 
                 val flowSuccess = orchestra.runFlow(commands)
                 flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
@@ -222,27 +257,35 @@ class TestSuiteInteractor(
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
 
-        TestDebugReporter.saveFlow(flowName, debug, debugOutputPath)
+        TestDebugReporter.saveFlow(
+            flowName = flowName,
+            debugOutput = debugOutput,
+            path = debugOutputPath,
+        )
+        // FIXME(bartekpacia): Save AI output as well
 
         TestSuiteStatusView.showFlowCompletion(
             TestSuiteViewModel.FlowResult(
                 name = flowName,
                 status = flowStatus,
                 duration = flowDuration,
-                error = debug.exception?.message,
+                error = debugOutput.exception?.message,
             )
         )
 
-        return TestExecutionSummary.FlowResult(
-            name = flowName,
-            fileName = flowFile.nameWithoutExtension,
-            status = flowStatus,
-            failure = if (flowStatus == FlowStatus.ERROR) {
-                TestExecutionSummary.Failure(
-                    message = errorMessage ?: debug.exception?.message ?: "Unknown error",
-                )
-            } else null,
-            duration = flowDuration,
+        return Pair(
+            first = TestExecutionSummary.FlowResult(
+                name = flowName,
+                fileName = flowFile.nameWithoutExtension,
+                status = flowStatus,
+                failure = if (flowStatus == FlowStatus.ERROR) {
+                    TestExecutionSummary.Failure(
+                        message = errorMessage ?: debugOutput.exception?.message ?: "Unknown error",
+                    )
+                } else null,
+                duration = flowDuration,
+            ),
+            second = aiOutput,
         )
     }
 

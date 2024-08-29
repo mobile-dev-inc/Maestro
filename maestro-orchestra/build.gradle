@@ -4,18 +4,21 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 plugins {
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.mavenPublish)
 }
 
 dependencies {
     api(project(":maestro-orchestra-models"))
     implementation(project(":maestro-client"))
+    api(project(":maestro-ai"))
     api(project(":maestro-utils"))
 
     api(libs.square.okio)
     api(libs.jackson.core.databind)
     api(libs.jackson.module.kotlin)
     api(libs.jackson.dataformat.yaml)
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)

@@ -5,6 +5,9 @@ import okio.Sink
 
 interface TestSuiteReporter {
 
+    /**
+     * Writes the report for [summary] to [out] in the format specified by the implementation.
+     */
     fun report(
         summary: TestExecutionSummary,
         out: Sink,
@@ -17,5 +20,4 @@ interface TestSuiteReporter {
             }
         }
     }
-
 }

@@ -28,5 +28,6 @@ include("maestro-proto")
 include("maestro-studio:server")
 include("maestro-studio:web")
 include("maestro-test")
+include("maestro-ai")
 //include("examples:samples")
 //findProject(":examples:samples")?.name = "samples"

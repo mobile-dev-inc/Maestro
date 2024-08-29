@@ -38,9 +38,6 @@ data class WorkspaceConfig(
                     add(string)
                 }
             }
-
         }
-
     }
-
 }

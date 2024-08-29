@@ -19,15 +19,15 @@
 
 package maestro.orchestra
 
-import maestro.DeviceInfo
-import maestro.ElementFilter
-import maestro.Filters
+import kotlinx.coroutines.runBlocking
+import maestro.*
 import maestro.Filters.asFilter
-import maestro.FindElementResult
-import maestro.Maestro
-import maestro.MaestroException
-import maestro.ScreenRecording
-import maestro.ViewHierarchy
+import maestro.ai.AI
+import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
+import maestro.ai.Defect
+import maestro.ai.Prediction
+import maestro.ai.antrophic.Claude
+import maestro.ai.openai.OpenAI
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
@@ -37,20 +37,42 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
-import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
+import okio.Buffer
+import okio.Sink
 import okio.buffer
 import okio.sink
 import java.io.File
 import java.lang.Long.max
 
+// TODO(bartkepacia): Use this in onCommandGeneratedOutput.
+//  Caveat:
+//    Large files should not be held in memory, instead they should be directly written to a Buffer
+//    that is streamed to disk.
+//  Idea:
+//    Orchestra should expose a callback like "onResourceRequested: (Command, CommandOutputType)"
+sealed class CommandOutput {
+    data class Screenshot(val screenshot: Buffer) : CommandOutput()
+    data class ScreenRecording(val screenRecording: Buffer) : CommandOutput()
+    data class AIDefects(val defects: List<Defect>, val screenshot: Buffer) : CommandOutput()
+}
+
+/**
+ * Orchestra translates high-level Maestro commands into method calls on the [Maestro] object.
+ * It's the glue between the CLI and platform-specific [Driver]s (encapsulated in the [Maestro] object).
+ * It's one of the core classes in this codebase.
+ *
+ * Orchestra should not know about:
+ *  - Specific platforms where tests can be executed, such as Android, iOS, or the web.
+ *  - File systems. It should instead write to [Sink]s that it requests from the caller.
+ */
 class Orchestra(
     private val maestro: Maestro,
-    private val screenshotsDir: File? = null,
+    private val screenshotsDir: File? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
@@ -61,9 +83,12 @@ class Orchestra(
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
+    private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
 ) {
 
     private lateinit var jsEngine: JsEngine
+
+    private val ai: AI? = initAI()
 
     private var copiedText: String? = null
 
@@ -197,6 +222,19 @@ class Orchestra(
         }
     }
 
+    private fun initAI(): AI? {
+        val apiKey = System.getenv(AI_KEY_ENV_VAR) ?: return null
+        val modelName: String? = System.getenv(AI.AI_MODEL_ENV_VAR)
+
+        return if (modelName == null) OpenAI(apiKey = apiKey)
+        else if (modelName.startsWith("gpt-")) OpenAI(apiKey = apiKey, defaultModel = modelName)
+        else if (modelName.startsWith("claude-")) Claude(apiKey = apiKey, defaultModel = modelName)
+        else throw IllegalStateException("Unsupported AI model: $modelName")
+    }
+
+    /**
+     * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
+     */
     private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
 
@@ -221,6 +259,8 @@ class Orchestra(
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
+            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command)
+            is AssertWithAICommand -> assertWithAICommand(command)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -288,8 +328,8 @@ class Orchestra(
         if (!evaluateCondition(command.condition, timeoutMs = timeout)) {
             if (!isOptional(command.condition)) {
                 throw MaestroException.AssertionFailure(
-                    "Assertion is false: ${command.condition.description()}",
-                    maestro.viewHierarchy().root,
+                    message = "Assertion is false: ${command.condition.description()}",
+                    hierarchyRoot = maestro.viewHierarchy().root,
                 )
             } else {
                 throw CommandSkipped
@@ -297,6 +337,69 @@ class Orchestra(
         }
 
         return false
+    }
+
+    private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand): Boolean = runBlocking {
+        // TODO(bartekpacia): make all of Orchestra suspending
+
+        if (ai == null) {
+            throw MaestroException.AINotAvailable("AI client is not available. Did you export $AI_KEY_ENV_VAR?")
+        }
+
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+
+        val defects = Prediction.findDefects(
+            aiClient = ai,
+            screen = imageData.copy().readByteArray(),
+        )
+
+        if (defects.isNotEmpty()) {
+            onCommandGeneratedOutput(command, defects, imageData)
+
+            if (command.optional) throw CommandSkipped
+
+            val word = if (defects.size == 1) "defect" else "defects"
+            throw MaestroException.AssertionFailure(
+                "Found ${defects.size} possible $word. See the report after the test completes to learn more.",
+                maestro.viewHierarchy().root,
+            )
+        }
+
+        false
+    }
+
+    private fun assertWithAICommand(command: AssertWithAICommand): Boolean = runBlocking {
+        // TODO(bartekpacia): make all of Orchestra suspending
+
+        if (ai == null) {
+            throw MaestroException.AINotAvailable("AI client is not available. Did you export $AI_KEY_ENV_VAR?")
+        }
+
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+
+        val defect = Prediction.performAssertion(
+            aiClient = ai,
+            screen = imageData.copy().readByteArray(),
+            assertion = command.assertion,
+        )
+
+        if (defect != null) {
+            onCommandGeneratedOutput(command, listOf(defect), imageData)
+
+            if (command.optional) throw CommandSkipped
+
+            throw MaestroException.AssertionFailure(
+                message = """
+                    |Assertion is false: ${command.assertion}
+                    |Reasoning: ${defect.reasoning}
+                    """.trimMargin(),
+                hierarchyRoot = maestro.viewHierarchy().root,
+            )
+        }
+
+        false
     }
 
     private fun isOptional(condition: Condition): Boolean {

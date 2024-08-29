@@ -8,7 +8,8 @@ import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
 import maestro.cli.device.Device
-import maestro.cli.report.FlowDebugMetadata
+import maestro.cli.report.FlowAIOutput
+import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.ResultView
@@ -23,10 +24,18 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.concurrent.thread
 
+/**
+ * Knows how to run a single Maestro flow (either one-shot or continuously).
+ */
 object TestRunner {
 
     private val logger = LoggerFactory.getLogger(TestRunner::class.java)
 
+    /**
+     * Runs a single flow, one-shot style.
+     *
+     * If the flow generates artifacts, they should be placed in [debugOutputPath].
+     */
     fun runSingle(
         maestro: Maestro,
         device: Device?,
@@ -35,28 +44,48 @@ object TestRunner {
         resultView: ResultView,
         debugOutputPath: Path
     ): Int {
-
-        // debug
-        val debug = FlowDebugMetadata()
+        val debugOutput = FlowDebugOutput()
+        var aiOutput = FlowAIOutput(
+            flowName = flowFile.nameWithoutExtension,
+            flowFile = flowFile,
+        )
 
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
+
+            YamlCommandReader.getConfig(commands)?.name?.let {
+                aiOutput = aiOutput.copy(flowName = it)
+            }
+
             MaestroCommandRunner.runCommands(
-                maestro,
-                device,
-                resultView,
-                commands,
-                debug
+                maestro = maestro,
+                device = device,
+                view = resultView,
+                commands = commands,
+                debugOutput = debugOutput,
+                aiOutput = aiOutput,
             )
         }
 
-        TestDebugReporter.saveFlow(flowFile.name, debug, debugOutputPath)
-        if (debug.exception != null) PrintUtils.err("${debug.exception?.message}")
+        TestDebugReporter.saveFlow(
+            flowName = flowFile.name,
+            debugOutput = debugOutput,
+            path = debugOutputPath,
+        )
+        TestDebugReporter.saveSuggestions(
+            outputs = listOf(aiOutput),
+            path = debugOutputPath,
+        )
+
+        if (debugOutput.exception != null) PrintUtils.err("${debugOutput.exception?.message}")
 
         return if (result.get() == true) 0 else 1
     }
 
+    /**
+     * Runs a single flow continuously.
+     */
     fun runContinuous(
         maestro: Maestro,
         device: Device?,
@@ -88,11 +117,16 @@ object TestRunner {
 
                         runCatching(resultView, maestro) {
                             MaestroCommandRunner.runCommands(
-                                maestro,
-                                device,
-                                resultView,
-                                commands,
-                                FlowDebugMetadata()
+                                maestro = maestro,
+                                device = device,
+                                view = resultView,
+                                commands = commands,
+                                debugOutput = FlowDebugOutput(),
+                                // TODO(bartekpacia): make AI outputs work in continuous mode (see #1972)
+                                aiOutput = FlowAIOutput(
+                                    flowName = "TODO",
+                                    flowFile = flowFile,
+                                ),
                             )
                         }.get()
                     }

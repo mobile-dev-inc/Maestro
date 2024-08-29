@@ -2,6 +2,8 @@ package maestro.cli.model
 
 import kotlin.time.Duration
 
+// TODO: Some properties should be implemented as getters, but it's not possible.
+//  See https://github.com/Kotlin/kotlinx.serialization/issues/805
 data class TestExecutionSummary(
     val passed: Boolean,
     val suites: List<SuiteResult>,
@@ -27,5 +29,4 @@ data class TestExecutionSummary(
     data class Failure(
         val message: String,
     )
-
 }

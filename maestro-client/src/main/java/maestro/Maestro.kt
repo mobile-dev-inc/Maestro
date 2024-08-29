@@ -29,6 +29,7 @@ import maestro.utils.SocketUtils
 import okio.Sink
 import okio.buffer
 import okio.sink
+import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
@@ -36,7 +37,9 @@ import java.util.*
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
-class Maestro(private val driver: Driver) : AutoCloseable {
+class Maestro(
+    private val driver: Driver,
+) : AutoCloseable {
 
     private val sessionId = UUID.randomUUID()
 
@@ -497,8 +500,9 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         driver.close()
     }
 
+    @Deprecated("Use takeScreenshot(Sink, Boolean) instead")
     fun takeScreenshot(outFile: File, compressed: Boolean) {
-        LOGGER.info("Taking screenshot: $outFile")
+        LOGGER.info("Taking screenshot to a file: $outFile")
 
         val absoluteOutFile = outFile.absoluteFile
 
@@ -516,7 +520,19 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
     }
 
+    fun takeScreenshot(sink: Sink, compressed: Boolean) {
+        LOGGER.info("Taking screenshot")
+
+        sink
+            .buffer()
+            .use {
+                ScreenshotUtils.takeScreenshot(it, compressed, driver)
+            }
+    }
+
     fun startScreenRecording(out: Sink): ScreenRecording {
+        LOGGER.info("Starting screen recording")
+
         if (screenRecordingInProgress) {
             LOGGER.info("Screen recording not started: Already in progress")
             return object : ScreenRecording {
@@ -602,20 +618,14 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
         private const val ANIMATION_TIMEOUT_MS: Long = 15000
 
-        fun ios(
-            driver: Driver,
-            openDriver: Boolean = true
-        ): Maestro {
+        fun ios(driver: Driver, openDriver: Boolean = true): Maestro {
             if (openDriver) {
                 driver.open()
             }
             return Maestro(driver)
         }
 
-        fun android(
-            driver: Driver,
-            openDriver: Boolean = true,
-        ): Maestro {
+        fun android(driver: Driver, openDriver: Boolean = true): Maestro {
             if (openDriver) {
                 driver.open()
             }

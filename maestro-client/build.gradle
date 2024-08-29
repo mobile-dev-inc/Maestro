@@ -72,6 +72,7 @@ dependencies {
     api(libs.jackson.dataformat.xml)
     api(libs.apk.parser)
 
+
     implementation project(':maestro-ios')
     implementation(libs.google.findbugs)
     implementation(libs.axml)

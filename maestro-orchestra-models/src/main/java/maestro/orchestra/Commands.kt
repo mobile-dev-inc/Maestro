@@ -364,6 +364,37 @@ data class AssertConditionCommand(
     }
 }
 
+data class AssertNoDefectsWithAICommand(
+    val optional: Boolean = true,
+    val label: String? = null,
+) : Command {
+    override fun description(): String {
+        if (label != null) return label
+
+        return "Assert no defects with AI"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command = this
+}
+
+data class AssertWithAICommand(
+    val assertion: String,
+    val optional: Boolean = true,
+    val label: String? = null,
+) : Command {
+    override fun description(): String {
+        if (label != null) return label
+
+        return "Assert with AI: $assertion"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            assertion = assertion.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class InputTextCommand(
     val text: String,
     val label: String? = null,
