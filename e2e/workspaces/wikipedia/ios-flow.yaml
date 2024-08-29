@@ -1,3 +1,5 @@
 appId: org.wikimedia.wikipedia
+tags:
+  - ios
 ---
 - launchApp

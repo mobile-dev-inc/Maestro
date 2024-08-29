@@ -7,4 +7,4 @@ appId: org.wikipedia
 - inputText: "Greek"
 - assertVisible: "Ελληνικά"
 - tapOn: "Ελληνικά"
-- tapOn: "Back"
+- tapOn: "Navigate up"

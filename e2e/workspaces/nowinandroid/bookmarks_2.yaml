@@ -1,0 +1,8 @@
+appId: com.google.samples.apps.nowinandroid.demo.debug
+tags:
+  - failing
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: non-existent-id-to-fail-this-test

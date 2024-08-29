@@ -1,22 +1,35 @@
 #!/usr/bin/env sh
-
 set -eu
+
+# Runs all tests in the workspaces directory.
 
 command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 
 [ "$(basename "$PWD")" = "e2e" ] || { echo "must be run from e2e directory" && exit 1; }
 
-selected_app="${1:-}"
-
 FAILED=false
-for file in ./flows/*; do
-	filename="$(basename "$file")"
 
-	if [ -z "$selected_app" ] || [ "$selected_app" = "$filename" ]; then
-		cd "$file" || exit 1
-		maestro --device emulator-5554 test . || FAILED=true
-		cd - >/dev/null || exit 1
+# Run passing tests
+for workspace_dir in ./workspaces/*; do
+	echo "run passing tests for app $workspace_dir"
+	if [ "$(basename "$workspace_dir")" = "wikipedia" ]; then
+	  # wikipedia flows have no passing/failing labels
+	  maestro test --exclude-tags ios "$workspace_dir" || FAILED=true
+	  continue
 	fi
+
+	maestro test --include-tags passing --exclude-tags ios "$workspace_dir" || FAILED=true
+done
+
+# Run failing tests
+for workspace_dir in ./workspaces/*; do
+	if [ "$(basename "$workspace_dir")" = "wikipedia" ]; then
+	  # wikipedia workspace has no failing flows
+	  continue
+	fi
+	echo "run failing tests for app $workspace_dir"
+
+	maestro test --include-tags failing --exclude-tags ios "$workspace_dir" && FAILED=true
 done
 
 if [ "$FAILED" = true ]; then

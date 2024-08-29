@@ -1,4 +1,6 @@
 appId: com.google.samples.apps.nowinandroid.demo.debug
+tags:
+  - passing
 ---
 - launchApp:
     clearState: true

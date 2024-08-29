@@ -1,4 +1,6 @@
 appId: org.wikipedia
+tags:
+  - android
 ---
 - launchApp:
     clearState: true

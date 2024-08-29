@@ -3,5 +3,5 @@ appId: org.wikipedia
 - tapOn: "Saved"
 - tapOn: "Default list for your saved articles"
 - assertVisible: "Sun"
-- assertVisible: "Star in the Solar System"
+- assertVisible: "Star at the center of the Solar System"
 - back

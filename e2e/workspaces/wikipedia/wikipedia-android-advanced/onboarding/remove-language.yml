@@ -10,4 +10,4 @@ appId: org.wikipedia
     id: ".*menu_delete_selected"
 - tapOn: "OK"
 - assertNotVisible: "Ελληνικά"
-- tapOn: "Back"
+- tapOn: "Navigate up"

@@ -1,5 +1,6 @@
 appId: org.wikimedia.wikipedia
 tags:
+  - ios
   - advanced
 ---
 - runFlow: subflows/onboarding-ios.yaml
@@ -18,4 +19,3 @@ tags:
 - eraseText
 - inputText: qwerty
 - assertVisible: ${output.result}
-

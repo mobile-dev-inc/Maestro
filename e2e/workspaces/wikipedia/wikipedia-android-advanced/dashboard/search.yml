@@ -2,7 +2,7 @@ appId: org.wikipedia
 ---
 - tapOn: "Search Wikipedia"
 - inputText: "Sun"
-- assertVisible: "Star in the Solar System"
+- assertVisible: "Star at the center of the Solar System"
 - tapOn:
     id: ".*page_list_item_title"
 - tapOn:

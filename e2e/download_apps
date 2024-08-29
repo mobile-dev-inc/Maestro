@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-
 set -eu
 
 # Download apps from URLs listed in manifest.txt.
@@ -18,6 +17,5 @@ while read -r url; do
 	extension="${app_file##*.}"
 	if [ "$extension" = "zip" ]; then
 		unzip -qq -o -d ./apps "$app_file" -x "__MACOSX/*"
-		rm "$app_file"
 	fi
 done <manifest.txt

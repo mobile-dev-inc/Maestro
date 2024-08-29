@@ -1,6 +1,11 @@
 #!/usr/bin/env sh
-
 set -eu
+
+# Install all apps from apps/ directory (that was previously created with
+# download_apps).
+#
+# Matches .apk files to install on Android devices and .app files to install on
+# iOS simulators.
 
 [ "$(basename "$PWD")" = "e2e" ] || { echo "must be run from e2e directory" && exit 1; }
 
@@ -12,10 +17,10 @@ for file in ./apps/*; do
 
 	extension="${file##*.}"
 	if [ "$extension" = "apk" ]; then
-		adb install -r "$file" >/dev/null
+		adb install -r "$file" >/dev/null || echo "adb: could not install $filename"
 	elif [ "$extension" = "app" ] && [ "$(uname)" = "Darwin" ]; then
-		xcrun simctl install booted "$file"
+		xcrun simctl install booted "$file" || echo "xcrun: could not install $filename"
 	else
-		echo "unknown file extension $extension"
+		echo "ignored unsupported file extension $extension"
 	fi
 done
