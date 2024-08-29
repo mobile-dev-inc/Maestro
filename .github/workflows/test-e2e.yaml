@@ -154,7 +154,7 @@ jobs:
 
       - name: Stop screen recording of AVD
         run: |
-          adb shell pkill -SIGINT screenrecord
+          adb shell pkill -SIGINT screenrecord || echo "exited with code $?" && exit 0
           sleep 5 # prevent video file corruption
           adb pull /sdcard/screenrecord.mp4 ~/maestro_screenrecord.mp4
 
