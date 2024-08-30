@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.38.0
+
+- New commands AI visual testing: assertWithAI and assertNoDefectsWithAI
+- Enable basic support for Maestro uploads while keeping maestro cloud functioning
+
 ## 1.37.9
 
 Released on 2024-08-15
