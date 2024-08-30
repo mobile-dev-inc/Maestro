@@ -1,16 +1,16 @@
-import maestro.Maestro
-import maestro.orchestra.AssertCommand
-import maestro.orchestra.MaestroCommand
-import maestro.orchestra.ElementSelector
-import maestro.orchestra.LaunchAppCommand
-import maestro.orchestra.Orchestra
-import maestro.orchestra.TapOnElementCommand
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import ios.IOSDevice
-import ios.idb.IdbIOSDevice
-import java.io.File
+import maestro.Maestro
 import maestro.drivers.AndroidDriver
+import maestro.orchestra.AssertCommand
+import maestro.orchestra.ElementSelector
+import maestro.orchestra.LaunchAppCommand
+import maestro.orchestra.MaestroCommand
+import maestro.orchestra.Orchestra
+import maestro.orchestra.TapOnElementCommand
+import java.io.File
+
 /*
  *
  *  Copyright (c) 2022 mobile.dev inc.
@@ -32,58 +32,33 @@ import maestro.drivers.AndroidDriver
 
 fun main() {
     executeAndroidCommands()
-    executeIOSCommands()
 }
 
 private fun executeAndroidCommands() {
     val dadb = Dadb.create("localhost", 5555)
-    val androidApk = File("./examples/samples/src/main/resources/android-app-debug.apk")
+    val androidApk = File("./e2e/apps/demo_app.apk")
     dadb.install(androidApk)
     val driver = AndroidDriver(dadb)
     val maestro = Maestro.android(driver)
-    val launchAppCommand = MaestroCommand(launchAppCommand = LaunchAppCommand("dev.mobile.sample"))
-    val tapViewDetailsCommand = MaestroCommand(
-        tapOnElement = TapOnElementCommand(ElementSelector(textRegex = "VIEW DETAILS"))
-    )
-    val assertCommand = MaestroCommand(
-        assertCommand = AssertCommand(ElementSelector(textRegex = "Here is the detailed content"))
-    )
-    maestro.use {
-        Orchestra(it).executeCommands(
-            listOf(
-                launchAppCommand,
-                tapViewDetailsCommand,
-                assertCommand
-            )
-        )
-    }
-}
 
-private fun executeIOSCommands() {
-    val localhost = "localhost"
-    val port = 10883
-    val iosArchive = File("./examples/samples/src/main/resources/CovidCertificateVerifier.zip").inputStream()
-    val channel = ManagedChannelBuilder.forAddress(localhost, port)
-        .usePlaintext()
-        .build()
-    IdbIOSDevice(channel).use { it.install(iosArchive) }
-    val maestro = Maestro.ios(localhost, port)
-    val launchAppCommand = MaestroCommand(
-        launchAppCommand = LaunchAppCommand("ch.admin.bag.covidcertificate.verifier.dev")
+    val commands = listOf(
+        MaestroCommand(
+            launchAppCommand = LaunchAppCommand("com.example.example"),
+        ),
+        MaestroCommand(
+            tapOnElement = TapOnElementCommand(ElementSelector(idRegex = "fabAddIcon")),
+        ),
+        MaestroCommand(
+            tapOnElement = TapOnElementCommand(ElementSelector(idRegex = "fabAddIcon")),
+        ),
+        MaestroCommand(
+            assertCommand = AssertCommand(
+                ElementSelector(textRegex = "2"),
+            ),
+        ),
     )
-    val tapOnElementCommand = MaestroCommand(
-        tapOnElement = TapOnElementCommand(
-            ElementSelector(textRegex = "HOW IT WORKS")
-        )
-    )
-    val assertCommand = MaestroCommand(
-        assertCommand = AssertCommand(
-            ElementSelector(textRegex = "HOW IT WORKS")
-        )
-    )
+
     maestro.use {
-        Orchestra(maestro).executeCommands(
-            listOf(launchAppCommand, tapOnElementCommand, assertCommand)
-        )
+        Orchestra(it).executeCommands(commands)
     }
 }

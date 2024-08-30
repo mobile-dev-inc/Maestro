@@ -7,6 +7,7 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -15,6 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
+include("example")
 include("maestro-utils")
 include("maestro-android")
 include("maestro-cli")
@@ -29,5 +31,3 @@ include("maestro-studio:server")
 include("maestro-studio:web")
 include("maestro-test")
 include("maestro-ai")
-//include("examples:samples")
-//findProject(":examples:samples")?.name = "samples"
