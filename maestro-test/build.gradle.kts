@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -11,16 +10,16 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.named("compileKotlin", KotlinCompilationTask) {
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjdk-release=1.8")
     }
 }
 
 dependencies {
-    implementation project(":maestro-orchestra")
-    implementation project(":maestro-client")
-    implementation project(":maestro-utils")
+    implementation(project(":maestro-orchestra"))
+    implementation(project(":maestro-client"))
+    implementation(project(":maestro-utils"))
 
     implementation(libs.google.truth)
     implementation(libs.square.okio)
@@ -31,6 +30,6 @@ dependencies {
     testImplementation(libs.wiremock.jre8)
 }
 
-test {
+tasks.named<Test>("test") {
     useJUnitPlatform()
 }
