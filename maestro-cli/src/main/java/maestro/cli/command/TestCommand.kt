@@ -266,12 +266,11 @@ class TestCommand : Callable<Int> {
 
                         if (flowFile.isDirectory || format != ReportFormat.NOOP) {
                             // Run multiple flows
-
                             if (continuous) {
-                                throw CommandLine.ParameterException(
-                                    commandSpec.commandLine(),
-                                    "Continuous mode is not supported for directories. $flowFile is a directory",
-                                )
+                                val error =
+                                    if (format != ReportFormat.NOOP) "Format can not be different from NOOP in continuous mode. Passed format is $format."
+                                    else "Continuous mode is not supported for directories. $flowFile is a directory"
+                                throw CommandLine.ParameterException(commandSpec.commandLine(), error)
                             }
 
                             val suiteResult = TestSuiteInteractor(
