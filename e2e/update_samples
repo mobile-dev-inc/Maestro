@@ -12,7 +12,7 @@ command -v gsutil >/dev/null 2>&1 || { echo "gsutil is required" && exit 1; }
 SAMPLES_URL="gs://mobile.dev/samples/samples.zip"
 
 if [ ! -d apps/ ]; then
-  ./download_apps
+	./download_apps
 fi
 
 rm -rf samples/ samples.zip

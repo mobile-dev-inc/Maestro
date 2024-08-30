@@ -1,0 +1,10 @@
+appId: com.example.example
+name: Fail
+tags:
+    - android
+    - failing
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: non-existent-id-to-fail-this-test

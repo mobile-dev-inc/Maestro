@@ -7,32 +7,72 @@ command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 
 [ "$(basename "$PWD")" = "e2e" ] || { echo "must be run from e2e directory" && exit 1; }
 
-FAILED=false
+ALL_PASS=true
+
+_h1() {
+	printf "=>\n=> $1\n=>\n"
+}
+
+_h2() {
+	printf "==> $1\n"
+}
+
+_h3() {
+	printf "===> $1\n"
+}
+
+mkfifo pipe
+trap 'rm -f pipe' EXIT
 
 # Run passing tests
 for workspace_dir in ./workspaces/*; do
-	echo "run passing tests for app $workspace_dir"
-	if [ "$(basename "$workspace_dir")" = "wikipedia" ]; then
-	  # wikipedia flows have no passing/failing labels
-	  maestro test --exclude-tags ios "$workspace_dir" || FAILED=true
-	  continue
+	WORKSPACE_PASS=true
+	app_name="$(basename "$workspace_dir")"
+	_h1 "run tests for app $app_name"
+
+	###
+	### Run passing tests
+	###
+	_h2 "[$app_name] run passing tests"
+
+	while IFS= read -r line; do
+	    _h3 "[$app_name] $line"
+	done < pipe &
+
+	2>&1 maestro test --include-tags passing --exclude-tags ios "$workspace_dir" > pipe || WORKSPACE_PASS=false
+
+	if [ "$WORKSPACE_PASS" = "false" ]; then
+        _h2 "[$app_name] FAIL! Expected to pass, but it failed instead"
+		ALL_PASS=false
 	fi
 
-	maestro test --include-tags passing --exclude-tags ios "$workspace_dir" || FAILED=true
-done
 
-# Run failing tests
-for workspace_dir in ./workspaces/*; do
+	###
+	### Run failing tests
+	###
+	# edge case: the wikipedia workspace has no failing flows
 	if [ "$(basename "$workspace_dir")" = "wikipedia" ]; then
-	  # wikipedia workspace has no failing flows
-	  continue
+		continue
 	fi
-	echo "run failing tests for app $workspace_dir"
 
-	maestro test --include-tags failing --exclude-tags ios "$workspace_dir" && FAILED=true
+	WORKSPACE_PASS=true # Reset for failing flows
+	_h2 "[$app_name] run failing tests"
+
+	while IFS= read -r line; do
+	    _h3 "[$app_name] $line"
+	done < pipe &
+
+	maestro test --include-tags failing --exclude-tags ios "$workspace_dir" > pipe && WORKSPACE_PASS=false
+
+	if [ "$WORKSPACE_PASS" = "false" ]; then
+		_h2 "[$app_name] FAIL! Expected to fail, but it passed instead"
+		ALL_PASS=false
+    fi
 done
 
-if [ "$FAILED" = true ]; then
-  echo "Some tests failed"
-  exit 1
+if [ "$ALL_PASS" = "false" ]; then
+	_h1 "FAILURE: some tests failed!"
+	exit 1
+else
+	_h1 "SUCCESS: all tests passed!"
 fi

@@ -1,4 +1,5 @@
 appId: com.google.samples.apps.nowinandroid.demo.debug
+name: Bookmarks
 tags:
   - passing
 ---

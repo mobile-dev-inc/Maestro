@@ -1,6 +1,7 @@
 appId: org.wikimedia.wikipedia
 tags:
   - ios
+  - passing
   - advanced
 ---
 - runFlow: subflows/onboarding-ios.yaml
