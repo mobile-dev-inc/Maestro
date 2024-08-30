@@ -698,8 +698,8 @@ data class RunFlowCommand(
 }
 
 data class SetLocationCommand(
-    val latitude: Double,
-    val longitude: Double,
+    val latitude: String,
+    val longitude: String,
     val label: String? = null
 ) : Command {
 
@@ -708,7 +708,10 @@ data class SetLocationCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): SetLocationCommand {
-        return this
+        return copy(
+            latitude = latitude.evaluateScripts(jsEngine),
+            longitude = longitude.evaluateScripts(jsEngine),
+        )
     }
 }
 
@@ -839,17 +842,23 @@ data class TravelCommand(
 ) : Command {
 
     data class GeoPoint(
-        val latitude: Double,
-        val longitude: Double,
+        val latitude: String,
+        val longitude: String,
     ) {
 
         fun getDistanceInMeters(another: GeoPoint): Double {
             val earthRadius = 6371 // in kilometers
-            val dLat = Math.toRadians(another.latitude - latitude)
-            val dLon = Math.toRadians(another.longitude - longitude)
+            val oLat = Math.toRadians(latitude.toDouble())
+            val oLon = Math.toRadians(longitude.toDouble())
+
+            val aLat = Math.toRadians(another.latitude.toDouble())
+            val aLon = Math.toRadians(another.longitude.toDouble())
+
+            val dLat = Math.toRadians(aLat - oLat)
+            val dLon = Math.toRadians(aLon - oLon)
 
             val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(latitude)) * Math.cos(Math.toRadians(another.latitude)) *
+                Math.cos(Math.toRadians(oLat)) * Math.cos(Math.toRadians(aLat)) *
                 Math.sin(dLon / 2) * Math.sin(dLon / 2)
 
             val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
@@ -865,7 +874,9 @@ data class TravelCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+        return copy(
+            points = points.map { it.copy(latitude = it.latitude.evaluateScripts(jsEngine), longitude = it.longitude.evaluateScripts(jsEngine)) }
+        )
     }
 
 }

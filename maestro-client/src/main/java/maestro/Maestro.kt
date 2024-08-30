@@ -561,10 +561,10 @@ class Maestro(
         }
     }
 
-    fun setLocation(latitude: Double, longitude: Double) {
+    fun setLocation(latitude: String, longitude: String) {
         LOGGER.info("Setting location: ($latitude, $longitude)")
 
-        driver.setLocation(latitude, longitude)
+        driver.setLocation(latitude.toDouble(), longitude.toDouble())
     }
 
     fun eraseText(charactersToErase: Int) {

@@ -743,6 +743,8 @@ class IntegrationTest {
                     "NON_EXISTENT_TEXT" to "nonExistentText",
                     "NON_EXISTENT_ID" to "nonExistentId",
                     "URL" to "secretUrl",
+                    "LAT" to "37.82778",
+                    "LNG" to "-122.48167",
                 )
             )
 
@@ -770,7 +772,8 @@ class IntegrationTest {
                 Event.Tap(Point(50, 50)),
                 Event.Tap(Point(50, 50)),
                 Event.InputText("\${PASSWORD} is testPassword"),
-                Event.OpenLink("https://example.com/secretUrl")
+                Event.OpenLink("https://example.com/secretUrl"),
+                Event.SetLocation(latitude = 37.82778, longitude = -122.48167),
             )
         )
     }

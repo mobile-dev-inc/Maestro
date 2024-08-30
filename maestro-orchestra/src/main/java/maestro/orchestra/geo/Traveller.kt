@@ -43,14 +43,20 @@ object Traveller {
 
         val timeToSleep = timeToTravelInMilliseconds / steps
 
-        val latitudeStep = (end.latitude - start.latitude) / steps
-        val longitudeStep = (end.longitude - start.longitude) / steps
+        val sLat = start.latitude.toDouble()
+        val sLon = start.longitude.toDouble()
+
+        val eLat = end.latitude.toDouble()
+        val eLon = end.longitude.toDouble()
+
+        val latitudeStep = (eLat - sLat) / steps
+        val longitudeStep = (eLon - sLon) / steps
 
         for (i in 1..steps) {
-            val latitude = start.latitude + (latitudeStep * i)
-            val longitude = start.longitude + (longitudeStep * i)
+            val latitude = sLat + (latitudeStep * i)
+            val longitude = sLon + (longitudeStep * i)
 
-            maestro.setLocation(latitude, longitude)
+            maestro.setLocation(latitude.toString(), longitude.toString())
             Thread.sleep(timeToSleep)
         }
     }
