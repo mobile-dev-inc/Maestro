@@ -13,6 +13,12 @@ application {
     mainClass.set("maestro.ai.DemoAppKt")
 }
 
+plugins.withId("com.vanniktech.maven.publish") {
+    mavenPublish {
+        sonatypeHost = com.vanniktech.maven.publish.SonatypeHost.S01
+    }
+}
+
 tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = "maestro.ai.DemoAppKt"
