@@ -525,6 +525,7 @@ class AndroidDriver(
         val appNameResult = runCatching {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
             val appName = ApkFile(apkFile).apkMeta.name
+            apkFile.delete()
             appName
         }
         if (appNameResult.isSuccess) {
@@ -775,7 +776,9 @@ class AndroidDriver(
     private fun setAllPermissions(appId: String, permissionValue: String) {
         val permissionsResult = runCatching {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
-            ApkFile(apkFile).apkMeta.usesPermissions
+            val permissions = ApkFile(apkFile).apkMeta.usesPermissions
+            apkFile.delete()
+            permissions
         }
         if (permissionsResult.isSuccess) {
             permissionsResult.getOrNull()?.let {
@@ -964,6 +967,7 @@ class AndroidDriver(
         if (!isPackageInstalled("dev.mobile.maestro")) {
             throw IllegalStateException("dev.mobile.maestro was not installed")
         }
+        maestroAppApk.delete()
     }
 
     private fun installMaestroServerApp() {
@@ -981,6 +985,7 @@ class AndroidDriver(
         if (!isPackageInstalled("dev.mobile.maestro.test")) {
             throw IllegalStateException("dev.mobile.maestro.test was not installed")
         }
+        maestroServerApk.delete()
     }
 
     private fun installMaestroApks() {
