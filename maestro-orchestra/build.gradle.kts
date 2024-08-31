@@ -1,5 +1,5 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("maven-publish")
@@ -32,19 +32,17 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.named("compileKotlin", KotlinCompilationTask) {
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjdk-release=1.8")
     }
 }
 
-plugins.withId("com.vanniktech.maven.publish") {
-    mavenPublish {
-        sonatypeHost = "S01"
-    }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.S01)
 }
 
-test {
+tasks.named<Test>("test") {
     useJUnitPlatform()
-    environment("PROJECT_DIR", projectDir.absolutePath)
+    environment.put("PROJECT_DIR", projectDir.absolutePath)
 }

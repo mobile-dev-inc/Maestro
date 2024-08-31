@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -12,10 +13,8 @@ application {
     mainClass = "maestro.studio.ServerKt"
 }
 
-plugins.withId("com.vanniktech.maven.publish") {
-    mavenPublish {
-        sonatypeHost = "S01"
-    }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.S01)
 }
 
 def copyWebFiles = tasks.register("copyWebFiles", Copy.class) {
@@ -47,7 +46,6 @@ dependencies {
     implementation(project(":maestro-orchestra"))
     implementation(project(":maestro-client"))
     implementation(project(":maestro-utils"))
-    implementation platform("org.http4k:http4k-bom:4.34.2.0") // TODO remove
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.cors)

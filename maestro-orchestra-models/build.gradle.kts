@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -6,10 +7,8 @@ plugins {
     alias(libs.plugins.mavenPublish)
 }
 
-plugins.withId("com.vanniktech.maven.publish") {
-    mavenPublish {
-        sonatypeHost = "S01"
-    }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.S01)
 }
 
 java {
@@ -17,14 +16,14 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.named("compileKotlin", KotlinCompilationTask) {
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjdk-release=1.8")
     }
 }
 
 dependencies {
-    implementation(project(path: ":maestro-client"))
+    implementation(project(":maestro-client"))
 
     api(libs.jackson.core.databind)
     api(libs.jackson.module.kotlin)
@@ -34,6 +33,6 @@ dependencies {
     testImplementation(libs.google.truth)
 }
 
-test {
+tasks.named<Test>("test") {
     useJUnitPlatform()
 }

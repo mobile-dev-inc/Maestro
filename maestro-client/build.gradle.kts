@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -11,25 +12,28 @@ protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:${libs.versions.googleProtobuf.get()}"
     }
+
     plugins {
-        grpc {
+        create("grpc") {
             artifact = "io.grpc:protoc-gen-grpc-java:${libs.versions.grpc.get()}"
         }
     }
+
     generateProtoTasks {
-        all().each { task ->
+        all().forEach { task ->
             task.plugins {
-                grpc {}
+                create("grpc")
             }
+
             task.builtins {
-                kotlin {}
+                create("kotlin")
             }
         }
     }
 }
 
-compileKotlin {
-    dependsOn generateProto
+tasks.named("compileKotlin") {
+    dependsOn("generateProto")
 }
 
 kotlin.sourceSets.all {
@@ -40,17 +44,19 @@ kotlin.sourceSets.all {
 sourceSets {
     main {
         java {
-            srcDirs += 'build/generated/source/proto/main/grpc'
-            srcDirs += 'build/generated/source/proto/main/java'
-            srcDirs += 'build/generated/source/proto/main/kotlin'
+            srcDirs(
+                "build/generated/source/proto/main/grpc",
+                "build/generated/source/proto/main/java",
+                "build/generated/source/proto/main/kotlin"
+            )
         }
     }
 }
 
 dependencies {
-    protobuf project(':maestro-proto')
-    implementation project(':maestro-utils')
-    implementation project(':maestro-ios-driver')
+    protobuf(project(":maestro-proto"))
+    implementation(project(":maestro-utils"))
+    implementation(project(":maestro-ios-driver"))
 
     api(libs.graaljs)
     api(libs.grpc.kotlin.stub)
@@ -72,16 +78,14 @@ dependencies {
     api(libs.jackson.dataformat.xml)
     api(libs.apk.parser)
 
-
-    implementation project(':maestro-ios')
+    implementation(project(":maestro-ios"))
     implementation(libs.google.findbugs)
     implementation(libs.axml)
     implementation(libs.selenium)
     api(libs.slf4j)
     api(libs.logback) {
-        exclude group: 'org.slf4j', module: 'slf4j-api'
+        exclude(group = "org.slf4j", module = "slf4j-api")
     }
-
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -95,18 +99,16 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.named("compileKotlin", KotlinCompilationTask) {
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjdk-release=1.8")
     }
 }
 
-plugins.withId("com.vanniktech.maven.publish") {
-    mavenPublish {
-        sonatypeHost = "S01"
-    }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.S01)
 }
 
-test {
+tasks.named<Test>("test") {
     useJUnitPlatform()
 }

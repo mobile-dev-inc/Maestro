@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     id("maven-publish")
@@ -9,15 +10,17 @@ plugins {
 sourceSets {
     main {
         java {
-            srcDirs += 'build/generated/source/proto/main/java'
-            srcDirs += 'build/generated/source/proto/main/kotlin'
+            srcDirs(
+                "build/generated/source/proto/main/java",
+                "build/generated/source/proto/main/kotlin",
+            )
         }
     }
 }
 
 dependencies {
-    implementation project(':maestro-utils')
-    implementation project(':maestro-ios-driver')
+    implementation(project(":maestro-utils"))
+    implementation(project(":maestro-ios-driver"))
 
     implementation(libs.kotlin.result)
     implementation(libs.slf4j)
@@ -37,18 +40,16 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.named("compileKotlin", KotlinCompilationTask) {
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjdk-release=1.8")
     }
 }
 
-plugins.withId("com.vanniktech.maven.publish") {
-    mavenPublish {
-        sonatypeHost = "S01"
-    }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.S01)
 }
 
-test {
+tasks.named<Test>("test") {
     useJUnitPlatform()
 }
