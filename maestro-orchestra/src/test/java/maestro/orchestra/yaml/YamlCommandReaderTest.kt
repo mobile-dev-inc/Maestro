@@ -433,7 +433,7 @@ internal class YamlCommandReaderTest {
                 selector = ElementSelector(textRegex = "Footer"),
                 direction = ScrollDirection.DOWN,
                 timeout = 20000,
-                scrollDuration = 601,
+                scrollDuration = "40",
                 visibilityPercentage = 100,
                 label = "Scroll to the bottom",
                 centerElement = false
