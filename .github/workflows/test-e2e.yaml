@@ -6,8 +6,9 @@ on:
 
 jobs:
   build:
+    name: Build
     runs-on: macos-latest
-    if: github.repository == 'mobile-dev-inc/maestro'
+    timeout-minutes: 20
 
     steps:
       - name: Clone repository
@@ -34,8 +35,8 @@ jobs:
 
   test-local-android:
     name: Test on Android
+    timeout-minutes: 30
     runs-on: ubuntu-latest
-    if: github.repository == 'mobile-dev-inc/maestro'
     needs: build
     
     env:
