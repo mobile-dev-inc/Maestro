@@ -36,6 +36,7 @@ import maestro.cli.update.Updates
 import maestro.cli.util.ErrorReporter
 import maestro.cli.view.box
 import maestro.debuglog.DebugLogStore
+import picocli.AutoComplete.GenerateCompletion
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
@@ -56,7 +57,8 @@ import kotlin.system.exitProcess
         LogoutCommand::class,
         BugReportCommand::class,
         StudioCommand::class,
-        StartDeviceCommand::class
+        StartDeviceCommand::class,
+        GenerateCompletion::class,
     ]
 )
 class App {
@@ -134,6 +136,9 @@ fun main(args: Array<String>) {
 
             1
         }
+
+    val generateCompletionCommand = commandLine.subcommands["generate-completion"]
+    generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)
 
     val exitCode = commandLine
         .execute(*args)
