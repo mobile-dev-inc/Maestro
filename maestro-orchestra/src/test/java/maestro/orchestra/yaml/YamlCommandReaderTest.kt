@@ -15,6 +15,7 @@ import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.EvalScriptCommand

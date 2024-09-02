@@ -15,9 +15,8 @@ data class YamlConfig(
     val env: Map<String, String> = emptyMap(),
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
+    private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
-
-    private val ext = mutableMapOf<String, Any?>()
 
     @JsonAnySetter
     fun setOtherField(key: String, other: Any?) {

@@ -44,4 +44,7 @@ object Env {
 
         return mutable
     }
+
+    fun Map<String, String>.withDefaultEnvVars(fileName: String? = null) =
+        fileName?.let { this + mapOf("MAESTRO_FILENAME" to fileName) } ?: this
 }

@@ -6,6 +6,7 @@ appId: com.example.app
 - inputText: ${output.sharedResult}
 - inputText: ${output.mainFlow.result}
 - inputText: ${output.subFlow.result}
+- inputText: ${output.subFlowFileName}
 - runScript:
     file: 064_script_with_args.js
     env:
@@ -16,3 +17,4 @@ appId: com.example.app
     env:
       parameter: ${'Evaluated Parameter'}
 - inputText: ${output.resultWithParameters}
+- inputText: ${output.fileName}

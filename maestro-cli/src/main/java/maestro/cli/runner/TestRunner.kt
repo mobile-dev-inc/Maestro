@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
 import kotlin.concurrent.thread
+import maestro.orchestra.util.Env.withDefaultEnvVars
 
 /**
  * Knows how to run a single Maestro flow (either one-shot or continuously).
@@ -52,7 +53,7 @@ object TestRunner {
 
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(env)
+                .withEnv(env.withDefaultEnvVars(flowFile.nameWithoutExtension))
 
             YamlCommandReader.getConfig(commands)?.name?.let {
                 aiOutput = aiOutput.copy(flowName = it)
@@ -108,7 +109,7 @@ object TestRunner {
 
                 val commands = YamlCommandReader
                     .readCommands(flowFile.toPath())
-                    .withEnv(env)
+                    .withEnv(env.withDefaultEnvVars(flowFile.nameWithoutExtension))
 
                 // Restart the flow if anything has changed
                 if (commands != previousCommands) {

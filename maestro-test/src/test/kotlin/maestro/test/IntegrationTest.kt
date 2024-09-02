@@ -7,6 +7,7 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -29,6 +30,7 @@ import java.io.File
 import java.nio.file.Paths
 import maestro.orchestra.error.SyntaxError
 import kotlin.system.measureTimeMillis
+import maestro.orchestra.util.Env.withDefaultEnvVars
 
 class IntegrationTest {
 
@@ -41,8 +43,9 @@ class IntegrationTest {
 
     @AfterEach
     internal fun tearDown() {
-        File("screenshot.png").delete()
-        File("recording.mp4").delete()
+        File("041_take_screenshot_with_filename.png").delete()
+        File("099_screen_recording.mp4").delete()
+        File("028_env.mp4").delete()
     }
 
     @Test
@@ -552,6 +555,11 @@ class IntegrationTest {
         assertThat(commands).isEqualTo(
             listOf(
                 MaestroCommand(
+                    DefineVariablesCommand(
+                        env = mapOf("MAESTRO_FILENAME" to "020_parse_config")
+                    )
+                ),
+                MaestroCommand(
                     ApplyConfigurationCommand(
                         config = MaestroConfig(
                             appId = "com.example.app"
@@ -733,20 +741,19 @@ class IntegrationTest {
     @Test
     fun `Case 028 - Env`() {
         // Given
-        val commands = readCommands("028_env")
-            .withEnv(
-                mapOf(
-                    "APP_ID" to "com.example.app",
-                    "BUTTON_ID" to "button_id",
-                    "BUTTON_TEXT" to "button_text",
-                    "PASSWORD" to "testPassword",
-                    "NON_EXISTENT_TEXT" to "nonExistentText",
-                    "NON_EXISTENT_ID" to "nonExistentId",
-                    "URL" to "secretUrl",
-                    "LAT" to "37.82778",
-                    "LNG" to "-122.48167",
-                )
+        val commands = readCommands("028_env") {
+            mapOf(
+                "APP_ID" to "com.example.app",
+                "BUTTON_ID" to "button_id",
+                "BUTTON_TEXT" to "button_text",
+                "PASSWORD" to "testPassword",
+                "NON_EXISTENT_TEXT" to "nonExistentText",
+                "NON_EXISTENT_ID" to "nonExistentId",
+                "URL" to "secretUrl",
+                "LAT" to "37.82778",
+                "LNG" to "-122.48167",
             )
+        }
 
         val driver = driver {
 
@@ -774,8 +781,10 @@ class IntegrationTest {
                 Event.InputText("\${PASSWORD} is testPassword"),
                 Event.OpenLink("https://example.com/secretUrl"),
                 Event.SetLocation(latitude = 37.82778, longitude = -122.48167),
+                Event.StartRecording,
             )
         )
+        assert(File("028_env.mp4").exists())
     }
 
     @Test
@@ -1112,6 +1121,7 @@ class IntegrationTest {
                 Event.TakeScreenshot,
             )
         )
+        assert(File("041_take_screenshot_with_filename.png").exists())
     }
 
     @Test
@@ -1322,12 +1332,11 @@ class IntegrationTest {
     @Test
     fun `Case 049 - Run flow conditionally`() {
         // Given
-        val commands = readCommands("049_run_flow_conditionally")
-            .withEnv(
-                mapOf(
-                    "NOT_CLICKED" to "Not Clicked"
-                )
+        val commands = readCommands("049_run_flow_conditionally") {
+            mapOf(
+                "NOT_CLICKED" to "Not Clicked"
             )
+        }
 
         val driver = driver {
             val indicator = element {
@@ -1546,12 +1555,11 @@ class IntegrationTest {
     @Test
     fun `Case 057 - Pass inner env variables to runFlow`() {
         // Given
-        val commands = readCommands("057_runFlow_env")
-            .withEnv(
-                mapOf(
-                    "OUTER_ENV" to "Outer Parameter"
-                )
+        val commands = readCommands("057_runFlow_env") {
+            mapOf(
+                "OUTER_ENV" to "Outer Parameter"
             )
+        }
 
         val driver = driver {
         }
@@ -1605,12 +1613,11 @@ class IntegrationTest {
     @Test
     fun `Case 060 - Pass env param to an env param`() {
         // given
-        val commands = readCommands("060_pass_env_to_env")
-            .withEnv(
-                mapOf(
-                    "PARAM" to "Value"
-                )
+        val commands = readCommands("060_pass_env_to_env") {
+            mapOf(
+                "PARAM" to "Value"
             )
+        }
         val driver = driver { }
 
         // when
@@ -1710,8 +1717,10 @@ class IntegrationTest {
                 Event.InputText("Sub"),
                 Event.InputText("Main"),
                 Event.InputText("Sub"),
+                Event.InputText("064_js_files"),
                 Event.InputText("Hello, Input Parameter!"),
                 Event.InputText("Hello, Evaluated Parameter!"),
+                Event.InputText("064_js_files"),
             )
         )
     }
@@ -2036,12 +2045,11 @@ class IntegrationTest {
     @Test
     fun `Case 077 - Env special characters`() {
         // Given
-        val commands = readCommands("077_env_special_characters")
-            .withEnv(
-                mapOf(
-                    "OUTER" to "!@#\$&*()_+{}|:\"<>?[]\\\\;',./"
-                )
+        val commands = readCommands("077_env_special_characters") {
+            mapOf(
+                "OUTER" to "!@#\$&*()_+{}|:\"<>?[]\\\\;',./"
             )
+        }
 
         val driver = driver {
             // No elements
@@ -2664,6 +2672,7 @@ class IntegrationTest {
                 Event.StopRecording,
             )
         )
+        assert(File("099_screen_recording.mp4").exists())
     }
 
     @Test
@@ -3158,10 +3167,11 @@ class IntegrationTest {
         return driver
     }
 
-    private fun readCommands(caseName: String): List<MaestroCommand> {
+    private fun readCommands(caseName: String, withEnv: () -> Map<String, String> = { emptyMap() }): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         return YamlCommandReader.readCommands(Paths.get(resource.toURI()))
+            .withEnv(withEnv().withDefaultEnvVars(caseName))
     }
 
 }

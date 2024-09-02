@@ -21,3 +21,4 @@ appId: com.example.app
 - setLocation:
     latitude: ${LAT}
     longitude: ${LNG}
+- startRecording: ${MAESTRO_FILENAME}

@@ -30,12 +30,14 @@ import java.nio.file.Path
 import kotlin.io.path.absolute
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.isDirectory
+import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.readText
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.SyntaxError
+import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 
 object YamlCommandReader {
@@ -114,7 +116,7 @@ object YamlCommandReader {
         val commands = parser.readValueAs<List<YamlFluentCommand>>(
             object : TypeReference<List<YamlFluentCommand>>() {}
         )
-        return config to commands
+        return config.copy(env = config.env) to commands
     }
 
     private fun <T> mapParsingErrors(path: Path, block: () -> T): T {
