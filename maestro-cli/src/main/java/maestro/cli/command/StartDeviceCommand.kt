@@ -65,7 +65,7 @@ class StartDeviceCommand : Callable<Int> {
     private var forceCreate: Boolean = false
 
     override fun call(): Int {
-        TestDebugReporter.install(null)
+        TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
         if (EnvUtils.isWSL()) {
             throw CliError("This command is not supported in Windows WSL. You can launch your emulator manually.")

@@ -50,7 +50,7 @@ class StudioCommand : Callable<Int> {
             throw CliError("--platform option was deprecated. You can remove it to run your test.")
         }
 
-        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
+        TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
 
         MaestroSessionManager.newSession(
             host = parent?.host,

@@ -13,14 +13,16 @@ import java.util.Properties
 object LogConfig {
     private const val LOG_PATTERN = "[%-5level] %logger{36} - %msg%n"
 
-    fun configure(logFileName: String) {
+    fun configure(logFileName: String, printToConsole: Boolean) {
         val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
         loggerContext.statusManager.add(NopStatusListener())
         loggerContext.reset()
 
         val encoder = createEncoder(loggerContext)
-//        createAndAddConsoleAppender(loggerContext, encoder) // un-comment to enable console logs
         createAndAddFileAppender(loggerContext, encoder, logFileName)
+        if (printToConsole) {
+            createAndAddConsoleAppender(loggerContext, encoder)
+        }
 
         loggerContext.getLogger("ROOT").level = Level.INFO
     }

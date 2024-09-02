@@ -134,11 +134,11 @@ object TestDebugReporter {
         logger.info("---------------------")
     }
 
-    fun install(debugOutputPathAsString: String?, flattenDebugOutput: Boolean = false) {
+    fun install(debugOutputPathAsString: String?, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
         this.debugOutputPathAsString = debugOutputPathAsString
         this.flattenDebugOutput = flattenDebugOutput
         val path = getDebugOutputPath()
-        LogConfig.configure(path.absolutePathString() + "/maestro.log")
+        LogConfig.configure(logFileName = path.absolutePathString() + "/maestro.log", printToConsole = printToConsole)
         logSystemInfo()
         DebugLogStore.logSystemInfo()
     }
@@ -163,7 +163,6 @@ object TestDebugReporter {
         val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
         return Paths.get(debugRootPath, *preamble, foldername)
     }
-
 }
 
 private data class CommandDebugWrapper(

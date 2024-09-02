@@ -81,7 +81,7 @@ class RecordCommand : Callable<Int> {
         }
 
 
-        TestDebugReporter.install(debugOutputPathAsString = debugOutput)
+        TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
         val path = TestDebugReporter.getDebugOutputPath()
 
         return MaestroSessionManager.newSession(

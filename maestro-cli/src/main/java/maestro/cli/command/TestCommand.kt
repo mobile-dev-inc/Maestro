@@ -167,7 +167,11 @@ class TestCommand : Callable<Int> {
 
         env = env.withInjectedShellEnvVars()
 
-        TestDebugReporter.install(debugOutputPathAsString = debugOutput, flattenDebugOutput = flattenDebugOutput)
+        TestDebugReporter.install(
+            debugOutputPathAsString = debugOutput,
+            flattenDebugOutput = flattenDebugOutput,
+            printToConsole = parent?.verbose == true,
+        )
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
 
         return handleSessions(debugOutputPath, executionPlan)
@@ -300,7 +304,7 @@ class TestCommand : Callable<Int> {
 
                             } else {
                                 val resultView =
-                                    if (DisableAnsiMixin.ansiEnabled) AnsiResultView()
+                                    if (DisableAnsiMixin.ansiEnabled && parent?.verbose == false) AnsiResultView()
                                     else PlainTextResultView()
                                 val resultSingle = TestRunner.runSingle(
                                     maestro,
