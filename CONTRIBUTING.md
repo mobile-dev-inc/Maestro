@@ -65,6 +65,14 @@ These artifacts are built by the `build-maestro-ios-runner.sh` script. It places
 
 `maestro-cli` depends on both `maestro-ios-driver` and `maestro-client`. This is how the CLI gets these artifacts.
 
+## Developing
+
+Maestro's minimal deployment target is Java 8, and we strive to keep it this way
+for as long possible, because our analytics indicate many users still use that
+version.
+
+For development, you need to use Java 11 or newer.
+
 ## Debugging
 
 Maestro stores logs for every test run in the following locations:
