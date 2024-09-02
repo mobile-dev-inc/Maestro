@@ -21,7 +21,6 @@ package maestro.cli.session
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer
-import io.grpc.ManagedChannelBuilder
 import ios.LocalIOSDevice
 import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
@@ -56,6 +55,7 @@ object MaestroSessionManager {
         port: Int?,
         driverHostPort: Int?,
         deviceId: String?,
+        platform: String? = null,
         isStudio: Boolean = false,
         block: (MaestroSession) -> T,
     ): T {
@@ -63,7 +63,8 @@ object MaestroSessionManager {
             host = host,
             port = port,
             driverHostPort = driverHostPort,
-            deviceId = deviceId
+            deviceId = deviceId,
+            platform = Platform.fromString(platform)
         )
         val sessionId = UUID.randomUUID().toString()
 
@@ -107,6 +108,7 @@ object MaestroSessionManager {
         port: Int?,
         driverHostPort: Int?,
         deviceId: String?,
+        platform: Platform? = null,
     ): SelectedDevice {
         if (deviceId == "chromium") {
             return SelectedDevice(
@@ -115,7 +117,7 @@ object MaestroSessionManager {
         }
 
         if (host == null) {
-            val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort)
+            val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform)
 
             return SelectedDevice(
                 platform = device.platform,

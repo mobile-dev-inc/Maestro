@@ -151,10 +151,6 @@ class TestCommand : Callable<Int> {
     }
 
     override fun call(): Int {
-        if (parent?.platform != null) {
-            throw CliError("--platform option was deprecated. You can remove it to run your test.")
-        }
-
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
                 flowFile.toPath().toAbsolutePath(),
@@ -263,7 +259,8 @@ class TestCommand : Callable<Int> {
                         host = parent?.host,
                         port = parent?.port,
                         driverHostPort = driverHostPort,
-                        deviceId = deviceId
+                        deviceId = deviceId,
+                        platform = parent?.platform,
                     ) { session ->
                         val maestro = session.maestro
                         val device = session.device

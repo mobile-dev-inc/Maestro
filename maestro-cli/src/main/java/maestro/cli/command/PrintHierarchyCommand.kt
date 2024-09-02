@@ -63,6 +63,7 @@ class PrintHierarchyCommand : Runnable {
             port = parent?.port,
             driverHostPort = parent?.port,
             deviceId = parent?.deviceId,
+            platform = parent?.platform,
         ) { session ->
             Insights.onInsightsUpdated {
                 val message = StringBuilder()

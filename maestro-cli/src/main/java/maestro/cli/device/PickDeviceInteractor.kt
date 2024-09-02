@@ -1,12 +1,17 @@
 package maestro.cli.device
 
 import maestro.cli.CliError
+import maestro.cli.device.DeviceService.withPlatform
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 
 object PickDeviceInteractor {
 
-    fun pickDevice(deviceId: String? = null, driverHostPort: Int? = null): Device.Connected {
+    fun pickDevice(
+        deviceId: String? = null,
+        driverHostPort: Int? = null,
+        platform: Platform? = null,
+    ): Device.Connected {
         if (deviceId != null) {
             return DeviceService.listConnectedDevices()
                 .find {
@@ -14,7 +19,7 @@ object PickDeviceInteractor {
                 } ?: throw CliError("Device with id $deviceId is not connected")
         }
 
-        return pickDeviceInternal()
+        return pickDeviceInternal(platform)
             .let { pickedDevice ->
                 var result: Device = pickedDevice
 
@@ -36,8 +41,8 @@ object PickDeviceInteractor {
             }
     }
 
-    private fun pickDeviceInternal(): Device {
-        val connectedDevices = DeviceService.listConnectedDevices()
+    private fun pickDeviceInternal(platform: Platform?): Device {
+        val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platform)
 
         if (connectedDevices.size == 1) {
             val device = connectedDevices[0]
@@ -48,13 +53,13 @@ object PickDeviceInteractor {
         }
 
         if (connectedDevices.isEmpty()) {
-            return startDevice()
+            return startDevice(platform)
         }
 
         return pickRunningDevice(connectedDevices)
     }
 
-    private fun startDevice(): Device {
+    private fun startDevice(platform: Platform?): Device {
         if (EnvUtils.isWSL()) {
             throw CliError("No running emulator found. Start an emulator manually and try again.\nFor setup info checkout: https://maestro.mobile.dev/getting-started/installing-maestro/windows")
         }
@@ -66,7 +71,7 @@ object PickDeviceInteractor {
         when(input) {
             "1" -> {
                 PrintUtils.clearConsole()
-                val options = PickDeviceView.requestDeviceOptions()
+                val options = PickDeviceView.requestDeviceOptions(platform)
                 if (options.platform == Platform.WEB) {
                     return Device.AvailableForLaunch(
                         platform = Platform.WEB,
@@ -80,7 +85,7 @@ object PickDeviceInteractor {
             }
             "2" -> {
                 PrintUtils.clearConsole()
-                val availableDevices = DeviceService.listAvailableForLaunchDevices()
+                val availableDevices = DeviceService.listAvailableForLaunchDevices().withPlatform(platform)
                 if (availableDevices.isEmpty()) {
                     throw CliError("No devices available. To proceed, either install Android SDK or Xcode.")
                 }

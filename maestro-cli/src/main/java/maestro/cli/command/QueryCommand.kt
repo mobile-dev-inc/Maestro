@@ -67,7 +67,8 @@ class QueryCommand : Runnable {
             host = parent?.host,
             port = parent?.port,
             driverHostPort = parent?.port,
-            deviceId = parent?.deviceId
+            deviceId = parent?.deviceId,
+            platform = parent?.platform,
         ) { session ->
             val filters = mutableListOf<ElementFilter>()
 

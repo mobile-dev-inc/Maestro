@@ -6,8 +6,8 @@ enum class Platform(val description: String) {
     WEB("Web");
 
     companion object {
-        fun fromString(p: String): Platform? {
-            return values().firstOrNull { it.description.lowercase() == p.lowercase() }
+        fun fromString(p: String?): Platform? {
+            return values().firstOrNull { it.description.lowercase() == p?.lowercase() }
         }
     }
 }

@@ -118,6 +118,9 @@ object DeviceService {
             .filterIsInstance(Device.Connected::class.java)
     }
 
+    fun <T : Device> List<T>.withPlatform(platform: Platform?) =
+        filter { platform == null || it.platform == platform }
+
     fun listAvailableForLaunchDevices(): List<Device.AvailableForLaunch> {
         return listDevices()
             .filterIsInstance(Device.AvailableForLaunch::class.java)
