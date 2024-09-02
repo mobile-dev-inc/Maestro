@@ -166,6 +166,7 @@ jobs:
           name: maestro-e2e-output
           path: ~/.maestro
           retention-days: 7
+          include-hidden-files: true
 
       - name: Upload screen recording of AVD
         uses: actions/upload-artifact@v4
@@ -174,4 +175,3 @@ jobs:
           name: maestro_screenrecord.mp4
           path: ~/maestro_screenrecord.mp4
           retention-days: 7
-
