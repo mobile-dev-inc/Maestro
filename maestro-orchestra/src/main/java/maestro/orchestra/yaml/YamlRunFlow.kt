@@ -8,6 +8,7 @@ data class YamlRunFlow(
     val env: Map<String, String> = emptyMap(),
     val commands: List<YamlFluentCommand>? = null,
     val label: String? = null,
+    val optional: Boolean = false,
 ) {
 
     companion object {

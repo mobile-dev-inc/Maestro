@@ -119,6 +119,8 @@ class AnsiResultView(
 
         if (commandState.status == CommandStatus.SKIPPED) {
             render(" (skipped)")
+        } else if (commandState.status == CommandStatus.WARNED) {
+            render(" (warned)")
         } else if (commandState.numberOfRuns != null) {
             val timesWord = if (commandState.numberOfRuns == 1) "time" else "times"
             render(" (completed ${commandState.numberOfRuns} $timesWord)")
@@ -204,6 +206,7 @@ class AnsiResultView(
             CommandStatus.FAILED -> "❌"
             CommandStatus.RUNNING -> "⏳"
             CommandStatus.PENDING -> "\uD83D\uDD32 " // 🔲
+            CommandStatus.WARNED -> "⚠️"
             CommandStatus.SKIPPED -> "⚪️"
         }
     }

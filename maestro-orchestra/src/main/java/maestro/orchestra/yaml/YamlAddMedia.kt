@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 data class YamlAddMedia(
     val files: List<String?>? = null,
     val label: String? = null,
+    val optional: Boolean = false,
 ) {
     companion object {
 

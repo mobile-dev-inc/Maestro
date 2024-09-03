@@ -231,6 +231,12 @@ class TestSuiteInteractor(
                             it.status = CommandStatus.SKIPPED
                         }
                     },
+                    onCommandWarned = { _, command ->
+                        logger.info("${command.description()} WARNED")
+                        debugOutput.commands[command]?.apply {
+                            status = CommandStatus.WARNED
+                        }
+                    },
                     onCommandReset = { command ->
                         logger.info("${command.description()} PENDING")
                         debugOutput.commands[command]?.let {

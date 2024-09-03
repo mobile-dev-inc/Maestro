@@ -12,5 +12,6 @@ data class YamlScrollUntilVisible(
     val speed: String = ScrollUntilVisibleCommand.DEFAULT_SCROLL_DURATION,
     val visibilityPercentage: Int = ScrollUntilVisibleCommand.DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE,
     val centerElement: Boolean = ScrollUntilVisibleCommand.DEFAULT_CENTER_ELEMENT,
-    val label: String? = null
+    val label: String? = null,
+    val optional: Boolean = false,
 )

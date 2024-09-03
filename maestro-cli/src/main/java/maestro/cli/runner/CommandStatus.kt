@@ -24,5 +24,6 @@ enum class CommandStatus {
     RUNNING,
     COMPLETED,
     FAILED,
+    WARNED,
     SKIPPED,
 }

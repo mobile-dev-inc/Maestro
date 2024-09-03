@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 data class YamlStartRecording(
     val path: String,
     val label: String? = null,
+    val optional: Boolean = false,
 ) {
 
     companion object {
@@ -21,4 +22,5 @@ data class YamlStartRecording(
 
 data class YamlStopRecording(
     val label: String? = null,
+    val optional: Boolean = false,
 )

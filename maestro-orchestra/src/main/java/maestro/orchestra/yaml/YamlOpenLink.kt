@@ -7,6 +7,7 @@ data class YamlOpenLink(
     val browser: Boolean = false,
     val autoVerify: Boolean = false,
     val label: String? = null,
+    val optional: Boolean = false,
 ) {
     companion object {
 

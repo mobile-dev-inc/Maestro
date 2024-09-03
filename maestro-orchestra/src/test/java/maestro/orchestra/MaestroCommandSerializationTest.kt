@@ -39,7 +39,8 @@ internal class MaestroCommandSerializationTest {
                 "retryIfNoChange" : false,
                 "waitUntilVisible" : true,
                 "longPress" : false,
-                "label" : "My Tap"
+                "label" : "My Tap",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -78,7 +79,8 @@ internal class MaestroCommandSerializationTest {
                 "retryIfNoChange" : false,
                 "waitUntilVisible" : true,
                 "longPress" : false,
-                "label" : "My TapOnPoint"
+                "label" : "My TapOnPoint",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -112,7 +114,8 @@ internal class MaestroCommandSerializationTest {
                 "point" : "20,30",
                 "retryIfNoChange" : false,
                 "longPress" : false,
-                "label" : "My TapOnPointV2"
+                "label" : "My TapOnPointV2",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -137,7 +140,9 @@ internal class MaestroCommandSerializationTest {
         @Language("json")
         val expectedJson = """
             {
-              "scrollCommand" : { }
+              "scrollCommand" : {
+                "optional" : false
+              }
             }
           """.trimIndent()
         assertThat(serializedCommandJson)
@@ -173,7 +178,8 @@ internal class MaestroCommandSerializationTest {
                   "x" : 100,
                   "y" : 100
                 },
-                "duration" : 400
+                "duration" : 400,
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -198,7 +204,9 @@ internal class MaestroCommandSerializationTest {
         @Language("json")
         val expectedJson = """
             {
-              "backPressCommand" : { }
+              "backPressCommand" : {
+                "optional" : false
+              }
             }
           """.trimIndent()
         assertThat(serializedCommandJson)
@@ -233,7 +241,8 @@ internal class MaestroCommandSerializationTest {
                 "notVisible" : {
                   "textRegex" : "\\s",
                   "optional" : false
-                }
+                },
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -259,7 +268,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "inputTextCommand" : {
-                "text" : "Hello, world!"
+                "text" : "Hello, world!",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -285,7 +295,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "launchAppCommand" : {
-                "appId" : "com.twitter.android"
+                "appId" : "com.twitter.android",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -321,7 +332,8 @@ internal class MaestroCommandSerializationTest {
                   "name" : "Twitter",
                   "tags" : [ ],
                   "ext" : { }
-                }
+                },
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -347,7 +359,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "openLinkCommand" : {
-                "link" : "https://mobile.dev"
+                "link" : "https://mobile.dev",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -373,7 +386,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "pressKeyCommand" : {
-                "code" : "ENTER"
+                "code" : "ENTER",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -399,7 +413,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "eraseTextCommand" : {
-                "charactersToErase" : 128
+                "charactersToErase" : 128,
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -425,7 +440,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "takeScreenshotCommand" : {
-                "path" : "screenshot.png"
+                "path" : "screenshot.png",
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -452,7 +468,8 @@ internal class MaestroCommandSerializationTest {
             {
               "inputRandomTextCommand" : {
                 "inputType" : "TEXT",
-                "length" : 2
+                "length" : 2,
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -479,7 +496,8 @@ internal class MaestroCommandSerializationTest {
             {
               "inputRandomTextCommand" : {
                 "inputType" : "NUMBER",
-                "length" : 3
+                "length" : 3,
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -506,7 +524,8 @@ internal class MaestroCommandSerializationTest {
             {
               "inputRandomTextCommand" : {
                 "inputType" : "TEXT_EMAIL_ADDRESS",
-                "length" : 8
+                "length" : 8,
+                "optional" : false
               }
             }
           """.trimIndent()
@@ -520,7 +539,7 @@ internal class MaestroCommandSerializationTest {
     fun `serialize InputRandomCommand with person name`() {
         // given
         val command = MaestroCommand(
-            InputRandomCommand(InputRandomType.TEXT_PERSON_NAME)
+            InputRandomCommand(InputRandomType.TEXT_PERSON_NAME, optional = true)
         )
 
         // when
@@ -533,7 +552,8 @@ internal class MaestroCommandSerializationTest {
             {
               "inputRandomTextCommand" : {
                 "inputType" : "TEXT_PERSON_NAME",
-                "length" : 8
+                "length" : 8,
+                "optional" : true
               }
             }
           """.trimIndent()
@@ -559,7 +579,8 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "waitForAnimationToEndCommand" : {
-                "timeout" : 9
+                "timeout" : 9,
+                "optional" : false
               }
             }
           """.trimIndent()

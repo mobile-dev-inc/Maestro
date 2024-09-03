@@ -13,6 +13,7 @@ import maestro.orchestra.AirplaneValue
 data class YamlSetAirplaneMode(
     val value: AirplaneValue,
     val label: String? = null,
+    val optional: Boolean = false,
 ) {
     companion object {
         @JvmStatic

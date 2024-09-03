@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 data class YamlPressKey (
     val key: String,
     val label: String? = null,
+    val optional: Boolean = false,
 ){
     companion object {
         @JvmStatic

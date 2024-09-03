@@ -93,6 +93,7 @@ object TestDebugReporter {
             val status = when (it.status) {
                 CommandStatus.COMPLETED -> "✅"
                 CommandStatus.FAILED -> "❌"
+                CommandStatus.WARNED -> "⚠️"
                 else -> "﹖"
             }
             val filename = "screenshot-$status-${it.timestamp}-(${flowName}).png"

@@ -22,17 +22,21 @@ package maestro.orchestra.yaml
 data class YamlInputRandomText(
     val length: Int?,
     val label: String? = null,
+    val optional: Boolean = false,
 )
 
 data class YamlInputRandomNumber(
     val length: Int?,
     val label: String? = null,
+    val optional: Boolean = false,
 )
 
 data class YamlInputRandomEmail(
     val label: String? = null,
+    val optional: Boolean = false,
 )
 
 data class YamlInputRandomPersonName(
     val label: String? = null,
+    val optional: Boolean = false,
 )

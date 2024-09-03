@@ -5,4 +5,5 @@ data class YamlRepeatCommand(
     val `while`: YamlCondition? = null,
     val commands: List<YamlFluentCommand>,
     val label: String? = null,
+    val optional: Boolean = false,
 )

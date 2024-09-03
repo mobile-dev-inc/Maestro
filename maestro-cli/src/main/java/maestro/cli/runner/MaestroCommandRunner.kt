@@ -172,6 +172,17 @@ object MaestroCommandRunner {
                 }
                 refreshUi()
             },
+            onCommandWarned = { _, command ->
+                logger.info("${command.description()} WARNED")
+                commandStatuses[command] = CommandStatus.WARNED
+                debugOutput.commands[command]?.apply {
+                    status = CommandStatus.WARNED
+                }
+
+                takeDebugScreenshot(CommandStatus.WARNED)
+
+                refreshUi()
+            },
             onCommandReset = { command ->
                 logger.info("${command.description()} PENDING")
                 commandStatuses[command] = CommandStatus.PENDING
