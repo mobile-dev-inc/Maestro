@@ -1,6 +1,7 @@
 name: Update samples
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
 
