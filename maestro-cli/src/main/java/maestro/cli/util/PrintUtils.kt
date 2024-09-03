@@ -6,6 +6,16 @@ import kotlin.system.exitProcess
 
 object PrintUtils {
 
+    fun info(message: String, bold: Boolean = false, newline: Boolean = true) {
+        val function: (Any) -> Unit = if (newline) ::println else ::print
+        function(
+            Ansi.ansi()
+                .bold(apply = bold)
+                .render(message)
+                .boldOff()
+        )
+    }
+
     fun message(message: String) {
         println(Ansi.ansi().render("@|cyan \n$message|@"))
     }

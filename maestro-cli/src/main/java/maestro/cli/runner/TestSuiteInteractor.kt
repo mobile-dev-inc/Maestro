@@ -33,6 +33,8 @@ import kotlin.time.Duration.Companion.seconds
  * Similar to [TestRunner], but:
  *  * can run many flows at once
  *  * does not support continuous mode
+ *
+ *  Does not care about sharding. It only has to know the index of the shard it's running it, for logging purposes.
  */
 class TestSuiteInteractor(
     private val maestro: Maestro,
