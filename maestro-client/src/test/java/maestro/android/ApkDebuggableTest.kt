@@ -22,7 +22,8 @@ internal class ApkDebuggableTest {
 
     @Test
     fun isDebuggable() {
-        val manifestBytes = FileSystems.newFileSystem(Paths.get("$home/Downloads/reddit-debuggable.apk"), null).use { fs ->
+        val classLoader: ClassLoader? = null
+        val manifestBytes = FileSystems.newFileSystem(Paths.get("$home/Downloads/reddit-debuggable.apk"), classLoader).use { fs ->
             val manifestPath = fs.getPath("AndroidManifest.xml")
             Files.readAllBytes(manifestPath)
         }

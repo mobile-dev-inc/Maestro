@@ -6,7 +6,12 @@ on:
 
 jobs:
   test:
+    name: Test on Java ${{ matrix.java-version }}
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11, 17]
 
     steps:
       - name: Clone repository
@@ -16,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 11
+          java-version: ${{ matrix.java-version }}
           cache: gradle
 
       - name: Test

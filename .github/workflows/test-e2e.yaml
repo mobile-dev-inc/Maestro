@@ -6,9 +6,13 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build on Java ${{ matrix.java-version }}
     runs-on: macos-latest
     timeout-minutes: 20
+
+    strategy:
+      matrix:
+        java-version: [11, 17]
 
     steps:
       - name: Clone repository
@@ -18,7 +22,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 11
+          java-version: ${{ matrix.java-version }}
           cache: gradle
 
       - name: Build xctest-runner
@@ -29,7 +33,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: maestro-cli
+          name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
@@ -63,7 +67,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli
+          name: maestro-cli-jdk11-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
