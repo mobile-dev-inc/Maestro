@@ -163,4 +163,10 @@ data class MaestroCommand(
     fun description(): String {
         return asCommand()?.description() ?: "No op"
     }
+
+    override fun toString(): String =
+        asCommand()?.let { command ->
+            val argName = command::class.simpleName?.replaceFirstChar(Char::lowercaseChar) ?: "command"
+            "MaestroCommand($argName=$command)"
+        } ?: "MaestroCommand()"
 }

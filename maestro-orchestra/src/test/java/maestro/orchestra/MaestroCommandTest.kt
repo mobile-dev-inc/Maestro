@@ -55,4 +55,29 @@ internal class MaestroCommandTest {
         assertThat(description)
             .isEqualTo("Set location with negative coordinates")
     }
+
+    @Test
+    fun `toString (no commands)`() {
+        // given
+        val maestroCommand = MaestroCommand(null)
+
+        // when
+        val toString = maestroCommand.toString()
+
+        // then
+        assertThat(toString).isEqualTo("MaestroCommand()")
+    }
+
+    @Test
+    fun `toString (at least one command)`() {
+        // given
+        val command = BackPressCommand()
+        val maestroCommand = MaestroCommand(command)
+
+        // when
+        val toString = maestroCommand.toString()
+
+        // then
+        assertThat(toString).isEqualTo("MaestroCommand(backPressCommand=$command)")
+    }
 }
