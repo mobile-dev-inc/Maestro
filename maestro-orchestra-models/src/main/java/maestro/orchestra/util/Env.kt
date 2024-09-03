@@ -1,5 +1,6 @@
 package maestro.orchestra.util
 
+import java.io.File
 import maestro.js.JsEngine
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.MaestroCommand
@@ -24,27 +25,19 @@ object Env {
             }
     }
 
-    fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> {
-        if (env.isEmpty()) {
-            return this
-        }
+    fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> =
+        if (env.isEmpty()) this
+        else listOf(MaestroCommand(DefineVariablesCommand(env))) + this
 
-        return listOf(MaestroCommand(DefineVariablesCommand(env))) + this
+    fun Map<String, String>.withInjectedShellEnvVars(): Map<String, String> = this +
+        System.getenv()
+            .filterKeys { it.startsWith("MAESTRO_") && this.containsKey(it).not() }
+            .filterValues { it != null && it.isNotEmpty() }
+
+    fun Map<String, String>.withDefaultEnvVars(flowFile: File? = null): Map<String, String> {
+        val defaultEnvVars = mutableMapOf<String, String>()
+        flowFile?.nameWithoutExtension?.let { defaultEnvVars["MAESTRO_FILENAME"] = it }
+        return if (defaultEnvVars.isEmpty()) this
+        else this + defaultEnvVars
     }
-
-    fun Map<String, String>.withInjectedShellEnvVars(): Map<String, String> {
-        val mutable = this.toMutableMap()
-        val sysEnv = System.getenv()
-        for (sysEnvKey in sysEnv.keys.filter { it.startsWith("MAESTRO_") }) {
-            val sysEnvValue = sysEnv[sysEnvKey]
-            if (mutable[sysEnvKey] == null && sysEnvValue != null) {
-                mutable[sysEnvKey] = sysEnvValue
-            }
-        }
-
-        return mutable
-    }
-
-    fun Map<String, String>.withDefaultEnvVars(fileName: String? = null) =
-        fileName?.let { this + mapOf("MAESTRO_FILENAME" to fileName) } ?: this
 }

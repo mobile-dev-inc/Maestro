@@ -28,7 +28,6 @@ import org.junit.jupiter.api.assertThrows
 import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
-import maestro.orchestra.error.SyntaxError
 import kotlin.system.measureTimeMillis
 import maestro.orchestra.util.Env.withDefaultEnvVars
 
@@ -3170,8 +3169,9 @@ class IntegrationTest {
     private fun readCommands(caseName: String, withEnv: () -> Map<String, String> = { emptyMap() }): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
-        return YamlCommandReader.readCommands(Paths.get(resource.toURI()))
-            .withEnv(withEnv().withDefaultEnvVars(caseName))
+        val flowPath = Paths.get(resource.toURI())
+        return YamlCommandReader.readCommands(flowPath)
+            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
     }
 
 }

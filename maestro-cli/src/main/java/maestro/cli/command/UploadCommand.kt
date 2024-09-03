@@ -29,6 +29,7 @@ import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
+import maestro.orchestra.util.Env.withDefaultEnvVars
 
 @CommandLine.Command(
     name = "upload",
@@ -89,6 +90,10 @@ class UploadCommand : Callable<Int> {
                 .fgDefault()
         )
 
+        env = env
+            .withInjectedShellEnvVars()
+            .withDefaultEnvVars(flowFile)
+
         return CloudInteractor(
             client = ApiClient(apiUrl),
         ).upload(
@@ -96,7 +101,7 @@ class UploadCommand : Callable<Int> {
             flowFile = flowFile,
             appFile = appFile,
             mapping = mapping,
-            env = env.withInjectedShellEnvVars(),
+            env = env,
             uploadName = uploadName,
             repoOwner = repoOwner,
             repoName = repoName,

@@ -33,6 +33,7 @@ import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
+import maestro.orchestra.util.Env.withDefaultEnvVars
 
 @CommandLine.Command(
     name = "cloud",
@@ -172,6 +173,10 @@ class CloudCommand : Callable<Int> {
             }
         }
 
+        env = env
+            .withInjectedShellEnvVars()
+            .withDefaultEnvVars(flowsFile)
+
         return CloudInteractor(
             client = ApiClient(apiUrl),
             failOnTimeout = failOnTimeout,
@@ -181,7 +186,7 @@ class CloudCommand : Callable<Int> {
             flowFile = flowsFile,
             appFile = appFile,
             mapping = mapping,
-            env = env.withInjectedShellEnvVars(),
+            env = env,
             uploadName = uploadName,
             repoOwner = repoOwner,
             repoName = repoName,

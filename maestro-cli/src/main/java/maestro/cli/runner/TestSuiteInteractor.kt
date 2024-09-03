@@ -28,7 +28,6 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
-import maestro.orchestra.util.Env.withDefaultEnvVars
 
 /**
  * Similar to [TestRunner], but:
@@ -192,7 +191,7 @@ class TestSuiteInteractor(
             try {
                 val commands = YamlCommandReader
                     .readCommands(flowFile.toPath())
-                    .withEnv(env.withDefaultEnvVars(flowFile.nameWithoutExtension))
+                    .withEnv(env)
 
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
 

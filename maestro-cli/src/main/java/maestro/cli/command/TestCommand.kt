@@ -59,6 +59,7 @@ import java.util.concurrent.CountDownLatch
 import kotlin.io.path.absolutePathString
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.seconds
+import maestro.orchestra.util.Env.withDefaultEnvVars
 
 @CommandLine.Command(
     name = "test",
@@ -161,7 +162,9 @@ class TestCommand : Callable<Int> {
             throw CliError(e.message)
         }
 
-        env = env.withInjectedShellEnvVars()
+        env = env
+            .withInjectedShellEnvVars()
+            .withDefaultEnvVars(flowFile)
 
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
