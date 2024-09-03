@@ -11,6 +11,7 @@ jobs:
     timeout-minutes: 20
 
     strategy:
+      fail-fast: false
       matrix:
         java-version: [11, 17]
 

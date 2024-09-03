@@ -8,6 +8,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.absolute
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.io.path.isRegularFile
@@ -24,6 +25,7 @@ object WorkspaceExecutionPlanner {
         input: Path,
         includeTags: List<String>,
         excludeTags: List<String>,
+        config: Path?,
     ): ExecutionPlan {
         logger.info("start planning execution")
 
@@ -55,10 +57,13 @@ object WorkspaceExecutionPlanner {
         }
 
         // Filter flows based on flows config
-
-        val workspaceConfig = findConfigFile(input)
-            ?.let { YamlCommandReader.readWorkspaceConfig(it) }
-            ?: WorkspaceConfig()
+        val workspaceConfig = if (config != null) {
+            YamlCommandReader.readWorkspaceConfig(config.absolute())
+        } else {
+            findConfigFile(input)
+                ?.let { YamlCommandReader.readWorkspaceConfig(it) }
+                ?: WorkspaceConfig()
+        }
 
         val globs = workspaceConfig.flows ?: listOf("*")
 

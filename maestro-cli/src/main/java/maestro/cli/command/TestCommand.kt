@@ -80,6 +80,11 @@ class TestCommand : Callable<Int> {
     private lateinit var flowFile: File
 
     @Option(
+      names = ["--config"],
+      description = ["Optional YAML configuration file for the workspace. If not provided, Maestro will look for a config.yaml file in the workspace's root directory."])
+    private var configFile: File? = null
+
+    @Option(
         names = ["-s", "--shards"],
         description = ["Number of parallel shards to distribute tests across"],
     )
@@ -178,11 +183,16 @@ class TestCommand : Callable<Int> {
             shardSplit = legacyShardCount
         }
 
+        if (configFile != null && configFile?.exists()?.not() == true) {
+            throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        }
+
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
                 input = flowFile.toPath().toAbsolutePath(),
                 includeTags = includeTags,
                 excludeTags = excludeTags,
+                config = configFile?.toPath()?.toAbsolutePath(),
             )
         } catch (e: ValidationError) {
             throw CliError(e.message)

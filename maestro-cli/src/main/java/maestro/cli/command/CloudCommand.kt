@@ -57,6 +57,9 @@ class CloudCommand : Callable<Int> {
     @CommandLine.Parameters(hidden = true, arity = "0..2", description = ["App file and/or Flow file i.e <appFile> <flowFile>"])
     private lateinit var files: List<File>
 
+    @Option(names = ["--config"], description = ["Optional .yaml configuration file for Flows. If not provided, Maestro will look for a config.yaml file in the root directory."])
+    private var configFile: File? = null
+
     @Option(names = ["--app-file"], description = ["App binary to run your Flows against"])
     private var appFile: File? = null
 
@@ -217,6 +220,7 @@ class CloudCommand : Callable<Int> {
                     input = flowsFile.toPath().toAbsolutePath(),
                     includeTags = includeTags,
                     excludeTags = excludeTags,
+                    config = configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
             throw CliError("Upload aborted. Received error when evaluating workspace: ${e.message}")
@@ -224,6 +228,10 @@ class CloudCommand : Callable<Int> {
     }
 
     private fun validateFiles() {
+
+        if (configFile != null && configFile?.exists()?.not() == true) {
+            throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        }
 
         // Maintains backwards compatibility for this syntax: maestro cloud <appFile> <workspace>
         // App file can be optional now

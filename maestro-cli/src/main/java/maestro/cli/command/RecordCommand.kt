@@ -57,6 +57,9 @@ class RecordCommand : Callable<Int> {
     @CommandLine.Parameters
     private lateinit var flowFile: File
 
+    @Option(names = ["--config"], description = ["Optional .yaml configuration file for Flows. If not provided, Maestro will look for a config.yaml file in the root directory."])
+    private var configFile: File? = null
+
     @Option(names = ["-e", "--env"])
     private var env: Map<String, String> = emptyMap()
 
@@ -77,6 +80,9 @@ class RecordCommand : Callable<Int> {
             )
         }
 
+        if (configFile != null && configFile?.exists()?.not() == true) {
+            throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        }
         TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
         val path = TestDebugReporter.getDebugOutputPath()
 
