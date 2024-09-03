@@ -83,9 +83,22 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["-s", "--shards"],
-        description = ["Number of parallel shards to distribute tests across"]
+        description = ["Number of parallel shards to distribute tests across"],
     )
-    private var shards: Int = 1
+    @Deprecated("Use --shard-split or --shard-all instead")
+    private var legacyShardCount: Int? = null
+
+    @Option(
+        names = ["--shard-split"],
+        description = ["Splits the tests across N connected devices"],
+    )
+    private var shardSplit: Int? = null
+
+    @Option(
+        names = ["--shard-all"],
+        description = ["Replicates all the tests across N connected devices"],
+    )
+    private var shardAll: Int? = null
 
     @Option(names = ["-c", "--continuous"])
     private var continuous: Boolean = false
@@ -152,6 +165,14 @@ class TestCommand : Callable<Int> {
     }
 
     override fun call(): Int {
+        if (shardSplit != null && shardAll != null) {
+            throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
+        }
+
+        if (legacyShardCount != null) {
+            PrintUtils.warn("--shards option is deprecated and will be removed in the next Maestro version. Use --shard-split or --shard-all instead.")
+            shardSplit = legacyShardCount
+        }
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
                 flowFile.toPath().toAbsolutePath(),
@@ -177,7 +198,6 @@ class TestCommand : Callable<Int> {
     }
 
     private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan): Int = runBlocking(Dispatchers.IO) {
-        val sharded = shards > 1
 
         runCatching {
             val deviceIds = (if (isWebFlow())
@@ -193,10 +213,18 @@ class TestCommand : Callable<Int> {
             initialActiveDevices.addAll(DeviceService.listConnectedDevices().map {
                 it.instanceId
             }.toMutableSet())
+
+            val shards = shardSplit ?: shardAll ?: 1
+
+            val availableDevices = if (deviceIds.isNotEmpty()) deviceIds.size else initialActiveDevices.size
             val effectiveShards = shards.coerceAtMost(plan.flowsToRun.size)
-            val chunkPlans = plan.flowsToRun
+            val sharded = effectiveShards > 1
+
+            val chunkPlans =
+                if (shardAll != null) (0 until effectiveShards).map { plan.copy() }
+                else plan.flowsToRun
                 .withIndex()
-                .groupBy { it.index % shards }
+                .groupBy { it.index % effectiveShards }
                 .map { (shardIndex, files) ->
                     ExecutionPlan(
                         files.map { it.value },
@@ -208,12 +236,12 @@ class TestCommand : Callable<Int> {
                 }
 
             // Collect device configurations for missing shards, if any
-            val missing = effectiveShards - if (deviceIds.isNotEmpty()) deviceIds.size else initialActiveDevices.size
-            val allDeviceConfigs = (0 until missing).map { shardIndex ->
+            val missing = effectiveShards - availableDevices
+            val allDeviceConfigs = if (shardAll == null) (0 until missing).map { shardIndex ->
                 PrintUtils.message("------------------ Shard ${shardIndex + 1} ------------------")
                 // Collect device configurations here, one per shard
                 PickDeviceView.requestDeviceOptions()
-            }.toMutableList()
+            }.toMutableList() else mutableListOf()
 
             val barrier = CountDownLatch(effectiveShards)
 
