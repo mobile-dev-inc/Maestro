@@ -49,7 +49,7 @@ internal class WorkspaceExecutionPlannerErrorsTest {
         try {
             val inputPath = singleFlowFilePath?.let { workspacePath.resolve(it) } ?: workspacePath
             WorkspaceExecutionPlanner.plan(
-                input = inputPath,
+                input = setOf(inputPath),
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = null,

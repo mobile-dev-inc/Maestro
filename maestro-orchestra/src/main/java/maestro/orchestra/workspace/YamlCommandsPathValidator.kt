@@ -7,7 +7,7 @@ import java.nio.file.Paths
 
 object YamlCommandsPathValidator {
 
-    fun validatePathsExistInWorkspace(input: Path, flowFile: Path, pathStrings: List<String>) {
+    fun validatePathsExistInWorkspace(input: Set<Path>, flowFile: Path, pathStrings: List<String>) {
         pathStrings.forEach {
             val exists = validateInsideWorkspace(input, it)
             if (!exists) {
@@ -16,12 +16,8 @@ object YamlCommandsPathValidator {
         }
     }
 
-    private fun validateInsideWorkspace(workspace: Path, pathString: String): Boolean {
-        val mediaPath = workspace.resolve(workspace.fileSystem.getPath(pathString))
-        val exists = Files.walk(workspace).anyMatch { path -> path.fileName == mediaPath.fileName }
-        if (!exists) {
-            return false
-        }
-        return true
+    private fun validateInsideWorkspace(workspace: Set<Path>, pathString: String): Boolean {
+        val mediaPath = workspace.firstNotNullOfOrNull { it.resolve(it.fileSystem.getPath(pathString)) }
+        return workspace.any { Files.walk(it).anyMatch { path -> path.fileName == mediaPath?.fileName } }
     }
 }

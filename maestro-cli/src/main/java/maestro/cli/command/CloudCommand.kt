@@ -217,7 +217,7 @@ class CloudCommand : Callable<Int> {
             PrintUtils.message("Evaluating workspace...")
             WorkspaceExecutionPlanner
                 .plan(
-                    input = flowsFile.toPath().toAbsolutePath(),
+                    input = setOf(flowsFile.toPath().toAbsolutePath()),
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                     config = configFile?.toPath()?.toAbsolutePath(),

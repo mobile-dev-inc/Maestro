@@ -11,7 +11,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `000 - Individual file`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/000_individual_file/flow.yaml"),
+            input = paths("/workspaces/000_individual_file/flow.yaml"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -27,7 +27,27 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `001 - Simple workspace`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/001_simple"),
+            input = paths("/workspaces/001_simple"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/001_simple/flowA.yaml"),
+            path("/workspaces/001_simple/flowB.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `001 - Multiple files`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths(
+                "/workspaces/001_simple/flowA.yaml",
+                "/workspaces/001_simple/flowB.yaml"
+            ),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -44,7 +64,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `002 - Workspace with subflows`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/002_subflows"),
+            input = paths("/workspaces/002_subflows"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -58,10 +78,58 @@ internal class WorkspaceExecutionPlannerTest {
     }
 
     @Test
+    internal fun `002 - Multiple folders`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths(
+                "/workspaces/001_simple",
+                "/workspaces/002_subflows"
+            ),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/001_simple/flowA.yaml"),
+            path("/workspaces/001_simple/flowB.yaml"),
+            path("/workspaces/002_subflows/flowA.yaml"),
+            path("/workspaces/002_subflows/flowB.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `002 - Multiple files and folders`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths(
+                "/workspaces/000_individual_file/flow.yaml",
+                "/workspaces/001_simple",
+                "/workspaces/002_subflows",
+                "/workspaces/003_include_tags/flowC.yaml",
+            ),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/000_individual_file/flow.yaml"),
+            path("/workspaces/001_simple/flowA.yaml"),
+            path("/workspaces/001_simple/flowB.yaml"),
+            path("/workspaces/002_subflows/flowA.yaml"),
+            path("/workspaces/002_subflows/flowB.yaml"),
+            path("/workspaces/003_include_tags/flowC.yaml"),
+        )
+    }
+
+    @Test
     internal fun `003 - Include tags`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/003_include_tags"),
+            input = paths("/workspaces/003_include_tags"),
             includeTags = listOf("included"),
             excludeTags = listOf(),
             config = null,
@@ -77,7 +145,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `004 - Exclude tags`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/004_exclude_tags"),
+            input = paths("/workspaces/004_exclude_tags"),
             includeTags = listOf(),
             excludeTags = listOf("excluded"),
             config = null,
@@ -94,7 +162,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `005 - Custom include pattern`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/005_custom_include_pattern"),
+            input = paths("/workspaces/005_custom_include_pattern"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -111,7 +179,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `006 - Include subfolders`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/006_include_subfolders"),
+            input = paths("/workspaces/006_include_subfolders"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -130,7 +198,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `007 - Empty config`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/007_empty_config"),
+            input = paths("/workspaces/007_empty_config"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -147,7 +215,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `008 - Literal pattern`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/008_literal_pattern"),
+            input = paths("/workspaces/008_literal_pattern"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -163,7 +231,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `009 - Custom fields in config`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/009_custom_config_fields"),
+            input = paths("/workspaces/009_custom_config_fields"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -180,7 +248,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `010 - Global include tags`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/010_global_include_tags"),
+            input = paths("/workspaces/010_global_include_tags"),
             includeTags = listOf("featureB"),
             excludeTags = listOf(),
             config = null,
@@ -198,7 +266,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `011 - Global exclude tags`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/011_global_exclude_tags"),
+            input = paths("/workspaces/011_global_exclude_tags"),
             includeTags = listOf(),
             excludeTags = listOf("featureA"),
             config = null,
@@ -216,7 +284,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `012 - Deterministic order for local tests`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/012_local_deterministic_order"),
+            input = paths("/workspaces/012_local_deterministic_order"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -234,7 +302,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `013 - Execution order is respected`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/013_execution_order"),
+            input = paths("/workspaces/013_execution_order"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
@@ -247,7 +315,7 @@ internal class WorkspaceExecutionPlannerTest {
 
         // Then
         assertThat(plan.sequence).isNotNull()
-        assertThat(plan.sequence!!.flows).containsExactly(
+        assertThat(plan.sequence.flows).containsExactly(
             path("/workspaces/013_execution_order/flowB.yaml"),
             path("/workspaces/013_execution_order/flowCWithCustomName.yaml"),
             path("/workspaces/013_execution_order/flowD.yaml"),
@@ -258,7 +326,7 @@ internal class WorkspaceExecutionPlannerTest {
     internal fun `014 - Config not null`() {
         // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = path("/workspaces/014_config_not_null"),
+            input = paths("/workspaces/014_config_not_null"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = path("/workspaces/014_config_not_null/config/another_config.yaml"),
@@ -270,8 +338,11 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
-    private fun path(pathStr: String): Path {
-        return Paths.get(WorkspaceExecutionPlannerTest::class.java.getResource(pathStr).toURI())
+    private fun path(path: String): Path? {
+        val clazz = WorkspaceExecutionPlannerTest::class.java
+        val resource = clazz.getResource(path)?.toURI()
+        return resource?.let { Paths.get(it) }
     }
 
+    private fun paths(vararg paths: String): Set<Path> = paths.mapNotNull(::path).toSet()
 }

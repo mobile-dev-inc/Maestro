@@ -59,6 +59,7 @@ import java.util.concurrent.CountDownLatch
 import kotlin.io.path.absolutePathString
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.seconds
+import maestro.utils.isSingleFile
 import maestro.orchestra.util.Env.withDefaultEnvVars
 
 @CommandLine.Command(
@@ -76,8 +77,8 @@ class TestCommand : Callable<Int> {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
-    @CommandLine.Parameters
-    private lateinit var flowFile: File
+    @CommandLine.Parameters(description = ["One or more flow files or folders containing flow files"])
+    private lateinit var flowFiles: Set<File>
 
     @Option(
       names = ["--config"],
@@ -159,8 +160,8 @@ class TestCommand : Callable<Int> {
     private val currentActiveDevices = ConcurrentSet<String>()
 
     private fun isWebFlow(): Boolean {
-        if (!flowFile.isDirectory) {
-            val config = YamlCommandReader.readConfig(flowFile.toPath())
+        if (flowFiles.isSingleFile) {
+            val config = YamlCommandReader.readConfig(flowFiles.first().toPath())
             return Regex("http(s?)://").containsMatchIn(config.appId)
         }
 
@@ -189,7 +190,7 @@ class TestCommand : Callable<Int> {
 
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
-                input = flowFile.toPath().toAbsolutePath(),
+                input = flowFiles.map { it.toPath().toAbsolutePath() }.toSet(),
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = configFile?.toPath()?.toAbsolutePath(),
@@ -197,10 +198,6 @@ class TestCommand : Callable<Int> {
         } catch (e: ValidationError) {
             throw CliError(e.message)
         }
-
-        env = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile)
 
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
 
@@ -336,12 +333,12 @@ class TestCommand : Callable<Int> {
                         val maestro = session.maestro
                         val device = session.device
 
-                        if (flowFile.isDirectory || format != ReportFormat.NOOP) {
+                        if (flowFiles.isSingleFile.not() || format != ReportFormat.NOOP) {
                             // Run multiple flows
                             if (continuous) {
                                 val error =
                                     if (format != ReportFormat.NOOP) "Format can not be different from NOOP in continuous mode. Passed format is $format."
-                                    else "Continuous mode is not supported for directories. $flowFile is a directory"
+                                    else "Continuous mode is only supported in case of a single flow file. ${flowFiles.joinToString(", ") { it.absolutePath } } has more that a single flow file."
                                 throw CommandLine.ParameterException(commandSpec.commandLine(), error)
                             }
 
@@ -363,6 +360,10 @@ class TestCommand : Callable<Int> {
                             return@newSession Triple(suiteResult.passedCount, suiteResult.totalTests, suiteResult)
                         } else {
                             // Run a single flow
+                            val flowFile = flowFiles.first()
+                            env = env
+                                .withInjectedShellEnvVars()
+                                .withDefaultEnvVars(flowFile)
 
                             if (continuous) {
                                 if (!flattenDebugOutput) {
@@ -375,7 +376,12 @@ class TestCommand : Callable<Int> {
                                     if (DisableAnsiMixin.ansiEnabled && parent?.verbose == false) AnsiResultView()
                                     else PlainTextResultView()
                                 val resultSingle = TestRunner.runSingle(
-                                    maestro, device, flowFile, env, resultView, debugOutputPath
+                                    maestro,
+                                    device,
+                                    flowFile,
+                                    env,
+                                    resultView,
+                                    debugOutputPath
                                 )
                                 if (resultSingle == 1) {
                                     printExitDebugMessage()

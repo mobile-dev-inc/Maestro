@@ -28,6 +28,8 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
+import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
 
 /**
  * Similar to [TestRunner], but:
@@ -65,7 +67,11 @@ class TestSuiteInteractor(
         // first run sequence of flows if present
         val flowSequence = executionPlan.sequence
         for (flow in flowSequence?.flows ?: emptyList()) {
-            val (result, aiOutput) = runFlow(flow.toFile(), env, maestro, debugOutputPath)
+            val flowFile = flow.toFile()
+            val updatedEnv = env
+                .withInjectedShellEnvVars()
+                .withDefaultEnvVars(flowFile)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
