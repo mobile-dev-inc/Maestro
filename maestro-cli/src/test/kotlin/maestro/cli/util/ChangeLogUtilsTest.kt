@@ -1,0 +1,78 @@
+package maestro.cli.util
+
+import com.google.common.truth.Truth.assertThat
+import java.io.File
+import org.junit.jupiter.api.Test
+
+class ChangeLogUtilsTest {
+
+    private val changelogFile = File(System.getProperty("user.dir"), "../CHANGELOG.md")
+
+    @Test
+    fun `test format last version`() {
+        val content = changelogFile.readText()
+
+        val changelog = ChangeLogUtils.formatBody(content, "1.38.1")
+
+        assertThat(changelog).containsExactly(
+            "- New commands AI visual testing: assertWithAI and assertNoDefectsWithAI",
+            "- Enable basic support for Maestro uploads while keeping maestro cloud functioning",
+        )
+    }
+
+    @Test
+    fun `test format link and no paragraph`() {
+        val content = changelogFile.readText()
+
+        val changelog = ChangeLogUtils.formatBody(content, "1.37.9")
+
+        assertThat(changelog).containsExactly(
+            "- Revert iOS landscape mode fix (#1916)",
+        )
+    }
+
+    @Test
+    fun `test format no subheader`() {
+        val content = changelogFile.readText()
+
+        val changelog = ChangeLogUtils.formatBody(content, "1.37.1")
+
+        assertThat(changelog).containsExactly(
+            "- Fix crash when `flutter` or `xcodebuild` is not installed (#1839)",
+        )
+    }
+
+    @Test
+    fun `test format strong no paragraph and no sublist`() {
+        val content = changelogFile.readText()
+
+        val changelog = ChangeLogUtils.formatBody(content, "1.37.0")
+
+        assertThat(changelog).containsExactly(
+            "- Sharding tests for parallel execution on many devices 🎉 (#1732 by Kaan)",
+            "- Reports in HTML (#1750 by Depa Panjie Purnama)",
+            "- Homebrew is back!",
+            "- Current platform exposed in JavaScript (#1747 by Dan Caseley)",
+            "- Control airplane mode (#1672 by NyCodeGHG)",
+            "- New `killApp` command (#1727 by Alexandre Favre)",
+            "- Fix cleaning up retries in iOS driver (#1669)",
+            "- Fix some commands not respecting custom labels (#1762 by Dan Caseley)",
+            "- Fix “Protocol family unavailable” when rerunning iOS tests (#1671 by Stanisław Chmiela)",
+        )
+    }
+
+    @Test
+    fun `test print`() {
+        val content = changelogFile.readText()
+        val changelog = ChangeLogUtils.formatBody(content, "1.17.1")
+
+        val printed = ChangeLogUtils.print(changelog)
+
+        assertThat(printed).isEqualTo(
+            "\n" +
+            "- Tweak: Remove Maestro Studio icon from Mac dock\n" +
+            "- Tweak: Prefer port 9999 for Maestro Studio app\n" +
+            "- Fix: Fix Maestro Studio conditional code snippet\n"
+        )
+    }
+}
