@@ -13,27 +13,22 @@ import kotlin.time.Duration.Companion.seconds
 object TestSuiteStatusView {
 
     fun showFlowCompletion(result: FlowResult) {
+        val shardPrefix = result.shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
+        print(Ansi.ansi().fgCyan().render(shardPrefix).fgDefault())
+
         printStatus(result.status, result.cancellationReason)
 
         val durationString = result.duration?.let { " ($it)" }.orEmpty()
         print(" ${result.name}$durationString")
+
         if (result.status == FlowStatus.ERROR && result.error != null) {
-            print(
-                Ansi.ansi()
-                    .fgRed()
-                    .render(" (${result.error})")
-                    .fgDefault()
-            )
+            val error = " (${result.error})"
+            print(Ansi.ansi().fgRed().render(error).fgDefault())
         }
         else if (result.status == FlowStatus.WARNING) {
-            print(
-                Ansi.ansi()
-                    .fgYellow()
-                    .render(" (Warning)")
-                    .fgDefault()
-            )
+            val warning = " (Warning)"
+            print(Ansi.ansi().fgYellow().render(warning).fgDefault())
         }
-
         println()
     }
 
@@ -44,18 +39,19 @@ object TestSuiteStatusView {
         val hasError = suite.flows.find { it.status == FlowStatus.ERROR } != null
         val canceledFlows = suite.flows
             .filter { it.status == FlowStatus.CANCELED }
+        val shardPrefix = suite.shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
 
         if (suite.status == FlowStatus.ERROR || hasError) {
             val failedFlows = suite.flows
                 .filter { it.status == FlowStatus.ERROR }
 
             PrintUtils.err(
-                "${failedFlows.size}/${suite.flows.size} ${flowWord(failedFlows.size)} Failed",
+                "${shardPrefix}${failedFlows.size}/${suite.flows.size} ${flowWord(failedFlows.size)} Failed",
                 bold = true,
             )
 
             if (canceledFlows.isNotEmpty()) {
-                PrintUtils.warn("${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
+                PrintUtils.warn("${shardPrefix}${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
             }
 
         } else {
@@ -66,16 +62,16 @@ object TestSuiteStatusView {
             if (passedFlows.isNotEmpty()) {
                 val durationMessage = suite.duration?.let { " in $it" } ?: ""
                 PrintUtils.success(
-                    "${passedFlows.size}/${suite.flows.size} ${flowWord(passedFlows.size)} Passed$durationMessage",
+                    "${shardPrefix}${passedFlows.size}/${suite.flows.size} ${flowWord(passedFlows.size)} Passed$durationMessage",
                     bold = true,
                 )
 
                 if (canceledFlows.isNotEmpty()) {
-                    PrintUtils.warn("${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
+                    PrintUtils.warn("${shardPrefix}${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
                 }
             } else {
                 println()
-                PrintUtils.err("All flows were canceled")
+                PrintUtils.err("${shardPrefix}All flows were canceled")
             }
         }
         println()
@@ -143,6 +139,7 @@ object TestSuiteStatusView {
         val status: FlowStatus,
         val flows: List<FlowResult>,
         val duration: Duration? = null,
+        val shardIndex: Int? = null,
         val uploadDetails: UploadDetails? = null,
     ) {
 
@@ -151,6 +148,7 @@ object TestSuiteStatusView {
             val status: FlowStatus,
             val duration: Duration? = null,
             val error: String? = null,
+            val shardIndex: Int? = null,
             val cancellationReason: UploadStatus.CancellationReason? = null
         )
 

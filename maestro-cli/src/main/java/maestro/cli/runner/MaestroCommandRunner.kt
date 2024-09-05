@@ -34,11 +34,9 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.Insight
-import okio.Buffer
-import okio.sink
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.util.IdentityHashMap
+import maestro.cli.util.ScreenshotUtils
 
 /**
  * Knows how to run a list of Maestro commands and update the UI.
@@ -63,40 +61,6 @@ object MaestroCommandRunner {
 
         val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
         val commandMetadata = IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>()
-
-        fun takeDebugScreenshot(status: CommandStatus): File? {
-            val containsFailed = debugOutput.screenshots.any { it.status == CommandStatus.FAILED }
-
-            // Avoids duplicate failed images from parent commands
-            if (containsFailed && status == CommandStatus.FAILED) {
-                return null
-            }
-
-            val result = kotlin.runCatching {
-                val out = File
-                    .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
-                    .also { it.deleteOnExit() } // save to another dir before exiting
-                maestro.takeScreenshot(out.sink(), false)
-                debugOutput.screenshots.add(
-                    FlowDebugOutput.Screenshot(
-                        screenshot = out,
-                        timestamp = System.currentTimeMillis(),
-                        status = status
-                    )
-                )
-                out
-            }
-
-            return result.getOrNull()
-        }
-
-        fun writeAIscreenshot(buffer: Buffer): File {
-            val out = File
-                .createTempFile("ai-screenshot-${System.currentTimeMillis()}", ".png")
-                .also { it.deleteOnExit() }
-            out.outputStream().use { it.write(buffer.readByteArray()) }
-            return out
-        }
 
         fun refreshUi() {
             view.setState(
@@ -151,7 +115,7 @@ object MaestroCommandRunner {
                     error = e
                 }
 
-                takeDebugScreenshot(CommandStatus.FAILED)
+                ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
 
                 if (e !is MaestroException) {
                     throw e
@@ -179,7 +143,7 @@ object MaestroCommandRunner {
                     status = CommandStatus.WARNED
                 }
 
-                takeDebugScreenshot(CommandStatus.WARNED)
+                ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.WARNED)
 
                 refreshUi()
             },
@@ -198,7 +162,7 @@ object MaestroCommandRunner {
             },
             onCommandGeneratedOutput = { command, defects, screenshot ->
                 logger.info("${command.description()} generated output")
-                val screenshotPath = writeAIscreenshot(screenshot)
+                val screenshotPath = ScreenshotUtils.writeAIscreenshot(screenshot)
                 aiOutput.screenOutputs.add(
                     SingleScreenFlowAIOutput(
                         screenshotPath = screenshotPath,

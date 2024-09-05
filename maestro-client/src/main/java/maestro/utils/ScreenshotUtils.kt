@@ -14,13 +14,13 @@ class ScreenshotUtils {
         private val LOGGER = LoggerFactory.getLogger(ScreenshotUtils::class.java)
 
         fun takeScreenshot(out: Sink, compressed: Boolean, driver: Driver) {
-            LOGGER.info("Taking screenshot to output sink")
+            LOGGER.trace("Taking screenshot to output sink")
 
             driver.takeScreenshot(out, compressed)
         }
 
         fun takeScreenshot(compressed: Boolean, driver: Driver): ByteArray {
-            LOGGER.info("Taking screenshot to byte array")
+            LOGGER.trace("Taking screenshot to byte array")
 
             val buffer = Buffer()
             takeScreenshot(buffer, compressed, driver)

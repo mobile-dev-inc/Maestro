@@ -6,9 +6,7 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.FileAppender
 import ch.qos.logback.core.status.NopStatusListener
-import maestro.Driver
 import org.slf4j.LoggerFactory
-import java.util.Properties
 
 object LogConfig {
     private const val LOG_PATTERN = "[%-5level] %logger{36} - %msg%n"

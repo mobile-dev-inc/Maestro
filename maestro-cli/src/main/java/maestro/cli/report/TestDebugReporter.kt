@@ -67,16 +67,19 @@ object TestDebugReporter {
     /**
      * Save debug information about a single flow, after it has finished.
      */
-    fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path) {
+    fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
         // TODO(bartekpacia): Potentially accept a single "FlowPersistentOutput" object
         // TODO(bartekpacia: Build output incrementally, instead of single-shot on flow completion
         //  Be aware that this goal somewhat conflicts with including links to other flows in the HTML report.
+
+        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
+        val shardLogPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
 
         // commands
         try {
             val commandMetadata = debugOutput.commands
             if (commandMetadata.isNotEmpty()) {
-                val commandsFilename = "commands-(${flowName.replace("/", "_")}).json"
+                val commandsFilename = "commands-$shardPrefix(${flowName.replace("/", "_")}).json"
                 val file = File(path.absolutePathString(), commandsFilename)
                 commandMetadata.map {
                     CommandDebugWrapper(it.key, it.value)
@@ -85,7 +88,7 @@ object TestDebugReporter {
                 }
             }
         } catch (e: JsonMappingException) {
-            logger.error("Unable to parse commands", e)
+            logger.error("${shardLogPrefix}Unable to parse commands", e)
         }
 
         // screenshots
@@ -96,7 +99,7 @@ object TestDebugReporter {
                 CommandStatus.WARNED -> "⚠️"
                 else -> "﹖"
             }
-            val filename = "screenshot-$status-${it.timestamp}-(${flowName}).png"
+            val filename = "screenshot-$shardPrefix$status-${it.timestamp}-(${flowName}).png"
             val file = File(path.absolutePathString(), filename)
 
             it.screenshot.copyTo(file)

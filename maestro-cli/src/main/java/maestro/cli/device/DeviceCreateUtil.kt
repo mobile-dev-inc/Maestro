@@ -5,30 +5,23 @@ import maestro.cli.util.*
 
 internal object DeviceCreateUtil {
 
-    fun getOrCreateDevice(platform: Platform,
-                          osVersion: Int?,
-                          language: String?,
-                          country: String?,
-                          forceCreate: Boolean,
-                          shardIndex: Int? = null): Device.AvailableForLaunch {
-        return when (platform) {
-            Platform.ANDROID -> {
-                getOrCreateAndroidDevice(osVersion, language, country, forceCreate, shardIndex)
-            }
-
-            Platform.IOS -> {
-                getOrCreateIosDevice(osVersion, language, country, forceCreate, shardIndex)
-            }
-
-            else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
-        }
+    fun getOrCreateDevice(
+        platform: Platform,
+        osVersion: Int? = null,
+        language: String? = null,
+        country: String? = null,
+        forceCreate: Boolean = false,
+        shardIndex: Int? = null,
+    ): Device.AvailableForLaunch = when (platform) {
+        Platform.ANDROID -> getOrCreateAndroidDevice(osVersion, language, country, forceCreate, shardIndex)
+        Platform.IOS -> getOrCreateIosDevice(osVersion, language, country, forceCreate, shardIndex)
+        else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
     }
 
-    private fun getOrCreateIosDevice(version: Int?,
-                                     language: String?,
-                                     country: String?,
-                                     forceCreate: Boolean,
-                                     shardIndex: Int? = null): Device.AvailableForLaunch {
+    private fun getOrCreateIosDevice(
+        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+    ): Device.AvailableForLaunch {
+        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
         if (version !in DeviceConfigIos.versions) {
             throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
         }
@@ -38,7 +31,7 @@ internal object DeviceCreateUtil {
             throw CliError("Provided iOS runtime is not supported $runtime")
         }
 
-        val deviceName = DeviceConfigIos.generateDeviceName(version!!) + shardIndex?.let { "_${it + 1}" }.orEmpty()
+        val deviceName = DeviceConfigIos.generateDeviceName(version) + shardIndex?.let { "_${it + 1}" }.orEmpty()
         val device = DeviceConfigIos.device
 
         // check connected device
@@ -63,9 +56,12 @@ internal object DeviceCreateUtil {
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {
-                val msg = "Required runtime to create the simulator is not installed: $runtime\n\n" +
-                        "To install additional iOS runtimes checkout this guide:\n" +
-                        "* https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes"
+                val msg = """
+                    Required runtime to create the simulator is not installed: $runtime
+                    
+                    To install additional iOS runtimes checkout this guide:
+                    * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
+                """.trimIndent()
                 throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
                 throw CliError("Device type $device is either not supported or not found.")
@@ -86,11 +82,10 @@ internal object DeviceCreateUtil {
 
     }
 
-    private fun getOrCreateAndroidDevice(version: Int?,
-                                         language: String?,
-                                         country: String?,
-                                         forceCreate: Boolean,
-                                         shardIndex: Int? = null): Device.AvailableForLaunch {
+    private fun getOrCreateAndroidDevice(
+        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+    ): Device.AvailableForLaunch {
+        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigAndroid.defaultVersion
         if (version !in DeviceConfigAndroid.versions) {
             throw CliError("Provided Android version is not supported. Please use one of ${DeviceConfigAndroid.versions}")
         }
@@ -100,7 +95,7 @@ internal object DeviceCreateUtil {
         val pixel = DeviceConfigAndroid.choosePixelDevice(pixels) ?: AvdDevice("-1", "Pixel 6", "pixel_6")
 
         val config = try {
-            DeviceConfigAndroid.createConfig(version!!, pixel, architecture)
+            DeviceConfigAndroid.createConfig(version, pixel, architecture)
         } catch (e: IllegalStateException) {
             throw CliError(e.message ?: "Unable to create android device config")
         }
@@ -114,7 +109,8 @@ internal object DeviceCreateUtil {
 
         // existing device
         val existingDevice =
-            if (forceCreate) null else DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.ANDROID)?.modelId
+            if (forceCreate) null
+            else DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.ANDROID)?.modelId
 
         // dependencies
         if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {
@@ -125,22 +121,18 @@ internal object DeviceCreateUtil {
             if (r == "y" || r == "yes") {
                 PrintUtils.message("Attempting to install $systemImage via Android SDK Manager...\n")
                 if (!DeviceService.installAndroidSystemImage(systemImage)) {
-                    throw CliError(
-                        "Unable to install required dependencies. You can install the system image manually by running this command:\n${
-                            DeviceService.getAndroidSystemImageInstallCommand(
-                                systemImage
-                            )
-                        }"
-                    )
+                    val message = """
+                        Unable to install required dependencies. You can install the system image manually by running this command:
+                        ${DeviceService.getAndroidSystemImageInstallCommand(systemImage)}
+                    """.trimIndent()
+                    throw CliError(message)
                 }
             } else {
-                throw CliError(
-                    "To install the system image manually, you can run this command:\n${
-                        DeviceService.getAndroidSystemImageInstallCommand(
-                            systemImage
-                        )
-                    }"
-                )
+                val message = """
+                    To install the system image manually, you can run this command:
+                    ${DeviceService.getAndroidSystemImageInstallCommand(systemImage)}
+                """.trimIndent()
+                throw CliError(message)
             }
         }
 
