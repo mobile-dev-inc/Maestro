@@ -2,6 +2,7 @@ package maestro.cli.util
 
 import com.google.common.truth.Truth.assertThat
 import java.io.File
+import maestro.cli.util.EnvUtils.CLI_VERSION
 import org.junit.jupiter.api.Test
 
 class ChangeLogUtilsTest {
@@ -10,6 +11,24 @@ class ChangeLogUtilsTest {
 
     @Test
     fun `test format last version`() {
+        val content = changelogFile.readText()
+
+        val changelog = ChangeLogUtils.formatBody(content, CLI_VERSION.toString())
+
+        assertThat(changelog).isNotEmpty()
+    }
+
+    @Test
+    fun `test format unknown version`() {
+        val content = changelogFile.readText()
+
+        val changelog = ChangeLogUtils.formatBody(content, "x.yy.z")
+
+        assertThat(changelog).isNull()
+    }
+
+    @Test
+    fun `test format short version`() {
         val content = changelogFile.readText()
 
         val changelog = ChangeLogUtils.formatBody(content, "1.38.1")
