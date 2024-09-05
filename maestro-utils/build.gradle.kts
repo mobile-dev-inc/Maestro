@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 plugins {
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.maestro.jvm.library)
     alias(libs.plugins.mavenPublish)
 }
 

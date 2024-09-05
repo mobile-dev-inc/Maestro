@@ -2,9 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
     id("maven-publish")
-    alias(libs.plugins.kotlin.jvm)
-    // TODO: Use the below instead of libs.plugins.kotlin.jvm
-    // alias(libs.plugins.dev.mobile.maestro.jvm.library)
+    alias(libs.plugins.maestro.jvm.library)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.mavenPublish)
 }

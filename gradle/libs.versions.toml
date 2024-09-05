@@ -153,6 +153,10 @@ log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "lo
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
 
+# Dependencies of the included build-logic
+kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.19.0" }
+
 [bundles]
 
 [plugins]
@@ -162,6 +166,9 @@ protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" } # TODO: Delete from here
 jreleaser = { id = "org.jreleaser", version = "1.13.1" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }
+
+# Plugins defined by this project
+maestro-jvm-library = { id = "maestro.jvm.library", version = "unspecified" }
