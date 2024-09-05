@@ -20,8 +20,15 @@
 package maestro.cli.runner.resultview
 
 import io.ktor.util.encodeBase64
+import maestro.cli.device.Device
+import maestro.cli.device.Platform
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
+import maestro.orchestra.ElementSelector
+import maestro.orchestra.LaunchAppCommand
+import maestro.orchestra.MaestroCommand
+import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnPointV2Command
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 import org.fusesource.jansi.Ansi
@@ -96,20 +103,18 @@ class AnsiResultView(
         commands: List<CommandState>,
         indent: Int = 0,
     ) {
-        val statusColumnWidth = 3
         commands
             .filter { it.command.asCommand()?.visible() ?: true }
-            .forEach {
-                renderCommand(it, indent, statusColumnWidth)
-            }
+            .forEach { renderCommand(it, indent) }
     }
 
-    private fun Ansi.renderCommand(commandState: CommandState, indent: Int, statusColumnWidth: Int) {
+    private fun Ansi.renderCommand(commandState: CommandState, indent: Int) {
         val statusSymbol = status(commandState.status)
+
         fgDefault()
         renderLineStart(indent)
         render(statusSymbol)
-        render(String(CharArray(statusColumnWidth - statusSymbol.length) { ' ' }))
+        render(" ".repeat(2))
         render(
             commandState.command.description()
                 .replace("(?<!\\\\)\\\$\\{.*}".toRegex()) { match ->
@@ -200,17 +205,6 @@ class AnsiResultView(
         }
     }
 
-    private fun status(status: CommandStatus): String {
-        return when (status) {
-            CommandStatus.COMPLETED -> "✅"
-            CommandStatus.FAILED -> "❌"
-            CommandStatus.RUNNING -> "⏳"
-            CommandStatus.PENDING -> "\uD83D\uDD32 " // 🔲
-            CommandStatus.WARNED -> "⚠️"
-            CommandStatus.SKIPPED -> "⚪️"
-        }
-    }
-
     private fun renderFrame(block: Ansi.() -> Any) {
         renderFrame(StringBuilder().apply {
             val ansi = Ansi().cursor(0, 0)
@@ -246,4 +240,74 @@ class AnsiResultView(
     }
 
     data class Frame(val timestamp: Long, val content: String)
+}
+
+internal fun status(status: CommandStatus): String {
+    return when (status) {
+        CommandStatus.COMPLETED -> "✅ "
+        CommandStatus.FAILED -> "❌ "
+        CommandStatus.RUNNING -> "⏳ "
+        CommandStatus.PENDING -> "\uD83D\uDD32 " // 🔲
+        CommandStatus.WARNED -> "⚠️ "
+        CommandStatus.SKIPPED -> "⚪️ "
+    }
+}
+
+// Helper launcher to play around with presentation
+fun main() {
+    val view = AnsiResultView("> Press [ENTER] to restart the Flow\n")
+
+    view.setState(
+        UiState.Running(
+            device = Device.Connected("device", "description", Platform.ANDROID),
+            onFlowStartCommands = listOf(),
+            onFlowCompleteCommands = listOf(),
+            commands = listOf(
+                CommandState(
+                    command = MaestroCommand(launchAppCommand = LaunchAppCommand("com.example.example")),
+                    status = CommandStatus.COMPLETED,
+                    subOnStartCommands = listOf(),
+                    subOnCompleteCommands = listOf(),
+                ),
+                CommandState(
+                    command = MaestroCommand(tapOnPointV2Command = TapOnPointV2Command(point = "50%, 25%")),
+                    status = CommandStatus.WARNED,
+                    subOnStartCommands = listOf(),
+                    subOnCompleteCommands = listOf(),
+                ),
+                CommandState(
+                    command = MaestroCommand(
+                        tapOnElement = TapOnElementCommand(selector = ElementSelector("id", "login"))
+                    ),
+                    status = CommandStatus.SKIPPED,
+                    subOnStartCommands = listOf(),
+                    subOnCompleteCommands = listOf(),
+                ),
+                CommandState(
+                    command = MaestroCommand(
+                        tapOnElement = TapOnElementCommand(
+                            selector = ElementSelector("id", "login"),
+                            label = "Use JS value: \${output.some_var}",
+                        ),
+                    ),
+                    status = CommandStatus.RUNNING,
+                    subOnStartCommands = listOf(),
+                    subOnCompleteCommands = listOf(),
+                ),
+                CommandState(
+                    command = MaestroCommand(tapOnPointV2Command = TapOnPointV2Command(point = "50%, 25%")),
+                    status = CommandStatus.PENDING,
+                    subOnStartCommands = listOf(),
+                    subOnCompleteCommands = listOf(),
+                ),
+                CommandState(
+                    command = MaestroCommand(tapOnPointV2Command = TapOnPointV2Command(point = "50%, 25%")),
+                    status = CommandStatus.FAILED,
+                    subOnStartCommands = listOf(),
+                    subOnCompleteCommands = listOf(),
+                    insight = Insight("This is an error message", Insight.Level.INFO),
+                ),
+            )
+        )
+    )
 }

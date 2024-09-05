@@ -188,7 +188,7 @@ object TestSuiteStatusView {
 
 }
 
-// Helped launcher to play around with presentation
+// Helper launcher to play around with presentation
 fun main() {
     val uploadDetails = TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
         uploadId = UUID.randomUUID().toString(),
