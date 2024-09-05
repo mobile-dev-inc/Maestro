@@ -2,6 +2,7 @@ package maestro.cli.util
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.File
 
 typealias ChangeLog = List<String>?
 
@@ -24,4 +25,12 @@ object ChangeLogUtils {
 
     fun print(changelog: ChangeLog): String =
         changelog?.let { "\n${it.joinToString("\n")}\n" }.orEmpty()
+}
+
+// Helper launcher to play around with presentation
+fun main() {
+    val changelogFile = File(System.getProperty("user.dir"), "CHANGELOG.md")
+    val content = changelogFile.readText()
+    val changelog = ChangeLogUtils.formatBody(content, "Unreleased")
+    println(ChangeLogUtils.print(changelog))
 }

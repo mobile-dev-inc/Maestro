@@ -1,9 +1,42 @@
 # Changelog
 
+## Unreleased
+
+
+Features:
+- Feature: add `--shard-split` and `--shard-all` options to `maestro test` ([#1955](https://github.com/mobile-dev-inc/maestro/pull/1955) by [Tarek Belkahia](https://github.com/tokou))
+
+  The `--shard` is now deprecated and superseded by `--shard-split`.
+
+- Feature: allow for passing multiple flow files to `maestro test` ([#1995](https://github.com/mobile-dev-inc/maestro/pull/1995) by [Tarek Belkahia](https://github.com/tokou))
+- Feature: add the `optional` argument to all commands ([#1946](https://github.com/mobile-dev-inc/maestro/pull/1946) by [Tarek Belkahia](https://github.com/tokou))
+
+  This new command-level `optional` argument supersededs the (now removed) selector-level `optional` argument. No behavior changes are expected.
+
+  When command with `optional: true` fails, its status is now "warned ⚠️" instead of "skipped ⚪️"
+
+- Feature: add changelog to the update prompt when new Maestro version is available ([#1950](https://github.com/mobile-dev-inc/maestro/pull/1950) by [Tarek Belkahia](https://github.com/tokou))
+- Feature: add back the `--platform` option ([#1954](https://github.com/mobile-dev-inc/maestro/pull/1954) by [Tarek Belkahia](https://github.com/tokou))
+- Feature: expose current flow name as `MAESTRO_FILENAME` env var ([#1945](https://github.com/mobile-dev-inc/maestro/pull/1945) by [Tarek Belkahia](https://github.com/tokou))
+
+Fixes:
+- Fix: visual bug with emojis having slightly different length in `maestro test`'s interactive CLI output ([#2016](https://github.com/mobile-dev-inc/maestro/pull/2016)) 
+- Fix: no tests being run when flowsOrder specified all tests in the workspace ([#2003](https://github.com/mobile-dev-inc/maestro/pull/2003))
+- Fix: using integers from JavaScript outputs causing a deserialization error ([#1788](https://github.com/mobile-dev-inc/maestro/pull/1788) by [Muhammed Furkan Boran](https://github.com/boranfrkn)) 
+- Fix: delete temporary APKs after using them ([#1947](https://github.com/mobile-dev-inc/maestro/pull/1947) by [Tarek Belkahia](https://github.com/tokou))
+- Fix: allow env vars in `setLocation` and `travel` commands ([#1988](https://github.com/mobile-dev-inc/maestro/pull/1988) by [Prasanta Biswas](https://github.com/prasanta-biswas))
+- Fix: error message when specifying `--format` together with `--continuous` #1948 ([#1948](https://github.com/mobile-dev-inc/maestro/pull/1948) by [Tarek Belkahia](https://github.com/tokou))
+
+Chores:
+- Chore: make Maestro build & compile on Java 17 ([#2008](https://github.com/mobile-dev-inc/maestro/pull/2008))
+- Chore: Migrate all Gradle buildscripts to Gradle Kotlin DSL ([#1994](https://github.com/mobile-dev-inc/maestro/pull/1994))
+
 ## 1.38.1
 
-- New commands AI visual testing: assertWithAI and assertNoDefectsWithAI
-- Enable basic support for Maestro uploads while keeping maestro cloud functioning
+Released on 2024-08-30
+
+- New experimental AI-powered commands for screenshot testing: [assertWithAI](https://maestro.mobile.dev/api-reference/commands/assertwithai) and [assertNoDefectsWithAI](https://maestro.mobile.dev/api-reference/commands/assertnodefectswithai) ([#1906](https://github.com/mobile-dev-inc/maestro/pull/1906))
+- Enable basic support for Maestro uploads while keeping Maestro Cloud functioning ([#1970](https://github.com/mobile-dev-inc/maestro/pull/1970))
 
 ## 1.37.9
 
