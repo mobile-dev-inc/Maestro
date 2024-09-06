@@ -32,7 +32,6 @@ data class ElementSelector(
     val rightOf: ElementSelector? = null,
     val containsChild: ElementSelector? = null,
     val containsDescendants: List<ElementSelector>? = null,
-    val optional: Boolean = false,
     val traits: List<ElementTrait>? = null,
     val index: String? = null,
     val enabled: Boolean? = null,
@@ -122,13 +121,7 @@ data class ElementSelector(
             descriptions.add("Child of: ${it.description()}")
         }
 
-        val combined = descriptions.joinToString(", ")
-
-        return if (optional) {
-            "(Optional) $combined"
-        } else {
-            combined
-        }
+        return descriptions.joinToString(", ")
     }
 
 }
