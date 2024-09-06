@@ -6,3 +6,4 @@ appId: com.example.app
       id: ${output.element.id}
     direction: DOWN
     speed: ${output.speed.slow}
+    timeout: ${output.timeout.slow}

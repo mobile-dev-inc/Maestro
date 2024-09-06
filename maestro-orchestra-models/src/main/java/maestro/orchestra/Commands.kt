@@ -101,7 +101,7 @@ data class ScrollUntilVisibleCommand(
     val direction: ScrollDirection,
     val scrollDuration: String = DEFAULT_SCROLL_DURATION,
     val visibilityPercentage: Int,
-    val timeout: Long = DEFAULT_TIMEOUT_IN_MILLIS,
+    val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
     val centerElement: Boolean,
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -113,6 +113,11 @@ data class ScrollUntilVisibleCommand(
         return ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1).toString()
     }
 
+    private fun String.timeoutToMillis(): String {
+        val timeout = if (this.toLong() < 0) { DEFAULT_TIMEOUT_IN_MILLIS.toLong() * 1000L } else this.toLong() * 1000L
+        return timeout.toString()
+    }
+
     override fun description(): String {
         return label ?: "Scrolling $direction until ${selector.description()} is visible."
     }
@@ -120,12 +125,13 @@ data class ScrollUntilVisibleCommand(
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
         return copy(
             selector = selector.evaluateScripts(jsEngine),
-            scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration()
+            scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
+            timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
         )
     }
 
     companion object {
-        const val DEFAULT_TIMEOUT_IN_MILLIS = 20 * 1000L
+        const val DEFAULT_TIMEOUT_IN_MILLIS = "20"
         const val DEFAULT_SCROLL_DURATION = "40"
         const val DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE = 100
         const val DEFAULT_CENTER_ELEMENT = false

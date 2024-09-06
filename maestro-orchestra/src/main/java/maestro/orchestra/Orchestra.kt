@@ -486,7 +486,7 @@ class Orchestra(
     }
 
     private fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
-        val endTime = System.currentTimeMillis() + command.timeout
+        val endTime = System.currentTimeMillis() + command.timeout.toLong()
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
 
