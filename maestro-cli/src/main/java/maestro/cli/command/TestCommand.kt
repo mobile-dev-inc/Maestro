@@ -76,7 +76,7 @@ class TestCommand : Callable<Int> {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
-    @CommandLine.Parameters(description = ["One or more flow files or folders containing flow files"])
+    @CommandLine.Parameters(description = ["One or more flow files or folders containing flow files"], arity = "1..*")
     private var flowFiles: Set<File> = emptySet()
 
     @Option(
