@@ -928,10 +928,7 @@ class Orchestra(
                 else lookupTimeoutMs,
             )
 
-        val (description, filterFunc) = buildFilter(
-            selector,
-            deviceInfo(),
-        )
+        val (description, filterFunc) = buildFilter(selector = selector)
         if (selector.childOf != null) {
             val parentViewHierarchy = findElementViewHierarchy(
                 selector.childOf,
@@ -965,10 +962,7 @@ class Orchestra(
             return maestro.viewHierarchy()
         }
         val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout);
-        val (description, filterFunc) = buildFilter(
-            selector,
-            deviceInfo(),
-        )
+        val (description, filterFunc) = buildFilter(selector = selector)
         return maestro.findElementWithTimeout(
             timeout,
             filterFunc,
@@ -984,7 +978,6 @@ class Orchestra(
 
     private fun buildFilter(
         selector: ElementSelector,
-        deviceInfo: DeviceInfo,
     ): FilterWithDescription {
         val filters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
@@ -1018,25 +1011,25 @@ class Orchestra(
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                filters += Filters.below(buildFilter(it, deviceInfo).filterFunc)
+                filters += Filters.below(buildFilter(it).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                filters += Filters.above(buildFilter(it, deviceInfo).filterFunc)
+                filters += Filters.above(buildFilter(it).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                filters += Filters.leftOf(buildFilter(it, deviceInfo).filterFunc)
+                filters += Filters.leftOf(buildFilter(it).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                filters += Filters.rightOf(buildFilter(it, deviceInfo).filterFunc)
+                filters += Filters.rightOf(buildFilter(it).filterFunc)
             }
 
         selector.containsChild
@@ -1049,12 +1042,7 @@ class Orchestra(
             ?.let { descendantSelectors ->
                 val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
                 descriptions += "Contains descendants: $descendantDescriptions"
-                filters += Filters.containsDescendants(descendantSelectors.map {
-                    buildFilter(
-                        it,
-                        deviceInfo
-                    ).filterFunc
-                })
+                filters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
         selector.traits
