@@ -26,7 +26,10 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
-      - name: Build xctest-runner
+      - name: Build Android test runner
+        run: ./gradlew :maestro-android:assembleDebug :maestro-android:assembleDebugAndroidTest
+
+      - name: Build iOS test runner
         run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
 
       - name: Build Maestro CLI
