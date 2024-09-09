@@ -42,17 +42,6 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
 ) : Driver {
 
-    private val deviceInfo by lazy {
-        iosDevice.deviceInfo()
-    }
-
-    private val widthPoints by lazy {
-        deviceInfo.widthPoints
-    }
-    private val heightPoints by lazy {
-        deviceInfo.heightPoints
-    }
-
     private var appId: String? = null
     private var proxySet = false
 
@@ -73,15 +62,7 @@ class IOSDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
-        return runDeviceCall {
-            DeviceInfo(
-                platform = Platform.IOS,
-                widthPixels = deviceInfo.widthPixels,
-                heightPixels = deviceInfo.heightPixels,
-                widthGrid = deviceInfo.widthPoints,
-                heightGrid = deviceInfo.heightPoints,
-            )
-        }
+        return runDeviceCall { iosDevice.deviceInfo().toCommonDeviceInfo() }
     }
 
     override fun launchApp(
@@ -200,9 +181,13 @@ class IOSDriver(
     }
 
     override fun scrollVertical() {
+        val deviceInfo = deviceInfo()
+        val width = deviceInfo.widthGrid
+        val height = deviceInfo.heightGrid
+
         swipe(
-            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-            end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.1)),
+            start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
+            end = Point(0.5.asPercentOf(width), 0.1.asPercentOf(height)),
             durationMs = 333,
         )
     }
@@ -211,32 +196,14 @@ class IOSDriver(
         return runDeviceCall { iosDevice.isKeyboardVisible() }
     }
 
-    private fun validate(start: Point, end: Point): Pair<Point, Point> {
-        val screenWidth = widthPoints
-        val screenHeight = heightPoints
-
-        val validatedStart = Point(
-            x = start.x.coerceIn(0, screenWidth),
-            y = start.y.coerceIn(0, screenHeight)
-        )
-
-        val validatedEnd = Point(
-            x = end.x.coerceIn(0, screenWidth),
-            y = end.y.coerceIn(0, screenHeight)
-        )
-
-        return Pair(validatedStart, validatedEnd)
-    }
-
     override fun swipe(
         start: Point,
         end: Point,
         durationMs: Long
     ) {
-        val validatedPoints = validate(start, end)
-
-        val startPoint = validatedPoints.first
-        val endPoint = validatedPoints.second
+        val deviceInfo = deviceInfo()
+        val startPoint = start.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
+        val endPoint = end.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
 
         runDeviceCall {
             waitForAppToSettle(null, null)
@@ -251,48 +218,55 @@ class IOSDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
+        val deviceInfo = deviceInfo()
+        val width = deviceInfo.widthGrid
+        val height = deviceInfo.heightGrid
+
         val startPoint: Point
         val endPoint: Point
 
         when (swipeDirection) {
             SwipeDirection.UP -> {
                 startPoint = Point(
-                    x = widthPercentToPoint(0.5),
-                    y = heightPercentToPoint(0.9),
+                    x = 0.5.asPercentOf(width),
+                    y = 0.9.asPercentOf(height),
                 )
                 endPoint = Point(
-                    x = widthPercentToPoint(0.5),
-                    y = heightPercentToPoint(0.1),
+                    x = 0.5.asPercentOf(width),
+                    y = 0.1.asPercentOf(height),
                 )
             }
+
             SwipeDirection.DOWN -> {
                 startPoint = Point(
-                    x = widthPercentToPoint(0.5),
-                    y = heightPercentToPoint(0.2),
+                    x = 0.5.asPercentOf(width),
+                    y = 0.2.asPercentOf(height),
                 )
                 endPoint = Point(
-                    x = widthPercentToPoint(0.5),
-                    y = heightPercentToPoint(0.9),
+                    x = 0.5.asPercentOf(width),
+                    y = 0.9.asPercentOf(height),
                 )
             }
+
             SwipeDirection.RIGHT -> {
                 startPoint = Point(
-                    x = widthPercentToPoint(0.1),
-                    y = heightPercentToPoint(0.5),
+                    x = 0.1.asPercentOf(width),
+                    y = 0.5.asPercentOf(height),
                 )
                 endPoint = Point(
-                    x = widthPercentToPoint(0.9),
-                    y = heightPercentToPoint(0.5),
+                    x = 0.9.asPercentOf(width),
+                    y = 0.5.asPercentOf(height),
                 )
             }
+
             SwipeDirection.LEFT -> {
                 startPoint = Point(
-                    x = widthPercentToPoint(0.9),
-                    y = heightPercentToPoint(0.5),
+                    x = 0.9.asPercentOf(width),
+                    y = 0.5.asPercentOf(height),
                 )
                 endPoint = Point(
-                    x = widthPercentToPoint(0.1),
-                    y = heightPercentToPoint(0.5),
+                    x = 0.1.asPercentOf(width),
+                    y = 0.5.asPercentOf(height),
                 )
             }
         }
@@ -300,21 +274,28 @@ class IOSDriver(
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+        val deviceInfo = deviceInfo()
+        val width = deviceInfo.widthGrid
+        val height = deviceInfo.heightGrid
+
         when (direction) {
             SwipeDirection.UP -> {
-                val end = Point(x = elementPoint.x, y = heightPercentToPoint(0.1))
+                val end = Point(x = elementPoint.x, y = 0.1.asPercentOf(height))
                 swipe(elementPoint, end, durationMs)
             }
+
             SwipeDirection.DOWN -> {
-                val end = Point(x = elementPoint.x, y = heightPercentToPoint(0.9))
+                val end = Point(x = elementPoint.x, y = 0.9.asPercentOf(height))
                 swipe(elementPoint, end, durationMs)
             }
+
             SwipeDirection.RIGHT -> {
-                val end = Point(x = widthPercentToPoint(0.9), y = elementPoint.y)
+                val end = Point(x = (0.9).asPercentOf(width), y = elementPoint.y)
                 swipe(elementPoint, end, durationMs)
             }
+
             SwipeDirection.LEFT -> {
-                val end = Point(x = widthPercentToPoint(0.1), y = elementPoint.y)
+                val end = Point(x = (0.1).asPercentOf(width), y = elementPoint.y)
                 swipe(elementPoint, end, durationMs)
             }
         }
@@ -323,21 +304,25 @@ class IOSDriver(
     override fun backPress() {}
 
     override fun hideKeyboard() {
-        dismissKeyboardIntroduction()
+        val deviceInfo = deviceInfo()
+        val width = deviceInfo.widthGrid
+        val height = deviceInfo.heightGrid
+
+        dismissKeyboardIntroduction(heightPoints = deviceInfo.heightGrid)
 
         if (isKeyboardHidden()) return
 
         swipe(
-            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-            end = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.47)),
+            start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
+            end = Point(0.5.asPercentOf(width), 0.47.asPercentOf(height)),
             durationMs = 50,
         )
 
         if (isKeyboardHidden()) return
 
         swipe(
-            start = Point(widthPercentToPoint(0.5), heightPercentToPoint(0.5)),
-            end = Point(widthPercentToPoint(0.47), heightPercentToPoint(0.5)),
+            start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
+            end = Point(0.47.asPercentOf(width), 0.5.asPercentOf(height)),
             durationMs = 50,
         )
 
@@ -353,8 +338,9 @@ class IOSDriver(
         return element == null
     }
 
-    private fun dismissKeyboardIntroduction() {
-        val fastTypingInstruction = "Speed up your typing by sliding your finger across the letters to compose a word.*".toRegex()
+    private fun dismissKeyboardIntroduction(heightPoints: Int) {
+        val fastTypingInstruction =
+            "Speed up your typing by sliding your finger across the letters to compose a word.*".toRegex()
         val instructionTextFilter = Filters.textMatches(fastTypingInstruction)
         val instructionText = MaestroTimer.withTimeout(2000) {
             instructionTextFilter(contentDescriptor().aggregate()).firstOrNull()
@@ -472,14 +458,6 @@ class IOSDriver(
         return runDeviceCall { iosDevice.isScreenStatic() }
     }
 
-    private fun heightPercentToPoint(percent: Double): Int {
-        return (percent * heightPoints).toInt()
-    }
-
-    private fun widthPercentToPoint(percent: Double): Int {
-        return (percent * widthPoints).toInt()
-    }
-
     private fun awaitLaunch() {
         val startTime = System.currentTimeMillis()
 
@@ -528,4 +506,15 @@ class IOSDriver(
 
         private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 3000
     }
+}
+
+private fun Double.asPercentOf(total: Int): Int {
+    return (this * total).toInt()
+}
+
+private fun Point.coerceIn(maxWidth: Int, maxHeight: Int): Point {
+    return Point(
+        x = x.coerceIn(0, maxWidth),
+        y = y.coerceIn(0, maxHeight),
+    )
 }

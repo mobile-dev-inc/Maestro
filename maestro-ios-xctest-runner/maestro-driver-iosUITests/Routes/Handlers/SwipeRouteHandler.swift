@@ -27,8 +27,7 @@ struct SwipeRouteHandler: HTTPHandler {
     }
 
     func swipePrivateAPI(start: CGPoint, end: CGPoint, duration: Double) async throws {
-
-        logger.info("Swiping from \(start.debugDescription) to \(end.debugDescription) with \(duration) duration")
+        logger.info("Swipe (v1) from \(start.debugDescription) to \(end.debugDescription) with \(duration) duration")
 
         let eventRecord = EventRecord(orientation: .portrait)
         _ = eventRecord.addSwipeEvent(start: start, end: end, duration: duration)

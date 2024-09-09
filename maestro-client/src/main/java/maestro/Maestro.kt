@@ -43,25 +43,20 @@ class Maestro(
 
     private val sessionId = UUID.randomUUID()
 
-    private val cachedDeviceInfo by lazy {
-        fetchDeviceInfo()
+    val deviceName: String
+        get() = driver.name()
+
+    val cachedDeviceInfo by lazy {
+        LOGGER.info("Getting device info")
+        val deviceInfo = driver.deviceInfo()
+        LOGGER.info("Got device info: $deviceInfo")
+        deviceInfo
     }
+
+    @Deprecated("This function should be removed and its usages refactored. See issue #2031")
+    fun deviceInfo() = driver.deviceInfo()
 
     private var screenRecordingInProgress = false
-
-    fun deviceName(): String {
-        return driver.name()
-    }
-
-    fun deviceInfo(): DeviceInfo {
-        return cachedDeviceInfo
-    }
-
-    private fun fetchDeviceInfo(): DeviceInfo {
-        LOGGER.info("Getting device info")
-
-        return driver.deviceInfo()
-    }
 
     fun launchApp(
         appId: String,
@@ -129,20 +124,22 @@ class Maestro(
         endRelative: String? = null,
         duration: Long
     ) {
+        val deviceInfo = deviceInfo()
+
         when {
             swipeDirection != null -> driver.swipe(swipeDirection, duration)
             startPoint != null && endPoint != null -> driver.swipe(startPoint, endPoint, duration)
             startRelative != null && endRelative != null -> {
                 val startPoints = startRelative.replace("%", "")
                     .split(",").map { it.trim().toInt() }
-                val startX = cachedDeviceInfo.widthGrid * startPoints[0] / 100
-                val startY = cachedDeviceInfo.heightGrid * startPoints[1] / 100
+                val startX = deviceInfo.widthGrid * startPoints[0] / 100
+                val startY = deviceInfo.heightGrid * startPoints[1] / 100
                 val start = Point(startX, startY)
 
                 val endPoints = endRelative.replace("%", "")
                     .split(",").map { it.trim().toInt() }
-                val endX = cachedDeviceInfo.widthGrid * endPoints[0] / 100
-                val endY = cachedDeviceInfo.heightGrid * endPoints[1] / 100
+                val endX = deviceInfo.widthGrid * endPoints[0] / 100
+                val endY = deviceInfo.heightGrid * endPoints[1] / 100
                 val end = Point(endX, endY)
 
                 driver.swipe(start, end, duration)
@@ -160,8 +157,10 @@ class Maestro(
     }
 
     fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long) {
+        val deviceInfo = deviceInfo()
+
         LOGGER.info("Swiping ${swipeDirection.name} from center")
-        val center = Point(x = cachedDeviceInfo.widthGrid / 2, y = cachedDeviceInfo.heightGrid / 2)
+        val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
         driver.swipe(center, swipeDirection, durationMs)
         waitForAppToSettle()
     }
@@ -235,8 +234,9 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        val x = cachedDeviceInfo.widthGrid * percentX / 100
-        val y = cachedDeviceInfo.heightGrid * percentY / 100
+        val deviceInfo = driver.deviceInfo()
+        val x = deviceInfo.widthGrid * percentX / 100
+        val y = deviceInfo.heightGrid * percentY / 100
         tap(
             x = x,
             y = y,
@@ -574,6 +574,7 @@ class Maestro(
     }
 
     fun waitForAnimationToEnd(timeout: Long?) {
+        @Suppress("NAME_SHADOWING")
         val timeout = timeout ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")
 

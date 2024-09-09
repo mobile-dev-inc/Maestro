@@ -131,6 +131,7 @@ class LocalXCTestInstaller(
 
         val checkSuccessful = try {
             okHttpClient.newCall(request).execute().use {
+                logger.info("[Done] Perform XCUITest driver status check on $deviceId")
                 it.isSuccessful
             }
         } catch (ignore: IOException) {

@@ -26,3 +26,13 @@ data class DeviceInfo(
     val widthGrid: Int,
     val heightGrid: Int,
 )
+
+fun xcuitest.api.DeviceInfo.toCommonDeviceInfo(): DeviceInfo {
+    return DeviceInfo(
+        platform = Platform.IOS,
+        widthPixels = widthPixels,
+        heightPixels = heightPixels,
+        widthGrid = widthPoints,
+        heightGrid = heightPoints,
+    )
+}

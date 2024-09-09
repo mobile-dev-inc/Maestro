@@ -94,7 +94,6 @@ class Orchestra(
     private var copiedText: String? = null
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
-    private var deviceInfo: DeviceInfo? = null
 
     private var screenRecording: ScreenRecording? = null
 
@@ -224,7 +223,7 @@ class Orchestra(
         }
         val shouldUseGraalJs =
             config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
-        val platform = maestro.deviceInfo().platform.toString().lowercase()
+        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         jsEngine = if (shouldUseGraalJs) {
             httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
         } else {
@@ -591,7 +590,7 @@ class Orchestra(
         }
 
         condition.platform?.let {
-            if (it != maestro.deviceInfo().platform) {
+            if (it != maestro.cachedDeviceInfo.platform) {
                 return false
             }
         }
@@ -972,9 +971,6 @@ class Orchestra(
             parentViewHierarchy.root,
         )
     }
-
-    private fun deviceInfo() = deviceInfo
-        ?: maestro.deviceInfo().also { deviceInfo = it }
 
     private fun buildFilter(
         selector: ElementSelector,

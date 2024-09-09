@@ -23,7 +23,19 @@ struct SwipeRouteHandlerV2: HTTPHandler {
     }
 
     func swipePrivateAPI(_ request: SwipeRequest) async throws {
-        let description = "Swipe from \(request.start) to \(request.end) with \(request.duration) duration"
+        let (width, height) = ScreenSizeHelper.physicalScreenSize()
+        let startPoint = ScreenSizeHelper.orientationAwarePoint(
+            width: width,
+            height: height,
+            point: request.start
+        )
+        let endPoint = ScreenSizeHelper.orientationAwarePoint(
+            width: width,
+            height: height,
+            point: request.end
+        )
+        
+        let description = "Swipe (v2) from \(request.start) to \(request.end) with \(request.duration) duration"
         logger.info("\(description)")
 
         let runningAppId = RunningApp.getForegroundAppId(request.appIds ?? [])
@@ -31,9 +43,10 @@ struct SwipeRouteHandlerV2: HTTPHandler {
         try await eventTarget.dispatchEvent(description: description) {
             EventRecord(orientation: .portrait)
                 .addSwipeEvent(
-                    start: request.start,
-                    end: request.end,
-                    duration: request.duration)
+                    start: startPoint,
+                    end: endPoint,
+                    duration: request.duration
+                )
         }
     }
 }
