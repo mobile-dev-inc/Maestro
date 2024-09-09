@@ -172,7 +172,7 @@ object Prediction {
                 |* You must provide result as a valid JSON object, matching this structure:
                 |
                 |  {
-                |      "defect": [
+                |      "defects": [
                 |          {
                 |              "category": "assertion",
                 |              "reasoning": "<reasoning, string>"
