@@ -39,7 +39,7 @@ for workspace_dir in ./workspaces/*; do
 	    _h3 "[$app_name] $line"
 	done < pipe &
 
-	2>&1 maestro test --include-tags passing --exclude-tags ios "$workspace_dir" > pipe || WORKSPACE_PASS=false
+	2>&1 maestro test --include-tags passing --exclude-tags ios,ai "$workspace_dir" > pipe || WORKSPACE_PASS=false
 
 	if [ "$WORKSPACE_PASS" = "false" ]; then
         _h2 "[$app_name] FAIL! Expected to pass, but it failed instead"
@@ -62,7 +62,7 @@ for workspace_dir in ./workspaces/*; do
 	    _h3 "[$app_name] $line"
 	done < pipe &
 
-	maestro test --include-tags failing --exclude-tags ios "$workspace_dir" > pipe && WORKSPACE_PASS=false
+	maestro test --include-tags failing --exclude-tags ios,ai "$workspace_dir" > pipe && WORKSPACE_PASS=false
 
 	if [ "$WORKSPACE_PASS" = "false" ]; then
 		_h2 "[$app_name] FAIL! Expected to fail, but it passed instead"

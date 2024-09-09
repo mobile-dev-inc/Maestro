@@ -188,27 +188,28 @@ class Orchestra(
                     )
                 }
                 Insights.onInsightsUpdated(callback)
+
                 try {
                     try {
                         executeCommand(evaluatedCommand, config)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional = command.asCommand()?.optional == true
-                        if (isOptional) throw CommandWarned
+                        if (isOptional) throw CommandWarned(e.message)
                         else throw e
                     }
                 } catch (ignored: CommandWarned) {
-                    // Swallow exception
+                    // Swallow exception, but add a warning as an insight
+                    Insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
                     onCommandWarned(index, command)
                 } catch (ignored: CommandSkipped) {
                     // Swallow exception
                     onCommandSkipped(index, command)
                 } catch (e: Throwable) {
-                    when (onCommandFailed(index, command, e)) {
+                    val errorResolution = onCommandFailed(index, command, e)
+                    when (errorResolution) {
                         ErrorResolution.FAIL -> return false
-                        ErrorResolution.CONTINUE -> {
-                            // Do nothing
-                        }
+                        ErrorResolution.CONTINUE -> {} // Do nothing
                     }
                 }
                 Insights.unregisterListener(callback)
@@ -362,12 +363,10 @@ class Orchestra(
         if (defects.isNotEmpty()) {
             onCommandGeneratedOutput(command, defects, imageData)
 
-            if (command.optional) throw CommandWarned
-
             val word = if (defects.size == 1) "defect" else "defects"
             throw MaestroException.AssertionFailure(
-                "Found ${defects.size} possible $word. See the report after the test completes to learn more.",
-                maestro.viewHierarchy().root,
+                message = "Found ${defects.size} possible $word. See the report after the test completes to learn more.",
+                hierarchyRoot = maestro.viewHierarchy().root,
             )
         }
 
@@ -392,9 +391,6 @@ class Orchestra(
 
         if (defect != null) {
             onCommandGeneratedOutput(command, listOf(defect), imageData)
-
-            if (command.optional) throw CommandWarned
-
             throw MaestroException.AssertionFailure(
                 message = """
                     |Assertion is false: ${command.assertion}
@@ -1201,7 +1197,7 @@ class Orchestra(
 
     private object CommandSkipped : Exception()
 
-    private object CommandWarned : Exception()
+    class CommandWarned(override val message: String) : Exception(message)
 
     data class CommandMetadata(
         val numberOfRuns: Int? = null,

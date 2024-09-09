@@ -1,0 +1,11 @@
+appId: com.example.example
+tags:
+    - android
+    - failing
+    - ai
+---
+- launchApp:
+    clearState: true
+- assertWithAI:
+    optional: true
+    assertion: A login screen is visible

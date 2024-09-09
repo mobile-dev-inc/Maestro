@@ -29,7 +29,7 @@ tags:
     id: non-existent-id
     optional: true
 - launchApp:
-    appId: non.existend.app.id
+    appId: non.existent.app.id
     optional: true
 - tapOn:
     id: non-existent-id
