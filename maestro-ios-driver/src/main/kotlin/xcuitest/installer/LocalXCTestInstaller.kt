@@ -2,11 +2,9 @@ package xcuitest.installer
 
 import logger.Logger
 import maestro.utils.MaestroTimer
-import maestro.utils.SocketUtils
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import okio.buffer
 import okio.sink
 import okio.source
@@ -22,18 +20,22 @@ class LocalXCTestInstaller(
     private val logger: Logger,
     private val deviceId: String,
     private val host: String = "[::1]",
-    private val enableXCTestOutputFileLogging: Boolean = false,
-    defaultPort: Int? = null
+    private val enableXCTestOutputFileLogging: Boolean,
+    defaultPort: Int,
 ) : XCTestInstaller {
-    // Set this flag to allow using a test runner started from Xcode
-    // When this flag is set, maestro will not install, run, stop or remove the xctest runner.
-    // Make sure to launch the test runner from Xcode whenever maestro needs it.
+
+    /**
+     * If true, allow for using a xctest runner started from Xcode.
+     *
+     * When this flag is set, maestro will not install, run, stop or remove the xctest runner.
+     * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
+     */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
     private val tempDir = "${System.getenv("TMPDIR")}/$deviceId"
 
     private var xcTestProcess: Process? = null
 
-    private val port = defaultPort ?: SocketUtils.nextFreePort(9800, 9900)
+    private val port = defaultPort
 
     override fun uninstall() {
         fun stop() {
@@ -96,26 +98,16 @@ class LocalXCTestInstaller(
     }
 
     override fun isChannelAlive(): Boolean {
-        return try {
-            XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId) &&
-                xcTestDriverStatusCheck().use { it.isSuccessful }
-        } catch (ignore: IOException) {
-            false
-        }
+        val appAlive = XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
+        return appAlive && xcTestDriverStatusCheck()
     }
 
     private fun ensureOpen(): Boolean {
-        return MaestroTimer.retryUntilTrue(10_000, 200) {
-            try {
-                XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId) &&
-                    xcTestDriverStatusCheck().use { it.isSuccessful }
-            } catch (ignore: IOException) {
-                false
-            }
-        }
+        return MaestroTimer.retryUntilTrue(10_000, 200) { isChannelAlive() }
     }
 
-    private fun xcTestDriverStatusCheck(): Response {
+    private fun xcTestDriverStatusCheck(): Boolean {
+        logger.info("[Start] Perform XCUITest driver status check on $deviceId")
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
@@ -136,7 +128,17 @@ class LocalXCTestInstaller(
             .connectTimeout(40, TimeUnit.SECONDS)
             .readTimeout(100, TimeUnit.SECONDS)
             .build()
-        return okHttpClient.newCall(request).execute()
+
+        val checkSuccessful = try {
+            okHttpClient.newCall(request).execute().use {
+                it.isSuccessful
+            }
+        } catch (ignore: IOException) {
+            logger.info("[Failed] Perform XCUITest driver status check on $deviceId, exception: $ignore")
+            false
+        }
+
+        return checkSuccessful
     }
 
     private fun startXCTestRunner() {
@@ -166,14 +168,14 @@ class LocalXCTestInstaller(
             logger.info("[Done] Writing maestro-driver-ios app")
         }
 
-        logger.info("[Start] Running XcUITest with xcode build command")
+        logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
         xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
-            deviceId,
-            xctestRunFile.absolutePath,
-            port,
-            enableXCTestOutputFileLogging,
+            deviceId = deviceId,
+            xcTestRunFilePath = xctestRunFile.absolutePath,
+            port = port,
+            enableXCTestOutputFileLogging = enableXCTestOutputFileLogging,
         )
-        logger.info("[Done] Running XcUITest with xcode build command")
+        logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
     }
 
     override fun close() {
