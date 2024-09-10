@@ -118,22 +118,20 @@ fun main(args: Array<String>) {
         .setExecutionExceptionHandler { ex, cmd, cmdParseResult ->
             runCatching { ErrorReporter.report(ex, cmdParseResult) }
 
-            val message = if (ex is CliError) {
-                ex.message
-            } else {
-                ex.stackTraceToString()
-            }
-
-            println()
-
             // make errors red
             cmd.colorScheme = CommandLine.Help.ColorScheme.Builder()
                 .errors(CommandLine.Help.Ansi.Style.fg_red)
                 .build()
 
             cmd.err.println(
-                cmd.colorScheme.errorText(message)
+                cmd.colorScheme.errorText(ex.message)
             )
+
+            // Print stack trace
+            if (ex !is CliError) {
+                cmd.err.println("\nThe stack trace was:")
+                cmd.err.println(ex.stackTraceToString())
+            }
 
             1
         }

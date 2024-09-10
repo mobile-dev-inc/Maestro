@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -42,10 +43,12 @@ import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.isSingleFile
 import okio.sink
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -56,10 +59,6 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
-import kotlin.system.exitProcess
-import kotlinx.coroutines.withContext
-import maestro.utils.isSingleFile
-import maestro.orchestra.util.Env.withDefaultEnvVars
 
 @CommandLine.Command(
     name = "test",
@@ -211,83 +210,76 @@ class TestCommand : Callable<Int> {
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
 
-        runCatching {
-            val availableDevices = DeviceService.listConnectedDevices().map { it.instanceId }.toSet()
-            val deviceIds = getPassedOptionsDeviceIds()
-                .filter { device ->
-                    if (device !in availableDevices) {
-                        throw CliError("Device $device was requested, but it is not connected.")
-                    } else {
-                        true
-                    }
+        val availableDevices = DeviceService.listConnectedDevices().map { it.instanceId }.toSet()
+        val deviceIds = getPassedOptionsDeviceIds()
+            .filter { device ->
+                if (device !in availableDevices) {
+                    throw CliError("Device $device was requested, but it is not connected.")
+                } else {
+                    true
                 }
-                .ifEmpty { availableDevices }
-                .toList()
+            }
+            .ifEmpty { availableDevices }
+            .toList()
 
-            val missingDevices = requestedShards - deviceIds.size
-            if (missingDevices > 0) {
-                PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
-                throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
+        val missingDevices = requestedShards - deviceIds.size
+        if (missingDevices > 0) {
+            PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
+            throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
+        }
+
+        val effectiveShards = when {
+
+            onlySequenceFlows -> 1
+
+            shardAll == null -> requestedShards.coerceAtMost(plan.flowsToRun.size)
+
+            shardSplit == null -> requestedShards.coerceAtMost(deviceIds.size)
+
+            else -> 1
+        }
+
+        val warning = "Requested $requestedShards shards, " +
+                "but it cannot be higher than the number of flows (${plan.flowsToRun.size}). " +
+                "Will use $effectiveShards shards instead."
+        if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
+
+        val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
+
+        val flowCount = if (onlySequenceFlows) plan.sequence.flows.size else plan.flowsToRun.size
+        val message = when {
+            shardAll != null -> "Will run $effectiveShards shards, with all $flowCount flows in each shard"
+            shardSplit != null -> {
+                val flowsPerShard = (flowCount.toFloat() / effectiveShards).roundToInt()
+                val isApprox = flowCount % effectiveShards != 0
+                val prefix = if (isApprox) "approx. " else ""
+                "Will split $flowCount flows across $effectiveShards shards (${prefix}$flowsPerShard flows per shard)"
             }
 
-            val effectiveShards = when {
+            else -> null
+        }
+        message?.let { PrintUtils.info(it) }
 
-                onlySequenceFlows -> 1
-
-                shardAll == null -> requestedShards.coerceAtMost(plan.flowsToRun.size)
-
-                shardSplit == null -> requestedShards.coerceAtMost(deviceIds.size)
-
-                else -> 1
+        val results = (0 until effectiveShards).map { shardIndex ->
+            async(Dispatchers.IO + CoroutineName("shard-$shardIndex")) {
+                runShardSuite(
+                    effectiveShards = effectiveShards,
+                    deviceIds = deviceIds,
+                    shardIndex = shardIndex,
+                    chunkPlans = chunkPlans,
+                    debugOutputPath = debugOutputPath,
+                )
             }
+        }.awaitAll()
 
-            val warning = "Requested $requestedShards shards, " +
-                    "but it cannot be higher than the number of flows (${plan.flowsToRun.size}). " +
-                    "Will use $effectiveShards shards instead."
-            if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
+        val passed = results.sumOf { it.first ?: 0 }
+        val total = results.sumOf { it.second ?: 0 }
+        val suites = results.mapNotNull { it.third }
 
-            val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
+        suites.mergeSummaries()?.saveReport()
 
-            val flowCount = if (onlySequenceFlows) plan.sequence.flows.size else plan.flowsToRun.size
-            val message = when {
-                shardAll != null -> "Will run $effectiveShards shards, with all $flowCount flows in each shard"
-                shardSplit != null -> {
-                    val flowsPerShard = (flowCount.toFloat() / effectiveShards).roundToInt()
-                    val isApprox = flowCount % effectiveShards != 0
-                    val prefix = if (isApprox) "approx. " else ""
-                    "Will split $flowCount flows across $effectiveShards shards (${prefix}$flowsPerShard flows per shard)"
-                }
-
-                else -> null
-            }
-            message?.let { PrintUtils.info(it) }
-
-            val results = (0 until effectiveShards).map { shardIndex ->
-                async(Dispatchers.IO) {
-                    runShardSuite(
-                        effectiveShards = effectiveShards,
-                        deviceIds = deviceIds,
-                        shardIndex = shardIndex,
-                        chunkPlans = chunkPlans,
-                        debugOutputPath = debugOutputPath,
-                    )
-                }
-            }.awaitAll()
-
-            val passed = results.sumOf { it.first ?: 0 }
-            val total = results.sumOf { it.second ?: 0 }
-            val suites = results.mapNotNull { it.third }
-
-            suites.mergeSummaries()?.saveReport()
-
-            if (effectiveShards > 1) printShardsMessage(passed, total, suites)
-            if (passed == total) 0 else 1
-        }.onFailure {
-            PrintUtils.message("❌ Error: ${it.message}")
-            it.printStackTrace()
-
-            exitProcess(1)
-        }.getOrDefault(0)
+        if (effectiveShards > 1) printShardsMessage(passed, total, suites)
+        if (passed == total) 0 else 1
     }
 
     private suspend fun runShardSuite(
@@ -296,13 +288,13 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
-    ): Triple<Int?, Int?, TestExecutionSummary?> = withContext(Dispatchers.IO) {
+    ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
 
         logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort")
 
-        return@withContext MaestroSessionManager.newSession(
+        return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = driverHostPort,
