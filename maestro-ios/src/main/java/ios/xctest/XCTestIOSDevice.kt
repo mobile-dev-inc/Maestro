@@ -6,11 +6,11 @@ import ios.IOSDevice
 import ios.IOSDeviceErrors
 import ios.IOSScreenRecording
 import xcuitest.api.DeviceInfo
-import logger.Logger
 import maestro.utils.DepthTracker
 import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.buffer
+import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
 import java.util.UUID
@@ -18,12 +18,13 @@ import java.util.UUID
 class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
-    private val logger: Logger,
     private val getInstalledApps: () -> Set<String>,
 ) : IOSDevice {
+    private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
-        client.restartXCTestRunnerService()
+        logger.trace("Opening a connection")
+        client.restartXCTestRunner()
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -39,7 +40,7 @@ class XCTestIOSDevice(
             val installedApps = getInstalledApps()
             val viewHierarchy = client.viewHierarchy(installedApps, excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
-            logger.info("Depth received: ${viewHierarchy.depth}")
+            logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
         }
     }

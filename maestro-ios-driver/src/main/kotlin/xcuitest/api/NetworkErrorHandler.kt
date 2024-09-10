@@ -1,10 +1,10 @@
 package xcuitest.api
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import logger.Logger
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
+import org.slf4j.LoggerFactory
 import util.PrintUtils
 import xcuitest.XCTestClient
 import xcuitest.api.NetworkException.Companion.toUserNetworkException
@@ -12,8 +12,8 @@ import xcuitest.installer.XCTestInstaller
 
 class NetworkErrorHandler(
     private val xcTestInstaller: XCTestInstaller,
-    private val logger: Logger
 ) {
+    private val logger = LoggerFactory.getLogger(NetworkErrorHandler::class.java)
 
     private var retry = 0
 

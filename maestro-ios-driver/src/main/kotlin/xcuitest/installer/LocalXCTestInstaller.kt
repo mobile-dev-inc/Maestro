@@ -1,6 +1,5 @@
 package xcuitest.installer
 
-import logger.Logger
 import maestro.utils.MaestroTimer
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -10,6 +9,7 @@ import okio.sink
 import okio.source
 import org.apache.commons.io.FileUtils
 import org.rauschig.jarchivelib.ArchiverFactory
+import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import java.io.File
@@ -17,12 +17,13 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class LocalXCTestInstaller(
-    private val logger: Logger,
     private val deviceId: String,
     private val host: String = "[::1]",
     private val enableXCTestOutputFileLogging: Boolean,
-    defaultPort: Int,
+    private val defaultPort: Int,
 ) : XCTestInstaller {
+
+    private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
 
     /**
      * If true, allow for using a xctest runner started from Xcode.
@@ -35,41 +36,49 @@ class LocalXCTestInstaller(
 
     private var xcTestProcess: Process? = null
 
-    private val port = defaultPort
+    override fun uninstall(): Boolean {
+        // FIXME(bartekpacia): This method probably doesn't have to care about killing the XCTest Runner process.
+        //  Just uninstalling should suffice. It automatically kills the process.
 
-    override fun uninstall() {
-        fun stop() {
-            logger.info("[Start] Stop XCUITest runner")
+        if (useXcodeTestRunner) {
+            logger.trace("Skipping uninstalling XCTest Runner as USE_XCODE_TEST_RUNNER is set")
+            return false
+        }
+
+        fun killXCTestRunnerProcess() {
+            logger.trace("Will attempt to stop all alive XCTest Runner processes before uninstalling")
+
             if (xcTestProcess?.isAlive == true) {
+                logger.trace("XCTest Runner process started by us is alive, killing it")
                 xcTestProcess?.destroy()
             }
             xcTestProcess = null
 
             val pid = XCRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
             if (pid != null) {
+                logger.trace("Killing XCTest Runner process with the `kill` command")
                 ProcessBuilder(listOf("kill", pid.toString()))
                     .start()
                     .waitFor()
             }
-            logger.info("[Done] Stop XCUITest runner")
+
+            logger.trace("All XCTest Runner processes were stopped")
         }
 
-        if (useXcodeTestRunner) {
-            return
-        }
+        killXCTestRunnerProcess()
 
-        stop()
-
-        logger.info("[Start] Uninstall XCUITest runner")
+        logger.trace("Uninstalling XCTest Runner from device $deviceId")
         XCRunnerCLIUtils.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
-        logger.info("[Done] Uninstall XCUITest runner")
+        return true
     }
 
     override fun start(): XCTestClient? {
         if (useXcodeTestRunner) {
+            logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
+
             repeat(20) {
                 if (ensureOpen()) {
-                    return XCTestClient(host, port)
+                    return XCTestClient(host, defaultPort)
                 }
                 logger.info("==> Start XCTest runner to continue flow")
                 Thread.sleep(500)
@@ -87,7 +96,7 @@ class LocalXCTestInstaller(
             logger.info("[Start] Ensure XCUITest runner is running on $deviceId")
             if (ensureOpen()) {
                 logger.info("[Done] Ensure XCUITest runner is running on $deviceId")
-                return XCTestClient(host, port)
+                return XCTestClient(host, defaultPort)
             } else {
                 uninstall()
                 logger.info("[Failed] Ensure XCUITest runner is running on $deviceId")
@@ -113,7 +122,7 @@ class LocalXCTestInstaller(
                 .scheme("http")
                 .host("[::1]")
                 .addPathSegment(pathSegment)
-                .port(port)
+                .port(defaultPort)
         }
 
         val url = xctestAPIBuilder("status")
@@ -173,7 +182,7 @@ class LocalXCTestInstaller(
         xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
             deviceId = deviceId,
             xcTestRunFilePath = xctestRunFile.absolutePath,
-            port = port,
+            port = defaultPort,
             enableXCTestOutputFileLogging = enableXCTestOutputFileLogging,
         )
         logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")

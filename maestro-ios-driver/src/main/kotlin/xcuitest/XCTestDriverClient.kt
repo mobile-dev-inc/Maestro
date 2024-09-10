@@ -1,39 +1,38 @@
 package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import xcuitest.api.Error
 import hierarchy.ViewHierarchy
-import xcuitest.api.GetRunningAppRequest
-import logger.Logger
 import maestro.utils.network.XCUITestServerError
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
+import org.slf4j.LoggerFactory
 import xcuitest.api.*
+import xcuitest.api.NetworkErrorHandler.Companion.RETRY_RESPONSE_CODE
 import xcuitest.installer.XCTestInstaller
 import java.io.IOException
 import java.net.ConnectException
-import xcuitest.api.NetworkErrorHandler
-import xcuitest.api.NetworkErrorHandler.Companion.RETRY_RESPONSE_CODE
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 class XCTestDriverClient(
     private val installer: XCTestInstaller,
-    private val logger: Logger,
     private val httpInterceptor: HttpLoggingInterceptor? = null
 ) {
+    private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
+
     private lateinit var client: XCTestClient
-    constructor(installer: XCTestInstaller, logger: Logger, client: XCTestClient): this(installer, logger) {
+
+    constructor(installer: XCTestInstaller, client: XCTestClient): this(installer) {
         this.client = client
     }
 
     private var isShuttingDown = false
 
-    private val networkErrorHandler by lazy { NetworkErrorHandler(installer, logger) }
+    private val networkErrorHandler by lazy { NetworkErrorHandler(installer) }
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread {
@@ -42,14 +41,12 @@ class XCTestDriverClient(
         httpInterceptor?.level = HttpLoggingInterceptor.Level.BODY
     }
 
-    fun restartXCTestRunnerService() {
-        logger.info("[Start] Uninstalling xctest ui runner app")
+    fun restartXCTestRunner() {
+        logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
         installer.uninstall()
-        logger.info("[Done] Uninstalling xctest ui runner app")
-        logger.info("[Start] Installing xctest ui runner app")
-        client = installer.start()
-            ?: throw XCTestDriverUnreachable("Failed to reach XCUITest Server in restart")
-        logger.info("[Done] Installing xctest ui runner app")
+
+        logger.trace("XCTest Runner uninstalled, will install and start it")
+        client = installer.start() ?: throw XCTestDriverUnreachable("Failed to start XCTest Driver")
     }
 
     private val okHttpClient = OkHttpClient.Builder()

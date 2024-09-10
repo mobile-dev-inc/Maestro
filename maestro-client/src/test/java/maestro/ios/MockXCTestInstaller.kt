@@ -23,8 +23,9 @@ class MockXCTestInstaller(
         }
     }
 
-    override fun uninstall() {
+    override fun uninstall(): Boolean {
         simulator.uninstallXCTestDriver()
+        return true
     }
 
     override fun isChannelAlive(): Boolean {
