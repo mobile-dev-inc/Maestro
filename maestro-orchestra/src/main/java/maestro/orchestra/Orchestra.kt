@@ -960,7 +960,7 @@ class Orchestra(
         if (selector == null) {
             return maestro.viewHierarchy()
         }
-        val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout);
+        val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout)
         val (description, filterFunc) = buildFilter(selector = selector)
         return maestro.findElementWithTimeout(
             timeout,

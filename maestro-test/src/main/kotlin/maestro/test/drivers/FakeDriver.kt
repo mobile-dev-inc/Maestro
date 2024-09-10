@@ -165,10 +165,7 @@ class FakeDriver : Driver {
     override fun isKeyboardVisible(): Boolean {
         ensureOpen()
 
-        if (events.contains(Event.HideKeyboard)) {
-            return false
-        }
-        return true
+        return !events.contains(Event.HideKeyboard)
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
@@ -360,7 +357,7 @@ class FakeDriver : Driver {
         }
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
     }
 

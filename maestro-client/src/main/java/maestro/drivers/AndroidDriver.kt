@@ -658,7 +658,7 @@ class AndroidDriver(
         return false
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
         return if (appId != null) {
             waitForWindowToSettle(appId, initialHierarchy, timeoutMs)
         } else {

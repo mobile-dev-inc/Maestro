@@ -378,7 +378,7 @@ class Service(
                         return@post
                     }
 
-                    newLocation.setTime(System.currentTimeMillis())
+                    newLocation.time = System.currentTimeMillis()
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
                         newLocation.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
                     }

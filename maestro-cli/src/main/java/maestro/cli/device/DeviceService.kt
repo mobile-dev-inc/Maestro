@@ -115,7 +115,7 @@ object DeviceService {
 
     fun listConnectedDevices(): List<Device.Connected> {
         return listDevices()
-            .filterIsInstance(Device.Connected::class.java)
+            .filterIsInstance<Device.Connected>()
     }
 
     fun <T : Device> List<T>.withPlatform(platform: Platform?) =
@@ -123,7 +123,7 @@ object DeviceService {
 
     fun listAvailableForLaunchDevices(): List<Device.AvailableForLaunch> {
         return listDevices()
-            .filterIsInstance(Device.AvailableForLaunch::class.java)
+            .filterIsInstance<Device.AvailableForLaunch>()
     }
 
     private fun listDevices(): List<Device> {
@@ -249,11 +249,11 @@ object DeviceService {
     fun isDeviceAvailableToLaunch(deviceName: String, platform: Platform): Device.AvailableForLaunch? {
         return if (platform == Platform.IOS) {
             listIOSDevices()
-                .filterIsInstance(Device.AvailableForLaunch::class.java)
+                .filterIsInstance<Device.AvailableForLaunch>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
         } else {
             listAndroidDevices()
-                .filterIsInstance(Device.AvailableForLaunch::class.java)
+                .filterIsInstance<Device.AvailableForLaunch>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
         }
     }

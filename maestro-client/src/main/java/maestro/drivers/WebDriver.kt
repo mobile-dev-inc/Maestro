@@ -53,10 +53,10 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun open() {
-        System.setProperty("webdriver.chrome.silentOutput", "true");
-        System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true");
-        Logger.getLogger("org.openqa.selenium").level = Level.OFF;
-        Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder").level = Level.OFF;
+        System.setProperty("webdriver.chrome.silentOutput", "true")
+        System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true")
+        Logger.getLogger("org.openqa.selenium").level = Level.OFF
+        Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder").level = Level.OFF
 
         val driverService = ChromeDriverService.Builder()
             .withLogLevel(ChromiumDriverLogLevel.OFF)
@@ -373,7 +373,7 @@ class WebDriver(val isStudio: Boolean) : Driver {
         return true
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
     }
 

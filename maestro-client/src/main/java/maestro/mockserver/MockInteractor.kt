@@ -38,8 +38,7 @@ data class GetEventsResponse(
     val events: List<MockEvent>
 )
 
-class MockInteractor(
-) {
+class MockInteractor {
     private val client = OkHttpClient.Builder()
         .readTimeout(5, TimeUnit.MINUTES)
         .writeTimeout(5, TimeUnit.MINUTES)

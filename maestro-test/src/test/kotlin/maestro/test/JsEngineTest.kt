@@ -185,10 +185,10 @@ abstract class JsEngineTest {
             .withHeader(HttpHeaders.CONTENT_TYPE, "application/json")
             .withHeader(testHeader, "first")
             .withHeader(testHeader, "second")
-            .withBody(body);
+            .withBody(body)
 
-        WireMock.stubFor(
-            WireMock.get("/json").willReturn(response)
+        stubFor(
+            get("/json").willReturn(response)
         )
 
         val script = """

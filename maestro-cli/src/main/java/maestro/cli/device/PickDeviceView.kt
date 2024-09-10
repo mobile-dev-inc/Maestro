@@ -70,7 +70,7 @@ object PickDeviceView {
     private fun <T> pickIndex(data: List<T>): T {
         println()
         while (!Thread.interrupted()) {
-            val index = readLine()?.toIntOrNull() ?: 0
+            val index = readlnOrNull()?.toIntOrNull() ?: 0
 
             if (index < 1 || index > data.size) {
                 printEnterNumberPrompt()
