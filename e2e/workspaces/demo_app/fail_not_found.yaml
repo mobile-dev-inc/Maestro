@@ -1,6 +1,5 @@
 appId: com.example.example
 tags:
-    - android
     - failing
 ---
 - launchApp:

@@ -1,7 +1,6 @@
 # This flow is to ensure that commands with optional flag are not failing the flow.
 appId: com.example.example
 tags:
-    - android
     - passing
 ---
 - launchApp:

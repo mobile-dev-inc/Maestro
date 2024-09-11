@@ -73,6 +73,8 @@ class LocalXCTestInstaller(
     }
 
     override fun start(): XCTestClient? {
+        logger.info("start()")
+
         if (useXcodeTestRunner) {
             logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
 
@@ -112,7 +114,13 @@ class LocalXCTestInstaller(
     }
 
     private fun ensureOpen(): Boolean {
-        return MaestroTimer.retryUntilTrue(10_000, 200) { isChannelAlive() }
+        val timeout = 120_000L
+        logger.info("ensureOpen(): Will spend $timeout ms waiting for the channel to become alive")
+        val result = MaestroTimer.retryUntilTrue(timeout, 200, onException = {
+            logger.error("ensureOpen() failed with exception: $it")
+        }) { isChannelAlive() }
+        logger.info("ensureOpen() finished, is channel alive?: $result")
+        return result
     }
 
     private fun xcTestDriverStatusCheck(): Boolean {
