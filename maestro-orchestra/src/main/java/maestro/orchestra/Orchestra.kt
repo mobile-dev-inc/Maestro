@@ -392,7 +392,7 @@ class Orchestra(
             onCommandGeneratedOutput(command, listOf(defect), imageData)
             throw MaestroException.AssertionFailure(
                 message = """
-                    |Assertion is false: ${command.assertion}
+                    |Assertion \"${command.assertion}\" is false.
                     |Reasoning: ${defect.reasoning}
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
