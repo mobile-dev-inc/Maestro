@@ -27,7 +27,7 @@ jobs:
           cache: gradle
 
       - name: Build xctest-runner
-        run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh
+        run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
 
       - name: Build Maestro CLI
         run: ./gradlew :maestro-cli:distZip
