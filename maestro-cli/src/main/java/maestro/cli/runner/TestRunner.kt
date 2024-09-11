@@ -54,11 +54,13 @@ object TestRunner {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
 
-            YamlCommandReader.getConfig(commands)?.name?.let {
-                aiOutput = aiOutput.copy(flowName = it)
+            val flowName = YamlCommandReader.getConfig(commands)?.name
+            if (flowName != null) {
+                aiOutput = aiOutput.copy(flowName = flowName)
             }
 
             MaestroCommandRunner.runCommands(
+                flowName = flowName ?: flowFile.nameWithoutExtension,
                 maestro = maestro,
                 device = device,
                 view = resultView,
@@ -110,6 +112,8 @@ object TestRunner {
                     .readCommands(flowFile.toPath())
                     .withEnv(env)
 
+                val flowName = YamlCommandReader.getConfig(commands)?.name
+
                 // Restart the flow if anything has changed
                 if (commands != previousCommands) {
                     ongoingTest = thread {
@@ -117,6 +121,7 @@ object TestRunner {
 
                         runCatching(resultView, maestro) {
                             MaestroCommandRunner.runCommands(
+                                flowName = flowName ?: flowFile.nameWithoutExtension,
                                 maestro = maestro,
                                 device = device,
                                 view = resultView,

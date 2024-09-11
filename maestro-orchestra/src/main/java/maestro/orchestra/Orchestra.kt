@@ -364,7 +364,13 @@ class Orchestra(
 
             val word = if (defects.size == 1) "defect" else "defects"
             throw MaestroException.AssertionFailure(
-                message = "Found ${defects.size} possible $word. See the report after the test completes to learn more.",
+                message = """
+                    |Found ${defects.size} possible $word:
+                    ${defects.joinToString("\n") { "| - ${it.reasoning}" }}
+                    |
+                    |
+                    |See the report after the test completes to learn more.
+                    """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
             )
         }
@@ -392,7 +398,7 @@ class Orchestra(
             onCommandGeneratedOutput(command, listOf(defect), imageData)
             throw MaestroException.AssertionFailure(
                 message = """
-                    |Assertion \"${command.assertion}\" is false.
+                    |Assertion "${command.assertion}" is false.
                     |Reasoning: ${defect.reasoning}
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,

@@ -41,13 +41,14 @@ import maestro.cli.util.ScreenshotUtils
 /**
  * Knows how to run a list of Maestro commands and update the UI.
  *
- * Should not know what a "flow" is.
+ * Should not know what a "flow" is (apart from knowing a name, for display purposes).
  */
 object MaestroCommandRunner {
 
     private val logger = LoggerFactory.getLogger(MaestroCommandRunner::class.java)
 
     fun runCommands(
+        flowName: String,
         maestro: Maestro,
         device: Device?,
         view: ResultView,
@@ -65,6 +66,7 @@ object MaestroCommandRunner {
         fun refreshUi() {
             view.setState(
                 UiState.Running(
+                    flowName = flowName,
                     device = device,
                     onFlowStartCommands = toCommandStates(
                         onFlowStart?.commands ?: emptyList(),

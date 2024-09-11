@@ -56,7 +56,7 @@ class PlainTextResultView: ResultView {
         }
 
         if (shouldPrintStep()) {
-            println(" > Flow")
+            println(" > Flow ${state.flowName}")
         }
 
         renderCommandsPlainText(state.commands)

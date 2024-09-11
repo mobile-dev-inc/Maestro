@@ -80,7 +80,7 @@ class AnsiResultView(
             renderCommands(state.onFlowStartCommands)
         }
         render(" ║\n")
-        render(" ║  > Flow\n")
+        render(" ║  > Flow: ${state.flowName}\n")
         render(" ║\n")
         renderCommands(state.commands)
         render(" ║\n")
@@ -268,6 +268,7 @@ fun main() {
 
     view.setState(
         UiState.Running(
+            flowName = "Flow for playing around",
             device = Device.Connected("device", "description", Platform.ANDROID),
             onFlowStartCommands = listOf(),
             onFlowCompleteCommands = listOf(),
