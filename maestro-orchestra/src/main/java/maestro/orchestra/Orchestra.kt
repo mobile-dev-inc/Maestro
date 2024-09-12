@@ -368,8 +368,6 @@ class Orchestra(
                     |Found ${defects.size} possible $word:
                     ${defects.joinToString("\n") { "| - ${it.reasoning}" }}
                     |
-                    |
-                    |See the report after the test completes to learn more.
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
             )
