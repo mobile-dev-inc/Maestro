@@ -178,7 +178,7 @@ object DeviceService {
             }
         }
 
-        val deviceInfo = maestro.cachedDeviceInfo
+        val deviceInfo = maestro.deviceInfo()
         val deviceWidth = deviceInfo.widthGrid
         val deviceHeight = deviceInfo.heightGrid
 
