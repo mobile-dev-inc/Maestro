@@ -159,6 +159,15 @@ class TestCommand : Callable<Int> {
     )
     private var headless: Boolean = false
 
+    @Option(names = ["-p", "--platform"], description = ["Select a platform to run on"])
+    var platform: String? = null
+
+    @Option(
+        names = ["--device", "--udid"],
+        description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
+    )
+    var deviceId: String? = null
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -231,7 +240,7 @@ class TestCommand : Callable<Int> {
             }
             .ifEmpty {
                 connectedDevices
-                    .filter { it.platform == Platform.fromString(parent?.platform) }
+                    .filter { it.platform == Platform.fromString(platform ?: parent?.platform) }
                     .map { it.instanceId }.toSet()
             }
             .toList()
@@ -313,8 +322,7 @@ class TestCommand : Callable<Int> {
             port = parent?.port,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
-            platform = parent?.platform,
-            isHeadless = headless,
+            platform = platform ?: parent?.platform,
         ) { session ->
             val maestro = session.maestro
             val device = session.device
@@ -433,7 +441,7 @@ class TestCommand : Callable<Int> {
         val arguments = if (isWebFlow()) {
             PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
             "chromium"
-        } else parent?.deviceId
+        } else deviceId ?: parent?.deviceId
         val deviceIds = arguments
             .orEmpty()
             .split(",")
