@@ -209,6 +209,15 @@ class TestCommand : Callable<Int> {
     )
     private var appleTeamId: String? = null
 
+    @Option(names = ["-p", "--platform"], description = ["Select a platform to run on"])
+    var platform: String? = null
+
+    @Option(
+        names = ["--device", "--udid"],
+        description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
+    )
+    var deviceId: String? = null
+    
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -358,9 +367,10 @@ class TestCommand : Callable<Int> {
                 }
             }
             .ifEmpty {
+                val platform = platform ?: parent?.platform
                 connectedDevices
                     .filter { device ->
-                        parent?.platform?.let { Platform.fromString(it) == device.platform } ?: true }
+                        platform?.let { Platform.fromString(it) == device.platform } ?: true }
                     .map { it.instanceId }.toSet()
             }
             .toList()
@@ -457,7 +467,7 @@ class TestCommand : Callable<Int> {
             teamId = appleTeamId,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
-            platform = parent?.platform,
+            platform = platform ?: parent?.platform,
             isHeadless = headless,
             reinstallDriver = reinstallDriver,
             executionPlan = executionPlan
@@ -617,7 +627,7 @@ class TestCommand : Callable<Int> {
     private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
       val arguments = if (allFlowsAreWebFlow(plan)) {
         "chromium"
-      } else parent?.deviceId
+      } else deviceId ?: parent?.deviceId
       val deviceIds = arguments
         .orEmpty()
         .split(",")
