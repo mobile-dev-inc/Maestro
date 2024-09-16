@@ -369,8 +369,7 @@ class TestCommand : Callable<Int> {
             .ifEmpty {
                 val platform = platform ?: parent?.platform
                 connectedDevices
-                    .filter { device ->
-                        platform?.let { Platform.fromString(it) == device.platform } ?: true }
+                    .filter { platform == null || it.platform == Platform.fromString(platform) }
                     .map { it.instanceId }.toSet()
             }
             .toList()
