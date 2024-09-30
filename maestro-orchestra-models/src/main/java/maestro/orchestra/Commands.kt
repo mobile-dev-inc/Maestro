@@ -265,7 +265,8 @@ data class TapOnElementCommand(
 ) : Command {
 
     override fun description(): String {
-        return label ?: "${tapOnDescription(longPress, repeat)} on ${selector.description()}"
+        val optional = if (optional) "(Optional) " else ""
+        return label ?: "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
@@ -379,7 +380,8 @@ data class AssertConditionCommand(
     }
 
     override fun description(): String {
-        return label ?: "Assert that ${condition.description()}"
+        val optional = if (optional) "(Optional) " else ""
+        return label ?: "Assert that $optional${condition.description()}"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {

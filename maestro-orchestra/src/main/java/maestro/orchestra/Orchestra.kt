@@ -678,10 +678,21 @@ class Orchestra(
                     updateMetadata(command, metadata)
 
                     return@mapIndexed try {
-                        executeCommand(evaluatedCommand, config)
-                            .also {
-                                onCommandComplete(index, command)
-                            }
+                        try {
+                            executeCommand(evaluatedCommand, config)
+                                .also {
+                                    onCommandComplete(index, command)
+                                }
+                        } catch (exception: MaestroException) {
+                            val isOptional = command.asCommand()?.optional == true
+                            if (isOptional) throw CommandWarned(exception.message)
+                            else throw exception
+                        }
+                    } catch (ignored: CommandWarned) {
+                        // Swallow exception, but add a warning as an insight
+                        Insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
+                        onCommandWarned(index, command)
+                        false
                     } catch (ignored: CommandSkipped) {
                         // Swallow exception
                         onCommandSkipped(index, command)
