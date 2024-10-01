@@ -310,8 +310,8 @@ class CloudInteractor(
                 val runningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name } ?: continue
                 runningFlow.status = uploadFlowResult.status
                 when (runningFlow.status) {
-                    UploadStatus.Status.PENDING -> { /* do nothing */ }
-                    UploadStatus.Status.RUNNING -> {
+                    FlowStatus.PENDING -> { /* do nothing */ }
+                    FlowStatus.RUNNING -> {
                         if (runningFlow.startTime == null) {
                             runningFlow.startTime = System.currentTimeMillis()
                         }
@@ -392,7 +392,7 @@ class CloudInteractor(
         val isCancelled = upload.status == UploadStatus.Status.CANCELED
         val isFailure = upload.status == UploadStatus.Status.ERROR
         val containsFailure =
-            upload.flows.find { it.status == UploadStatus.Status.ERROR } != null // status can be cancelled but also contain flow with failure
+            upload.flows.find { it.status == FlowStatus.ERROR } != null // status can be cancelled but also contain flow with failure
 
         val failed = isFailure || containsFailure || isCancelled && failOnCancellation
 
@@ -448,7 +448,7 @@ class CloudInteractor(
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
-                    status = FlowStatus.from(uploadFlowResult.status),
+                    status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
                     duration = runningFlows.flows.find { it.name == uploadFlowResult.name }?.duration
                 )

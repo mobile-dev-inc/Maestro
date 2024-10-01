@@ -8,6 +8,7 @@ enum class FlowStatus {
     SUCCESS,
     ERROR,
     CANCELED,
+    STOPPED,
     WARNING;
 
     companion object {

@@ -10,6 +10,7 @@ import com.github.michaelbull.result.map
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.AnalyticsReport
+import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
@@ -518,7 +519,7 @@ data class UploadStatus(
 
     data class FlowResult(
         val name: String,
-        val status: Status,
+        val status: FlowStatus,
         val errors: List<String>,
         val cancellationReason: CancellationReason? = null
     )

@@ -10,7 +10,7 @@ data class RunningFlows(
 
 data class RunningFlow(
     val name: String,
-    var status: UploadStatus.Status? = null,
+    var status: FlowStatus? = null,
     var startTime: Long? = null,
     var duration: Duration? = null,
     var reported: Boolean = false

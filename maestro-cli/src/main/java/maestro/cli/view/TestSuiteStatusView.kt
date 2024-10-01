@@ -88,6 +88,7 @@ object TestSuiteStatusView {
             FlowStatus.SUCCESS,
             FlowStatus.WARNING -> Ansi.Color.GREEN
             FlowStatus.ERROR -> Ansi.Color.RED
+            FlowStatus.STOPPED -> Ansi.Color.RED
             else -> Ansi.Color.DEFAULT
         }
         val title = when (status) {
@@ -96,6 +97,7 @@ object TestSuiteStatusView {
             FlowStatus.ERROR -> "Failed"
             FlowStatus.PENDING -> "Pending"
             FlowStatus.RUNNING -> "Running"
+            FlowStatus.STOPPED -> "Stopped"
             FlowStatus.CANCELED -> when (cancellationReason) {
                 UploadStatus.CancellationReason.TIMEOUT -> "Timeout"
                 UploadStatus.CancellationReason.OVERLAPPING_BENCHMARK -> "Skipped"
@@ -174,7 +176,7 @@ object TestSuiteStatusView {
                 duration: Duration? = null
             ) = FlowResult(
                 name = name,
-                status = FlowStatus.from(status, ),
+                status = status,
                 error = errors.firstOrNull(),
                 cancellationReason = cancellationReason,
                 duration = duration
