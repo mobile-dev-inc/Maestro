@@ -531,6 +531,7 @@ data class UploadStatus(
         ERROR,
         CANCELED,
         WARNING,
+        STOPPED
     }
 
 
