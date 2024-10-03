@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- scrollUntilVisible:
+    element:
+      id: "maestro"
+    direction: DOWN
+    speed: 110
+    timeout: -200

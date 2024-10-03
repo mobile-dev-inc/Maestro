@@ -3135,6 +3135,42 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 118 - Scroll until view is visible - no negative values allowed`() {
+        // Given
+        val commands = readCommands("118_scroll_until_visible_negative")
+        val expectedDuration = "40"
+        val expectedTimeout = "20000"
+        val info = driver { }.deviceInfo()
+
+        val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+        val driver = driver {
+            element {
+                id = "maestro"
+                bounds = elementBounds
+            }
+        }
+
+        // When
+        var scrollDuration = "0"
+        var timeout = "0"
+        Maestro(driver).use {
+            orchestra(it, onCommandMetadataUpdate = { _, metaData ->
+                scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
+                timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+            }).runFlow(commands)
+        }
+
+        // Then
+        assertThat(scrollDuration).isEqualTo(expectedDuration)
+        assertThat(timeout).isEqualTo(expectedTimeout)
+        driver.assertEvents(
+            listOf(
+                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, expectedDuration.toLong()),
+            )
+        )
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

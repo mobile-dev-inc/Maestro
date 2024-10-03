@@ -110,7 +110,8 @@ data class ScrollUntilVisibleCommand(
     val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
 
     private fun String.speedToDuration(): String {
-        return ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1).toString()
+        val duration = ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1)
+        return if (duration < 0) { DEFAULT_SCROLL_DURATION } else duration.toString()
     }
 
     private fun String.timeoutToMillis(): String {

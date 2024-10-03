@@ -20,6 +20,8 @@
 		<string>maestro-driver-iosUITests</string>
 		<key>BlueprintProviderName</key>
 		<string>maestro-driver-ios</string>
+		<key>BlueprintProviderRelativePath</key>
+		<string>maestro-driver-ios.xcodeproj</string>
 		<key>BundleIdentifiersForCrashReportEmphasis</key>
 		<array>
 			<string>dev.mobile.maestro-driver-ios</string>
@@ -39,6 +41,8 @@
 		<integer>1</integer>
 		<key>EnvironmentVariables</key>
 		<dict>
+			<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
+			<string>com.apple.AppStore</string>
 			<key>OS_ACTIVITY_DT_MODE</key>
 			<string>YES</string>
 			<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
@@ -48,6 +52,8 @@
 		<true/>
 		<key>IsXCTRunnerHostedTestBundle</key>
 		<true/>
+		<key>PreferredScreenCaptureFormat</key>
+		<string>screenRecording</string>
 		<key>ProductModuleName</key>
 		<string>maestro_driver_iosUITests</string>
 		<key>RunOrder</key>
@@ -85,6 +91,8 @@
 		<array/>
 		<key>UITargetAppEnvironmentVariables</key>
 		<dict>
+			<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
+			<string>com.apple.AppStore</string>
 			<key>DYLD_FRAMEWORK_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__TESTROOT__/Debug-iphonesimulator/PackageFrameworks</string>
 			<key>DYLD_LIBRARY_PATH</key>

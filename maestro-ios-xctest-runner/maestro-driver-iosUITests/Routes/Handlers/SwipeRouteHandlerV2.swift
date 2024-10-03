@@ -14,6 +14,10 @@ struct SwipeRouteHandlerV2: HTTPHandler {
             return AppError(type: .precondition, message: "incorrect request body provided for swipe request v2").httpResponse
         }
         
+        if (requestBody.duration < 0) {
+            return AppError(type: .precondition, message: "swipe duration can not be negative").httpResponse
+        }
+        
         do {
             try await swipePrivateAPI(requestBody)
             return HTTPResponse(statusCode: .ok)
