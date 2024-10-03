@@ -88,9 +88,9 @@ jobs:
           maestro --help
           maestro --version
 
-      - name: Set up bartekpacia/scripts (for install_android_sdk script)
+      - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
         run: |
-          git clone https://github.com/bartekpacia/scripts.git $HOME/scripts
+          git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
           echo "$HOME/scripts/bin" >> $GITHUB_PATH
 
       - name: Set up android-wait-for-emulator script
