@@ -95,6 +95,7 @@ data class YamlFluentCommand(
     val assertNotVisible: YamlElementSelectorUnion? = null,
     val assertTrue: YamlAssertTrue? = null,
     val assertNoDefectsWithAI: YamlAssertNoDefectsWithAI? = null,
+    val assertVisual: YamlAssertVisual? = null,
     val assertWithAI: YamlAssertWithAI? = null,
     val extractTextWithAI: YamlExtractTextWithAI? = null,
     val back: YamlActionBack? = null,
@@ -224,6 +225,16 @@ data class YamlFluentCommand(
                 )
             )
 
+            assertVisual != null -> listOf(
+                MaestroCommand(
+                    AssertVisualCommand(
+                        baseline = assertVisual.baseline,
+                        thresholdPercentage = assertVisual.thresholdPercentage,
+                        optional = assertVisual.optional,
+                        label = assertVisual.label
+                    )
+                )
+            )
             addMedia != null -> listOf(
                 MaestroCommand(
                     addMediaCommand = addMediaCommand(addMedia, flowPath)
