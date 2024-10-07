@@ -154,6 +154,18 @@ data class MaestroCommand(
         else -> null
     }
 
+    fun elementSelector(): ElementSelector? {
+        return when {
+            tapOnElement?.selector != null -> tapOnElement.selector
+            swipeCommand?.elementSelector != null -> swipeCommand.elementSelector
+            copyTextCommand?.selector != null -> copyTextCommand.selector
+            assertConditionCommand?.condition?.visible != null -> assertConditionCommand.condition.visible
+            assertConditionCommand?.condition?.notVisible != null -> assertConditionCommand.condition.notVisible
+            scrollUntilVisible?.selector != null -> scrollUntilVisible.selector
+            else -> null
+        }
+    }
+
     fun evaluateScripts(jsEngine: JsEngine): MaestroCommand {
         return asCommand()
             ?.let { MaestroCommand(it.evaluateScripts(jsEngine)) }

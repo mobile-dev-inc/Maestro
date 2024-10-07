@@ -193,7 +193,7 @@ class Orchestra(
                         executeCommand(evaluatedCommand, config)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
-                        val isOptional = command.asCommand()?.optional == true
+                        val isOptional = command.asCommand()?.optional == true || command.elementSelector()?.optional == true
                         if (isOptional) throw CommandWarned(e.message)
                         else throw e
                     }
@@ -684,7 +684,7 @@ class Orchestra(
                                     onCommandComplete(index, command)
                                 }
                         } catch (exception: MaestroException) {
-                            val isOptional = command.asCommand()?.optional == true
+                            val isOptional = command.asCommand()?.optional == true || command.elementSelector()?.optional == true
                             if (isOptional) throw CommandWarned(exception.message)
                             else throw exception
                         }

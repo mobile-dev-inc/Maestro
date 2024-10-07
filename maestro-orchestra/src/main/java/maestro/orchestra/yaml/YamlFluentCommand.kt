@@ -574,6 +574,7 @@ data class YamlFluentCommand(
             textRegex = selector.text,
             idRegex = selector.id,
             size = size,
+            optional = selector.optional ?: false,
             below = selector.below?.let { toElementSelector(it) },
             above = selector.above?.let { toElementSelector(it) },
             leftOf = selector.leftOf?.let { toElementSelector(it) },
