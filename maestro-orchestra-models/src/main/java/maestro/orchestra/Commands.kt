@@ -266,7 +266,7 @@ data class TapOnElementCommand(
 ) : Command {
 
     override fun description(): String {
-        val optional = if (optional) "(Optional) " else ""
+        val optional = if (optional || selector.optional) "(Optional) " else ""
         return label ?: "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
     }
 
@@ -381,7 +381,7 @@ data class AssertConditionCommand(
     }
 
     override fun description(): String {
-        val optional = if (optional) "(Optional) " else ""
+        val optional = if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true ) "(Optional) " else ""
         return label ?: "Assert that $optional${condition.description()}"
     }
 
