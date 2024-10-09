@@ -659,6 +659,14 @@ data class TakeScreenshotCommand(
     override val originalDescription: String
         get() = "Take screenshot $path"
 
+    override fun description(): String {
+        return label ?: if (targetComponentId != null) {
+            "Take screenshot $path, cropped on component with id $targetComponentId"
+        } else {
+            "Take screenshot $path"
+        }
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
