@@ -46,7 +46,6 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.net.URI
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
@@ -504,85 +503,55 @@ class AndroidDriver(
     }
 
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
-        if (autoVerify && !browser && appId != null) autoVerifyLinkFromSettings(appId, link)
-
-        if (browser) openBrowser(link)
-        else dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+        if (browser) {
+            openBrowser(link)
+        } else {
+            dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+        }
 
         if (autoVerify) {
-            if (appId != null && !browser) autoVerifyWithChooser(appId)
-            autoVerifyChromeOnboarding()
+            autoVerifyApp(appId)
         }
     }
 
-    private fun autoVerifyLinkFromSettings(appId: String, link: String) {
-        val apiLevel = getDeviceApiLevel()
-        if (apiLevel <= 30) return
-        val domain = runCatching { URI.create(link).toURL().host }.getOrNull() ?: return
-        val packageOption = "--package $appId"
-        val allowed = dadb.shell("pm set-app-links-allowed --user 0 $packageOption true")
-        if (allowed.exitCode > 0) {
-            LOGGER.debug("set-app-links-allowed failed for appId: $appId reason: ${allowed.errorOutput}")
-            return
+    private fun autoVerifyApp(appId: String?) {
+        if (appId != null) {
+            autoVerifyWithAppName(appId)
         }
-        val selected = dadb.shell("pm set-app-links-user-selection --user 0 $packageOption true $domain")
-        if (selected.exitCode > 0) {
-            LOGGER.debug("set-app-links-user-selection failed for appId: $appId domain: $domain reason: ${selected.errorOutput}")
-        }
+        autoVerifyChromeAgreement()
     }
 
-    private fun autoVerifyWithChooser(appId: String) {
+    private fun autoVerifyWithAppName(appId: String) {
         val appNameResult = runCatching {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
             val appName = ApkFile(apkFile).apkMeta.name
             apkFile.delete()
-            appName ?: appId // The app chooser shows the appId if no application label attribute is set
+            appName
         }
-        if (appNameResult.isFailure) {
-            LOGGER.info("Aborting autoVerify. Could not get app name from APK metadata for $appId", appNameResult.exceptionOrNull())
-            return
+        if (appNameResult.isSuccess) {
+            val appName = appNameResult.getOrThrow()
+            waitUntilScreenIsStatic(3000)
+            val appNameElement = filterByText(appName)
+            if (appNameElement != null) {
+                tap(appNameElement.bounds.center())
+                filterById("android:id/button_once")?.let {
+                    tap(it.bounds.center())
+                }
+            } else {
+                val openWithAppElement = filterByText(".*$appName.*")
+                if (openWithAppElement != null) {
+                    filterById("android:id/button_once")?.let {
+                        tap(it.bounds.center())
+                    }
+                }
+            }
         }
-
-        fun selectChooserOptionOnce(wordElement: UiElement) {
-            tap(wordElement.bounds.center())
-            filterById("android:id/button_once")?.let { tap(it.bounds.center()) }
-        }
-
-        waitUntilScreenIsStatic(3000)
-
-        val appName = appNameResult.getOrThrow()
-        filterByText(".*$appName.*")?.let {
-            selectChooserOptionOnce(it)
-            return
-        }
-
-        val appNameWord = appName.split(" ").first()
-        filterByText(".*$appNameWord.*")?.let {
-            selectChooserOptionOnce(it)
-            return
-        }
-
-        LOGGER.info("Aborting autoVerify. Could not find app name element for $appName")
     }
 
-    private fun autoVerifyChromeOnboarding() {
-        val chrome = "com.android.chrome"
-        if (!isPackageInstalled(chrome)) return
-        Thread.sleep(100) // Lets enough time for the transition to Chrome to start
-        waitUntilScreenIsStatic(3000)
-        // Welcome to Chrome screen "Accept & continue"
-        filterById("$chrome:id/send_report_checkbox")?.let { tap(it.bounds.center()) }
-        filterById("$chrome:id/negative_button")?.let { tap(it.bounds.center()) }
-        filterById("$chrome:id/terms_accept")?.let { tap(it.bounds.center()) }
+    private fun autoVerifyChromeAgreement() {
+        filterById("com.android.chrome:id/terms_accept")?.let { tap(it.bounds.center()) }
         waitForAppToSettle(null, null)
-        // Welcome to Chrome screen "Add account to device"
-        filterById("$chrome:id/signin_fre_dismiss_button")?.let { tap(it.bounds.center()) }
-        waitForAppToSettle(null, null)
-        // Turn on Sync screen
-        filterById("$chrome:id/negative_button")?.let { tap(it.bounds.center()) }
-        waitForAppToSettle(null, null)
-        // Chrome Notifications screen
-        filterById("$chrome:id/negative_button")?.let { tap(it.bounds.center()) }
+        filterById("com.android.chrome:id/negative_button")?.let { tap(it.bounds.center()) }
     }
 
     private fun filterByText(textRegex: String): UiElement? {
@@ -603,12 +572,13 @@ class AndroidDriver(
             installedPackages.contains("com.android.chrome") -> {
                 dadb.shell("am start -a android.intent.action.VIEW -d \"$link\" com.android.chrome")
             }
+
             installedPackages.contains("org.mozilla.firefox") -> {
                 dadb.shell("am start -a android.intent.action.VIEW -d \"$link\" org.mozilla.firefox")
             }
+
             else -> {
                 dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
-                autoVerifyWithChooser("org.chromium.webview_shell")
             }
         }
     }

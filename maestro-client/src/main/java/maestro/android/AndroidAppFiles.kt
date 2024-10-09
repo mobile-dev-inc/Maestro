@@ -38,15 +38,11 @@ object AndroidAppFiles {
     }
 
     fun getApkFile(dadb: Dadb, appId: String): File {
-        val apkPath = dadb.shell("pm path $appId").output.removePrefix("package:").trim()
+        val apkPath = dadb.shell("pm list packages -f --user 0 | grep $appId | head -1")
+            .output.substringAfterLast("package:").substringBefore("=$appId")
+        apkPath.substringBefore("=$appId")
         val dst = File.createTempFile("tmp", ".apk")
-        try {
-            dadb.pull(dst, apkPath)
-        } catch (e: IOException) {
-            val newApkPath = "/sdcard/$appId.apk"
-            dadb.shell("cp $apkPath $newApkPath")
-            dadb.pull(dst, newApkPath)
-        }
+        dadb.pull(dst, apkPath)
         return dst
     }
 
