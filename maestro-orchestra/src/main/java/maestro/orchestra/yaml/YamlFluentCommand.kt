@@ -315,16 +315,7 @@ data class YamlFluentCommand(
             )
 
             scroll != null -> listOf(MaestroCommand(ScrollCommand(label = scroll.label, optional = scroll.optional)))
-            takeScreenshot != null -> listOf(
-                MaestroCommand(
-                    TakeScreenshotCommand(
-                        path = takeScreenshot.path,
-                        label = takeScreenshot.label,
-                        optional = takeScreenshot.optional
-                    )
-                )
-            )
-
+            takeScreenshot != null -> listOf(MaestroCommand(TakeScreenshotCommand(path = takeScreenshot.path, label = takeScreenshot.label, optional = takeScreenshot.optional, targetComponentId = takeScreenshot.targetComponentId)))
             extendedWaitUntil != null -> listOf(extendedWait(extendedWaitUntil))
             stopApp != null -> listOf(
                 MaestroCommand(

@@ -1043,7 +1043,21 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        maestro.takeScreenshot(fileSink, false)
+
+        val targetComponent = command.targetComponentId?.let { idRegex ->
+            findElement(
+                selector = ElementSelector(idRegex = idRegex),
+                optional = true,
+                timeoutMs = 100L
+            ).element
+        }
+
+        if (targetComponent == null) {
+            maestro.takeScreenshot(fileSink, false)
+        } else {
+            maestro.takePartialScreenshot(sink = fileSink, bounds = targetComponent.bounds, compressed = false)
+        }
+
         return false
     }
 

@@ -25,6 +25,7 @@ import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
+import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.sink
@@ -32,6 +33,8 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.util.*
+import javax.imageio.ImageIO
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -511,6 +514,32 @@ class Maestro(
             .buffer()
             .use {
                 ScreenshotUtils.takeScreenshot(it, compressed, driver)
+            }
+    }
+
+    fun takePartialScreenshot(sink: Sink, bounds: Bounds, compressed: Boolean) {
+        LOGGER.info("Taking partial screenshot")
+        val (x, y, width, height) = bounds
+
+        val originalImage = Buffer().apply {
+            ScreenshotUtils.takeScreenshot(this, compressed, driver)
+        }.let { buffer ->
+            buffer.inputStream().use { ImageIO.read(it) }
+        }
+
+        val dpr = cachedDeviceInfo.run { heightPixels/heightGrid } // device pixel ratio
+
+        val cropWidth = (x + width).coerceAtMost(originalImage.width) - x
+        val cropHeight = (y + height).coerceAtMost(originalImage.height) - y
+
+        val croppedImage = originalImage.getSubimage(
+            x * dpr, y * dpr, cropWidth * dpr, cropHeight * dpr
+        )
+
+        sink
+            .buffer()
+            .use {
+                ImageIO.write(croppedImage, "png", it.outputStream())
             }
     }
 
