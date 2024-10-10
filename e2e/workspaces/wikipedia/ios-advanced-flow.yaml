@@ -20,3 +20,4 @@ tags:
 - eraseText
 - inputText: qwerty
 - assertVisible: ${output.result}
+- runFlow: subflows/launch-clearstate-ios.yaml
