@@ -22,7 +22,7 @@ private const val API_URL = "https://api.openai.com/v1/chat/completions"
 private val logger = LoggerFactory.getLogger(OpenAI::class.java)
 
 class OpenAI(
-    defaultModel: String = "gpt-4o-2024-08-06",
+    defaultModel: String = "gpt-4o",
     httpClient: HttpClient = defaultHttpClient,
     private val apiKey: String,
     private val defaultTemperature: Float = 0.2f,

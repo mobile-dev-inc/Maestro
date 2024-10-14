@@ -52,7 +52,7 @@ fun main(args: Array<String>) = DemoApp().main(args)
 class DemoApp : CliktCommand() {
     private val inputFiles: List<Path> by argument(help = "screenshots to use").path(mustExist = true).multiple()
 
-    private val model: String by option(help = "LLM to use").default("gpt-4o-2024-08-06")
+    private val model: String by option(help = "LLM to use").default("gpt-4o")
 
     private val showOnlyFails: Boolean by option(help = "Show only failed tests").flag()
 
