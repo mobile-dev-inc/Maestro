@@ -36,6 +36,7 @@ junit = "5.10.2"
 kotlin = "1.8.22"
 kotlinResult = "1.1.18"
 ktor = "2.3.6"
+mockk = "1.12.0"
 mozillaRhino = "1.7.14"
 picocli = "4.6.3"
 selenium = "4.13.0"
@@ -100,6 +101,7 @@ ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-cors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mozilla-rhino = { module = "org.mozilla:rhino", version.ref = "mozillaRhino" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
