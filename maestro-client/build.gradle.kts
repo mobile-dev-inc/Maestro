@@ -105,6 +105,10 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     }
 }
 
+tasks.withType<Jar> {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 mavenPublishing {
     publishToMavenCentral(SonatypeHost.S01)
 }
