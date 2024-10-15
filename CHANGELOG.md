@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 1.39.0
+
+Released on 2024-10-15
 
 Features:
 - Feature: add `--shard-split` and `--shard-all` options to `maestro test` ([#1955](https://github.com/mobile-dev-inc/maestro/pull/1955) by [Tarek Belkahia](https://github.com/tokou))
