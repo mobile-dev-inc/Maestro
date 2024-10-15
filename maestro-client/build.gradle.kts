@@ -1,4 +1,5 @@
 import com.vanniktech.maven.publish.SonatypeHost
+import com.vanniktech.maven.publish.tasks.SourcesJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -105,7 +106,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     }
 }
 
-tasks.withType<Jar> {
+tasks.withType(SourcesJar::class).configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
