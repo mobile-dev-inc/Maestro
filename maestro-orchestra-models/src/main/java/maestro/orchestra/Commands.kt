@@ -651,7 +651,7 @@ data class EraseTextCommand(
 
 data class TakeScreenshotCommand(
     val path: String,
-    val cropOn: ElementSelector?,
+    val cropOn: ElementSelector? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
