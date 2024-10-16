@@ -123,15 +123,16 @@ object TestSuiteStatusView {
         domain: String = "mobile.dev",
     ) = "https://console.$domain/uploads/$uploadId?teamId=$teamId&appId=$appId"
 
-    fun uploadUrl(
+    fun robinUploadUrl(
         projectId: String,
         appId: String,
+        uploadId: String,
         domain: String = ""
     ): String {
         return if (domain.contains("localhost")) {
-            "http://localhost:3000/project/$projectId/maestro-tests/app/$appId"
+            "http://localhost:3000/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         } else {
-            "https://copilot.mobile.dev/project/$projectId/maestro-tests/app/$appId"
+            "https://app.robintest.com/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         }
     }
 
