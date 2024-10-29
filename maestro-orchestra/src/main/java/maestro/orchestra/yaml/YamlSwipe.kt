@@ -57,7 +57,7 @@ data class YamlSwipeElement(
 
 data class YamlRelativeCoordinateSwipeElement(
     val from: YamlElementSelectorUnion,
-    val end: String,
+    val to: String,
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
@@ -103,8 +103,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                     mapper.convertValue(root, YamlSwipeElement::class.java)
                 }
             }
-            input.contains("from") && input.contains("end") -> {
-                // Handling YamlRelativeCoordinateSwipeElement
+            input.contains("from") && input.contains("to") -> {
                 return resolveRelativeCoordinateSwipeElement(root, duration, label, optional, mapper, waitToSettleTimeoutMs)
             }
             else -> {
@@ -130,26 +129,26 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         waitToSettleTimeoutMs: Int?
     ): YamlRelativeCoordinateSwipeElement {
         val from = mapper.convertValue(root.path("from"), YamlElementSelectorUnion::class.java)
-        val end = root.path("end").toString().replace("\"", "")
+        val to = root.path("to").toString().replace("\"", "")
 
-        val isRelative = end.contains("%")
+        val isRelative = to.contains("%")
 
         if (isRelative) {
-            val endPoints = end
+            val endPoints = to
                 .replace("%", "")
                 .split(",")
                 .map { it.trim().toInt() }
             check(endPoints[0] in 0..100 && endPoints[1] in 0..100) {
-                "Invalid end point: $end should be between 0 to 100 when using relative coordinates."
+                "Invalid end point: $to should be between 0 to 100 when using relative coordinates."
             }
         } else {
-            val endPoints = end
+            val endPoints = to
                 .split(",")
                 .map { it.trim().toInt() }
-            check(endPoints.size == 2) { "Invalid format for absolute coordinates: $end" }
+            check(endPoints.size == 2) { "Invalid format for absolute coordinates: $to" }
         }
 
-        return YamlRelativeCoordinateSwipeElement(from, end, duration, label, optional)
+        return YamlRelativeCoordinateSwipeElement(from, to, duration, label, optional)
     }
 
     private fun resolveCoordinateSwipe(
