@@ -55,6 +55,15 @@ data class YamlSwipeElement(
     override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
+data class YamlRelativeCoordinateSwipeElement(
+    val from: YamlElementSelectorUnion,
+    val end: String,
+    override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    override val label: String? = null,
+    override val optional: Boolean,
+    override val waitToSettleTimeoutMs: Int? = null
+) : YamlSwipe
+
 private const val DEFAULT_DURATION_IN_MILLIS = 400L
 
 class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
@@ -68,7 +77,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         val optional = getOptional(root)
         val waitToSettleTimeoutMs = getWaitToSettleTimeoutMs(root)
         when {
-            input.contains("start") || input.contains("end") -> {
+            input.contains("start") && input.contains("end") -> {
                 check(root.get("direction") == null) { "You cannot provide direction with start/end swipe." }
                 check(root.get("start") != null && root.get("end") != null) {
                     "You need to provide both start and end coordinates, to swipe with coordinates"
@@ -94,16 +103,53 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                     mapper.convertValue(root, YamlSwipeElement::class.java)
                 }
             }
+            input.contains("from") && input.contains("end") -> {
+                // Handling YamlRelativeCoordinateSwipeElement
+                return resolveRelativeCoordinateSwipeElement(root, duration, label, optional, mapper, waitToSettleTimeoutMs)
+            }
             else -> {
                 throw IllegalArgumentException(
                     "Swipe command takes either: \n" +
-                        "\t1. direction: Direction based swipe with: \"RIGHT\", \"LEFT\", \"UP\", or \"DOWN\" or \n" +
-                        "\t2. start and end: Coordinates based swipe with: \"start\" and \"end\" coordinates \n" +
-                        "\t3. direction and element to swipe directionally on element\n" +
-                        "It seems you provided invalid input with: $input"
+                            "\t1. direction: Direction based swipe with: \"RIGHT\", \"LEFT\", \"UP\", or \"DOWN\" or \n" +
+                            "\t2. start and end: Coordinates based swipe with: \"start\" and \"end\" coordinates \n" +
+                            "\t3. direction and element to swipe directionally on element\n" +
+                            "\t4. element to swipe and end to swipe from element to coordinates\n" +
+
+                            "It seems you provided invalid input with: $input"
                 )
             }
         }
+    }
+
+    private fun resolveRelativeCoordinateSwipeElement(
+        root: TreeNode,
+        duration: Long,
+        label: String?,
+        optional: Boolean,
+        mapper: ObjectMapper,
+        waitToSettleTimeoutMs: Int?
+    ): YamlRelativeCoordinateSwipeElement {
+        val from = mapper.convertValue(root.path("from"), YamlElementSelectorUnion::class.java)
+        val end = root.path("end").toString().replace("\"", "")
+
+        val isRelative = end.contains("%")
+
+        if (isRelative) {
+            val endPoints = end
+                .replace("%", "")
+                .split(",")
+                .map { it.trim().toInt() }
+            check(endPoints[0] in 0..100 && endPoints[1] in 0..100) {
+                "Invalid end point: $end should be between 0 to 100 when using relative coordinates."
+            }
+        } else {
+            val endPoints = end
+                .split(",")
+                .map { it.trim().toInt() }
+            check(endPoints.size == 2) { "Invalid format for absolute coordinates: $end" }
+        }
+
+        return YamlRelativeCoordinateSwipeElement(from, end, duration, label, optional)
     }
 
     private fun resolveCoordinateSwipe(

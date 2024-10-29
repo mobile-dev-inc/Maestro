@@ -163,6 +163,30 @@ class Maestro(
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
+    fun swipeFromElementToPoint(
+        uiElement: UiElement,
+        endPoint: Point? = null,
+        endRelative: String? = null,
+        duration: Long = 300L
+    ) {
+        val deviceInfo = deviceInfo()
+
+        when {
+            endPoint != null -> driver.swipe(uiElement.bounds.center(), endPoint, duration)
+            endRelative != null -> {
+                val endPoints = endRelative.replace("%", "")
+                    .split(",").map { it.trim().toInt() }
+                val endX = deviceInfo.widthGrid * endPoints[0] / 100
+                val endY = deviceInfo.heightGrid * endPoints[1] / 100
+                val end = Point(endX, endY)
+
+                driver.swipe(uiElement.bounds.center(), end, duration)
+            }
+        }
+
+        waitForAppToSettle ()
+    }
+
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 
