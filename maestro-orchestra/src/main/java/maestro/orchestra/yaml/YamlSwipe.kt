@@ -112,7 +112,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                             "\t1. direction: Direction based swipe with: \"RIGHT\", \"LEFT\", \"UP\", or \"DOWN\" or \n" +
                             "\t2. start and end: Coordinates based swipe with: \"start\" and \"end\" coordinates \n" +
                             "\t3. direction and element to swipe directionally on element\n" +
-                            "\t4. element to swipe and end to swipe from element to coordinates\n" +
+                            "\t4. from and direction/to: more precise swipe from one point to another\n" +
 
                             "It seems you provided invalid input with: $input"
                 )
