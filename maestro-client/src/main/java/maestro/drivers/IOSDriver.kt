@@ -443,9 +443,9 @@ class IOSDriver(
         }
     }
 
-    override fun setOrientation(orientation: String) {
+    override fun setOrientation(orientation: DeviceOrientation) {
         runDeviceCall {
-            iosDevice.setOrientation(orientation)
+            iosDevice.setOrientation(orientation.camelCaseName)
         }
     }
 

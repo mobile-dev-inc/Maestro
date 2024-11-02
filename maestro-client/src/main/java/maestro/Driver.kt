@@ -77,7 +77,7 @@ interface Driver {
 
     fun setLocation(latitude: Double, longitude: Double)
 
-    fun setOrientation(orientation: String)
+    fun setOrientation(orientation: DeviceOrientation)
 
     fun eraseText(charactersToErase: Int)
 

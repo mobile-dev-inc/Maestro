@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -752,7 +753,7 @@ data class SetLocationCommand(
 }
 
 data class SetOrientationCommand(
-    val orientation: String,
+    val orientation: DeviceOrientation,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
