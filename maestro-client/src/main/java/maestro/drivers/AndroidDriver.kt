@@ -704,7 +704,15 @@ class AndroidDriver(
     }
 
     override fun setOrientation(orientation: DeviceOrientation) {
-        // TODO(jmac) Implement and test
+        // Disable accelerometer based rotation before overriding orientation
+        dadb.shell("settings put system accelerometer_rotation 0")
+
+        when(orientation) {
+            DeviceOrientation.PORTRAIT -> dadb.shell("settings put system user_rotation 0")
+            DeviceOrientation.LANDSCAPE_LEFT -> dadb.shell("settings put system user_rotation 1")
+            DeviceOrientation.UPSIDE_DOWN -> dadb.shell("settings put system user_rotation 2")
+            DeviceOrientation.LANDSCAPE_RIGHT -> dadb.shell("settings put system user_rotation 3")
+        }
     }
 
     override fun eraseText(charactersToErase: Int) {
