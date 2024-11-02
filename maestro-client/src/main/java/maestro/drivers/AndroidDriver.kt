@@ -687,6 +687,10 @@ class AndroidDriver(
         }
     }
 
+    override fun setOrientation(orientation: String) {
+        // TODO(jmac) Implement and test
+    }
+
     override fun eraseText(charactersToErase: Int) {
         metrics.measured("operation", mapOf("command" to "eraseText", "charactersToErase" to charactersToErase.toString())) {
             runDeviceCall {

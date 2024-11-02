@@ -26,6 +26,8 @@ class RouteHandlerFactory {
             return EraseTextHandler()
         case .deviceInfo:
             return DeviceInfoHandler()
+        case .setOrientation:
+            return SetOrientationHandler()
         case .setPermissions:
             return SetPermissionsHandler()
         case .viewHierarchy:

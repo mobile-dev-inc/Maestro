@@ -149,6 +149,10 @@ class SimctlIOSDevice(
         }
     }
 
+    override fun setOrientation(orientation: String) {
+        TODO("Not yet implemented")
+    }
+
     override fun isShutdown(): Boolean {
         TODO("Not yet implemented")
     }
