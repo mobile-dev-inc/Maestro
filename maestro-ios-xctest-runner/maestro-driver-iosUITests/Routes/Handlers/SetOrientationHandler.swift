@@ -15,18 +15,7 @@ struct SetOrientationHandler: HTTPHandler {
             return AppError(type: .precondition, message: "incorrect request body provided for set orientation").httpResponse
         }
 
-        let orientation: UIDeviceOrientation = {
-            switch requestBody.orientation.lowercased() {
-            case "landscape": return .landscapeLeft
-            case "landscape_left": return .landscapeLeft
-            case "landscape_right": return .landscapeRight
-            case "portrait": return .portrait
-            case "upside_down": return .portraitUpsideDown
-            default: return .portrait
-            }
-        }()
-
-        XCUIDevice.shared.orientation = orientation
+        XCUIDevice.shared.orientation = requestBody.orientation.uiDeviceOrientation
         return HTTPResponse(statusCode: .ok)
     }
 }

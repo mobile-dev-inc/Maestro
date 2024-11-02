@@ -566,10 +566,14 @@ class Maestro(
         driver.setLocation(latitude.toDouble(), longitude.toDouble())
     }
 
-    fun setOrientation(orientation: String) {
+    fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean = true) {
         LOGGER.info("Setting orientation: $orientation")
 
         driver.setOrientation(orientation)
+
+        if (waitForAppToSettle) {
+            waitForAppToSettle()
+        }
     }
 
     fun eraseText(charactersToErase: Int) {
