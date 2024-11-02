@@ -1,6 +1,7 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -36,6 +37,7 @@ import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
+import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
@@ -363,6 +365,10 @@ internal class YamlCommandReaderTest {
                 condition = null,
                 sourceDescription = "023_runScript_test.js",
                 label = "Run some special calculations"
+            ),
+            SetOrientationCommand(
+                orientation = DeviceOrientation.LANDSCAPE_LEFT,
+                label = "Set the device orientation"
             ),
             ScrollCommand(
                 label = "Scroll down"
