@@ -537,6 +537,12 @@ class Maestro(
         driver.setLocation(latitude.toDouble(), longitude.toDouble())
     }
 
+    fun setOrientation(orientation: String) {
+        LOGGER.info("Setting orientation: $orientation")
+
+        driver.setOrientation(orientation)
+    }
+
     fun eraseText(charactersToErase: Int) {
         LOGGER.info("Erasing $charactersToErase characters")
 

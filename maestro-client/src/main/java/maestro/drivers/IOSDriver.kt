@@ -443,6 +443,12 @@ class IOSDriver(
         }
     }
 
+    override fun setOrientation(orientation: String) {
+        runDeviceCall {
+            iosDevice.setOrientation(orientation)
+        }
+    }
+
     override fun eraseText(charactersToErase: Int) {
         metrics.measured("operation", mapOf("command" to "eraseText")) {
             runDeviceCall("eraseText") { iosDevice.eraseText(charactersToErase) }
