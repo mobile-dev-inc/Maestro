@@ -90,6 +90,12 @@ class FakeDriver : Driver {
         )
     }
 
+    override fun setOrientation(orientation: String) {
+        ensureOpen()
+
+        events += Event.SetOrientation(orientation)
+    }
+
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
@@ -486,6 +492,10 @@ class FakeDriver : Driver {
 
         data class PressKey(
             val code: KeyCode,
+        ) : Event()
+
+        data class SetOrientation(
+            val orientation: String,
         ) : Event()
 
         object TakeScreenshot : Event()

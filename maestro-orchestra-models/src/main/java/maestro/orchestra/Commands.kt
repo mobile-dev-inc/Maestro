@@ -751,6 +751,21 @@ data class SetLocationCommand(
     }
 }
 
+data class SetOrientationCommand(
+    val orientation: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override fun description(): String {
+        return label ?: "Set orientation ${orientation}"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
+        return this
+    }
+}
+
 data class RepeatCommand(
     val times: String? = null,
     val condition: Condition? = null,

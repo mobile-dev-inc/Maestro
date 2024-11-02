@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- setOrientation: LANDSCAPE_LEFT
+- setOrientation: LANDSCAPE_RIGHT
+- setOrientation: PORTRAIT
+- setOrientation: UPSIDE_DOWN
+- setOrientation: LANDSCAPE
