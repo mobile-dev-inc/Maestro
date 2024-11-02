@@ -2,6 +2,7 @@ package maestro.test
 
 import com.google.common.truth.Truth.assertThat
 import com.oracle.truffle.js.nodes.function.EvalNode
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -3253,11 +3254,10 @@ class IntegrationTest {
         }
 
         // Then
-        driver.assertHasEvent(Event.SetOrientation("LANDSCAPE_LEFT"))
-        driver.assertHasEvent(Event.SetOrientation("LANDSCAPE_RIGHT"))
-        driver.assertHasEvent(Event.SetOrientation("PORTRAIT"))
-        driver.assertHasEvent(Event.SetOrientation("UPSIDE_DOWN"))
-        driver.assertHasEvent(Event.SetOrientation("LANDSCAPE"))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.PORTRAIT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_LEFT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
     }
     
     private fun orchestra(
