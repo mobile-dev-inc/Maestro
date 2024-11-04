@@ -5,10 +5,14 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
+import org.slf4j.LoggerFactory
 import util.CommandLineUtils.runCommand
 import java.io.File
 import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
 
 object LocalSimulatorUtils {
@@ -16,6 +20,8 @@ object LocalSimulatorUtils {
     data class SimctlError(override val message: String) : Throwable(message)
 
     private val homedir = System.getProperty("user.home")
+
+    private val logger = LoggerFactory.getLogger(LocalSimulatorUtils::class.java)
 
     private val allPermissions = listOf(
         "calendar",
@@ -171,30 +177,109 @@ object LocalSimulatorUtils {
             .waitFor()
     }
 
+    private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
+        val process = ProcessBuilder(
+            listOf(
+                "xcrun",
+                "simctl",
+                "spawn",
+                deviceId,
+                "launchctl",
+                "list",
+            )
+        ).start()
+
+        return String(process.inputStream.readBytes()).trimEnd().contains(bundleId)
+    }
+
+    private fun ensureStopped(deviceId: String, bundleId: String) {
+        MaestroTimer.withTimeout(10000) {
+            while (true) {
+                if (isAppRunning(deviceId, bundleId)) {
+                    Thread.sleep(1000)
+                } else {
+                    return@withTimeout
+                }
+            }
+        } ?: throw SimctlError("App $bundleId did not stop in time")
+    }
+
+    private fun ensureRunning(deviceId: String, bundleId: String) {
+        MaestroTimer.withTimeout(10000) {
+            while (true) {
+                if (isAppRunning(deviceId, bundleId)) {
+                    return@withTimeout
+                } else {
+                    Thread.sleep(1000)
+                }
+            }
+        } ?: throw SimctlError("App $bundleId did not start in time")
+    }
+
+    private fun copyDirectoryRecursively(source: Path, target: Path) {
+        Files.walk(source).forEach { path ->
+            val targetPath = target.resolve(source.relativize(path).toString())
+            if (Files.isDirectory(path)) {
+                Files.createDirectories(targetPath)
+            } else {
+                Files.copy(path, targetPath)
+            }
+        }
+    }
+
+    private fun deleteFolderRecursively(folder: File): Boolean {
+        if (folder.isDirectory) {
+            folder.listFiles()?.forEach { child ->
+                deleteFolderRecursively(child)
+            }
+        }
+        return folder.delete()
+    }
+
+    private fun reinstallApp(deviceId: String, bundleId: String) {
+        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
+
+        if (Files.isDirectory(pathToBinary)) {
+            val tmpDir = createTempDirectory()
+            val tmpBundlePath = tmpDir.resolve("$bundleId-${System.currentTimeMillis()}.app")
+
+            logger.info("Copying app binary from $pathToBinary to $tmpBundlePath")
+            Files.copy(pathToBinary, tmpBundlePath)
+            copyDirectoryRecursively(pathToBinary, tmpBundlePath)
+
+            logger.info("Reinstalling and launching $bundleId")
+            uninstall(deviceId, bundleId)
+            install(deviceId, tmpBundlePath)
+            deleteFolderRecursively(tmpBundlePath.toFile())
+            logger.info("App $bundleId reinstalled and launched")
+        } else {
+            throw SimctlError("Could not find app binary for bundle $bundleId at $pathToBinary")
+        }
+    }
+
     fun clearAppState(deviceId: String, bundleId: String) {
+        logger.info("Clearing app $bundleId state")
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
         terminate(deviceId, bundleId)
+        ensureStopped(deviceId, bundleId)
 
-        // Wait for the app to be stopped
-        Thread.sleep(1500)
+        // reinstall the app as that is the most stable way to clear state
+        reinstallApp(deviceId, bundleId)
+    }
 
-        // deletes app data, including container folder
-        val appDataDirectory = getApplicationDataDirectory(deviceId, bundleId)
-        ProcessBuilder(listOf("rm", "-rf", appDataDirectory)).start().waitFor()
+    private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
+        val process = ProcessBuilder(
+            listOf(
+                "xcrun",
+                "simctl",
+                "get_app_container",
+                deviceId,
+                bundleId,
+            )
+        ).start()
 
-        // forces app container folder to be re-created
-        val paths = listOf(
-            "Documents",
-            "Library",
-            "Library/Caches",
-            "Library/Preferences",
-            "SystemData",
-            "tmp"
-        )
-
-        val command = listOf("mkdir", appDataDirectory) + paths.map { "$appDataDirectory/$it" }
-        ProcessBuilder(command).start().waitFor()
+        return String(process.inputStream.readBytes()).trimEnd()
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
@@ -489,6 +574,18 @@ object LocalSimulatorUtils {
             "location" -> "never"
             else -> "NO"
         }
+    }
+
+    fun install(deviceId: String, path: Path) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "install",
+                deviceId,
+                path.toAbsolutePath().toString(),
+            )
+        )
     }
 
     fun install(deviceId: String, stream: InputStream) {
