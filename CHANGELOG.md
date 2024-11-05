@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.39.1
+
+Released on 2024-111-04
+
+Fixes:
+- Fix: clearState now automatically reinstall the App ([#2118](https://github.com/mobile-dev-inc/maestro/pull/2118))
+
 ## 1.39.0
 
 Released on 2024-10-15
