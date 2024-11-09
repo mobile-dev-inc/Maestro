@@ -3,7 +3,7 @@ output.speed = {
 }
 
 output.timeout = {
-    slow: 20
+    slow: 20000
 }
 
 output.element = {

@@ -115,8 +115,7 @@ data class ScrollUntilVisibleCommand(
     }
 
     private fun String.timeoutToMillis(): String {
-        val timeout = if (this.toLong() < 0) { DEFAULT_TIMEOUT_IN_MILLIS.toLong() * 1000L } else this.toLong() * 1000L
-        return timeout.toString()
+        return if (this.toLong() < 0) { DEFAULT_TIMEOUT_IN_MILLIS } else this
     }
 
     override fun description(): String {
@@ -132,7 +131,7 @@ data class ScrollUntilVisibleCommand(
     }
 
     companion object {
-        const val DEFAULT_TIMEOUT_IN_MILLIS = "20"
+        const val DEFAULT_TIMEOUT_IN_MILLIS = "20000"
         const val DEFAULT_SCROLL_DURATION = "40"
         const val DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE = 100
         const val DEFAULT_CENTER_ELEMENT = false
