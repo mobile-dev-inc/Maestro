@@ -40,6 +40,7 @@ import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
+    private val insights: Insights = NoopInsights
 ) : Driver {
 
     private var appId: String? = null
@@ -138,9 +139,9 @@ class IOSDriver(
                     "If you are using React native, consider migrating to the new " +
                     "architecture where view flattening is available. For more information on the " +
                     "migration process, please visit: https://reactnative.dev/docs/new-architecture-intro"
-            Insights.report(Insight(message, Insight.Level.INFO))
+            insights.report(Insight(message, Insight.Level.INFO))
         } else {
-            Insights.report(Insight("", Insight.Level.NONE))
+            insights.report(Insight("", Insight.Level.NONE))
         }
         val hierarchy = hierarchyResult.axElement
         return mapViewHierarchy(hierarchy)

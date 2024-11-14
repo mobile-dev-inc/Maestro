@@ -26,9 +26,9 @@ import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
-import maestro.cli.view.green
 import maestro.cli.view.yellow
-import maestro.utils.Insights
+import maestro.utils.CliInsights
+import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 import picocli.CommandLine
 import java.lang.StringBuilder
@@ -65,7 +65,7 @@ class PrintHierarchyCommand : Runnable {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
         ) { session ->
-            Insights.onInsightsUpdated {
+            val callback: (Insight) -> Unit = {
                 val message = StringBuilder()
                 val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
                 message.append(level.yellow() + ": ")
@@ -74,10 +74,16 @@ class PrintHierarchyCommand : Runnable {
                 }
                 println(message.toString())
             }
+            val insights = CliInsights
+
+            insights.onInsightsUpdated(callback)
+
             val hierarchy = jacksonObjectMapper()
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 .writerWithDefaultPrettyPrinter()
                 .writeValueAsString(session.maestro.viewHierarchy().root)
+
+            insights.unregisterListener(callback)
 
             println(hierarchy)
         }

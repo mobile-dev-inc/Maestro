@@ -40,6 +40,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
+import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
@@ -76,11 +77,12 @@ class Orchestra(
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
+    private val insights: Insights = NoopInsights,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandFailed: (Int, MaestroCommand, Throwable) -> ErrorResolution = { _, _, e -> throw e },
-    private val onCommandWarned: (Int, MaestroCommand) -> Unit = { _, _ -> },
+    private val onCommandWarned: (Int, MaestroCommand) -> Unit = { _,  _ -> },
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
@@ -186,7 +188,7 @@ class Orchestra(
                         )
                     )
                 }
-                Insights.onInsightsUpdated(callback)
+                insights.onInsightsUpdated(callback)
 
                 try {
                     try {
@@ -199,7 +201,7 @@ class Orchestra(
                     }
                 } catch (ignored: CommandWarned) {
                     // Swallow exception, but add a warning as an insight
-                    Insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
+                    insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
                     onCommandWarned(index, command)
                 } catch (ignored: CommandSkipped) {
                     // Swallow exception
@@ -210,8 +212,9 @@ class Orchestra(
                         ErrorResolution.FAIL -> return false
                         ErrorResolution.CONTINUE -> {} // Do nothing
                     }
+                } finally {
+                    insights.unregisterListener(callback)
                 }
-                Insights.unregisterListener(callback)
             }
         return true
     }
@@ -690,7 +693,7 @@ class Orchestra(
                         }
                     } catch (ignored: CommandWarned) {
                         // Swallow exception, but add a warning as an insight
-                        Insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
+                        insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
                         onCommandWarned(index, command)
                         false
                     } catch (ignored: CommandSkipped) {
