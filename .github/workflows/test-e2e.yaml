@@ -55,7 +55,8 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
-      ANDROID_OS_IMAGE: system-images;android-28;google_apis;x86_64
+      ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
+      ANDROID_PLATFORM: platforms;android-32
       MAESTRO_EXAMPLE: test-value
 
     steps:
@@ -112,7 +113,7 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
           yes | sdkmanager --install "platform-tools"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          yes | sdkmanager --install "platforms;android-34"
+          yes | sdkmanager --install "$ANDROID_PLATFORM"
           yes | sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Create AVD
