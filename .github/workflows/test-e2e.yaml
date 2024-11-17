@@ -75,7 +75,7 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      - name: Download artifacts
+      - name: Download Maestro build from previous job
         uses: actions/download-artifact@v4
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
@@ -103,8 +103,8 @@ jobs:
 
       - name: Set up Android Command-line Tools
         run: |
-          # v8, latest working on Java 8. Source: https://stackoverflow.com/a/78890086/7009800
-          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+          # v13
+          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-11479570_latest.zip
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
 
       - name: Set up Android SDK components
