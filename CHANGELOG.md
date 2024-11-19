@@ -2,9 +2,18 @@
 
 ## Unreleased
 
+## 1.39.2
+
+Released on 2024-11-19
+
+Fixes:
+- Fix: Insights object causing ConcurrentModificationException ([#2131](https://github.com/mobile-dev-inc/maestro/pull/2131))
+- Fix: Timeout unit in scrollUntilVisible command ([#2112](https://github.com/mobile-dev-inc/maestro/pull/2112))
+- Feat: Add new status for robin flows: PREPARING and INSTALLING. ([#2145](https://github.com/mobile-dev-inc/maestro/pull/2145))
+
 ## 1.39.1
 
-Released on 2024-111-04
+Released on 2024-11-04
 
 Fixes:
 - Fix: clearState now automatically reinstall the App ([#2118](https://github.com/mobile-dev-inc/maestro/pull/2118))
