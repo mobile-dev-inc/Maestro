@@ -98,6 +98,8 @@ object TestSuiteStatusView {
             FlowStatus.PENDING -> "Pending"
             FlowStatus.RUNNING -> "Running"
             FlowStatus.STOPPED -> "Stopped"
+            FlowStatus.PREPARING -> "Preparing Device"
+            FlowStatus.INSTALLING -> "Installing App"
             FlowStatus.CANCELED -> when (cancellationReason) {
                 UploadStatus.CancellationReason.TIMEOUT -> "Timeout"
                 UploadStatus.CancellationReason.OVERLAPPING_BENCHMARK -> "Skipped"
