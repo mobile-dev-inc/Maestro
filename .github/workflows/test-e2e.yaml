@@ -122,7 +122,19 @@ jobs:
             --package "$ANDROID_OS_IMAGE" \
             --name "MyAVD"
 
-          cat << EOF >> ~/.android/avd/MyAVD.avd/config.ini
+          echo "DEBUG INFO"
+          
+          avdmanager list avd
+
+          echo "ANDROID_PREFS_ROOT=$ANDROID_PREFS_ROOT"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_HOME=$ANDROID_SDK_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME"
+          echo "ANDROID_EMULATOR_HOME=$ANDROID_EMULATOR_HOME"
+          echo "HOME=$HOME"
+          
+          cat << EOF >> ~/.config/.android/avd/MyAVD.avd/config.ini
           hw.cpu.ncore=2
           hw.gpu.enabled=yes
           hw.gpu.mode=swiftshader_indirect
