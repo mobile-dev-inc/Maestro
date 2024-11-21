@@ -50,8 +50,8 @@ class XCTestDriverClient(
     }
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(40, TimeUnit.SECONDS)
-        .readTimeout(100, TimeUnit.SECONDS)
+        .connectTimeout(1, TimeUnit.SECONDS)
+        .readTimeout(200, TimeUnit.SECONDS)
         .apply {
             httpInterceptor?.let {
                 this.addInterceptor(it)

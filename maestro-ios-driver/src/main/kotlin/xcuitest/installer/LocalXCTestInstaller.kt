@@ -142,7 +142,7 @@ class LocalXCTestInstaller(
             .build()
 
         val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(40, TimeUnit.SECONDS)
+            .connectTimeout(1, TimeUnit.SECONDS)
             .readTimeout(100, TimeUnit.SECONDS)
             .build()
 
