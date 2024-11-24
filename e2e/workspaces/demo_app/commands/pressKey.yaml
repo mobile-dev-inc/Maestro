@@ -1,0 +1,15 @@
+appId: com.example.example
+---
+- launchApp
+
+- assertVisible: 'Form Test'
+- pressKey: 'Home'
+- assertNotVisible: 'Form Test'
+
+- launchApp
+
+- assertVisible: 'Form Test'
+- tapOn: 'Form Test'
+- assertNotVisible: 'Form Test'
+- pressKey: 'Back'
+- assertVisible: 'Form Test'

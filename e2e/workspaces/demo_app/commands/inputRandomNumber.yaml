@@ -1,0 +1,18 @@
+appId: com.example.example
+---
+- launchApp # For idempotence of sections
+
+- tapOn: 'Input Test'
+- tapOn:
+    id: 'textInput'
+- inputRandomNumber
+- assertVisible:
+    text: '\d{8}' # The default length is 8
+    id: 'textInput'
+
+- eraseText
+- inputRandomNumber:
+    length: 4
+- assertVisible:
+    text: '\d{4}'
+    id: 'textInput'
