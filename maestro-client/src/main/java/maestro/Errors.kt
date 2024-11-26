@@ -63,5 +63,4 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 sealed class MaestroDriverStartupException(override val message: String): RuntimeException() {
     class AndroidDriverTimeoutException(message: String): MaestroDriverStartupException(message)
     class AndroidInstrumentationSetupFailure(message: String): MaestroDriverStartupException(message)
-    class IOSDriverTimeoutException(message: String): MaestroDriverStartupException(message)
 }

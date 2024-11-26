@@ -13,6 +13,7 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
+import java.net.SocketTimeoutException
 import java.util.UUID
 
 class XCTestIOSDevice(

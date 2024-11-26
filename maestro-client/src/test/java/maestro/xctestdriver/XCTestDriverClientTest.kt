@@ -20,33 +20,6 @@ import java.net.InetAddress
 class XCTestDriverClientTest {
 
     @Test
-    fun `it should return correct message in case of TimeoutException with 3 retries`() {
-        // given
-        val mockWebServer = MockWebServer()
-        // do not enqueue any response
-        mockWebServer.start(InetAddress.getByName( "localhost"), 22087)
-        val httpUrl = mockWebServer.url("/deviceInfo")
-
-        // when
-        val simulator = MockXCTestInstaller.Simulator(
-            installationRetryCount = 0,
-            shouldInstall = false
-        )
-        val mockXCTestInstaller = MockXCTestInstaller(simulator)
-        val xcTestDriverClient = XCTestDriverClient(
-            mockXCTestInstaller,
-            XCTestClient("localhost", 22087)
-        )
-
-        // then
-        assertThrows<XCUITestServerError.NetworkError> {
-            xcTestDriverClient.deviceInfo(httpUrl)
-        }
-        mockXCTestInstaller.assertInstallationRetries(5)
-        mockWebServer.shutdown()
-    }
-
-    @Test
     fun `it should return the 4xx response as is without retrying`() {
         // given
         val mockWebServer = MockWebServer()
@@ -136,66 +109,6 @@ class XCTestDriverClientTest {
         }
         mockXCTestInstaller.assertInstallationRetries(0)
         mockWebServer.shutdown()
-    }
-
-    @Test
-    fun `it should return correct message in case of UnknownHostException without retries`() {
-        // given
-        val mockWebServer = MockWebServer()
-        mockWebServer.enqueue(
-            MockResponse()
-                .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START)
-        )
-        mockWebServer.start(InetAddress.getByName( "localhost"), 22087)
-        val httpUrl = mockWebServer.url("http://nonexistent-domain.local")
-
-        // when
-        val simulator = MockXCTestInstaller.Simulator(
-            installationRetryCount = 0,
-            shouldInstall = false
-        )
-        val mockXCTestInstaller = MockXCTestInstaller(simulator)
-        val xcTestDriverClient = XCTestDriverClient(
-            mockXCTestInstaller,
-            XCTestClient("localhost", 22087)
-        )
-
-        // then
-        assertThrows<XCUITestServerError.NetworkError> {
-            xcTestDriverClient.deviceInfo(httpUrl)
-        }
-        mockXCTestInstaller.assertInstallationRetries(0)
-        mockWebServer.shutdown()
-    }
-
-    @Test
-    fun `it should return correct message in case of ConnectExceptions with 3 retries`() {
-        // given
-        val mockWebServer = MockWebServer()
-        mockWebServer.enqueue(
-            MockResponse()
-                .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_REQUEST_BODY)
-        )
-        mockWebServer.start(InetAddress.getByName( "localhost"), 22087)
-        val httpUrl = mockWebServer.url("/deviceInfo")
-        mockWebServer.shutdown()
-
-        // when
-        val simulator = MockXCTestInstaller.Simulator(
-            installationRetryCount = 0,
-            shouldInstall = false
-        )
-        val mockXCTestInstaller = MockXCTestInstaller(simulator)
-        val xcTestDriverClient = XCTestDriverClient(
-            mockXCTestInstaller,
-            XCTestClient("localhost", 22087)
-        )
-
-        // then
-        assertThrows<XCUITestServerError.NetworkError> {
-            xcTestDriverClient.deviceInfo(httpUrl)
-        }
-        mockXCTestInstaller.assertInstallationRetries(5)
     }
 
     companion object {

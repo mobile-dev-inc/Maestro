@@ -26,7 +26,6 @@ import hierarchy.AXElement
 import ios.IOSDevice
 import ios.IOSDeviceErrors
 import maestro.*
-import maestro.MaestroDriverStartupException.*
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.utils.*
@@ -35,6 +34,7 @@ import okio.source
 import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
+import java.net.SocketTimeoutException
 import java.util.UUID
 import kotlin.collections.set
 
@@ -51,7 +51,7 @@ class IOSDriver(
     }
 
     override fun open() {
-        awaitLaunch()
+        iosDevice.open()
     }
 
     override fun close() {
@@ -63,7 +63,7 @@ class IOSDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
-        return runDeviceCall { iosDevice.deviceInfo().toCommonDeviceInfo() }
+        return runDeviceCall("deviceInfo") { iosDevice.deviceInfo().toCommonDeviceInfo() }
     }
 
     override fun launchApp(
@@ -96,11 +96,11 @@ class IOSDriver(
     }
 
     override fun tap(point: Point) {
-        runDeviceCall { iosDevice.tap(point.x, point.y) }
+        runDeviceCall("tap") { iosDevice.tap(point.x, point.y) }
     }
 
     override fun longPress(point: Point) {
-        runDeviceCall { iosDevice.longPress(point.x, point.y, 3000) }
+        runDeviceCall("longPress") { iosDevice.longPress(point.x, point.y, 3000) }
     }
 
     override fun pressKey(code: KeyCode) {
@@ -114,7 +114,7 @@ class IOSDriver(
             KeyCode.LOCK to "lock",
         )
 
-        runDeviceCall {
+        runDeviceCall("pressKey") {
             keyCodeNameMap[code]?.let { name ->
                 iosDevice.pressKey(name)
             }
@@ -126,7 +126,7 @@ class IOSDriver(
     }
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
-        return runDeviceCall { viewHierarchy(excludeKeyboardElements) }
+        return runDeviceCall("contentDescriptor") { viewHierarchy(excludeKeyboardElements) }
     }
 
     private fun viewHierarchy(excludeKeyboardElements: Boolean): TreeNode {
@@ -194,7 +194,7 @@ class IOSDriver(
     }
 
     override fun isKeyboardVisible(): Boolean {
-        return runDeviceCall { iosDevice.isKeyboardVisible() }
+        return runDeviceCall("isKeyboardVisible") { iosDevice.isKeyboardVisible() }
     }
 
     override fun swipe(
@@ -206,7 +206,7 @@ class IOSDriver(
         val startPoint = start.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
         val endPoint = end.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
 
-        runDeviceCall {
+        runDeviceCall("swipe") {
             waitForAppToSettle(null, null)
             iosDevice.scroll(
                 xStart = startPoint.x.toDouble(),
@@ -360,7 +360,7 @@ class IOSDriver(
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
-        runDeviceCall { iosDevice.takeScreenshot(out, compressed) }
+        runDeviceCall("takeScreenshot") { iosDevice.takeScreenshot(out, compressed) }
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
@@ -372,7 +372,7 @@ class IOSDriver(
 
     override fun inputText(text: String) {
         // silently fail if no XCUIElement has focus
-        runDeviceCall { iosDevice.input(text = text) }
+        runDeviceCall("inputText") { iosDevice.input(text = text) }
     }
 
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
@@ -384,7 +384,7 @@ class IOSDriver(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        runDeviceCall { iosDevice.eraseText(charactersToErase) }
+        runDeviceCall("eraseText") { iosDevice.eraseText(charactersToErase) }
     }
 
     override fun setProxy(host: String, port: Int) {
@@ -421,7 +421,7 @@ class IOSDriver(
     }
 
     override fun setPermissions(appId: String, permissions: Map<String, String>) {
-        runDeviceCall {
+        runDeviceCall("setPermissions") {
             iosDevice.setPermissions(appId, permissions)
         }
     }
@@ -456,42 +456,23 @@ class IOSDriver(
     }
 
     private fun isScreenStatic(): Boolean {
-        return runDeviceCall { iosDevice.isScreenStatic() }
+        return runDeviceCall("isScreenStatic") { iosDevice.isScreenStatic() }
     }
 
-    private fun awaitLaunch() {
-        val startTime = System.currentTimeMillis()
-
-        while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-            runCatching {
-                iosDevice.open()
-                return
-            }
-            Thread.sleep(100)
-        }
-
-        throw IOSDriverTimeoutException("Maestro iOS driver did not start up in time")
-    }
-
-    private fun <T> runDeviceCall(call: () -> T): T {
+    private fun <T> runDeviceCall(callName: String, call: () -> T): T {
         return try {
             call()
+        } catch (socketTimeoutException: SocketTimeoutException) {
+            throw MaestroException.DriverTimeout("iOS driver timed out while doing $callName call")
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             throw MaestroException.AppCrash(appCrashException.errorMessage)
         }
     }
 
-    private fun getStartupTimeout(): Long = runCatching {
-        System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
-    }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
-
     companion object {
         const val NAME = "iOS Simulator"
 
         private val LOGGER = LoggerFactory.getLogger(IOSDevice::class.java)
-
-        private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
-        private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
 
         private const val ELEMENT_TYPE_CHECKBOX = 12
         private const val ELEMENT_TYPE_SWITCH = 40

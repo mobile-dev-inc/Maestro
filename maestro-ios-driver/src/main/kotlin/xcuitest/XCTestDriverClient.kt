@@ -6,21 +6,19 @@ import maestro.utils.network.XCUITestServerError
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
-import xcuitest.api.NetworkErrorHandler.Companion.RETRY_RESPONSE_CODE
 import xcuitest.installer.XCTestInstaller
 import java.io.IOException
-import java.net.ConnectException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 class XCTestDriverClient(
     private val installer: XCTestInstaller,
-    private val httpInterceptor: HttpLoggingInterceptor? = null
+    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(1, TimeUnit.SECONDS)
+        .readTimeout(200, TimeUnit.SECONDS)
+        .build()
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
 
@@ -32,13 +30,10 @@ class XCTestDriverClient(
 
     private var isShuttingDown = false
 
-    private val networkErrorHandler by lazy { NetworkErrorHandler(installer) }
-
     init {
         Runtime.getRuntime().addShutdownHook(Thread {
             isShuttingDown = true
         })
-        httpInterceptor?.level = HttpLoggingInterceptor.Level.BODY
     }
 
     fun restartXCTestRunner() {
@@ -48,18 +43,6 @@ class XCTestDriverClient(
         logger.trace("XCTest Runner uninstalled, will install and start it")
         client = installer.start() ?: throw XCTestDriverUnreachable("Failed to start XCTest Driver")
     }
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(1, TimeUnit.SECONDS)
-        .readTimeout(200, TimeUnit.SECONDS)
-        .apply {
-            httpInterceptor?.let {
-                this.addInterceptor(it)
-            }
-        }
-        .addRetryInterceptor()
-        .addRetryAndShutdownInterceptor()
-        .build()
 
     class XCTestDriverUnreachable(message: String) : IOException(message)
 
@@ -272,12 +255,6 @@ class XCTestDriverClient(
                     responseBodyAsString
                 )
             }
-            code == NetworkErrorHandler.NO_RETRY_RESPONSE_CODE -> {
-                logger.error("Request for $pathString failed, because of XCUITest server got crashed/exit, body: $responseBodyAsString")
-                throw XCUITestServerError.NetworkError(
-                    "Request for $pathString failed, because of XCUITest server got crashed/exit, body: $responseBodyAsString"
-                )
-            }
             error.errorMessage.contains("Lost connection to the application.*".toRegex()) -> {
                 logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
                 throw XCUITestServerError.AppCrash(
@@ -311,67 +288,4 @@ class XCTestDriverClient(
         }
     }
 
-    private fun OkHttpClient.Builder.addRetryInterceptor() = addInterceptor(Interceptor { chain ->
-        val response = try {
-             chain.proceed(chain.request())
-        } catch (ioException: IOException) {
-            val networkException = mapNetworkException(ioException)
-            return@Interceptor networkErrorHandler.retryConnection(chain, networkException) {
-                client = it
-            }
-        }
-
-        return@Interceptor when (response.code) {
-            RETRY_RESPONSE_CODE -> {
-                networkErrorHandler.retryConnection(chain.call(), response) {
-                    logger.info("Reinitialized the xctest client after reestablishing connection")
-                    client = it
-                }
-            }
-            else -> {
-                networkErrorHandler.resetRetryCount()
-                response
-            }
-        }
-    })
-
-    private fun OkHttpClient.Builder.addRetryAndShutdownInterceptor() = addNetworkInterceptor(Interceptor {
-        val request = it.request()
-        try {
-            it.proceed(request)
-        } catch (ioException: IOException) {
-            // Fake an Ok response when shutting down and receiving an error
-            // to prevent a stack trace in the cli when running maestro studio.
-
-            if (isShuttingDown) {
-                val message = "Shutting down xctest server"
-                val responseBody = """
-                    { "message" : "$message" }
-                """.trimIndent().toResponseBody("application/json; charset=utf-8".toMediaType())
-
-                Response.Builder()
-                    .request(it.request())
-                    .protocol(Protocol.HTTP_1_1)
-                    .message(message)
-                    .body(responseBody)
-                    .code(200)
-                    .build()
-            } else {
-                val networkException = mapNetworkException(ioException)
-                return@Interceptor networkErrorHandler.getRetrialResponse(networkException, request)
-            }
-        }
-    })
-
-    private fun mapNetworkException(e: IOException): NetworkException {
-        return when (e) {
-            is SocketTimeoutException -> NetworkException.TimeoutException("Socket timeout")
-            is ConnectException -> NetworkException.ConnectionException("Connection error")
-            is UnknownHostException -> NetworkException.UnknownHostException("Unknown host")
-            else -> {
-                logger.info("Exception $e is not mapped io exception")
-                NetworkException.UnknownNetworkException(e.message ?: e.stackTraceToString())
-            }
-        }
-    }
 }
