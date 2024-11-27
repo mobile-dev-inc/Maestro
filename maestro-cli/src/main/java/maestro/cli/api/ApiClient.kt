@@ -15,10 +15,10 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.utils.HttpClient
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -32,21 +32,21 @@ import okio.IOException
 import okio.buffer
 import java.io.File
 import java.nio.file.Path
-import java.util.UUID
-import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
+import kotlin.time.Duration.Companion.minutes
 
 class ApiClient(
     private val baseUrl: String,
 ) {
 
-    private val client = OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .writeTimeout(5, TimeUnit.MINUTES)
-        .protocols(listOf(Protocol.HTTP_1_1))
-        .addInterceptor(SystemInformationInterceptor())
-        .build()
+    private val client = HttpClient.build(
+        name = "ApiClient",
+        readTimeout = 5.minutes,
+        writeTimeout = 5.minutes,
+        protocols = listOf(Protocol.HTTP_1_1),
+        interceptors = listOf(SystemInformationInterceptor()),
+    )
 
     val domain: String
         get() {

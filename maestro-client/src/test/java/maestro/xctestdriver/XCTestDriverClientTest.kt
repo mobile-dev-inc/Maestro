@@ -30,7 +30,7 @@ class XCTestDriverClientTest {
             setBody(mapper.writeValueAsString(error))
         }
         mockWebServer.enqueue(mockResponse)
-        mockWebServer.start(InetAddress.getByName( "localhost"), 22087)
+        mockWebServer.start(InetAddress.getByName("localhost"), 22087)
         val httpUrl = mockWebServer.url("/deviceInfo")
 
         // when
@@ -61,7 +61,7 @@ class XCTestDriverClientTest {
             setBody(mapper.writeValueAsString(expectedDeviceInfo))
         }
         mockWebServer.enqueue(mockResponse)
-        mockWebServer.start(InetAddress.getByName( "localhost"), 22087)
+        mockWebServer.start(InetAddress.getByName("localhost"), 22087)
         val httpUrl = mockWebServer.url("/deviceInfo")
 
         // when

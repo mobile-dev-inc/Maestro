@@ -1,17 +1,19 @@
 package maestro.js
 
+import maestro.utils.HttpClient
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.ScriptableObject
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.minutes
 
 class RhinoJsEngine(
-    httpClient: OkHttpClient = OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .writeTimeout(5, TimeUnit.MINUTES)
-        .protocols(listOf(Protocol.HTTP_1_1))
-        .build(),
+    httpClient: OkHttpClient = HttpClient.build(
+        name="RhinoJsEngine",
+        readTimeout=5.minutes,
+        writeTimeout=5.minutes,
+        protocols=listOf(Protocol.HTTP_1_1)
+    ),
     platform: String = "unknown",
 ) : JsEngine {
 

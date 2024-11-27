@@ -1,3 +1,4 @@
+import org.gradle.internal.impldep.org.junit.experimental.categories.Categories.CategoryFilter.include
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -17,8 +18,9 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 }
 
 dependencies {
-    implementation("dev.mobile:maestro-client:1.38.1")
-    implementation("dev.mobile:maestro-orchestra:1.38.1")
-    implementation("dev.mobile:maestro-ios:1.38.1")
+    implementation(project(":maestro-utils"))
+    implementation(project(":maestro-client"))
+    implementation(project(":maestro-orchestra"))
+    implementation(project(":maestro-ios"))
 }
 

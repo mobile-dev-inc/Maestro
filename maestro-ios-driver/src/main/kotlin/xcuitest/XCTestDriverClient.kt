@@ -2,23 +2,24 @@ package xcuitest
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import hierarchy.ViewHierarchy
+import maestro.utils.HttpClient
 import maestro.utils.network.XCUITestServerError
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
     private val installer: XCTestInstaller,
-    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(1, TimeUnit.SECONDS)
-        .readTimeout(200, TimeUnit.SECONDS)
-        .build()
+    private val okHttpClient: OkHttpClient = HttpClient.build(
+        name = "XCTestDriverClient",
+        readTimeout = 200.seconds,
+        connectTimeout = 1.seconds
+    )
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
 
