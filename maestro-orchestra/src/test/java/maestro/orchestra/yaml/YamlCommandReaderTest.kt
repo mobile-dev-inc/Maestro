@@ -2,6 +2,7 @@ package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
+import maestro.Point
 import maestro.ScrollDirection
 import maestro.SwipeDirection
 import maestro.TapRepeat
@@ -600,6 +601,46 @@ internal class YamlCommandReaderTest {
             KillAppCommand(
                 appId = "com.example.app"
             ),
+        )
+    }
+
+    @Test
+    fun waitToSettleTimeoutMsCommands(
+        @YamlFile("027_waitToSettleTimeoutMs.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(idRegex = "maybe-later"),
+                direction = ScrollDirection.DOWN,
+                waitToSettleTimeoutMs = 50,
+                centerElement = false,
+                visibilityPercentage = 100
+            ),
+            SwipeCommand(
+                startRelative = "90%, 50%",
+                endRelative = "10%, 50%",
+                waitToSettleTimeoutMs = 50
+            ),
+            SwipeCommand(
+                direction = SwipeDirection.LEFT,
+                duration = 400L,
+                waitToSettleTimeoutMs = 50
+            ),
+            SwipeCommand(
+                direction = SwipeDirection.LEFT,
+                duration = 400L,
+                elementSelector = ElementSelector(idRegex = "feeditem_identifier"),
+                waitToSettleTimeoutMs = 50,
+            ),
+            SwipeCommand(
+                startPoint = Point(x = 100, y = 200),
+                endPoint = Point(x = 300, y = 400),
+                waitToSettleTimeoutMs = 50,
+                duration = 400L
+            )
         )
     }
 

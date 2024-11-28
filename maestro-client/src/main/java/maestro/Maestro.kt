@@ -122,7 +122,8 @@ class Maestro(
         endPoint: Point? = null,
         startRelative: String? = null,
         endRelative: String? = null,
-        duration: Long
+        duration: Long,
+        waitToSettleTimeoutMs: Int? = null
     ) {
         val deviceInfo = deviceInfo()
 
@@ -146,23 +147,23 @@ class Maestro(
             }
         }
 
-        waitForAppToSettle()
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long) {
+    fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
         driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs)
 
-        waitForAppToSettle()
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long) {
+    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         val deviceInfo = deviceInfo()
 
         LOGGER.info("Swiping ${swipeDirection.name} from center")
         val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
         driver.swipe(center, swipeDirection, durationMs)
-        waitForAppToSettle()
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
     fun scrollVertical() {

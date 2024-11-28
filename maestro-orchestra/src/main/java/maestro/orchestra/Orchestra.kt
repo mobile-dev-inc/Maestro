@@ -502,7 +502,7 @@ class Orchestra(
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
             }
-            maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong())
+            maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong(), waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
         } while (System.currentTimeMillis() < endTime)
 
         throw MaestroException.ElementNotFound(
@@ -1138,18 +1138,19 @@ class Orchestra(
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector, optional = command.optional)
-                maestro.swipe(direction, uiElement.element, command.duration)
+                maestro.swipe(direction, uiElement.element, command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
             }
 
             startRelative != null && endRelative != null -> {
-                maestro.swipe(startRelative = startRelative, endRelative = endRelative, duration = command.duration)
+                maestro.swipe(startRelative = startRelative, endRelative = endRelative, duration = command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
             }
 
-            direction != null -> maestro.swipe(swipeDirection = direction, duration = command.duration)
+            direction != null -> maestro.swipe(swipeDirection = direction, duration = command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
             start != null && end != null -> maestro.swipe(
                 startPoint = start,
                 endPoint = end,
-                duration = command.duration
+                duration = command.duration,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
             else -> error("Illegal arguments for swiping")

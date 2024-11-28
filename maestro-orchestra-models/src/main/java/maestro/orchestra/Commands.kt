@@ -55,6 +55,7 @@ data class SwipeCommand(
     val startRelative: String? = null,
     val endRelative: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    val waitToSettleTimeoutMs: Int? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -102,6 +103,7 @@ data class ScrollUntilVisibleCommand(
     val scrollDuration: String = DEFAULT_SCROLL_DURATION,
     val visibilityPercentage: Int,
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
+    val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
     override val label: String? = null,
     override val optional: Boolean = false,
