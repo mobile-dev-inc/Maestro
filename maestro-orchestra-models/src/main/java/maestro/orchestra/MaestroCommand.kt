@@ -67,6 +67,7 @@ data class MaestroCommand(
     val addMediaCommand: AddMediaCommand? = null,
     val setAirplaneModeCommand: SetAirplaneModeCommand? = null,
     val toggleAirplaneModeCommand: ToggleAirplaneModeCommand? = null,
+    val retryCommand: RetryCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -109,6 +110,7 @@ data class MaestroCommand(
         addMediaCommand = command as? AddMediaCommand,
         setAirplaneModeCommand = command as? SetAirplaneModeCommand,
         toggleAirplaneModeCommand = command as? ToggleAirplaneModeCommand,
+        retryCommand = command as? RetryCommand
     )
 
     fun asCommand(): Command? = when {
@@ -151,6 +153,7 @@ data class MaestroCommand(
         addMediaCommand != null -> addMediaCommand
         setAirplaneModeCommand != null -> setAirplaneModeCommand
         toggleAirplaneModeCommand != null -> toggleAirplaneModeCommand
+        retryCommand != null -> retryCommand
         else -> null
     }
 

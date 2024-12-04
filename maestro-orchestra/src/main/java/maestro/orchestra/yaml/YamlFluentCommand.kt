@@ -79,6 +79,7 @@ data class YamlFluentCommand(
     val addMedia: YamlAddMedia? = null,
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
+    val retry: YamlRetryCommand? = null,
 ) {
 
     @SuppressWarnings("ComplexMethod")
@@ -209,6 +210,9 @@ data class YamlFluentCommand(
             repeat != null -> listOf(
                 repeatCommand(repeat, flowPath, appId)
             )
+            retry != null -> listOf(
+                retryCommand(retry, flowPath, appId)
+            )
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
             runScript != null -> listOf(
                 MaestroCommand(
@@ -315,6 +319,40 @@ data class YamlFluentCommand(
         )
     }
 
+    private fun retryCommand(retry: YamlRetryCommand, flowPath: Path, appId: String): MaestroCommand {
+        if (retry.file == null && retry.commands == null) {
+            throw SyntaxError("Invalid retry command: No file or commands provided")
+        }
+
+        if (retry.file != null && retry.commands != null) {
+            throw SyntaxError("Invalid retry command: Can't provide both file and commands at the same time")
+        }
+
+        val commands = retry.commands
+            ?.flatMap {
+                it.toCommands(flowPath, appId)
+                    .withEnv(retry.env)
+            }
+            ?: retry(flowPath, retry)
+
+        val config = retry.file?.let {
+            readConfig(flowPath, retry.file)
+        }
+
+
+        val maxRetries = retry.maxRetries ?: "1"
+
+        return MaestroCommand(
+            RetryCommand(
+                maxRetries = maxRetries,
+                commands = commands,
+                label = retry.label,
+                optional = retry.optional,
+                config = config
+            )
+        )
+    }
+
     private fun travelCommand(command: YamlTravelCommand): MaestroCommand {
         return MaestroCommand(
             TravelCommand(
@@ -383,6 +421,16 @@ data class YamlFluentCommand(
 
         val runFlowPath = resolvePath(flowPath, command.file)
         return YamlCommandReader.readCommands(runFlowPath)
+            .withEnv(command.env)
+    }
+
+    private fun retry(flowPath: Path, command: YamlRetryCommand): List<MaestroCommand> {
+        if (command.file == null) {
+            error("Invalid runFlow command: No file or commands provided")
+        }
+
+        val retryFlowPath = resolvePath(flowPath, command.file)
+        return YamlCommandReader.readCommands(retryFlowPath)
             .withEnv(command.env)
     }
 
