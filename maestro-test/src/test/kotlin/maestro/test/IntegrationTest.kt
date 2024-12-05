@@ -3121,8 +3121,10 @@ class IntegrationTest {
         var timeout = "0"
         Maestro(driver).use {
             orchestra(it, onCommandMetadataUpdate = { _, metaData ->
-                scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
-                timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+                if(metaData.evaluatedCommand?.scrollUntilVisible != null) {
+                  scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
+                  timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+                }
             }).runFlow(commands)
         }
 
@@ -3157,8 +3159,10 @@ class IntegrationTest {
         var timeout = "0"
         Maestro(driver).use {
             orchestra(it, onCommandMetadataUpdate = { _, metaData ->
-                scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
-                timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+                if(metaData.evaluatedCommand?.scrollUntilVisible != null) {
+                  scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
+                  timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+                }
             }).runFlow(commands)
         }
 
@@ -3218,6 +3222,63 @@ class IntegrationTest {
         )
     }
 
+    fun `Case 120 - Scroll until view is Returning the bounds`() {
+        // Given
+        val commands = readCommands("120_scroll_until_visible_return_action")
+        val info = driver { }.deviceInfo()
+
+        val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+        val driver = driver {
+          element {
+            id = "maestro"
+            bounds = elementBounds
+          }
+        }
+
+        // When
+        var action: Orchestra.Action.MultipleSwipePoint? = null;
+        val targetAction = Orchestra.Action.MultipleSwipePoint(SwipeDirection.UP, listOf(Point(270,480)));
+
+        Maestro(driver).use {
+            orchestra(it, onCommandMetadataUpdate = { _, metaData ->
+                if(metaData.action != null) {
+                  action = metaData.action as Orchestra.Action.MultipleSwipePoint;
+                }
+            }).runFlow(commands)
+        }
+
+        assertThat(action).isEqualTo(targetAction)
+    }
+
+    @Test
+    fun `Case 121 - Tap returns action`() {
+      // Given
+      val commands = readCommands("121_tap_returns_action")
+
+      val driver = driver {
+        element {
+          mutatingText = {
+            "Static Element"
+          }
+          bounds = Bounds(123, 142, 151, 500)
+        }
+      }
+
+      // When
+      var action: Orchestra.Action.TapPoint? = null;
+      val targetAction = Orchestra.Action.TapPoint(Point(137,321));
+
+      Maestro(driver).use {
+        orchestra(it, onCommandMetadataUpdate = { _, metaData ->
+          if(metaData.action != null) {
+            action = metaData.action as Orchestra.Action.TapPoint;
+          }
+        }).runFlow(commands)
+      }
+
+      assertThat(action).isEqualTo(targetAction)
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
@@ -3260,5 +3321,4 @@ class IntegrationTest {
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
     }
-
 }

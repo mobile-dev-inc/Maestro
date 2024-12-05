@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import maestro.Bounds
 import maestro.js.JsEngine
 
 /**
