@@ -1,11 +1,14 @@
 package maestro.cli.report
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.LoggerContext
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.MaestroException
 import maestro.TreeNode
+import maestro.ai.Defect
 import maestro.cli.runner.CommandStatus
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
@@ -13,7 +16,6 @@ import maestro.cli.util.IOSEnvUtils
 import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
 import maestro.orchestra.MaestroCommand
-import maestro.ai.Defect
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -28,6 +30,7 @@ import java.time.temporal.ChronoUnit
 import java.util.IdentityHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
+
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff
 object TestDebugReporter {
@@ -124,6 +127,12 @@ object TestDebugReporter {
     }
 
     private fun logSystemInfo() {
+        val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
+        val rootLogger = loggerContext.getLogger("io.netty")
+        val grpcLogger = loggerContext.getLogger("io.grpc")
+        rootLogger.setLevel(Level.OFF)
+        grpcLogger.setLevel(Level.OFF)
+
         val logger = LoggerFactory.getLogger("MAESTRO")
         logger.info("---- System Info ----")
         logger.info("Maestro Version: ${EnvUtils.CLI_VERSION ?: "Undefined"}")
