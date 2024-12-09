@@ -1,4 +1,4 @@
-package xcuitest.api
+package maestro.utils.network
 
 import com.fasterxml.jackson.annotation.JsonProperty
 

@@ -22,6 +22,7 @@ package maestro.drivers
 import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.runCatching
 import hierarchy.AXElement
 import ios.IOSDevice
 import ios.IOSDeviceErrors
@@ -29,6 +30,7 @@ import maestro.*
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.utils.*
+import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
@@ -415,7 +417,6 @@ class IOSDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            // silently fail if no XCUIElement has focus
             runDeviceCall("inputText") { iosDevice.input(text = text) }
         }
     }
@@ -528,7 +529,11 @@ class IOSDriver(
         return try {
             call()
         } catch (socketTimeoutException: SocketTimeoutException) {
-            throw MaestroException.DriverTimeout("iOS driver timed out while doing $callName call")
+            LOGGER.error("Got socket timeout processing $callName command", socketTimeoutException)
+            throw socketTimeoutException
+        } catch (badRequest: XCUITestServerError.BadRequest) {
+            LOGGER.error("Bad request for $callName, reason: ${badRequest.errorResponse}")
+            throw MaestroException.UnableToProcessCommand(command = callName, message = badRequest.error.errorMessage)
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             throw MaestroException.AppCrash(appCrashException.errorMessage)
         }

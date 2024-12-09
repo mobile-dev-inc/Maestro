@@ -25,9 +25,7 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 
     class UnableToClearState(message: String) : MaestroException(message)
 
-    class UnableToPullState(message: String) : MaestroException(message)
-
-    class UnableToPushState(message: String) : MaestroException(message)
+    class UnableToProcessCommand(message: String, val command: String): MaestroException(message)
 
     class AppCrash(message: String): MaestroException(message)
 

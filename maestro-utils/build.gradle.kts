@@ -11,6 +11,7 @@ dependencies {
     api(libs.square.okio)
     implementation(libs.square.okhttp)
     implementation(libs.micrometer.core)
+    api(libs.jackson.module.kotlin)
     implementation(libs.micrometer.observation)
 
     testImplementation(libs.mockk)

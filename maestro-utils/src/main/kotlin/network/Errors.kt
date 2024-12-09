@@ -12,5 +12,5 @@ sealed class XCUITestServerError: Throwable() {
     data class UnknownFailure(val errorResponse: String) : XCUITestServerError()
     data class NetworkError(val errorResponse: String): XCUITestServerError()
     data class AppCrash(val errorResponse: String): XCUITestServerError()
-    data class BadRequest(val errorResponse: String, val clientMessage: String): XCUITestServerError()
+    data class BadRequest(val errorResponse: String, val error: Error): XCUITestServerError()
 }
