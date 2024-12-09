@@ -391,12 +391,17 @@ object LocalSimulatorUtils {
             )
         )
 
-        runCommand(
-            listOf(
-                "rm", "-rf",
-                "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
+        val keychainFolder = "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
+        if (File(keychainFolder).exists()) {
+            runCommand(
+                listOf(
+                    "rm", "-rf",
+                    keychainFolder
+                )
             )
-        )
+        } else {
+            logger.info("Keychain folder $keychainFolder does not exist, skipping rm")
+        }
 
         runCommand(
             listOf(
