@@ -23,19 +23,18 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.api.ApiClient
+import maestro.cli.graphics.LocalVideoRenderer
+import maestro.cli.graphics.RemoteVideoRenderer
+import maestro.cli.graphics.SkiaFrameRenderer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
-import maestro.cli.view.ProgressBar
 import okio.sink
-import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.util.concurrent.Callable
-import maestro.cli.device.Platform
 
 @CommandLine.Command(
     name = "record",
@@ -54,11 +53,17 @@ class RecordCommand : Callable<Int> {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
-    @CommandLine.Parameters
+    @CommandLine.Parameters(index = "0", description = ["The Flow file to record."])
     private lateinit var flowFile: File
+
+    @CommandLine.Parameters(description = ["Output file for the rendered video. Only valid for local rendering (--local)."], arity = "0..1", index = "1")
+    private var outputFile: File? = null
 
     @Option(names = ["--config"], description = ["Optional .yaml configuration file for Flows. If not provided, Maestro will look for a config.yaml file in the root directory."])
     private var configFile: File? = null
+
+    @Option(names = ["--local"], description = ["(Beta) Record using local rendering. This will become the default in a future Maestro release."])
+    private var local: Boolean = false
 
     @Option(names = ["-e", "--env"])
     private var env: Map<String, String> = emptyMap()
@@ -77,6 +82,13 @@ class RecordCommand : Callable<Int> {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
                 "File not found: $flowFile"
+            )
+        }
+
+        if (!local && outputFile != null) {
+            throw CommandLine.ParameterException(
+                commandSpec.commandLine(),
+                "The outputFile parameter is only valid for local rendering (--local).",
             )
         }
 
@@ -111,87 +123,21 @@ class RecordCommand : Callable<Int> {
                 }
             }
 
-            System.err.println()
-            System.err.println("@|bold Rendering your video. This usually takes a couple minutes...|@".render())
-            System.err.println()
-
             val frames = resultView.getFrames()
-            val client = ApiClient("")
 
-            val uploadProgress = ProgressBar(50)
-            System.err.println("Uploading raw files for render...")
-            val id = client.render(screenRecording, frames) { totalBytes, bytesWritten ->
-                uploadProgress.set(bytesWritten.toFloat() / totalBytes)
-            }
-            System.err.println()
-
-            var renderProgress: ProgressBar? = null
-            var status: String? = null
-            var positionInQueue: Int? = null
-            while (true) {
-                val state = client.getRenderState(id)
-
-                // If new position or status, print header
-                if (state.status != status || state.positionInQueue != positionInQueue) {
-                    status = state.status
-                    positionInQueue = state.positionInQueue
-
-                    if (renderProgress != null) {
-                        renderProgress.set(1f)
-                        System.err.println()
-                    }
-
-                    System.err.println()
-
-                    System.err.println("Status : ${styledStatus(state.status)}")
-                    if (state.positionInQueue != null) {
-                        System.err.println("Position In Queue : ${state.positionInQueue}")
-                    }
-                }
-
-                // Add ticks to progress bar
-                if (state.currentTaskProgress != null) {
-                    if (renderProgress == null) renderProgress = ProgressBar(50)
-                    renderProgress.set(state.currentTaskProgress)
-                }
-
-                // Print download url or error and return
-                if (state.downloadUrl != null || state.error != null) {
-                    System.err.println()
-                    if (state.downloadUrl != null) {
-                        System.err.println("@|bold Signed Download URL:|@".render())
-                        System.err.println()
-                        print("@|cyan,bold ${state.downloadUrl}|@".render())
-                        System.err.println()
-                        System.err.println()
-                        System.err.println("Open the link above to download your video. If you're sharing on Twitter be sure to tag us @|bold @mobile__dev|@!".render())
-                    } else {
-                        System.err.println("@|bold Render encountered during rendering:|@".render())
-                        System.err.println(state.error)
-                    }
-                    break
-                }
-
-                Thread.sleep(2000)
-            }
+            val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
+            val videoRenderer = if (local) LocalVideoRenderer(
+                frameRenderer = SkiaFrameRenderer(),
+                outputFile = localOutputFile,
+                outputFPS = 25,
+                outputWidthPx = 1920,
+                outputHeightPx = 1080,
+            ) else RemoteVideoRenderer()
+            videoRenderer.render(screenRecording, frames)
 
             TestDebugReporter.deleteOldFiles()
 
             exitCode
         }
-    }
-
-    private fun styledStatus(status: String): String {
-        val style = when (status) {
-            "PENDING" -> "yellow,bold"
-            "RENDERING" -> "blue,bold"
-            "SUCCESS" -> "green,bold"
-            else -> "bold"
-        }
-        return "@|$style $status|@".render()
-    }
-
-    private fun String.render(): String {
-        return Ansi.ansi().render(this).toString()
     }
 }
