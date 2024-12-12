@@ -44,7 +44,7 @@ object XCRunnerCLIUtils {
         val mapper = jacksonObjectMapper()
         val appsMap = mapper.readValue(json, Map::class.java) as Map<String, Any>
 
-        return appsMap.keys
+        return appsMap.keys + runningApps(deviceId).keys
     }
 
     fun setProxy(host: String, port: Int) {

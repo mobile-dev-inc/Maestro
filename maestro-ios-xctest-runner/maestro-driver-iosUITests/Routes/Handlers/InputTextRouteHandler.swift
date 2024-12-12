@@ -17,8 +17,7 @@ struct InputTextRouteHandler : HTTPHandler {
         do {
             let start = Date()
             
-            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
-            if let errorResponse = await waitUntilKeyboardIsPresented(appId: appId) {
+            if let errorResponse = await waitUntilKeyboardIsPresented(appIds: requestBody.appIds) {
                 return errorResponse
             }
             
@@ -32,10 +31,14 @@ struct InputTextRouteHandler : HTTPHandler {
         }
     }
     
-    private func waitUntilKeyboardIsPresented(appId: String?) async -> HTTPResponse? {
+    private func waitUntilKeyboardIsPresented(appIds: [String]) async -> HTTPResponse? {
+        let foregroundAppIds = RunningApp.getForegroundAppIds(appIds)
+        logger.info("Foreground apps \(foregroundAppIds)")
+        
         let isKeyboardPresented: Bool = (try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
-            guard let appId = appId else { return true }
-            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+            return foregroundAppIds.contains { appId in
+                XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+            }
         }) ?? false
 
         // Return an error response if the keyboard is not presented
