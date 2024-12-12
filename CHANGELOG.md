@@ -2,17 +2,19 @@
 
 ## Unreleased
 
-## 1.39.3
+## 1.39.4
 
 Features:
 - Add `waitToSettleTimeoutMs` to other swipe related commands ([#2153](https://github.com/mobile-dev-inc/maestro/pull/2153))
 - Add retry command for flaky conditions ([#2168](https://github.com/mobile-dev-inc/maestro/pull/2168))
+- Add support for recording maestro flows locally instead of using remote servers ([#2173](https://github.com/mobile-dev-inc/maestro/pull/2173))
 
 Fixes:
 - Fix: multiple xcodebuild process and leading to IOSDriverTimeoutException ([#2097](https://github.com/mobile-dev-inc/maestro/pull/2097))
 - Fix: NullPointerException during view hierarchy operations for android ([#2172](https://github.com/mobile-dev-inc/maestro/pull/2172))
 - Fix: Debug level logs in maestro.log file leading to large debug files ([#2170](https://github.com/mobile-dev-inc/maestro/pull/2170))
 - Fix: Environment variable not being set for test suite ([#2163](https://github.com/mobile-dev-inc/maestro/pull/2163))
+- Fix: Failures on clearKeychain operations on iOS due to missing directories ([#2178](https://github.com/mobile-dev-inc/maestro/pull/2178))
 
 ## 1.39.2
 
