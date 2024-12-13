@@ -15,6 +15,7 @@ Fixes:
 - Fix: Debug level logs in maestro.log file leading to large debug files ([#2170](https://github.com/mobile-dev-inc/maestro/pull/2170))
 - Fix: Environment variable not being set for test suite ([#2163](https://github.com/mobile-dev-inc/maestro/pull/2163))
 - Fix: Failures on clearKeychain operations on iOS due to missing directories ([#2178](https://github.com/mobile-dev-inc/maestro/pull/2178))
+- Fix: Failure on how the assertConditionCommand was being handled on Robin([#2171](https://github.com/mobile-dev-inc/maestro/pull/2171)
 
 ## 1.39.2
 
