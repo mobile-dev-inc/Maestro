@@ -372,7 +372,7 @@ data class AssertCommand(
 
 data class AssertConditionCommand(
     val condition: Condition,
-    private val timeout: String? = null,
+    val timeout: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
