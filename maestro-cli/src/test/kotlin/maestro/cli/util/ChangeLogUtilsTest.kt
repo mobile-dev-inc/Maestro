@@ -15,6 +15,7 @@ class ChangeLogUtilsTest {
 
         val changelog = ChangeLogUtils.formatBody(content, CLI_VERSION.toString())
 
+        assertThat(changelog).isNotNull()
         assertThat(changelog).isNotEmpty()
     }
 

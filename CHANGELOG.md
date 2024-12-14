@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.39.4
+## 1.39.5
 
 Features:
 - Add `waitToSettleTimeoutMs` to other swipe related commands ([#2153](https://github.com/mobile-dev-inc/maestro/pull/2153))
