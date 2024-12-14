@@ -1,7 +1,5 @@
 package maestro
 
-import org.openqa.selenium.Keys
-
 enum class KeyCode(
     val description: String,
 ) {
@@ -41,14 +39,6 @@ enum class KeyCode(
         fun getByName(name: String): KeyCode? {
             val lowercaseName = name.lowercase()
             return values().find { it.description.lowercase() == lowercaseName }
-        }
-
-        fun mapToSeleniumKey(code: KeyCode): Keys? {
-            return when (code) {
-                ENTER -> Keys.ENTER
-                BACKSPACE -> Keys.BACK_SPACE
-                else -> null
-            }
         }
     }
 

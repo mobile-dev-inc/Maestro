@@ -40,6 +40,7 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
@@ -47,7 +48,6 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
-import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.isSingleFile
 import okio.sink
 import org.slf4j.LoggerFactory
@@ -158,8 +158,7 @@ class TestCommand : Callable<Int> {
 
     private fun isWebFlow(): Boolean {
         if (flowFiles.isSingleFile) {
-            val config = YamlCommandReader.readConfig(flowFiles.first().toPath())
-            return Regex("http(s?)://").containsMatchIn(config.appId)
+            return flowFiles.first().isWebFlow()
         }
 
         return false
@@ -210,7 +209,8 @@ class TestCommand : Callable<Int> {
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
 
-        val availableDevices = DeviceService.listConnectedDevices().map { it.instanceId }.toSet()
+        val availableDevices =
+            DeviceService.listConnectedDevices(includeWeb = isWebFlow()).map { it.instanceId }.toSet()
         val deviceIds = getPassedOptionsDeviceIds()
             .filter { device ->
                 if (device !in availableDevices) {
@@ -413,7 +413,7 @@ class TestCommand : Callable<Int> {
 
     private fun getPassedOptionsDeviceIds(): List<String> {
         val arguments = if (isWebFlow()) {
-            PrintUtils.warn("Web support is an experimental feature and may be removed in future versions.\n")
+            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
             "chromium"
         } else parent?.deviceId
         val deviceIds = arguments

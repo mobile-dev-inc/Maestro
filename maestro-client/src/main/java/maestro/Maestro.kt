@@ -635,6 +635,17 @@ class Maestro(
         }
 
         fun web(isStudio: Boolean): Maestro {
+            // Check that JRE is at least 11
+            val version = System.getProperty("java.version")
+            if (version.startsWith("1.")) {
+                val majorVersion = version.substring(2, 3).toInt()
+                if (majorVersion < 11) {
+                    throw MaestroException.UnsupportedJavaVersion(
+                        "Maestro Web requires Java 11 or later. Current version: $version"
+                    )
+                }
+            }
+
             val driver = WebDriver(isStudio)
             driver.open()
             return Maestro(driver)

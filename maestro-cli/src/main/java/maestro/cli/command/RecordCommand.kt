@@ -30,6 +30,7 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.FileUtils.isWebFlow
 import okio.sink
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -98,11 +99,17 @@ class RecordCommand : Callable<Int> {
         TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
         val path = TestDebugReporter.getDebugOutputPath()
 
+        val deviceId = if (flowFile.isWebFlow()) {
+            throw CliError("'record' command does not support web flows yet.")
+        } else {
+            parent?.deviceId
+        }
+
         return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = parent?.port,
-            deviceId = parent?.deviceId,
+            deviceId = deviceId,
             platform = parent?.platform,
         ) { session ->
             val maestro = session.maestro

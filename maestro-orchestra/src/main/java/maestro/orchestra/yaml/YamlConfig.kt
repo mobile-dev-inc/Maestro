@@ -1,5 +1,6 @@
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonAnySetter
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
@@ -10,6 +11,7 @@ import java.nio.file.Path
 
 data class YamlConfig(
     val name: String?,
+    @JsonAlias("url")
     val appId: String,
     val tags: List<String>? = emptyList(),
     val env: Map<String, String> = emptyMap(),

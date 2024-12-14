@@ -80,9 +80,12 @@ dependencies {
     api(libs.apk.parser)
 
     implementation(project(":maestro-ios"))
+    implementation(project(":maestro-web"))
     implementation(libs.google.findbugs)
     implementation(libs.axml)
     implementation(libs.selenium)
+    implementation(libs.selenium.devtools)
+    implementation(libs.jcodec)
     api(libs.slf4j)
     api(libs.logback) {
         exclude(group = "org.slf4j", module = "slf4j-api")

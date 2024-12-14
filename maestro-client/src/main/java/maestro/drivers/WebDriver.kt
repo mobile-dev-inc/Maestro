@@ -12,8 +12,9 @@ import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.utils.ScreenshotUtils
+import maestro.web.record.JcodecVideoEncoder
+import maestro.web.record.WebScreenRecorder
 import okio.Sink
-import maestro.NamedSource
 import okio.buffer
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
@@ -24,21 +25,27 @@ import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeDriverService
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel
+import org.openqa.selenium.devtools.HasDevTools
+import org.openqa.selenium.devtools.v130.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.WebDriverWait
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.Duration
-import java.util.Random
-import java.util.UUID
+import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
+
 
 class WebDriver(val isStudio: Boolean) : Driver {
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
+    private var lastSeenWindowHandles = setOf<String>()
+
+    private var webScreenRecorder: WebScreenRecorder? = null
 
     init {
         Maestro::class.java.getResourceAsStream("/maestro-web.js")?.let {
@@ -67,12 +74,19 @@ class WebDriver(val isStudio: Boolean) : Driver {
             ChromeOptions().apply {
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
+                addArguments("--lang=en")
                 if (isStudio) {
                     addArguments("--headless=new")
                     addArguments("--window-size=1024,768")
+                    setExperimentalOption("detach", true)
                 }
             }
         )
+
+        seleniumDriver
+            ?.let { it as? HasDevTools }
+            ?.devTools
+            ?.createSessionIfThereIsNotOne()
 
         if (isStudio) {
             seleniumDriver?.get("https://maestro.mobile.dev")
@@ -123,21 +137,30 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun close() {
-        seleniumDriver?.quit()
+        try {
+            seleniumDriver?.quit()
+            webScreenRecorder?.close()
+        } catch (e: Exception) {
+            // Swallow the exception to avoid crashing the whole process
+        }
+
         seleniumDriver = null
+        lastSeenWindowHandles = setOf()
+        webScreenRecorder = null
     }
 
     override fun deviceInfo(): DeviceInfo {
-        val driver = ensureOpen()
+        val driver = ensureOpen() as JavascriptExecutor
 
-        val windowSize = driver.manage().window().size
+        val width = driver.executeScript("return window.innerWidth;") as Long
+        val height = driver.executeScript("return window.innerHeight;") as Long
 
         return DeviceInfo(
             platform = Platform.WEB,
-            widthPixels = windowSize.width,
-            heightPixels = windowSize.height,
-            widthGrid = windowSize.width,
-            heightGrid = windowSize.height,
+            widthPixels = width.toInt(),
+            heightPixels = height.toInt(),
+            widthGrid = width.toInt(),
+            heightGrid = height.toInt(),
         )
     }
 
@@ -169,6 +192,8 @@ class WebDriver(val isStudio: Boolean) : Driver {
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         ensureOpen()
+
+        detectWindowChange()
 
         // retrieve view hierarchy from DOM
         // There are edge cases where executeJS returns null, and we cannot get the hierarchy. In this situation
@@ -205,6 +230,25 @@ class WebDriver(val isStudio: Boolean) : Driver {
         return parse(contentDesc as Map<String, Any>)
     }
 
+    private fun detectWindowChange() {
+        // Checks whether there are any new window handles available and, if so, switches Selenium driver focus to it
+        val driver = ensureOpen()
+
+        if (lastSeenWindowHandles != driver.windowHandles) {
+            val newHandles = driver.windowHandles - lastSeenWindowHandles
+            lastSeenWindowHandles = driver.windowHandles
+
+            if (newHandles.isNotEmpty()) {
+                val newHandle = newHandles.first();
+                LOGGER.info("Detected a window change, switching to new window handle $newHandle")
+
+                driver.switchTo().window(newHandle)
+
+                webScreenRecorder?.onWindowChange()
+            }
+        }
+    }
+
     override fun clearAppState(appId: String) {
         // Do nothing
     }
@@ -219,7 +263,14 @@ class WebDriver(val isStudio: Boolean) : Driver {
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
         val actions = org.openqa.selenium.interactions.Sequence(mouse, 1)
-            .addAction(mouse.createPointerMove(Duration.ofMillis(400), PointerInput.Origin.viewport(), point.x, point.y - pixelsScrolled.toInt()))
+            .addAction(
+                mouse.createPointerMove(
+                    Duration.ofMillis(400),
+                    PointerInput.Origin.viewport(),
+                    point.x,
+                    point.y - pixelsScrolled.toInt()
+                )
+            )
 
         (driver as RemoteWebDriver).perform(listOf(actions))
 
@@ -242,9 +293,16 @@ class WebDriver(val isStudio: Boolean) : Driver {
 
         val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
         val element = driver.findElement(By.ByXPath(xPath))
-        val key = KeyCode.mapToSeleniumKey(code)
-            ?: throw IllegalArgumentException("Keycode $code is not supported on web")
+        val key = mapToSeleniumKey(code)
         element.sendKeys(key)
+    }
+
+    private fun mapToSeleniumKey(code: KeyCode): Keys {
+        return when (code) {
+            KeyCode.ENTER -> Keys.ENTER
+            KeyCode.BACKSPACE -> Keys.BACK_SPACE
+            else -> error("Keycode $code is not supported on web")
+        }
     }
 
     override fun scrollVertical() {
@@ -252,11 +310,10 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun isKeyboardVisible(): Boolean {
-        TODO("Not yet implemented")
+        return false
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
-        // TODO validate implementation and ensure it works properly
         val driver = ensureOpen()
 
         val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
@@ -283,7 +340,6 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        // TODO validate implementation and ensure it works properly
         when (swipeDirection) {
             SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
             SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
@@ -295,10 +351,6 @@ class WebDriver(val isStudio: Boolean) : Driver {
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
         // Ignoring elementPoint to enable a rudimentary implementation of scrollUntilVisible for web
         swipe(direction, durationMs)
-    }
-
-    fun swipe(start: Point, end: Point) {
-        TODO("Not yet implemented")
     }
 
     override fun backPress() {
@@ -336,11 +388,32 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
-        TODO("Not yet implemented")
+        val driver = ensureOpen()
+        webScreenRecorder = WebScreenRecorder(
+            JcodecVideoEncoder(),
+            driver
+        )
+        webScreenRecorder?.startScreenRecording(out)
+
+        return object : ScreenRecording {
+            override fun close() {
+                webScreenRecorder?.close()
+            }
+        }
     }
 
     override fun setLocation(latitude: Double, longitude: Double) {
-        TODO("Not yet implemented")
+        val driver = ensureOpen() as HasDevTools
+
+        driver.devTools.createSessionIfThereIsNotOne()
+
+        driver.devTools.send(
+            Emulation.setGeolocationOverride(
+                Optional.of(latitude),
+                Optional.of(longitude),
+                Optional.of(0.0)
+            )
+        )
     }
 
     override fun eraseText(charactersToErase: Int) {
@@ -357,11 +430,11 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun setProxy(host: String, port: Int) {
-        TODO("Not yet implemented")
+        // Do nothing
     }
 
     override fun resetProxy() {
-        TODO("Not yet implemented")
+        // Do nothing
     }
 
     override fun isShutdown(): Boolean {
@@ -396,15 +469,17 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun isAirplaneModeEnabled(): Boolean {
-        TODO("Not yet implemented")
+        return false;
     }
 
     override fun setAirplaneMode(enabled: Boolean) {
-        TODO("Not yet implemented")
+        // Do nothing
     }
 
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
+
+        private val LOGGER = LoggerFactory.getLogger(maestro.drivers.WebDriver::class.java)
     }
 }

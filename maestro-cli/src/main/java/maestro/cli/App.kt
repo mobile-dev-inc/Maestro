@@ -19,6 +19,7 @@
 
 package maestro.cli
 
+import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.CloudCommand
@@ -33,6 +34,7 @@ import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
 import maestro.cli.update.Updates
+import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ErrorReporter
 import maestro.cli.view.box
 import maestro.debuglog.DebugLogStore
@@ -40,9 +42,8 @@ import picocli.AutoComplete.GenerateCompletion
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Option
-import java.util.Properties
+import java.util.*
 import kotlin.system.exitProcess
-import maestro.cli.util.ChangeLogUtils
 
 @Command(
     name = "maestro",
@@ -127,8 +128,7 @@ fun main(args: Array<String>) {
                 cmd.colorScheme.errorText(ex.message)
             )
 
-            // Print stack trace
-            if (ex !is CliError) {
+            if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion) {
                 cmd.err.println("\nThe stack trace was:")
                 cmd.err.println(ex.stackTraceToString())
             }
@@ -150,14 +150,16 @@ fun main(args: Array<String>) {
         System.err.println()
         val changelog = Updates.getChangelog()
         val anchor = newVersion.toString().replace(".", "")
-        System.err.println(listOf(
-            "A new version of the Maestro CLI is available ($newVersion).\n",
-            "See what's new:",
-            "https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#$anchor",
-            ChangeLogUtils.print(changelog),
-            "Upgrade command:",
-            "curl -Ls \"https://get.maestro.mobile.dev\" | bash",
-        ).joinToString("\n").box())
+        System.err.println(
+            listOf(
+                "A new version of the Maestro CLI is available ($newVersion).\n",
+                "See what's new:",
+                "https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#$anchor",
+                ChangeLogUtils.print(changelog),
+                "Upgrade command:",
+                "curl -Ls \"https://get.maestro.mobile.dev\" | bash",
+            ).joinToString("\n").box()
+        )
     }
 
     if (commandLine.isVersionHelpRequested) {

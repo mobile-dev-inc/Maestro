@@ -11,6 +11,7 @@ import DeviceWrapperAspectRatio from "../device-and-device-elements/DeviceWrappe
 import { useDeviceContext } from "../../context/DeviceContext";
 import { Spinner } from "../design-system/spinner";
 import { useRepl } from '../../context/ReplContext';
+import { DeviceScreen } from "../../helpers/models";
 
 const InteractPageLayout = () => {
   const {
@@ -52,6 +53,8 @@ const InteractPageLayout = () => {
 
   if (!deviceScreen) return null;
 
+  var widthClass = computeWidthClass(deviceScreen, showElementsPanel);
+
   return (
     <div className="flex h-full overflow-hidden">
       {showElementsPanel && (
@@ -59,10 +62,8 @@ const InteractPageLayout = () => {
       )}
       <div
         className={clsx(
-          "px-8 pt-6 pb-7 bg-white dark:bg-slate-900 basis-1/2  relative gap-4 flex flex-col",
-          showElementsPanel
-            ? "lg:basis-4/12 max-w-[33.333333%]"
-            : "lg:basis-5/12 max-w-[41.666667%]"
+          "px-8 pt-6 pb-7 bg-white dark:bg-slate-900 relative gap-4 flex flex-col",
+          widthClass
         )}
       >
         {!showElementsPanel && (
@@ -95,4 +96,26 @@ const InteractPageLayout = () => {
   );
 };
 
+function computeWidthClass(deviceScreen: DeviceScreen, showElementsPanel: boolean) {
+  const wideDevice = deviceScreen.width > deviceScreen.height;
+
+  var widthModifier = "basis-1/2";
+  if (showElementsPanel) {
+    widthModifier += " max-w-[33.333333%]";
+
+    if (wideDevice) {
+      widthModifier += " lg:basis-5/12";
+    }
+  } else {
+    if (wideDevice) {
+      widthModifier += " max-w-[80%]";
+    } else {
+      widthModifier += " lg:basis-4/12 max-w-[41.666667%]";
+    }
+  }
+
+  return widthModifier;
+}
+
 export default InteractPageLayout;
+
