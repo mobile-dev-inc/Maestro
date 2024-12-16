@@ -84,7 +84,7 @@ class Orchestra(
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandFailed: (Int, MaestroCommand, Throwable) -> ErrorResolution = { _, _, e -> throw e },
-    private val onCommandWarned: (Int, MaestroCommand) -> Unit = { _,  _ -> },
+    private val onCommandWarned: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
@@ -197,7 +197,8 @@ class Orchestra(
                         executeCommand(evaluatedCommand, config)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
-                        val isOptional = command.asCommand()?.optional == true || command.elementSelector()?.optional == true
+                        val isOptional =
+                            command.asCommand()?.optional == true || command.elementSelector()?.optional == true
                         if (isOptional) throw CommandWarned(e.message)
                         else throw e
                     }
@@ -255,11 +256,11 @@ class Orchestra(
         return when (command) {
             is TapOnElementCommand -> {
                 tapOnElement(
-                  command = command,
-                  maestroCommand = maestroCommand,
-                  retryIfNoChange = command.retryIfNoChange ?: true,
-                  waitUntilVisible = command.waitUntilVisible ?: false,
-                  config = config,
+                    command = command,
+                    maestroCommand = maestroCommand,
+                    retryIfNoChange = command.retryIfNoChange ?: true,
+                    waitUntilVisible = command.waitUntilVisible ?: false,
+                    config = config,
                 )
             }
 
@@ -276,6 +277,7 @@ class Orchestra(
             is AssertConditionCommand -> assertConditionCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command)
             is AssertWithAICommand -> assertWithAICommand(command)
+            is ExtractTextWithAICommand -> extractTextWithAICommand(command)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -413,6 +415,26 @@ class Orchestra(
         false
     }
 
+    private fun extractTextWithAICommand(command: ExtractTextWithAICommand): Boolean = runBlocking {
+        // Extract text from the screen using AI
+        if (ai == null) {
+            throw MaestroException.AINotAvailable("AI client is not available. Did you export $AI_KEY_ENV_VAR?")
+        }
+
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+
+        val text = Prediction.extractText(
+            aiClient = ai,
+            screen = imageData.copy().readByteArray(),
+            query = command.query,
+        )
+
+        jsEngine.putEnv(command.outputVariable, text)
+
+        false
+    }
+
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
         command.scriptString.evaluateScripts(jsEngine)
 
@@ -508,15 +530,19 @@ class Orchestra(
             }
             val oldMetadata = getMetadata(maestroCommand);
             val metadata = oldMetadata.copy(
-              action = Action.MultipleSwipePoint(
-                direction = direction,
-                points = (oldMetadata.action as? Action.MultipleSwipePoint)?.points?.toMutableList()?.apply {
-                  add(Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2))
-                } ?: listOf(Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2))
-              ),
+                action = Action.MultipleSwipePoint(
+                    direction = direction,
+                    points = (oldMetadata.action as? Action.MultipleSwipePoint)?.points?.toMutableList()?.apply {
+                        add(Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2))
+                    } ?: listOf(Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2))
+                ),
             )
             updateMetadata(maestroCommand, metadata);
-            maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong(), waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+            maestro.swipeFromCenter(
+                direction,
+                durationMs = command.scrollDuration.toLong(),
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
         } while (System.currentTimeMillis() < endTime)
 
         throw MaestroException.ElementNotFound(
@@ -578,7 +604,7 @@ class Orchestra(
         val maxRetries = (command.maxRetries?.toIntOrNull() ?: 1).coerceAtMost(MAX_RETRIES_ALLOWED)
 
         var attempt = 0
-        while(attempt <= maxRetries) {
+        while (attempt <= maxRetries) {
             try {
                 return runSubFlow(command.commands, config, command.config)
             } catch (exception: Throwable) {
@@ -587,8 +613,9 @@ class Orchestra(
                     throw exception
                 }
 
-                val message = "Retrying the commands due to an error: ${exception.message} while execution (Attempt ${attempt + 1})"
-                logger.error("Attempt ${attempt +1} failed for retry command", exception)
+                val message =
+                    "Retrying the commands due to an error: ${exception.message} while execution (Attempt ${attempt + 1})"
+                logger.error("Attempt ${attempt + 1} failed for retry command", exception)
                 insights.report(Insight(message = message, Insight.Level.WARNING))
             }
             attempt++
@@ -724,7 +751,8 @@ class Orchestra(
                                     onCommandComplete(index, command)
                                 }
                         } catch (exception: MaestroException) {
-                            val isOptional = command.asCommand()?.optional == true || command.elementSelector()?.optional == true
+                            val isOptional =
+                                command.asCommand()?.optional == true || command.elementSelector()?.optional == true
                             if (isOptional) throw CommandWarned(exception.message)
                             else throw exception
                         }
@@ -898,7 +926,7 @@ class Orchestra(
     ): Boolean {
         val result = findElement(command.selector, optional = command.optional)
         val metadata = getMetadata(maestroCommand).copy(
-          action = Action.TapPoint(Point(x = result.element.bounds.center().x, y = result.element.bounds.center().y)),
+            action = Action.TapPoint(Point(x = result.element.bounds.center().x, y = result.element.bounds.center().y)),
         )
         updateMetadata(maestroCommand, metadata);
 
@@ -948,7 +976,12 @@ class Orchestra(
             }
 
             val metadata = getMetadata(maestroCommand).copy(
-              action = Action.TapPoint(Point(deviceInfo.widthGrid * percentX / 100, deviceInfo.heightGrid * percentY / 100)),
+                action = Action.TapPoint(
+                    Point(
+                        deviceInfo.widthGrid * percentX / 100,
+                        deviceInfo.heightGrid * percentY / 100
+                    )
+                ),
             )
             updateMetadata(maestroCommand, metadata);
             maestro.tapOnRelative(
@@ -966,7 +999,7 @@ class Orchestra(
                 }
 
             val metadata = getMetadata(maestroCommand).copy(
-              action = Action.TapPoint(Point(x, y)),
+                action = Action.TapPoint(Point(x, y)),
             )
             updateMetadata(maestroCommand, metadata);
             maestro.tap(
@@ -1190,45 +1223,66 @@ class Orchestra(
                 val metadata = getMetadata(maestroCommand).copy(
                     action = Action.SwipePoint.WithDirection(
                         direction = direction,
-                        startPoint =  Point(uiElement.element.bounds.center().x, uiElement.element.bounds.center().y),
+                        startPoint = Point(uiElement.element.bounds.center().x, uiElement.element.bounds.center().y),
                     ),
                 )
                 updateMetadata(maestroCommand, metadata);
-                maestro.swipe(direction, uiElement.element, command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                maestro.swipe(
+                    direction,
+                    uiElement.element,
+                    command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
             }
 
             startRelative != null && endRelative != null -> {
                 val startPoints = startRelative.replace("%", "")
-                  .split(",").map { it.trim().toInt() }
+                    .split(",").map { it.trim().toInt() }
                 val endPoint = endRelative.replace("%", "")
-                  .split(",").map { it.trim().toInt() }
+                    .split(",").map { it.trim().toInt() }
                 val metadata = getMetadata(maestroCommand).copy(
-                  action = Action.SwipePoint.WithEndPoint(
-                    startPoint =  Point(startPoints[0] * deviceInfo.widthGrid / 100, startPoints[1] * deviceInfo.widthGrid / 100),
-                    endPoint =  Point(endPoint[0] * deviceInfo.widthGrid / 100, endPoint[1] * deviceInfo.widthGrid / 100),
-                  ),
+                    action = Action.SwipePoint.WithEndPoint(
+                        startPoint = Point(
+                            startPoints[0] * deviceInfo.widthGrid / 100,
+                            startPoints[1] * deviceInfo.widthGrid / 100
+                        ),
+                        endPoint = Point(
+                            endPoint[0] * deviceInfo.widthGrid / 100,
+                            endPoint[1] * deviceInfo.widthGrid / 100
+                        ),
+                    ),
                 )
                 updateMetadata(maestroCommand, metadata);
-                maestro.swipe(startRelative = startRelative, endRelative = endRelative, duration = command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                maestro.swipe(
+                    startRelative = startRelative,
+                    endRelative = endRelative,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
             }
 
             direction != null -> {
-              val metadata = getMetadata(maestroCommand).copy(
-                action = Action.SwipePoint.WithDirection(
-                  direction = direction,
-                  startPoint =  Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2),
-                ),
-              )
-              updateMetadata(maestroCommand, metadata);
-              maestro.swipe(swipeDirection = direction, duration = command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                val metadata = getMetadata(maestroCommand).copy(
+                    action = Action.SwipePoint.WithDirection(
+                        direction = direction,
+                        startPoint = Point(deviceInfo.widthGrid / 2, deviceInfo.heightGrid / 2),
+                    ),
+                )
+                updateMetadata(maestroCommand, metadata);
+                maestro.swipe(
+                    swipeDirection = direction,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
             }
+
             start != null && end != null -> {
-              maestro.swipe(
-                startPoint = start,
-                endPoint = end,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-              )
+                maestro.swipe(
+                    startPoint = start,
+                    endPoint = end,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
             }
 
             else -> error("Illegal arguments for swiping")
@@ -1244,7 +1298,7 @@ class Orchestra(
     private fun copyTextFromCommand(command: CopyTextFromCommand, maestroCommand: MaestroCommand): Boolean {
         val result = findElement(command.selector, optional = command.optional)
         val metadata = getMetadata(maestroCommand).copy(
-          action = Action.TapPoint(Point(result.element.bounds.center().x, result.element.bounds.center().y)),
+            action = Action.TapPoint(Point(result.element.bounds.center().x, result.element.bounds.center().y)),
         )
         updateMetadata(maestroCommand, metadata);
         copiedText = resolveText(result.element.treeNode.attributes)

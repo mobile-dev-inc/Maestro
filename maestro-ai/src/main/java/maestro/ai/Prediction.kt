@@ -12,22 +12,36 @@ data class Defect(
 )
 
 @Serializable
-private data class ModelResponse(
+private data class AskForDefectsResponse(
     val defects: List<Defect>,
 )
 
+@Serializable
+private data class ExtractTextResponse(
+    val text: String?
+)
+
 object Prediction {
+
+    private val askForDefectsSchema by lazy {
+        readSchema("askForDefects")
+    }
+
+    private val extractTextSchema by lazy {
+        readSchema("extractText")
+    }
 
     /**
      * We use JSON mode/Structured Outputs to define the schema of the response we expect from the LLM.
      * - OpenAI: https://platform.openai.com/docs/guides/structured-outputs
      * - Gemini: https://ai.google.dev/gemini-api/docs/json-mode
      */
-    private val askForDefectsSchema: String = run {
-        val resourceStream = this::class.java.getResourceAsStream("/askForDefects_schema.json")
-            ?: throw IllegalStateException("Could not find askForDefects_schema.json in resources")
+    private fun readSchema(name: String): String {
+        val fileName = "/${name}_schema.json"
+        val resourceStream = this::class.java.getResourceAsStream(fileName)
+            ?: throw IllegalStateException("Could not find $fileName in resources")
 
-        resourceStream.bufferedReader().use { it.readText() }
+        return resourceStream.bufferedReader().use { it.readText() }
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -126,7 +140,7 @@ object Prediction {
             println("--- RAW RESPONSE END ---")
         }
 
-        val defects = json.decodeFromString<ModelResponse>(aiResponse.response)
+        val defects = json.decodeFromString<AskForDefectsResponse>(aiResponse.response)
         return defects.defects
     }
 
@@ -208,7 +222,52 @@ object Prediction {
             println("--- RAW RESPONSE END ---")
         }
 
-        val response = json.decodeFromString<ModelResponse>(aiResponse.response)
+        val response = json.decodeFromString<AskForDefectsResponse>(aiResponse.response)
         return response.defects.firstOrNull()
     }
+
+    suspend fun extractText(
+        aiClient: AI,
+        screen: ByteArray,
+        query: String,
+    ): String {
+        val prompt = buildString {
+            append("What text on the screen matches the following query: $query")
+
+            append(
+                """
+                |
+                |RULES:
+                |* Provide response as a valid JSON, with structure described below.
+                """.trimMargin("|")
+            )
+
+            append(
+                """
+                |
+                |* You must provide result as a valid JSON object, matching this structure:
+                |
+                |  {
+                |      "text": <string>
+                |  }
+                |
+                |DO NOT output any other information in the JSON object.
+                """.trimMargin("|")
+            )
+        }
+
+        val aiResponse = aiClient.chatCompletion(
+            prompt,
+            model = aiClient.defaultModel,
+            maxTokens = 4096,
+            identifier = "perform-assertion",
+            imageDetail = "high",
+            images = listOf(screen),
+            jsonSchema = if (aiClient is OpenAI) json.parseToJsonElement(extractTextSchema).jsonObject else null,
+        )
+
+        val response = json.decodeFromString<ExtractTextResponse>(aiResponse.response)
+        return response.text ?: ""
+    }
+
 }

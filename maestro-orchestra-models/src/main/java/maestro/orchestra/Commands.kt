@@ -37,7 +37,7 @@ sealed interface Command {
     fun visible(): Boolean = true
 
     val label: String?
-    
+
     val optional: Boolean
 }
 
@@ -65,18 +65,23 @@ data class SwipeCommand(
             label != null -> {
                 label
             }
+
             elementSelector != null && direction != null -> {
                 "Swiping in $direction direction on ${elementSelector.description()}"
             }
+
             direction != null -> {
                 "Swiping in $direction direction in $duration ms"
             }
+
             startPoint != null && endPoint != null -> {
                 "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y}) in $duration ms"
             }
+
             startRelative != null && endRelative != null -> {
                 "Swipe from ($startRelative) to ($endRelative) in $duration ms"
             }
+
             else -> "Invalid input to swipe command"
         }
     }
@@ -113,11 +118,15 @@ data class ScrollUntilVisibleCommand(
 
     private fun String.speedToDuration(): String {
         val duration = ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1)
-        return if (duration < 0) { DEFAULT_SCROLL_DURATION } else duration.toString()
+        return if (duration < 0) {
+            DEFAULT_SCROLL_DURATION
+        } else duration.toString()
     }
 
     private fun String.timeoutToMillis(): String {
-        return if (this.toLong() < 0) { DEFAULT_TIMEOUT_IN_MILLIS } else this
+        return if (this.toLong() < 0) {
+            DEFAULT_TIMEOUT_IN_MILLIS
+        } else this
     }
 
     override fun description(): String {
@@ -336,7 +345,7 @@ data class AssertCommand(
 ) : Command {
 
     override fun description(): String {
-        if (label != null){
+        if (label != null) {
             return label
         }
         val timeoutStr = timeout?.let { " within $timeout ms" } ?: ""
@@ -382,7 +391,8 @@ data class AssertConditionCommand(
     }
 
     override fun description(): String {
-        val optional = if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true ) "(Optional) " else ""
+        val optional =
+            if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true) "(Optional) " else ""
         return label ?: "Assert that $optional${condition.description()}"
     }
 
@@ -425,6 +435,25 @@ data class AssertWithAICommand(
     }
 }
 
+data class ExtractTextWithAICommand(
+    val query: String,
+    val outputVariable: String,
+    override val optional: Boolean = true,
+    override val label: String? = null
+) : Command {
+    override fun description(): String {
+        if (label != null) return label
+
+        return "Extract text with AI: $query"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            query = query.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class InputTextCommand(
     val text: String,
     override val label: String? = null,
@@ -454,7 +483,7 @@ data class LaunchAppCommand(
 ) : Command {
 
     override fun description(): String {
-        if (label != null){
+        if (label != null) {
             return label
         }
 
@@ -782,12 +811,15 @@ data class RepeatCommand(
             label != null -> {
                 label
             }
+
             condition != null && timesInt > 1 -> {
                 "Repeat while ${condition.description()} (up to $timesInt times)"
             }
+
             condition != null -> {
                 "Repeat while ${condition.description()}"
             }
+
             timesInt > 1 -> "Repeat $timesInt times"
             else -> "Repeat indefinitely"
         }
@@ -824,6 +856,7 @@ data class RetryCommand(
             label != null -> {
                 label
             }
+
             else -> "Retry $maxAttempts times"
         }
     }
@@ -943,8 +976,8 @@ data class TravelCommand(
             val dLon = Math.toRadians(aLon - oLon)
 
             val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(oLat)) * Math.cos(Math.toRadians(aLat)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+                    Math.cos(Math.toRadians(oLat)) * Math.cos(Math.toRadians(aLat)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2)
 
             val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
             val distance = earthRadius * c * 1000 // convert to meters
@@ -960,7 +993,12 @@ data class TravelCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            points = points.map { it.copy(latitude = it.latitude.evaluateScripts(jsEngine), longitude = it.longitude.evaluateScripts(jsEngine)) }
+            points = points.map {
+                it.copy(
+                    latitude = it.latitude.evaluateScripts(jsEngine),
+                    longitude = it.longitude.evaluateScripts(jsEngine)
+                )
+            }
         )
     }
 
@@ -987,7 +1025,7 @@ data class AddMediaCommand(
     val mediaPaths: List<String>,
     override val label: String? = null,
     override val optional: Boolean = false,
-): Command {
+) : Command {
 
     override fun description(): String {
         return label ?: "Adding media files(${mediaPaths.size}) to the device"
