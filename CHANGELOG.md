@@ -4,6 +4,14 @@
 
 ## 1.39.5
 
+Released on 2024-12-16
+
+
+Fixes:
+- Fix: Failure on how the assertConditionCommand was being handled on Robin([#2171](https://github.com/mobile-dev-inc/maestro/pull/2171))
+
+## 1.39.4
+
 Features:
 - Add `waitToSettleTimeoutMs` to other swipe related commands ([#2153](https://github.com/mobile-dev-inc/maestro/pull/2153))
 - Add retry command for flaky conditions ([#2168](https://github.com/mobile-dev-inc/maestro/pull/2168))
@@ -15,7 +23,6 @@ Fixes:
 - Fix: Debug level logs in maestro.log file leading to large debug files ([#2170](https://github.com/mobile-dev-inc/maestro/pull/2170))
 - Fix: Environment variable not being set for test suite ([#2163](https://github.com/mobile-dev-inc/maestro/pull/2163))
 - Fix: Failures on clearKeychain operations on iOS due to missing directories ([#2178](https://github.com/mobile-dev-inc/maestro/pull/2178))
-- Fix: Failure on how the assertConditionCommand was being handled on Robin([#2171](https://github.com/mobile-dev-inc/maestro/pull/2171)
 
 ## 1.39.2
 
