@@ -584,7 +584,7 @@ class Orchestra(
             } catch (exception: Throwable) {
                 if (attempt == maxRetries) {
                     logger.error("Max retries ($maxRetries) reached. Commands failed.", exception)
-                    break
+                    throw exception
                 }
 
                 val message = "Retrying the commands due to an error: ${exception.message} while execution (Attempt ${attempt + 1})"
