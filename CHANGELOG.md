@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.39.6
+## 1.39.7
 
 - Feature: Improved web support. 
   - Fix: Maestro can test web pages again (it was broken)
