@@ -79,9 +79,14 @@ object DeviceService {
             call.response.cacheControl(CacheControl.NoCache(null))
             call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
                 while (true) {
-                    val deviceScreen = getDeviceScreen(maestro)
-                    writeStringUtf8("data: $deviceScreen\n\n")
-                    flush()
+                    try {
+                        val deviceScreen = getDeviceScreen(maestro)
+                        writeStringUtf8("data: $deviceScreen\n\n")
+                        flush()
+                    } catch (e: Exception) {
+                        // Ignoring the exception to prevent SSE stream from dying
+                        e.printStackTrace()
+                    }
                 }
             }
         }
