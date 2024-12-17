@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.39.6
+
+- Feature: Improved web support. 
+  - Fix: Maestro can test web pages again (it was broken)
+  - Fix: WebDriver was reporting invalid screen size 
+  - Web: support cases where a new tab is opened from the page 
+  - Web: screen recording support (via JCodec for now, but we could add ffmpeg later)
+  - Web: fake geolocation support 
+  - Studio: better layout for wide aspect-ratio screens (i.e. web pages or tablets)
+- Feature: Introduces extractTextWithAI command
+
+- Fix: Retry should throw exception when max retries reaches
+- Fix: Studio getting unresponsive due to exceptions in streaming device
+
 ## 1.39.5
 
 Released on 2024-12-16
