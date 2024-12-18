@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.39.8
+
+- Fix: Debug message not showing up when we execute commands on maestro cli anymore
+
 ## 1.39.7
 
 - Feature: Improved web support. 
