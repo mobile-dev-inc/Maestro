@@ -1244,11 +1244,11 @@ class Orchestra(
                     action = Action.SwipePoint.WithEndPoint(
                         startPoint = Point(
                             startPoints[0] * deviceInfo.widthGrid / 100,
-                            startPoints[1] * deviceInfo.widthGrid / 100
+                            startPoints[1] * deviceInfo.heightGrid / 100
                         ),
                         endPoint = Point(
                             endPoint[0] * deviceInfo.widthGrid / 100,
-                            endPoint[1] * deviceInfo.widthGrid / 100
+                            endPoint[1] * deviceInfo.heightGrid / 100
                         ),
                     ),
                 )
@@ -1277,6 +1277,13 @@ class Orchestra(
             }
 
             start != null && end != null -> {
+                val metadata = getMetadata(maestroCommand).copy(
+                    action = Action.SwipePoint.WithEndPoint(
+                        startPoint = Point(start.x, start.y),
+                        endPoint = Point(end.x,end.y),
+                    ),
+                )
+                updateMetadata(maestroCommand, metadata);
                 maestro.swipe(
                     startPoint = start,
                     endPoint = end,
