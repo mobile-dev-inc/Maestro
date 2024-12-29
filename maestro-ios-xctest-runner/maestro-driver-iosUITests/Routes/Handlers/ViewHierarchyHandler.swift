@@ -37,8 +37,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             let body = try JSONEncoder().encode(viewHierarchy)
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
+            logger.error("AppError in handleRequest, Error:\(error)");
             return error.httpResponse
         } catch let error {
+            logger.error("Error in handleRequest, Error:\(error)");
             return AppError(message: "Snapshot failure while getting view hierarchy. Error: \(error.localizedDescription)").httpResponse
         }
     }
@@ -80,8 +82,12 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
+        logger.info("Starting getHierarchyWithFallback for element: \(element.debugDescription)")
+
         do {
             var hierarchy = try elementHierarchy(xcuiElement: element)
+            logger.info("Successfully retrieved element hierarchy. Depth: \(hierarchy.depth())")
+
             if hierarchy.depth() < snapshotMaxDepth {
                 return hierarchy
             }

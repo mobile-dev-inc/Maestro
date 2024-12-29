@@ -248,6 +248,7 @@ class XCTestDriverClient(
         pathString: String,
         responseBodyAsString: String,
     ): String {
+        logger.warn("Status code: $code, body: $responseBodyAsString");
         val error = mapper.readValue(responseBodyAsString, Error::class.java)
         when {
             code in 400..499 -> {
