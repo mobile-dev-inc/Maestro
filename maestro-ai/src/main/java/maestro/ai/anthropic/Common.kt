@@ -1,4 +1,4 @@
-package maestro.ai.antrophic
+package maestro.ai.anthropic
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

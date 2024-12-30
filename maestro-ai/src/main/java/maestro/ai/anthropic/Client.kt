@@ -1,4 +1,4 @@
-package maestro.ai.antrophic
+package maestro.ai.anthropic
 
 import Response
 import io.ktor.client.HttpClient
@@ -47,7 +47,7 @@ class Claude(
     ): CompletionData {
         val imagesBase64 = images.map { it.encodeBase64() }
 
-        // Fallback to Antrophic defaults
+        // Fallback to Anthropic defaults
         val actualTemperature = temperature ?: defaultTemperature
         val actualModel = model ?: defaultModel
         val actualMaxTokens = maxTokens ?: defaultMaxTokens
@@ -93,10 +93,10 @@ class Claude(
 
             json.decodeFromString<Response>(httpResponse.bodyAsText())
         } catch (e: SerializationException) {
-            logger.error("Failed to parse response from Antrophic", e)
+            logger.error("Failed to parse response from Anthropic", e)
             throw e
         } catch (e: Exception) {
-            logger.error("Failed to complete request to Antrophic", e)
+            logger.error("Failed to complete request to Anthropic", e)
             throw e
         }
 

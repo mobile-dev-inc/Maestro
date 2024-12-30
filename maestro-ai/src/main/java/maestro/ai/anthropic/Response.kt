@@ -1,5 +1,5 @@
 import kotlinx.serialization.Serializable
-import maestro.ai.antrophic.Content
+import maestro.ai.anthropic.Content
 
 @Serializable
 data class Response(

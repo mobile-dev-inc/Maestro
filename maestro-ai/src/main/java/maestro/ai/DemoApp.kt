@@ -10,7 +10,7 @@ import com.github.ajalt.clikt.parameters.types.float
 import com.github.ajalt.clikt.parameters.types.path
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
-import maestro.ai.antrophic.Claude
+import maestro.ai.anthropic.Claude
 import maestro.ai.openai.OpenAI
 import java.io.File
 import java.nio.file.Path
