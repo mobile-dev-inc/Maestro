@@ -44,17 +44,19 @@ env:
     file: commands/copyTextFrom.yaml
     label: copyTextFrom
 
-- runFlow:
-    when:
-      true: ${RUN_ONLY == "" || RUN_ONLY == "evalScript"}
-    file: commands/evalScript.yaml
-    label: evalScript
+# TODO: doubleTapOn
 
 - runFlow:
     when:
       true: ${RUN_ONLY == "" || RUN_ONLY == "eraseText"}
     file: commands/eraseText.yaml
     label: eraseText
+
+- runFlow:
+    when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "evalScript"}
+    file: commands/evalScript.yaml
+    label: evalScript
 
 - runFlow:
     when:
@@ -111,13 +113,9 @@ env:
     file: commands/launchApp.yaml
     label: launchApp
 
-# TODO: openLink (probably after #2058)
+# TODO: longPressOn
 
-- runFlow:
-    when:
-      true: ${RUN_ONLY == "" || RUN_ONLY == "pressKey"}
-    file: commands/pressKey.yaml
-    label: pressKey
+# TODO: openLink (probably after #2058)
 
 - runFlow:
     when:
@@ -127,9 +125,21 @@ env:
 
 - runFlow:
     when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "pressKey"}
+    file: commands/pressKey.yaml
+    label: pressKey
+
+- runFlow:
+    when:
       true: ${RUN_ONLY == "" || RUN_ONLY == "repeat"}
     file: commands/repeat.yaml
     label: repeat
+
+- runFlow:
+    when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "retry"}
+    file: commands/retry.yaml
+    label: retry
 
 - runFlow:
     when:
@@ -142,3 +152,29 @@ env:
       true: ${RUN_ONLY == "" || RUN_ONLY == "runScript"}
     file: commands/runScript.yaml
     label: runScript
+
+# TODO: scroll
+
+# TODO: scrollUntilVisible
+
+# TODO: setAirplaneMode
+
+# TODO: setLocation
+
+# TODO: startRecording
+
+# TODO: stopApp
+
+# TODO: stopRecording
+
+# TODO: swipe
+
+# TODO: takeScreenshot
+
+# TODO: tapOn
+
+# TODO: toggleAirplaneMode
+
+# TODO: travel
+
+# TODO: waitForAnimationToEnd
