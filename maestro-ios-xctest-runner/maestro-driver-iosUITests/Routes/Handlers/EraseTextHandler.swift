@@ -19,9 +19,8 @@ struct EraseTextHandler: HTTPHandler {
         do {
             let start = Date()
             
-            if let errorResponse = await waitUntilKeyboardIsPresented(appIds: requestBody.appIds) {
-                return errorResponse
-            }
+            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
+            await waitUntilKeyboardIsPresented(appId: appId)
 
             let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: requestBody.charactersToErase)
             
@@ -36,20 +35,11 @@ struct EraseTextHandler: HTTPHandler {
         }
     }
     
-    private func waitUntilKeyboardIsPresented(appIds: [String]) async -> HTTPResponse? {
-        let foregroundAppIds = RunningApp.getForegroundAppIds(appIds)
-        logger.info("Foreground apps \(foregroundAppIds)")
-        
-        let isKeyboardPresented: Bool = (try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
-            return foregroundAppIds.contains { appId in
-                XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
-            }
-        }) ?? false
+    private func waitUntilKeyboardIsPresented(appId: String?) async {
+        try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
+            guard let appId = appId else { return true }
 
-        // Return an error response if the keyboard is not presented
-        if !isKeyboardPresented {
-            return AppError(type: .timeout, message: "Keyboard not presented within 1 second timeout for erase command").httpResponse
+            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
         }
-        return nil
     }
 }

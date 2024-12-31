@@ -24,14 +24,5 @@ struct RunningApp {
         } ?? RunningApp.springboardBundleId
     }
     
-    static func getForegroundAppIds(_ appIds: [String]) -> [String] {
-        // springboard is always on foreground
-        let allAppIds = appIds + ["com.apple.springboard"]
-        
-            
-        return allAppIds.filter { appId in
-            let app = XCUIApplication(bundleIdentifier: appId)
-            return app.state == .runningForeground
-        }
-    }
+    
 }

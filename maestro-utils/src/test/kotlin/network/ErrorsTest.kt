@@ -70,10 +70,9 @@ class ErrorsTest {
     fun `XCUITestServerError BadRequest should have correct messages`() {
         val errorMessage = "Bad request"
         val clientMessage = "Client error"
-        val error = Error(errorMessage = clientMessage, errorCode = "bad-request-precondition")
 
         assertThrows<XCUITestServerError.BadRequest>(errorMessage) {
-            throw XCUITestServerError.BadRequest(errorMessage, error)
+            throw XCUITestServerError.BadRequest(errorMessage, clientMessage)
         }
     }
 }

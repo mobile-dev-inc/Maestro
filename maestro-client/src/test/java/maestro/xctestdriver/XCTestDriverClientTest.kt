@@ -6,7 +6,7 @@ import maestro.ios.MockXCTestInstaller
 import maestro.utils.network.XCUITestServerError
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import maestro.utils.network.Error
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -14,6 +14,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
 import xcuitest.api.DeviceInfo
+import xcuitest.api.Error
 import java.net.InetAddress
 
 class XCTestDriverClientTest {

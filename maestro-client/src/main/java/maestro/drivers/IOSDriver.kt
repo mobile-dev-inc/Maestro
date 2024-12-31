@@ -22,7 +22,6 @@ package maestro.drivers
 import com.github.michaelbull.result.expect
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onSuccess
-import com.github.michaelbull.result.runCatching
 import hierarchy.AXElement
 import ios.IOSDevice
 import ios.IOSDeviceErrors
@@ -30,7 +29,6 @@ import maestro.*
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.utils.*
-import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
@@ -531,10 +529,8 @@ class IOSDriver(
         } catch (socketTimeoutException: SocketTimeoutException) {
             LOGGER.error("Got socket timeout processing $callName command", socketTimeoutException)
             throw socketTimeoutException
-        } catch (badRequest: XCUITestServerError.BadRequest) {
-            LOGGER.error("Bad request for $callName, reason: ${badRequest.errorResponse}")
-            throw MaestroException.UnableToProcessCommand(command = callName, message = badRequest.error.errorMessage)
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
+            LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
         }
     }

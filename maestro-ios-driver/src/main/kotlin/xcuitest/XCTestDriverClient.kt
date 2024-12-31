@@ -3,7 +3,6 @@ package xcuitest
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import hierarchy.ViewHierarchy
 import maestro.utils.HttpClient
-import maestro.utils.network.Error
 import maestro.utils.network.XCUITestServerError
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -255,7 +254,7 @@ class XCTestDriverClient(
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
                 throw XCUITestServerError.BadRequest(
                     "Request for $pathString failed with bad request ${code}, body: $responseBodyAsString",
-                    error
+                    responseBodyAsString
                 )
             }
             error.errorMessage.contains("Lost connection to the application.*".toRegex()) -> {
