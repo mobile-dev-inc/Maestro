@@ -44,6 +44,7 @@ class WebDriver(val isStudio: Boolean) : Driver {
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
+    private var injectedArguments: Map<String, Any> = emptyMap()
 
     private var webScreenRecorder: WebScreenRecorder? = null
 
@@ -102,6 +103,11 @@ class WebDriver(val isStudio: Boolean) : Driver {
 
         try {
             executor.executeScript("$maestroWebScript")
+
+            injectedArguments.forEach { (key, value) ->
+                executor.executeScript("$key = '$value'")
+            }
+
             Thread.sleep(100)
             return executor.executeScript(js)
         } catch (e: Exception) {
@@ -137,6 +143,8 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun close() {
+        injectedArguments = emptyMap()
+
         try {
             seleniumDriver?.quit()
             webScreenRecorder?.close()
@@ -169,6 +177,8 @@ class WebDriver(val isStudio: Boolean) : Driver {
         launchArguments: Map<String, Any>,
         sessionId: UUID?,
     ) {
+        injectedArguments = injectedArguments + launchArguments
+
         open()
         val driver = ensureOpen()
 
