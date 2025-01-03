@@ -952,7 +952,6 @@ class Orchestra(
         } else {
             maestro.takePartialScreenshot(sink = fileSink, bounds = cropped.element.bounds, compressed = false)
         }
-
         return false
     }
 
