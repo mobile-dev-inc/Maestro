@@ -13,7 +13,9 @@ tags:
     commands:
       - tapOn:
           text: "Continue without logging in"
-
+- tapOn:
+    text: "Non existent view"
+    optional: true
 - tapOn: Search Wikipedia
 - runScript: scripts/getSearchQuery.js
 - inputText: ${output.result}
