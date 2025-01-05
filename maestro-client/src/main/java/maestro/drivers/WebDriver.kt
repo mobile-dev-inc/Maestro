@@ -14,6 +14,8 @@ import maestro.ViewHierarchy
 import maestro.utils.ScreenshotUtils
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
+import maestro.web.selenium.ChromeSeleniumFactory
+import maestro.web.selenium.SeleniumFactory
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
@@ -21,10 +23,6 @@ import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
 import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
-import org.openqa.selenium.chrome.ChromeDriver
-import org.openqa.selenium.chrome.ChromeDriverService
-import org.openqa.selenium.chrome.ChromeOptions
-import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import org.openqa.selenium.devtools.HasDevTools
 import org.openqa.selenium.devtools.v130.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
@@ -35,11 +33,12 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.Duration
 import java.util.*
-import java.util.logging.Level
-import java.util.logging.Logger
 
 
-class WebDriver(val isStudio: Boolean) : Driver {
+class WebDriver(
+    val isStudio: Boolean,
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory()
+) : Driver {
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
@@ -61,33 +60,18 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun open() {
-        System.setProperty("webdriver.chrome.silentOutput", "true")
-        System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true")
-        Logger.getLogger("org.openqa.selenium").level = Level.OFF
-        Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder").level = Level.OFF
+        seleniumDriver = seleniumFactory.create(isStudio)
 
-        val driverService = ChromeDriverService.Builder()
-            .withLogLevel(ChromiumDriverLogLevel.OFF)
-            .build()
-
-        seleniumDriver = ChromeDriver(
-            driverService,
-            ChromeOptions().apply {
-                addArguments("--remote-allow-origins=*")
-                addArguments("--disable-search-engine-choice-screen")
-                addArguments("--lang=en")
-                if (isStudio) {
-                    addArguments("--headless=new")
-                    addArguments("--window-size=1024,768")
-                    setExperimentalOption("detach", true)
-                }
-            }
-        )
-
-        seleniumDriver
-            ?.let { it as? HasDevTools }
-            ?.devTools
-            ?.createSessionIfThereIsNotOne()
+        try {
+            seleniumDriver
+                ?.let { it as? HasDevTools }
+                ?.devTools
+                ?.createSessionIfThereIsNotOne()
+        } catch (e: Exception) {
+            // Swallow the exception to avoid crashing the whole process.
+            // Some implementations of Selenium do not support DevTools
+            // and do not fail gracefully.
+        }
 
         if (isStudio) {
             seleniumDriver?.get("https://maestro.mobile.dev")
@@ -190,9 +174,9 @@ class WebDriver(val isStudio: Boolean) : Driver {
     }
 
     override fun stopApp(appId: String) {
-        val driver = ensureOpen()
-
-        driver.close()
+        // Not supported at the moment.
+        // Simply calling driver.close() can kill the Selenium session, rendering
+        // the driver inoperable.
     }
 
     override fun killApp(appId: String) {

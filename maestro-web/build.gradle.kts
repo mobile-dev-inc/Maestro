@@ -11,8 +11,8 @@ plugins {
 dependencies {
     implementation(libs.square.okio)
 
-    implementation(libs.selenium)
-    implementation(libs.selenium.devtools)
+    api(libs.selenium)
+    api(libs.selenium.devtools)
     implementation(libs.jcodec)
     implementation(libs.jcodec.awt)
 }
