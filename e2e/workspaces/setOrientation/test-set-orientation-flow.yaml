@@ -1,0 +1,14 @@
+appId: com.example.maestro.orientation
+tags:
+  - android
+  - passing
+---
+- launchApp
+- setOrientation: LANDSCAPE_LEFT
+- assertVisible: "LANDSCAPE_LEFT"
+- setOrientation: LANDSCAPE_RIGHT
+- assertVisible: "LANDSCAPE_RIGHT"
+- setOrientation: UPSIDE_DOWN
+- assertVisible: "UPSIDE_DOWN"
+- setOrientation: PORTRAIT
+- assertVisible: "PORTRAIT"
