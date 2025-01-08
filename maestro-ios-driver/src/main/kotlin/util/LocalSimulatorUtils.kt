@@ -416,7 +416,7 @@ object LocalSimulatorUtils {
         )
     }
 
-    fun setPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+    fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
         if (permissionsMap.containsKey("all")) {
             val value = permissionsMap.remove("all")
@@ -437,6 +437,7 @@ object LocalSimulatorUtils {
 
         if (permissionsArgument.isNotEmpty()) {
             try {
+                logger.info("[Start] Setting permissions via pinned applesimutils")
                 runCommand(
                     listOf(
                         "$homedir/.maestro/deps/applesimutils",
@@ -448,7 +449,10 @@ object LocalSimulatorUtils {
                         permissionsArgument
                     )
                 )
+                logger.info("[Done] Setting permissions pinned applesimutils")
             } catch (e: Exception) {
+                logger.error("Exception while setting permissions through pinned applesimutils ${e.message}", e)
+                logger.info("[Start] Setting permissions via applesimutils as fallback")
                 runCommand(
                     listOf(
                         "applesimutils",
@@ -460,13 +464,12 @@ object LocalSimulatorUtils {
                         permissionsArgument
                     )
                 )
+                logger.info("[Done] Setting permissions via applesimutils as fallback")
             }
         }
-
-        setSimctlPermissions(deviceId, bundleId, permissions)
     }
 
-    private fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+    fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
 
         permissionsMap.remove("all")?.let { value ->

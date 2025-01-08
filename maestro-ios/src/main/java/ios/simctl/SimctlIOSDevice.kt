@@ -1,6 +1,7 @@
 package ios.simctl
 
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
 import ios.IOSDevice
@@ -9,6 +10,7 @@ import xcuitest.api.DeviceInfo
 import okio.Sink
 import okio.buffer
 import okio.source
+import org.slf4j.LoggerFactory
 import util.IOSLaunchArguments.toIOSLaunchArguments
 import util.LocalSimulatorUtils
 import java.io.File
@@ -20,6 +22,11 @@ import java.util.UUID
 class SimctlIOSDevice(
     override val deviceId: String,
 ) : IOSDevice {
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(SimctlIOSDevice::class.java)
+    }
+
     private var screenRecording: LocalSimulatorUtils.ScreenRecording? = null
 
     override fun open() {
@@ -161,7 +168,19 @@ class SimctlIOSDevice(
     }
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
-        LocalSimulatorUtils.setPermissions(deviceId, id, permissions)
+        val formattedPermissions = permissions.entries.joinToString(separator = ", ") { "${it.key}=${it.value}" }
+
+        runCatching {
+            logger.info("[Start] Setting permissions $formattedPermissions through applesimutils")
+            LocalSimulatorUtils.setAppleSimutilsPermissions(deviceId, id, permissions)
+            logger.info("[Done] Setting permissions through applesimutils")
+        }.onFailure {
+            logger.error("Failed setting permissions $permissions via applesimutils", it)
+        }
+
+        logger.info("[Start] Setting Permissions $formattedPermissions through simctl")
+        LocalSimulatorUtils.setSimctlPermissions(deviceId, id, permissions)
+        logger.info("[Done] Setting Permissions $formattedPermissions through simctl")
     }
 
     override fun eraseText(charactersToErase: Int) {
