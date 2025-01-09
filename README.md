@@ -1,3 +1,5 @@
+[<img src="./assets/run-on-robin.png" width="300px"/>](https://robintest.com/)
+
 # Maestro
 
 Maestro is the easiest way to automate UI testing for your mobile app.
