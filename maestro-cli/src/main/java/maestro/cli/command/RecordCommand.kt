@@ -108,7 +108,7 @@ class RecordCommand : Callable<Int> {
         return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = parent?.port,
+            driverHostPort = null,
             deviceId = deviceId,
             platform = parent?.platform,
         ) { session ->

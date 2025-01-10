@@ -50,6 +50,7 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
 import okio.sink
+import org.jetbrains.skiko.hostId
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -209,8 +210,11 @@ class TestCommand : Callable<Int> {
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
 
-        val availableDevices =
-            DeviceService.listConnectedDevices(includeWeb = isWebFlow()).map { it.instanceId }.toSet()
+        val availableDevices = DeviceService.listConnectedDevices(
+            includeWeb = isWebFlow(),
+            host = parent?.host,
+            port = parent?.port,
+        ).map { it.instanceId }.toSet()
         val deviceIds = getPassedOptionsDeviceIds()
             .filter { device ->
                 if (device !in availableDevices) {
@@ -330,7 +334,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) parent?.port ?: 7001
+        if (effectiveShards == 1) 7001
         else (7001..7128).shuffled().find { port ->
             usedPorts.putIfAbsent(port, true) == null
         } ?: error("No available ports found")

@@ -117,8 +117,12 @@ object DeviceService {
         }
     }
 
-    fun listConnectedDevices(includeWeb: Boolean = false): List<Device.Connected> {
-        return listDevices(includeWeb = includeWeb)
+    fun listConnectedDevices(
+        includeWeb: Boolean = false,
+        host: String? = null,
+        port: Int? = null,
+    ): List<Device.Connected> {
+        return listDevices(includeWeb = includeWeb, host, port)
             .filterIsInstance<Device.Connected>()
     }
 
@@ -130,8 +134,8 @@ object DeviceService {
             .filterIsInstance<Device.AvailableForLaunch>()
     }
 
-    private fun listDevices(includeWeb: Boolean): List<Device> {
-        return listAndroidDevices() +
+    private fun listDevices(includeWeb: Boolean, host: String? = null, port: Int? = null): List<Device> {
+        return listAndroidDevices(host, port) +
                 listIOSDevices() +
                 if (includeWeb) {
                     listWebDevices()
@@ -150,9 +154,20 @@ object DeviceService {
         )
     }
 
-    private fun listAndroidDevices(): List<Device> {
+    private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
+        val host = host ?: "localhost"
+        if (port != null) {
+            val dadb = Dadb.create(host, port)
+            return listOf(
+                Device.Connected(
+                    instanceId = dadb.toString(),
+                    description = dadb.toString(),
+                    platform = Platform.ANDROID,
+                )
+            )
+        }
         val connected = runCatching {
-            Dadb.list().map {
+            Dadb.list(host = host).map {
                 Device.Connected(
                     instanceId = it.toString(),
                     description = it.toString(),
