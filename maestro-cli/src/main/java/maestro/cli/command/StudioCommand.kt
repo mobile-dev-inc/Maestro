@@ -16,6 +16,7 @@ import java.awt.Desktop
 import java.net.ServerSocket
 import java.net.URI
 import java.util.concurrent.Callable
+import maestro.cli.util.getFreePort
 
 @CommandLine.Command(
     name = "studio",
@@ -89,12 +90,4 @@ class StudioCommand : Callable<Int> {
         }
     }
 
-    private fun getFreePort(): Int {
-        (9999..11000).forEach { port ->
-            try {
-                ServerSocket(port).use { return it.localPort }
-            } catch (ignore: Exception) {}
-        }
-        ServerSocket(0).use { return it.localPort }
-    }
 }

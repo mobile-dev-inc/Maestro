@@ -6,7 +6,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.map
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.AnalyticsReport
@@ -35,6 +34,7 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
+import okhttp3.MediaType
 
 class ApiClient(
     private val baseUrl: String,
@@ -110,55 +110,33 @@ class ApiClient(
         }
     }
 
-    fun magicLinkLogin(email: String, redirectUrl: String): Result<String, Response> {
-        return post<Map<String, Any>>(
-            "/magiclink/login", mapOf(
-                "deviceId" to "",
-                "email" to email,
-                "redirectUrl" to redirectUrl,
-                "agent" to "cli",
-            )
-        ).map { it["requestToken"].toString() }
+    fun getAuthUrl(port: String): String {
+        return "$baseUrl/maestroLogin/authUrl?port=$port"
     }
 
-    fun magicLinkSignUp(email: String, teamName: String, redirectUrl: String): Result<String, Response> {
-        return post(
-            "/magiclink/signup", mapOf(
-                "deviceId" to "",
-                "userEmail" to email,
-                "teamName" to teamName,
-                "redirectUrl" to redirectUrl,
-                "agent" to "cli",
-            )
-        )
-    }
+    fun exchangeToken(code: String): String {
+        val requestBody = code.toRequestBody("text/plain".toMediaType())
 
-    fun magicLinkGetToken(requestToken: String): Result<String, Response> {
-        return post<Map<String, Any>>(
-            "/magiclink/gettoken", mapOf(
-                "requestToken" to requestToken,
-            )
-        ).map { it["authToken"].toString() }
+        val request = Request.Builder()
+            .url("$baseUrl/maestroLogin/exchange")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+            return response.body?.string() ?: throw IOException("Empty response body")
+        }
     }
 
     fun isAuthTokenValid(authToken: String): Boolean {
-        val request = try {
-            Request.Builder()
-                .get()
-                .header("Authorization", "Bearer $authToken")
-                .url("$baseUrl/auth")
-                .build()
-        } catch (e: IllegalArgumentException) {
-            if (e.message?.contains("Unexpected char") == true) {
-                return false
-            } else {
-                throw e
-            }
-        }
-        val response = client.newCall(request).execute()
+        val request = Request.Builder()
+            .url("$baseUrl/maestroLogin/valid")
+            .header("Authorization", "Bearer $authToken")
+            .get()
+            .build()
 
-        response.use {
-            return response.isSuccessful
+        client.newCall(request).execute().use { response ->
+            return !(!response.isSuccessful && (response.code == 401 || response.code == 403))
         }
     }
 

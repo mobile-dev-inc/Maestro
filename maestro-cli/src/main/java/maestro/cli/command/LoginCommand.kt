@@ -7,6 +7,9 @@ import maestro.cli.auth.Auth
 import maestro.cli.util.PrintUtils.message
 import picocli.CommandLine
 import java.util.concurrent.Callable
+import kotlin.io.path.absolutePathString
+import maestro.cli.report.TestDebugReporter
+import maestro.debuglog.LogConfig
 
 @CommandLine.Command(
     name = "login",
@@ -22,14 +25,13 @@ class LoginCommand : Callable<Int> {
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
 
-    @CommandLine.Option(names = ["--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = "https://api.mobile.dev"
-
     private val auth by lazy {
-        Auth(ApiClient(apiUrl))
+        Auth(ApiClient("https://api.copilot.mobile.dev/v2"))
     }
 
     override fun call(): Int {
+        LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
+
         val existingToken = auth.getCachedAuthToken()
 
         if (existingToken != null) {
@@ -37,7 +39,8 @@ class LoginCommand : Callable<Int> {
             return 0
         }
 
-        auth.triggerSignInFlow()
+        val token = auth.triggerSignInFlow()
+        println(token)
 
         return 0
     }
