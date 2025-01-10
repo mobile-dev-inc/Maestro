@@ -634,7 +634,10 @@ class Maestro(
             return Maestro(driver)
         }
 
-        fun web(isStudio: Boolean): Maestro {
+        fun web(
+            isStudio: Boolean,
+            isHeadless: Boolean,
+        ): Maestro {
             // Check that JRE is at least 11
             val version = System.getProperty("java.version")
             if (version.startsWith("1.")) {
@@ -646,7 +649,10 @@ class Maestro(
                 }
             }
 
-            val driver = WebDriver(isStudio)
+            val driver = WebDriver(
+                isStudio = isStudio,
+                isHeadless = isHeadless,
+            )
             driver.open()
             return Maestro(driver)
         }

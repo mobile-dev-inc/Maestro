@@ -4,8 +4,6 @@ import org.openqa.selenium.WebDriver
 
 interface SeleniumFactory {
 
-    fun create(
-        isStudio: Boolean = false
-    ): WebDriver
+    fun create(): WebDriver
 
 }

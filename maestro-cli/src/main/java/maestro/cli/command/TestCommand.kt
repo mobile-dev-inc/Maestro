@@ -151,6 +151,12 @@ class TestCommand : Callable<Int> {
     )
     private var excludeTags: List<String> = emptyList()
 
+    @Option(
+        names = ["--headless"],
+        description = ["(Web only) Run the tests in headless mode"],
+    )
+    private var headless: Boolean = false
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -304,6 +310,7 @@ class TestCommand : Callable<Int> {
             driverHostPort = driverHostPort,
             deviceId = deviceId,
             platform = parent?.platform,
+            isHeadless = headless,
         ) { session ->
             val maestro = session.maestro
             val device = session.device

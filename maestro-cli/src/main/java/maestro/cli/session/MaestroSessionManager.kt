@@ -57,6 +57,7 @@ object MaestroSessionManager {
         deviceId: String?,
         platform: String? = null,
         isStudio: Boolean = false,
+        isHeadless: Boolean = isStudio,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -89,6 +90,7 @@ object MaestroSessionManager {
                 selectedDevice.platform
             ),
             isStudio = isStudio,
+            isHeadless = isHeadless,
             driverHostPort = driverHostPort,
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
@@ -146,6 +148,7 @@ object MaestroSessionManager {
         selectedDevice: SelectedDevice,
         connectToExistingSession: Boolean,
         isStudio: Boolean,
+        isHeadless: Boolean,
         driverHostPort: Int?,
     ): MaestroSession {
         return when {
@@ -163,7 +166,7 @@ object MaestroSessionManager {
                         driverHostPort,
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio)
+                    Platform.WEB -> pickWebDevice(isStudio, isHeadless)
                 },
                 device = selectedDevice.device,
             )
@@ -188,7 +191,7 @@ object MaestroSessionManager {
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
-                maestro = pickWebDevice(isStudio),
+                maestro = pickWebDevice(isStudio, isHeadless),
                 device = null
             )
 
@@ -316,8 +319,8 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean): Maestro {
-        return Maestro.web(isStudio)
+    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean): Maestro {
+        return Maestro.web(isStudio, isHeadless)
     }
 
     private data class SelectedDevice(

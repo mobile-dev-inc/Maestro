@@ -37,7 +37,8 @@ import java.util.*
 
 class WebDriver(
     val isStudio: Boolean,
-    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory()
+    isHeadless: Boolean = isStudio,
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless)
 ) : Driver {
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
@@ -60,7 +61,7 @@ class WebDriver(
     }
 
     override fun open() {
-        seleniumDriver = seleniumFactory.create(isStudio)
+        seleniumDriver = seleniumFactory.create()
 
         try {
             seleniumDriver
