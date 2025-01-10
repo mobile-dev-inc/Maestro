@@ -27,6 +27,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.TestDebugReporter
+import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -174,7 +175,7 @@ class CloudCommand : Callable<Int> {
             flattenDebugOutput = false,
             printToConsole = parent?.verbose == true,
         )
-        
+
         validateFiles()
         validateWorkSpace()
 
@@ -258,8 +259,10 @@ class CloudCommand : Callable<Int> {
             }
         }
 
-        val hasApp = appFile != null || appBinaryId != null
         val hasWorkspace = this::flowsFile.isInitialized
+        val hasApp = appFile != null
+                || appBinaryId != null
+                || (this::flowsFile.isInitialized && this::flowsFile.get().isWebFlow())
 
         if (!hasApp && !hasWorkspace) {
             throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--flows"), "Missing required parameters: '--app-file', " +

@@ -2,20 +2,21 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
-import maestro.cli.api.RobinUploadResponse
-import maestro.cli.api.DeviceInfo
-import maestro.cli.api.UploadStatus
 import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.DeviceInfo
 import maestro.cli.api.MaestroCloudUploadResponse
+import maestro.cli.api.RobinUploadResponse
+import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
-import maestro.cli.model.RunningFlow
 import maestro.cli.model.FlowStatus
+import maestro.cli.model.RunningFlow
 import maestro.cli.model.RunningFlows
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
 import maestro.cli.util.EnvUtils
+import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
@@ -26,6 +27,7 @@ import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewM
 import maestro.cli.view.TestSuiteStatusView.robinUploadUrl
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
+import maestro.cli.web.WebInteractor
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -33,7 +35,6 @@ import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
-import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 
@@ -72,7 +73,7 @@ class CloudInteractor(
         deviceLocale: String? = null,
         projectId: String? = null,
     ): Int {
-        if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
+        if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
@@ -104,6 +105,8 @@ class CloudInteractor(
                     @Suppress("RemoveRedundantSpreadOperator")
                     archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
                 }
+            } else if (flowFile.isWebFlow()) {
+                appFileToSend = WebInteractor.createManifestFromWorkspace(flowFile)
             }
 
             val response = client.upload(
@@ -137,7 +140,8 @@ class CloudInteractor(
                     val project = requireNotNull(projectId)
                     val appId = response.appId
                     val uploadUrl = robinUploadUrl(project, appId, response.uploadId, client.domain)
-                    val deviceMessage = if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+                    val deviceMessage =
+                        if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
                     return printMaestroCloudResponse(
                         async,
                         authToken,
@@ -153,6 +157,7 @@ class CloudInteractor(
                         projectId,
                     )
                 }
+
                 is MaestroCloudUploadResponse -> {
                     println()
                     val deviceInfo = response.deviceInfo
@@ -161,12 +166,13 @@ class CloudInteractor(
                     val uploadId = response.uploadId
                     val appBinaryIdResponse = response.appBinaryId
                     val uploadUrl = uploadUrl(uploadId, teamId, appId, client.domain)
-                    val deviceInfoMessage = if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel) else ""
+                    val deviceInfoMessage =
+                        if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel) else ""
                     return printMaestroCloudResponse(
                         async = async,
                         authToken = authToken,
                         failOnCancellation = failOnCancellation,
-                        reportFormat= reportFormat,
+                        reportFormat = reportFormat,
                         reportOutput = reportOutput,
                         testSuiteName = testSuiteName,
                         uploadUrl = uploadUrl,
@@ -236,16 +242,19 @@ class CloudInteractor(
         val platform = Platform.fromString(deviceInfo.platform)
 
         val line1 = "Maestro Cloud device specs:\n* ${deviceInfo.displayInfo} - ${deviceInfo.deviceLocale}"
-        val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+        val line2 =
+            "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
         val line3 = "To change device locale use this option: --device-locale=<device_locale>"
 
-        val version = when(platform) {
+        val version = when (platform) {
             Platform.ANDROID -> "${androidApiLevel ?: 30}" // todo change with constant from DeviceConfigAndroid
             Platform.IOS -> "${iOSVersion ?: 15}" // todo change with constant from DeviceConfigIos
             else -> return ""
         }
 
-        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
+        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${
+            platform.toString().lowercase()
+        } --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
         return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
     }
 
@@ -253,12 +262,15 @@ class CloudInteractor(
         val platform = Platform.fromString(deviceConfiguration.platform)
 
         val line1 = "Robin device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}"
-        val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+        val line2 =
+            "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
         val line3 = "To change device locale use this option: --device-locale=<device_locale>"
 
         val version = deviceConfiguration.osVersion
 
-        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
+        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${
+            platform.toString().lowercase()
+        } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
         return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
     }
 
@@ -310,15 +322,21 @@ class CloudInteractor(
                 val runningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name } ?: continue
                 runningFlow.status = uploadFlowResult.status
                 when (runningFlow.status) {
-                    FlowStatus.PENDING -> { /* do nothing */ }
+                    FlowStatus.PENDING -> { /* do nothing */
+                    }
+
                     FlowStatus.RUNNING -> {
                         if (runningFlow.startTime == null) {
                             runningFlow.startTime = System.currentTimeMillis()
                         }
                     }
+
                     else -> {
                         if (runningFlow.duration == null) {
-                            runningFlow.duration = TimeUtils.durationInSeconds(startTimeInMillis = runningFlow.startTime, endTimeInMillis = System.currentTimeMillis())
+                            runningFlow.duration = TimeUtils.durationInSeconds(
+                                startTimeInMillis = runningFlow.startTime,
+                                endTimeInMillis = System.currentTimeMillis()
+                            )
                         }
                         if (!runningFlow.reported) {
                             TestSuiteStatusView.showFlowCompletion(
@@ -331,7 +349,10 @@ class CloudInteractor(
             }
 
             if (upload.completed) {
-                runningFlows.duration = TimeUtils.durationInSeconds(startTimeInMillis = startTime, endTimeInMillis = System.currentTimeMillis())
+                runningFlows.duration = TimeUtils.durationInSeconds(
+                    startTimeInMillis = startTime,
+                    endTimeInMillis = System.currentTimeMillis()
+                )
                 return handleSyncUploadCompletion(
                     upload = upload,
                     runningFlows = runningFlows,
@@ -404,7 +425,13 @@ class CloudInteractor(
             }
 
         if (reportOutputSink != null) {
-            saveReport(reportFormat, !failed, createSuiteResult(!failed, upload, runningFlows), reportOutputSink, testSuiteName)
+            saveReport(
+                reportFormat,
+                !failed,
+                createSuiteResult(!failed, upload, runningFlows),
+                reportOutputSink,
+                testSuiteName
+            )
         }
 
 
@@ -440,7 +467,11 @@ class CloudInteractor(
             )
     }
 
-    private fun createSuiteResult(passed: Boolean, upload: UploadStatus, runningFlows: RunningFlows): TestExecutionSummary.SuiteResult {
+    private fun createSuiteResult(
+        passed: Boolean,
+        upload: UploadStatus,
+        runningFlows: RunningFlows
+    ): TestExecutionSummary.SuiteResult {
         return TestExecutionSummary.SuiteResult(
             passed = passed,
             flows = upload.flows.map { uploadFlowResult ->
