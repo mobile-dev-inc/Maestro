@@ -82,11 +82,11 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
-        logger.info("Starting getHierarchyWithFallback for element: \(element.debugDescription)")
+        logger.info("Starting getHierarchyWithFallback for element.")
 
         do {
             var hierarchy = try elementHierarchy(xcuiElement: element)
-            logger.info("Successfully retrieved element hierarchy. Depth: \(hierarchy.depth())")
+            logger.info("Successfully retrieved element hierarchy.")
 
             if hierarchy.depth() < snapshotMaxDepth {
                 return hierarchy
