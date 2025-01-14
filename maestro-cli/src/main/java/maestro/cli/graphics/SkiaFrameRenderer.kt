@@ -3,14 +3,9 @@ package maestro.cli.graphics
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Font
-import org.jetbrains.skia.FontMgr
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
-import org.jetbrains.skia.paragraph.FontCollection
-import org.jetbrains.skia.paragraph.ParagraphBuilder
-import org.jetbrains.skia.paragraph.ParagraphStyle
-import org.jetbrains.skia.paragraph.TextStyle
 import org.jetbrains.skiko.toImage
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
@@ -42,12 +37,9 @@ class SkiaFrameRenderer : FrameRenderer {
     private val footerText = "maestro.mobile.dev"
 
     private val terminalBgColor = Color.makeARGB(220, 0, 0, 0)
-    private val terminalTextStyle = TextStyle().apply {
-        fontFamilies = SkiaFonts.MONOSPACE_FONT_FAMILIES.toTypedArray()
-        fontSize = 24f
-        color = Color.WHITE
-    }
     private val terminalContentPadding = 40f
+
+    private val textClipper = SkiaTextClipper()
 
     override fun render(
         outputWidthPx: Int,
@@ -154,14 +146,24 @@ class SkiaFrameRenderer : FrameRenderer {
         val contentRect = Rect.makeLTRB(terminalRect.left, headerRect.bottom, terminalRect.right, footerRect.top)
         canvas.drawRect(contentRect, Paint().apply { color = terminalBgColor })
 
-        val paddedContentRect = contentRect.inflate(-terminalContentPadding)
+        val paddedContentRect = Rect.makeLTRB(
+            l = contentRect.left + terminalContentPadding,
+            t = contentRect.top + terminalContentPadding,
+            r = contentRect.right - terminalContentPadding,
+            b = contentRect.bottom - terminalContentPadding / 4f,
+        )
 
-        val fontCollection = FontCollection().setDefaultFontManager(FontMgr.default)
-        val p = ParagraphBuilder(ParagraphStyle(), fontCollection)
-            .pushStyle(terminalTextStyle)
-            .addText(string)
-            .build()
-        p.layout(paddedContentRect.width)
-        p.paint(canvas, paddedContentRect.left, paddedContentRect.top)
+        val focusedLineIndex = getFocusedLineIndex(string)
+        val focusedLinePadding = 5
+        textClipper.renderClippedText(canvas, paddedContentRect, string, focusedLineIndex + focusedLinePadding)
+    }
+
+    private fun getFocusedLineIndex(text: String): Int {
+        val lines = text.lines()
+        val indexOfFirstPendingLine = lines.indexOfFirst { it.contains("\uD83D\uDD32") }
+        if (indexOfFirstPendingLine != -1) return indexOfFirstPendingLine
+        val indexOfLastCheck = lines.indexOfLast { it.contains("✅") }
+        if (indexOfLastCheck != -1) return indexOfLastCheck
+        return 0
     }
 }
