@@ -2,7 +2,7 @@
 
 # Maestro
 
-Maestro is the easiest way to automate UI testing for your mobile app.
+Maestro is the easiest way to UI testing for your mobile or web app.
 
 <img src="https://user-images.githubusercontent.com/847683/187275009-ddbdf963-ce1d-4e07-ac08-b10f145e8894.gif" />
 
