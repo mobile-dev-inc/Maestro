@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import clsx from "clsx";
 
 import InteractableDevice from "../device-and-device-elements/InteractableDevice";
@@ -12,6 +12,7 @@ import { useDeviceContext } from "../../context/DeviceContext";
 import { Spinner } from "../design-system/spinner";
 import { useRepl } from '../../context/ReplContext';
 import { DeviceScreen } from "../../helpers/models";
+import BrowserActionBar from "../device-and-device-elements/BrowserActionBar";
 
 const InteractPageLayout = () => {
   const {
@@ -24,6 +25,7 @@ const InteractPageLayout = () => {
   const { runCommandYaml } = useRepl();
 
   const [showElementsPanel, setShowElementsPanel] = useState<boolean>(false);
+  const [isUrlLoading, setIsUrlLoading] = useState<boolean>(false);
 
   const onEdit = (example: CommandExample) => {
     if (example.status === "unavailable") return;
@@ -43,6 +45,16 @@ const InteractPageLayout = () => {
     setInspectedElement(null);
     await runCommandYaml(example.content);
   };
+
+  const onUrlUpdated = (url: string) => {
+    setIsUrlLoading(true);
+    runCommandYaml(`openLink: ${url}`).finally(() => {
+      // Wait some time to update the url from the device screen
+      setTimeout(() => {
+        setIsUrlLoading(false);
+      }, 1000);
+    });
+  }
 
   if (isLoading)
     return (
@@ -75,6 +87,13 @@ const InteractPageLayout = () => {
           >
             Search Elements with Text or Id
           </Button>
+        )}
+        {deviceScreen?.platform === 'WEB' && (
+          <BrowserActionBar
+            currentUrl={deviceScreen.url}
+            onUrlUpdated={onUrlUpdated}
+            isLoading={isUrlLoading}
+          />
         )}
         <DeviceWrapperAspectRatio>
           <InteractableDevice />
