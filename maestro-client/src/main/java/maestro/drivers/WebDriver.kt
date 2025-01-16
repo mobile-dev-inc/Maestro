@@ -221,8 +221,11 @@ class WebDriver(
             return TreeNode(attributes = attributes, children = children.map { parse(it) })
         }
 
-
-        return parse(contentDesc as Map<String, Any>)
+        val root = parse(contentDesc as Map<String, Any>)
+        seleniumDriver?.currentUrl?.let { url ->
+            root.attributes["url"] = url
+        }
+        return root
     }
 
     private fun detectWindowChange() {
@@ -367,7 +370,7 @@ class WebDriver(
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         val driver = ensureOpen()
 
-        driver.get(link)
+        driver.get(if (link.startsWith("http")) link else "https://$link")
     }
 
     override fun hideKeyboard() {

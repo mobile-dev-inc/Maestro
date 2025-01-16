@@ -26,10 +26,12 @@ export type UIElement = {
 };
 
 export type DeviceScreen = {
+  platform: string;
   screenshot: string;
   width: number;
   height: number;
   elements: UIElement[];
+  url?: string;
 };
 
 export type ReplCommandStatus =

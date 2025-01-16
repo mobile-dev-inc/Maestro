@@ -112,7 +112,7 @@ object MaestroSessionManager {
         deviceId: String?,
         platform: Platform? = null,
     ): SelectedDevice {
-        if (deviceId == "chromium") {
+        if (deviceId == "chromium" || platform == Platform.WEB) {
             return SelectedDevice(
                 platform = Platform.WEB
             )
