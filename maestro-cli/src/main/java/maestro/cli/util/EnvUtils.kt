@@ -75,6 +75,10 @@ object EnvUtils {
         return false
     }
 
+    fun isWindows(): Boolean {
+        return OS_NAME.lowercase().startsWith("windows")
+    }
+
     /**
      * Returns major version of Java, e.g. 8, 11, 17, 21.
      */
