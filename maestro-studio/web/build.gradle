@@ -1,7 +1,11 @@
 tasks.register("deps", Exec.class) {
     inputs.file(layout.projectDirectory.file("package.json"))
     outputs.dir(layout.projectDirectory.dir("node_modules"))
-    commandLine("npm", "install")
+    if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+        commandLine 'npm.cmd', 'install'
+    } else {
+        commandLine 'npm', 'install'
+    }
 }
 
 tasks.register("build", Exec.class) {
@@ -11,5 +15,9 @@ tasks.register("build", Exec.class) {
     inputs.files(inputFiles)
     outputs.dir(layout.projectDirectory.dir("build"))
     dependsOn(tasks.deps)
-    commandLine("npm", "run", "build")
+    if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+        commandLine 'npm.cmd', 'run', 'build'
+    } else {
+        commandLine("npm", "run", "build")
+    }
 }

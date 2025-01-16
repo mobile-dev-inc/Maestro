@@ -31,6 +31,10 @@ tasks.named<JavaExec>("run") {
     workingDir = rootDir
 }
 
+tasks.named<CreateStartScripts>("startScripts") {
+    classpath = files("$buildDir/libs/*")
+}
+
 dependencies {
     implementation(project(path = ":maestro-utils"))
     annotationProcessor(libs.picocli.codegen)

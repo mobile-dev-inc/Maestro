@@ -14,6 +14,7 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
@@ -94,7 +95,7 @@ object TestRunner {
         flowFile: File,
         env: Map<String, String>,
     ): Nothing {
-        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
+        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
         val fileWatcher = FileWatcher()
 
