@@ -172,6 +172,7 @@ class Orchestra(
                         command,
                         metadata.copy(logMessages = metadata.logMessages + msg)
                     )
+                    logger.info("JsConsole: $msg")
                 }
 
                 val evaluatedCommand = command.evaluateScripts(jsEngine)
