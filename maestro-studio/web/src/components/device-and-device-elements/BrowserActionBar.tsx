@@ -34,7 +34,7 @@ const BrowserActionBar = ({currentUrl, onUrlUpdated, isLoading}: {
       </div>
       <Input
         className={twMerge(
-          "w-full pl-8 pr-1 py-0.5 rounded-full border-2 bg-slate-50",
+          "w-full pl-8 pr-1 py-0.5 rounded-full border-2 bg-slate-50 dark:bg-gray-800",
           isLoading && "bg-gray-100",
         )}
         size="sm"
