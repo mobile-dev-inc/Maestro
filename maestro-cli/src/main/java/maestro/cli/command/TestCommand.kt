@@ -29,6 +29,8 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.api.ApiClient
+import maestro.cli.auth.Auth
 import maestro.cli.device.Device
 import maestro.cli.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
@@ -43,6 +45,7 @@ import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.TestAnalysisReporter
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -56,6 +59,7 @@ import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
@@ -158,11 +162,20 @@ class TestCommand : Callable<Int> {
     )
     private var headless: Boolean = false
 
+    @Option(
+        names = ["--analyze"],
+        description = ["[Beta] Enhance the test output analysis with AI Insights"],
+    )
+    private var analyze: Boolean = false
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
+    private val auth by lazy {
+        Auth(ApiClient("https://api.copilot.mobile.dev/v2"))
+    }
 
     private fun isWebFlow(): Boolean {
         if (flowFiles.isSingleFile) {
@@ -171,6 +184,7 @@ class TestCommand : Callable<Int> {
 
         return false
     }
+
 
     override fun call(): Int {
         TestDebugReporter.install(
@@ -192,6 +206,19 @@ class TestCommand : Callable<Int> {
         if (configFile != null && configFile?.exists()?.not() == true) {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
         }
+
+        // TODO: Integrate with `maestro login`
+        //        if (analyze) {
+        //            if (auth.getCachedAuthToken() == null) {
+        //                throw CliError(listOf(
+        //                    "❌ Login Required\n",
+        //                    "You need to sign in before using the --analyze option.",
+        //                    "Please run:",
+        //                    "`maestro login`\n",
+        //                    "After signing in, try running your command again."
+        //                ).joinToString("\n").box())
+        //            }
+        //        }
 
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
@@ -290,6 +317,7 @@ class TestCommand : Callable<Int> {
         suites.mergeSummaries()?.saveReport()
 
         if (effectiveShards > 1) printShardsMessage(passed, total, suites)
+        if (analyze) TestAnalysisReporter().runAnalysis(debugOutputPath)
         if (passed == total) 0 else 1
     }
 
@@ -333,7 +361,7 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env)
+                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze)
                 } else {
                     runSingleFlow(maestro, device, flowFile, debugOutputPath)
                 }
@@ -371,6 +399,7 @@ class TestCommand : Callable<Int> {
             env = env,
             resultView = resultView,
             debugOutputPath = debugOutputPath,
+            analyze = analyze
         )
 
         if (resultSingle == 1) {

@@ -1,0 +1,32 @@
+{
+  "name": "askForInsights",
+  "description": "Returns a list of possible insights found in the mobile app's UI",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "required": ["insights"],
+    "additionalProperties": false,
+    "properties": {
+      "insights": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["category", "reasoning"],
+          "additionalProperties": false,
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": [
+                "layout",
+                "localization"
+              ]
+            },
+            "reasoning": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

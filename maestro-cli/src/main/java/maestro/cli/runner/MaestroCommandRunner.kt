@@ -56,6 +56,7 @@ object MaestroCommandRunner {
         commands: List<MaestroCommand>,
         debugOutput: FlowDebugOutput,
         aiOutput: FlowAIOutput,
+        analyze: Boolean = false
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -89,6 +90,9 @@ object MaestroCommandRunner {
         }
 
         refreshUi()
+        if (analyze) {
+            ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
+        }
 
         val orchestra = Orchestra(
             maestro = maestro,
@@ -106,6 +110,10 @@ object MaestroCommandRunner {
             onCommandComplete = { _, command ->
                 logger.info("${command.description()} COMPLETED")
                 commandStatuses[command] = CommandStatus.COMPLETED
+                if (analyze) {
+                    ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.COMPLETED)
+                }
+
                 debugOutput.commands[command]?.apply {
                     status = CommandStatus.COMPLETED
                     calculateDuration()
