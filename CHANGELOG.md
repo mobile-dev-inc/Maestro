@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.39.10
+
+- Update install script to tidy up old installation binaries
+
 ## 1.39.9
 
 - Revert: Error in showing keyboard during input and erase commands on iOS
