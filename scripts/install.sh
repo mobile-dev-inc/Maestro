@@ -62,7 +62,6 @@ export MAESTRO_DIR
 # Local variables
 maestro_tmp_folder="${MAESTRO_DIR}/tmp"
 maestro_bash_profile="${HOME}/.bash_profile"
-maestro_profile="${HOME}/.profile"
 maestro_bashrc="${HOME}/.bashrc"
 maestro_zshrc="${ZDOTDIR:-${HOME}}/.zshrc"
 
@@ -113,6 +112,15 @@ if [[ "$cygwin" == 'true' ]]; then
 	maestro_zip_file=$(cygpath -w "$maestro_zip_file")
 fi
 unzip -qo "$maestro_zip_file" -d "$maestro_tmp_folder"
+
+# Empty destinations
+echo "* Remove previous installation (if any)"
+if [[ -d "$MAESTRO_DIR/lib" ]]; then
+  rm -rf "${MAESTRO_DIR:?}/lib"
+fi
+if [[ -d "$MAESTRO_DIR/bin" ]]; then
+  rm -rf "${MAESTRO_DIR:?}/bin"
+fi
 
 # Copy in place
 echo "* Copying archive contents..."
