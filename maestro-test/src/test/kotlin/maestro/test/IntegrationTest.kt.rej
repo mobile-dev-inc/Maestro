@@ -1,0 +1,26 @@
+diff a/maestro-test/src/test/kotlin/maestro/test/IntegrationTest.kt b/maestro-test/src/test/kotlin/maestro/test/IntegrationTest.kt	(rejected hunks)
+@@ -3279,6 +3279,24 @@ class IntegrationTest {
+       assertThat(action).isEqualTo(targetAction)
+     }
+ 
++    @Test
++    fun `Case 122 - Kill app`() {
++        // Given
++        val commands = readCommands("122_shake")
++
++        val driver = driver {
++        }
++
++        // When
++        Maestro(driver).use {
++            orchestra(it).runFlow(commands)
++        }
++
++        // Then
++        // No test failure
++        driver.assertHasEvent(Event.Shake("com.example.app"))
++    }
++
+     private fun orchestra(
+         maestro: Maestro,
+     ) = Orchestra(

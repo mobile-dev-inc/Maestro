@@ -52,6 +52,7 @@ import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.ShakeCommand
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
@@ -617,6 +618,18 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.selector.idRegex).isEqualTo("submit-btn")
         assertThat(tapCommand.relativePoint).isEqualTo("25, 75")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on id: submit-btn at 25, 75")
+    }
+
+    @Test
+    fun shake(
+        @YamlFile("028_shake.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            ShakeCommand(),
+        )
     }
 
     @Test

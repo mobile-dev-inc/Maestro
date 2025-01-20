@@ -215,6 +215,12 @@ class FakeDriver : Driver {
         events += Event.SwipeElementWithDirection(elementPoint, direction, durationMs)
     }
 
+    override fun shake() {
+        ensureOpen()
+
+        events.add(Event.Shake)
+    }
+
     override fun backPress() {
         ensureOpen()
 
@@ -445,6 +451,9 @@ class FakeDriver : Driver {
         object BackPress : Event(), UserInteraction
 
         object HideKeyboard : Event(), UserInteraction
+
+        object Shake : Event(), UserInteraction
+
 
         data class InputText(
             val text: String
