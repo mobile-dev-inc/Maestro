@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.39.9
+
+- Revert: Error in showing keyboard during input and erase commands on iOS
+- Fix: applesimutils affecting granting location permission
+- Fix: Setting host and port from the optional arguments
+- Feature: New `maestro login` command for logging in Robin.
+- Feature: Improved `maestro record` video to scroll and follow the currently executing commands
+- Fix: Enable running Maestro on Windows without WSL
+- Feature: Add console.log messages directly to the maestro log file.
+
 ## 1.39.8
 
 - Fix: Debug message not showing up when we execute commands on maestro cli anymore
