@@ -29,8 +29,6 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.api.ApiClient
-import maestro.cli.auth.Auth
 import maestro.cli.device.Device
 import maestro.cli.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
@@ -54,12 +52,10 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
 import okio.sink
-import org.jetbrains.skiko.hostId
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
@@ -168,14 +164,18 @@ class TestCommand : Callable<Int> {
     )
     private var analyze: Boolean = false
 
+    @Option(names = ["--apiUrl"], description = ["[Beta] API base URL"])
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
+
+
+    @Option(names = ["--apiKey"], description = ["[Beta] API key"])
+    private var apiKey: String? = null
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
-    private val auth by lazy {
-        Auth(ApiClient("https://api.copilot.mobile.dev/v2"))
-    }
 
     private fun isWebFlow(): Boolean {
         if (flowFiles.isSingleFile) {
@@ -206,19 +206,6 @@ class TestCommand : Callable<Int> {
         if (configFile != null && configFile?.exists()?.not() == true) {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
         }
-
-        // TODO: Integrate with `maestro login`
-        //        if (analyze) {
-        //            if (auth.getCachedAuthToken() == null) {
-        //                throw CliError(listOf(
-        //                    "❌ Login Required\n",
-        //                    "You need to sign in before using the --analyze option.",
-        //                    "Please run:",
-        //                    "`maestro login`\n",
-        //                    "After signing in, try running your command again."
-        //                ).joinToString("\n").box())
-        //            }
-        //        }
 
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
@@ -317,7 +304,7 @@ class TestCommand : Callable<Int> {
         suites.mergeSummaries()?.saveReport()
 
         if (effectiveShards > 1) printShardsMessage(passed, total, suites)
-        if (analyze) TestAnalysisReporter().runAnalysis(debugOutputPath)
+        if (analyze) TestAnalysisReporter(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
         if (passed == total) 0 else 1
     }
 
