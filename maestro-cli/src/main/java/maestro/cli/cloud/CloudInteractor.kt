@@ -1,6 +1,7 @@
 package maestro.cli.cloud
 
 import maestro.cli.CliError
+import maestro.cli.api.AnalyzeResponse
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.DeviceInfo
@@ -13,11 +14,13 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.RunningFlow
 import maestro.cli.model.RunningFlows
 import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
+import maestro.cli.util.FlowFiles
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.util.WorkspaceUtils
@@ -35,6 +38,8 @@ import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
+import java.nio.file.Path
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 
@@ -78,10 +83,7 @@ class CloudInteractor(
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
-        val authToken = apiKey              // Check for API key
-            ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.maestroCloudApiKey()        // Resolve API key from shell if set
-            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
+        val authToken = getAuthToken(apiKey)
 
         PrintUtils.message("Uploading Flow(s)...")
 
@@ -487,4 +489,55 @@ class CloudInteractor(
             duration = runningFlows.duration
         )
     }
+
+    private fun getAuthToken(apiKey: String?): String {
+        return apiKey // Check for API key
+            ?: auth.getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
+            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
+    }
+
+    fun analyze(
+        apiKey: String?,
+        flowFiles: List<FlowFiles>,
+        debugOutputPath: Path,
+    ): Int {
+        val authToken = getAuthToken(apiKey)
+
+        PrintUtils.info("\uD83D\uDD0E Analyzing Flow(s)...\n")
+
+        try {
+            val response = client.analyze(authToken, flowFiles)
+            if (response.status == AnalyzeResponse.Status.ERROR) {
+                PrintUtils.err("Unexpected error while analyzing Flow(s): ${response.output}")
+                return 1
+            }
+
+            when (response) {
+                is AnalyzeResponse.HtmlOutput -> {
+                    val outputFilePath = HtmlInsightsAnalysisReporter().report(response.output, debugOutputPath)
+                    val os = System.getProperty("os.name").lowercase(Locale.getDefault())
+
+                    PrintUtils.message(
+                        listOf(
+                            "To view the report, open the following link in your browser:",
+                            "file:${if (os.contains("win")) "///" else "//"}${outputFilePath}\n",
+                            "Analyze support is in Beta. We would appreciate your feedback!"
+                        ).joinToString("\n")
+                    )
+
+                    return 0;
+                }
+
+                is AnalyzeResponse.CliOutput -> {
+                    PrintUtils.message(response.output)
+                    return 0
+                }
+            }
+        } catch (error: CliError) {
+            PrintUtils.err("Unexpected error while analyzing Flow(s): ${error.message}")
+            return 1
+        }
+    }
+
 }
