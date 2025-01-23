@@ -504,7 +504,7 @@ class CloudInteractor(
     ): Int {
         val authToken = getAuthToken(apiKey)
 
-        PrintUtils.info("\uD83D\uDD0E Analyzing Flow(s)...\n")
+        PrintUtils.info("\n\uD83D\uDD0E Analyzing Flow(s)...")
 
         try {
             val response = client.analyze(authToken, flowFiles)
@@ -518,7 +518,7 @@ class CloudInteractor(
                     val outputFilePath = HtmlInsightsAnalysisReporter().report(response.output, debugOutputPath)
                     val os = System.getProperty("os.name").lowercase(Locale.getDefault())
 
-                    PrintUtils.message(
+                    PrintUtils.success(
                         listOf(
                             "To view the report, open the following link in your browser:",
                             "file:${if (os.contains("win")) "///" else "//"}${outputFilePath}\n",
