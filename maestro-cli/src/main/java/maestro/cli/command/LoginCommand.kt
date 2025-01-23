@@ -26,7 +26,7 @@ class LoginCommand : Callable<Int> {
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
 
-    @Option(names = ["--apiUrl"], description = ["API base URL"])
+    @Option(names = ["--api-url", "--apiUrl"], description = ["API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     private val auth by lazy {
