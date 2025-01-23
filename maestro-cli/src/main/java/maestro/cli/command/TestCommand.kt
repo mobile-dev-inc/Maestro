@@ -164,12 +164,8 @@ class TestCommand : Callable<Int> {
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
-    private fun isWebFlow(): Boolean {
-        if (flowFiles.isSingleFile) {
-            return flowFiles.first().isWebFlow()
-        }
-
-        return false
+    private fun includesWebFlow(): Boolean {
+        return flowFiles.any { it.isWebFlow() }
     }
 
     override fun call(): Int {
@@ -218,7 +214,7 @@ class TestCommand : Callable<Int> {
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
 
         val availableDevices = DeviceService.listConnectedDevices(
-            includeWeb = isWebFlow(),
+            includeWeb = includesWebFlow(),
             host = parent?.host,
             port = parent?.port,
         ).map { it.instanceId }.toSet()
@@ -427,7 +423,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun getPassedOptionsDeviceIds(): List<String> {
-        val arguments = if (isWebFlow()) {
+        val arguments = if (includesWebFlow()) {
             PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
             "chromium"
         } else parent?.deviceId
