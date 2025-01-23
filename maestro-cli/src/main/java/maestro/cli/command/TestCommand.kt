@@ -164,11 +164,11 @@ class TestCommand : Callable<Int> {
     )
     private var analyze: Boolean = false
 
-    @Option(names = ["--apiUrl"], description = ["[Beta] API base URL"])
+    @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
 
-    @Option(names = ["--apiKey"], description = ["[Beta] API key"])
+    @Option(names = ["--api-key"], description = ["[Beta] API key"])
     private var apiKey: String? = null
 
     @CommandLine.Spec
