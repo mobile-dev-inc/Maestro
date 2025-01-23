@@ -184,7 +184,7 @@ class CloudCommand : Callable<Int> {
             if (projectId != null) {
                 "https://api.copilot.mobile.dev/v2/project/$projectId"
             } else {
-                "https://api.mobile.dev"
+                throw CliError("You need to specify a Robin project with --projectId")
             }
         }
 

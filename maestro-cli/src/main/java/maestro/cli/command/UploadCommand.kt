@@ -56,7 +56,7 @@ class UploadCommand : Callable<Int> {
     private var apiKey: String? = null
 
     @Option(order = 1, names = ["--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = "https://api.mobile.dev"
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     @Option(order = 2, names = ["--mapping"], description = ["dSYM file (iOS) or Proguard mapping file (Android)"])
     private var mapping: File? = null

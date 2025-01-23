@@ -113,7 +113,7 @@ class MockInteractor {
     companion object {
         private val API_URL by lazy {
             if (System.getProperty("MAESTRO_CLOUD_API_URL").isNullOrEmpty()) {
-                "https://api.mobile.dev"
+                "https://api.copilot.mobile.dev"
             } else {
                 System.getProperty("MAESTRO_CLOUD_API_URL")
             }
