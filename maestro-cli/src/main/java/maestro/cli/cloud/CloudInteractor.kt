@@ -10,6 +10,7 @@ import maestro.cli.api.RobinUploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
+import maestro.cli.insights.FlowFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.RunningFlow
 import maestro.cli.model.RunningFlows
@@ -20,7 +21,6 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
-import maestro.cli.util.FlowFiles
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.util.WorkspaceUtils

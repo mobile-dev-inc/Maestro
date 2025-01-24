@@ -43,7 +43,7 @@ import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.TestAnalysisReporter
+import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -304,7 +304,7 @@ class TestCommand : Callable<Int> {
         suites.mergeSummaries()?.saveReport()
 
         if (effectiveShards > 1) printShardsMessage(passed, total, suites)
-        if (analyze) TestAnalysisReporter(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
+        if (analyze) TestAnalysisManager(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
         if (passed == total) 0 else 1
     }
 
