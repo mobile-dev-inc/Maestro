@@ -290,8 +290,12 @@ class Orchestra(
         jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
         } else {
-            // Default to GraalJS for better performance and compatibility
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+            val shouldAllowIo =
+                config?.ext?.get("graalJsAllowIo") == true ||
+                        System.getenv("MAESTRO_GRAALJS_ALLOW_IO") == "true"
+            httpClient?.let { GraalJsEngine(it, platform, shouldAllowIo) }
+                ?: GraalJsEngine(platform = platform, allowIo = shouldAllowIo
+            )
         }
     }
 
