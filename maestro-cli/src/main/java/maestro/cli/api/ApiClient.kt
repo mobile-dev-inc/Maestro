@@ -11,11 +11,11 @@ import com.github.michaelbull.result.Result
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.AnalyticsReport
+import maestro.cli.insights.FlowFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
-import maestro.cli.util.FlowFiles
 import maestro.cli.util.PrintUtils
 import maestro.utils.HttpClient
 import okhttp3.Interceptor
