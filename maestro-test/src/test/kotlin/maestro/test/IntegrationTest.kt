@@ -43,8 +43,10 @@ import org.junit.jupiter.api.fail
 import org.slf4j.LoggerFactory
 import java.awt.Color
 import java.io.File
+import java.io.IOException
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
+import org.graalvm.polyglot.PolyglotException
 
 class IntegrationTest {
 
@@ -4146,6 +4148,44 @@ class IntegrationTest {
                 Event.InputText("Hello, Maestro!"),
             )
         )
+    }
+
+    @Test
+    fun `Case 120 - GraalJs import`() {
+        // given
+        val commands = readCommands("120_graaljs_import")
+        val driver = driver { }
+        val receivedLogs = mutableMapOf<MaestroCommand, List<String>>()
+
+        // when
+        Maestro(driver).use {
+            orchestra(
+                maestro = it,
+                onCommandMetadataUpdate = { command, metadata ->
+                    receivedLogs[command] = metadata.logMessages
+                },
+            ).runFlow(commands)
+        }
+
+        // then
+        assertThat(receivedLogs.values.flatten()).containsExactly(
+            "From script.mjs",
+            "From foo.mjs",
+        )
+    }
+
+    @Test
+    fun `Case 120 - GraalJs import disallowed`() {
+        assertThrows<PolyglotException> {
+            // given
+            val commands = readCommands("120_graaljs_import_disallowed")
+            val driver = driver { }
+
+            // when
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
+        }
     }
 
     private fun orchestra(
