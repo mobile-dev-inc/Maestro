@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.github.romankh3.image.comparison.ImageComparisonUtil
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.stream.Collectors
@@ -89,11 +90,37 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
             }
         }
 
+        val filteredScreenshots = filterSimilarScreenshots(screenshots)
+
         return AnalysisDebugFiles(
             logs = logs,
             commands = commands,
-            screenshots = screenshots,
+            screenshots = filteredScreenshots,
         )
+    }
+
+    private val screenshotsDifferenceThreshold = 5.0
+
+    private fun filterSimilarScreenshots(
+        screenshots: List<AnalysisScreenshot>
+    ): List<AnalysisScreenshot> {
+        val uniqueScreenshots = mutableListOf<AnalysisScreenshot>()
+
+        for (screenshot in screenshots) {
+            val isSimilar = uniqueScreenshots.any { existingScreenshot ->
+                val diffPercent = ImageComparisonUtil.getDifferencePercent(
+                    ImageComparisonUtil.readImageFromResources(existingScreenshot.path.toString()),
+                    ImageComparisonUtil.readImageFromResources(screenshot.path.toString())
+                )
+                diffPercent <= screenshotsDifferenceThreshold
+            }
+
+            if (!isSimilar) {
+                uniqueScreenshots.add(screenshot)
+            }
+        }
+
+        return uniqueScreenshots
     }
 
     /**
