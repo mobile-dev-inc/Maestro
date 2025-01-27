@@ -35,7 +35,7 @@ data class AnalysisDebugFiles(
 )
 
 class TestAnalysisManager(private val apiUrl: String, private val apiKey: String?) {
-    private val apiclient by lazy {
+    private val apiClient by lazy {
         ApiClient(apiUrl)
     }
 
@@ -46,7 +46,7 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
             return 0;
         }
 
-        return CloudInteractor(apiclient).analyze(
+        return CloudInteractor(apiClient).analyze(
             apiKey = apiKey,
             debugFiles = debugFiles,
             debugOutputPath = debugOutputPath
@@ -97,15 +97,15 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
     }
 
     /**
-     * The analytics system for Test Analysis.
-     *  - Uses configuration from $XDG_CONFIG_HOME/maestro/analyze-analytics.json.
+     * The Notification system for Test Analysis.
+     *  - Uses configuration from $XDG_CONFIG_HOME/maestro/analyze-notification.json.
      */
-    companion object Analytics {
-        private const val DISABLE_INSIGHTS_ENV_VAR = "MAESTRO_CLI_INSIGHTS_NOTIFICATION_DISABLED"
+    companion object AnalysisNotification {
+        private const val DISABLE_NOTIFICATION_ENV_VAR = "MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED"
         private val disabled: Boolean
-            get() = System.getenv(DISABLE_INSIGHTS_ENV_VAR) == "true"
+            get() = System.getenv(DISABLE_NOTIFICATION_ENV_VAR) == "true"
 
-        private val analyticsStatePath: Path = EnvUtils.xdgStateHome().resolve("analyze-analytics.json")
+        private val notificationStatePath: Path = EnvUtils.xdgStateHome().resolve("analyze-notification.json")
 
         private val JSON = jacksonObjectMapper().apply {
             registerModule(JavaTimeModule())
@@ -113,10 +113,10 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
         }
 
         private val shouldNotNotify: Boolean
-            get() = disabled || analyticsStatePath.exists() && analyticsState.acknowledged
+            get() = disabled || notificationStatePath.exists() && notificationState.acknowledged
 
-        private val analyticsState: AnalyticsState
-            get() = JSON.readValue<AnalyticsState>(analyticsStatePath.readText())
+        private val notificationState: AnalysisNotificationState
+            get() = JSON.readValue<AnalysisNotificationState>(notificationStatePath.readText())
 
         fun maybeNotify() {
             if (shouldNotNotify) return
@@ -128,25 +128,25 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
                     "> https://maestro.mobile.dev/cli/test-suites-and-reports#analyze",
                     "Analyze command:",
                     "$ maestro test flow-file.yaml --analyze | bash\n",
-                    "To disable this notification, set $DISABLE_INSIGHTS_ENV_VAR environment variable to \"true\" before running Maestro."
+                    "To disable this notification, set $DISABLE_NOTIFICATION_ENV_VAR environment variable to \"true\" before running Maestro."
                 ).joinToString("\n").box()
             )
             ack();
         }
 
         private fun ack() {
-            val state = AnalyticsState(
+            val state = AnalysisNotificationState(
                 acknowledged = true
             )
 
             val stateJson = JSON.writeValueAsString(state)
-            analyticsStatePath.parent.createDirectories()
-            analyticsStatePath.writeText(stateJson + "\n")
+            notificationStatePath.parent.createDirectories()
+            notificationStatePath.writeText(stateJson + "\n")
         }
     }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class AnalyticsState(
+data class AnalysisNotificationState(
     val acknowledged: Boolean = false
 )
