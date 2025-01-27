@@ -1,7 +1,6 @@
 package maestro.cli.cloud
 
 import maestro.cli.CliError
-import maestro.cli.api.AnalyzeResponse
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.DeviceInfo
@@ -508,32 +507,22 @@ class CloudInteractor(
 
         try {
             val response = client.analyze(authToken, flowFiles)
-            if (response.status == AnalyzeResponse.Status.ERROR) {
-                PrintUtils.err("Unexpected error while analyzing Flow(s): ${response.output}")
-                return 1
+
+            if (response.htmlReport.isNullOrEmpty()) {
+                PrintUtils.info(response.output)
+                return 0
             }
 
-            when (response) {
-                is AnalyzeResponse.HtmlOutput -> {
-                    val outputFilePath = HtmlInsightsAnalysisReporter().report(response.output, debugOutputPath)
-                    val os = System.getProperty("os.name").lowercase(Locale.getDefault())
+            val outputFilePath = HtmlInsightsAnalysisReporter().report(response.htmlReport, debugOutputPath)
+            val os = System.getProperty("os.name").lowercase(Locale.getDefault())
 
-                    PrintUtils.success(
-                        listOf(
-                            "To view the report, open the following link in your browser:",
-                            "file:${if (os.contains("win")) "///" else "//"}${outputFilePath}\n",
-                            "Analyze support is in Beta. We would appreciate your feedback!"
-                        ).joinToString("\n")
-                    )
+            val formattedOutput = response.output.replace(
+                "{{outputFilePath}}",
+                "file:${if (os.contains("win")) "///" else "//"}${outputFilePath}\n"
+            )
 
-                    return 0;
-                }
-
-                is AnalyzeResponse.CliOutput -> {
-                    PrintUtils.message(response.output)
-                    return 0
-                }
-            }
+            PrintUtils.info(formattedOutput);
+            return 0;
         } catch (error: CliError) {
             PrintUtils.err("Unexpected error while analyzing Flow(s): ${error.message}")
             return 1

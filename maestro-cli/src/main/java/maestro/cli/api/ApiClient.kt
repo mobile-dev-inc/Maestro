@@ -655,40 +655,8 @@ data class Insight(
     val reasoning: String,
 )
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = "category"
+class AnalyzeResponse(
+    val htmlReport: String?,
+    val output: String,
+    val insights: List<Insight>
 )
-@JsonSubTypes(
-    JsonSubTypes.Type(value = AnalyzeResponse.HtmlOutput::class, name = "HTML_OUTPUT"),
-    JsonSubTypes.Type(value = AnalyzeResponse.CliOutput::class, name = "CLI_OUTPUT")
-)
-sealed class AnalyzeResponse(
-    open val status: Status,
-    open val output: String,
-    open val insights: List<Insight>
-) {
-
-    data class HtmlOutput(
-        override val status: Status,
-        override val output: String,
-        override val insights: List<Insight>,
-        val category: Category = Category.HTML_OUTPUT
-    ) : AnalyzeResponse(status, output, insights)
-
-    data class CliOutput(
-        override val status: Status,
-        override val output: String,
-        override val insights: List<Insight>,
-        val category: Category = Category.CLI_OUTPUT
-    ) : AnalyzeResponse(status, output, insights)
-
-    enum class Status {
-        SUCCESS, ERROR
-    }
-
-    enum class Category {
-        HTML_OUTPUT, CLI_OUTPUT
-    }
-}
