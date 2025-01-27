@@ -9,7 +9,7 @@ import maestro.cli.api.RobinUploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
-import maestro.cli.insights.FlowFiles
+import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.RunningFlow
 import maestro.cli.model.RunningFlows
@@ -498,7 +498,7 @@ class CloudInteractor(
 
     fun analyze(
         apiKey: String?,
-        flowFiles: List<FlowFiles>,
+        debugFiles: AnalysisDebugFiles,
         debugOutputPath: Path,
     ): Int {
         val authToken = getAuthToken(apiKey)
@@ -506,7 +506,7 @@ class CloudInteractor(
         PrintUtils.info("\n\uD83D\uDD0E Analyzing Flow(s)...")
 
         try {
-            val response = client.analyze(authToken, flowFiles)
+            val response = client.analyze(authToken, debugFiles)
 
             if (response.htmlReport.isNullOrEmpty()) {
                 PrintUtils.info(response.output)
@@ -528,5 +528,4 @@ class CloudInteractor(
             return 1
         }
     }
-
 }

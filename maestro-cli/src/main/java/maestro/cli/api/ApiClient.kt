@@ -1,8 +1,6 @@
 package maestro.cli.api
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
@@ -11,7 +9,7 @@ import com.github.michaelbull.result.Result
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.AnalyticsReport
-import maestro.cli.insights.FlowFiles
+import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
@@ -460,32 +458,10 @@ class ApiClient(
 
     fun analyze(
         authToken: String,
-        flowFiles: List<FlowFiles>,
+        debugFiles: AnalysisDebugFiles,
     ): AnalyzeResponse {
-        if (flowFiles.isEmpty()) throw CliError("Missing flow files to analyze")
-
-        val screenshots = mutableListOf<Pair<String, ByteArray>>()
-        val logs = mutableListOf<Pair<String, ByteArray>>()
-
-        flowFiles.forEach { flowFile ->
-            flowFile.imageFiles.forEach { (imageData, path) ->
-                val imageName = path.fileName.toString()
-                screenshots.add(Pair(imageName, imageData))
-            }
-
-            flowFile.textFiles.forEach { (textData, path) ->
-                val textName = path.fileName.toString()
-                logs.add(Pair(textName, textData))
-            }
-        }
-
-        val requestBody = mapOf(
-            "screenshots" to screenshots,
-            "logs" to logs
-        )
-
         val mediaType = "application/json; charset=utf-8".toMediaType()
-        val body = JSON.writeValueAsString(requestBody).toRequestBody(mediaType)
+        val body = JSON.writeValueAsString(debugFiles).toRequestBody(mediaType)
 
         val url = "$baseUrl/v2/analyze"
 

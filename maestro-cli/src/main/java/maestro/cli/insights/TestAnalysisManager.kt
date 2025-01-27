@@ -18,9 +18,20 @@ import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
-data class FlowFiles(
-    val imageFiles: List<Pair<ByteArray, Path>>,
-    val textFiles: List<Pair<ByteArray, Path>>
+data class AnalysisScreenshot (
+    val data: ByteArray,
+    val path: Path,
+)
+
+data class AnalysisLog (
+    val data: ByteArray,
+    val path: Path,
+)
+
+data class AnalysisDebugFiles(
+    val screenshots: List<AnalysisScreenshot>,
+    val logs: List<AnalysisLog>,
+    val commands: List<AnalysisLog>,
 )
 
 class TestAnalysisManager(private val apiUrl: String, private val apiKey: String?) {
@@ -29,61 +40,60 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
     }
 
     fun runAnalysis(debugOutputPath: Path): Int {
-        val flowFiles = processFilesByFlowName(debugOutputPath)
-        if (flowFiles.isEmpty()) {
+        val debugFiles = processDebugFiles(debugOutputPath)
+        if (debugFiles == null) {
             PrintUtils.warn("No screenshots or debug artifacts found for analysis.")
             return 0;
         }
 
         return CloudInteractor(apiclient).analyze(
             apiKey = apiKey,
-            flowFiles = flowFiles,
+            debugFiles = debugFiles,
             debugOutputPath = debugOutputPath
         )
     }
 
-    private fun processFilesByFlowName(outputPath: Path): List<FlowFiles> {
+    private fun processDebugFiles(outputPath: Path): AnalysisDebugFiles? {
         val files = Files.walk(outputPath)
             .filter(Files::isRegularFile)
             .collect(Collectors.toList())
 
-        return if (files.isNotEmpty()) {
-            val (imageFiles, textFiles) = getDebugFiles(files)
-            listOf(
-                FlowFiles(
-                    imageFiles = imageFiles,
-                    textFiles = textFiles
-                )
-            )
-        } else {
-            emptyList()
+        if (files.isEmpty()) {
+            return null
         }
+
+        return getDebugFiles(files)
     }
 
-    private fun getDebugFiles(files: List<Path>): Pair<List<Pair<ByteArray, Path>>, List<Pair<ByteArray, Path>>> {
-        val imageFiles = mutableListOf<Pair<ByteArray, Path>>()
-        val textFiles = mutableListOf<Pair<ByteArray, Path>>()
+    private fun getDebugFiles(files: List<Path>): AnalysisDebugFiles {
+        val logs = mutableListOf<AnalysisLog>()
+        val commands = mutableListOf<AnalysisLog>()
+        val screenshots = mutableListOf<AnalysisScreenshot>()
 
-        files.forEach { filePath ->
-            val content = Files.readAllBytes(filePath)
-            val fileName = filePath.fileName.toString().lowercase()
+        files.forEach { path ->
+            val data = Files.readAllBytes(path)
+            val fileName = path.fileName.toString().lowercase()
 
             when {
                 fileName.endsWith(".png") || fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") -> {
-                    imageFiles.add(content to filePath)
+                    screenshots.add(AnalysisScreenshot(data = data, path = path))
                 }
 
                 fileName.startsWith("commands") -> {
-                    textFiles.add(content to filePath)
+                    commands.add(AnalysisLog(data = data, path = path))
                 }
 
                 fileName == "maestro.log" -> {
-                    textFiles.add(content to filePath)
+                    logs.add(AnalysisLog(data = data, path = path))
                 }
             }
         }
 
-        return Pair(imageFiles, textFiles)
+        return AnalysisDebugFiles(
+            logs = logs,
+            commands = commands,
+            screenshots = screenshots,
+        )
     }
 
     /**
