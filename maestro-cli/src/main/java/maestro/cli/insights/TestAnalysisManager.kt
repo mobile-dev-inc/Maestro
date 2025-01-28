@@ -150,7 +150,7 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
 
             println(
                 listOf(
-                    "Tryout our new Analyze with Ai feature.\n",
+                    "Try out our new Analyze with Ai feature.\n",
                     "See what's new:",
                     "> https://maestro.mobile.dev/cli/test-suites-and-reports#analyze",
                     "Analyze command:",
