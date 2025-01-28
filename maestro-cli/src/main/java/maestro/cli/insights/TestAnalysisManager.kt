@@ -128,9 +128,9 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
      *  - Uses configuration from $XDG_CONFIG_HOME/maestro/analyze-notification.json.
      */
     companion object AnalysisNotification {
-        private const val DISABLE_NOTIFICATION_ENV_VAR = "MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED"
+        private const val MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED = "MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED"
         private val disabled: Boolean
-            get() = System.getenv(DISABLE_NOTIFICATION_ENV_VAR) == "true"
+            get() = System.getenv(MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED) == "true"
 
         private val notificationStatePath: Path = EnvUtils.xdgStateHome().resolve("analyze-notification.json")
 
@@ -155,7 +155,7 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
                     "> https://maestro.mobile.dev/cli/test-suites-and-reports#analyze",
                     "Analyze command:",
                     "$ maestro test flow-file.yaml --analyze | bash\n",
-                    "To disable this notification, set $DISABLE_NOTIFICATION_ENV_VAR environment variable to \"true\" before running Maestro."
+                    "To disable this notification, set $MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED environment variable to \"true\" before running Maestro."
                 ).joinToString("\n").box()
             )
             ack();
