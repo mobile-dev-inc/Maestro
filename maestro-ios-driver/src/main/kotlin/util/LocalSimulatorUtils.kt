@@ -164,7 +164,7 @@ object LocalSimulatorUtils {
 
     fun terminate(deviceId: String, bundleId: String) {
         // Ignore error return: terminate will fail if the app is not running
-        ProcessBuilder(
+        runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -173,8 +173,6 @@ object LocalSimulatorUtils {
                 bundleId
             )
         )
-            .start()
-            .waitFor()
     }
 
     private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
@@ -326,6 +324,23 @@ object LocalSimulatorUtils {
                 deviceId,
                 bundleId,
             ) + launchArguments,
+        )
+    }
+
+    fun launchUITestRunner(
+        deviceId: String,
+        port: Int,
+    ) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "launch",
+                "--terminate-running-process",
+                deviceId,
+                "dev.mobile.maestro-driver-iosUITests.xctrunner"
+            ),
+            params = mapOf("SIMCTL_CHILD_PORT" to port.toString())
         )
     }
 
