@@ -9,10 +9,12 @@ import maestro.cli.api.RobinUploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
+import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.RunningFlow
 import maestro.cli.model.RunningFlows
 import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
 import maestro.cli.util.EnvUtils
@@ -35,6 +37,8 @@ import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
+import java.nio.file.Path
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 
@@ -78,10 +82,7 @@ class CloudInteractor(
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
-        val authToken = apiKey              // Check for API key
-            ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.maestroCloudApiKey()        // Resolve API key from shell if set
-            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
+        val authToken = getAuthToken(apiKey)
 
         PrintUtils.message("Uploading Flow(s)...")
 
@@ -486,5 +487,45 @@ class CloudInteractor(
             },
             duration = runningFlows.duration
         )
+    }
+
+    private fun getAuthToken(apiKey: String?): String {
+        return apiKey // Check for API key
+            ?: auth.getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
+            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
+    }
+
+    fun analyze(
+        apiKey: String?,
+        debugFiles: AnalysisDebugFiles,
+        debugOutputPath: Path,
+    ): Int {
+        val authToken = getAuthToken(apiKey)
+
+        PrintUtils.info("\n\uD83D\uDD0E Analyzing Flow(s)...")
+
+        try {
+            val response = client.analyze(authToken, debugFiles)
+
+            if (response.htmlReport.isNullOrEmpty()) {
+                PrintUtils.info(response.output)
+                return 0
+            }
+
+            val outputFilePath = HtmlInsightsAnalysisReporter().report(response.htmlReport, debugOutputPath)
+            val os = System.getProperty("os.name").lowercase(Locale.getDefault())
+
+            val formattedOutput = response.output.replace(
+                "{{outputFilePath}}",
+                "file:${if (os.contains("win")) "///" else "//"}${outputFilePath}\n"
+            )
+
+            PrintUtils.info(formattedOutput);
+            return 0;
+        } catch (error: CliError) {
+            PrintUtils.err("Unexpected error while analyzing Flow(s): ${error.message}")
+            return 1
+        }
     }
 }

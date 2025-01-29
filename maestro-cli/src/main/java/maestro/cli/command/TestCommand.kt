@@ -43,6 +43,7 @@ import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
+import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -51,7 +52,6 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
 import okio.sink
-import org.jetbrains.skiko.hostId
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -158,6 +158,19 @@ class TestCommand : Callable<Int> {
     )
     private var headless: Boolean = false
 
+    @Option(
+        names = ["--analyze"],
+        description = ["[Beta] Enhance the test output analysis with AI Insights"],
+    )
+    private var analyze: Boolean = false
+
+    @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
+
+
+    @Option(names = ["--api-key"], description = ["[Beta] API key"])
+    private var apiKey: String? = null
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -171,6 +184,7 @@ class TestCommand : Callable<Int> {
 
         return false
     }
+
 
     override fun call(): Int {
         TestDebugReporter.install(
@@ -290,6 +304,7 @@ class TestCommand : Callable<Int> {
         suites.mergeSummaries()?.saveReport()
 
         if (effectiveShards > 1) printShardsMessage(passed, total, suites)
+        if (analyze) TestAnalysisManager(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
         if (passed == total) 0 else 1
     }
 
@@ -333,7 +348,7 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env)
+                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze)
                 } else {
                     runSingleFlow(maestro, device, flowFile, debugOutputPath)
                 }
@@ -371,6 +386,7 @@ class TestCommand : Callable<Int> {
             env = env,
             resultView = resultView,
             debugOutputPath = debugOutputPath,
+            analyze = analyze
         )
 
         if (resultSingle == 1) {

@@ -9,6 +9,7 @@ import com.github.michaelbull.result.Result
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.AnalyticsReport
+import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
@@ -34,7 +35,6 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
-import okhttp3.MediaType
 
 class ApiClient(
     private val baseUrl: String,
@@ -185,7 +185,11 @@ class ApiClient(
         val baseUrl = "https://maestro-record.ngrok.io"
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("screenRecording", screenRecording.name, screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener))
+            .addFormDataPart(
+                "screenRecording",
+                screenRecording.name,
+                screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener)
+            )
             .addFormDataPart("frames", JSON.writeValueAsString(frames))
             .build()
         val request = Request.Builder()
@@ -267,15 +271,27 @@ class ApiClient(
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("workspace", "workspace.zip", workspaceZip.toFile().asRequestBody("application/zip".toMediaType()))
+            .addFormDataPart(
+                "workspace",
+                "workspace.zip",
+                workspaceZip.toFile().asRequestBody("application/zip".toMediaType())
+            )
             .addFormDataPart("request", JSON.writeValueAsString(requestPart))
 
         if (appFile != null) {
-            bodyBuilder.addFormDataPart("app_binary", "app.zip", appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener))
+            bodyBuilder.addFormDataPart(
+                "app_binary",
+                "app.zip",
+                appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
+            )
         }
 
         if (mappingFile != null) {
-            bodyBuilder.addFormDataPart("mapping", "mapping.txt", mappingFile.toFile().asRequestBody("text/plain".toMediaType()))
+            bodyBuilder.addFormDataPart(
+                "mapping",
+                "mapping.txt",
+                mappingFile.toFile().asRequestBody("text/plain".toMediaType())
+            )
         }
 
         val body = bodyBuilder.build()
@@ -286,7 +302,7 @@ class ApiClient(
                 throw CliError(message)
             }
 
-            PrintUtils.message("$message, retrying (${completedRetries+1}/$maxRetryCount)...")
+            PrintUtils.message("$message, retrying (${completedRetries + 1}/$maxRetryCount)...")
             Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
 
             return upload(
@@ -440,6 +456,36 @@ class ApiClient(
         }
     }
 
+    fun analyze(
+        authToken: String,
+        debugFiles: AnalysisDebugFiles,
+    ): AnalyzeResponse {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val body = JSON.writeValueAsString(debugFiles).toRequestBody(mediaType)
+
+        val url = "$baseUrl/v2/analyze"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(body)
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+                throw CliError("Analyze request failed (${response.code}): $errorMessage")
+            }
+
+            val parsed = JSON.readValue(response.body?.bytes(), AnalyzeResponse::class.java)
+
+            return parsed;
+        }
+    }
+
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -459,7 +505,7 @@ data class RobinUploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
-): UploadResponse()
+) : UploadResponse()
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MaestroCloudUploadResponse(
@@ -468,7 +514,7 @@ data class MaestroCloudUploadResponse(
     val uploadId: String,
     val appBinaryId: String?,
     val deviceInfo: DeviceInfo?
-): UploadResponse()
+) : UploadResponse()
 
 data class DeviceConfiguration(
     val platform: String,
@@ -513,7 +559,6 @@ data class UploadStatus(
         WARNING,
         STOPPED
     }
-
 
     // These values must match backend monorepo models
     // in package models.benchmark.BenchmarkCancellationReason
@@ -580,3 +625,14 @@ class SystemInformationInterceptor : Interceptor {
         return chain.proceed(newRequest)
     }
 }
+
+data class Insight(
+    val category: String,
+    val reasoning: String,
+)
+
+class AnalyzeResponse(
+    val htmlReport: String?,
+    val output: String,
+    val insights: List<Insight>
+)

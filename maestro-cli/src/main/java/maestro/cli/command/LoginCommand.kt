@@ -10,6 +10,7 @@ import java.util.concurrent.Callable
 import kotlin.io.path.absolutePathString
 import maestro.cli.report.TestDebugReporter
 import maestro.debuglog.LogConfig
+import picocli.CommandLine.Option
 
 @CommandLine.Command(
     name = "login",
@@ -25,8 +26,11 @@ class LoginCommand : Callable<Int> {
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
 
+    @Option(names = ["--api-url", "--apiUrl"], description = ["API base URL"])
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
+
     private val auth by lazy {
-        Auth(ApiClient("https://api.copilot.mobile.dev/v2"))
+        Auth(ApiClient("$apiUrl/v2"))
     }
 
     override fun call(): Int {

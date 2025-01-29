@@ -33,6 +33,7 @@ import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.command.UploadCommand
+import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.update.Updates
 import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ErrorReporter
@@ -143,6 +144,7 @@ fun main(args: Array<String>) {
         .execute(*args)
 
     DebugLogStore.finalizeRun()
+    TestAnalysisManager.maybeNotify()
 
     val newVersion = Updates.checkForUpdates()
     if (newVersion != null) {
