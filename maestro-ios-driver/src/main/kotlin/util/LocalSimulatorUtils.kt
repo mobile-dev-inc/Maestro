@@ -164,15 +164,24 @@ object LocalSimulatorUtils {
 
     fun terminate(deviceId: String, bundleId: String) {
         // Ignore error return: terminate will fail if the app is not running
-        runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "terminate",
-                deviceId,
-                bundleId
+        logger.info("[Start] Terminating app $bundleId")
+        runCatching {
+            runCommand(
+                listOf(
+                    "xcrun",
+                    "simctl",
+                    "terminate",
+                    deviceId,
+                    bundleId
+                )
             )
-        )
+        }.onFailure {
+            if (it.message?.contains("found nothing to terminate") == false) {
+                logger.info("The bundle $bundleId is already terminated")
+                throw it
+            }
+        }
+        logger.info("[Done] Terminating app $bundleId")
     }
 
     private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
