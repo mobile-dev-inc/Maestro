@@ -3,6 +3,7 @@ package maestro.ai
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import maestro.ai.cloud.ApiClient
 import maestro.ai.openai.OpenAI
 
 @Serializable
@@ -227,47 +228,13 @@ object Prediction {
     }
 
     suspend fun extractText(
-        aiClient: AI,
-        screen: ByteArray,
+        apiKey: String,
         query: String,
+        screen: ByteArray,
     ): String {
-        val prompt = buildString {
-            append("What text on the screen matches the following query: $query")
+        val client = ApiClient()
+        val response = client.extractTextWithAi(apiKey, query, screen)
 
-            append(
-                """
-                |
-                |RULES:
-                |* Provide response as a valid JSON, with structure described below.
-                """.trimMargin("|")
-            )
-
-            append(
-                """
-                |
-                |* You must provide result as a valid JSON object, matching this structure:
-                |
-                |  {
-                |      "text": <string>
-                |  }
-                |
-                |DO NOT output any other information in the JSON object.
-                """.trimMargin("|")
-            )
-        }
-
-        val aiResponse = aiClient.chatCompletion(
-            prompt,
-            model = aiClient.defaultModel,
-            maxTokens = 4096,
-            identifier = "perform-assertion",
-            imageDetail = "high",
-            images = listOf(screen),
-            jsonSchema = if (aiClient is OpenAI) json.parseToJsonElement(extractTextSchema).jsonObject else null,
-        )
-
-        val response = json.decodeFromString<ExtractTextResponse>(aiResponse.response)
-        return response.text ?: ""
+        return response.text
     }
-
 }
