@@ -31,7 +31,7 @@ class LocalXCTestInstaller(
         connectTimeout = 1.seconds,
         readTimeout = 100.seconds,
     ),
-    private val preBuiltTestRunner: Boolean = false
+    override val preBuiltRunner: Boolean = false,
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -106,7 +106,7 @@ class LocalXCTestInstaller(
 
 
             logger.info("[Start] Install XCUITest runner on $deviceId")
-            startXCTestRunner(deviceId)
+            startXCTestRunner(deviceId, preBuiltRunner)
             logger.info("[Done] Install XCUITest runner on $deviceId")
 
             val startTime = System.currentTimeMillis()
@@ -178,7 +178,7 @@ class LocalXCTestInstaller(
         return checkSuccessful
     }
 
-    private fun startXCTestRunner(deviceId: String) {
+    private fun startXCTestRunner(deviceId: String, preBuiltRunner: Boolean) {
         if (isChannelAlive()) {
             logger.info("UI Test runner already running, returning")
             return
@@ -198,21 +198,21 @@ class LocalXCTestInstaller(
         extractZipToApp("maestro-driver-ios", UI_TEST_HOST_PATH)
         logger.info("[Done] Writing maestro-driver-ios app")
 
-        logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
-        if (preBuiltTestRunner) {
+        if (preBuiltRunner) {
             logger.info("Installing pre built driver without xcodebuild")
             LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
             LocalSimulatorUtils.launchUITestRunner(deviceId, defaultPort)
         } else {
             logger.info("Installing driver with xcodebuild")
+            logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
             xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = xctestRunFile.absolutePath,
                 port = defaultPort,
                 enableXCTestOutputFileLogging = enableXCTestOutputFileLogging,
             )
+            logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
         }
-        logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
     }
 
     override fun close() {

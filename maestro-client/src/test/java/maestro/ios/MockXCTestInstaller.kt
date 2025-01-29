@@ -6,6 +6,7 @@ import xcuitest.installer.XCTestInstaller
 
 class MockXCTestInstaller(
     private val simulator: Simulator,
+    override val preBuiltRunner: Boolean = false,
 ) : XCTestInstaller {
 
     private var attempts = 0

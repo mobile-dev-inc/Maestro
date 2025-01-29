@@ -3,6 +3,8 @@ package xcuitest.installer
 import xcuitest.XCTestClient
 
 interface XCTestInstaller: AutoCloseable {
+    val preBuiltRunner: Boolean
+
     fun start(): XCTestClient
 
     /**
