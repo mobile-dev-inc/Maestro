@@ -11,6 +11,7 @@ import com.github.ajalt.clikt.parameters.types.path
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import maestro.ai.anthropic.Claude
+import maestro.ai.cloud.Defect
 import maestro.ai.openai.OpenAI
 import java.io.File
 import java.nio.file.Path
@@ -118,22 +119,23 @@ class DemoApp : CliktCommand() {
             else -> throw IllegalArgumentException("Unknown model: $model")
         }
 
+        val cloudApiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
+        if (cloudApiKey.isNullOrEmpty()) {
+            throw IllegalArgumentException("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+        }
+
         testCases.forEach { testCase ->
             val bytes = testCase.screenshot.readBytes()
 
             val job = async {
                 val defects = if (testCase.prompt == null) Prediction.findDefects(
-                    aiClient = aiClient,
+                    apiKey = cloudApiKey,
                     screen = bytes,
-                    printPrompt = showPrompts,
-                    printRawResponse = showRawResponse,
                 ) else {
                     val result = Prediction.performAssertion(
-                        aiClient = aiClient,
+                        apiKey = cloudApiKey,
                         screen = bytes,
                         assertion = testCase.prompt,
-                        printPrompt = showPrompts,
-                        printRawResponse = showRawResponse,
                     )
 
                     if (result == null) emptyList()

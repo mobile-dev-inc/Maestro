@@ -16,6 +16,23 @@ import org.slf4j.LoggerFactory
 private val logger = LoggerFactory.getLogger(OpenAI::class.java)
 
 @Serializable
+data class Defect(
+    val category: String,
+    val reasoning: String,
+)
+
+@Serializable
+data class FindDefectsRequest(
+    val assertion: String? = null,
+    val screen: ByteArray,
+)
+
+@Serializable
+data class FindDefectsResponse(
+    val defects: List<Defect>,
+)
+
+@Serializable
 data class ExtractTextWithAiRequest(
     val query: String,
     val screen: ByteArray,
@@ -54,8 +71,6 @@ class ApiClient {
     ): ExtractTextWithAiResponse {
         val url = "$baseUrl/v2/extract-text"
 
-        println(url)
-
         val response = try {
             val httpResponse = httpClient.post(url) {
                 headers {
@@ -67,16 +82,50 @@ class ApiClient {
 
             val body = httpResponse.bodyAsText()
             if (!httpResponse.status.isSuccess()) {
-                logger.error("Failed to complete request to OpenAI: URL: $url ${httpResponse.status}, $body")
-                throw Exception("Failed to complete request to OpenAI URL: $url: ${httpResponse.status}, $body")
+                logger.error("Failed to complete request to Maestro Cloud: ${httpResponse.status}, $body")
+                throw Exception("Failed to complete request to Maestro Cloud: ${httpResponse.status}, $body")
             }
 
             json.decodeFromString<ExtractTextWithAiResponse>(body)
         } catch (e: SerializationException) {
-            logger.error("Failed to parse response from OpenAI", e)
+            logger.error("Failed to parse response from Maestro Cloud", e)
             throw e
         } catch (e: Exception) {
-            logger.error("Failed to complete request to OpenAI", e)
+            logger.error("Failed to complete request to Maestro Cloud", e)
+            throw e
+        }
+
+        return response
+    }
+
+    suspend fun findDefects(
+        apiKey: String,
+        screen: ByteArray,
+        assertion: String? = null,
+    ): FindDefectsResponse {
+        val url = "$baseUrl/v2/find-defects"
+
+        val response = try {
+            val httpResponse = httpClient.post(url) {
+                headers {
+                    append(HttpHeaders.Authorization, "Bearer $apiKey")
+                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) // Explicitly set JSON content type
+                }
+                setBody(json.encodeToString(FindDefectsRequest(assertion = assertion, screen = screen)))
+            }
+
+            val body = httpResponse.bodyAsText()
+            if (!httpResponse.status.isSuccess()) {
+                logger.error("Failed to complete request to Maestro Cloud: ${httpResponse.status}, $body")
+                throw Exception("Failed to complete request to Maestro Cloud: ${httpResponse.status}, $body")
+            }
+
+            json.decodeFromString<FindDefectsResponse>(body)
+        } catch (e: SerializationException) {
+            logger.error("Failed to parse response from Maestro Cloud", e)
+            throw e
+        } catch (e: Exception) {
+            logger.error("Failed to complete request to Maestro Cloud", e)
             throw e
         }
 
