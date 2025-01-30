@@ -10,7 +10,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
-import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -42,10 +41,8 @@ class XCTestDriverClient(
         installer.uninstall()
 
         logger.trace("XCTest Runner uninstalled, will install and start it")
-        client = installer.start() ?: throw XCTestDriverUnreachable("Failed to start XCTest Driver")
+        client = installer.start()
     }
-
-    class XCTestDriverUnreachable(message: String) : IOException(message)
 
     private val mapper = jacksonObjectMapper()
 

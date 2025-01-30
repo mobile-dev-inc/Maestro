@@ -24,7 +24,7 @@ object CommandLineUtils {
         } else {
             ProcessBuilder(*parts.toTypedArray())
                 .redirectOutput(nullFile)
-                .redirectError(nullFile)
+                .redirectError(ProcessBuilder.Redirect.PIPE)
         }
 
         processBuilder.environment().putAll(params)
@@ -42,7 +42,7 @@ object CommandLineUtils {
                     .readUtf8()
 
                 logger.error("Process failed with exit code ${process.exitValue()}")
-                logger.error(processOutput)
+                logger.error("Error output $processOutput")
 
                 throw IllegalStateException(processOutput)
             }

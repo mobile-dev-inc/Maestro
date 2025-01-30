@@ -3,7 +3,9 @@ package xcuitest.installer
 import xcuitest.XCTestClient
 
 interface XCTestInstaller: AutoCloseable {
-    fun start(): XCTestClient?
+    val preBuiltRunner: Boolean
+
+    fun start(): XCTestClient
 
     /**
      * Attempts to uninstall the XCTest Runner.
