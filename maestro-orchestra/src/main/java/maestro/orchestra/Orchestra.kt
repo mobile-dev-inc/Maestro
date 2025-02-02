@@ -517,6 +517,12 @@ class Orchestra(
                 val element = findElement(command.selector, command.optional, 500).element
                 val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
 
+                logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
+                logger.info("Element bounds: ${element.bounds}")
+                logger.info("Visibility Percent: $retryCenterCount")
+                logger.info("Command centerElement: $command.centerElement")
+                logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
+
                 if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
                     if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
                         return true
@@ -526,6 +532,7 @@ class Orchestra(
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
+              logger.error("Error: $ignored")
             }
             maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong(), waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
         } while (System.currentTimeMillis() < endTime)
