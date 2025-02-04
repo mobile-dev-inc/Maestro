@@ -32,6 +32,7 @@ import okio.IOException
 import okio.buffer
 import java.io.File
 import java.nio.file.Path
+import java.util.Scanner
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
@@ -351,6 +352,23 @@ class ApiClient(
             if (!response.isSuccessful) {
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
+                if (response.code == 403 && errorMessage.contains("Your trial has not started yet", ignoreCase = true)) {
+                    println("\u001B[31mYour trial has not started yet.\u001B[0m")
+                    print("Would you like to start your trial now? (Y/N): ")
+                    val scanner = Scanner(System.`in`)
+                    val userInput = scanner.nextLine().trim().lowercase()
+                    if (userInput == "y") {
+                        val isTrialStarted = startTrial(authToken, baseUrl)
+                        if (isTrialStarted) {
+                          println("\u001B[32mTrial successfully started. Enjoy your 7-day free trial!\u001B[0m")
+                          return retry("Trial has started, retrying the upload")
+                        } else {
+                          println(response.toString())
+                          println("\u001B[31mFailed to start trial. Please contact support.\u001B[0m")
+                        }
+                    }
+                }
+
                 if (response.code >= 500) {
                     return retry("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
@@ -365,6 +383,25 @@ class ApiClient(
             } else {
                 parseMaestroCloudUpload(responseBody)
             }
+        }
+    }
+
+    private fun startTrial(authToken: String, baseUrl: String): Boolean {
+        println("Starting your trial...")
+        val body = "".toRequestBody(null)
+        val trialActivationUrl = "$baseUrl/start-trial"
+        val trialRequest = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(trialActivationUrl)
+            .post(body)
+            .build()
+
+        try {
+            val response = client.newCall(trialRequest).execute()
+            return response.isSuccessful;
+        } catch (e: IOException) {
+            println("Network error while starting trial: ${e.message}")
+            return false
         }
     }
 
