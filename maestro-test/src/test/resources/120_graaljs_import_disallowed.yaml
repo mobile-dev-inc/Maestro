@@ -1,0 +1,4 @@
+appId: com.example.app
+jsEngine: graaljs
+---
+- runScript: 120_script.mjs
