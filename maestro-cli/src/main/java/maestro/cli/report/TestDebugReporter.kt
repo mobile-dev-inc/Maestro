@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.MaestroException
 import maestro.TreeNode
-import maestro.ai.Defect
+import maestro.ai.cloud.Defect
 import maestro.cli.runner.CommandStatus
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
@@ -27,7 +27,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util.IdentityHashMap
+import java.util.*
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 

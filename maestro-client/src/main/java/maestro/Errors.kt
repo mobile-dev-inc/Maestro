@@ -47,6 +47,8 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 
     class AINotAvailable(message: String) : MaestroException(message)
 
+    class CloudApiKeyNotAvailable(message: String) : MaestroException(message)
+
     class DestinationIsNotWritable(message: String) : MaestroException(message)
 
     class UnableToCopyTextFromElement(message: String): MaestroException(message)

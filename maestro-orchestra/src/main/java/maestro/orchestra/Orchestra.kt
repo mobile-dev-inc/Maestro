@@ -20,13 +20,20 @@
 package maestro.orchestra
 
 import kotlinx.coroutines.runBlocking
-import maestro.*
+import maestro.Driver
+import maestro.ElementFilter
+import maestro.Filters
 import maestro.Filters.asFilter
+import maestro.FindElementResult
+import maestro.Maestro
+import maestro.MaestroException
+import maestro.ScreenRecording
+import maestro.ViewHierarchy
 import maestro.ai.AI
 import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.Defect
 import maestro.ai.Prediction
 import maestro.ai.anthropic.Claude
+import maestro.ai.cloud.Defect
 import maestro.ai.openai.OpenAI
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
@@ -37,6 +44,7 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -354,16 +362,16 @@ class Orchestra(
 
     private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand): Boolean = runBlocking {
         // TODO(bartekpacia): make all of Orchestra suspending
-
-        if (ai == null) {
-            throw MaestroException.AINotAvailable("AI client is not available. Did you export $AI_KEY_ENV_VAR?")
+        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
+        if (apiKey.isNullOrEmpty()) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
         val defects = Prediction.findDefects(
-            aiClient = ai,
+            apiKey = apiKey,
             screen = imageData.copy().readByteArray(),
         )
 
@@ -386,18 +394,18 @@ class Orchestra(
 
     private fun assertWithAICommand(command: AssertWithAICommand): Boolean = runBlocking {
         // TODO(bartekpacia): make all of Orchestra suspending
-
-        if (ai == null) {
-            throw MaestroException.AINotAvailable("AI client is not available. Did you export $AI_KEY_ENV_VAR?")
+        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
+        if (apiKey.isNullOrEmpty()) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
         val defect = Prediction.performAssertion(
-            aiClient = ai,
-            screen = imageData.copy().readByteArray(),
+            apiKey = apiKey,
             assertion = command.assertion,
+            screen = imageData.copy().readByteArray(),
         )
 
         if (defect != null) {
@@ -415,18 +423,17 @@ class Orchestra(
     }
 
     private fun extractTextWithAICommand(command: ExtractTextWithAICommand): Boolean = runBlocking {
-        // Extract text from the screen using AI
-        if (ai == null) {
-            throw MaestroException.AINotAvailable("AI client is not available. Did you export $AI_KEY_ENV_VAR?")
+        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
+        if (apiKey.isNullOrEmpty()) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-
         val text = Prediction.extractText(
-            aiClient = ai,
-            screen = imageData.copy().readByteArray(),
+            apiKey = apiKey,
             query = command.query,
+            screen = imageData.copy().readByteArray(),
         )
 
         jsEngine.putEnv(command.outputVariable, text)
