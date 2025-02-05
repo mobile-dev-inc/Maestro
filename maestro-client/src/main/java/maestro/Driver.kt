@@ -43,6 +43,8 @@ interface Driver {
 
     fun killApp(appId: String)
 
+    fun shake()
+
     fun clearAppState(appId: String)
 
     fun clearKeychain()

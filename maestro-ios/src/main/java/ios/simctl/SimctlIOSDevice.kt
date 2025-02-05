@@ -187,6 +187,10 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
+    override  fun shake(){
+      TODO("Not yet implemented")
+    }
+
     override fun close() {
         stopScreenRecording()
     }
