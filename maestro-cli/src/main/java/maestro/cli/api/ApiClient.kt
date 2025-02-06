@@ -32,6 +32,7 @@ import okio.IOException
 import okio.buffer
 import java.io.File
 import java.nio.file.Path
+import java.util.Scanner
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
@@ -331,7 +332,7 @@ class ApiClient(
         }
 
         val url = if (projectId != null) {
-            "$baseUrl/runMaestroTest"
+            "$baseUrl/v2/project/$projectId/runMaestroTest"
         } else {
             "$baseUrl/v2/upload"
         }
@@ -351,6 +352,42 @@ class ApiClient(
             if (!response.isSuccessful) {
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
+                if (response.code == 403 && errorMessage.contains("Your trial has not started yet", ignoreCase = true)) {
+                    println("\u001B[31mYour trial has not started yet.\u001B[0m")
+                    print("Would you like to start your trial now? (Y/N): ")
+                    val scanner = Scanner(System.`in`)
+                    val userInput = scanner.nextLine().trim().lowercase()
+                    if (userInput == "y") {
+                        val isTrialStarted = startTrial(authToken);
+                        if(isTrialStarted) {
+                            println("\u001B[32mTrial successfully started. Enjoy your 7-day free trial!\u001B[0m")
+                            return upload(
+                                authToken = authToken,
+                                appFile = appFile,
+                                workspaceZip = workspaceZip,
+                                uploadName = uploadName,
+                                mappingFile = mappingFile,
+                                repoOwner = repoOwner,
+                                repoName = repoName,
+                                branch = branch,
+                                commitSha = commitSha,
+                                pullRequestId = pullRequestId,
+                                env = env,
+                                androidApiLevel = androidApiLevel,
+                                iOSVersion = iOSVersion,
+                                includeTags = includeTags,
+                                excludeTags = excludeTags,
+                                maxRetryCount = maxRetryCount,
+                                completedRetries = completedRetries + 1,
+                                progressListener = progressListener,
+                                appBinaryId = appBinaryId,
+                                disableNotifications = disableNotifications,
+                                deviceLocale = deviceLocale,
+                            )
+                        }
+                    }
+                }
+
                 if (response.code >= 500) {
                     return retry("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
@@ -365,6 +402,27 @@ class ApiClient(
             } else {
                 parseMaestroCloudUpload(responseBody)
             }
+        }
+    }
+
+    private fun startTrial(authToken: String): Boolean {
+        println("Starting your trial...")
+        val url = "$baseUrl/v2/start-trial"
+
+        val trialRequest = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(RequestBody.create(null, ""))
+            .build()
+
+        try {
+            val response = client.newCall(trialRequest).execute()
+            if (response.isSuccessful) return true;
+            println("\u001B[31m${response.body?.string()}\u001B[0m");
+            return false
+        } catch (e: IOException) {
+            println("Network error while starting trial: ${e.message}")
+            throw Exception("Network Error, please try again")
         }
     }
 
