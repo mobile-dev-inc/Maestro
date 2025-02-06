@@ -332,7 +332,7 @@ class ApiClient(
         }
 
         val url = if (projectId != null) {
-            "$baseUrl/runMaestroTest"
+            "$baseUrl/v2/project/$projectId/runMaestroTest"
         } else {
             "$baseUrl/v2/upload"
         }
@@ -358,13 +358,32 @@ class ApiClient(
                     val scanner = Scanner(System.`in`)
                     val userInput = scanner.nextLine().trim().lowercase()
                     if (userInput == "y") {
-                        val isTrialStarted = startTrial(authToken, baseUrl)
-                        if (isTrialStarted) {
-                          println("\u001B[32mTrial successfully started. Enjoy your 7-day free trial!\u001B[0m")
-                          return retry("Trial has started, retrying the upload")
-                        } else {
-                          println(response.toString())
-                          println("\u001B[31mFailed to start trial. Please contact support.\u001B[0m")
+                        val isTrialStarted = startTrial(authToken);
+                        if(isTrialStarted) {
+                            println("\u001B[32mTrial successfully started. Enjoy your 7-day free trial!\u001B[0m")
+                            return upload(
+                                authToken = authToken,
+                                appFile = appFile,
+                                workspaceZip = workspaceZip,
+                                uploadName = uploadName,
+                                mappingFile = mappingFile,
+                                repoOwner = repoOwner,
+                                repoName = repoName,
+                                branch = branch,
+                                commitSha = commitSha,
+                                pullRequestId = pullRequestId,
+                                env = env,
+                                androidApiLevel = androidApiLevel,
+                                iOSVersion = iOSVersion,
+                                includeTags = includeTags,
+                                excludeTags = excludeTags,
+                                maxRetryCount = maxRetryCount,
+                                completedRetries = completedRetries + 1,
+                                progressListener = progressListener,
+                                appBinaryId = appBinaryId,
+                                disableNotifications = disableNotifications,
+                                deviceLocale = deviceLocale,
+                            )
                         }
                     }
                 }
@@ -386,22 +405,24 @@ class ApiClient(
         }
     }
 
-    private fun startTrial(authToken: String, baseUrl: String): Boolean {
+    private fun startTrial(authToken: String): Boolean {
         println("Starting your trial...")
-        val body = "".toRequestBody(null)
-        val trialActivationUrl = "$baseUrl/start-trial"
+        val url = "$baseUrl/v2/start-trial"
+
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
-            .url(trialActivationUrl)
-            .post(body)
+            .url(url)
+            .post(RequestBody.create(null, ""))
             .build()
 
         try {
             val response = client.newCall(trialRequest).execute()
-            return response.isSuccessful;
+            if (response.isSuccessful) return true;
+            println("\u001B[31m${response.body?.string()}\u001B[0m");
+            return false
         } catch (e: IOException) {
             println("Network error while starting trial: ${e.message}")
-            return false
+            throw Exception("Network Error, please try again")
         }
     }
 
