@@ -32,7 +32,6 @@ import okio.IOException
 import okio.buffer
 import java.io.File
 import java.nio.file.Path
-import java.util.Scanner
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
@@ -332,7 +331,7 @@ class ApiClient(
         }
 
         val url = if (projectId != null) {
-            "$baseUrl/v2/project/$projectId/runMaestroTest"
+            "$baseUrl/runMaestroTest"
         } else {
             "$baseUrl/v2/upload"
         }
@@ -352,50 +351,6 @@ class ApiClient(
             if (!response.isSuccessful) {
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
-                if (response.code == 403 && errorMessage.contains("Your trial has not started yet", ignoreCase = true)) {
-                    println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
-                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
-
-                    val scanner = Scanner(System.`in`)
-                    val companyName = scanner.nextLine().trim()
-
-                    if (companyName.isNotEmpty()) {
-                        println("\u001B[33;1m[INFO]\u001B[0m Starting your trial for company: \u001B[36;1m$companyName\u001B[0m...")
-
-                        val isTrialStarted = startTrial(authToken, companyName);
-                        if(isTrialStarted) {
-                            println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
-                            return upload(
-                                authToken = authToken,
-                                appFile = appFile,
-                                workspaceZip = workspaceZip,
-                                uploadName = uploadName,
-                                mappingFile = mappingFile,
-                                repoOwner = repoOwner,
-                                repoName = repoName,
-                                branch = branch,
-                                commitSha = commitSha,
-                                pullRequestId = pullRequestId,
-                                env = env,
-                                androidApiLevel = androidApiLevel,
-                                iOSVersion = iOSVersion,
-                                includeTags = includeTags,
-                                excludeTags = excludeTags,
-                                maxRetryCount = maxRetryCount,
-                                completedRetries = completedRetries + 1,
-                                progressListener = progressListener,
-                                appBinaryId = appBinaryId,
-                                disableNotifications = disableNotifications,
-                                deviceLocale = deviceLocale,
-                            )
-                        } else {
-                          println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
-                        }
-                    } else {
-                      println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
-                    }
-                }
-
                 if (response.code >= 500) {
                     return retry("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
@@ -410,28 +365,6 @@ class ApiClient(
             } else {
                 parseMaestroCloudUpload(responseBody)
             }
-        }
-    }
-
-    private fun startTrial(authToken: String, companyName: String): Boolean {
-        println("Starting your trial...")
-        val url = "$baseUrl/v2/start-trial"
-
-        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
-        val trialRequest = Request.Builder()
-            .header("Authorization", "Bearer $authToken")
-            .url(url)
-            .post(jsonBody)
-            .build()
-
-        try {
-            val response = client.newCall(trialRequest).execute()
-            if (response.isSuccessful) return true;
-            println("\u001B[31m${response.body?.string()}\u001B[0m");
-            return false
-        } catch (e: IOException) {
-            println("\u001B[31;1m[ERROR]\u001B[0m We're experiencing connectivity issues, please try again in sometime, reach out to the slack channel in case if this doesn't work.")
-            return false
         }
     }
 
