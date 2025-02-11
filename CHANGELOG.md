@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.39.11
+
+- Feature: Starting trial from CLI
+- Feature: Better logs to improve visibility
+- Feature: Prebuilt iOS driver without xcodebuild
+- Feature: Analyze option to test command
+
 ## 1.39.10
 
 - Update install script to tidy up old installation binaries
