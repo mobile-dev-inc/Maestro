@@ -182,7 +182,7 @@ class CloudCommand : Callable<Int> {
         // Upload
         val apiUrl = apiUrl ?: run {
             if (projectId != null) {
-                "https://api.copilot.mobile.dev/v2/project/$projectId"
+                "https://api.copilot.mobile.dev"
             } else {
                 throw CliError("You need to specify a Robin project with --projectId")
             }
