@@ -353,14 +353,18 @@ class ApiClient(
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
                 if (response.code == 403 && errorMessage.contains("Your trial has not started yet", ignoreCase = true)) {
-                    println("\u001B[31mYour trial has not started yet.\u001B[0m")
-                    print("Would you like to start your trial now? (Y/N): ")
+                    println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
+                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
+
                     val scanner = Scanner(System.`in`)
-                    val userInput = scanner.nextLine().trim().lowercase()
-                    if (userInput == "y") {
-                        val isTrialStarted = startTrial(authToken);
+                    val companyName = scanner.nextLine().trim()
+
+                    if (companyName.isNotEmpty()) {
+                        println("\u001B[33;1m[INFO]\u001B[0m Starting your trial for company: \u001B[36;1m$companyName\u001B[0m...")
+
+                        val isTrialStarted = startTrial(authToken, companyName);
                         if(isTrialStarted) {
-                            println("\u001B[32mTrial successfully started. Enjoy your 7-day free trial!\u001B[0m")
+                            println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
                             return upload(
                                 authToken = authToken,
                                 appFile = appFile,
@@ -384,7 +388,11 @@ class ApiClient(
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
                             )
+                        } else {
+                          println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
                         }
+                    } else {
+                      println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
                     }
                 }
 
@@ -405,14 +413,15 @@ class ApiClient(
         }
     }
 
-    private fun startTrial(authToken: String): Boolean {
+    private fun startTrial(authToken: String, companyName: String): Boolean {
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
+        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
-            .post(RequestBody.create(null, ""))
+            .post(jsonBody)
             .build()
 
         try {
@@ -421,8 +430,8 @@ class ApiClient(
             println("\u001B[31m${response.body?.string()}\u001B[0m");
             return false
         } catch (e: IOException) {
-            println("Network error while starting trial: ${e.message}")
-            throw Exception("Network Error, please try again")
+            println("\u001B[31;1m[ERROR]\u001B[0m We're experiencing connectivity issues, please try again in sometime, reach out to the slack channel in case if this doesn't work.")
+            return false
         }
     }
 
