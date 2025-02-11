@@ -332,7 +332,7 @@ class ApiClient(
         }
 
         val url = if (projectId != null) {
-            "$baseUrl/v2/project/$projectId/runMaestroTest"
+            "$baseUrl/runMaestroTest"
         } else {
             "$baseUrl/v2/upload"
         }
