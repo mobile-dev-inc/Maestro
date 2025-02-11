@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.39.12
+
+- Fix: Upload route on Robin was not working on maestro cloud command
+
 ## 1.39.11
 
 - Feature: Starting trial from CLI
