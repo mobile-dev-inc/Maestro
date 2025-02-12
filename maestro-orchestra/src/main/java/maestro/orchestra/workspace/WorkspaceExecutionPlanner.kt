@@ -107,8 +107,15 @@ object WorkspaceExecutionPlanner {
             val config = configPerFlowFile[it]
             val tags = config?.tags ?: emptyList()
 
-            (allIncludeTags.isEmpty() || tags.any(allIncludeTags::contains))
+            (allIncludeTags.isEmpty() || allIncludeTags.all { includeTag -> tags.contains(includeTag) })
                 && (allExcludeTags.isEmpty() || !tags.any(allExcludeTags::contains))
+        }
+
+        println("")
+        println("Number flows to run: ${allFlows.size}")
+        println("Flows to run:")
+        for (flow in allFlows) {
+            println("  * ${flow.fileName.toString().substringBeforeLast(".")}")
         }
 
         if (allFlows.isEmpty()) {
