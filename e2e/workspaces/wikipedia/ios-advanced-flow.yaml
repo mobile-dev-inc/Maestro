@@ -4,6 +4,7 @@ tags:
   - passing
   - advanced
 ---
+- installApp: "../../apps/wikipedia.zip"
 - runFlow: subflows/onboarding-ios.yaml
 
 # Dismiss the auth modal if visible

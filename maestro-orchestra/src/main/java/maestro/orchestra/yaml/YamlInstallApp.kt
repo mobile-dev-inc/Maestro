@@ -3,7 +3,7 @@ package maestro.orchestra.yaml
 import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlInstallApp(
-    val path: String? = null,
+    val path: String,
     val label: String? = null,
 ) {
     companion object {

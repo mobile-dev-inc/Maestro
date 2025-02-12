@@ -33,7 +33,10 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Paths
 import java.util.*
+import kotlin.io.path.exists
+import kotlin.io.path.isRegularFile
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -611,8 +614,9 @@ class Maestro(
         driver.setAirplaneMode(enabled)
     }
 
-    fun installApp(path: String?) {
-        driver.installApp(path.orEmpty())
+    fun installApp(path: String) {
+        LOGGER.info("Installing app from '$path'")
+        driver.installApp(Paths.get(path))
     }
 
     companion object {

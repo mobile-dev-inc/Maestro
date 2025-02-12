@@ -3,6 +3,7 @@ tags:
     - android
     - failing
 ---
+- installApp: "../../apps/demo_app.apk"
 - launchApp:
     clearState: true
 - assertTrue:

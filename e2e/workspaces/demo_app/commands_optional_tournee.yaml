@@ -4,6 +4,7 @@ tags:
     - android
     - passing
 ---
+- installApp: "../../apps/demo_app.apk"
 - launchApp:
     clearState: true
 - assertVisible:

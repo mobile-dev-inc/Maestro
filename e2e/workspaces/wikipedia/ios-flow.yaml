@@ -3,4 +3,5 @@ tags:
   - ios
   - passing
 ---
+- installApp: "../../apps/wikipedia.zip"
 - launchApp

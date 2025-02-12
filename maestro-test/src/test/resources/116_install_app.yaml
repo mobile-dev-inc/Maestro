@@ -1,4 +1,6 @@
 appId: com.example.app
 ---
+- installApp: "../../../../maestro-client/src/main/resources/maestro-app.apk"
 - installApp:
-    "maestro-client/src/main/resources/maestro-app.apk"
+    path: "../../../../maestro-client/src/main/resources/maestro-app.apk"
+    label: "Install the app"

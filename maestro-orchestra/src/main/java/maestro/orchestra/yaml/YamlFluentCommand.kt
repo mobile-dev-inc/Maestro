@@ -32,7 +32,9 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
+import kotlin.io.path.pathString
 import kotlin.io.path.readText
+import maestro.orchestra.error.AppFileNotFound
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
@@ -254,16 +256,29 @@ data class YamlFluentCommand(
             }
             installApp != null -> listOf(
                 MaestroCommand(
-                    InstallAppCommand(
-                        path = installApp.path,
-                        label = installApp.label
-                    )
+                    installAppCommand = installAppCommand(installApp, flowPath)
                 )
             )
             setAirplaneMode != null -> listOf(MaestroCommand(SetAirplaneModeCommand(setAirplaneMode.value, setAirplaneMode.label, setAirplaneMode.optional)))
             toggleAirplaneMode != null -> listOf(MaestroCommand(ToggleAirplaneModeCommand(toggleAirplaneMode.label, toggleAirplaneMode.optional)))
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    private fun installAppCommand(installApp: YamlInstallApp, flowPath: Path): InstallAppCommand {
+        val path = flowPath.fileSystem.getPath(installApp.path)
+        val resolvedPath =
+            if (path.isAbsolute) path.normalize()
+            else flowPath.resolveSibling(path).toAbsolutePath().normalize()
+        val commandPath = when {
+            resolvedPath.exists() -> resolvedPath.pathString
+            installApp.path.contains("\\$\\{(.*)\\}".toRegex()) -> installApp.path
+            else -> throw AppFileNotFound("App file at ${installApp.path} in flow file: ${flowPath.fileName} not found", path)
+        }
+        return InstallAppCommand(
+            path = commandPath,
+            label = installApp.label
+        )
     }
 
     private fun addMediaCommand(addMedia: YamlAddMedia, flowPath: Path): AddMediaCommand {
@@ -733,10 +748,6 @@ data class YamlFluentCommand(
 
                 "assertNoDefectsWithAI" -> YamlFluentCommand(
                     assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()
-                )
-
-                "installApp" -> YamlFluentCommand(
-                    installApp = YamlInstallApp()
                 )
 
                 else -> throw SyntaxError("Invalid command: \"$stringCommand\"")

@@ -1014,7 +1014,7 @@ data class ToggleAirplaneModeCommand(
 }
 
 data class InstallAppCommand(
-    val path: String? = null,
+    val path: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ): Command {
@@ -1023,7 +1023,7 @@ data class InstallAppCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+        return copy(path = path.evaluateScripts(jsEngine))
     }
 
 }

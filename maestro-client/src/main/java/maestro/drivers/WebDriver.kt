@@ -13,7 +13,6 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.utils.ScreenshotUtils
 import okio.Sink
-import maestro.NamedSource
 import okio.buffer
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
@@ -29,6 +28,7 @@ import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.WebDriverWait
 import java.io.File
+import java.nio.file.Path
 import java.time.Duration
 import java.util.Random
 import java.util.UUID
@@ -395,16 +395,14 @@ class WebDriver(val isStudio: Boolean) : Driver {
         // noop for web
     }
 
-    override fun isAirplaneModeEnabled(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun isAirplaneModeEnabled(): Boolean = false
 
     override fun setAirplaneMode(enabled: Boolean) {
-        TODO("Not yet implemented")
+        // noop for web
     }
 
-    override fun installApp(path: String) {
-        TODO("Not yet implemented")
+    override fun installApp(path: Path) {
+        // noop for web
     }
 
     companion object {

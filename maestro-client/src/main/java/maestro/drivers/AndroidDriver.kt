@@ -47,12 +47,14 @@ import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
 import java.net.URI
+import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.io.path.extension
 import kotlin.io.use
 
 private const val DefaultDriverHostPort = 7001
@@ -743,9 +745,9 @@ class AndroidDriver(
         shell("cmd connectivity airplane-mode $value")
     }
 
-    override fun installApp(path: String) {
-        val apkFile = File(path)
-        install(apkFile)
+    override fun installApp(path: Path) {
+        if (path.extension != "apk") throw IllegalArgumentException("Specified file is not an apk.")
+        install(path.toFile())
     }
 
 

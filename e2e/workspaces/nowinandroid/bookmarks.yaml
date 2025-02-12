@@ -3,6 +3,7 @@ name: Bookmarks
 tags:
   - passing
 ---
+- installApp: "../../apps/nowinandroid.apk"
 - launchApp:
     clearState: true
 - tapOn: Headlines

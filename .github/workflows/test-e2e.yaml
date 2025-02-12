@@ -146,10 +146,6 @@ jobs:
         working-directory: ${{ github.workspace }}/e2e
         run: ./download_apps
 
-      - name: Install apps
-        working-directory: ${{ github.workspace }}/e2e
-        run: ./install_apps
-
       - name: Start screen recording of AVD
         run: |
           adb shell screenrecord /sdcard/screenrecord.mp4 &
