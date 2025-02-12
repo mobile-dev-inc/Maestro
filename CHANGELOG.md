@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.39.13
+
+- Fix : Adding upload route back again
+- Feature: Removing Analyze logs from CI uploads
+
 ## 1.39.12
 
 - Fix: Upload route on Robin was not working on maestro cloud command
