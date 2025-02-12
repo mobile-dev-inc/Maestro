@@ -28,8 +28,8 @@ import maestro.Maestro
 import maestro.cli.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.device.Platform
+import maestro.utils.CliInsights
 import maestro.cli.util.ScreenReporter
-import maestro.debuglog.IOSDriverLogger
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
@@ -57,6 +57,7 @@ object MaestroSessionManager {
         deviceId: String?,
         platform: String? = null,
         isStudio: Boolean = false,
+        isHeadless: Boolean = isStudio,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -89,6 +90,7 @@ object MaestroSessionManager {
                 selectedDevice.platform
             ),
             isStudio = isStudio,
+            isHeadless = isHeadless,
             driverHostPort = driverHostPort,
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
@@ -110,7 +112,7 @@ object MaestroSessionManager {
         deviceId: String?,
         platform: Platform? = null,
     ): SelectedDevice {
-        if (deviceId == "chromium") {
+        if (deviceId == "chromium" || platform == Platform.WEB) {
             return SelectedDevice(
                 platform = Platform.WEB
             )
@@ -146,6 +148,7 @@ object MaestroSessionManager {
         selectedDevice: SelectedDevice,
         connectToExistingSession: Boolean,
         isStudio: Boolean,
+        isHeadless: Boolean,
         driverHostPort: Int?,
     ): MaestroSession {
         return when {
@@ -163,7 +166,7 @@ object MaestroSessionManager {
                         driverHostPort,
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio)
+                    Platform.WEB -> pickWebDevice(isStudio, isHeadless)
                 },
                 device = selectedDevice.device,
             )
@@ -188,7 +191,7 @@ object MaestroSessionManager {
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
-                maestro = pickWebDevice(isStudio),
+                maestro = pickWebDevice(isStudio, isHeadless),
                 device = null
             )
 
@@ -279,15 +282,14 @@ object MaestroSessionManager {
     ): Maestro {
 
         val xcTestInstaller = LocalXCTestInstaller(
-            logger = IOSDriverLogger(LocalXCTestInstaller::class.java),
             deviceId = deviceId,
             host = defaultXctestHost,
-            defaultPort = driverHostPort ?: defaultXcTestPort
+            defaultPort = driverHostPort ?: defaultXcTestPort,
+            enableXCTestOutputFileLogging = true,
         )
 
         val xcTestDriverClient = XCTestDriverClient(
             installer = xcTestInstaller,
-            logger = IOSDriverLogger(XCTestDriverClient::class.java),
             client = XCTestClient(defaultXctestHost, driverHostPort ?: defaultXcTestPort),
         )
 
@@ -295,7 +297,6 @@ object MaestroSessionManager {
             deviceId = deviceId,
             client = xcTestDriverClient,
             getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
-            logger = IOSDriverLogger(XCTestIOSDevice::class.java),
         )
 
         val simctlIOSDevice = SimctlIOSDevice(
@@ -307,7 +308,9 @@ object MaestroSessionManager {
                 deviceId = deviceId,
                 xcTestDevice = xcTestDevice,
                 simctlIOSDevice = simctlIOSDevice,
-            )
+                insights = CliInsights
+            ),
+            insights = CliInsights
         )
 
         return Maestro.ios(
@@ -316,8 +319,8 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean): Maestro {
-        return Maestro.web(isStudio)
+    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean): Maestro {
+        return Maestro.web(isStudio, isHeadless)
     }
 
     private data class SelectedDevice(

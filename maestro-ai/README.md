@@ -9,7 +9,7 @@ It's both a library and an executable demo app.
 An API key is required. Set it with `MAESTRO_CLI_AI_KEY` env var. Examples:
 
 - OpenAI: `export MAESTRO_CLI_AI_KEY=sk-...`
-- Antrophic: `export MAESTRO_CLI_AI_KEY=sk-ant-api-...`
+- Anthropic: `export MAESTRO_CLI_AI_KEY=sk-ant-api-...`
 
 ### Build
 

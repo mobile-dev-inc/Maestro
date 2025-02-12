@@ -35,6 +35,25 @@ object ScreenshotUtils {
         return result.getOrNull()
     }
 
+    fun takeDebugScreenshotByCommand(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? {
+        val result = kotlin.runCatching {
+            val out = File
+                .createTempFile("screenshot-${status}-${System.currentTimeMillis()}", ".png")
+                .also { it.deleteOnExit() } // save to another dir before exiting
+            maestro.takeScreenshot(out.sink(), false)
+            debugOutput.screenshots.add(
+                FlowDebugOutput.Screenshot(
+                    screenshot = out,
+                    timestamp = System.currentTimeMillis(),
+                    status = status
+                )
+            )
+            out
+        }
+
+        return result.getOrNull()
+    }
+
     fun writeAIscreenshot(buffer: Buffer): File {
         val out = File
             .createTempFile("ai-screenshot-${System.currentTimeMillis()}", ".png")

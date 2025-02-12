@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -39,13 +40,17 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.EnvUtils
+import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
+import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
-import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.isSingleFile
 import okio.sink
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -56,10 +61,6 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
-import kotlin.system.exitProcess
-import kotlinx.coroutines.withContext
-import maestro.utils.isSingleFile
-import maestro.orchestra.util.Env.withDefaultEnvVars
 
 @CommandLine.Command(
     name = "test",
@@ -76,7 +77,7 @@ class TestCommand : Callable<Int> {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
-    @CommandLine.Parameters(description = ["One or more flow files or folders containing flow files"])
+    @CommandLine.Parameters(description = ["One or more flow files or folders containing flow files"], arity = "1..*")
     private var flowFiles: Set<File> = emptySet()
 
     @Option(
@@ -151,6 +152,25 @@ class TestCommand : Callable<Int> {
     )
     private var excludeTags: List<String> = emptyList()
 
+    @Option(
+        names = ["--headless"],
+        description = ["(Web only) Run the tests in headless mode"],
+    )
+    private var headless: Boolean = false
+
+    @Option(
+        names = ["--analyze"],
+        description = ["[Beta] Enhance the test output analysis with AI Insights"],
+    )
+    private var analyze: Boolean = false
+
+    @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
+
+
+    @Option(names = ["--api-key"], description = ["[Beta] API key"])
+    private var apiKey: String? = null
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -159,12 +179,12 @@ class TestCommand : Callable<Int> {
 
     private fun isWebFlow(): Boolean {
         if (flowFiles.isSingleFile) {
-            val config = YamlCommandReader.readConfig(flowFiles.first().toPath())
-            return Regex("http(s?)://").containsMatchIn(config.appId)
+            return flowFiles.first().isWebFlow()
         }
 
         return false
     }
+
 
     override fun call(): Int {
         TestDebugReporter.install(
@@ -211,83 +231,81 @@ class TestCommand : Callable<Int> {
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
 
-        runCatching {
-            val availableDevices = DeviceService.listConnectedDevices().map { it.instanceId }.toSet()
-            val deviceIds = getPassedOptionsDeviceIds()
-                .filter { device ->
-                    if (device !in availableDevices) {
-                        throw CliError("Device $device was requested, but it is not connected.")
-                    } else {
-                        true
-                    }
+        val availableDevices = DeviceService.listConnectedDevices(
+            includeWeb = isWebFlow(),
+            host = parent?.host,
+            port = parent?.port,
+        ).map { it.instanceId }.toSet()
+        val deviceIds = getPassedOptionsDeviceIds()
+            .filter { device ->
+                if (device !in availableDevices) {
+                    throw CliError("Device $device was requested, but it is not connected.")
+                } else {
+                    true
                 }
-                .ifEmpty { availableDevices }
-                .toList()
+            }
+            .ifEmpty { availableDevices }
+            .toList()
 
-            val missingDevices = requestedShards - deviceIds.size
-            if (missingDevices > 0) {
-                PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
-                throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
+        val missingDevices = requestedShards - deviceIds.size
+        if (missingDevices > 0) {
+            PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
+            throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
+        }
+
+        val effectiveShards = when {
+
+            onlySequenceFlows -> 1
+
+            shardAll == null -> requestedShards.coerceAtMost(plan.flowsToRun.size)
+
+            shardSplit == null -> requestedShards.coerceAtMost(deviceIds.size)
+
+            else -> 1
+        }
+
+        val warning = "Requested $requestedShards shards, " +
+                "but it cannot be higher than the number of flows (${plan.flowsToRun.size}). " +
+                "Will use $effectiveShards shards instead."
+        if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
+
+        val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
+
+        val flowCount = if (onlySequenceFlows) plan.sequence.flows.size else plan.flowsToRun.size
+        val message = when {
+            shardAll != null -> "Will run $effectiveShards shards, with all $flowCount flows in each shard"
+            shardSplit != null -> {
+                val flowsPerShard = (flowCount.toFloat() / effectiveShards).roundToInt()
+                val isApprox = flowCount % effectiveShards != 0
+                val prefix = if (isApprox) "approx. " else ""
+                "Will split $flowCount flows across $effectiveShards shards (${prefix}$flowsPerShard flows per shard)"
             }
 
-            val effectiveShards = when {
+            else -> null
+        }
+        message?.let { PrintUtils.info(it) }
 
-                onlySequenceFlows -> 1
-
-                shardAll == null -> requestedShards.coerceAtMost(plan.flowsToRun.size)
-
-                shardSplit == null -> requestedShards.coerceAtMost(deviceIds.size)
-
-                else -> 1
+        val results = (0 until effectiveShards).map { shardIndex ->
+            async(Dispatchers.IO + CoroutineName("shard-$shardIndex")) {
+                runShardSuite(
+                    effectiveShards = effectiveShards,
+                    deviceIds = deviceIds,
+                    shardIndex = shardIndex,
+                    chunkPlans = chunkPlans,
+                    debugOutputPath = debugOutputPath,
+                )
             }
+        }.awaitAll()
 
-            val warning = "Requested $requestedShards shards, " +
-                    "but it cannot be higher than the number of flows (${plan.flowsToRun.size}). " +
-                    "Will use $effectiveShards shards instead."
-            if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
+        val passed = results.sumOf { it.first ?: 0 }
+        val total = results.sumOf { it.second ?: 0 }
+        val suites = results.mapNotNull { it.third }
 
-            val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
+        suites.mergeSummaries()?.saveReport()
 
-            val flowCount = if (onlySequenceFlows) plan.sequence.flows.size else plan.flowsToRun.size
-            val message = when {
-                shardAll != null -> "Will run $effectiveShards shards, with all $flowCount flows in each shard"
-                shardSplit != null -> {
-                    val flowsPerShard = (flowCount.toFloat() / effectiveShards).roundToInt()
-                    val isApprox = flowCount % effectiveShards != 0
-                    val prefix = if (isApprox) "approx. " else ""
-                    "Will split $flowCount flows across $effectiveShards shards (${prefix}$flowsPerShard flows per shard)"
-                }
-
-                else -> null
-            }
-            message?.let { PrintUtils.info(it) }
-
-            val results = (0 until effectiveShards).map { shardIndex ->
-                async(Dispatchers.IO) {
-                    runShardSuite(
-                        effectiveShards = effectiveShards,
-                        deviceIds = deviceIds,
-                        shardIndex = shardIndex,
-                        chunkPlans = chunkPlans,
-                        debugOutputPath = debugOutputPath,
-                    )
-                }
-            }.awaitAll()
-
-            val passed = results.sumOf { it.first ?: 0 }
-            val total = results.sumOf { it.second ?: 0 }
-            val suites = results.mapNotNull { it.third }
-
-            suites.mergeSummaries()?.saveReport()
-
-            if (effectiveShards > 1) printShardsMessage(passed, total, suites)
-            if (passed == total) 0 else 1
-        }.onFailure {
-            PrintUtils.message("❌ Error: ${it.message}")
-            it.printStackTrace()
-
-            exitProcess(1)
-        }.getOrDefault(0)
+        if (effectiveShards > 1) printShardsMessage(passed, total, suites)
+        if (analyze) TestAnalysisManager(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
+        if (passed == total) 0 else 1
     }
 
     private suspend fun runShardSuite(
@@ -296,18 +314,19 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
-    ): Triple<Int?, Int?, TestExecutionSummary?> = withContext(Dispatchers.IO) {
+    ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
 
         logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort")
 
-        return@withContext MaestroSessionManager.newSession(
+        return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
             platform = parent?.platform,
+            isHeadless = headless,
         ) { session ->
             val maestro = session.maestro
             val device = session.device
@@ -329,7 +348,7 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env)
+                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze)
                 } else {
                     runSingleFlow(maestro, device, flowFile, debugOutputPath)
                 }
@@ -338,7 +357,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) parent?.port ?: 7001
+        if (effectiveShards == 1) 7001
         else (7001..7128).shuffled().find { port ->
             usedPorts.putIfAbsent(port, true) == null
         } ?: error("No available ports found")
@@ -350,8 +369,11 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
-            if (DisableAnsiMixin.ansiEnabled) AnsiResultView()
-            else PlainTextResultView()
+            if (DisableAnsiMixin.ansiEnabled) {
+                AnsiResultView(useEmojis = !EnvUtils.isWindows())
+            } else {
+                PlainTextResultView()
+            }
 
         env = env
             .withInjectedShellEnvVars()
@@ -364,6 +386,7 @@ class TestCommand : Callable<Int> {
             env = env,
             resultView = resultView,
             debugOutputPath = debugOutputPath,
+            analyze = analyze
         )
 
         if (resultSingle == 1) {
@@ -421,7 +444,7 @@ class TestCommand : Callable<Int> {
 
     private fun getPassedOptionsDeviceIds(): List<String> {
         val arguments = if (isWebFlow()) {
-            PrintUtils.warn("Web support is an experimental feature and may be removed in future versions.\n")
+            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
             "chromium"
         } else parent?.deviceId
         val deviceIds = arguments

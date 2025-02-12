@@ -19,12 +19,15 @@
 
 package maestro.cli.command
 
+import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
+import maestro.cli.report.TestDebugReporter
+import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -34,6 +37,7 @@ import java.io.File
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 import maestro.orchestra.util.Env.withDefaultEnvVars
+import kotlin.io.path.absolutePathString
 
 @CommandLine.Command(
     name = "cloud",
@@ -162,7 +166,15 @@ class CloudCommand : Callable<Int> {
     @Option(hidden = true, names = ["--timeout"], description = ["Minutes to wait until all flows complete"])
     private var resultWaitTimeout = 60
 
+    @CommandLine.ParentCommand
+    private val parent: App? = null
+
     override fun call(): Int {
+        TestDebugReporter.install(
+            debugOutputPathAsString = null,
+            flattenDebugOutput = false,
+            printToConsole = parent?.verbose == true,
+        )
 
         validateFiles()
         validateWorkSpace()
@@ -170,9 +182,9 @@ class CloudCommand : Callable<Int> {
         // Upload
         val apiUrl = apiUrl ?: run {
             if (projectId != null) {
-                "https://api.copilot.mobile.dev/v2/project/$projectId"
+                "https://api.copilot.mobile.dev"
             } else {
-                "https://api.mobile.dev"
+                throw CliError("You need to specify a Robin project with --projectId")
             }
         }
 
@@ -247,8 +259,10 @@ class CloudCommand : Callable<Int> {
             }
         }
 
-        val hasApp = appFile != null || appBinaryId != null
         val hasWorkspace = this::flowsFile.isInitialized
+        val hasApp = appFile != null
+                || appBinaryId != null
+                || (this::flowsFile.isInitialized && this::flowsFile.get().isWebFlow())
 
         if (!hasApp && !hasWorkspace) {
             throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--flows"), "Missing required parameters: '--app-file', " +

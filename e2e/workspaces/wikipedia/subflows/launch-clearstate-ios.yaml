@@ -1,0 +1,6 @@
+appId: org.wikimedia.wikipedia
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Next"
+- assertVisible: "Skip"

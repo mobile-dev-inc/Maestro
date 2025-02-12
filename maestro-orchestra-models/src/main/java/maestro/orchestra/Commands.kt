@@ -37,7 +37,7 @@ sealed interface Command {
     fun visible(): Boolean = true
 
     val label: String?
-    
+
     val optional: Boolean
 }
 
@@ -55,6 +55,7 @@ data class SwipeCommand(
     val startRelative: String? = null,
     val endRelative: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    val waitToSettleTimeoutMs: Int? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -64,18 +65,23 @@ data class SwipeCommand(
             label != null -> {
                 label
             }
+
             elementSelector != null && direction != null -> {
                 "Swiping in $direction direction on ${elementSelector.description()}"
             }
+
             direction != null -> {
                 "Swiping in $direction direction in $duration ms"
             }
+
             startPoint != null && endPoint != null -> {
                 "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y}) in $duration ms"
             }
+
             startRelative != null && endRelative != null -> {
                 "Swipe from ($startRelative) to ($endRelative) in $duration ms"
             }
+
             else -> "Invalid input to swipe command"
         }
     }
@@ -102,6 +108,7 @@ data class ScrollUntilVisibleCommand(
     val scrollDuration: String = DEFAULT_SCROLL_DURATION,
     val visibilityPercentage: Int,
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
+    val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -110,12 +117,16 @@ data class ScrollUntilVisibleCommand(
     val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
 
     private fun String.speedToDuration(): String {
-        return ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1).toString()
+        val duration = ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1)
+        return if (duration < 0) {
+            DEFAULT_SCROLL_DURATION
+        } else duration.toString()
     }
 
     private fun String.timeoutToMillis(): String {
-        val timeout = if (this.toLong() < 0) { DEFAULT_TIMEOUT_IN_MILLIS.toLong() * 1000L } else this.toLong() * 1000L
-        return timeout.toString()
+        return if (this.toLong() < 0) {
+            DEFAULT_TIMEOUT_IN_MILLIS
+        } else this
     }
 
     override fun description(): String {
@@ -131,7 +142,7 @@ data class ScrollUntilVisibleCommand(
     }
 
     companion object {
-        const val DEFAULT_TIMEOUT_IN_MILLIS = "20"
+        const val DEFAULT_TIMEOUT_IN_MILLIS = "20000"
         const val DEFAULT_SCROLL_DURATION = "40"
         const val DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE = 100
         const val DEFAULT_CENTER_ELEMENT = false
@@ -265,7 +276,8 @@ data class TapOnElementCommand(
 ) : Command {
 
     override fun description(): String {
-        return label ?: "${tapOnDescription(longPress, repeat)} on ${selector.description()}"
+        val optional = if (optional || selector.optional) "(Optional) " else ""
+        return label ?: "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
@@ -333,7 +345,7 @@ data class AssertCommand(
 ) : Command {
 
     override fun description(): String {
-        if (label != null){
+        if (label != null) {
             return label
         }
         val timeoutStr = timeout?.let { " within $timeout ms" } ?: ""
@@ -369,7 +381,7 @@ data class AssertCommand(
 
 data class AssertConditionCommand(
     val condition: Condition,
-    private val timeout: String? = null,
+    val timeout: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -379,7 +391,9 @@ data class AssertConditionCommand(
     }
 
     override fun description(): String {
-        return label ?: "Assert that ${condition.description()}"
+        val optional =
+            if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true) "(Optional) " else ""
+        return label ?: "Assert that $optional${condition.description()}"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -421,6 +435,25 @@ data class AssertWithAICommand(
     }
 }
 
+data class ExtractTextWithAICommand(
+    val query: String,
+    val outputVariable: String,
+    override val optional: Boolean = true,
+    override val label: String? = null
+) : Command {
+    override fun description(): String {
+        if (label != null) return label
+
+        return "Extract text with AI: $query"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            query = query.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class InputTextCommand(
     val text: String,
     override val label: String? = null,
@@ -450,7 +483,7 @@ data class LaunchAppCommand(
 ) : Command {
 
     override fun description(): String {
-        if (label != null){
+        if (label != null) {
             return label
         }
 
@@ -778,12 +811,15 @@ data class RepeatCommand(
             label != null -> {
                 label
             }
+
             condition != null && timesInt > 1 -> {
                 "Repeat while ${condition.description()} (up to $timesInt times)"
             }
+
             condition != null -> {
                 "Repeat while ${condition.description()}"
             }
+
             timesInt > 1 -> "Repeat $timesInt times"
             else -> "Repeat indefinitely"
         }
@@ -792,6 +828,42 @@ data class RepeatCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             times = times?.evaluateScripts(jsEngine),
+        )
+    }
+
+}
+
+data class RetryCommand(
+    val maxRetries: String? = null,
+    val commands: List<MaestroCommand>,
+    val config: MaestroConfig?,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : CompositeCommand {
+
+    override fun subCommands(): List<MaestroCommand> {
+        return commands
+    }
+
+    override fun config(): MaestroConfig? {
+        return null
+    }
+
+    override fun description(): String {
+        val maxAttempts = maxRetries?.toIntOrNull() ?: 1
+
+        return when {
+            label != null -> {
+                label
+            }
+
+            else -> "Retry $maxAttempts times"
+        }
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            maxRetries = maxRetries?.evaluateScripts(jsEngine),
         )
     }
 
@@ -904,8 +976,8 @@ data class TravelCommand(
             val dLon = Math.toRadians(aLon - oLon)
 
             val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(oLat)) * Math.cos(Math.toRadians(aLat)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+                    Math.cos(Math.toRadians(oLat)) * Math.cos(Math.toRadians(aLat)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2)
 
             val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
             val distance = earthRadius * c * 1000 // convert to meters
@@ -921,7 +993,12 @@ data class TravelCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            points = points.map { it.copy(latitude = it.latitude.evaluateScripts(jsEngine), longitude = it.longitude.evaluateScripts(jsEngine)) }
+            points = points.map {
+                it.copy(
+                    latitude = it.latitude.evaluateScripts(jsEngine),
+                    longitude = it.longitude.evaluateScripts(jsEngine)
+                )
+            }
         )
     }
 
@@ -948,7 +1025,7 @@ data class AddMediaCommand(
     val mediaPaths: List<String>,
     override val label: String? = null,
     override val optional: Boolean = false,
-): Command {
+) : Command {
 
     override fun description(): String {
         return label ?: "Adding media files(${mediaPaths.size}) to the device"

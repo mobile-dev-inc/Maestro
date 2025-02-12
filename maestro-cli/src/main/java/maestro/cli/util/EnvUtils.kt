@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 object EnvUtils {
-    private const val PROD_API_URL = "https://api.mobile.dev"
+    private const val PROD_API_URL = "https://api.copilot.mobile.dev"
 
     val OS_NAME: String = System.getProperty("os.name")
     val OS_ARCH: String = System.getProperty("os.arch")
@@ -73,6 +73,10 @@ object EnvUtils {
         }
 
         return false
+    }
+
+    fun isWindows(): Boolean {
+        return OS_NAME.lowercase().startsWith("windows")
     }
 
     /**

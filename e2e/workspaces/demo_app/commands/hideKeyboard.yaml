@@ -1,0 +1,11 @@
+appId: com.example.example
+---
+- launchApp # For idempotence of sections
+
+- tapOn: 'Form Test'
+- tapOn: 'Email'
+- assertVisible:
+    id: com.google.android.inputmethod.latin:id/key_pos_shift # The shift key on the Android keyboard
+- hideKeyboard
+- assertNotVisible:
+    id: com.google.android.inputmethod.latin:id/key_pos_shift

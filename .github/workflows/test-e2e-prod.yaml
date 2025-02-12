@@ -51,25 +51,35 @@ jobs:
             --include-tags advanced \
             samples/sample.apk samples
 
-      - name: Trigger alert on failure
-        if: ${{ false }}
-        # if: failure()
+      - name: Send Slack message
+        if: failure()
         run: |
           curl --request POST \
-              --url "https://events.pagerduty.com/v2/enqueue" \
+              --url "${{ secrets.E2E_SLACK_WEBHOOK_URL }}" \
               --header 'Content-Type: application/json' \
               --data '{
-            "payload": {
-              "summary": "E2E test failed",
-              "source": "E2E test",
-              "severity": "critical"
-            },
-            "routing_key": "${{ secrets.E2E_PAGER_DUTY_INTEGRATION_KEY }}",
-            "event_action": "trigger",
-            "links": [
-                {
-                  "href": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                  "text": "Failed E2E test - Github Action"
-                }
-            ]
+            "text": "🚨 *Maestro E2E Test Failed*\nStatus: 'Failure'\nRun: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View details>"
           }'
+
+      # - name: Trigger alert on failure
+      #   if: ${{ false }}
+      #   # if: failure()
+      #   run: |
+      #     curl --request POST \
+      #         --url "https://events.pagerduty.com/v2/enqueue" \
+      #         --header 'Content-Type: application/json' \
+      #         --data '{
+      #       "payload": {
+      #         "summary": "E2E test failed",
+      #         "source": "E2E test",
+      #         "severity": "critical"
+      #       },
+      #       "routing_key": "${{ secrets.E2E_PAGER_DUTY_INTEGRATION_KEY }}",
+      #       "event_action": "trigger",
+      #       "links": [
+      #           {
+      #             "href": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+      #             "text": "Failed E2E test - Github Action"
+      #           }
+      #       ]
+      #     }'

@@ -33,7 +33,8 @@ internal class MaestroCommandSerializationTest {
             {
               "tapOnElement" : {
                 "selector" : {
-                  "textRegex" : "[A-f0-9]"
+                  "textRegex" : "[A-f0-9]",
+                  "optional" : false
                 },
                 "retryIfNoChange" : false,
                 "waitUntilVisible" : true,
@@ -234,10 +235,12 @@ internal class MaestroCommandSerializationTest {
             {
               "assertCommand" : {
                 "visible" : {
-                  "textRegex" : "[A-f0-9]"
+                  "textRegex" : "[A-f0-9]",
+                  "optional" : false
                 },
                 "notVisible" : {
-                  "textRegex" : "\\s"
+                  "textRegex" : "\\s",
+                  "optional" : false
                 },
                 "optional" : false
               }

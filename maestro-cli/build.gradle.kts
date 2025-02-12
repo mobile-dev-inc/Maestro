@@ -31,6 +31,10 @@ tasks.named<JavaExec>("run") {
     workingDir = rootDir
 }
 
+tasks.named<CreateStartScripts>("startScripts") {
+    classpath = files("$buildDir/libs/*")
+}
+
 dependencies {
     implementation(project(path = ":maestro-utils"))
     annotationProcessor(libs.picocli.codegen)
@@ -48,13 +52,25 @@ dependencies {
     implementation(libs.jackson.dataformat.xml)
     implementation(libs.jackson.datatype.jsr310)
     implementation(libs.jansi)
+    implementation(libs.jcodec)
+    implementation(libs.jcodec.awt)
     implementation(libs.square.okhttp)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.status.pages)
     implementation(libs.jarchivelib)
     implementation(libs.commons.codec)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.html)
+    implementation(libs.skiko.macos.arm64)
+    implementation(libs.skiko.macos.x64)
+    implementation(libs.skiko.linux.arm64)
+    implementation(libs.skiko.linux.x64)
+    implementation(libs.skiko.windows.arm64)
+    implementation(libs.skiko.windows.x64)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)

@@ -91,12 +91,11 @@ object XCRunnerCLIUtils {
             "list"
         ).start()
 
-        val processOutput = process.inputStream
-            .bufferedReader()
-            .readLines()
+        val processOutput = process.inputStream.bufferedReader().readLines()
 
-        process.waitFor(3000, TimeUnit.MILLISECONDS)
-
+        if (!process.waitFor(3000, TimeUnit.MILLISECONDS)) {
+            return emptyMap()
+        }
         return processOutput
             .asSequence()
             .drop(1)

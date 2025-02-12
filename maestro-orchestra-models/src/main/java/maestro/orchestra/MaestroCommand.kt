@@ -38,6 +38,7 @@ data class MaestroCommand(
     val assertConditionCommand: AssertConditionCommand? = null,
     val assertNoDefectsWithAICommand: AssertNoDefectsWithAICommand? = null,
     val assertWithAICommand: AssertWithAICommand? = null,
+    val extractTextWithAICommand: ExtractTextWithAICommand? = null,
     val inputTextCommand: InputTextCommand? = null,
     val inputRandomTextCommand: InputRandomCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
@@ -68,6 +69,7 @@ data class MaestroCommand(
     val setAirplaneModeCommand: SetAirplaneModeCommand? = null,
     val toggleAirplaneModeCommand: ToggleAirplaneModeCommand? = null,
     val installAppCommand: InstallAppCommand? = null,
+    val retryCommand: RetryCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -81,6 +83,7 @@ data class MaestroCommand(
         assertConditionCommand = command as? AssertConditionCommand,
         assertNoDefectsWithAICommand = command as? AssertNoDefectsWithAICommand,
         assertWithAICommand = command as? AssertWithAICommand,
+        extractTextWithAICommand = command as? ExtractTextWithAICommand,
         inputTextCommand = command as? InputTextCommand,
         inputRandomTextCommand = command as? InputRandomCommand,
         launchAppCommand = command as? LaunchAppCommand,
@@ -111,6 +114,7 @@ data class MaestroCommand(
         setAirplaneModeCommand = command as? SetAirplaneModeCommand,
         toggleAirplaneModeCommand = command as? ToggleAirplaneModeCommand,
         installAppCommand = command as? InstallAppCommand,
+        retryCommand = command as? RetryCommand
     )
 
     fun asCommand(): Command? = when {
@@ -124,6 +128,7 @@ data class MaestroCommand(
         assertConditionCommand != null -> assertConditionCommand
         assertNoDefectsWithAICommand != null -> assertNoDefectsWithAICommand
         assertWithAICommand != null -> assertWithAICommand
+        extractTextWithAICommand != null -> extractTextWithAICommand
         inputTextCommand != null -> inputTextCommand
         inputRandomTextCommand != null -> inputRandomTextCommand
         launchAppCommand != null -> launchAppCommand
@@ -154,7 +159,20 @@ data class MaestroCommand(
         setAirplaneModeCommand != null -> setAirplaneModeCommand
         toggleAirplaneModeCommand != null -> toggleAirplaneModeCommand
         installAppCommand != null -> installAppCommand
+        retryCommand != null -> retryCommand
         else -> null
+    }
+
+    fun elementSelector(): ElementSelector? {
+        return when {
+            tapOnElement?.selector != null -> tapOnElement.selector
+            swipeCommand?.elementSelector != null -> swipeCommand.elementSelector
+            copyTextCommand?.selector != null -> copyTextCommand.selector
+            assertConditionCommand?.condition?.visible != null -> assertConditionCommand.condition.visible
+            assertConditionCommand?.condition?.notVisible != null -> assertConditionCommand.condition.notVisible
+            scrollUntilVisible?.selector != null -> scrollUntilVisible.selector
+            else -> null
+        }
     }
 
     fun evaluateScripts(jsEngine: JsEngine): MaestroCommand {

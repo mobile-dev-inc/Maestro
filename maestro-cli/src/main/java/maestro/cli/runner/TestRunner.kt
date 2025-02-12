@@ -14,6 +14,7 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
@@ -42,7 +43,8 @@ object TestRunner {
         flowFile: File,
         env: Map<String, String>,
         resultView: ResultView,
-        debugOutputPath: Path
+        debugOutputPath: Path,
+        analyze: Boolean = false
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -54,17 +56,20 @@ object TestRunner {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(env)
 
-            YamlCommandReader.getConfig(commands)?.name?.let {
-                aiOutput = aiOutput.copy(flowName = it)
+            val flowName = YamlCommandReader.getConfig(commands)?.name
+            if (flowName != null) {
+                aiOutput = aiOutput.copy(flowName = flowName)
             }
 
             MaestroCommandRunner.runCommands(
+                flowName = flowName ?: flowFile.nameWithoutExtension,
                 maestro = maestro,
                 device = device,
                 view = resultView,
                 commands = commands,
                 debugOutput = debugOutput,
                 aiOutput = aiOutput,
+                analyze = analyze,
             )
         }
 
@@ -91,8 +96,9 @@ object TestRunner {
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
+        analyze: Boolean = false,
     ): Nothing {
-        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
+        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
         val fileWatcher = FileWatcher()
 
@@ -110,6 +116,8 @@ object TestRunner {
                     .readCommands(flowFile.toPath())
                     .withEnv(env)
 
+                val flowName = YamlCommandReader.getConfig(commands)?.name
+
                 // Restart the flow if anything has changed
                 if (commands != previousCommands) {
                     ongoingTest = thread {
@@ -117,6 +125,7 @@ object TestRunner {
 
                         runCatching(resultView, maestro) {
                             MaestroCommandRunner.runCommands(
+                                flowName = flowName ?: flowFile.nameWithoutExtension,
                                 maestro = maestro,
                                 device = device,
                                 view = resultView,
@@ -127,6 +136,7 @@ object TestRunner {
                                     flowName = "TODO",
                                     flowFile = flowFile,
                                 ),
+                                analyze = analyze
                             )
                         }.get()
                     }

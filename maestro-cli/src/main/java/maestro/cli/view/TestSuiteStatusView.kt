@@ -88,6 +88,7 @@ object TestSuiteStatusView {
             FlowStatus.SUCCESS,
             FlowStatus.WARNING -> Ansi.Color.GREEN
             FlowStatus.ERROR -> Ansi.Color.RED
+            FlowStatus.STOPPED -> Ansi.Color.RED
             else -> Ansi.Color.DEFAULT
         }
         val title = when (status) {
@@ -96,6 +97,9 @@ object TestSuiteStatusView {
             FlowStatus.ERROR -> "Failed"
             FlowStatus.PENDING -> "Pending"
             FlowStatus.RUNNING -> "Running"
+            FlowStatus.STOPPED -> "Stopped"
+            FlowStatus.PREPARING -> "Preparing Device"
+            FlowStatus.INSTALLING -> "Installing App"
             FlowStatus.CANCELED -> when (cancellationReason) {
                 UploadStatus.CancellationReason.TIMEOUT -> "Timeout"
                 UploadStatus.CancellationReason.OVERLAPPING_BENCHMARK -> "Skipped"
@@ -121,15 +125,16 @@ object TestSuiteStatusView {
         domain: String = "mobile.dev",
     ) = "https://console.$domain/uploads/$uploadId?teamId=$teamId&appId=$appId"
 
-    fun uploadUrl(
+    fun robinUploadUrl(
         projectId: String,
         appId: String,
+        uploadId: String,
         domain: String = ""
     ): String {
         return if (domain.contains("localhost")) {
-            "http://localhost:3000/project/$projectId/maestro-tests/app/$appId"
+            "http://localhost:3000/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         } else {
-            "https://copilot.mobile.dev/project/$projectId/maestro-tests/app/$appId"
+            "https://app.robintest.com/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         }
     }
 
@@ -174,7 +179,7 @@ object TestSuiteStatusView {
                 duration: Duration? = null
             ) = FlowResult(
                 name = name,
-                status = FlowStatus.from(status, ),
+                status = status,
                 error = errors.firstOrNull(),
                 cancellationReason = cancellationReason,
                 duration = duration

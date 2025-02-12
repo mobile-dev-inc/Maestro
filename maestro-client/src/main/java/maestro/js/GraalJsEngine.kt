@@ -1,5 +1,6 @@
 package maestro.js
 
+import maestro.utils.HttpClient
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import org.graalvm.polyglot.Context
@@ -10,6 +11,7 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.logging.Handler
 import java.util.logging.LogRecord
+import kotlin.time.Duration.Companion.minutes
 
 private val NULL_HANDLER = object : Handler() {
     override fun publish(record: LogRecord?) {}
@@ -20,11 +22,12 @@ private val NULL_HANDLER = object : Handler() {
 }
 
 class GraalJsEngine(
-    httpClient: OkHttpClient = OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .writeTimeout(5, TimeUnit.MINUTES)
-        .protocols(listOf(Protocol.HTTP_1_1))
-        .build(),
+    httpClient: OkHttpClient = HttpClient.build(
+        name = "GraalJsEngine",
+        readTimeout = 5.minutes,
+        writeTimeout = 5.minutes,
+        protocols = listOf(Protocol.HTTP_1_1)
+    ),
     platform: String = "unknown",
 ) : JsEngine {
 

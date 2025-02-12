@@ -62,7 +62,7 @@ fun String.box(): String {
     return sb.toString()
 }
 
-private fun String.render(): String {
+fun String.render(): String {
     return Ansi.ansi().render(this).toString()
 }
 

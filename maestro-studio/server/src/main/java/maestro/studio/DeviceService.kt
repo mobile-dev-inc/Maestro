@@ -79,9 +79,14 @@ object DeviceService {
             call.response.cacheControl(CacheControl.NoCache(null))
             call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
                 while (true) {
-                    val deviceScreen = getDeviceScreen(maestro)
-                    writeStringUtf8("data: $deviceScreen\n\n")
-                    flush()
+                    try {
+                        val deviceScreen = getDeviceScreen(maestro)
+                        writeStringUtf8("data: $deviceScreen\n\n")
+                        flush()
+                    } catch (_: Exception) {
+                        // Ignoring the exception to prevent SSE stream from dying
+                        // Don't log since this floods the terminal after killing studio
+                    }
                 }
             }
         }
@@ -179,12 +184,12 @@ object DeviceService {
         }
 
         val deviceInfo = maestro.deviceInfo()
-
         val deviceWidth = deviceInfo.widthGrid
         val deviceHeight = deviceInfo.heightGrid
 
+        val url = tree.attributes["url"]
         val elements = treeToElements(tree)
-        val deviceScreen = DeviceScreen("/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements)
+        val deviceScreen = DeviceScreen(deviceInfo.platform, "/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements, url)
         return jacksonObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .writeValueAsString(deviceScreen)

@@ -36,6 +36,8 @@ import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
+import maestro.utils.Metrics
+import maestro.utils.MetricsProvider
 import maestro.utils.ScreenshotUtils
 import maestro.utils.StringUtils.toRegexSafe
 import maestro_android.*
@@ -63,15 +65,18 @@ class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
-) : Driver {
+    private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    ) : Driver {
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
+
+    private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
-    private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(40, TimeUnit.SECONDS)
+    private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
     private val asyncStub = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
@@ -197,42 +202,51 @@ class AndroidDriver(
         launchArguments: Map<String, Any>,
         sessionId: UUID?,
     ) {
-        if(!open) // pick device flow, no open() invocation
-            open()
+        metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
+            if(!open) // pick device flow, no open() invocation
+                open()
 
-        if (!isPackageInstalled(appId)) {
-            throw IllegalArgumentException("Package $appId is not installed")
-        }
+            if (!isPackageInstalled(appId)) {
+                throw IllegalArgumentException("Package $appId is not installed")
+            }
 
-        val arguments = launchArguments.toAndroidLaunchArguments()
-        val sessionUUID = sessionId ?: UUID.randomUUID()
-        dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
-        runDeviceCall {
-            blockingStubWithTimeout.launchApp(
-                launchAppRequest {
-                    this.packageName = appId
-                    this.arguments.addAll(arguments)
-                }
-            ) ?: throw IllegalStateException("Maestro driver failed to launch app")
+            val arguments = launchArguments.toAndroidLaunchArguments()
+            val sessionUUID = sessionId ?: UUID.randomUUID()
+            dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
+            runDeviceCall {
+                blockingStubWithTimeout.launchApp(
+                    launchAppRequest {
+                        this.packageName = appId
+                        this.arguments.addAll(arguments)
+                    }
+                ) ?: throw IllegalStateException("Maestro driver failed to launch app")
+            }
         }
     }
 
+    
     override fun stopApp(appId: String) {
-        // Note: If the package does not exist, this call does *not* throw an exception
-        shell("am force-stop $appId")
+        metrics.measured("operation", mapOf("command" to "stopApp", "appId" to appId)) {
+            // Note: If the package does not exist, this call does *not* throw an exception
+            shell("am force-stop $appId")
+        }
     }
 
     override fun killApp(appId: String) {
-        // Kill is the adb command needed to trigger System-initiated Process Death
-        shell("am kill $appId")
+        metrics.measured("operation", mapOf("command" to "killApp", "appId" to appId)) {
+            // Kill is the adb command needed to trigger System-initiated Process Death
+            shell("am kill $appId")
+        }
     }
 
     override fun clearAppState(appId: String) {
-        if (!isPackageInstalled(appId)) {
-            return
-        }
+        metrics.measured("operation", mapOf("command" to "clearAppState", "appId" to appId)) {
+            if (!isPackageInstalled(appId)) {
+                return@measured
+            }
 
-        shell("pm clear $appId")
+            shell("pm clear $appId")
+        }
     }
 
     override fun clearKeychain() {
@@ -240,70 +254,78 @@ class AndroidDriver(
     }
 
     override fun tap(point: Point) {
-        runDeviceCall {
-            blockingStubWithTimeout.tap(
-                tapRequest {
-                    x = point.x
-                    y = point.y
-                }
-            ) ?: throw IllegalStateException("Response can't be null")
+        metrics.measured("operation", mapOf("command" to "tap")) {
+            runDeviceCall {
+                blockingStubWithTimeout.tap(
+                    tapRequest {
+                        x = point.x
+                        y = point.y
+                    }
+                ) ?: throw IllegalStateException("Response can't be null")
+            }
         }
     }
 
     override fun longPress(point: Point) {
-        dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+        metrics.measured("operation", mapOf("command" to "longPress")) {
+            dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+        }
     }
 
     override fun pressKey(code: KeyCode) {
-        val intCode: Int = when (code) {
-            KeyCode.ENTER -> 66
-            KeyCode.BACKSPACE -> 67
-            KeyCode.BACK -> 4
-            KeyCode.VOLUME_UP -> 24
-            KeyCode.VOLUME_DOWN -> 25
-            KeyCode.HOME -> 3
-            KeyCode.LOCK -> 276
-            KeyCode.REMOTE_UP -> 19
-            KeyCode.REMOTE_DOWN -> 20
-            KeyCode.REMOTE_LEFT -> 21
-            KeyCode.REMOTE_RIGHT -> 22
-            KeyCode.REMOTE_CENTER -> 23
-            KeyCode.REMOTE_PLAY_PAUSE -> 85
-            KeyCode.REMOTE_STOP -> 86
-            KeyCode.REMOTE_NEXT -> 87
-            KeyCode.REMOTE_PREVIOUS -> 88
-            KeyCode.REMOTE_REWIND -> 89
-            KeyCode.REMOTE_FAST_FORWARD -> 90
-            KeyCode.POWER -> 26
-            KeyCode.ESCAPE -> 111
-            KeyCode.TAB -> 62
-            KeyCode.REMOTE_SYSTEM_NAVIGATION_UP -> 280
-            KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN -> 281
-            KeyCode.REMOTE_BUTTON_A -> 96
-            KeyCode.REMOTE_BUTTON_B -> 97
-            KeyCode.REMOTE_MENU -> 82
-            KeyCode.TV_INPUT -> 178
-            KeyCode.TV_INPUT_HDMI_1 -> 243
-            KeyCode.TV_INPUT_HDMI_2 -> 244
-            KeyCode.TV_INPUT_HDMI_3 -> 245
-        }
+        metrics.measured("operation", mapOf("command" to "pressKey")) {
+            val intCode: Int = when (code) {
+                KeyCode.ENTER -> 66
+                KeyCode.BACKSPACE -> 67
+                KeyCode.BACK -> 4
+                KeyCode.VOLUME_UP -> 24
+                KeyCode.VOLUME_DOWN -> 25
+                KeyCode.HOME -> 3
+                KeyCode.LOCK -> 276
+                KeyCode.REMOTE_UP -> 19
+                KeyCode.REMOTE_DOWN -> 20
+                KeyCode.REMOTE_LEFT -> 21
+                KeyCode.REMOTE_RIGHT -> 22
+                KeyCode.REMOTE_CENTER -> 23
+                KeyCode.REMOTE_PLAY_PAUSE -> 85
+                KeyCode.REMOTE_STOP -> 86
+                KeyCode.REMOTE_NEXT -> 87
+                KeyCode.REMOTE_PREVIOUS -> 88
+                KeyCode.REMOTE_REWIND -> 89
+                KeyCode.REMOTE_FAST_FORWARD -> 90
+                KeyCode.POWER -> 26
+                KeyCode.ESCAPE -> 111
+                KeyCode.TAB -> 62
+                KeyCode.REMOTE_SYSTEM_NAVIGATION_UP -> 280
+                KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN -> 281
+                KeyCode.REMOTE_BUTTON_A -> 96
+                KeyCode.REMOTE_BUTTON_B -> 97
+                KeyCode.REMOTE_MENU -> 82
+                KeyCode.TV_INPUT -> 178
+                KeyCode.TV_INPUT_HDMI_1 -> 243
+                KeyCode.TV_INPUT_HDMI_2 -> 244
+                KeyCode.TV_INPUT_HDMI_3 -> 245
+            }
 
-        dadb.shell("input keyevent $intCode")
-        Thread.sleep(300)
+            dadb.shell("input keyevent $intCode")
+            Thread.sleep(300)
+        }
     }
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
-        val response = callViewHierarchy()
+        return metrics.measured("operation", mapOf("command" to "contentDescriptor")) {
+            val response = callViewHierarchy()
 
-        val document = documentBuilderFactory
-            .newDocumentBuilder()
-            .parse(response.hierarchy.byteInputStream())
+            val document = documentBuilderFactory
+                .newDocumentBuilder()
+                .parse(response.hierarchy.byteInputStream())
 
-        val treeNode = mapHierarchy(document)
-        return if (excludeKeyboardElements) {
-            treeNode.excludeKeyboardElements() ?: treeNode
-        } else {
-            treeNode
+            val treeNode = mapHierarchy(document)
+            if (excludeKeyboardElements) {
+                treeNode.excludeKeyboardElements() ?: treeNode
+            } else {
+                treeNode
+            }
         }
     }
 
@@ -350,19 +372,23 @@ class AndroidDriver(
     }
 
     override fun scrollVertical() {
-        swipe(SwipeDirection.UP, 400)
+        metrics.measured("operation", mapOf("command" to "scrollVertical")) {
+            swipe(SwipeDirection.UP, 400)
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
-        val root = contentDescriptor().let {
-            val deviceInfo = deviceInfo()
-            val filtered = it.filterOutOfBounds(
-                width = deviceInfo.widthGrid,
-                height = deviceInfo.heightGrid
-            )
-            filtered ?: it
+        return metrics.measured("operation", mapOf("command" to "isKeyboardVisible")) {
+            val root = contentDescriptor().let {
+                val deviceInfo = deviceInfo()
+                val filtered = it.filterOutOfBounds(
+                    width = deviceInfo.widthGrid,
+                    height = deviceInfo.heightGrid
+                )
+                filtered ?: it
+            }
+            "com.google.android.inputmethod.latin:id" in jacksonObjectMapper().writeValueAsString(root)
         }
-        return "com.google.android.inputmethod.latin:id" in jacksonObjectMapper().writeValueAsString(root)
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
@@ -370,221 +396,210 @@ class AndroidDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        val deviceInfo = deviceInfo()
-        when (swipeDirection) {
-            SwipeDirection.UP -> {
-                val startX = (deviceInfo.widthGrid * 0.5f).toInt()
-                val startY = (deviceInfo.heightGrid * 0.5f).toInt()
-                val endX = (deviceInfo.widthGrid * 0.5f).toInt()
-                val endY = (deviceInfo.heightGrid * 0.1f).toInt()
-                directionalSwipe(
-                    durationMs,
-                    Point(startX, startY),
-                    Point(endX, endY)
-                )
-            }
+        metrics.measured("operation", mapOf("command" to "swipeWithDirection", "direction" to swipeDirection.name, "durationMs" to durationMs.toString())) {
+            val deviceInfo = deviceInfo()
+            when (swipeDirection) {
+                SwipeDirection.UP -> {
+                    val startX = (deviceInfo.widthGrid * 0.5f).toInt()
+                    val startY = (deviceInfo.heightGrid * 0.5f).toInt()
+                    val endX = (deviceInfo.widthGrid * 0.5f).toInt()
+                    val endY = (deviceInfo.heightGrid * 0.1f).toInt()
+                    directionalSwipe(
+                        durationMs,
+                        Point(startX, startY),
+                        Point(endX, endY)
+                    )
+                }
 
-            SwipeDirection.DOWN -> {
-                val startX = (deviceInfo.widthGrid * 0.5f).toInt()
-                val startY = (deviceInfo.heightGrid * 0.2f).toInt()
-                val endX = (deviceInfo.widthGrid * 0.5f).toInt()
-                val endY = (deviceInfo.heightGrid * 0.9f).toInt()
-                directionalSwipe(
-                    durationMs,
-                    Point(startX, startY),
-                    Point(endX, endY)
-                )
-            }
+                SwipeDirection.DOWN -> {
+                    val startX = (deviceInfo.widthGrid * 0.5f).toInt()
+                    val startY = (deviceInfo.heightGrid * 0.2f).toInt()
+                    val endX = (deviceInfo.widthGrid * 0.5f).toInt()
+                    val endY = (deviceInfo.heightGrid * 0.9f).toInt()
+                    directionalSwipe(
+                        durationMs,
+                        Point(startX, startY),
+                        Point(endX, endY)
+                    )
+                }
 
-            SwipeDirection.RIGHT -> {
-                val startX = (deviceInfo.widthGrid * 0.1f).toInt()
-                val startY = (deviceInfo.heightGrid * 0.5f).toInt()
-                val endX = (deviceInfo.widthGrid * 0.9f).toInt()
-                val endY = (deviceInfo.heightGrid * 0.5f).toInt()
-                directionalSwipe(
-                    durationMs,
-                    Point(startX, startY),
-                    Point(endX, endY)
-                )
-            }
+                SwipeDirection.RIGHT -> {
+                    val startX = (deviceInfo.widthGrid * 0.1f).toInt()
+                    val startY = (deviceInfo.heightGrid * 0.5f).toInt()
+                    val endX = (deviceInfo.widthGrid * 0.9f).toInt()
+                    val endY = (deviceInfo.heightGrid * 0.5f).toInt()
+                    directionalSwipe(
+                        durationMs,
+                        Point(startX, startY),
+                        Point(endX, endY)
+                    )
+                }
 
-            SwipeDirection.LEFT -> {
-                val startX = (deviceInfo.widthGrid * 0.9f).toInt()
-                val startY = (deviceInfo.heightGrid * 0.5f).toInt()
-                val endX = (deviceInfo.widthGrid * 0.1f).toInt()
-                val endY = (deviceInfo.heightGrid * 0.5f).toInt()
-                directionalSwipe(
-                    durationMs,
-                    Point(startX, startY),
-                    Point(endX, endY)
-                )
+                SwipeDirection.LEFT -> {
+                    val startX = (deviceInfo.widthGrid * 0.9f).toInt()
+                    val startY = (deviceInfo.heightGrid * 0.5f).toInt()
+                    val endX = (deviceInfo.widthGrid * 0.1f).toInt()
+                    val endY = (deviceInfo.heightGrid * 0.5f).toInt()
+                    directionalSwipe(
+                        durationMs,
+                        Point(startX, startY),
+                        Point(endX, endY)
+                    )
+                }
             }
         }
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
-        val deviceInfo = deviceInfo()
-        when (direction) {
-            SwipeDirection.UP -> {
-                val endY = (deviceInfo.heightGrid * 0.1f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))
-            }
+        metrics.measured("operation", mapOf("command" to "swipeWithElementPoint", "direction" to direction.name, "durationMs" to durationMs.toString())) {
+            val deviceInfo = deviceInfo()
+            when (direction) {
+                SwipeDirection.UP -> {
+                    val endY = (deviceInfo.heightGrid * 0.1f).toInt()
+                    directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))
+                }
 
-            SwipeDirection.DOWN -> {
-                val endY = (deviceInfo.heightGrid * 0.9f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))
-            }
+                SwipeDirection.DOWN -> {
+                    val endY = (deviceInfo.heightGrid * 0.9f).toInt()
+                    directionalSwipe(durationMs, elementPoint, Point(elementPoint.x, endY))
+                }
 
-            SwipeDirection.RIGHT -> {
-                val endX = (deviceInfo.widthGrid * 0.9f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(endX, elementPoint.y))
-            }
+                SwipeDirection.RIGHT -> {
+                    val endX = (deviceInfo.widthGrid * 0.9f).toInt()
+                    directionalSwipe(durationMs, elementPoint, Point(endX, elementPoint.y))
+                }
 
-            SwipeDirection.LEFT -> {
-                val endX = (deviceInfo.widthGrid * 0.1f).toInt()
-                directionalSwipe(durationMs, elementPoint, Point(endX, elementPoint.y))
+                SwipeDirection.LEFT -> {
+                    val endX = (deviceInfo.widthGrid * 0.1f).toInt()
+                    directionalSwipe(durationMs, elementPoint, Point(endX, elementPoint.y))
+                }
             }
         }
     }
 
     private fun directionalSwipe(durationMs: Long, start: Point, end: Point) {
-        dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+        metrics.measured("operation", mapOf("command" to "directionalSwipe", "durationMs" to durationMs.toString())) {
+            dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+        }
     }
 
     override fun backPress() {
-        dadb.shell("input keyevent 4")
-        Thread.sleep(300)
+        metrics.measured("operation", mapOf("command" to "backPress")) {
+            dadb.shell("input keyevent 4")
+            Thread.sleep(300)
+        }
     }
 
     override fun hideKeyboard() {
-        dadb.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
-        Thread.sleep(300)
-        waitForAppToSettle(null, null)
+        metrics.measured("operation", mapOf("command" to "hideKeyboard")) {
+            dadb.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
+            Thread.sleep(300)
+            waitForAppToSettle(null, null)
+        }
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
-        runDeviceCall {
-            val response = blockingStubWithTimeout.screenshot(screenshotRequest {})
-            out.buffer().use {
-                it.write(response.bytes.toByteArray())
+        metrics.measured("operation", mapOf("command" to "takeScreenshot", "compressed" to compressed.toString())) {
+            runDeviceCall {
+                val response = blockingStubWithTimeout.screenshot(screenshotRequest {})
+                out.buffer().use {
+                    it.write(response.bytes.toByteArray())
+                }
             }
         }
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
-        val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
+        return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
 
-        val future = CompletableFuture.runAsync({
-            val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
-            try {
-                shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
-            } catch (e: IOException) {
-                throw IOException(
-                    "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
+            val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
+
+            val future = CompletableFuture.runAsync({
+                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                try {
+                    shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
+                } catch (e: IOException) {
+                    throw IOException(
+                        "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
                             "Try using a different Android emulator (eg. Pixel 5 / API 30)",
-                    e,
-                )
-            }
-        }, Executors.newSingleThreadExecutor())
+                        e,
+                    )
+                }
+            }, Executors.newSingleThreadExecutor())
 
-        return object : ScreenRecording {
-            override fun close() {
-                dadb.shell("killall -INT screenrecord") // Ignore exit code
-                future.get()
-                Thread.sleep(3000)
-                dadb.pull(out, deviceScreenRecordingPath)
+            object : ScreenRecording {
+                override fun close() {
+                    dadb.shell("killall -INT screenrecord") // Ignore exit code
+                    future.get()
+                    Thread.sleep(3000)
+                    dadb.pull(out, deviceScreenRecordingPath)
+                }
             }
         }
     }
 
     override fun inputText(text: String) {
-        runDeviceCall {
-            blockingStubWithTimeout.inputText(inputTextRequest {
-                this.text = text
-            }) ?: throw IllegalStateException("Input Response can't be null")
+        metrics.measured("operation", mapOf("command" to "inputText")) {
+            runDeviceCall {
+                blockingStubWithTimeout.inputText(inputTextRequest {
+                    this.text = text
+                }) ?: throw IllegalStateException("Input Response can't be null")
+            }
         }
     }
 
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
-        if (autoVerify && !browser && appId != null) autoVerifyLinkFromSettings(appId, link)
+        metrics.measured("operation", mapOf("command" to "openLink", "appId" to appId, "autoVerify" to autoVerify.toString(), "browser" to browser.toString())) {
+            if (browser) {
+                openBrowser(link)
+            } else {
+                dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+            }
 
-        if (browser) openBrowser(link)
-        else dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
-
-        if (autoVerify) {
-            if (appId != null && !browser) autoVerifyWithChooser(appId)
-            autoVerifyChromeOnboarding()
+            if (autoVerify) {
+                autoVerifyApp(appId)
+            }
         }
     }
 
-    private fun autoVerifyLinkFromSettings(appId: String, link: String) {
-        val apiLevel = getDeviceApiLevel()
-        if (apiLevel <= 30) return
-        val domain = runCatching { URI.create(link).toURL().host }.getOrNull() ?: return
-        val packageOption = "--package $appId"
-        val allowed = dadb.shell("pm set-app-links-allowed --user 0 $packageOption true")
-        if (allowed.exitCode > 0) {
-            LOGGER.debug("set-app-links-allowed failed for appId: $appId reason: ${allowed.errorOutput}")
-            return
+    private fun autoVerifyApp(appId: String?) {
+        if (appId != null) {
+            autoVerifyWithAppName(appId)
         }
-        val selected = dadb.shell("pm set-app-links-user-selection --user 0 $packageOption true $domain")
-        if (selected.exitCode > 0) {
-            LOGGER.debug("set-app-links-user-selection failed for appId: $appId domain: $domain reason: ${selected.errorOutput}")
-        }
+        autoVerifyChromeAgreement()
     }
 
-    private fun autoVerifyWithChooser(appId: String) {
+    private fun autoVerifyWithAppName(appId: String) {
         val appNameResult = runCatching {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
             val appName = ApkFile(apkFile).apkMeta.name
             apkFile.delete()
-            appName ?: appId // The app chooser shows the appId if no application label attribute is set
+            appName
         }
-        if (appNameResult.isFailure) {
-            LOGGER.info("Aborting autoVerify. Could not get app name from APK metadata for $appId", appNameResult.exceptionOrNull())
-            return
+        if (appNameResult.isSuccess) {
+            val appName = appNameResult.getOrThrow()
+            waitUntilScreenIsStatic(3000)
+            val appNameElement = filterByText(appName)
+            if (appNameElement != null) {
+                tap(appNameElement.bounds.center())
+                filterById("android:id/button_once")?.let {
+                    tap(it.bounds.center())
+                }
+            } else {
+                val openWithAppElement = filterByText(".*$appName.*")
+                if (openWithAppElement != null) {
+                    filterById("android:id/button_once")?.let {
+                        tap(it.bounds.center())
+                    }
+                }
+            }
         }
-
-        fun selectChooserOptionOnce(wordElement: UiElement) {
-            tap(wordElement.bounds.center())
-            filterById("android:id/button_once")?.let { tap(it.bounds.center()) }
-        }
-
-        waitUntilScreenIsStatic(3000)
-
-        val appName = appNameResult.getOrThrow()
-        filterByText(".*$appName.*")?.let {
-            selectChooserOptionOnce(it)
-            return
-        }
-
-        val appNameWord = appName.split(" ").first()
-        filterByText(".*$appNameWord.*")?.let {
-            selectChooserOptionOnce(it)
-            return
-        }
-
-        LOGGER.info("Aborting autoVerify. Could not find app name element for $appName")
     }
 
-    private fun autoVerifyChromeOnboarding() {
-        val chrome = "com.android.chrome"
-        if (!isPackageInstalled(chrome)) return
-        Thread.sleep(100) // Lets enough time for the transition to Chrome to start
-        waitUntilScreenIsStatic(3000)
-        // Welcome to Chrome screen "Accept & continue"
-        filterById("$chrome:id/send_report_checkbox")?.let { tap(it.bounds.center()) }
-        filterById("$chrome:id/negative_button")?.let { tap(it.bounds.center()) }
-        filterById("$chrome:id/terms_accept")?.let { tap(it.bounds.center()) }
+    private fun autoVerifyChromeAgreement() {
+        filterById("com.android.chrome:id/terms_accept")?.let { tap(it.bounds.center()) }
         waitForAppToSettle(null, null)
-        // Welcome to Chrome screen "Add account to device"
-        filterById("$chrome:id/signin_fre_dismiss_button")?.let { tap(it.bounds.center()) }
-        waitForAppToSettle(null, null)
-        // Turn on Sync screen
-        filterById("$chrome:id/negative_button")?.let { tap(it.bounds.center()) }
-        waitForAppToSettle(null, null)
-        // Chrome Notifications screen
-        filterById("$chrome:id/negative_button")?.let { tap(it.bounds.center()) }
+        filterById("com.android.chrome:id/negative_button")?.let { tap(it.bounds.center()) }
     }
 
     private fun filterByText(textRegex: String): UiElement? {
@@ -605,12 +620,13 @@ class AndroidDriver(
             installedPackages.contains("com.android.chrome") -> {
                 dadb.shell("am start -a android.intent.action.VIEW -d \"$link\" com.android.chrome")
             }
+
             installedPackages.contains("org.mozilla.firefox") -> {
                 dadb.shell("am start -a android.intent.action.VIEW -d \"$link\" org.mozilla.firefox")
             }
+
             else -> {
                 dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
-                autoVerifyWithChooser("org.chromium.webview_shell")
             }
         }
     }
@@ -621,39 +637,49 @@ class AndroidDriver(
         .map { parts: Array<String> -> parts[1] }
 
     override fun setLocation(latitude: Double, longitude: Double) {
-        shell("appops set dev.mobile.maestro android:mock_location allow")
+        metrics.measured("operation", mapOf("command" to "setLocation")) {
+            shell("appops set dev.mobile.maestro android:mock_location allow")
 
-        runDeviceCall {
-            blockingStubWithTimeout.setLocation(
-                setLocationRequest {
-                    this.latitude = latitude
-                    this.longitude = longitude
-                }
-            ) ?: error("Set Location Response can't be null")
+            runDeviceCall {
+                blockingStubWithTimeout.setLocation(
+                    setLocationRequest {
+                        this.latitude = latitude
+                        this.longitude = longitude
+                    }
+                ) ?: error("Set Location Response can't be null")
+            }
         }
     }
 
     override fun eraseText(charactersToErase: Int) {
-        runDeviceCall {
-            blockingStubWithTimeout.eraseAllText(
-                eraseAllTextRequest {
-                    this.charactersToErase = charactersToErase
-                }
-            ) ?: throw IllegalStateException("Erase Response can't be null")
+        metrics.measured("operation", mapOf("command" to "eraseText", "charactersToErase" to charactersToErase.toString())) {
+            runDeviceCall {
+                blockingStubWithTimeout.eraseAllText(
+                    eraseAllTextRequest {
+                        this.charactersToErase = charactersToErase
+                    }
+                ) ?: throw IllegalStateException("Erase Response can't be null")
+            }
         }
     }
 
     override fun setProxy(host: String, port: Int) {
-        shell("""settings put global http_proxy "${host}:${port}"""")
-        proxySet = true
+        metrics.measured("operation", mapOf("command" to "setProxy")) {
+            shell("""settings put global http_proxy "${host}:${port}"""")
+            proxySet = true
+        }
     }
 
     override fun resetProxy() {
-        shell("settings put global http_proxy :0")
+        metrics.measured("operation", mapOf("command" to "resetProxy")) {
+            shell("settings put global http_proxy :0")
+        }
     }
 
     override fun isShutdown(): Boolean {
-        return channel.isShutdown
+        return metrics.measured("operation", mapOf("command" to "isShutdown")) {
+            channel.isShutdown
+        }
     }
 
     override fun isUnicodeInputSupported(): Boolean {
@@ -661,14 +687,20 @@ class AndroidDriver(
     }
 
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
-        return if (appId != null) {
-            waitForWindowToSettle(appId, initialHierarchy, timeoutMs)
-        } else {
-            ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
+        return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId, "timeoutMs" to timeoutMs.toString())) {
+            if (appId != null) {
+                waitForWindowToSettle(appId, initialHierarchy, timeoutMs)
+            } else {
+                ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
+            }
         }
     }
 
-    private fun waitForWindowToSettle(appId: String, initialHierarchy: ViewHierarchy?, timeoutMs: Int? = null): ViewHierarchy {
+    private fun waitForWindowToSettle(
+        appId: String,
+        initialHierarchy: ViewHierarchy?,
+        timeoutMs: Int? = null
+    ): ViewHierarchy {
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
         var hierarchy: ViewHierarchy? = null
         do {
@@ -687,62 +719,75 @@ class AndroidDriver(
     }
 
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
-        return ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
+        return metrics.measured("operation", mapOf("command" to "waitUntilScreenIsStatic", "timeoutMs" to timeoutMs.toString())) {
+            ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
+        }
     }
 
     override fun capabilities(): List<Capability> {
-        return listOf(
-            Capability.FAST_HIERARCHY
-        )
+        return metrics.measured("operation", mapOf("command" to "capabilities")) {
+            listOf(
+                Capability.FAST_HIERARCHY
+            )
+        }
     }
 
     override fun setPermissions(appId: String, permissions: Map<String, String>) {
-        val mutable = permissions.toMutableMap()
-        mutable.remove("all")?.let { value ->
-            setAllPermissions(appId, value)
-        }
+        metrics.measured("operation", mapOf("command" to "setPermissions", "appId" to appId)) {
+            val mutable = permissions.toMutableMap()
+            mutable.remove("all")?.let { value ->
+                setAllPermissions(appId, value)
+            }
 
-        mutable.forEach { permission ->
-            val permissionValue = translatePermissionValue(permission.value)
-            translatePermissionName(permission.key).forEach { permissionName ->
-                setPermissionInternal(appId, permissionName, permissionValue)
+            mutable.forEach { permission ->
+                val permissionValue = translatePermissionValue(permission.value)
+                translatePermissionName(permission.key).forEach { permissionName ->
+                    setPermissionInternal(appId, permissionName, permissionValue)
+                }
             }
         }
     }
 
     override fun addMedia(mediaFiles: List<File>) {
-        LOGGER.info("[Start] Adding media files")
-        mediaFiles.forEach { addMediaToDevice(it) }
-        LOGGER.info("[Done] Adding media files")
+        metrics.measured("operation", mapOf("command" to "addMedia", "mediaFilesCount" to mediaFiles.size.toString())) {
+            LOGGER.info("[Start] Adding media files")
+            mediaFiles.forEach { addMediaToDevice(it) }
+            LOGGER.info("[Done] Adding media files")
+        }
     }
 
     override fun isAirplaneModeEnabled(): Boolean {
-        return when (val result = shell("cmd connectivity airplane-mode").trim()) {
-            "No shell command implementation.", "" -> {
-                LOGGER.debug("Falling back to old airplane mode read method")
-                when (val fallbackResult = shell("settings get global airplane_mode_on").trim()) {
-                    "0" -> false
-                    "1" -> true
-                    else -> throw IllegalStateException("Received invalid response from while trying to read airplane mode state: $fallbackResult")
+        return metrics.measured("operation", mapOf("command" to "isAirplaneModeEnabled")) {
+            when (val result = shell("cmd connectivity airplane-mode").trim()) {
+                "No shell command implementation.", "" -> {
+                    LOGGER.debug("Falling back to old airplane mode read method")
+                    when (val fallbackResult = shell("settings get global airplane_mode_on").trim()) {
+                        "0" -> false
+                        "1" -> true
+                        else -> throw IllegalStateException("Received invalid response from while trying to read airplane mode state: $fallbackResult")
+                    }
                 }
+
+                "disabled" -> false
+                "enabled" -> true
+                else -> throw IllegalStateException("Received invalid response while trying to read airplane mode state: $result")
             }
-            "disabled" -> false
-            "enabled" -> true
-            else -> throw IllegalStateException("Received invalid response while trying to read airplane mode state: $result")
         }
     }
 
     override fun setAirplaneMode(enabled: Boolean) {
-        // fallback to old way on API < 28
-        if (getDeviceApiLevel() < 28) {
-            val num = if (enabled) 1 else 0
-            shell("settings put global airplane_mode_on $num")
-            // We need to broadcast the change to really apply it
-            broadcastAirplaneMode(enabled)
-            return
+        metrics.measured("operation", mapOf("command" to "setAirplaneMode", "enabled" to enabled.toString())) {
+            // fallback to old way on API < 28
+            if (getDeviceApiLevel() < 28) {
+                val num = if (enabled) 1 else 0
+                shell("settings put global airplane_mode_on $num")
+                // We need to broadcast the change to really apply it
+                broadcastAirplaneMode(enabled)
+                return@measured
+            }
+            val value = if (enabled) "enable" else "disable"
+            shell("cmd connectivity airplane-mode $value")
         }
-        val value = if (enabled) "enable" else "disable"
-        shell("cmd connectivity airplane-mode $value")
     }
 
     override fun installApp(path: Path) {
@@ -767,9 +812,12 @@ class AndroidDriver(
     }
 
     fun setDeviceLocale(country: String, language: String): Int {
-        dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
-        val response = dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
-        return extractSetLocaleResult(response.output)
+        return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
+            dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
+            val response =
+                dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
+            extractSetLocaleResult(response.output)
+        }
     }
 
     private fun extractSetLocaleResult(result: String): Int {
@@ -991,21 +1039,23 @@ class AndroidDriver(
     }
 
     fun installMaestroDriverApp() {
-        uninstallMaestroDriverApp()
+        metrics.measured("operation", mapOf("command" to "installMaestroDriverApp")) {
+            uninstallMaestroDriverApp()
 
-        val maestroAppApk = File.createTempFile("maestro-app", ".apk")
+            val maestroAppApk = File.createTempFile("maestro-app", ".apk")
 
-        Maestro::class.java.getResourceAsStream("/maestro-app.apk")?.let {
-            val bufferedSink = maestroAppApk.sink().buffer()
-            bufferedSink.writeAll(it.source())
-            bufferedSink.flush()
+            Maestro::class.java.getResourceAsStream("/maestro-app.apk")?.let {
+                val bufferedSink = maestroAppApk.sink().buffer()
+                bufferedSink.writeAll(it.source())
+                bufferedSink.flush()
+            }
+
+            install(maestroAppApk)
+            if (!isPackageInstalled("dev.mobile.maestro")) {
+                throw IllegalStateException("dev.mobile.maestro was not installed")
+            }
+            maestroAppApk.delete()
         }
-
-        install(maestroAppApk)
-        if (!isPackageInstalled("dev.mobile.maestro")) {
-            throw IllegalStateException("dev.mobile.maestro was not installed")
-        }
-        maestroAppApk.delete()
     }
 
     private fun installMaestroServerApp() {
@@ -1032,8 +1082,10 @@ class AndroidDriver(
     }
 
     fun uninstallMaestroDriverApp() {
-        if (isPackageInstalled("dev.mobile.maestro")) {
-            uninstall("dev.mobile.maestro")
+        metrics.measured("operation", mapOf("command" to "uninstallMaestroDriverApp")) {
+            if (isPackageInstalled("dev.mobile.maestro")) {
+                uninstall("dev.mobile.maestro")
+            }
         }
     }
 

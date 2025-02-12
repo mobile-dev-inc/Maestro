@@ -1,0 +1,20 @@
+appId: com.example.example
+---
+
+# runFlow with file: isn't included since it's in the root flow
+
+- launchApp # For idempotence of sections
+
+- runFlow:
+    commands:
+      - evalScript: ${output.test = 'bar'}
+      - assertTrue: ${output.test == 'bar'}
+      - tapOn:
+          id: 'fabAddIcon'
+- assertVisible: '1'
+
+- runFlow:
+    env:
+      THIS_THING: "six"
+    commands:
+      - assertTrue: ${THIS_THING == "six"}

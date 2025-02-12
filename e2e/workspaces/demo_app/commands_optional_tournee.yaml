@@ -1,7 +1,6 @@
 # This flow is to ensure that commands with optional flag are not failing the flow.
 appId: com.example.example
 tags:
-    - android
     - passing
 ---
 - installApp: "../../apps/demo_app.apk"
@@ -30,7 +29,7 @@ tags:
     id: non-existent-id
     optional: true
 - launchApp:
-    appId: non.existend.app.id
+    appId: non.existent.app.id
     optional: true
 - tapOn:
     id: non-existent-id

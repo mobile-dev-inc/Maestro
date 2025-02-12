@@ -16,13 +16,17 @@ import util.LocalSimulatorUtils
 import util.LocalSimulatorUtils.SimctlError
 import util.SimctlList
 import java.io.File
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
-    fun startDevice(device: Device.AvailableForLaunch, driverHostPort: Int?, connectedDevices: Set<String> = setOf()): Device.Connected {
+    fun startDevice(
+        device: Device.AvailableForLaunch,
+        driverHostPort: Int?,
+        connectedDevices: Set<String> = setOf()
+    ): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
                 try {
@@ -113,38 +117,57 @@ object DeviceService {
         }
     }
 
-    fun listConnectedDevices(): List<Device.Connected> {
-        return listDevices()
-            .filterIsInstance(Device.Connected::class.java)
+    fun listConnectedDevices(
+        includeWeb: Boolean = false,
+        host: String? = null,
+        port: Int? = null,
+    ): List<Device.Connected> {
+        return listDevices(includeWeb = includeWeb, host, port)
+            .filterIsInstance<Device.Connected>()
     }
 
     fun <T : Device> List<T>.withPlatform(platform: Platform?) =
         filter { platform == null || it.platform == platform }
 
-    fun listAvailableForLaunchDevices(): List<Device.AvailableForLaunch> {
-        return listDevices()
-            .filterIsInstance(Device.AvailableForLaunch::class.java)
+    fun listAvailableForLaunchDevices(includeWeb: Boolean = false): List<Device.AvailableForLaunch> {
+        return listDevices(includeWeb = includeWeb)
+            .filterIsInstance<Device.AvailableForLaunch>()
     }
 
-    private fun listDevices(): List<Device> {
-        return listAndroidDevices() + listIOSDevices() + listWebDevices()
+    private fun listDevices(includeWeb: Boolean, host: String? = null, port: Int? = null): List<Device> {
+        return listAndroidDevices(host, port) +
+                listIOSDevices() +
+                if (includeWeb) {
+                    listWebDevices()
+                } else {
+                    listOf()
+                }
     }
 
     private fun listWebDevices(): List<Device> {
         return listOf(
-            Device.AvailableForLaunch(
+            Device.Connected(
                 platform = Platform.WEB,
                 description = "Chromium Desktop Browser (Experimental)",
-                modelId = "chromium",
-                language = null,
-                country = null,
+                instanceId = "chromium"
             )
         )
     }
 
-    private fun listAndroidDevices(): List<Device> {
+    private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
+        val host = host ?: "localhost"
+        if (port != null) {
+            val dadb = Dadb.create(host, port)
+            return listOf(
+                Device.Connected(
+                    instanceId = dadb.toString(),
+                    description = dadb.toString(),
+                    platform = Platform.ANDROID,
+                )
+            )
+        }
         val connected = runCatching {
-            Dadb.list().map {
+            Dadb.list(host = host).map {
                 Device.Connected(
                     instanceId = it.toString(),
                     description = it.toString(),
@@ -234,10 +257,17 @@ object DeviceService {
             Platform.IOS -> listIOSDevices()
                 .filterIsInstance<Device.Connected>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
+
             else -> runCatching {
                 (Dadb.list() + AdbServer.listDadbs(adbServerPort = 5038))
                     .mapNotNull { dadb -> runCatching { dadb.shell("getprop ro.kernel.qemu.avd_name").output }.getOrNull() }
-                    .map { output -> Device.Connected(instanceId = output, description = output, platform = Platform.ANDROID) }
+                    .map { output ->
+                        Device.Connected(
+                            instanceId = output,
+                            description = output,
+                            platform = Platform.ANDROID
+                        )
+                    }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
             }.getOrNull()
         }
@@ -249,11 +279,11 @@ object DeviceService {
     fun isDeviceAvailableToLaunch(deviceName: String, platform: Platform): Device.AvailableForLaunch? {
         return if (platform == Platform.IOS) {
             listIOSDevices()
-                .filterIsInstance(Device.AvailableForLaunch::class.java)
+                .filterIsInstance<Device.AvailableForLaunch>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
         } else {
             listAndroidDevices()
-                .filterIsInstance(Device.AvailableForLaunch::class.java)
+                .filterIsInstance<Device.AvailableForLaunch>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
         }
     }
@@ -316,7 +346,7 @@ object DeviceService {
         shardIndex: Int? = null,
     ): String {
         val avd = requireAvdManagerBinary()
-        val name = "${deviceName}${"_${(shardIndex ?: 0)+1}"}"
+        val name = "${deviceName}${"_${(shardIndex ?: 0) + 1}"}"
         val command = mutableListOf(
             avd.absolutePath,
             "create", "avd",

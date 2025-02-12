@@ -47,6 +47,8 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 
     class AINotAvailable(message: String) : MaestroException(message)
 
+    class CloudApiKeyNotAvailable(message: String) : MaestroException(message)
+
     class DestinationIsNotWritable(message: String) : MaestroException(message)
 
     class UnableToCopyTextFromElement(message: String): MaestroException(message)
@@ -58,10 +60,11 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
     class DeprecatedCommand(message: String) : MaestroException(message)
 
     class NoRootAccess(message: String) : MaestroException(message)
+
+    class UnsupportedJavaVersion(message: String) : MaestroException(message)
 }
 
 sealed class MaestroDriverStartupException(override val message: String): RuntimeException() {
     class AndroidDriverTimeoutException(message: String): MaestroDriverStartupException(message)
     class AndroidInstrumentationSetupFailure(message: String): MaestroDriverStartupException(message)
-    class IOSDriverTimeoutException(message: String): MaestroDriverStartupException(message)
 }

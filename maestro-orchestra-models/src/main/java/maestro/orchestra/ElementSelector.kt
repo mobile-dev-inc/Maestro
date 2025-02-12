@@ -35,6 +35,8 @@ data class ElementSelector(
     val traits: List<ElementTrait>? = null,
     val index: String? = null,
     val enabled: Boolean? = null,
+    @Deprecated("This is a deprecated field, please use the optional in commands interface")
+    val optional: Boolean = false,
     val selected: Boolean? = null,
     val checked: Boolean? = null,
     val focused: Boolean? = null,

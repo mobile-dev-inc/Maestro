@@ -1,0 +1,7 @@
+appId: com.example.example
+---
+
+- launchApp # For idempotence of sections
+
+- evalScript: ${output.test = 'foo'}
+- assertTrue: ${output.test == 'foo'}

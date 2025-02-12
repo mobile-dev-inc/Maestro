@@ -15,13 +15,15 @@ interface YamlSwipe {
     val duration: Long
     val label: String?
     val optional: Boolean
+    val waitToSettleTimeoutMs: Int?
 }
 
 data class YamlSwipeDirection(
-    val direction: SwipeDirection, 
+    val direction: SwipeDirection,
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
+    override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
 data class YamlCoordinateSwipe(
@@ -30,6 +32,7 @@ data class YamlCoordinateSwipe(
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
+    override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
 data class YamlRelativeCoordinateSwipe(
@@ -38,6 +41,7 @@ data class YamlRelativeCoordinateSwipe(
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
+    override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
 @JsonDeserialize(`as` = YamlSwipeElement::class)
@@ -48,6 +52,7 @@ data class YamlSwipeElement(
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
+    override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
 private const val DEFAULT_DURATION_IN_MILLIS = 400L
@@ -61,13 +66,14 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         val duration = getDuration(root)
         val label = getLabel(root)
         val optional = getOptional(root)
+        val waitToSettleTimeoutMs = getWaitToSettleTimeoutMs(root)
         when {
             input.contains("start") || input.contains("end") -> {
                 check(root.get("direction") == null) { "You cannot provide direction with start/end swipe." }
                 check(root.get("start") != null && root.get("end") != null) {
                     "You need to provide both start and end coordinates, to swipe with coordinates"
                 }
-                return resolveCoordinateSwipe(root, duration, label, optional)
+                return resolveCoordinateSwipe(root, duration, label, optional, waitToSettleTimeoutMs)
             }
             input.contains("direction") -> {
                 check(root.get("start") == null && root.get("end") == null) {
@@ -83,7 +89,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 }
                 val isDirectionalSwipe = isDirectionalSwipe(input)
                 return if (isDirectionalSwipe) {
-                    YamlSwipeDirection(SwipeDirection.valueOf(direction.uppercase()), duration, label, optional)
+                    YamlSwipeDirection(SwipeDirection.valueOf(direction.uppercase()), duration, label, optional, waitToSettleTimeoutMs = waitToSettleTimeoutMs)
                 } else {
                     mapper.convertValue(root, YamlSwipeElement::class.java)
                 }
@@ -100,7 +106,13 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         }
     }
 
-    private fun resolveCoordinateSwipe(root: TreeNode, duration: Long, label: String?, optional: Boolean): YamlSwipe {
+    private fun resolveCoordinateSwipe(
+        root: TreeNode,
+        duration: Long,
+        label: String?,
+        optional: Boolean,
+        waitToSettleTimeoutMs: Int?
+    ): YamlSwipe {
         when {
             isRelativeSwipe(root) -> {
                 val start = root.path("start").toString().replace("\"", "")
@@ -129,6 +141,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                     duration,
                     label,
                     optional,
+                    waitToSettleTimeoutMs = waitToSettleTimeoutMs
                 )
             }
             else -> return YamlCoordinateSwipe(
@@ -137,6 +150,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 duration,
                 label,
                 optional,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs
             )
         }
     }
@@ -161,6 +175,14 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         }
     }
 
+    private fun getWaitToSettleTimeoutMs(root: TreeNode): Int? {
+        return if (root.path("waitToSettleTimeoutMs").isMissingNode) {
+            null
+        } else {
+            root.path("waitToSettleTimeoutMs").toString().replace("\"", "").toIntOrNull()
+        }
+    }
+
     private fun getOptional(root: TreeNode): Boolean {
         return if (root.path("optional").isMissingNode) {
             false
@@ -171,6 +193,7 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
 
     private fun isDirectionalSwipe(input: List<String>): Boolean {
         return input == listOf("direction", "duration") || input == listOf("direction") ||
-                input == listOf("direction", "label") || input == listOf("direction", "duration", "label")
+                input == listOf("direction", "label") || input == listOf("direction", "duration", "label") ||
+                (input.contains("direction") && !input.contains("from"))
     }
 }

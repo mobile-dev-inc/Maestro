@@ -1,9 +1,9 @@
 package maestro.cli.util
 
-import okhttp3.OkHttpClient
+import maestro.cli.util.EnvUtils.CLI_VERSION
+import maestro.utils.HttpClient
 import okhttp3.Request
 import java.io.File
-import maestro.cli.util.EnvUtils.CLI_VERSION
 
 typealias ChangeLog = List<String>?
 
@@ -21,7 +21,7 @@ object ChangeLogUtils {
         val request = Request.Builder()
             .url("https://raw.githubusercontent.com/mobile-dev-inc/maestro/main/CHANGELOG.md")
             .build()
-        return OkHttpClient().newCall(request).execute().body?.string()
+        return HttpClient.build("ChangeLogUtils").newCall(request).execute().body?.string()
     }
 
     fun print(changelog: ChangeLog): String =

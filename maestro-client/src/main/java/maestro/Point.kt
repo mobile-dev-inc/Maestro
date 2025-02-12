@@ -41,5 +41,4 @@ data class Point(
     fun distance(other: Point): Float {
         return distance(x, y, other.x, other.y)
     }
-
 }

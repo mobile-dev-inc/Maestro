@@ -62,7 +62,7 @@
                     for (var n=0;n < allNodes.length;n++) {
                         if (allNodes[n].hasAttribute('id') && allNodes[n].id == domElement.id) uniqueIdCount++;
                         if (uniqueIdCount > 1) break;
-                    };
+                    }
                     if ( uniqueIdCount == 1) {
                         segs.unshift('id("' + domElement.getAttribute('id') + '")');
                         return segs.join('/');
@@ -73,10 +73,10 @@
                 segs.unshift(domElement.localName.toLowerCase() + '[@class="' + domElement.getAttribute('class') + '"]');
             } else {
                 for (i = 1, sib = domElement.previousSibling; sib; sib = sib.previousSibling) {
-                    if (sib.localName == domElement.localName)  i++; };
+                    if (sib.localName == domElement.localName)  i++; }
                     segs.unshift(domElement.localName.toLowerCase() + '[' + i + ']');
-            };
-        };
+            }
+        }
         return segs.length ? '/' + segs.join('/') : null;
     }
 }( window.maestro = window.maestro || {} ));

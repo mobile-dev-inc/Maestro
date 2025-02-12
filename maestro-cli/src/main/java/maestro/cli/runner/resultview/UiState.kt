@@ -8,6 +8,7 @@ sealed class UiState {
     data class Error(val message: String) : UiState()
 
     data class Running(
+        val flowName: String,
         val device: Device? = null,
         val onFlowStartCommands: List<CommandState> = emptyList(),
         val onFlowCompleteCommands: List<CommandState> = emptyList(),

@@ -1,6 +1,7 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
+import com.oracle.truffle.js.nodes.function.EvalNode
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -3168,6 +3169,88 @@ class IntegrationTest {
         driver.assertEvents(
             listOf(
                 Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, expectedDuration.toLong()),
+            )
+        )
+    }
+
+    @Test
+    fun `Case 118 - Scroll until view is visible - no negative values allowed`() {
+        // Given
+        val commands = readCommands("118_scroll_until_visible_negative")
+        val expectedDuration = "40"
+        val expectedTimeout = "20000"
+        val info = driver { }.deviceInfo()
+
+        val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+        val driver = driver {
+            element {
+                id = "maestro"
+                bounds = elementBounds
+            }
+        }
+
+        // When
+        var scrollDuration = "0"
+        var timeout = "0"
+        Maestro(driver).use {
+            orchestra(it, onCommandMetadataUpdate = { _, metaData ->
+                scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
+                timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+            }).runFlow(commands)
+        }
+
+        // Then
+        assertThat(scrollDuration).isEqualTo(expectedDuration)
+        assertThat(timeout).isEqualTo(expectedTimeout)
+        driver.assertEvents(
+            listOf(
+                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, expectedDuration.toLong()),
+            )
+        )
+    }
+
+    @Test
+    fun `Case 119 - Retry set of commands with n attempts`() {
+        // Given
+        val commands = readCommands("119_retry_commands")
+
+        var counter = 0
+        val driver = driver {
+            val indicator = element {
+                text = counter.toString()
+                bounds = Bounds(0, 100, 100, 200)
+            }
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                    counter++
+                    if (counter == 1) {
+                        throw RuntimeException("Exception for the first time")
+                    }
+                    indicator.text = counter.toString()
+                }
+            }
+
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.Scroll,
+                Event.TakeScreenshot,
+                /**----after retry----**/
+                Event.Scroll,
+                Event.TakeScreenshot,
+                Event.Tap(Point(50, 50)),
+                Event.Scroll,
             )
         )
     }

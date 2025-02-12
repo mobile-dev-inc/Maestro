@@ -2,7 +2,7 @@ package maestro.mockserver
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import okhttp3.OkHttpClient
+import maestro.utils.HttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import java.nio.file.Paths
@@ -12,6 +12,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
 import kotlin.math.max
+import kotlin.time.Duration.Companion.minutes
 
 data class Auth(
     val teamId: UUID,
@@ -38,13 +39,13 @@ data class GetEventsResponse(
     val events: List<MockEvent>
 )
 
-class MockInteractor(
-) {
-    private val client = OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .writeTimeout(5, TimeUnit.MINUTES)
-        .protocols(listOf(Protocol.HTTP_1_1))
-        .build()
+class MockInteractor {
+    private val client = HttpClient.build(
+        name = "MockInteractor",
+        readTimeout = 5.minutes,
+        writeTimeout = 5.minutes,
+        protocols = listOf(Protocol.HTTP_1_1)
+    )
 
     fun getCachedAuthToken(): String? {
         if (!System.getProperty("MAESTRO_CLOUD_API_KEY").isNullOrEmpty()) return System.getProperty("MAESTRO_CLOUD_API_KEY")
@@ -112,7 +113,7 @@ class MockInteractor(
     companion object {
         private val API_URL by lazy {
             if (System.getProperty("MAESTRO_CLOUD_API_URL").isNullOrEmpty()) {
-                "https://api.mobile.dev"
+                "https://api.copilot.mobile.dev"
             } else {
                 System.getProperty("MAESTRO_CLOUD_API_URL")
             }

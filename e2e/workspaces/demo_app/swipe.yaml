@@ -1,6 +1,5 @@
 appId: com.example.example
 tags:
-    - android
     - passing
 ---
 - installApp: "../../apps/demo_app.apk"

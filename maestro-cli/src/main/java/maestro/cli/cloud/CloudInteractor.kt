@@ -2,20 +2,23 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
-import maestro.cli.api.RobinUploadResponse
-import maestro.cli.api.DeviceInfo
-import maestro.cli.api.UploadStatus
 import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.DeviceInfo
 import maestro.cli.api.MaestroCloudUploadResponse
+import maestro.cli.api.RobinUploadResponse
+import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
-import maestro.cli.model.RunningFlow
+import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
+import maestro.cli.model.RunningFlow
 import maestro.cli.model.RunningFlows
 import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
 import maestro.cli.util.EnvUtils
+import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
@@ -23,8 +26,10 @@ import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
+import maestro.cli.view.TestSuiteStatusView.robinUploadUrl
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
+import maestro.cli.web.WebInteractor
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -32,6 +37,8 @@ import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
+import java.nio.file.Path
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 
@@ -70,16 +77,13 @@ class CloudInteractor(
         deviceLocale: String? = null,
         projectId: String? = null,
     ): Int {
-        if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
+        if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (appFile?.toPath()?.startsWith(flowFile.toPath().absolute())?.not() == true) throw CliError("App file does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
-        val authToken = apiKey              // Check for API key
-            ?: auth.getCachedAuthToken()    // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.maestroCloudApiKey()        // Resolve API key from shell if set
-            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
+        val authToken = getAuthToken(apiKey)
 
         PrintUtils.message("Uploading Flow(s)...")
 
@@ -103,6 +107,8 @@ class CloudInteractor(
                     @Suppress("RemoveRedundantSpreadOperator")
                     archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
                 }
+            } else if (flowFile.isWebFlow()) {
+                appFileToSend = WebInteractor.createManifestFromWorkspace(flowFile)
             }
 
             val response = client.upload(
@@ -135,9 +141,9 @@ class CloudInteractor(
                     println()
                     val project = requireNotNull(projectId)
                     val appId = response.appId
-                    val uploadUrl = uploadUrl(project, appId, client.domain)
-                    val deviceMessage = if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
-                    val appBinaryIdResponseId = if (appBinaryId != null) response.appBinaryId else null
+                    val uploadUrl = robinUploadUrl(project, appId, response.uploadId, client.domain)
+                    val deviceMessage =
+                        if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
                     return printMaestroCloudResponse(
                         async,
                         authToken,
@@ -148,11 +154,12 @@ class CloudInteractor(
                         uploadUrl,
                         deviceMessage,
                         appId,
-                        appBinaryIdResponseId,
+                        response.appBinaryId,
                         response.uploadId,
                         projectId,
                     )
                 }
+
                 is MaestroCloudUploadResponse -> {
                     println()
                     val deviceInfo = response.deviceInfo
@@ -161,12 +168,13 @@ class CloudInteractor(
                     val uploadId = response.uploadId
                     val appBinaryIdResponse = response.appBinaryId
                     val uploadUrl = uploadUrl(uploadId, teamId, appId, client.domain)
-                    val deviceInfoMessage = if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel) else ""
+                    val deviceInfoMessage =
+                        if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel) else ""
                     return printMaestroCloudResponse(
                         async = async,
                         authToken = authToken,
                         failOnCancellation = failOnCancellation,
-                        reportFormat= reportFormat,
+                        reportFormat = reportFormat,
                         reportOutput = reportOutput,
                         testSuiteName = testSuiteName,
                         uploadUrl = uploadUrl,
@@ -236,29 +244,35 @@ class CloudInteractor(
         val platform = Platform.fromString(deviceInfo.platform)
 
         val line1 = "Maestro Cloud device specs:\n* ${deviceInfo.displayInfo} - ${deviceInfo.deviceLocale}"
-        val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+        val line2 =
+            "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
         val line3 = "To change device locale use this option: --device-locale=<device_locale>"
 
-        val version = when(platform) {
+        val version = when (platform) {
             Platform.ANDROID -> "${androidApiLevel ?: 30}" // todo change with constant from DeviceConfigAndroid
             Platform.IOS -> "${iOSVersion ?: 15}" // todo change with constant from DeviceConfigIos
             else -> return ""
         }
 
-        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
+        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${
+            platform.toString().lowercase()
+        } --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
         return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
     }
 
     private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
 
-        val line1 = "Maestro Cloud device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}"
-        val line2 = "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
+        val line1 = "Robin device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}"
+        val line2 =
+            "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
         val line3 = "To change device locale use this option: --device-locale=<device_locale>"
 
         val version = deviceConfiguration.osVersion
 
-        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${platform.toString().lowercase()} --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
+        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${
+            platform.toString().lowercase()
+        } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
         return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
     }
 
@@ -310,15 +324,21 @@ class CloudInteractor(
                 val runningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name } ?: continue
                 runningFlow.status = uploadFlowResult.status
                 when (runningFlow.status) {
-                    UploadStatus.Status.PENDING -> { /* do nothing */ }
-                    UploadStatus.Status.RUNNING -> {
+                    FlowStatus.PENDING -> { /* do nothing */
+                    }
+
+                    FlowStatus.RUNNING -> {
                         if (runningFlow.startTime == null) {
                             runningFlow.startTime = System.currentTimeMillis()
                         }
                     }
+
                     else -> {
                         if (runningFlow.duration == null) {
-                            runningFlow.duration = TimeUtils.durationInSeconds(startTimeInMillis = runningFlow.startTime, endTimeInMillis = System.currentTimeMillis())
+                            runningFlow.duration = TimeUtils.durationInSeconds(
+                                startTimeInMillis = runningFlow.startTime,
+                                endTimeInMillis = System.currentTimeMillis()
+                            )
                         }
                         if (!runningFlow.reported) {
                             TestSuiteStatusView.showFlowCompletion(
@@ -331,7 +351,10 @@ class CloudInteractor(
             }
 
             if (upload.completed) {
-                runningFlows.duration = TimeUtils.durationInSeconds(startTimeInMillis = startTime, endTimeInMillis = System.currentTimeMillis())
+                runningFlows.duration = TimeUtils.durationInSeconds(
+                    startTimeInMillis = startTime,
+                    endTimeInMillis = System.currentTimeMillis()
+                )
                 return handleSyncUploadCompletion(
                     upload = upload,
                     runningFlows = runningFlows,
@@ -392,7 +415,7 @@ class CloudInteractor(
         val isCancelled = upload.status == UploadStatus.Status.CANCELED
         val isFailure = upload.status == UploadStatus.Status.ERROR
         val containsFailure =
-            upload.flows.find { it.status == UploadStatus.Status.ERROR } != null // status can be cancelled but also contain flow with failure
+            upload.flows.find { it.status == FlowStatus.ERROR } != null // status can be cancelled but also contain flow with failure
 
         val failed = isFailure || containsFailure || isCancelled && failOnCancellation
 
@@ -404,7 +427,13 @@ class CloudInteractor(
             }
 
         if (reportOutputSink != null) {
-            saveReport(reportFormat, !failed, createSuiteResult(!failed, upload, runningFlows), reportOutputSink, testSuiteName)
+            saveReport(
+                reportFormat,
+                !failed,
+                createSuiteResult(!failed, upload, runningFlows),
+                reportOutputSink,
+                testSuiteName
+            )
         }
 
 
@@ -440,7 +469,11 @@ class CloudInteractor(
             )
     }
 
-    private fun createSuiteResult(passed: Boolean, upload: UploadStatus, runningFlows: RunningFlows): TestExecutionSummary.SuiteResult {
+    private fun createSuiteResult(
+        passed: Boolean,
+        upload: UploadStatus,
+        runningFlows: RunningFlows
+    ): TestExecutionSummary.SuiteResult {
         return TestExecutionSummary.SuiteResult(
             passed = passed,
             flows = upload.flows.map { uploadFlowResult ->
@@ -448,12 +481,52 @@ class CloudInteractor(
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
-                    status = FlowStatus.from(uploadFlowResult.status),
+                    status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
                     duration = runningFlows.flows.find { it.name == uploadFlowResult.name }?.duration
                 )
             },
             duration = runningFlows.duration
         )
+    }
+
+    private fun getAuthToken(apiKey: String?): String {
+        return apiKey // Check for API key
+            ?: auth.getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
+            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
+    }
+
+    fun analyze(
+        apiKey: String?,
+        debugFiles: AnalysisDebugFiles,
+        debugOutputPath: Path,
+    ): Int {
+        val authToken = getAuthToken(apiKey)
+
+        PrintUtils.info("\n\uD83D\uDD0E Analyzing Flow(s)...")
+
+        try {
+            val response = client.analyze(authToken, debugFiles)
+
+            if (response.htmlReport.isNullOrEmpty()) {
+                PrintUtils.info(response.output)
+                return 0
+            }
+
+            val outputFilePath = HtmlInsightsAnalysisReporter().report(response.htmlReport, debugOutputPath)
+            val os = System.getProperty("os.name").lowercase(Locale.getDefault())
+
+            val formattedOutput = response.output.replace(
+                "{{outputFilePath}}",
+                "file:${if (os.contains("win")) "///" else "//"}${outputFilePath}\n"
+            )
+
+            PrintUtils.info(formattedOutput);
+            return 0;
+        } catch (error: CliError) {
+            PrintUtils.err("Unexpected error while analyzing Flow(s): ${error.message}")
+            return 1
+        }
     }
 }

@@ -1,0 +1,13 @@
+appId: com.example.example
+---
+- launchApp # For idempotence of sections
+
+- evalScript: ${maestro.copiedText = 'foo'}
+- tapOn: 'Input Test'
+- tapOn:
+    id: 'textInput'
+- inputText: 'foo'
+- copyTextFrom:
+    id: 'textInput'
+- pasteText
+- assertVisible: 'foofoo'
