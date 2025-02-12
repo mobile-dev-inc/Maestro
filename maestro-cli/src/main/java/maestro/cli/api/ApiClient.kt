@@ -83,7 +83,7 @@ class ApiClient(
     fun getLatestCliVersion(): CliVersion {
         val request = Request.Builder()
             .header("X-FRESH-INSTALL", if (!Analytics.hasRunBefore) "true" else "false")
-            .url("$baseUrl/maestro/version")
+            .url("https://raw.githubusercontent.com/rasyid7/maestro/main/version")
             .get()
             .build()
 

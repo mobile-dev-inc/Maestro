@@ -89,9 +89,9 @@ mkdir -p "$maestro_tmp_folder"
 
 
 if [ -z "$MAESTRO_VERSION" ]; then
-    download_url="https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip"
+    download_url="https://github.com/rasyid7/maestro/releases/latest/download/maestro.zip"
 else
-    download_url="https://github.com/mobile-dev-inc/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
+    download_url="https://github.com/rasyid7/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
 fi
 
 maestro_zip_file="${maestro_tmp_folder}/maestro.zip"
