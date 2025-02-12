@@ -151,7 +151,7 @@ class ApiClient(
         projectId: String?,
     ): UploadStatus {
         val baseUrl = if (projectId != null) {
-            "$baseUrl/upload/$uploadId"
+            "$baseUrl/v2/project/$projectId/upload/$uploadId"
         } else {
             "$baseUrl/v2/upload/$uploadId/status?includeErrors=true"
         }
@@ -328,11 +328,12 @@ class ApiClient(
                 appBinaryId = appBinaryId,
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
+                projectId = projectId,
             )
         }
 
         val url = if (projectId != null) {
-            "$baseUrl/runMaestroTest"
+            "$baseUrl/v2/project/$projectId/runMaestroTest"
         } else {
             "$baseUrl/v2/upload"
         }
