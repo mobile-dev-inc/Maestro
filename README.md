@@ -20,7 +20,7 @@ Maestro is built on learnings from its predecessors (Appium, Espresso, UIAutomat
 
 ### Documentation
 
-**Available at [maestro.mobile.dev](https://maestro.mobile.dev)**
+**Available at [docs.maestro.dev](https://docs.maestro.dev)**
 
 To get more background on why we built Maestro, read [the Maestro announcement blogpost][blogpost].
 
@@ -35,8 +35,6 @@ Maestro is an open-source project and we love getting contributions.
 To get started, take a look at [issues with the `good first issue` label][good first issues] and [the contributing guide](./CONTRIBUTING.md).
 
 ### Built by
-
-[mobile.dev](https://www.mobile.dev)
 
 ![](./logo.png)
 
