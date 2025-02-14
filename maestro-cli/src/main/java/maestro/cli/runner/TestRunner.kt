@@ -19,6 +19,8 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -52,9 +54,13 @@ object TestRunner {
             flowFile = flowFile,
         )
 
+        val updatedEnv = env
+            .withInjectedShellEnvVars()
+            .withDefaultEnvVars(flowFile)
+
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(env)
+                .withEnv(updatedEnv)
 
             val flowName = YamlCommandReader.getConfig(commands)?.name
             if (flowName != null) {
@@ -112,9 +118,13 @@ object TestRunner {
                     join()
                 }
 
+                val updatedEnv = env
+                    .withInjectedShellEnvVars()
+                    .withDefaultEnvVars(flowFile)
+
                 val commands = YamlCommandReader
                     .readCommands(flowFile.toPath())
-                    .withEnv(env)
+                    .withEnv(updatedEnv)
 
                 val flowName = YamlCommandReader.getConfig(commands)?.name
 
