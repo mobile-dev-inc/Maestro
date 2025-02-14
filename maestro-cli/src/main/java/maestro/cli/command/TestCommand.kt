@@ -46,8 +46,6 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.box
 import maestro.orchestra.error.ValidationError
-import maestro.orchestra.util.Env.withDefaultEnvVars
-import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -374,10 +372,6 @@ class TestCommand : Callable<Int> {
             } else {
                 PlainTextResultView()
             }
-
-        env = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile)
 
         val resultSingle = TestRunner.runSingle(
             maestro = maestro,
