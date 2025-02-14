@@ -245,7 +245,7 @@ class XCTestDriverClient(
         pathString: String,
         responseBodyAsString: String,
     ): String {
-        logger.warn("Status code: $code, body: $responseBodyAsString");
+        logger.warn("XCTestDriver request failed. Status code: $code, path: $pathString, body: $responseBodyAsString");
         val error = try {
             mapper.readValue(responseBodyAsString, Error::class.java)
         } catch (_: JsonProcessingException) {
