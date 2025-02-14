@@ -1,5 +1,6 @@
 package xcuitest
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import hierarchy.ViewHierarchy
 import maestro.utils.HttpClient
@@ -245,7 +246,11 @@ class XCTestDriverClient(
         responseBodyAsString: String,
     ): String {
         logger.warn("Status code: $code, body: $responseBodyAsString");
-        val error = mapper.readValue(responseBodyAsString, Error::class.java)
+        val error = try {
+            mapper.readValue(responseBodyAsString, Error::class.java)
+        } catch (_: JsonProcessingException) {
+            Error("Unable to parse error", "unknown")
+        }
         when {
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
