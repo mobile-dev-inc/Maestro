@@ -12,6 +12,8 @@ import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
 
@@ -19,7 +21,10 @@ object LocalSimulatorUtils {
 
     data class SimctlError(override val message: String) : Throwable(message)
 
+    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private val homedir = System.getProperty("user.home")
+    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
+    private val date = dateFormatter.format(LocalDateTime.now())
 
     private val logger = LoggerFactory.getLogger(LocalSimulatorUtils::class.java)
 
@@ -340,16 +345,20 @@ object LocalSimulatorUtils {
         deviceId: String,
         port: Int,
     ) {
+        val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
         runCommand(
             listOf(
                 "xcrun",
                 "simctl",
                 "launch",
+                "--console",
                 "--terminate-running-process",
                 deviceId,
                 "dev.mobile.maestro-driver-iosUITests.xctrunner"
             ),
-            params = mapOf("SIMCTL_CHILD_PORT" to port.toString())
+            params = mapOf("SIMCTL_CHILD_PORT" to port.toString()),
+            outputFile = outputFile,
+            waitForCompletion = false,
         )
     }
 
