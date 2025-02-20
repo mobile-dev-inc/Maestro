@@ -20,7 +20,7 @@ object CommandLineUtils {
         val processBuilder = if (outputFile != null) {
             ProcessBuilder(*parts.toTypedArray())
                 .redirectOutput(outputFile)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .redirectError(outputFile)
         } else {
             ProcessBuilder(*parts.toTypedArray())
                 .redirectOutput(nullFile)
