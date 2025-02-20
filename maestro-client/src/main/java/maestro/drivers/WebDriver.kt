@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.Duration
 import java.util.*
+import maestro.UiElement
 
 
 class WebDriver(
@@ -83,7 +84,7 @@ class WebDriver(
         return seleniumDriver ?: error("Driver is not open")
     }
 
-    private fun executeJS(js: String): Any? {
+    private fun executeJS(js: String, vararg args: Any?): Any? {
         val executor = seleniumDriver as JavascriptExecutor
 
         try {
@@ -94,10 +95,10 @@ class WebDriver(
             }
 
             Thread.sleep(100)
-            return executor.executeScript(js)
+            return executor.executeScript(js, *args)
         } catch (e: Exception) {
             if (e.message?.contains("getContentDescription") == true) {
-                return executeJS(js)
+                return executeJS(js, *args)
             }
             return null
         }
@@ -190,9 +191,6 @@ class WebDriver(
 
         detectWindowChange()
 
-        // retrieve view hierarchy from DOM
-        // There are edge cases where executeJS returns null, and we cannot get the hierarchy. In this situation
-        // we retry multiple times until throwing an error eventually. (See issue #1936)
         var contentDesc: Any? = null
         var retry = 0
         while (contentDesc == null) {
@@ -205,10 +203,10 @@ class WebDriver(
             }
         }
 
-        // parse into TreeNodes
+        // Parse into TreeNodes with shadow DOM support
         fun parse(domRepresentation: Map<String, Any>): TreeNode {
             val attrs = domRepresentation["attributes"] as Map<String, Any>
-
+            
             val attributes = mutableMapOf(
                 "text" to attrs["text"] as String,
                 "bounds" to attrs["bounds"] as String,
@@ -216,8 +214,11 @@ class WebDriver(
             if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
                 attributes["resource-id"] = attrs["resource-id"] as String
             }
+            if (attrs.containsKey("has-shadow-root")) {
+                attributes["has-shadow-root"] = attrs["has-shadow-root"].toString()
+            }
+            
             val children = domRepresentation["children"] as List<Map<String, Any>>
-
             return TreeNode(attributes = attributes, children = children.map { parse(it) })
         }
 
@@ -472,6 +473,34 @@ class WebDriver(
 
     override fun setAirplaneMode(enabled: Boolean) {
         // Do nothing
+    }
+
+    // Add method to handle shadow DOM elements
+    private fun handleShadowDOM(element: UiElement): UiElement {
+        val driver = ensureOpen()
+        
+        // If element has shadow root, get its content
+        if (element.attributes["has-shadow-root"] == "true") {
+            val shadowRoot = executeJS(
+                "return arguments[0].shadowRoot", 
+                element.nativeElement
+            )
+            
+            // Update element with shadow DOM content
+            if (shadowRoot != null) {
+                // Merge shadow DOM content with regular content
+                val shadowContent = executeJS(
+                    "return window.maestro.getContentDescription(arguments[0])", 
+                    shadowRoot
+                )
+                if (shadowContent != null) {
+                    // Merge the shadow DOM content with the element's existing content
+                    element.children.addAll((shadowContent as Map<String, Any>)["children"] as List<TreeNode>)
+                }
+            }
+        }
+        
+        return element
     }
 
     companion object {
