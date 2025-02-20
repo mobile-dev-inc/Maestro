@@ -320,7 +320,6 @@ class Maestro(
             }
         }
     }
-    
 
     private fun screenshotBasedTap(
         x: Int,
