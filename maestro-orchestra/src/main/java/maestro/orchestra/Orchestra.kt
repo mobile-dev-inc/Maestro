@@ -372,6 +372,7 @@ class Orchestra(
 
         val defects = Prediction.findDefects(
             apiKey = apiKey,
+            aiClient = ai,
             screen = imageData.copy().readByteArray(),
         )
 
@@ -404,6 +405,7 @@ class Orchestra(
 
         val defect = Prediction.performAssertion(
             apiKey = apiKey,
+            aiClient = ai,
             assertion = command.assertion,
             screen = imageData.copy().readByteArray(),
         )
@@ -432,6 +434,7 @@ class Orchestra(
         maestro.takeScreenshot(imageData, compressed = false)
         val text = Prediction.extractText(
             apiKey = apiKey,
+            aiClient = ai,
             query = command.query,
             screen = imageData.copy().readByteArray(),
         )
