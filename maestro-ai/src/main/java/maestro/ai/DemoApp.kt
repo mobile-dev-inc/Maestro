@@ -130,10 +130,12 @@ class DemoApp : CliktCommand() {
             val job = async {
                 val defects = if (testCase.prompt == null) Prediction.findDefects(
                     apiKey = cloudApiKey,
+                    aiClient = aiClient,
                     screen = bytes,
                 ) else {
                     val result = Prediction.performAssertion(
                         apiKey = cloudApiKey,
+                        aiClient = aiClient,
                         screen = bytes,
                         assertion = testCase.prompt,
                     )
