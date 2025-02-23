@@ -50,7 +50,7 @@ class ApiClient {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    val httpClient = HttpClient {
+    private val httpClient = HttpClient {
         install(ContentNegotiation) {
             Json {
                 ignoreUnknownKeys = true
