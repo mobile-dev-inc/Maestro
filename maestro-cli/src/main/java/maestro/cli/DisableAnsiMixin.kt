@@ -40,9 +40,12 @@ class DisableAnsiMixin {
             val parserWithANSIOption = findFirstParserWithMatchedParamLabel(parseResult, "<enableANSIOutput>")
             val mixin = parserWithANSIOption?.commandSpec()?.mixins()?.values?.firstNotNullOfOrNull { it.userObject() as? DisableAnsiMixin }
 
-            val stdoutIsTTY = CLibrary.isatty(CLibrary.STDOUT_FILENO) != 0
+            // Instead of using CLibrary.isatty, use environment variables to detect terminal
+            val forceDisable = System.getenv("MAESTRO_DISABLE_ANSI")?.toBoolean() ?: false
+            val isTTY = !forceDisable && System.getenv("TERM") != null
+
             ansiEnabled = mixin?.enableANSIOutput // Use the param value if it was specified
-                ?: stdoutIsTTY // Otherwise fall back to checking if output is a tty
+                ?: isTTY // Otherwise fall back to checking environment
 
             Ansi.setEnabled(ansiEnabled)
 
