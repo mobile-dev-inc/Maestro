@@ -1,7 +1,6 @@
 package maestro.cli.command
 
 import maestro.cli.App
-import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.report.TestDebugReporter
@@ -13,7 +12,6 @@ import maestro.cli.view.faint
 import maestro.studio.MaestroStudio
 import picocli.CommandLine
 import java.awt.Desktop
-import java.net.ServerSocket
 import java.net.URI
 import java.util.concurrent.Callable
 import maestro.cli.util.getFreePort
@@ -46,6 +44,13 @@ class StudioCommand : Callable<Int> {
     )
     private var noWindow: Boolean? = null
 
+    @CommandLine.Option(
+        names = ["--android-webview-hierarchy"],
+        description = ["Set to \"devtools\" to use Chrome dev tools for Android WebView hierarchy"],
+        hidden = true,
+    )
+    private var androidWebViewHierarchy: String? = null
+
     override fun call(): Int {
 
         TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
@@ -58,6 +63,8 @@ class StudioCommand : Callable<Int> {
             platform = parent?.platform,
             isStudio = true
         ) { session ->
+            session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
+
             val port = getFreePort()
             MaestroStudio.start(port, session.maestro)
 

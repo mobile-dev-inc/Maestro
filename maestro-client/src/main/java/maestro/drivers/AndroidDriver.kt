@@ -34,6 +34,7 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
+import maestro.android.chromedevtools.DadbChromeDevToolsClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -53,6 +54,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -80,6 +82,8 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
+
+    private var chromeDevToolsEnabled = false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -333,7 +337,17 @@ class AndroidDriver(
                 .newDocumentBuilder()
                 .parse(response.hierarchy.byteInputStream())
 
-            val treeNode = mapHierarchy(document)
+            val useChromeDevToolsOut = AtomicBoolean()
+            val baseTree = mapHierarchy(document, useChromeDevToolsOut)
+
+            val treeNode = if (chromeDevToolsEnabled && useChromeDevToolsOut.get()) {
+                // TODO: Adapt to handle chrome in the same way
+                val webViewTree = DadbChromeDevToolsClient(dadb).getWebViewTreeNodes()
+                TreeNode(children = listOf(baseTree) + webViewTree)
+            } else {
+                baseTree
+            }
+
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode
             } else {
@@ -818,6 +832,10 @@ class AndroidDriver(
         }
     }
 
+    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
+        this.chromeDevToolsEnabled = enabled
+    }
+
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
             dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
@@ -958,7 +976,7 @@ class AndroidDriver(
         }
     }
 
-    private fun mapHierarchy(node: Node): TreeNode {
+    private fun mapHierarchy(node: Node, useChromeDevToolsOut: AtomicBoolean): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()
 
@@ -1022,10 +1040,15 @@ class AndroidDriver(
             emptyMap()
         }
 
+        if (chromeDevToolsEnabled && attributes["class"] == "android.webkit.WebView") {
+            useChromeDevToolsOut.set(true)
+            return TreeNode(attributes = attributes.toMutableMap())
+        }
+
         val children = mutableListOf<TreeNode>()
         val childNodes = node.childNodes
         (0 until childNodes.length).forEach { i ->
-            children += mapHierarchy(childNodes.item(i))
+            children += mapHierarchy(childNodes.item(i), useChromeDevToolsOut)
         }
 
         return TreeNode(
