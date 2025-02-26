@@ -1,0 +1,14 @@
+appId: org.wikipedia
+---
+- tapOn: "More"
+- tapOn: "LOG IN.*"
+- tapOn:
+    id: ".*create_account_login_button"
+- runScript: "../scripts/fetchTestUser.js"
+- tapOn: "Username"
+- inputText: "${output.test_user.username}"
+- tapOn: "Password"
+- inputText: "No provided"
+- tapOn: "LOG IN"
+- back
+- back
