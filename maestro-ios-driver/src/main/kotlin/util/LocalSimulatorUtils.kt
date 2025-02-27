@@ -354,7 +354,7 @@ object LocalSimulatorUtils {
                 "--console",
                 "--terminate-running-process",
                 deviceId,
-                "dev.mobile.maestro-driver-iosUITests.xctrunner"
+                "dev.mobile.maestro-driver-iosOfficial.xctrunner"
             ),
             params = mapOf("SIMCTL_CHILD_PORT" to port.toString()),
             outputFile = outputFile,
