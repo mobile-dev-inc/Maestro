@@ -47,6 +47,23 @@ sealed interface CompositeCommand : Command {
     fun config(): MaestroConfig?
 }
 
+data class AssertVisualCommand(
+    val baseline: String,
+    val thresholdPercentage: Int,
+    override val optional: Boolean = false,
+    override val label: String? = null,
+) : Command {
+    override fun description(): String {
+        return label ?: "Assert visual difference with baseline $baseline (threshold: $thresholdPercentage%)"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            baseline = baseline.evaluateScripts(jsEngine)
+        )
+    }
+}
+
 data class SwipeCommand(
     val direction: SwipeDirection? = null,
     val startPoint: Point? = null,
