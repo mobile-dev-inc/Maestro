@@ -42,8 +42,8 @@ import kotlin.io.path.absolutePathString
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Test a Flow or set of Flows on Maestro Cloud (https://cloud.mobile.dev)",
-        "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in Maestro Cloud",
+        "Test a Flow or set of Flows on Robin (https://robintest.com)",
+        "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in Robin",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
 )
