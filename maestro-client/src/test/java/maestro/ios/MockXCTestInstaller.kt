@@ -14,7 +14,7 @@ class MockXCTestInstaller(
     override fun start(): XCTestClient {
         attempts++
         for (i in 0..simulator.installationRetryCount) {
-            assertThat(simulator.runningApps()).doesNotContain("dev.mobile.maestro-driver-iosUITests.xctrunner")
+            assertThat(simulator.runningApps()).doesNotContain("dev.mobile.maestro-driver-iosOfficial.xctrunner")
         }
         simulator.installXCTestDriver()
         return XCTestClient("localhost", 22807)
@@ -46,10 +46,10 @@ class MockXCTestInstaller(
 
         fun runningApps() = runningApps
 
-        fun isXCTestRunnerAlive() = runningApps.contains("dev.mobile.maestro-driver-iosUITests.xctrunner")
+        fun isXCTestRunnerAlive() = runningApps.contains("dev.mobile.maestro-driver-iosOfficial.xctrunner")
 
         fun uninstallXCTestDriver() = runningApps.clear()
 
-        fun installXCTestDriver() = runningApps.add("dev.mobile.maestro-driver-iosUITests.xctrunner")
+        fun installXCTestDriver() = runningApps.add("dev.mobile.maestro-driver-iosOfficial.xctrunner")
     }
 }
