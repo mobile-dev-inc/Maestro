@@ -76,6 +76,8 @@ class CloudInteractor(
         disableNotifications: Boolean = false,
         deviceLocale: String? = null,
         projectId: String? = null,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
     ): Int {
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
@@ -132,7 +134,9 @@ class CloudInteractor(
                 projectId = projectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
-                }
+                },
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
             )
 
             when (response) {
