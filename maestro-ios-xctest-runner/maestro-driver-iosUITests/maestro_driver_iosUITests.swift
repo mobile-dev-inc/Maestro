@@ -43,6 +43,13 @@ final class maestro_driver_iosUITests: XCTestCase {
         maestro_driver_iosUITests.logger.info("Will start HTTP server")
         try await server.start()
     }
+    
+    func testSomething() async throws {
+        let s = try! await XCUIApplication(bundleIdentifier: "de.komoot.berlinbikeapp")
+        let snap = s.snapshot().dictionaryRepresentation
+        
+        print(snap)
+    }
 
     override class func tearDown() {
         logger.trace("tearDown")
