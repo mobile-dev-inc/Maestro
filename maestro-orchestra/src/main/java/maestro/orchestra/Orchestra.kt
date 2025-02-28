@@ -21,6 +21,9 @@ package maestro.orchestra
 
 import com.github.romankh3.image.comparison.ImageComparison
 import com.github.romankh3.image.comparison.model.ImageComparisonState
+import com.groupdocs.merger.Merger
+import com.groupdocs.merger.domain.options.ImageJoinMode
+import com.groupdocs.merger.domain.options.ImageJoinOptions
 import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
@@ -823,7 +826,7 @@ class Orchestra(
             ?.let { File(it, pathStr) }
             ?: File(pathStr)
 
-        maestro.takeScreenshot(file, false)
+        maestro.takeScreenshot(file.sink(), false)
 
         return false
     }
@@ -926,12 +929,25 @@ class Orchestra(
     }
 
     private fun assertVisualCommand(command: AssertVisualCommand): Boolean {
+
+
+//        val pathStr = command.path + ".png"
+//        val file = screenshotsDir
+//            ?.let { File(it, pathStr) }
+//            ?: File(pathStr)
+//
+//        maestro.takeScreenshot(file.sink(), false)
+
+
         val baseline = command.baseline + ".png"
-        val thresholdDifferencePercentage = (100 - command.thresholdPercentage).toDouble()
 
-        val screenshotsDir = File(".maestro/visual_regression").apply { mkdirs() }
+//        val screenshotsDir = File(".maestro/visual_regression").apply { mkdirs() }
 
-        val actual = File(screenshotsDir, baseline)
+//        val actual = File("visual_regression", baseline)
+
+        val actual = screenshotsDir
+            ?.let { File(it, baseline) }
+            ?: File(baseline)
 
         val expected = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
@@ -946,11 +962,12 @@ class Orchestra(
 
         val photoNow: BufferedImage = ImageIO.read(expected)
         val oldPhoto: BufferedImage = ImageIO.read(actual)
-        val failedRegressionDir = File(".maestro/failed_visual_regression").apply { mkdirs() }
+        val failedRegressionDir = File("failed_visual_regression").apply { mkdirs() }
         val regressionFailedFile = File(failedRegressionDir, baseline)
         val comparison =
             ImageComparison(photoNow, oldPhoto, regressionFailedFile)
 
+        val thresholdDifferencePercentage = (100 - command.thresholdPercentage).toDouble()
         comparison.apply {
             allowingPercentOfDifferentPixels = thresholdDifferencePercentage
             rectangleLineWidth = 10
@@ -961,12 +978,19 @@ class Orchestra(
         val comparisonState = comparison.compareImages()
 
         if (ImageComparisonState.MISMATCH === comparisonState.imageComparisonState) {
+            val merger = Merger(actual.inputStream())
+            var joinOptions = ImageJoinOptions(ImageJoinMode.Horizontal);
+            merger.join(regressionFailedFile.inputStream(), joinOptions);
+            joinOptions = ImageJoinOptions(ImageJoinMode.Horizontal);
+            merger.join(expected.inputStream(), joinOptions);
+            merger.save("failed_visual_regression.png");
+
             throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}",
                 hierarchyRoot = maestro.viewHierarchy().root,
             )
         }
-        return true
+        return false
     }
 
     private fun tapOnElement(

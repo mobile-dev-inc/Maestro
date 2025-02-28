@@ -18,6 +18,7 @@ dependencies {
     api(libs.jackson.core.databind)
     api(libs.jackson.module.kotlin)
     api(libs.jackson.dataformat.yaml)
+    api(libs.groupdocs.merger)
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit.jupiter.api)

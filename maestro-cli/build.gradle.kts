@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jreleaser.model.Active.ALWAYS
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jreleaser.model.Stereotype
@@ -35,6 +36,8 @@ tasks.named<CreateStartScripts>("startScripts") {
     classpath = files("$buildDir/libs/*")
 }
 
+tasks.withType<ShadowJar> { isZip64 = true }
+
 dependencies {
     implementation(project(path = ":maestro-utils"))
     annotationProcessor(libs.picocli.codegen)
@@ -71,6 +74,7 @@ dependencies {
     implementation(libs.skiko.linux.x64)
     implementation(libs.skiko.windows.arm64)
     implementation(libs.skiko.windows.x64)
+    implementation(libs.groupdocs.merger)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
