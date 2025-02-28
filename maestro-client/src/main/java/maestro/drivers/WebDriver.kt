@@ -31,6 +31,7 @@ import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.WebDriverWait
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Path
 import java.time.Duration
 import java.util.*
 
@@ -466,12 +467,14 @@ class WebDriver(
         // noop for web
     }
 
-    override fun isAirplaneModeEnabled(): Boolean {
-        return false;
-    }
+    override fun isAirplaneModeEnabled(): Boolean = false
 
     override fun setAirplaneMode(enabled: Boolean) {
-        // Do nothing
+        // noop for web
+    }
+
+    override fun installApp(path: Path) {
+        // noop for web
     }
 
     companion object {
