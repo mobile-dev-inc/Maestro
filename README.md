@@ -1,4 +1,5 @@
-[<img src="./assets/run-on-robin.png" width="300px"/>](https://robintest.com/)
+> [!TIP]
+> Ready to wire into CI or scale up your testing? [Run Maestro in the cloud](https://docs.maestro.dev/cloud/run-maestro-tests-in-the-cloud)
 
 # Maestro
 
