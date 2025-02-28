@@ -19,11 +19,9 @@
 
 package maestro.orchestra
 
+import ImageConcatenate
 import com.github.romankh3.image.comparison.ImageComparison
 import com.github.romankh3.image.comparison.model.ImageComparisonState
-import com.groupdocs.merger.Merger
-import com.groupdocs.merger.domain.options.ImageJoinMode
-import com.groupdocs.merger.domain.options.ImageJoinOptions
 import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
@@ -978,12 +976,12 @@ class Orchestra(
         val comparisonState = comparison.compareImages()
 
         if (ImageComparisonState.MISMATCH === comparisonState.imageComparisonState) {
-            val merger = Merger(actual.inputStream())
-            var joinOptions = ImageJoinOptions(ImageJoinMode.Horizontal);
-            merger.join(regressionFailedFile.inputStream(), joinOptions);
-            joinOptions = ImageJoinOptions(ImageJoinMode.Horizontal);
-            merger.join(expected.inputStream(), joinOptions);
-            merger.save("failed_visual_regression.png");
+            ImageConcatenate.concatenate(
+                arrayOf(
+                    ImageIO.read(expected),
+                    ImageIO.read(regressionFailedFile),
+                    ImageIO.read(actual),
+                ), "failed_visual_regression")
 
             throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}",

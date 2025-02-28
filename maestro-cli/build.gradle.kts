@@ -74,7 +74,6 @@ dependencies {
     implementation(libs.skiko.linux.x64)
     implementation(libs.skiko.windows.arm64)
     implementation(libs.skiko.windows.x64)
-    implementation(libs.groupdocs.merger)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
