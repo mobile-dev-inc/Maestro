@@ -927,21 +927,7 @@ class Orchestra(
     }
 
     private fun assertVisualCommand(command: AssertVisualCommand): Boolean {
-
-
-//        val pathStr = command.path + ".png"
-//        val file = screenshotsDir
-//            ?.let { File(it, pathStr) }
-//            ?: File(pathStr)
-//
-//        maestro.takeScreenshot(file.sink(), false)
-
-
         val baseline = command.baseline + ".png"
-
-//        val screenshotsDir = File(".maestro/visual_regression").apply { mkdirs() }
-
-//        val actual = File("visual_regression", baseline)
 
         val actual = screenshotsDir
             ?.let { File(it, baseline) }
@@ -960,8 +946,9 @@ class Orchestra(
 
         val photoNow: BufferedImage = ImageIO.read(expected)
         val oldPhoto: BufferedImage = ImageIO.read(actual)
-        val failedRegressionDir = File("failed_visual_regression").apply { mkdirs() }
-        val regressionFailedFile = File(failedRegressionDir, baseline)
+        val regressionFailedFile = File
+            .createTempFile("failed_visual_regression-${System.currentTimeMillis()}", ".png")
+            .also { it.deleteOnExit() }
         val comparison =
             ImageComparison(photoNow, oldPhoto, regressionFailedFile)
 
