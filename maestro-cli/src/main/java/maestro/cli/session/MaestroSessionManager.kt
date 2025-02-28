@@ -123,6 +123,7 @@ object MaestroSessionManager {
             return SelectedDevice(
                 platform = device.platform,
                 device = device,
+                deviceId = deviceId,
             )
         }
 
