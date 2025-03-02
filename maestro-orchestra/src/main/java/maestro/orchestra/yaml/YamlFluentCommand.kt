@@ -39,6 +39,7 @@ import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.ExtractTextWithAICommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
+import maestro.orchestra.InputRandomFakerCommand
 import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.KillAppCommand
@@ -99,6 +100,7 @@ data class YamlFluentCommand(
     val inputRandomCityName: YamlInputRandomCityName? = null,
     val inputRandomCountryName: YamlInputRandomCountryName? = null,
     val inputRandomColorName: YamlInputRandomColorName? = null,
+    val inputRandom: YamlInputRandom? = null,
     val launchApp: YamlLaunchApp? = null,
     val swipe: YamlSwipe? = null,
     val openLink: YamlOpenLink? = null,
@@ -213,6 +215,8 @@ data class YamlFluentCommand(
             inputRandomCityName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_CITY_NAME, label = inputRandomCityName.label, optional = inputRandomCityName.optional)))
             inputRandomCountryName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COUNTRY_NAME, label = inputRandomCountryName.label, optional = inputRandomCountryName.optional)))
             inputRandomColorName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COLOR, label = inputRandomColorName.label, optional = inputRandomColorName.optional)))
+            inputRandom != null -> listOf(MaestroCommand(InputRandomFakerCommand(inputType = inputRandom.type, label = inputRandom.label, optional = inputRandom.optional)))
+
             swipe != null -> listOf(swipeCommand(swipe))
             openLink != null -> listOf(
                 MaestroCommand(
@@ -964,6 +968,10 @@ data class YamlFluentCommand(
 
                 "inputRandomColorName" -> YamlFluentCommand(
                     inputRandomColorName = YamlInputRandomColorName(),
+                )
+
+                "inputRandom" -> YamlFluentCommand(
+                    inputRandom = YamlInputRandom(),
                 )
 
                 "back" -> YamlFluentCommand(
