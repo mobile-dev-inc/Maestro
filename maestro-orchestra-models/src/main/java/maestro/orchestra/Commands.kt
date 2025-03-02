@@ -704,6 +704,20 @@ data class InputRandomCommand(
     }
 }
 
+data class InputRandomFakerCommand(
+    val inputType: String? = "text.text",
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Input text using faker type $inputType"
+
+    override fun evaluateScripts(jsEngine: JsEngine): InputRandomFakerCommand {
+        return this
+    }
+}
+
 data class RunFlowCommand(
     val commands: List<MaestroCommand>,
     val condition: Condition? = null,
