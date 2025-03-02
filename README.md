@@ -1,7 +1,14 @@
 > [!TIP]
 > Ready to wire into CI or scale up your testing? [Run Maestro in the cloud](https://docs.maestro.dev/cloud/run-maestro-tests-in-the-cloud)
 
-# Maestro
+<br/>
+<a href="https://www.maestro.dev">
+  <img width="200" alt="Logo" src="https://github.com/user-attachments/assets/91c4f440-288e-4a9e-93a3-3c89a19d2f04" />
+</a>
+<br/>
+<br/>
+
+**[maestro.dev](https://www.maestro.dev)**
 
 Maestro is the simplest and most effective UI testing framework for Mobile and Web.
 
@@ -35,9 +42,11 @@ Maestro is an open-source project and we love getting contributions.
 
 To get started, take a look at [issues with the `good first issue` label][good first issues] and [the contributing guide](./CONTRIBUTING.md).
 
-### Built by
+<br/>
 
-![](./logo.png)
+```
+Built with ❤️ by Mobile.dev
+```
 
 [good first issues]: https://github.com/mobile-dev-inc/maestro/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
 [blogpost]: https://blog.mobile.dev/introducing-maestro-painless-mobile-ui-automation-bee4992d13c1
