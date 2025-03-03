@@ -29,7 +29,6 @@ import maestro.*
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.utils.*
-import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
@@ -239,7 +238,7 @@ class IOSDriver(
             val startPoint = start.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
             val endPoint = end.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
 
-            runDeviceCallWithTimeoutSafely("swipe") {
+            runDeviceCall("swipe") {
                 waitForAppToSettle(null, null)
                 iosDevice.scroll(
                     xStart = startPoint.x.toDouble(),
@@ -530,21 +529,6 @@ class IOSDriver(
         } catch (socketTimeoutException: SocketTimeoutException) {
             LOGGER.error("Got socket timeout processing $callName command", socketTimeoutException)
             throw socketTimeoutException
-        } catch (appCrashException: IOSDeviceErrors.AppCrash) {
-            LOGGER.error("Detected app crash during $callName command", appCrashException)
-            throw MaestroException.AppCrash(appCrashException.errorMessage)
-        }
-    }
-
-    private fun runDeviceCallWithTimeoutSafely(callName: String, call: () -> Unit) {
-        return try {
-            call()
-        } catch (socketTimeoutException: SocketTimeoutException) {
-            LOGGER.error("Got socket timeout processing $callName command", socketTimeoutException)
-            throw socketTimeoutException
-        } catch (operationTimeout:XCUITestServerError.OperationTimeout){
-            LOGGER.warn("Detected operation timeout processing $callName command", operationTimeout)
-            // TODO: we need to raise a warning here on test runs, so that users can reduce the total time
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
