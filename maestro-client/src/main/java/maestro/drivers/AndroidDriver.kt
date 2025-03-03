@@ -167,13 +167,30 @@ class AndroidDriver(
             resetProxy()
         }
 
+        LOGGER.info("[Start] close port forwarder")
         PORT_TO_FORWARDER[hostPort]?.close()
+        LOGGER.info("[Done] close port forwarder")
+
+        LOGGER.info("[Start] Remove host port from port forwarder map")
         PORT_TO_FORWARDER.remove(hostPort)
+        LOGGER.info("[Done] Remove host port from port forwarder map")
+
+        LOGGER.info("[Start] Remove host port from port to allocation map")
         PORT_TO_ALLOCATION_POINT.remove(hostPort)
+        LOGGER.info("[Done] Remove host port from port to allocation map")
+
+        LOGGER.info("[Start] Uninstall driver from device")
         uninstallMaestroApks()
+        LOGGER.info("[Done] Uninstall driver from device")
+
+        LOGGER.info("[Start] Close instrumentation session")
         instrumentationSession?.close()
         instrumentationSession = null
+        LOGGER.info("[Done] Close instrumentation session")
+
+        LOGGER.info("[Start] Shutdown GRPC channel")
         channel.shutdown()
+        LOGGER.info("[Done] Shutdown GRPC channel")
 
         if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
             throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
