@@ -104,13 +104,15 @@ object DeviceService {
         }
     }
 
-    private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>): Throwable? {
+    private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>) {
         var failure: Throwable? = null
         val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
             failure = throwable
             Orchestra.ErrorResolution.FAIL
         }).executeCommands(commands)
-        return if (result) null else (failure ?: RuntimeException("Command execution failed"))
+        if (failure != null) {
+            throw RuntimeException("Command execution failed")
+        }
     }
 
     private fun treeToElements(tree: TreeNode): List<UIElement> {
