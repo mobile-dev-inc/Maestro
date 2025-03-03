@@ -150,11 +150,8 @@ class ApiClient(
         uploadId: String,
         projectId: String?,
     ): UploadStatus {
-        val baseUrl = if (projectId != null) {
-            "$baseUrl/v2/project/$projectId/upload/$uploadId"
-        } else {
-            "$baseUrl/v2/upload/$uploadId/status?includeErrors=true"
-        }
+        val baseUrl = "$baseUrl/v2/project/$projectId/upload/$uploadId"
+
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(baseUrl)
@@ -244,8 +241,8 @@ class ApiClient(
         disableNotifications: Boolean,
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-        projectId: String? = null,
-    ): UploadResponse {
+        projectId: String,
+    ): RobinUploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
         if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
@@ -265,7 +262,7 @@ class ApiClient(
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
-        projectId?.let { requestPart["projectId"] = it }
+        requestPart["projectId"] = projectId
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -297,7 +294,7 @@ class ApiClient(
 
         val body = bodyBuilder.build()
 
-        fun retry(message: String, e: Throwable? = null): UploadResponse {
+        fun retry(message: String, e: Throwable? = null): RobinUploadResponse {
             if (completedRetries >= maxRetryCount) {
                 e?.printStackTrace()
                 throw CliError(message)
@@ -332,11 +329,8 @@ class ApiClient(
             )
         }
 
-        val url = if (projectId != null) {
-            "$baseUrl/v2/project/$projectId/runMaestroTest"
-        } else {
-            "$baseUrl/v2/upload"
-        }
+        val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
+
         val response = try {
             val request = Request.Builder()
                 .header("Authorization", "Bearer $authToken")
@@ -388,6 +382,7 @@ class ApiClient(
                                 appBinaryId = appBinaryId,
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
+                                projectId = projectId
                             )
                         } else {
                           println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -406,11 +401,7 @@ class ApiClient(
 
             val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
 
-            return if (projectId != null) {
-                parseRobinUploadResponse(responseBody)
-            } else {
-                parseMaestroCloudUpload(responseBody)
-            }
+            return parseRobinUploadResponse(responseBody)
         }
     }
 
@@ -436,7 +427,7 @@ class ApiClient(
         }
     }
 
-    private fun parseRobinUploadResponse(responseBody: Map<*, *>): UploadResponse {
+    private fun parseRobinUploadResponse(responseBody: Map<*, *>): RobinUploadResponse {
         @Suppress("UNCHECKED_CAST")
         val orgId = responseBody["orgId"] as String
         val uploadId = responseBody["uploadId"] as String
@@ -461,27 +452,6 @@ class ApiClient(
             appId = appId,
             appBinaryId = appBinaryId
         )
-    }
-
-    private fun parseMaestroCloudUpload(responseBody: Map<*, *>): UploadResponse {
-        @Suppress("UNCHECKED_CAST")
-        val analysisRequest = responseBody["analysisRequest"] as Map<String, Any>
-        val uploadId = analysisRequest["id"] as String
-        val teamId = analysisRequest["teamId"] as String
-        val appId = responseBody["targetId"] as String
-        val appBinaryIdResponse = responseBody["appBinaryId"] as? String
-        val deviceInfoStr = responseBody["deviceInfo"] as? Map<String, Any>
-
-        val deviceInfo = deviceInfoStr?.let {
-            DeviceInfo(
-                platform = it["platform"] as String,
-                displayInfo = it["displayInfo"] as String,
-                isDefaultOsVersion = it["isDefaultOsVersion"] as Boolean,
-                deviceLocale = responseBody["deviceLocale"] as String
-            )
-        }
-
-        return MaestroCloudUploadResponse(teamId, appId, uploadId, appBinaryIdResponse, deviceInfo)
     }
 
 
@@ -564,25 +534,14 @@ class ApiClient(
     }
 }
 
-sealed class UploadResponse
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 data class RobinUploadResponse(
     val orgId: String,
     val uploadId: String,
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
-) : UploadResponse()
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class MaestroCloudUploadResponse(
-    val teamId: String,
-    val appId: String,
-    val uploadId: String,
-    val appBinaryId: String?,
-    val deviceInfo: DeviceInfo?
-) : UploadResponse()
+)
 
 data class DeviceConfiguration(
     val platform: String,

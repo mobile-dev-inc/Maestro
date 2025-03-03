@@ -37,7 +37,6 @@ import java.io.File
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 import maestro.orchestra.util.Env.withDefaultEnvVars
-import kotlin.io.path.absolutePathString
 
 @CommandLine.Command(
     name = "cloud",
@@ -180,13 +179,7 @@ class CloudCommand : Callable<Int> {
         validateWorkSpace()
 
         // Upload
-        val apiUrl = apiUrl ?: run {
-            if (projectId != null) {
-                "https://api.copilot.mobile.dev"
-            } else {
-                throw CliError("You need to specify a Robin project with --projectId")
-            }
-        }
+        val apiUrl = apiUrl ?: "https://api.copilot.mobile.dev"
 
         env = env
             .withInjectedShellEnvVars()
