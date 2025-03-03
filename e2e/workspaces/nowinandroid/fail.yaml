@@ -4,6 +4,7 @@ tags:
   - android
   - failing
 ---
+- installApp: "../../apps/nowinandroid.apk"
 - launchApp:
     clearState: true
 - tapOn:

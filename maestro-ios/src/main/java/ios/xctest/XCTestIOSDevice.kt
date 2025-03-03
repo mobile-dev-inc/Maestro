@@ -215,6 +215,10 @@ class XCTestIOSDevice(
         execute { client.eraseText(charactersToErase, appIds) }
     }
 
+    override fun installApp(path: String) {
+        error("Not supported")
+    }
+
     private fun activeAppId(): String {
         return execute {
             val appIds = getInstalledApps()

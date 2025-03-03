@@ -8,8 +8,9 @@ Typical workflow is:
 
 1. Start Android emulator and iOS simulator
 2. `download_apps`
-3. `install_apps`
-4. `run_tests`
+3. `run_tests`
+
+The `install_apps` script can be run to install the apps on connected devices. However, the flows have commands to ensure the apps are installed.
 
 We try to keep shell code in separate files, so we don't get too tightly coupled
 to GitHub Actions.

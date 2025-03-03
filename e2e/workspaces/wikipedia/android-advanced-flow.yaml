@@ -4,6 +4,7 @@ tags:
   - passing
   - advanced
 ---
+- installApp: "../../apps/wikipedia.apk"
 - runFlow: subflows/onboarding-android.yaml
 - tapOn:
     id: "org.wikipedia:id/search_container"

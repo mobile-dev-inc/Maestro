@@ -34,9 +34,13 @@ import okio.source
 import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
+import java.nio.file.Path
 import java.net.SocketTimeoutException
 import java.util.UUID
 import kotlin.collections.set
+import kotlin.io.path.extension
+import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.pathString
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
@@ -501,6 +505,16 @@ class IOSDriver(
 
     override fun setAirplaneMode(enabled: Boolean) {
         LOGGER.warn("Airplane mode is not available on iOS simulators")
+    }
+
+    override fun installApp(path: Path) = when (path.extension) {
+        "zip" -> {
+            val appPath = path.resolveSibling("${path.nameWithoutExtension}.app")
+            FileUtils.unzip(path, appPath)
+            iosDevice.installApp(appPath.pathString)
+        }
+        "app" -> iosDevice.installApp(path.pathString)
+        else -> throw IllegalArgumentException("Specified file is not an iOS app.")
     }
 
     private fun addMediaToDevice(mediaFile: File) {
