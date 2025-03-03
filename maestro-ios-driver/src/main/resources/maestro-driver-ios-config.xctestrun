@@ -25,7 +25,7 @@
 		<key>BundleIdentifiersForCrashReportEmphasis</key>
 		<array>
 			<string>dev.mobile.maestro-driver-ios</string>
-			<string>dev.mobile.maestro-driver-iosUITests</string>
+			<string>dev.mobile.maestro-driver-iosOfficial</string>
 		</array>
 		<key>CommandLineArguments</key>
 		<array/>
@@ -47,6 +47,8 @@
 			<string>YES</string>
 			<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
 			<string>1</string>
+			<key>TERM</key>
+			<string>dumb</string>
 		</dict>
 		<key>IsUITestBundle</key>
 		<true/>
@@ -63,7 +65,7 @@
 		<key>TestBundlePath</key>
 		<string>__TESTHOST__/PlugIns/maestro-driver-iosUITests.xctest</string>
 		<key>TestHostBundleIdentifier</key>
-		<string>dev.mobile.maestro-driver-iosUITests.xctrunner</string>
+		<string>dev.mobile.maestro-driver-iosOfficial.xctrunner</string>
 		<key>TestHostPath</key>
 		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
 		<key>TestLanguage</key>
