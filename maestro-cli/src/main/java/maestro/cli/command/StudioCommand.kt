@@ -53,7 +53,7 @@ class StudioCommand : Callable<Int> {
         MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = null,
+            driverHostPort = parent?.driverHostPort,
             deviceId = parent?.deviceId,
             platform = parent?.platform,
             isStudio = true
