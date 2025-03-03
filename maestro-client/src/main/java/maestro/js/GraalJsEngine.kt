@@ -29,6 +29,7 @@ class GraalJsEngine(
         protocols = listOf(Protocol.HTTP_1_1)
     ),
     platform: String = "unknown",
+    private val allowIo: Boolean = false,
 ) : JsEngine {
 
     private val openContexts = HashSet<Context>()
@@ -84,6 +85,7 @@ class GraalJsEngine(
         }
 
         val context = Context.newBuilder("js")
+            .allowIO(allowIo)
             .option("js.strict", "true")
             .logHandler(NULL_HANDLER)
             .out(outputStream)
