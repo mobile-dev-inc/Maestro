@@ -54,7 +54,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -337,13 +336,19 @@ class AndroidDriver(
                 .newDocumentBuilder()
                 .parse(response.hierarchy.byteInputStream())
 
-            val useChromeDevToolsOut = AtomicBoolean()
-            val baseTree = mapHierarchy(document, useChromeDevToolsOut)
+            // TODO: Adapt to handle chrome in the same way
+            val hasWebView = hasWebView(document)
+            val webViewTreeOverride = if (hasWebView) {
+                DadbChromeDevToolsClient(dadb).getWebViewTreeNodes()
+            } else {
+                emptyList()
+            }
+            val shouldOverrideWebViewTree = webViewTreeOverride.isNotEmpty()
 
-            val treeNode = if (chromeDevToolsEnabled && useChromeDevToolsOut.get()) {
-                // TODO: Adapt to handle chrome in the same way
-                val webViewTree = DadbChromeDevToolsClient(dadb).getWebViewTreeNodes()
-                TreeNode(children = listOf(baseTree) + webViewTree)
+            val baseTree = mapHierarchy(document, omitWebView = shouldOverrideWebViewTree)
+
+            val treeNode = if (shouldOverrideWebViewTree) {
+                TreeNode(children = listOf(baseTree) + webViewTreeOverride)
             } else {
                 baseTree
             }
@@ -354,6 +359,18 @@ class AndroidDriver(
                 treeNode
             }
         }
+    }
+
+    private fun hasWebView(node: Node): Boolean {
+        if (node is Element
+            && node.hasAttribute("class")
+            && node.getAttribute("class") == "android.webkit.WebView") {
+            return true
+        }
+        for (i in 0 until node.childNodes.length) {
+            if (hasWebView(node.childNodes.item(i))) return true
+        }
+        return false
     }
 
     private fun TreeNode.excludeKeyboardElements(): TreeNode? {
@@ -976,7 +993,7 @@ class AndroidDriver(
         }
     }
 
-    private fun mapHierarchy(node: Node, useChromeDevToolsOut: AtomicBoolean): TreeNode {
+    private fun mapHierarchy(node: Node, omitWebView: Boolean): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()
 
@@ -1040,15 +1057,14 @@ class AndroidDriver(
             emptyMap()
         }
 
-        if (chromeDevToolsEnabled && attributes["class"] == "android.webkit.WebView") {
-            useChromeDevToolsOut.set(true)
+        if (omitWebView && attributes["class"] == "android.webkit.WebView") {
             return TreeNode(attributes = attributes.toMutableMap())
         }
 
         val children = mutableListOf<TreeNode>()
         val childNodes = node.childNodes
         (0 until childNodes.length).forEach { i ->
-            children += mapHierarchy(childNodes.item(i), useChromeDevToolsOut)
+            children += mapHierarchy(childNodes.item(i), omitWebView)
         }
 
         return TreeNode(
