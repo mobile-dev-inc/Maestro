@@ -252,11 +252,6 @@ class XCTestDriverClient(
             Error("Unable to parse error", "unknown")
         }
         when {
-            code == 500 && responseBodyAsString.isEmpty() -> {
-                // TODO: handle gracefully as a 4xx instead of 5xx
-                logger.warn("Request for $pathString timed out on server")
-                throw XCUITestServerError.OperationTimeout("Request for $pathString timed out on server")
-            }
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
                 throw XCUITestServerError.BadRequest(
