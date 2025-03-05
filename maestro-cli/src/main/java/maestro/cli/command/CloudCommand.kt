@@ -42,8 +42,8 @@ import kotlin.io.path.absolutePathString
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Test a Flow or set of Flows on Robin (https://robintest.com)",
-        "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in Robin",
+        "Test a Flow or set of Flows in the cloud (https://app.maestro.dev)",
+        "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in the cloud",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
 )
@@ -190,7 +190,7 @@ class CloudCommand : Callable<Int> {
             if (projectId != null) {
                 "https://api.copilot.mobile.dev"
             } else {
-                throw CliError("You need to specify a Robin project with --projectId")
+                throw CliError("You need to specify a Maestro project with --projectId")
             }
         }
 
