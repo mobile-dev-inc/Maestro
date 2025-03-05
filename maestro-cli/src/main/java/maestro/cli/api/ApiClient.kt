@@ -339,7 +339,7 @@ class ApiClient(
         val url = if (projectId != null) {
             "$baseUrl/v2/project/$projectId/runMaestroTest"
         } else {
-            throw CliError("A Project ID is required for uploading to Robin")
+            throw CliError("A Project ID is required for uploading to the cloud")
         }
         val response = try {
             val request = Request.Builder()
