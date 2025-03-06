@@ -82,6 +82,13 @@ class UploadCommand : Callable<Int> {
     @Option(order = 9, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
+    @Option(order = 10, names = ["--device-model"], description = ["Device model to run your flow against"])
+    private var deviceModel: String? = null
+
+    @Option(order = 11, names = ["--device-os"], description = ["OS version to run your flow against"])
+    private var deviceOs: String? = null
+
+
     override fun call(): Int {
         println(
             ansi()
@@ -109,6 +116,8 @@ class UploadCommand : Callable<Int> {
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             androidApiLevel = androidApiLevel,
+            deviceModel = deviceModel,
+            deviceOs = deviceOs
         )
     }
 
