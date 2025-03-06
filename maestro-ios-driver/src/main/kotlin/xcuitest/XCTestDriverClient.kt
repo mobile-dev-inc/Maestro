@@ -204,7 +204,6 @@ class XCTestDriverClient(
             if (exitCode != 0) {
                 val errorStream = process.errorStream.bufferedReader().readText()
                 logger.error("Failed to execute shake gesture. Exit code: $exitCode, Error: $errorStream")
-                throw IOException("Failed to execute shake gesture on simulator. Exit code: $exitCode")
             }
 
             logger.trace("Successfully executed shake gesture")
