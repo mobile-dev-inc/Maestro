@@ -245,6 +245,8 @@ class ApiClient(
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
         projectId: String? = null,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -266,6 +268,8 @@ class ApiClient(
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
         projectId?.let { requestPart["projectId"] = it }
+        deviceModel?.let { requestPart["deviceModel"] = it }
+        deviceOs?.let { requestPart["deviceOs"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -335,7 +339,7 @@ class ApiClient(
         val url = if (projectId != null) {
             "$baseUrl/v2/project/$projectId/runMaestroTest"
         } else {
-            "$baseUrl/v2/upload"
+            throw CliError("A Project ID is required for uploading to the cloud")
         }
         val response = try {
             val request = Request.Builder()
