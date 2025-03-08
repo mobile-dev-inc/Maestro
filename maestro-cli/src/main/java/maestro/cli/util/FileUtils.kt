@@ -1,6 +1,7 @@
 package maestro.cli.util
 
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
 import java.util.zip.ZipInputStream
 
@@ -18,7 +19,11 @@ object FileUtils {
     fun File.isWebFlow(): Boolean {
         if (isDirectory) {
             return listFiles()
-                ?.any { it.isWebFlow() }
+                ?.any { 
+                    it.getName().matches(".+\\.y[a]?ml".toRegexSafe(RegexOption.IGNORE_CASE)) &&
+                    !it.getName().matches("config.y[a]?ml".toRegexSafe(RegexOption.IGNORE_CASE)) &&
+                    it.isWebFlow() 
+                }
                 ?: false
         }
 
