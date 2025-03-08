@@ -26,7 +26,7 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
-import maestro.orchestra.util.InputRandomTextHelper
+import net.datafaker.Faker
 
 sealed interface Command {
 
@@ -695,7 +695,13 @@ class ClearKeychainCommand(
 }
 
 enum class InputRandomType {
-    NUMBER, TEXT, TEXT_EMAIL_ADDRESS, TEXT_PERSON_NAME,
+    NUMBER,
+    TEXT,
+    TEXT_EMAIL_ADDRESS,
+    TEXT_PERSON_NAME,
+    TEXT_CITY_NAME,
+    TEXT_COUNTRY_NAME,
+    TEXT_COLOR,
 }
 
 data class InputRandomCommand(
@@ -706,15 +712,19 @@ data class InputRandomCommand(
 ) : Command {
 
     fun genRandomString(): String {
+        val faker = Faker()
         val lengthNonNull = length ?: 8
         val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
 
         return when (inputType) {
-            InputRandomType.NUMBER -> InputRandomTextHelper.getRandomNumber(finalLength)
-            InputRandomType.TEXT -> InputRandomTextHelper.getRandomText(finalLength)
-            InputRandomType.TEXT_EMAIL_ADDRESS -> InputRandomTextHelper.randomEmail()
-            InputRandomType.TEXT_PERSON_NAME -> InputRandomTextHelper.randomPersonName()
-            else -> InputRandomTextHelper.getRandomText(finalLength)
+            InputRandomType.NUMBER -> faker.number().randomNumber(finalLength, false).toString()
+            InputRandomType.TEXT -> faker.text().text(finalLength)
+            InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
+            InputRandomType.TEXT_PERSON_NAME -> faker.name().name()
+            InputRandomType.TEXT_CITY_NAME -> faker.address().cityName()
+            InputRandomType.TEXT_COUNTRY_NAME -> faker.address().country()
+            InputRandomType.TEXT_COLOR -> faker.color().name()
+            else -> faker.text().text(finalLength)
         }
     }
 
@@ -723,6 +733,21 @@ data class InputRandomCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): InputRandomCommand {
+        return this
+    }
+}
+
+data class InputRandomFakerCommand(
+    val inputType: String? = "text.text",
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override fun description(): String {
+        return label ?: "Input text using faker type $inputType"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): InputRandomFakerCommand {
         return this
     }
 }

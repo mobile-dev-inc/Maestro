@@ -22,6 +22,7 @@ import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
+import maestro.orchestra.InputRandomFakerCommand
 import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.KillAppCommand
@@ -605,6 +606,13 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
+    fun setLocationSyntaxError(
+        @YamlFile("026_setLocation_syntaxError.yaml") e: SyntaxError,
+    ) {
+        assertThat(e.message).contains("Cannot deserialize value of type")
+    }
+
+    @Test
     fun waitToSettleTimeoutMsCommands(
         @YamlFile("027_waitToSettleTimeoutMs.yaml") commands: List<Command>
     ) {
@@ -644,13 +652,21 @@ internal class YamlCommandReaderTest {
         )
     }
 
+    @Test
+    fun inputRandomWithFaker(
+        @YamlFile("028_inputRandomAnimal.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            InputRandomFakerCommand(
+                inputType = "animal.name",
+                label = "Input a random animal name"
+            )
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
-
-    @Test
-    fun setLocationSyntaxError(
-        @YamlFile("026_setLocation_syntaxError.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Cannot deserialize value of type")
-    }
 }
