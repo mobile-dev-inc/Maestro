@@ -72,8 +72,7 @@ object MaestroSessionManager {
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
                 try {
-                    Thread.sleep(1000) // Add a 1-second delay here for fixing race condition
-                    SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                    SessionStore.heartbeat(sessionId, selectedDevice.platform, selectedDevice.deviceId)
                 } catch (e: Exception) {
                     logger.error("Failed to record heartbeat", e)
                 }
@@ -85,9 +84,9 @@ object MaestroSessionManager {
 
         val session = createMaestro(
             selectedDevice = selectedDevice,
-            connectToExistingSession = SessionStore.hasActiveSessions(
-                sessionId,
-                selectedDevice.platform
+            connectToExistingSession = SessionStore.hasActiveSessionOnDevice(
+                selectedDevice.platform,
+                selectedDevice.deviceId
             ),
             isStudio = isStudio,
             isHeadless = isHeadless,
@@ -95,9 +94,9 @@ object MaestroSessionManager {
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
-            SessionStore.delete(sessionId, selectedDevice.platform)
+            SessionStore.delete(sessionId, selectedDevice.platform, selectedDevice.deviceId)
             runCatching { ScreenReporter.reportMaxDepth() }
-            if (SessionStore.activeSessions().isEmpty()) {
+            if (!SessionStore.hasActiveSessionOnDevice(selectedDevice.platform, selectedDevice.deviceId)) {
                 session.close()
             }
         })
@@ -124,6 +123,7 @@ object MaestroSessionManager {
             return SelectedDevice(
                 platform = device.platform,
                 device = device,
+                deviceId = deviceId,
             )
         }
 
