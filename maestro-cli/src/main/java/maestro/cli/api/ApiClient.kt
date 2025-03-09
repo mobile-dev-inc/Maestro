@@ -241,10 +241,10 @@ class ApiClient(
         disableNotifications: Boolean,
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-        projectId: String = null,
+        projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
-    ): RobinUploadResponse {
+    ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
         if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
@@ -298,7 +298,7 @@ class ApiClient(
 
         val body = bodyBuilder.build()
 
-        fun retry(message: String, e: Throwable? = null): RobinUploadResponse {
+        fun retry(message: String, e: Throwable? = null): UploadResponse {
             if (completedRetries >= maxRetryCount) {
                 e?.printStackTrace()
                 throw CliError(message)
@@ -405,7 +405,7 @@ class ApiClient(
 
             val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
 
-            return parseRobinUploadResponse(responseBody)
+            return parseUploadResponse(responseBody)
         }
     }
 
@@ -431,7 +431,7 @@ class ApiClient(
         }
     }
 
-    private fun parseRobinUploadResponse(responseBody: Map<*, *>): RobinUploadResponse {
+    private fun parseUploadResponse(responseBody: Map<*, *>): UploadResponse {
         @Suppress("UNCHECKED_CAST")
         val orgId = responseBody["orgId"] as String
         val uploadId = responseBody["uploadId"] as String
@@ -449,7 +449,7 @@ class ApiClient(
             deviceLocale = deviceConfigMap["deviceLocale"] as? String
         )
 
-        return RobinUploadResponse(
+        return UploadResponse(
             orgId = orgId,
             uploadId = uploadId,
             deviceConfiguration = deviceConfiguration,
@@ -539,7 +539,7 @@ class ApiClient(
 }
 
 
-data class RobinUploadResponse(
+data class UploadResponse(
     val orgId: String,
     val uploadId: String,
     val appId: String,
