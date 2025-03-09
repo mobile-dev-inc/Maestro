@@ -4,8 +4,6 @@ import maestro.cli.CliError
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.DeviceInfo
-import maestro.cli.api.MaestroCloudUploadResponse
-import maestro.cli.api.RobinUploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.device.Platform
@@ -26,7 +24,6 @@ import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
-import maestro.cli.view.TestSuiteStatusView.robinUploadUrl
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.web.WebInteractor
@@ -79,6 +76,7 @@ class CloudInteractor(
         deviceModel: String? = null,
         deviceOs: String? = null,
     ): Int {
+        if (projectId == null) throw CliError("Missing required parameter '--project-id'")
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -139,55 +137,24 @@ class CloudInteractor(
                 deviceOs = deviceOs
             )
 
-            when (response) {
-                is RobinUploadResponse -> {
-                    println()
-                    val project = requireNotNull(projectId)
-                    val appId = response.appId
-                    val uploadUrl = robinUploadUrl(project, appId, response.uploadId, client.domain)
-                    val deviceMessage =
-                        if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
-                    return printMaestroCloudResponse(
-                        async,
-                        authToken,
-                        failOnCancellation,
-                        reportFormat,
-                        reportOutput,
-                        testSuiteName,
-                        uploadUrl,
-                        deviceMessage,
-                        appId,
-                        response.appBinaryId,
-                        response.uploadId,
-                        projectId,
-                    )
-                }
-
-                is MaestroCloudUploadResponse -> {
-                    println()
-                    val deviceInfo = response.deviceInfo
-                    val teamId = response.teamId
-                    val appId = response.appId
-                    val uploadId = response.uploadId
-                    val appBinaryIdResponse = response.appBinaryId
-                    val uploadUrl = uploadUrl(uploadId, teamId, appId, client.domain)
-                    val deviceInfoMessage =
-                        if (deviceInfo != null) printDeviceInfo(deviceInfo, iOSVersion, androidApiLevel) else ""
-                    return printMaestroCloudResponse(
-                        async = async,
-                        authToken = authToken,
-                        failOnCancellation = failOnCancellation,
-                        reportFormat = reportFormat,
-                        reportOutput = reportOutput,
-                        testSuiteName = testSuiteName,
-                        uploadUrl = uploadUrl,
-                        deviceInfoMessage = deviceInfoMessage,
-                        appId = appId,
-                        appBinaryIdResponse = appBinaryIdResponse,
-                        uploadId = uploadId
-                    )
-                }
-            }
+            val project = requireNotNull(projectId)
+            val appId = response.appId
+            val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
+            val deviceMessage = if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+            return printMaestroCloudResponse(
+                async,
+                authToken,
+                failOnCancellation,
+                reportFormat,
+                reportOutput,
+                testSuiteName,
+                uploadUrl,
+                deviceMessage,
+                appId,
+                response.appBinaryId,
+                response.uploadId,
+                projectId,
+            )
         }
     }
 
@@ -203,7 +170,7 @@ class CloudInteractor(
         appId: String,
         appBinaryIdResponse: String?,
         uploadId: String,
-        projectId: String? = null
+        projectId: String
     ): Int {
         if (async) {
             PrintUtils.message("✅ Upload successful!")

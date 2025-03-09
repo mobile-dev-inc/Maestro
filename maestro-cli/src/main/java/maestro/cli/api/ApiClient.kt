@@ -150,11 +150,8 @@ class ApiClient(
         uploadId: String,
         projectId: String?,
     ): UploadStatus {
-        val baseUrl = if (projectId != null) {
-            "$baseUrl/v2/project/$projectId/upload/$uploadId"
-        } else {
-            "$baseUrl/v2/upload/$uploadId/status?includeErrors=true"
-        }
+        val baseUrl = "$baseUrl/v2/project/$projectId/upload/$uploadId"
+
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(baseUrl)
@@ -244,7 +241,7 @@ class ApiClient(
         disableNotifications: Boolean,
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-        projectId: String? = null,
+        projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
     ): UploadResponse {
@@ -267,7 +264,7 @@ class ApiClient(
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
-        projectId?.let { requestPart["projectId"] = it }
+        requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
@@ -336,11 +333,8 @@ class ApiClient(
             )
         }
 
-        val url = if (projectId != null) {
-            "$baseUrl/v2/project/$projectId/runMaestroTest"
-        } else {
-            throw CliError("A Project ID is required for uploading to the cloud")
-        }
+        val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
+
         val response = try {
             val request = Request.Builder()
                 .header("Authorization", "Bearer $authToken")
@@ -392,6 +386,7 @@ class ApiClient(
                                 appBinaryId = appBinaryId,
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
+                                projectId = projectId
                             )
                         } else {
                           println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -410,11 +405,7 @@ class ApiClient(
 
             val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
 
-            return if (projectId != null) {
-                parseRobinUploadResponse(responseBody)
-            } else {
-                parseMaestroCloudUpload(responseBody)
-            }
+            return parseUploadResponse(responseBody)
         }
     }
 
@@ -440,7 +431,7 @@ class ApiClient(
         }
     }
 
-    private fun parseRobinUploadResponse(responseBody: Map<*, *>): UploadResponse {
+    private fun parseUploadResponse(responseBody: Map<*, *>): UploadResponse {
         @Suppress("UNCHECKED_CAST")
         val orgId = responseBody["orgId"] as String
         val uploadId = responseBody["uploadId"] as String
@@ -458,34 +449,13 @@ class ApiClient(
             deviceLocale = deviceConfigMap["deviceLocale"] as? String
         )
 
-        return RobinUploadResponse(
+        return UploadResponse(
             orgId = orgId,
             uploadId = uploadId,
             deviceConfiguration = deviceConfiguration,
             appId = appId,
             appBinaryId = appBinaryId
         )
-    }
-
-    private fun parseMaestroCloudUpload(responseBody: Map<*, *>): UploadResponse {
-        @Suppress("UNCHECKED_CAST")
-        val analysisRequest = responseBody["analysisRequest"] as Map<String, Any>
-        val uploadId = analysisRequest["id"] as String
-        val teamId = analysisRequest["teamId"] as String
-        val appId = responseBody["targetId"] as String
-        val appBinaryIdResponse = responseBody["appBinaryId"] as? String
-        val deviceInfoStr = responseBody["deviceInfo"] as? Map<String, Any>
-
-        val deviceInfo = deviceInfoStr?.let {
-            DeviceInfo(
-                platform = it["platform"] as String,
-                displayInfo = it["displayInfo"] as String,
-                isDefaultOsVersion = it["isDefaultOsVersion"] as Boolean,
-                deviceLocale = responseBody["deviceLocale"] as String
-            )
-        }
-
-        return MaestroCloudUploadResponse(teamId, appId, uploadId, appBinaryIdResponse, deviceInfo)
     }
 
 
@@ -568,25 +538,14 @@ class ApiClient(
     }
 }
 
-sealed class UploadResponse
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class RobinUploadResponse(
+data class UploadResponse(
     val orgId: String,
     val uploadId: String,
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
-) : UploadResponse()
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class MaestroCloudUploadResponse(
-    val teamId: String,
-    val appId: String,
-    val uploadId: String,
-    val appBinaryId: String?,
-    val deviceInfo: DeviceInfo?
-) : UploadResponse()
+)
 
 data class DeviceConfiguration(
     val platform: String,

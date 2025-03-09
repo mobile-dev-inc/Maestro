@@ -119,13 +119,6 @@ object TestSuiteStatusView {
     }
 
     fun uploadUrl(
-        uploadId: String,
-        teamId: String,
-        appId: String,
-        domain: String = "mobile.dev",
-    ) = "https://console.$domain/uploads/$uploadId?teamId=$teamId&appId=$appId"
-
-    fun robinUploadUrl(
         projectId: String,
         appId: String,
         uploadId: String,
