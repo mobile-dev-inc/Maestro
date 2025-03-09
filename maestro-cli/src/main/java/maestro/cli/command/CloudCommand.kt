@@ -41,8 +41,8 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Test a Flow or set of Flows on Maestro Cloud (https://cloud.mobile.dev)",
-        "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in Maestro Cloud",
+        "Test a Flow or set of Flows in the cloud (https://app.maestro.dev)",
+        "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in the cloud",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
 )
@@ -153,6 +153,12 @@ class CloudCommand : Callable<Int> {
     @Option(order = 19, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
     private var deviceLocale: String? = null
 
+    @Option(order = 20, names = ["--device-model"], description = ["Device model to run your flow against [closed beta]"])
+    private var deviceModel: String? = null
+
+    @Option(order = 21, names = ["--device-os"], description = ["OS version to run your flow against [closed beta]"])
+    private var deviceOs: String? = null
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
@@ -214,6 +220,8 @@ class CloudCommand : Callable<Int> {
             disableNotifications = disableNotifications,
             deviceLocale = deviceLocale,
             projectId = projectId,
+            deviceModel = deviceModel,
+            deviceOs = deviceOs
         )
     }
 

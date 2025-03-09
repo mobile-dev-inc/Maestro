@@ -6,14 +6,15 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.romankh3.image.comparison.ImageComparisonUtil
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.stream.Collectors
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
+import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.box
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.stream.Collectors
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readText
@@ -138,9 +139,14 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
             registerModule(JavaTimeModule())
             enable(SerializationFeature.INDENT_OUTPUT)
         }
-
         private val shouldNotNotify: Boolean
-            get() = disabled || notificationStatePath.exists() && notificationState.acknowledged
+            get() {
+                if (CiUtils.getCiProvider() != null) {
+                    return true
+                }
+
+                return disabled || (notificationStatePath.exists() && notificationState.acknowledged)
+            }
 
         private val notificationState: AnalysisNotificationState
             get() = JSON.readValue<AnalysisNotificationState>(notificationStatePath.readText())

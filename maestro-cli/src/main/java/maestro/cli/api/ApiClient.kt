@@ -241,7 +241,9 @@ class ApiClient(
         disableNotifications: Boolean,
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-        projectId: String,
+        projectId: String = null,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
     ): RobinUploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -263,6 +265,8 @@ class ApiClient(
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
         requestPart["projectId"] = projectId
+        deviceModel?.let { requestPart["deviceModel"] = it }
+        deviceOs?.let { requestPart["deviceOs"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true

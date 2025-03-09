@@ -74,6 +74,8 @@ class CloudInteractor(
         disableNotifications: Boolean = false,
         deviceLocale: String? = null,
         projectId: String? = null,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
     ): Int {
         if (projectId == null) throw CliError("Missing required parameter '--project-id'")
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
@@ -131,7 +133,9 @@ class CloudInteractor(
                 projectId = projectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
-                }
+                },
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
             )
 
             val project = requireNotNull(projectId)
