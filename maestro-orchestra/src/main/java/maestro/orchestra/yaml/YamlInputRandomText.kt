@@ -40,3 +40,24 @@ data class YamlInputRandomPersonName(
     val label: String? = null,
     val optional: Boolean = false,
 )
+
+data class YamlInputRandomCityName(
+    val label: String? = null,
+    val optional: Boolean = false,
+)
+
+data class YamlInputRandomCountryName(
+    val label: String? = null,
+    val optional: Boolean = false,
+)
+
+data class YamlInputRandomColorName(
+    val label: String? = null,
+    val optional: Boolean = false,
+)
+
+data class YamlInputRandom(
+    val type: String? = null,
+    val label: String? = null,
+    val optional: Boolean = false,
+)
