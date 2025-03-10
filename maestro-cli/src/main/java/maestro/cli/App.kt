@@ -126,7 +126,7 @@ fun main(args: Array<String>) {
                 .build()
 
             cmd.err.println(
-                cmd.colorScheme.errorText(ex.message)
+                cmd.colorScheme.errorText(ex.message.orEmpty())
             )
 
             if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion) {
