@@ -83,6 +83,9 @@ class App {
     @Option(names = ["--port"], hidden = true)
     var port: Int? = null
 
+    @Option(names = ["--driver-host-port"], hidden = true)
+    var driverHostPort: Int? = null
+
     @Option(
         names = ["--device", "--udid"],
         description = ["(Optional) Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
