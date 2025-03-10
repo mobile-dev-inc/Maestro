@@ -122,7 +122,9 @@ object EnvUtils {
     }
 
     private fun determineArchitectureDetectionStrategy(): ArchitectureDetectionStrategy {
-        return if (runProcess("uname").contains("Linux")) {
+        return if (isWindows()) {
+            ArchitectureDetectionStrategy.WindowsArchitectureDetection
+        } else if (runProcess("uname").contains("Linux")) {
             ArchitectureDetectionStrategy.LinuxArchitectureDetection
         } else {
             ArchitectureDetectionStrategy.MacOsArchitectureDetection
@@ -172,6 +174,12 @@ sealed interface ArchitectureDetectionStrategy {
             }
         }
 
+    }
+
+    object WindowsArchitectureDetection: ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): MACOS_ARCHITECTURE {
+            return MACOS_ARCHITECTURE.x86_64
+        }
     }
 }
 
