@@ -386,7 +386,9 @@ data class YamlFluentCommand(
                     RunScriptCommand(
                         script = resolvePath(flowPath, runScript.file)
                             .readText(),
-                        env = runScript.env,
+                        env = runScript.env + mapOf(
+                            "MAESTRO_YAML_DIR" to flowPath.parent.toString()
+                        ),
                         sourceDescription = runScript.file,
                         condition = runScript.`when`?.toCondition(),
                         label = runScript.label,
