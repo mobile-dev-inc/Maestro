@@ -9,10 +9,21 @@
         switch (node.tagName.toLowerCase()) {
             case 'input':
                 return node.value || node.placeholder || node.ariaLabel || ''
-
             default:
+                let text = ''
                 const childNodes = [...(node.childNodes || [])].filter(node => node.nodeType === Node.TEXT_NODE)
-                return childNodes.map(node => node.textContent.replace('\n', '').replace('\t', '')).join('')
+                text = childNodes.map(node => node.textContent.trim()).join(' ')
+                
+                if (node.shadowRoot) {
+                    const shadowText = [...node.shadowRoot.childNodes]
+                        .filter(node => node.nodeType === Node.TEXT_NODE)
+                        .map(node => node.textContent.trim())
+                        .join(' ')
+                    if (shadowText) {
+                        text = text ? `${text} ${shadowText}` : shadowText
+                    }
+                }
+                return text
         }
     }
 
@@ -25,26 +36,35 @@
     const isDocumentLoading = () => document.readyState !== 'complete'
 
     const traverse = (node) => {
-      if (!node || isInvalidTag(node)) return null
+        if (!node || isInvalidTag(node)) return null
 
-      const children = [...node.children || []].map(child => traverse(child)).filter(el => !!el)
-      const attributes = {
-          text: getNodeText(node),
-          bounds: getNodeBounds(node),
-      }
+        let children = []
+        if (node.shadowRoot) {
+            children = [...(node.shadowRoot.children || [])].map(child => traverse(child)).filter(el => !!el)
+        }
+        children = children.concat([...node.children || []].map(child => traverse(child)).filter(el => !!el))
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.title || node.htmlFor || node.attributes['data-testid']?.value
-      }
+        const attributes = {
+            text: getNodeText(node),
+            bounds: getNodeBounds(node),
+        }
 
-      if (node.tagName.toLowerCase() === 'body') {
-        attributes['is-loading'] = isDocumentLoading()
-      }
+        if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+            attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.title || node.htmlFor || node.attributes['data-testid']?.value
+        }
 
-      return {
-        attributes,
-        children,
-      }
+        if (node.shadowRoot) {
+            attributes['has-shadow-root'] = 'true'
+        }
+
+        if (node.tagName.toLowerCase() === 'body') {
+            attributes['is-loading'] = isDocumentLoading()
+        }
+
+        return {
+            attributes,
+            children,
+        }
     }
 
     // -------------- Public API --------------
