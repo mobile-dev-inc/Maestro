@@ -94,24 +94,7 @@ class CloudInteractor(
             val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
-            var appFileToSend: File? = null
-            if (appFile != null && appBinaryId == null) {
-                appFileToSend = if (appFile.isZip()) {
-                    appFile
-                } else {
-                    val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
-
-                    // An awkward API of Archiver that has a different behaviour depending on
-                    // whether we call a vararg method or a normal method. The *arrayOf() construct
-                    // forces compiler to choose vararg method.
-                    @Suppress("RemoveRedundantSpreadOperator")
-                    archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
-                }
-            } else if (appBinaryId == null) {
-                if (flowFile.isWebFlow()) {
-                    appFileToSend = WebInteractor.createManifestFromWorkspace(flowFile)
-                }
-            }
+            val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
             val response = client.upload(
                 authToken = authToken,
@@ -189,6 +172,33 @@ class CloudInteractor(
                     )
                 }
             }
+        }
+    }
+
+    private fun getAppFile(
+      appFile: File?,
+      appBinaryId: String?,
+      tmpDir: Path,
+      flowFile: File
+    ): File? {
+        when {
+            appBinaryId != null -> return null;
+
+            appFile != null -> if (appFile.isZip()) {
+                return appFile
+            } else {
+                val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
+
+                // An awkward API of Archiver that has a different behaviour depending on
+                // whether we call a vararg method or a normal method. The *arrayOf() construct
+                // forces compiler to choose vararg method.
+                @Suppress("RemoveRedundantSpreadOperator")
+                return archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+            }
+
+            flowFile.isWebFlow() -> return WebInteractor.createManifestFromWorkspace(flowFile)
+
+            else -> return null
         }
     }
 
