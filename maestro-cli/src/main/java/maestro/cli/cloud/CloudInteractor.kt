@@ -182,7 +182,7 @@ class CloudInteractor(
       flowFile: File
     ): File? {
         when {
-            appBinaryId != null -> return null;
+            appBinaryId != null -> return null
 
             appFile != null -> if (appFile.isZip()) {
                 return appFile
