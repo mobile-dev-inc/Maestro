@@ -148,8 +148,15 @@ object DeviceService {
         return listOf(
             Device.Connected(
                 platform = Platform.WEB,
-                description = "Chromium Desktop Browser (Experimental)",
+                description = "Chromium Web Browser",
                 instanceId = "chromium"
+            ),
+            Device.AvailableForLaunch(
+                modelId = "chromium",
+                language = null,
+                country = null,
+                description = "Chromium Web Browser",
+                platform = Platform.WEB
             )
         )
     }
