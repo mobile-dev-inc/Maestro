@@ -91,7 +91,6 @@ class CloudInteractor(
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
             WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
-            println()
             val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
@@ -108,8 +107,10 @@ class CloudInteractor(
                     @Suppress("RemoveRedundantSpreadOperator")
                     archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
                 }
-            } else if (flowFile.isWebFlow()) {
-                appFileToSend = WebInteractor.createManifestFromWorkspace(flowFile)
+            } else if (appBinaryId == null) {
+                if (flowFile.isWebFlow()) {
+                    appFileToSend = WebInteractor.createManifestFromWorkspace(flowFile)
+                }
             }
 
             val response = client.upload(
