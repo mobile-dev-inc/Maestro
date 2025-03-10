@@ -252,6 +252,11 @@ class AndroidDriver(
         }
     }
 
+    override fun shake() {
+        dadb.shell("emu sensor set acceleration 100:100:100")
+        dadb.shell("emu sensor set acceleration 0:0:0")
+    }
+
     override fun clearAppState(appId: String) {
         metrics.measured("operation", mapOf("command" to "clearAppState", "appId" to appId)) {
             if (!isPackageInstalled(appId)) {
