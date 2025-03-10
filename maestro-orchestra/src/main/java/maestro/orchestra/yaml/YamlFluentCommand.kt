@@ -74,7 +74,9 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
+import kotlin.io.path.pathString
 import kotlin.io.path.readText
+import maestro.orchestra.error.AppFileNotFound
 
 data class YamlFluentCommand(
     val tapOn: YamlElementSelectorUnion? = null,
@@ -122,6 +124,7 @@ data class YamlFluentCommand(
     val addMedia: YamlAddMedia? = null,
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
+    val installApp: YamlInstallApp? = null,
     val retry: YamlRetryCommand? = null,
 ) {
 
@@ -444,6 +447,12 @@ data class YamlFluentCommand(
                 listOf(tapCommand(doubleTapOn, tapRepeat = tapRepeat))
             }
 
+            installApp != null -> listOf(
+                MaestroCommand(
+                    installAppCommand = installAppCommand(installApp, flowPath)
+                )
+            )
+
             setAirplaneMode != null -> listOf(
                 MaestroCommand(
                     SetAirplaneModeCommand(
@@ -465,6 +474,22 @@ data class YamlFluentCommand(
 
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
+    }
+
+    private fun installAppCommand(installApp: YamlInstallApp, flowPath: Path): InstallAppCommand {
+        val path = flowPath.fileSystem.getPath(installApp.path)
+        val resolvedPath =
+            if (path.isAbsolute) path.normalize()
+            else flowPath.resolveSibling(path).toAbsolutePath().normalize()
+        val commandPath = when {
+            resolvedPath.exists() -> resolvedPath.pathString
+            installApp.path.contains("\\$\\{(.*)\\}".toRegex()) -> installApp.path
+            else -> throw AppFileNotFound("App file at ${installApp.path} in flow file: ${flowPath.fileName} not found", path)
+        }
+        return InstallAppCommand(
+            path = commandPath,
+            label = installApp.label
+        )
     }
 
     private fun addMediaCommand(addMedia: YamlAddMedia, flowPath: Path): AddMediaCommand {

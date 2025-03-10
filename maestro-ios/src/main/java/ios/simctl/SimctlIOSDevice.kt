@@ -191,4 +191,11 @@ class SimctlIOSDevice(
         stopScreenRecording()
     }
 
+    override fun installApp(path: String) {
+        LocalSimulatorUtils.install(
+            deviceId = deviceId,
+            path = path
+        )
+    }
+
 }

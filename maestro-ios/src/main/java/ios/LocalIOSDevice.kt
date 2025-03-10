@@ -157,4 +157,8 @@ class LocalIOSDevice(
     override fun addMedia(path: String) {
         simctlIOSDevice.addMedia(path)
     }
+
+    override fun installApp(path: String) {
+        simctlIOSDevice.installApp(path)
+    }
 }
