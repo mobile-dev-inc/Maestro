@@ -127,7 +127,7 @@ object TestSuiteStatusView {
         return if (domain.contains("localhost")) {
             "http://localhost:3000/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         } else {
-            "https://app.robintest.com/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
+            "https://app.maestro.dev/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         }
     }
 
