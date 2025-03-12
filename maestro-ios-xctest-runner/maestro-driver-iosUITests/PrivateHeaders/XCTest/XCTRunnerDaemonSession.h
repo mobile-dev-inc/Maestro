@@ -6,7 +6,7 @@
 
 #import "XCTestManager_TestsInterface-Protocol.h"
 #import "XCEventGenerator.h"
-#import <WebDriverAgentLib/CDStructures.h>
+#import <CDStructures.h>
 #import <UIKit/UIKit.h>
 
 @class NSMutableDictionary, NSXPCConnection, XCSynthesizedEventRecord;
