@@ -64,11 +64,11 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start()
+                ).start().waitFor(5, TimeUnit.SECONDS)
 
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
-                        Dadb.list().firstOrNull { dadb ->
+                        Dadb.list().lastOrNull() { dadb ->
                             !connectedDevices.contains(dadb.toString())
                         }
                     } catch (ignored: Exception) {
@@ -173,11 +173,28 @@ object DeviceService {
                 )
             )
         }
+
         val connected = runCatching {
-            Dadb.list(host = host).map {
+            Dadb.list(host = host).map { dadb ->
+                val avdName = runCatching {
+                    dadb.shell("getprop ro.kernel.qemu").output.trim().let { qemuProp ->
+                        if (qemuProp == "1") {
+                            val avdNameResult = ProcessBuilder("adb", "-s", dadb.toString(), "emu", "avd", "name")
+                                .redirectErrorStream(true)
+                                .start()
+                                .apply { waitFor(5, TimeUnit.SECONDS) }
+                                .inputStream.bufferedReader().readLine()?.trim() ?: ""
+
+                            if (avdNameResult.isNotBlank() && !avdNameResult.contains("unknown AVD")) {
+                                avdNameResult
+                            } else null
+                        } else null
+                    }
+                }.getOrNull()
+
                 Device.Connected(
-                    instanceId = it.toString(),
-                    description = it.toString(),
+                    instanceId = dadb.toString(),
+                    description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
                 )
             }
