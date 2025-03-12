@@ -47,7 +47,7 @@ struct ViewHierarchyHandler: HTTPHandler {
     func getForegroundApp() -> XCUIApplication? {
         let runningAppIds = XCUIApplication.activeAppsInfo().compactMap { $0["bundleId"] as? String }
         
-        logger.info("Detected running apps: \(runningAppIds)")
+        NSLog("Detected running apps: \(runningAppIds)")
 
         if runningAppIds.count == 1, let bundleId = runningAppIds.first {
             return XCUIApplication(bundleIdentifier: bundleId)
