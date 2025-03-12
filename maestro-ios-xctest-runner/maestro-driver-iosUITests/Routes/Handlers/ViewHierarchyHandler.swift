@@ -20,8 +20,7 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
 
         do {
-            let runningAppIds = requestBody.appIds
-            let app = getForegroundApp(runningAppIds)
+            let app = getForegroundApp()
             guard let app = app else {
                 let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
                 let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
@@ -45,10 +44,18 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    func getForegroundApp(_ runningAppIds: [String]) -> XCUIApplication? {
-        runningAppIds
-            .map { XCUIApplication(bundleIdentifier: $0) }
-            .first { app in app.state == .runningForeground }
+    func getForegroundApp() -> XCUIApplication? {
+        let runningAppIds = XCUIApplication.activeAppsInfo().compactMap { $0["bundleId"] as? String }
+        
+        logger.info("Detected running apps: \(runningAppIds)")
+
+        if runningAppIds.count == 1, let bundleId = runningAppIds.first {
+            return XCUIApplication(bundleIdentifier: bundleId)
+        } else {
+            return runningAppIds
+                .map { XCUIApplication(bundleIdentifier: $0) }
+                .first { $0.state == .runningForeground }
+        }
     }
 
     func getAppViewHierarchy(app: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {

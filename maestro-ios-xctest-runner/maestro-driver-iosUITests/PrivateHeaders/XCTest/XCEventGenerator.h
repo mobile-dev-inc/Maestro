@@ -8,7 +8,7 @@
 
 #import <UIKit/UIKit.h>
 
-#import <WebDriverAgentLib/CDStructures.h>
+#import <CDStructures.h>
 
 @class XCSynthesizedEventRecord;
 

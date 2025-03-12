@@ -3,3 +3,4 @@
 //
 
 #import "XCUIApplication+FBQuiescence.h"
+#import "XCUIApplication+Helper.h"
