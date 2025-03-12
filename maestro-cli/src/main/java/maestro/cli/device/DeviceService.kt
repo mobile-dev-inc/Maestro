@@ -489,6 +489,54 @@ object DeviceService {
         return process.exitValue() == 0
     }
 
+    fun killAndroidDevice(deviceId: String): Boolean {
+        val command = listOf("adb", "-s", deviceId, "emu", "kill")
+
+        try {
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+
+            if (!process.waitFor(1, TimeUnit.MINUTES)) {
+                throw TimeoutException("Android kill command timed out")
+            }
+
+            val success = process.exitValue() == 0
+            if (success) {
+                logger.info("Killed Android device: $deviceId")
+            } else {
+                logger.error("Failed to kill Android device: $deviceId")
+            }
+
+            return success
+        } catch (e: Exception) {
+            logger.error("Error killing Android device: $deviceId", e)
+            return false
+        }
+    }
+
+    fun killIOSDevice(deviceId: String): Boolean {
+        val command = listOf("xcrun", "simctl", "shutdown", deviceId)
+
+        try {
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+
+            if (!process.waitFor(1, TimeUnit.MINUTES)) {
+                throw TimeoutException("iOS kill command timed out")
+            }
+
+            val success = process.exitValue() == 0
+            if (success) {
+                logger.info("Killed iOS device: $deviceId")
+            } else {
+                logger.error("Failed to kill iOS device: $deviceId")
+            }
+
+            return success
+        } catch (e: Exception) {
+            logger.error("Error killing iOS device: $deviceId", e)
+            return false
+        }
+    }
+
     private fun bootComplete(dadb: Dadb): Boolean {
         return try {
             val booted = dadb.shell("getprop sys.boot_completed").output.trim() == "1"
