@@ -413,39 +413,7 @@ object LocalSimulatorUtils {
 
     fun clearKeychain(deviceId: String) {
         runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "spawn",
-                deviceId,
-                "launchctl",
-                "stop",
-                "com.apple.securityd",
-            )
-        )
-
-        val keychainFolder = "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
-        if (File(keychainFolder).exists()) {
-            runCommand(
-                listOf(
-                    "rm", "-rf",
-                    keychainFolder
-                )
-            )
-        } else {
-            logger.info("Keychain folder $keychainFolder does not exist, skipping rm")
-        }
-
-        runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "spawn",
-                deviceId,
-                "launchctl",
-                "start",
-                "com.apple.securityd",
-            )
+            listOf("xcrun", "simctl", "keychain", deviceId, "reset")
         )
     }
 
