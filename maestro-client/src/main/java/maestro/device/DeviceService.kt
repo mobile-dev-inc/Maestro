@@ -108,7 +108,7 @@ object DeviceService {
             Platform.WEB -> {
                 return Device.Connected(
                     instanceId = "",
-                    description = "Selenium Chromium driver",
+                    description = "Chromium Web Browser",
                     platform = device.platform,
                 )
             }
