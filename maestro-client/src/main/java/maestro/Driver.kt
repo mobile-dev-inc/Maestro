@@ -102,6 +102,4 @@ interface Driver {
     fun isAirplaneModeEnabled(): Boolean
 
     fun setAirplaneMode(enabled: Boolean)
-
-    fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
 }

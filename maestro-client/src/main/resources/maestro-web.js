@@ -18,19 +18,8 @@
 
     const getNodeBounds = (node) => {
         const rect = node.getBoundingClientRect()
-        const vpx = maestro.viewportX;
-        const vpy = maestro.viewportY;
-        const vpw = maestro.viewportWidth || window.innerWidth;
-        const vph = maestro.viewportHeight || window.innerHeight;
 
-        const scaleX = vpw / window.innerWidth;
-        const scaleY = vph / window.innerHeight;
-        const l = rect.x * scaleX + vpx;
-        const t = rect.y * scaleY + vpy;
-        const r = (rect.x + rect.width) * scaleX + vpx;
-        const b = (rect.y + rect.height) * scaleY + vpy;
-
-        return `[${Math.round(l)},${Math.round(t)}][${Math.round(r)},${Math.round(b)}]`
+        return `[${Math.round(rect.x)},${Math.round(rect.y)}][${Math.round(rect.x+rect.width)},${Math.round(rect.y+rect.height)}]`
     }
 
     const isDocumentLoading = () => document.readyState !== 'complete'
@@ -45,8 +34,7 @@
       }
 
       if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+        attributes['resource-id'] = node.id || node.ariaLabel || node.name || node.title || node.htmlFor || node.attributes['data-testid']?.value
       }
 
       if (node.tagName.toLowerCase() === 'body') {
@@ -60,11 +48,6 @@
     }
 
     // -------------- Public API --------------
-    maestro.viewportX = 0;
-    maestro.viewportY = 0;
-    maestro.viewportWidth = 0;
-    maestro.viewportHeight = 0;
-
     maestro.getContentDescription = () => {
         return traverse(document.body)
     }

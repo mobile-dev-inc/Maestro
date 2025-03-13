@@ -116,7 +116,6 @@ class Orchestra(
         val config = YamlCommandReader.getConfig(commands)
 
         initJsEngine(config)
-        initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
 
@@ -170,8 +169,6 @@ class Orchestra(
         if (shouldReinitJsEngine) {
             initJsEngine(config)
         }
-
-        initAndroidChromeDevTools(config)
 
         commands
             .forEachIndexed { index, command ->
@@ -246,11 +243,6 @@ class Orchestra(
         } else {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
         }
-    }
-
-    private fun initAndroidChromeDevTools(config: MaestroConfig?) {
-        val shouldEnableAndroidChromeDevTools = config?.ext?.get("androidWebViewHierarchy") == "devtools"
-        maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
     }
 
     private fun initAI(): AI? {

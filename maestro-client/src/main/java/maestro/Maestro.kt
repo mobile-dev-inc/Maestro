@@ -613,10 +613,6 @@ class Maestro(
         driver.setAirplaneMode(enabled)
     }
 
-    fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
-        driver.setAndroidChromeDevToolsEnabled(enabled)
-    }
-
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

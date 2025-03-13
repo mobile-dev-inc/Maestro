@@ -34,7 +34,6 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
-import maestro.android.chromedevtools.DadbChromeDevToolsClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -81,8 +80,6 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
-
-    private var chromeDevToolsEnabled = false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -336,41 +333,13 @@ class AndroidDriver(
                 .newDocumentBuilder()
                 .parse(response.hierarchy.byteInputStream())
 
-            // TODO: Adapt to handle chrome in the same way
-            val hasWebView = hasWebView(document)
-            val webViewTreeOverride = if (hasWebView) {
-                DadbChromeDevToolsClient(dadb).getWebViewTreeNodes()
-            } else {
-                emptyList()
-            }
-            val shouldOverrideWebViewTree = webViewTreeOverride.isNotEmpty()
-
-            val baseTree = mapHierarchy(document, omitWebView = shouldOverrideWebViewTree)
-
-            val treeNode = if (shouldOverrideWebViewTree) {
-                TreeNode(children = listOf(baseTree) + webViewTreeOverride)
-            } else {
-                baseTree
-            }
-
+            val treeNode = mapHierarchy(document)
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode
             } else {
                 treeNode
             }
         }
-    }
-
-    private fun hasWebView(node: Node): Boolean {
-        if (node is Element
-            && node.hasAttribute("class")
-            && node.getAttribute("class") == "android.webkit.WebView") {
-            return true
-        }
-        for (i in 0 until node.childNodes.length) {
-            if (hasWebView(node.childNodes.item(i))) return true
-        }
-        return false
     }
 
     private fun TreeNode.excludeKeyboardElements(): TreeNode? {
@@ -849,10 +818,6 @@ class AndroidDriver(
         }
     }
 
-    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
-        this.chromeDevToolsEnabled = enabled
-    }
-
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
             dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
@@ -993,7 +958,7 @@ class AndroidDriver(
         }
     }
 
-    private fun mapHierarchy(node: Node, omitWebView: Boolean): TreeNode {
+    private fun mapHierarchy(node: Node): TreeNode {
         val attributes = if (node is Element) {
             val attributesBuilder = mutableMapOf<String, String>()
 
@@ -1057,14 +1022,10 @@ class AndroidDriver(
             emptyMap()
         }
 
-        if (omitWebView && attributes["class"] == "android.webkit.WebView") {
-            return TreeNode(attributes = attributes.toMutableMap())
-        }
-
         val children = mutableListOf<TreeNode>()
         val childNodes = node.childNodes
         (0 until childNodes.length).forEach { i ->
-            children += mapHierarchy(childNodes.item(i), omitWebView)
+            children += mapHierarchy(childNodes.item(i))
         }
 
         return TreeNode(
