@@ -22,6 +22,10 @@ package maestro
 data class UiElement(
     val treeNode: TreeNode,
     val bounds: Bounds,
+    val attributes: Map<String, String>,
+    val children: MutableList<TreeNode>,
+    val nativeElement: Any? = null,
+    val hasShadowRoot: Boolean = attributes["has-shadow-root"] == "true"
 ) {
 
     fun distanceTo(other: UiElement): Float {
@@ -79,6 +83,17 @@ data class UiElement(
         return isXWithinBounds && isYWithinBounds
     }
 
+    fun findInShadowDom(predicate: (UiElement) -> Boolean): UiElement? {
+        if (predicate(this)) return this
+        
+        return children.asSequence()
+            .map { it.toUiElement() }
+            .filterNotNull()
+            .firstOrNull { 
+                it.findInShadowDom(predicate) != null 
+            }
+    }
+
     companion object {
 
         fun TreeNode.toUiElement(): UiElement {
@@ -106,6 +121,8 @@ data class UiElement(
                     width = boundsArr[2] - boundsArr[0],
                     height = boundsArr[3] - boundsArr[1]
                 ),
+                attributes,
+                mutableListOf(),
             )
         }
     }

@@ -3218,6 +3218,34 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case - Shadow DOM support`() {
+        // Given
+        val commands = readCommands("shadow_dom_test")
+
+        val driver = driver {
+            element {
+                id = "shadow-host"
+                bounds = Bounds(0, 0, 200, 200)
+                
+                // Simulate shadow DOM content
+                element {
+                    text = "Shadow DOM Content"
+                    bounds = Bounds(10, 10, 190, 190)
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertNoInteraction()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
