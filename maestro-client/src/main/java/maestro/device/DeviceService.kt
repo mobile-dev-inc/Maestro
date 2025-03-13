@@ -12,9 +12,6 @@ import maestro.utils.MaestroTimer
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
-import maestro.device.util.LocalSimulatorUtils
-import maestro.device.util.LocalSimulatorUtils.SimctlError
-import maestro.device.util.SimctlList
 import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -65,7 +62,7 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start().waitFor(5,TimeUnit.MINUTES)
+                ).start().waitFor(7,TimeUnit.SECONDS)
 
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
