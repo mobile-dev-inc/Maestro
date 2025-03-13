@@ -104,8 +104,9 @@ class XCTestIOSDevice(
         duration: Double,
     ) {
         execute {
+            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             client.swipeV2(
-                installedApps = getInstalledApps(),
+                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
