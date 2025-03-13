@@ -29,8 +29,8 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.device.Device
-import maestro.cli.device.DeviceService
+import maestro.device.Device
+import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory

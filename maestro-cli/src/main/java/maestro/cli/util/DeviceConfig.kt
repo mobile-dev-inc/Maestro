@@ -1,5 +1,7 @@
 package maestro.cli.util
 
+import maestro.device.util.AvdDevice
+
 internal object DeviceConfigIos {
 
     val device: String = "iPhone-11"

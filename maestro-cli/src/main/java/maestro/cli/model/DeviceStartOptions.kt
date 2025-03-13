@@ -1,6 +1,6 @@
 package maestro.cli.model
 
-import maestro.cli.device.Platform
+import maestro.device.Platform
 
 data class DeviceStartOptions(
     val platform: Platform,

@@ -20,8 +20,8 @@
 package maestro.cli.runner.resultview
 
 import io.ktor.util.encodeBase64
-import maestro.cli.device.Device
-import maestro.cli.device.Platform
+import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
 import maestro.orchestra.AssertWithAICommand
