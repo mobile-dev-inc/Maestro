@@ -118,10 +118,10 @@ class XCTestIOSDevice(
 
     override fun input(text: String) {
        execute {
-           val appIds = getInstalledApps()
+           // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
            client.inputText(
                text = text,
-               appIds = appIds,
+               appIds = emptySet(),
            )
        }
     }
