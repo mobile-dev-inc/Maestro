@@ -35,12 +35,12 @@ object FileDownloader {
 
                 var offset = 0
                 do {
-                    val currentRead = bodyChannel
-                        .readAvailable(data, offset, data.size)
-
-                    offset += currentRead
-                    val progress = offset / data.size.toFloat()
-                    emit(DownloadResult.Progress(progress))
+                    val currentRead = bodyChannel.readAvailable(data, offset, data.size - offset)
+                    if (currentRead > 0) {
+                        offset += currentRead
+                        val progress = offset.toFloat() / data.size.toFloat()
+                        emit(DownloadResult.Progress(progress))
+                    }
                 } while (currentRead > 0)
 
                 if (response.status.isSuccess()) {

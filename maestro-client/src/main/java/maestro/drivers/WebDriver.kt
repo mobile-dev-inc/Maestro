@@ -35,6 +35,7 @@ import java.time.Duration
 import java.util.*
 
 
+@Suppress("UNCHECKED_CAST")
 class WebDriver(
     val isStudio: Boolean,
     isHeadless: Boolean = isStudio,
