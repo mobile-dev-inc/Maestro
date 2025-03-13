@@ -56,7 +56,7 @@ object AndroidEnvUtils {
         val androidHome = androidHome
             ?: throw DeviceError("Could not detect Android home environment variable is not set. Ensure that either ANDROID_HOME or ANDROID_SDK_ROOT is set.")
 
-        val javaVersion = EnvUtils.getJavaVersion()
+        val javaVersion = SystemInfo.getJavaVersion()
         val recommendedToolsVersion = getRecommendedToolsVersion()
 
         val tools = File(androidHome, "cmdline-tools")
@@ -82,7 +82,7 @@ object AndroidEnvUtils {
     }
 
     private fun getRecommendedToolsVersion(): String {
-        return when (EnvUtils.getJavaVersion()) {
+        return when (SystemInfo.getJavaVersion()) {
             8 -> "8.0"
             11 -> "10.0"
             17 -> "11.0"
