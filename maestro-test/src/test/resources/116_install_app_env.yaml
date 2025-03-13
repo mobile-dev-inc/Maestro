@@ -1,0 +1,3 @@
+appId: com.example.app
+---
+- installApp: ${APP_PATH}

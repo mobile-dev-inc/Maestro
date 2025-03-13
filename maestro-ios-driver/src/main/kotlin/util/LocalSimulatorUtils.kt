@@ -387,6 +387,18 @@ object LocalSimulatorUtils {
         )
     }
 
+    fun install(deviceId: String, path: String) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "install",
+                deviceId,
+                path,
+            )
+        )
+    }
+
     fun uninstall(deviceId: String, bundleId: String) {
         runCommand(
             listOf(

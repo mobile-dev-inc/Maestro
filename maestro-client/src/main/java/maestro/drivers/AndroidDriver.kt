@@ -48,12 +48,15 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.net.URI
+import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.io.path.extension
 import kotlin.io.use
 
 private const val DefaultDriverHostPort = 7001
@@ -238,6 +241,7 @@ class AndroidDriver(
         }
     }
 
+    
     override fun stopApp(appId: String) {
         metrics.measured("operation", mapOf("command" to "stopApp", "appId" to appId)) {
             // Note: If the package does not exist, this call does *not* throw an exception
@@ -802,6 +806,12 @@ class AndroidDriver(
             shell("cmd connectivity airplane-mode $value")
         }
     }
+
+    override fun installApp(path: Path) {
+        if (path.extension != "apk") throw IllegalArgumentException("Specified file is not an apk.")
+        install(path.toFile())
+    }
+
 
     private fun broadcastAirplaneMode(enabled: Boolean) {
         val command = "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $enabled"

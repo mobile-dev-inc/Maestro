@@ -24,12 +24,13 @@ import com.google.common.truth.Truth.assertThat
 import maestro.*
 import maestro.utils.ScreenshotUtils
 import okio.Sink
-import okio.Source
 import okio.buffer
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import javax.imageio.ImageIO
+import kotlin.io.path.pathString
 
 class FakeDriver : Driver {
 
@@ -37,7 +38,7 @@ class FakeDriver : Driver {
     private var layout: FakeLayoutElement = FakeLayoutElement()
     private var installedApps = mutableSetOf<String>()
 
-    private val events = mutableListOf<Event>()
+    val events = mutableListOf<Event>()
 
     private var copiedText: String? = null
 
@@ -391,6 +392,10 @@ class FakeDriver : Driver {
         this.airplaneMode = enabled
     }
 
+    override fun installApp(path: Path) {
+        events.add(Event.InstallApp(path.toAbsolutePath().pathString))
+    }
+
     sealed class Event {
 
         data class Tap(
@@ -483,6 +488,8 @@ class FakeDriver : Driver {
         object StartRecording : Event()
 
         object StopRecording : Event()
+
+        data class InstallApp(val path: String): Event()
     }
 
     interface UserInteraction

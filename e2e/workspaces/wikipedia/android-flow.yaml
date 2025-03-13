@@ -3,4 +3,5 @@ tags:
   - android
   - passing
 ---
+- installApp: "../../apps/wikipedia.apk"
 - launchApp

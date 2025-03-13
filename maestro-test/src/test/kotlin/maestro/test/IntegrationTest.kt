@@ -29,6 +29,7 @@ import org.junit.jupiter.api.assertThrows
 import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
+import kotlin.io.path.pathString
 import kotlin.system.measureTimeMillis
 import maestro.orchestra.util.Env.withDefaultEnvVars
 
@@ -3101,7 +3102,43 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 117 - Scroll until view is visible - with speed and timeout evaluate`() {
+    fun `Case 117 - Install app`() {
+        // Given
+        val commands = readCommands("116_install_app")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        val path = Paths.get(System.getProperty("user.dir"), "../maestro-client/src/main/resources/maestro-app.apk").normalize()
+        driver.assertEventCount(Event.InstallApp(path.pathString), 2)
+    }
+
+    @Test
+    fun `Case 117 - Install app from env`() {
+        // Given
+        val path = Paths.get(System.getProperty("user.dir"), "../maestro-client/src/main/resources/maestro-app.apk").normalize()
+        val commands = readCommands("116_install_app_env")
+            .withEnv(mapOf("APP_PATH" to path.pathString))
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.InstallApp(path.pathString))
+    }
+
+    @Test
+    fun `Case 118 - Scroll until view is visible - with speed and timeout evaluate`() {
         // Given
         val commands = readCommands("117_scroll_until_visible_speed")
         val expectedDuration = "601"

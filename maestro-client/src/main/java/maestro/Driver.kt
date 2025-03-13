@@ -21,6 +21,7 @@ package maestro
 
 import okio.Sink
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 
 interface Driver {
@@ -102,4 +103,6 @@ interface Driver {
     fun isAirplaneModeEnabled(): Boolean
 
     fun setAirplaneMode(enabled: Boolean)
+
+    fun installApp(path: Path)
 }

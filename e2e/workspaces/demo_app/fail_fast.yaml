@@ -2,6 +2,7 @@ appId: com.example.example
 tags:
     - failing
 ---
+- installApp: "../../apps/demo_app.apk"
 - launchApp:
     clearState: true
 - assertTrue:
