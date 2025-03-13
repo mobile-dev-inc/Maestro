@@ -19,8 +19,7 @@ struct EraseTextHandler: HTTPHandler {
         do {
             let start = Date()
             
-            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
-            await waitUntilKeyboardIsPresented(appId: appId)
+            await waitUntilKeyboardIsPresented()
 
             let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: requestBody.charactersToErase)
             
@@ -35,11 +34,11 @@ struct EraseTextHandler: HTTPHandler {
         }
     }
     
-    private func waitUntilKeyboardIsPresented(appId: String?) async {
+    private func waitUntilKeyboardIsPresented() async {
         try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
-            guard let appId = appId else { return true }
-
-            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+            let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
+            
+            return app.keyboards.firstMatch.exists
         }
     }
 }
