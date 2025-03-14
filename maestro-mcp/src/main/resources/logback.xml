@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Completely silence all logs -->
+    <root level="OFF">
+        <appender-ref ref="NULL" />
+    </root>
+    
+    <appender name="NULL" class="ch.qos.logback.core.NullAppender" />
+    
+    <!-- Silence specific SLF4J messages -->
+    <logger name="org.slf4j" level="OFF" />
+</configuration>
