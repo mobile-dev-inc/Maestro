@@ -9,6 +9,13 @@ application {
     mainClass.set("maestro.mcp.MaestroMCPServer")
 }
 
+// Configure Java compatibility
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
 dependencies {
     // MCP Kotlin SDK - version 0.3.0
     implementation("io.modelcontextprotocol:kotlin-sdk:0.3.0")
@@ -23,11 +30,22 @@ dependencies {
     implementation("info.picocli:picocli:4.7.5")
     
     // Logging - proper implementation with file appender
-    implementation("ch.qos.logback:logback-classic:1.4.11")
-    implementation("org.slf4j:slf4j-api:2.0.9")
+    implementation("ch.qos.logback:logback-classic:1.2.11")
+    implementation("org.slf4j:slf4j-api:1.7.36")
     
     // Testing
     testImplementation(kotlin("test"))
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+tasks.withType<JavaCompile> {
+    sourceCompatibility = JavaVersion.VERSION_17.toString()
+    targetCompatibility = JavaVersion.VERSION_17.toString()
 }
 
 // Create distribution with proper executable name
