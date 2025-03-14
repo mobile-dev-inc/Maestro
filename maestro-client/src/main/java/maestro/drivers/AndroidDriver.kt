@@ -34,6 +34,8 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
+import maestro.android.chromedevtools.AndroidWebViewHierarchy
+import maestro.android.chromedevtools.DadbChromeDevToolsClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -80,6 +82,8 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
+
+    private var chromeDevToolsEnabled = false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -333,7 +337,10 @@ class AndroidDriver(
                 .newDocumentBuilder()
                 .parse(response.hierarchy.byteInputStream())
 
-            val treeNode = mapHierarchy(document)
+            val baseTree = mapHierarchy(document)
+
+            val treeNode = AndroidWebViewHierarchy.augmentHierarchy(dadb, baseTree, chromeDevToolsEnabled)
+
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode
             } else {
@@ -830,6 +837,10 @@ class AndroidDriver(
                 }
             }
         }
+    }
+
+    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
+        this.chromeDevToolsEnabled = enabled
     }
 
     fun setDeviceLocale(country: String, language: String): Int {
