@@ -1,12 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Completely silence all logs -->
-    <root level="OFF">
-        <appender-ref ref="NULL" />
+    <!-- Console appender - set to OFF to silence console output -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>OFF</level>
+        </filter>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender - writes all logs to debug.log -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>debug.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Set root logger to DEBUG level and use both appenders -->
+    <root level="DEBUG">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
     </root>
-    
-    <appender name="NULL" class="ch.qos.logback.core.NullAppender" />
-    
-    <!-- Silence specific SLF4J messages -->
-    <logger name="org.slf4j" level="OFF" />
 </configuration>

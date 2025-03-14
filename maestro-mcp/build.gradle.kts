@@ -7,14 +7,7 @@ plugins {
 
 application {
     mainClass.set("maestro.mcp.MaestroMCPServer")
-    
-    // Add system property to suppress SLF4J warning messages
-    applicationDefaultJvmArgs = listOf(
-        "-Dorg.slf4j.simpleLogger.defaultLogLevel=off",
-        "-Dorg.slf4j.simpleLogger.log.org.slf4j.LoggerFactory=off"
-    )
 }
-
 
 dependencies {
     // MCP Kotlin SDK - version 0.3.0
@@ -23,13 +16,15 @@ dependencies {
     // Maestro CLI
     implementation(project(":maestro-cli"))
     
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    
     // CLI parsing
     implementation("info.picocli:picocli:4.7.5")
     
-    // Logging - explicit configuration to silence warnings
-    implementation(libs.slf4j)
-    implementation(libs.logback)
-    implementation("org.slf4j:slf4j-nop:2.0.9") // NOP binding to suppress warnings
+    // Logging - proper implementation with file appender
+    implementation("ch.qos.logback:logback-classic:1.4.11")
+    implementation("org.slf4j:slf4j-api:2.0.9")
     
     // Testing
     testImplementation(kotlin("test"))

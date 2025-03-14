@@ -20,7 +20,6 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import org.slf4j.LoggerFactory
-import java.io.PrintStream
 
 /**
  * MCP Server implementation for Maestro
@@ -101,7 +100,7 @@ class MaestroMCPServer {
 
     fun runMcpServerUsingStdio() {
         // Note: The server will handle listing prompts, tools, and resources automatically.
-        // The handleListResourceTemplates will return empty as defined in the Server code.
+        logger.debug("Starting MCP server using stdio")
         val server = configureServer()
         val transport = StdioServerTransport(
             inputStream = System.`in`.asSource().buffered(),
@@ -112,16 +111,16 @@ class MaestroMCPServer {
             server.connect(transport)
             val done = Job()
             server.onCloseCallback = {
+                logger.info("Server closed")
                 done.complete()
             }
             done.join()
-            logger.info("Server closed")
         }
     }
 
     fun runSseMcpServerWithPlainConfiguration(port: Int): Unit = runBlocking {
         val servers = ConcurrentMap<String, Server>()
-        logger.info("Starting sse server on port $port. ")
+        logger.info("Starting sse server on port $port")
         logger.info("Use inspector to connect to the http://localhost:$port/sse")
 
         embeddedServer(CIO, host = "0.0.0.0", port = port) {
@@ -172,9 +171,19 @@ class MaestroMCPServer {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            val command = args.firstOrNull() ?: "--sse"
-            val port = args.getOrNull(1)?.toIntOrNull() ?: 13379
-            MaestroMCPServer().start(command, port)
+            val logger = LoggerFactory.getLogger(MaestroMCPServer::class.java)
+            logger.info("Starting MaestroMCPServer")
+            
+            try {
+                val command = args.firstOrNull() ?: "--sse"
+                val port = args.getOrNull(1)?.toIntOrNull() ?: 13379
+                MaestroMCPServer().start(command, port)
+            } catch (e: Exception) {
+                logger.error("Error in MCP server", e)
+            } finally {
+                logger.info("MaestroMCPServer shutting down")
+                System.exit(0)
+            }
         }
     }
 }
