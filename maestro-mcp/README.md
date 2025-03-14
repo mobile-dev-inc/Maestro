@@ -35,15 +35,15 @@ Run the MCP server:
 
 ## Development
 
-This module is built using Java 17 and the official MCP Kotlin SDK. It provides a clean implementation
-that doesn't affect the Java 8 compatibility of the main Maestro project.
-
+This module is built using Java 17 and the official MCP Kotlin SDK, so it's built separately from the rest of Maestro (which required Java 8).
 
 Debug the MCP with the official [MCP Kotlin SDK inspector](https://github.com/modelcontextprotocol/inspector):
 
+un the app in sse mode (`./maestro-mcp/build/install/maestro-mcp/bin/maestro-mcp --sse`)
+
+Open the inspector:
+```
+npx @modelcontextprotocol/inspector 
 ```
 
-npx @modelcontextprotocol/inspector mcp-proxy
-
-```
-
+Connect to the MCP using the URL `http://localhost:13379/sse`

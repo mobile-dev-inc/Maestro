@@ -172,16 +172,6 @@ class MaestroMCPServer {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            // Disable SLF4J warning messages by redirecting System.err temporarily
-            val originalErr = System.err
-            System.setErr(object : PrintStream(originalErr) {
-                override fun println(message: String) {
-                    if (!message.startsWith("SLF4J")) {
-                        super.println(message)
-                    }
-                }
-            })
-
             val command = args.firstOrNull() ?: "--sse"
             val port = args.getOrNull(1)?.toIntOrNull() ?: 13379
             MaestroMCPServer().start(command, port)
