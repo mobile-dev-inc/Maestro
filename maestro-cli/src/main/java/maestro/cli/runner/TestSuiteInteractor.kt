@@ -3,7 +3,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.CliError
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput

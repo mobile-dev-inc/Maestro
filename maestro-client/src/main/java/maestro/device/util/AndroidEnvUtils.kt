@@ -1,6 +1,6 @@
-package maestro.cli.util
+package maestro.device.util
 
-import maestro.cli.CliError
+import maestro.device.DeviceError
 import okio.buffer
 import okio.source
 import java.io.File
@@ -54,14 +54,14 @@ object AndroidEnvUtils {
      */
     fun requireCommandLineTools(tool: String): File {
         val androidHome = androidHome
-            ?: throw CliError("Could not detect Android home environment variable is not set. Ensure that either ANDROID_HOME or ANDROID_SDK_ROOT is set.")
+            ?: throw DeviceError("Could not detect Android home environment variable is not set. Ensure that either ANDROID_HOME or ANDROID_SDK_ROOT is set.")
 
-        val javaVersion = EnvUtils.getJavaVersion()
+        val javaVersion = SystemInfo.getJavaVersion()
         val recommendedToolsVersion = getRecommendedToolsVersion()
 
         val tools = File(androidHome, "cmdline-tools")
         if (!tools.exists()) {
-            throw CliError(
+            throw DeviceError(
                 "Missing required component cmdline-tools. To install:\n" +
                         "1) Open Android Studio SDK manager \n" +
                         "2) Check \"Show package details\" to show all versions\n" +
@@ -71,7 +71,7 @@ object AndroidEnvUtils {
         }
 
         return findCompatibleCommandLineTool(tool)
-            ?: throw CliError(
+            ?: throw DeviceError(
                 "Unable to find compatible cmdline-tools ($tools/<version>) for java version $javaVersion.\n\n" +
                         "Try to install a different cmdline-tools version:\n" +
                         "1) Open Android Studio SDK manager \n" +
@@ -82,7 +82,7 @@ object AndroidEnvUtils {
     }
 
     private fun getRecommendedToolsVersion(): String {
-        return when (EnvUtils.getJavaVersion()) {
+        return when (SystemInfo.getJavaVersion()) {
             8 -> "8.0"
             11 -> "10.0"
             17 -> "11.0"
@@ -135,12 +135,11 @@ object AndroidEnvUtils {
 
     fun requireEmulatorBinary(): File {
         val androidHome = androidHome
-            ?: throw CliError("Could not detect Android home environment variable is not set. Ensure that either ANDROID_HOME or ANDROID_SDK_ROOT is set.")
+            ?: throw DeviceError("Could not detect Android home environment variable is not set. Ensure that either ANDROID_HOME or ANDROID_SDK_ROOT is set.")
         val firstChoice = File(androidHome, "emulator/emulator")
         val secondChoice = File(androidHome, "tools/emulator")
         return firstChoice.takeIf { it.exists() } ?: secondChoice.takeIf { it.exists() }
-        ?: throw CliError("Could not find emulator binary at either of the following paths:\n$firstChoice\n$secondChoice")
+        ?: throw DeviceError("Could not find emulator binary at either of the following paths:\n$firstChoice\n$secondChoice")
     }
 }
 
-data class AvdDevice(val numericId: String, val nameId: String, val name: String)

@@ -1,7 +1,12 @@
 package maestro.cli.device
 
+import maestro.device.DeviceService
+import maestro.device.Device
+import maestro.device.Platform
+
 import maestro.cli.CliError
 import maestro.cli.util.*
+import maestro.device.util.AvdDevice
 
 internal object DeviceCreateUtil {
 

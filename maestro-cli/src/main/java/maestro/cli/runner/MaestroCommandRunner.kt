@@ -21,7 +21,7 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.CommandDebugMetadata
 import maestro.cli.report.FlowAIOutput

@@ -6,7 +6,7 @@ import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.DeviceInfo
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
-import maestro.cli.device.Platform
+import maestro.device.Platform
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.RunningFlow

@@ -4,8 +4,8 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
-import maestro.cli.device.DeviceService
-import maestro.cli.device.Platform
+import maestro.device.DeviceService
+import maestro.device.Platform
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos

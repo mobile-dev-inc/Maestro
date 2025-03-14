@@ -1,4 +1,4 @@
-package maestro.cli.device
+package maestro.device
 
 enum class Platform(val description: String) {
     ANDROID("Android"),

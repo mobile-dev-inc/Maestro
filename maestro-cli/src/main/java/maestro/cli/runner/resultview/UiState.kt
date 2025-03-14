@@ -1,6 +1,6 @@
 package maestro.cli.runner.resultview
 
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.runner.CommandState
 
 sealed class UiState {

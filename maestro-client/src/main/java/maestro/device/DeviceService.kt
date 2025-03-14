@@ -1,20 +1,17 @@
-package maestro.cli.device
+package maestro.device
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer
-import maestro.cli.CliError
-import maestro.cli.util.AndroidEnvUtils
-import maestro.cli.util.AvdDevice
-import maestro.cli.util.PrintUtils
+import maestro.device.DeviceError
+import maestro.device.util.AndroidEnvUtils
+import maestro.device.util.AvdDevice
+import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
 import maestro.utils.LocaleUtils
 import maestro.utils.MaestroTimer
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
-import util.LocalSimulatorUtils
-import util.LocalSimulatorUtils.SimctlError
-import util.SimctlList
 import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -30,20 +27,21 @@ object DeviceService {
         when (device.platform) {
             Platform.IOS -> {
                 try {
-                    LocalSimulatorUtils.bootSimulator(device.modelId)
+                    util.LocalSimulatorUtils.bootSimulator(device.modelId)
                     if (device.language != null && device.country != null) {
                         PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
-                        LocalSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
+                        util.LocalSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
                         LocaleUtils.findIOSLocale(device.language, device.country)?.let {
-                            LocalSimulatorUtils.setDeviceLocale(device.modelId, it)
+                            util.LocalSimulatorUtils.setDeviceLocale(device.modelId, it)
                         }
-                        LocalSimulatorUtils.reboot(device.modelId)
+                        util.LocalSimulatorUtils.reboot(device.modelId)
                     }
-                    LocalSimulatorUtils.launchSimulator(device.modelId)
-                    LocalSimulatorUtils.awaitLaunch(device.modelId)
-                } catch (e: SimctlError) {
+                    util.LocalSimulatorUtils.launchSimulator(device.modelId)
+                    util.LocalSimulatorUtils.awaitLaunch(device.modelId)
+                } catch (e: util.LocalSimulatorUtils.SimctlError) {
                     logger.error("Failed to launch simulator", e)
-                    throw CliError(e.message)
+                    throw DeviceError(e.message)
+
                 }
 
                 return Device.Connected(
@@ -64,18 +62,18 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start()
+                ).start().waitFor(7,TimeUnit.SECONDS)
 
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
-                        Dadb.list().firstOrNull { dadb ->
+                        Dadb.list().lastOrNull{ dadb ->
                             !connectedDevices.contains(dadb.toString())
                         }
                     } catch (ignored: Exception) {
                         Thread.sleep(100)
                         null
                     }
-                } ?: throw CliError("Unable to start device: ${device.modelId}")
+                } ?: throw DeviceError("Unable to start device: ${device.modelId}")
 
                 PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
                 while (!bootComplete(dadb)) {
@@ -110,7 +108,7 @@ object DeviceService {
             Platform.WEB -> {
                 return Device.Connected(
                     instanceId = "",
-                    description = "Selenium Chromium driver",
+                    description = "Chromium Web Browser",
                     platform = device.platform,
                 )
             }
@@ -174,10 +172,26 @@ object DeviceService {
             )
         }
         val connected = runCatching {
-            Dadb.list(host = host).map {
+            Dadb.list(host = host).map { dadb ->
+                val avdName = runCatching {
+                    dadb.shell("getprop ro.kernel.qemu").output.trim().let { qemuProp ->
+                        if (qemuProp == "1") {
+                            val avdNameResult = ProcessBuilder("adb", "-s", dadb.toString(), "emu", "avd", "name")
+                                .redirectErrorStream(true)
+                                .start()
+                                .apply { waitFor(5, TimeUnit.SECONDS) }
+                                .inputStream.bufferedReader().readLine()?.trim() ?: ""
+
+                            if (avdNameResult.isNotBlank() && !avdNameResult.contains("unknown AVD")) {
+                                avdNameResult
+                            } else null
+                        } else null
+                    }
+                }.getOrNull()
+
                 Device.Connected(
-                    instanceId = it.toString(),
-                    description = it.toString(),
+                    instanceId = dadb.toString(),
+                    description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
                 )
             }
@@ -213,7 +227,7 @@ object DeviceService {
 
     private fun listIOSDevices(): List<Device> {
         val simctlList = try {
-            LocalSimulatorUtils.list()
+            util.LocalSimulatorUtils.list()
         } catch (ignored: Exception) {
             return emptyList()
         }
@@ -233,8 +247,8 @@ object DeviceService {
 
     private fun device(
         runtimeNameByIdentifier: Map<String, String>,
-        runtime: Map.Entry<String, List<SimctlList.Device>>,
-        device: SimctlList.Device,
+        runtime: Map.Entry<String, List<util.SimctlList.Device>>,
+        device: util.SimctlList.Device,
     ): Device {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
@@ -487,6 +501,54 @@ object DeviceService {
         }
 
         return process.exitValue() == 0
+    }
+
+    fun killAndroidDevice(deviceId: String): Boolean {
+        val command = listOf("adb", "-s", deviceId, "emu", "kill")
+
+        try {
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+
+            if (!process.waitFor(1, TimeUnit.MINUTES)) {
+                throw TimeoutException("Android kill command timed out")
+            }
+
+            val success = process.exitValue() == 0
+            if (success) {
+                logger.info("Killed Android device: $deviceId")
+            } else {
+                logger.error("Failed to kill Android device: $deviceId")
+            }
+
+            return success
+        } catch (e: Exception) {
+            logger.error("Error killing Android device: $deviceId", e)
+            return false
+        }
+    }
+
+    fun killIOSDevice(deviceId: String): Boolean {
+        val command = listOf("xcrun", "simctl", "shutdown", deviceId)
+
+        try {
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+
+            if (!process.waitFor(1, TimeUnit.MINUTES)) {
+                throw TimeoutException("iOS kill command timed out")
+            }
+
+            val success = process.exitValue() == 0
+            if (success) {
+                logger.info("Killed iOS device: $deviceId")
+            } else {
+                logger.error("Failed to kill iOS device: $deviceId")
+            }
+
+            return success
+        } catch (e: Exception) {
+            logger.error("Error killing iOS device: $deviceId", e)
+            return false
+        }
     }
 
     private fun bootComplete(dadb: Dadb): Boolean {
