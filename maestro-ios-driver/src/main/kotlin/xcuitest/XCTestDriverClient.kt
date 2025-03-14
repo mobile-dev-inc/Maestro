@@ -84,6 +84,7 @@ class XCTestDriverClient(
         return mapper.readValue(response, GetRunningAppIdResponse::class.java)
     }
 
+    @Deprecated("swipeV2 is the latest one getting used everywhere because it requires one http call")
     fun swipe(
         appId: String,
         startX: Double,

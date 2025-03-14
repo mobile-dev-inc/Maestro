@@ -17,8 +17,7 @@ struct InputTextRouteHandler : HTTPHandler {
         do {
             let start = Date()
             
-            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
-            await waitUntilKeyboardIsPresented(appId: appId)
+            await waitUntilKeyboardIsPresented()
             
             try await TextInputHelper.inputText(requestBody.text)
 
@@ -30,11 +29,11 @@ struct InputTextRouteHandler : HTTPHandler {
         }
     }
     
-    private func waitUntilKeyboardIsPresented(appId: String?) async {
+    private func waitUntilKeyboardIsPresented() async {
         try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
-            guard let appId = appId else { return true }
+            let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
 
-            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+            return app.keyboards.firstMatch.exists
         }
     }
 }
