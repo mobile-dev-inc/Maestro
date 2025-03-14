@@ -367,9 +367,23 @@ class AndroidDriver(
             blockingStubWithTimeout.viewHierarchy(viewHierarchyRequest {})
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
-            if (status.code == Status.Code.DEADLINE_EXCEEDED) {
-                LOGGER.error("Timeout while fetching view hierarchy")
-                throw MaestroException.DriverTimeout("Android driver unreachable")
+            when (status.code) {
+                Status.Code.DEADLINE_EXCEEDED -> {
+                    LOGGER.error("Timeout while fetching view hierarchy")
+                    closed = true
+                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                }
+                Status.Code.UNAVAILABLE -> {
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
+                        closed = true
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
+                    }
+                }
+                else -> {
+                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message}")
+                }
             }
 
             // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
