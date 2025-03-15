@@ -27,3 +27,55 @@ detekt {
     autoCorrect = true
     config = files("${rootDir}/detekt.yml")
 }
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation("com.squareup.okhttp3:okhttp:4.9.2")
+    implementation("com.google.protobuf:protobuf-java:3.17.3")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("junit:junit:4.13.2")
+}
+
+version = "1.0.0"
+
+tasks.withType<Jar> {
+    manifest {
+        attributes["Main-Class"] = "MainKt"
+    }
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("myMavenPublication") {
+            from(components["java"])
+            groupId = "com.example"
+            artifactId = "maestro"
+            version = "1.0.0"
+
+            pom {
+                name.set("Maestro Project")
+                description.set("A Kotlin project for automating tasks in the Maestro system")
+                url.set("https://github.com/Franlexa/maestro")
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = uri("file://${buildDir}/repo") // Local repo for testing
+        }
+    }
+}
+
+tasks.register("cleanBuild") {
+    dependsOn("clean", "build")
+    group = "Build"
+    description = "Cleans and rebuilds the project."
+}
+
