@@ -75,6 +75,13 @@ data class ElementSelector(
             descriptions.add("id: $it")
         }
 
+        enabled?.let {
+            when(enabled){
+                true -> descriptions.add("enabled")
+                false -> descriptions.add("disabled")
+            }
+        }
+
         below?.let {
             descriptions.add("Below ${it.description()}")
         }
@@ -117,6 +124,20 @@ data class ElementSelector(
 
         index?.let {
             descriptions.add("Index: ${it.toDoubleOrNull()?.toInt() ?: it}")
+        }
+
+        selected?.let {
+            when(selected){
+                true -> descriptions.add("selected")
+                false -> descriptions.add("not selected")
+            }
+        }
+
+        focused?.let {
+            when(focused){
+                true -> descriptions.add("focused")
+                false -> descriptions.add("not focused")
+            }
         }
 
         childOf?.let {
