@@ -39,6 +39,7 @@ import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.ExtractTextWithAICommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
+import maestro.orchestra.InputRandomFakerCommand
 import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.KillAppCommand
@@ -96,6 +97,10 @@ data class YamlFluentCommand(
     val inputRandomNumber: YamlInputRandomNumber? = null,
     val inputRandomEmail: YamlInputRandomEmail? = null,
     val inputRandomPersonName: YamlInputRandomPersonName? = null,
+    val inputRandomCityName: YamlInputRandomCityName? = null,
+    val inputRandomCountryName: YamlInputRandomCountryName? = null,
+    val inputRandomColorName: YamlInputRandomColorName? = null,
+    val inputRandom: YamlInputRandom? = null,
     val launchApp: YamlLaunchApp? = null,
     val swipe: YamlSwipe? = null,
     val openLink: YamlOpenLink? = null,
@@ -202,58 +207,15 @@ data class YamlFluentCommand(
                     addMediaCommand = addMediaCommand(addMedia, flowPath)
                 )
             )
-
-            inputText != null -> listOf(
-                MaestroCommand(
-                    InputTextCommand(
-                        text = inputText.text,
-                        label = inputText.label,
-                        optional = inputText.optional
-                    )
-                )
-            )
-
-            inputRandomText != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.TEXT,
-                        length = inputRandomText.length,
-                        label = inputRandomText.label,
-                        optional = inputRandomText.optional
-                    )
-                )
-            )
-
-            inputRandomNumber != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.NUMBER,
-                        length = inputRandomNumber.length,
-                        label = inputRandomNumber.label,
-                        optional = inputRandomNumber.optional
-                    )
-                )
-            )
-
-            inputRandomEmail != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.TEXT_EMAIL_ADDRESS,
-                        label = inputRandomEmail.label,
-                        optional = inputRandomEmail.optional
-                    )
-                )
-            )
-
-            inputRandomPersonName != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.TEXT_PERSON_NAME,
-                        label = inputRandomPersonName.label,
-                        optional = inputRandomPersonName.optional
-                    )
-                )
-            )
+            inputText != null -> listOf(MaestroCommand(InputTextCommand(text = inputText.text, label = inputText.label, optional = inputText.optional)))
+            inputRandomText != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT, length = inputRandomText.length, label = inputRandomText.label, optional = inputRandomText.optional)))
+            inputRandomNumber != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.NUMBER, length = inputRandomNumber.length, label = inputRandomNumber.label, optional = inputRandomNumber.optional)))
+            inputRandomEmail != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_EMAIL_ADDRESS, label = inputRandomEmail.label, optional = inputRandomEmail.optional)))
+            inputRandomPersonName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_PERSON_NAME, label = inputRandomPersonName.label, optional = inputRandomPersonName.optional)))
+            inputRandomCityName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_CITY_NAME, label = inputRandomCityName.label, optional = inputRandomCityName.optional)))
+            inputRandomCountryName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COUNTRY_NAME, label = inputRandomCountryName.label, optional = inputRandomCountryName.optional)))
+            inputRandomColorName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COLOR, label = inputRandomColorName.label, optional = inputRandomColorName.optional)))
+            inputRandom != null -> listOf(MaestroCommand(InputRandomFakerCommand(inputType = inputRandom.type, label = inputRandom.label, optional = inputRandom.optional)))
 
             swipe != null -> listOf(swipeCommand(swipe))
             openLink != null -> listOf(
@@ -994,6 +956,22 @@ data class YamlFluentCommand(
 
                 "inputRandomPersonName" -> YamlFluentCommand(
                     inputRandomPersonName = YamlInputRandomPersonName(),
+                )
+
+                "inputRandomCityName" -> YamlFluentCommand(
+                    inputRandomCityName = YamlInputRandomCityName(),
+                )
+
+                "inputRandomCountryName" -> YamlFluentCommand(
+                    inputRandomCountryName = YamlInputRandomCountryName(),
+                )
+
+                "inputRandomColorName" -> YamlFluentCommand(
+                    inputRandomColorName = YamlInputRandomColorName(),
+                )
+
+                "inputRandom" -> YamlFluentCommand(
+                    inputRandom = YamlInputRandom(),
                 )
 
                 "back" -> YamlFluentCommand(
