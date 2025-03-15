@@ -3218,6 +3218,30 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 121 - CommonJS require functionality`() {
+        // Given
+        val commands = readCommands("121_require_module")
+        val driver = driver { }
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "{\"name\":\"myrequire\",\"version\":\"1.0.0\"}"
+        ).inOrder()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
