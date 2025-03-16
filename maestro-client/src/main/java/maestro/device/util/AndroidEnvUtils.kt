@@ -92,12 +92,18 @@ object AndroidEnvUtils {
 
     private fun findCompatibleCommandLineTool(tool: String): File? {
         val path = File(androidHome, "cmdline-tools")
+
+        var thisTool = tool
+        if (EnvUtils.isWindows()){
+            thisTool = "$tool.bat"
+        }
+
         return path.listFiles()
-            ?.filter { it.isDirectory && File(it, "/bin/$tool").exists() }
-            ?.filter { isCommandLineToolCompatible(File(it, "bin/$tool")) }
+            ?.filter { it.isDirectory && File(it, "/bin/$thisTool").exists() }
+            ?.filter { isCommandLineToolCompatible(File(it, "bin/$thisTool")) }
             ?.sortedWith(compareBy<File> { it.name != "latest" }
                 .thenByDescending { it.name.toDoubleOrNull() })
-            ?.map { File(it, "bin/$tool") }
+            ?.map { File(it, "bin/$thisTool") }
             ?.firstOrNull()
     }
 

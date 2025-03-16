@@ -19,7 +19,7 @@ object WorkspaceUtils {
         val files = Files.walk(file).filter { !it.isDirectory() }.toList()
         val relativeTo = if (file.isDirectory()) file else file.parent
 
-        val outUri = URI.create("jar:file:${out.toAbsolutePath()}")
+        val outUri = URI.create("jar:${out.toUri()}")
         FileSystems.newFileSystem(outUri, mapOf("create" to "true")).use { fs ->
             files.forEach {
                 val outPath = fs.getPath(relativeTo.relativize(it).toString())
