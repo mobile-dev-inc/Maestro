@@ -3,7 +3,8 @@ import XCTest
 struct ScreenSizeHelper {
     
     static func physicalScreenSize() -> (Float, Float) {
-        let springboardApp = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
+        let springboardBundleId = "com.apple.springboard"
+        let springboardApp = XCUIApplication(bundleIdentifier: springboardBundleId)
         let screenSize = springboardApp.frame.size
         return (Float(screenSize.width), Float(screenSize.height))
     }
