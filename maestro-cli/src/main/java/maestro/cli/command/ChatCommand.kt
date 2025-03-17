@@ -39,7 +39,7 @@ class ChatCommand : Callable<Int> {
         val client = ApiClient(apiUrl!!)
         println(
             """
-            Welcome to Maestro GPT!
+            Welcome to MaestroGPT!
 
             You can ask questions about Maestro documentation and code.
             To exit, type "quit" or "exit".
@@ -49,7 +49,7 @@ class ChatCommand : Callable<Int> {
         val sessionId = "maestro_cli:" + UUID.randomUUID().toString()
 
         while (true) {
-            print(ansi().fgBrightCyan().a("> ").reset().toString())
+            print(ansi().fgBrightMagenta().a("> ").reset().toString())
             val question = readLine()
 
             if (question == null || question == "quit" || question == "exit") {
@@ -57,10 +57,13 @@ class ChatCommand : Callable<Int> {
                 return 0
             }
 
-            val response = client.botMessage(question, sessionId, apiKey!!)
-            response.forEach {
+            val messages = client.botMessage(question, sessionId, apiKey!!)
+            println()
+            messages.filter { it.role == "assistant" }.mapNotNull { message ->
+                message.content.map { it.text }.joinToString("\n").takeIf { it.isNotBlank() }
+            }.forEach { message ->
                 println(
-                    ansi().fgBrightCyan().a("MaestroGPT> " + it.content.map { it.text }.joinToString("\n")).toString()
+                    ansi().fgBrightMagenta().a("MaestroGPT> ").reset().fgBrightCyan().a(message).reset().toString()
                 )
                 println()
             }
