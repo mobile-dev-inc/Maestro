@@ -63,6 +63,10 @@ class XCTestDriverClient(
         return executeJsonRequest(url)
     }
 
+    fun terminateApp(appId: String) {
+        executeJsonRequest("terminateApp", TerminateAppRequest(appId))
+    }
+
     fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
         val response = executeJsonRequest(
             "keyboard",

@@ -150,8 +150,10 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun stop(id: String): Result<Unit, Throwable> {
-        error("Not supported")
+    override fun stop(id: String) {
+        execute {
+            client.terminateApp(appId = id)
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {

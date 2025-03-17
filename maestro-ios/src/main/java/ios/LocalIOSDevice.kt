@@ -108,8 +108,8 @@ class LocalIOSDevice(
         return simctlIOSDevice.launch(id, launchArguments, maestroSessionId)
     }
 
-    override fun stop(id: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.stop(id)
+    override fun stop(id: String) {
+        xcTestDevice.stop(id)
     }
 
     override fun isKeyboardVisible(): Boolean {
