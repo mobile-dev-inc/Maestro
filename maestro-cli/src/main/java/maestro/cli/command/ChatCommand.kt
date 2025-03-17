@@ -3,6 +3,7 @@ package maestro.cli.command
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.EnvUtils.BASE_API_URL
+import org.fusesource.jansi.Ansi.ansi
 import picocli.CommandLine
 import java.util.*
 import java.util.concurrent.Callable
@@ -42,12 +43,13 @@ class ChatCommand : Callable<Int> {
 
             You can ask questions about Maestro documentation and code.
             To exit, type "quit" or "exit".
+            
             """.trimIndent()
         )
         val sessionId = "maestro_cli:" + UUID.randomUUID().toString()
 
         while (true) {
-            print("User> ")
+            print(ansi().fgBrightCyan().a("> ").reset().toString())
             val question = readLine()
 
             if (question == null || question == "quit" || question == "exit") {
@@ -58,7 +60,7 @@ class ChatCommand : Callable<Int> {
             val response = client.botMessage(question, sessionId, apiKey!!)
             response.forEach {
                 println(
-                    "MaestroGPT> " + it.content.map { it.text }.joinToString("\n")
+                    ansi().fgBrightCyan().a("MaestroGPT> " + it.content.map { it.text }.joinToString("\n")).toString()
                 )
             }
         }
