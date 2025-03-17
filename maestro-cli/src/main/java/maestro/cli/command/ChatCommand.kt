@@ -62,6 +62,7 @@ class ChatCommand : Callable<Int> {
                 println(
                     ansi().fgBrightCyan().a("MaestroGPT> " + it.content.map { it.text }.joinToString("\n")).toString()
                 )
+                println()
             }
         }
     }
