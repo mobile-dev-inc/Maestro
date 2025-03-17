@@ -58,6 +58,8 @@ import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
+private val logger = LoggerFactory.getLogger(Maestro::class.java)
+
 private const val DefaultDriverHostPort = 7001
 
 class AndroidDriver(
@@ -1115,15 +1117,37 @@ class AndroidDriver(
 
     fun uninstallMaestroDriverApp() {
         metrics.measured("operation", mapOf("command" to "uninstallMaestroDriverApp")) {
-            if (isPackageInstalled("dev.mobile.maestro")) {
-                uninstall("dev.mobile.maestro")
+            try {
+                if (isPackageInstalled("dev.mobile.maestro")) {
+                    uninstall("dev.mobile.maestro")
+                }
+            } catch (e: IOException) {
+                logger.warn("Failed to check or uninstall maestro driver app: ${e.message}")
+                // Continue with cleanup even if we can't check package status
+                try {
+                    uninstall("dev.mobile.maestro")
+                } catch (e2: IOException) {
+                    logger.warn("Failed to uninstall maestro driver app: ${e2.message}")
+                    // Just log and continue, don't throw
+                }
             }
         }
     }
 
     private fun uninstallMaestroServerApp() {
-        if (isPackageInstalled("dev.mobile.maestro.test")) {
-            uninstall("dev.mobile.maestro.test")
+        try {
+            if (isPackageInstalled("dev.mobile.maestro.test")) {
+                uninstall("dev.mobile.maestro.test")
+            }
+        } catch (e: IOException) {
+            logger.warn("Failed to check or uninstall maestro server app: ${e.message}")
+            // Continue with cleanup even if we can't check package status
+            try {
+                uninstall("dev.mobile.maestro.test")
+            } catch (e2: IOException) {
+                logger.warn("Failed to uninstall maestro server app: ${e2.message}")
+                // Just log and continue, don't throw
+            }
         }
     }
 
@@ -1149,12 +1173,18 @@ class AndroidDriver(
     }
 
     private fun isPackageInstalled(packageName: String): Boolean {
-        val output: String = shell("pm list packages --user 0 $packageName")
-        return output.split("\n".toRegex())
-            .map { line -> line.split(":".toRegex()) }
-            .filter { parts -> parts.size == 2 }
-            .map { parts -> parts[1] }
-            .any { linePackageName -> linePackageName == packageName }
+        try {
+            val output: String = shell("pm list packages --user 0 $packageName")
+            return output.split("\n".toRegex())
+                .map { line -> line.split(":".toRegex()) }
+                .filter { parts -> parts.size == 2 }
+                .map { parts -> parts[1] }
+                .any { linePackageName -> linePackageName == packageName }
+        } catch (e: IOException) {
+            logger.warn("Failed to check if package $packageName is installed: ${e.message}")
+            // If we can't check, we'll assume it's not installed
+            throw e
+        }
     }
 
     private fun shell(command: String): String {
