@@ -3,7 +3,8 @@ import io.grpc.ManagedChannelBuilder
 import ios.IOSDevice
 import maestro.Maestro
 import maestro.drivers.AndroidDriver
-import maestro.orchestra.AssertCommand
+import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
@@ -52,8 +53,10 @@ private fun executeAndroidCommands() {
             tapOnElement = TapOnElementCommand(ElementSelector(idRegex = "fabAddIcon")),
         ),
         MaestroCommand(
-            assertCommand = AssertCommand(
-                ElementSelector(textRegex = "2"),
+            assertConditionCommand = AssertConditionCommand(
+                condition = Condition(
+                    visible = ElementSelector(textRegex = "2")
+                )
             ),
         ),
     )

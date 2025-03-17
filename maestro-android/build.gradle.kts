@@ -152,13 +152,23 @@ dependencies {
     implementation(libs.grpc.okhttp)
     implementation(libs.google.protobuf.kotlin.lite)
 
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.cio)
-    implementation(libs.ktor.server.content.negotiation)
-    implementation(libs.ktor.serial.gson)
+    implementation(libs.ktor.server.core) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+    implementation(libs.ktor.server.cio) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+    implementation(libs.ktor.server.content.negotiation) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+    implementation(libs.ktor.serial.gson) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
 
     implementation(libs.commons.lang3)
     implementation(libs.hiddenapibypass)
+
+    implementation("org.slf4j:slf4j-api:1.7.36")
 
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.espresso.core)

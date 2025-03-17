@@ -22,9 +22,13 @@ object MetricsProvider {
 }
 
 private fun toTags(map: Map<String, String?>): Iterable<Tag> {
-    return map.filterValues {
-        it != null
-    }.map { Tag.of(it.key, it.value) }.toList()
+    return map.map {
+        if(it.value != null) {
+            Tag.of(it.key, it.value!!)
+        } else {
+            null
+        }
+    }.filterNotNull().toList()
 }
 
 private fun prefixed(prefix: String?, name: String): String {

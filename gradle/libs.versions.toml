@@ -34,9 +34,10 @@ jansi = "2.4.1"
 jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
-kotlin = "1.8.22"
+kotlin = "2.0.0"
 kotlinResult = "1.1.18"
-ktor = "2.3.6"
+modelcontextprotocol = "0.3.0"
+ktor = "2.3.7"
 micrometerObservation = "1.13.4"
 micrometerCore = "1.13.4"
 mockk = "1.12.0"
@@ -56,6 +57,7 @@ kotlinx-html = "0.8.0"
 clikt = "4.2.2"
 
 [libraries]
+modelcontextprotocol = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "modelcontextprotocol" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }

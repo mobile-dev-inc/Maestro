@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.serial.json)
     implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.modelcontextprotocol)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.clikt)
 

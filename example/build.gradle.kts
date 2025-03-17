@@ -11,9 +11,20 @@ application {
     mainClass.set("MainKt")
 }
 
-tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+// Set both Java and Kotlin compatibility to Java 8
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
+kotlin {
+    jvmToolchain(8)
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions {
+        jvmTarget = "1.8"
     }
 }
 
@@ -23,4 +34,3 @@ dependencies {
     implementation(project(":maestro-orchestra"))
     implementation(project(":maestro-ios"))
 }
-
