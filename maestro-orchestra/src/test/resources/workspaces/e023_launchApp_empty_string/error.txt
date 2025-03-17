@@ -1,0 +1,13 @@
+> Incorrect Command Format: launchApp
+
+{PROJECT_DIR}/src/test/resources/workspaces/e023_launchApp_empty_string/workspace/Flow.yaml:3
+╭──────────────────────────────────────────────────────────╮
+│ 1 | appId: com.example.app                               │
+│ 2 | ---                                                  │
+│ 3 | - launchApp:                                         │
+│                 ^                                        │
+│ ╭──────────────────────────────────────────────────────╮ │
+│ │ The command `launchApp` requires additional options. │ │
+│ ╰──────────────────────────────────────────────────────╯ │
+│ 4 |                                                      │
+╰──────────────────────────────────────────────────────────╯

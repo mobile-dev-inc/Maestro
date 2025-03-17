@@ -1,0 +1,13 @@
+> Missing Command Options
+
+{PROJECT_DIR}/src/test/resources/workspaces/e020_missing_command_options/workspace/Flow.yaml:3
+╭──────────────────────────────────────────────────────╮
+│ 1 | appId: com.example.app                           │
+│ 2 | ---                                              │
+│ 3 | - tapOn                                          │
+│            ^                                         │
+│ ╭──────────────────────────────────────────────────╮ │
+│ │ The command `tapOn` requires additional options. │ │
+│ ╰──────────────────────────────────────────────────╯ │
+│ 4 |                                                  │
+╰──────────────────────────────────────────────────────╯

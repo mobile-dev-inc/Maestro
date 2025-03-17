@@ -1,8 +1,8 @@
 > Config Section Required
 
-{PROJECT_DIR}/src/test/resources/workspaces/e010_missing_config_section/workspace/Flow.yaml:1
+{PROJECT_DIR}/src/test/resources/workspaces/e023_empty/workspace/Flow.yaml:1
 ╭────────────────────────────────────────────────────────────────────────╮
-│ 1 | - launchApp                                                        │
+│ 1 |                                                                    │
 │     ^                                                                  │
 │ ╭────────────────────────────────────────────────────────────────────╮ │
 │ │ Flow files must start with a config section. Eg:                   │ │
@@ -15,5 +15,4 @@
 │ │                                                                    │ │
 │ │ > https://docs.maestro.dev/getting-started/writing-your-first-flow │ │
 │ ╰────────────────────────────────────────────────────────────────────╯ │
-│ 2 |                                                                    │
 ╰────────────────────────────────────────────────────────────────────────╯

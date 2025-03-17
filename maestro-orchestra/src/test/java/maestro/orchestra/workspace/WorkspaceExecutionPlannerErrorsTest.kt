@@ -14,17 +14,17 @@ import kotlin.io.path.*
  * How to add a new error test case:
  *
  * 1. Create a new workspace directory eg. resources/workspaces/e###_test_case_name
- * 2. Run ./gradlew :maestro-orchestra:test --tests "maestro.orchestra.workspace.WorkspaceExecutionPlannerErrorsTest"
- * 3. Error message output will be saved to resources/workspaces/e###_test_case_name/error.actual.txt
- * 4. Move error.actual.txt to error.txt and commit the file
- * 5. Rerun and ensure this passes: ./gradlew :maestro-orchestra:test --tests "maestro.orchestra.workspace.WorkspaceExecutionPlannerErrorsTest"
+ * 2. Run GENERATE_ERRORS=true ./gradlew :maestro-orchestra:test --tests "maestro.orchestra.workspace.WorkspaceExecutionPlannerErrorsTest"
+ * 3. Error messages for all test cases will be regenerated and saved to resources/workspaces/e###_test_case_name/error.txt
+ * 4. Manually validate that the generated error messages are correct.
+ * 5. Run the tests without the GENERATE_ERRORS env var and ensure this passes: ./gradlew :maestro-orchestra:test --tests "maestro.orchestra.workspace.WorkspaceExecutionPlannerErrorsTest"
+ * 6. Commit your changes.
  *
  *
  * Test case files:
  *
  *   workspace/: The workspace directory passed into WorkspaceExecutionPlanner.plan()
  *   error.txt: The expected error message for the test case
- *   error.actual.txt: The actual error message generated when running the test case (ignored by VCS)
  *   includeTags.txt: Include tags (one per line) to be passed into WorkspaceExecutionPlanner.plan()
  *   excludeTags.txt: Exclude tags (one per line) to be passed into WorkspaceExecutionPlanner.plan()
  *   singleFlow.txt: Indicates that the test should pass the path to the specified flow file instead of the workspace/ directory
@@ -62,16 +62,11 @@ internal class WorkspaceExecutionPlannerErrorsTest {
             }
 
             val actualError = e.message.replace(PROJECT_DIR, "{PROJECT_DIR}")
-            val actualErrorPath = path.resolve("error.actual.txt")
 
-            actualErrorPath.writeText(actualError)
-
-            if (expectedError == null) {
-                assertWithMessage("Error message written to $actualErrorPath\nIf the error message looks good, copy the file above to error.txt and rerun this test").fail()
+            if (System.getenv("GENERATE_ERRORS") == "true") {
+                expectedErrorPath.writeText(actualError)
             } else if (expectedError != actualError) {
-                System.err.println("Expected and actual error messages differ. If actual error message is preferred, move error.actual.txt to error.txt and rerun this test")
-                System.err.println("Expected error message path: $expectedErrorPath")
-                System.err.println("Actual error message path: $actualErrorPath")
+                System.err.println("Expected and actual error messages differ. If actual error message is preferred, rerun this test with GENERATE_ERRORS=true")
                 assertThat(actualError).isEqualTo(expectedError)
             }
         }

@@ -236,7 +236,7 @@ class CloudCommand : Callable<Int> {
                     config = configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
-            throw CliError("Upload aborted. Received error when evaluating workspace: ${e.message}")
+            throw CliError("Upload aborted. Received error when evaluating workspace:\n\n${e.message}")
         }
     }
 
