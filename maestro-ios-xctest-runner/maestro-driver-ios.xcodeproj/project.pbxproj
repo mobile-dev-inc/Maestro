@@ -29,6 +29,8 @@
 		521C1F0C2D8030A30024EE42 /* XCTestManager_ManagerInterface-Protocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA622D6DCC600015FAB3 /* XCTestManager_ManagerInterface-Protocol.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		521C1F0E2D80518A0024EE42 /* XCTestDaemonsProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */; };
 		521C1F102D8051FC0024EE42 /* XCTestDaemonsProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */; };
+		521C1F122D86CE940024EE42 /* TerminateAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */; };
+		521C1F142D86D3900024EE42 /* TerminateAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */; };
 		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
 		52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */; };
@@ -124,6 +126,8 @@
 		521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIApplication+Helper.m"; sourceTree = "<group>"; };
 		521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestDaemonsProxy.h; sourceTree = "<group>"; };
 		521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = XCTestDaemonsProxy.m; sourceTree = "<group>"; };
+		521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppHandler.swift; sourceTree = "<group>"; };
+		521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppRequest.swift; sourceTree = "<group>"; };
 		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCInternalTestRun.h; sourceTree = "<group>"; };
 		52D8FA282D6DCC600015FAB3 /* _XCKVOExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCKVOExpectationImplementation.h; sourceTree = "<group>"; };
@@ -516,6 +520,7 @@
 		9407362C2940C9F900A72E99 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */,
 				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
 				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
 				32097964297092A800340282 /* InputTextRequest.swift */,
@@ -551,6 +556,7 @@
 		943A9082293F5CA700C85136 /* Handlers */ = {
 			isa = PBXGroup;
 			children = (
+				521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */,
 				610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
@@ -748,6 +754,7 @@
 				94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */,
 				52D8FAAC2D6DD3A20015FAB3 /* FBLogger.m in Sources */,
 				612432A02A4DA72F00F5F619 /* Logger.swift in Sources */,
+				521C1F142D86D3900024EE42 /* TerminateAppRequest.swift in Sources */,
 				9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */,
 				521C1F072D8017480024EE42 /* AXClientProxy.m in Sources */,
 				61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */,
@@ -762,6 +769,7 @@
 				52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */,
 				945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */,
 				613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */,
+				521C1F122D86CE940024EE42 /* TerminateAppHandler.swift in Sources */,
 				94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */,
 				945DD44D29D6F73B004D8ECF /* SetPermissionsHandler.swift in Sources */,
 				61C0AFE729C7AB0C005D1FC5 /* PressKeyHandler.swift in Sources */,
