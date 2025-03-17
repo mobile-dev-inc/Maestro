@@ -1,6 +1,7 @@
 package maestro.cli.api
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
@@ -351,7 +352,11 @@ class ApiClient(
             if (!response.isSuccessful) {
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
-                if (response.code == 403 && errorMessage.contains("Your trial has not started yet", ignoreCase = true)) {
+                if (response.code == 403 && errorMessage.contains(
+                        "Your trial has not started yet",
+                        ignoreCase = true
+                    )
+                ) {
                     println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
                     print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
 
@@ -362,7 +367,7 @@ class ApiClient(
                         println("\u001B[33;1m[INFO]\u001B[0m Starting your trial for company: \u001B[36;1m$companyName\u001B[0m...")
 
                         val isTrialStarted = startTrial(authToken, companyName);
-                        if(isTrialStarted) {
+                        if (isTrialStarted) {
                             println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
                             return upload(
                                 authToken = authToken,
@@ -389,10 +394,10 @@ class ApiClient(
                                 projectId = projectId
                             )
                         } else {
-                          println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
+                            println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
                         }
                     } else {
-                      println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
+                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
                     }
                 }
 
@@ -522,6 +527,43 @@ class ApiClient(
             }
 
             val parsed = JSON.readValue(response.body?.bytes(), AnalyzeResponse::class.java)
+
+            return parsed;
+        }
+    }
+
+    fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
+        val body = JSON.writeValueAsString(
+            MessageRequest(
+                sessionId = sessionId,
+                context = emptyList(),
+                messages = listOf(
+                    ContentDetail(
+                        type = "text",
+                        text = question
+                    )
+                )
+            )
+        )
+
+        val url = "$baseUrl/v2/bot/message"
+
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $authToken")
+            .post(body.toRequestBody("application/json".toMediaType()))
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+                throw CliError("bot message request failed (${response.code}): $errorMessage")
+            }
+
+            val data = response.body?.bytes()
+            val parsed = JSON.readValue(data, object : TypeReference<List<MessageContent>>() {})
 
             return parsed;
         }
