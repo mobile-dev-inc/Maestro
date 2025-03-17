@@ -38,7 +38,7 @@ import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(
-    private val driver: Driver,
+    val driver: Driver,
 ) : AutoCloseable {
 
     private val sessionId = UUID.randomUUID()
