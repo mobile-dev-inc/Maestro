@@ -132,7 +132,7 @@ object DeviceService {
             .filterIsInstance<Device.AvailableForLaunch>()
     }
 
-    private fun listDevices(includeWeb: Boolean, host: String? = null, port: Int? = null): List<Device> {
+     fun listDevices(includeWeb: Boolean, host: String? = null, port: Int? = null): List<Device> {
         return listAndroidDevices(host, port) +
                 listIOSDevices() +
                 if (includeWeb) {
