@@ -101,10 +101,8 @@ class SimctlIOSDevice(
         }
     }
 
-    override fun stop(id: String): Result<Unit, Throwable> {
-        return runCatching {
-            LocalSimulatorUtils.terminate(deviceId, id)
-        }
+    override fun stop(id: String) {
+        error("Not supported")
     }
 
     override fun isKeyboardVisible(): Boolean {
