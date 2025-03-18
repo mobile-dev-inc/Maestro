@@ -50,6 +50,7 @@ import maestro.utils.Insights
 import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
+import net.datafaker.Faker
 import okhttp3.OkHttpClient
 import okio.Buffer
 import okio.Sink
@@ -296,6 +297,7 @@ class Orchestra(
             is ExtractTextWithAICommand -> extractTextWithAICommand(command)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
+            is InputRandomFakerCommand -> inputTextRandomFakerCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
             is OpenLinkCommand -> openLinkCommand(command, config)
             is PressKeyCommand -> pressKeyCommand(command)
@@ -917,6 +919,18 @@ class Orchestra(
     private fun inputTextRandomCommand(command: InputRandomCommand): Boolean {
         inputTextCommand(InputTextCommand(text = command.genRandomString()))
 
+        return true
+    }
+
+    private fun inputTextRandomFakerCommand(command: InputRandomFakerCommand): Boolean {
+        val faker = Faker()
+        val randomValue: String
+        try {
+            randomValue = faker.expression("#{${command.inputType}}")
+        } catch (e: Throwable) {
+            throw MaestroException.InvalidCommand("Provided random input type cannot be resolved as a DataFaker expression")
+        }
+        inputTextCommand(InputTextCommand(text = randomValue))
         return true
     }
 
