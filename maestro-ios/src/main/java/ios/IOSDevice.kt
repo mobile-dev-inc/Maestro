@@ -98,7 +98,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param id - bundle id of the app to terminate
      */
-    fun stop(id: String): Result<Unit, Throwable>
+    fun stop(id: String)
 
     fun isKeyboardVisible(): Boolean
 

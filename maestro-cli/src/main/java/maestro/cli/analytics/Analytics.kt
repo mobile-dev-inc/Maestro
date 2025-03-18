@@ -8,10 +8,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.cli.api.ApiClient
-import maestro.cli.util.AndroidEnvUtils
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
+import maestro.device.util.AndroidEnvUtils
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.nio.file.Path

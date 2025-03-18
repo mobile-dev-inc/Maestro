@@ -4,7 +4,7 @@ import os
 
 struct RunningApp {
     
-    private static let springboardBundleId = "com.apple.springboard"
+    static let springboardBundleId = "com.apple.springboard"
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
@@ -24,5 +24,18 @@ struct RunningApp {
         } ?? RunningApp.springboardBundleId
     }
     
+    static func getForegroundApp() -> XCUIApplication? {
+        let runningAppIds = XCUIApplication.activeAppsInfo().compactMap { $0["bundleId"] as? String }
+        
+        NSLog("Detected running apps: \(runningAppIds)")
+
+        if runningAppIds.count == 1, let bundleId = runningAppIds.first {
+            return XCUIApplication(bundleIdentifier: bundleId)
+        } else {
+            return runningAppIds
+                .map { XCUIApplication(bundleIdentifier: $0) }
+                .first { $0.state == .runningForeground }
+        }
+    }
     
 }

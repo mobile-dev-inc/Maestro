@@ -20,8 +20,7 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
 
         do {
-            let runningAppIds = requestBody.appIds
-            let app = getForegroundApp(runningAppIds)
+            let app = RunningApp.getForegroundApp()
             guard let app = app else {
                 let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
                 let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
@@ -43,12 +42,6 @@ struct ViewHierarchyHandler: HTTPHandler {
             logger.error("Error in handleRequest, Error:\(error)");
             return AppError(message: "Snapshot failure while getting view hierarchy. Error: \(error.localizedDescription)").httpResponse
         }
-    }
-
-    func getForegroundApp(_ runningAppIds: [String]) -> XCUIApplication? {
-        runningAppIds
-            .map { XCUIApplication(bundleIdentifier: $0) }
-            .first { app in app.state == .runningForeground }
     }
 
     func getAppViewHierarchy(app: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {

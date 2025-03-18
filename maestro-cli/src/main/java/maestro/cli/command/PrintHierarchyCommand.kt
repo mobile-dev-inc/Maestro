@@ -51,6 +51,13 @@ class PrintHierarchyCommand : Runnable {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
+    @CommandLine.Option(
+        names = ["--android-webview-hierarchy"],
+        description = ["Set to \"devtools\" to use Chrome dev tools for Android WebView hierarchy"],
+        hidden = true,
+    )
+    private var androidWebViewHierarchy: String? = null
+
     override fun run() {
         TestDebugReporter.install(
             debugOutputPathAsString = null,
@@ -65,6 +72,7 @@ class PrintHierarchyCommand : Runnable {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
         ) { session ->
+            session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
             val callback: (Insight) -> Unit = {
                 val message = StringBuilder()
                 val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)

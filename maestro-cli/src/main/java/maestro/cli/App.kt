@@ -22,6 +22,7 @@ package maestro.cli
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.command.BugReportCommand
+ import maestro.cli.command.ChatCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.LoginCommand
@@ -62,6 +63,7 @@ import kotlin.system.exitProcess
         StudioCommand::class,
         StartDeviceCommand::class,
         GenerateCompletion::class,
+        ChatCommand::class,
     ]
 )
 class App {
@@ -126,7 +128,7 @@ fun main(args: Array<String>) {
                 .build()
 
             cmd.err.println(
-                cmd.colorScheme.errorText(ex.message)
+                cmd.colorScheme.errorText(ex.message.orEmpty())
             )
 
             if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion) {

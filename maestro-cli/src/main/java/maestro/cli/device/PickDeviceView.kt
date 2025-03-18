@@ -5,6 +5,8 @@ import maestro.cli.model.DeviceStartOptions
 import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.PrintUtils
+import maestro.device.Device
+import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
 
 object PickDeviceView {

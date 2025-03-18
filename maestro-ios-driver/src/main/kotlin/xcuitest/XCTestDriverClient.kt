@@ -63,6 +63,10 @@ class XCTestDriverClient(
         return executeJsonRequest(url)
     }
 
+    fun terminateApp(appId: String) {
+        executeJsonRequest("terminateApp", TerminateAppRequest(appId))
+    }
+
     fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
         val response = executeJsonRequest(
             "keyboard",
@@ -84,6 +88,7 @@ class XCTestDriverClient(
         return mapper.readValue(response, GetRunningAppIdResponse::class.java)
     }
 
+    @Deprecated("swipeV2 is the latest one getting used everywhere because it requires one http call")
     fun swipe(
         appId: String,
         startX: Double,

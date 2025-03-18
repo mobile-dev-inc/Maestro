@@ -25,9 +25,9 @@ import ios.LocalIOSDevice
 import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.device.PickDeviceInteractor
-import maestro.cli.device.Platform
+import maestro.device.Platform
 import maestro.utils.CliInsights
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver

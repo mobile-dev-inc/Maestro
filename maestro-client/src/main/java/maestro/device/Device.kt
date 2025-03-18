@@ -1,4 +1,4 @@
-package maestro.cli.device
+package maestro.device
 
 sealed class Device(
     open val description: String,

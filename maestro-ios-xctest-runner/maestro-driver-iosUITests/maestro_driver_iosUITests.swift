@@ -19,10 +19,6 @@ final class maestro_driver_iosUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    @objc func replace_waitForQuiescenceIncludingAnimationsIdle() {
-        return
-    }
-
     override class func setUp() {
         logger.trace("setUp")
     }

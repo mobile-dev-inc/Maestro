@@ -1,6 +1,7 @@
 import XCTest
 
 struct ScreenSizeHelper {
+    
     static func physicalScreenSize() -> (Float, Float) {
         let springboardBundleId = "com.apple.springboard"
         let springboardApp = XCUIApplication(bundleIdentifier: springboardBundleId)

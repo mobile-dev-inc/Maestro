@@ -38,8 +38,8 @@ class XCTestIOSDevice(
 
     override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         return execute {
-            val installedApps = getInstalledApps()
-            val viewHierarchy = client.viewHierarchy(installedApps, excludeKeyboardElements)
+            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
+            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
@@ -104,8 +104,9 @@ class XCTestIOSDevice(
         duration: Double,
     ) {
         execute {
+            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             client.swipeV2(
-                installedApps = getInstalledApps(),
+                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
@@ -117,10 +118,10 @@ class XCTestIOSDevice(
 
     override fun input(text: String) {
        execute {
-           val appIds = getInstalledApps()
+           // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
            client.inputText(
                text = text,
-               appIds = appIds,
+               appIds = emptySet(),
            )
        }
     }
@@ -149,8 +150,10 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun stop(id: String): Result<Unit, Throwable> {
-        error("Not supported")
+    override fun stop(id: String) {
+        execute {
+            client.terminateApp(appId = id)
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -211,8 +214,8 @@ class XCTestIOSDevice(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        val appIds = getInstalledApps()
-        execute { client.eraseText(charactersToErase, appIds) }
+        // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
+        execute { client.eraseText(charactersToErase, appIds = emptySet()) }
     }
 
     private fun activeAppId(): String {

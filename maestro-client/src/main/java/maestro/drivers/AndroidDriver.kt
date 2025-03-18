@@ -34,6 +34,8 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
+import maestro.android.chromedevtools.AndroidWebViewHierarchy
+import maestro.android.chromedevtools.DadbChromeDevToolsClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -80,6 +82,8 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
+
+    private var chromeDevToolsEnabled = false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -333,7 +337,10 @@ class AndroidDriver(
                 .newDocumentBuilder()
                 .parse(response.hierarchy.byteInputStream())
 
-            val treeNode = mapHierarchy(document)
+            val baseTree = mapHierarchy(document)
+
+            val treeNode = AndroidWebViewHierarchy.augmentHierarchy(dadb, baseTree, chromeDevToolsEnabled)
+
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode
             } else {
@@ -367,9 +374,23 @@ class AndroidDriver(
             blockingStubWithTimeout.viewHierarchy(viewHierarchyRequest {})
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
-            if (status.code == Status.Code.DEADLINE_EXCEEDED) {
-                LOGGER.error("Timeout while fetching view hierarchy")
-                throw MaestroException.DriverTimeout("Android driver unreachable")
+            when (status.code) {
+                Status.Code.DEADLINE_EXCEEDED -> {
+                    LOGGER.error("Timeout while fetching view hierarchy")
+                    closed = true
+                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                }
+                Status.Code.UNAVAILABLE -> {
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
+                        closed = true
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
+                    }
+                }
+                else -> {
+                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message}")
+                }
             }
 
             // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
@@ -816,6 +837,10 @@ class AndroidDriver(
                 }
             }
         }
+    }
+
+    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
+        this.chromeDevToolsEnabled = enabled
     }
 
     fun setDeviceLocale(country: String, language: String): Int {
