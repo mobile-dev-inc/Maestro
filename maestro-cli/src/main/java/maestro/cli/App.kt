@@ -23,6 +23,7 @@ import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.command.BugReportCommand
  import maestro.cli.command.ChatCommand
+import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.LoginCommand
@@ -64,6 +65,7 @@ import kotlin.system.exitProcess
         StartDeviceCommand::class,
         GenerateCompletion::class,
         ChatCommand::class,
+        CheckSyntaxCommand::class,
     ]
 )
 class App {

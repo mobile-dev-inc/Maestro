@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonLocation
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.core.JsonToken
+import com.fasterxml.jackson.core.TreeNode
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -40,6 +41,7 @@ import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.util.Env.withEnv
 import org.intellij.lang.annotations.Language
 import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.io.path.absolute
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
@@ -484,6 +486,50 @@ object MaestroFlowParser {
 
     fun formatCommands(commands: List<String>): String {
         return MAPPER.writeValueAsString(commands.map { MAPPER.readTree(it) })
+    }
+
+    fun checkSyntax(maestroCode: String) {
+        MAPPER.createParser(maestroCode).use { parser ->
+            val node = parser.readValueAsTree<TreeNode>()
+            if (node.isArray) {
+                checkCommandListSyntax(maestroCode)
+            } else if (node.isObject && parser.nextToken() != null) {
+                checkFlowSyntax(maestroCode)
+            } else {
+                checkCommandSyntax(maestroCode)
+            }
+        }
+    }
+
+    private fun checkCommandListSyntax(maestroCode: String) {
+        MAPPER.createParser(maestroCode).use { parser ->
+            try {
+                parseCommands(parser)
+            } catch (e: Throwable) {
+                throw wrapException(e, parser, Paths.get("/syntax-checker"), maestroCode)
+            }
+        }
+    }
+
+    private fun checkCommandSyntax(command: String) {
+        MAPPER.createParser(command).use { parser ->
+            try {
+                parser.readValueAs(YamlFluentCommand::class.java)
+            } catch (e: Throwable) {
+                throw wrapException(e, parser, Paths.get("/syntax-checker"), command)
+            }
+        }
+    }
+
+    private fun checkFlowSyntax(flow: String) {
+        MAPPER.createParser(flow).use { parser ->
+            try {
+                parseConfig(parser)
+                parseCommands(parser)
+            } catch (e: Throwable) {
+                throw wrapException(e, parser, Paths.get("/syntax-checker"), flow)
+            }
+        }
     }
 
     private fun parseCommands(parser: JsonParser): List<YamlFluentCommand> {

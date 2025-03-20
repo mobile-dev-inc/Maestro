@@ -2,4 +2,10 @@
 
 set -e
 
-./gradlew :maestro-cli:installDist -q && ./maestro-cli/build/install/maestro/bin/maestro "$@"
+if [ -t 0 ]; then
+  input=""
+else
+  input=$(cat -)
+fi
+
+./gradlew :maestro-cli:installDist -q && echo "$input" | ./maestro-cli/build/install/maestro/bin/maestro "$@"
