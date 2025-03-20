@@ -1,6 +1,6 @@
 > Invalid Command: invalidCommand
 
-{PROJECT_DIR}/src/test/resources/workspaces/e008_subflow_invalid_string_command/workspace/./subflow/SubFlow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/./subflow/SubFlow.yaml:3
 ╭───────────────────────────────────────────────────────╮
 │ 1 | appId: com.example                                │
 │ 2 | ---                                               │

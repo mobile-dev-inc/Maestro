@@ -1,6 +1,6 @@
 > Invalid File Path
 
-{PROJECT_DIR}/src/test/resources/workspaces/e012_invalid_subflow_path/workspace/Flow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
 ╭──────────────────────────────────────────────────────────────────────────────────╮
 │ 1 | appId: com.example                                                           │
 │ 2 | ---                                                                          │
@@ -8,7 +8,7 @@
 │       ^                                                                          │
 │ ╭──────────────────────────────────────────────────────────────────────────────╮ │
 │ │ Flow file does not exist:                                                    │ │
-│ │ file://{PROJECT_DIR}/src/test/resources/worksp │ │
-│ │ aces/e012_invalid_subflow_path/workspace/invalidpath.yaml                    │ │
+│ │ file:///tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/invalidp │ │
+│ │ ath.yaml                                                                     │ │
 │ ╰──────────────────────────────────────────────────────────────────────────────╯ │
 ╰──────────────────────────────────────────────────────────────────────────────────╯

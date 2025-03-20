@@ -6,6 +6,7 @@ import maestro.orchestra.error.ValidationError
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.*
@@ -29,17 +30,16 @@ import kotlin.io.path.*
  *   excludeTags.txt: Exclude tags (one per line) to be passed into WorkspaceExecutionPlanner.plan()
  *   singleFlow.txt: Indicates that the test should pass the path to the specified flow file instead of the workspace/ directory
  *
- *
- * Note about the "{PROJECT_DIR}" string in error.txt files:
- *
- *   This test fixture replaces any reference to the current project directory with "{PROJECT_DIR}" so that error
- *   messages referencing absolute paths can still be tested on different development machines.
  */
 internal class WorkspaceExecutionPlannerErrorsTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("provideTestCases")
-    fun test(testCaseName: String, path: Path) {
+    fun test(testCaseName: String, originalPath: Path) {
+        val workspace = File("/tmp/WorkspaceExecutionPlannerErrorsTest_workspace").apply { deleteRecursively() }
+        originalPath.toFile().copyRecursively(workspace)
+        val path = workspace.toPath()
+
         val workspacePath = path.resolve("workspace")
         val singleFlowFilePath = path.resolve("singleFlow.txt").takeIf { it.isRegularFile() }?.readText()
         val expectedErrorPath = path.resolve("error.txt")
@@ -61,10 +61,10 @@ internal class WorkspaceExecutionPlannerErrorsTest {
                 return assertWithMessage("An exception was thrown but it was not a ValidationError. Ensure this test case triggers a ValidationError. Found: ${e::class.java.name}").fail()
             }
 
-            val actualError = e.message.replace(PROJECT_DIR, "{PROJECT_DIR}")
+            val actualError = e.message
 
             if (System.getenv("GENERATE_ERRORS") == "true") {
-                expectedErrorPath.writeText(actualError)
+                originalPath.resolve("error.txt").writeText(actualError)
             } else if (expectedError != actualError) {
                 System.err.println("Expected and actual error messages differ. If actual error message is preferred, rerun this test with GENERATE_ERRORS=true")
                 assertThat(actualError).isEqualTo(expectedError)

@@ -1,6 +1,6 @@
 > Config Section Required
 
-{PROJECT_DIR}/src/test/resources/workspaces/e023_empty/workspace/Flow.yaml:1
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:1
 ╭────────────────────────────────────────────────────────────────────────╮
 │ 1 |                                                                    │
 │     ^                                                                  │

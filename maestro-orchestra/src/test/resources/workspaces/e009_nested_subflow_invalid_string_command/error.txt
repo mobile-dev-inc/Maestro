@@ -1,6 +1,6 @@
 > Invalid Command: invalidCommand
 
-{PROJECT_DIR}/src/test/resources/workspaces/e009_nested_subflow_invalid_string_command/workspace/./subflow/./SubFlowB.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/./subflow/./SubFlowB.yaml:3
 ╭───────────────────────────────────────────────────────╮
 │ 1 | appId: com.example                                │
 │ 2 | ---                                               │

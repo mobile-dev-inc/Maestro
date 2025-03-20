@@ -1,4 +1,4 @@
-Top-level directories do not contain any Flows: {PROJECT_DIR}/src/test/resources/workspaces/e002_top_level_directory_does_not_contain_flow_files/workspace
+Top-level directories do not contain any Flows: /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace
 To configure Maestro to run Flows in subdirectories, check out the following resources:
   * https://maestro.mobile.dev/cli/test-suites-and-reports#inclusion-patterns
   * https://blog.mobile.dev/maestro-best-practices-structuring-your-test-suite-54ec390c5c82

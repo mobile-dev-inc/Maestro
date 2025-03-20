@@ -1,6 +1,6 @@
 > Invalid Command Format: tapOn
 
-{PROJECT_DIR}/src/test/resources/workspaces/e022_top_level_option/workspace/Flow.yaml:4
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4
 ╭──────────────────────────────────────────────────────────────────────────────╮
 │ 2 | ---                                                                      │
 │ 3 | - tapOn: foo                                                             │

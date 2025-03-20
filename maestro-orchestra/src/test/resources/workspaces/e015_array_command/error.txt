@@ -1,6 +1,6 @@
 > Invalid Command
 
-{PROJECT_DIR}/src/test/resources/workspaces/e015_array_command/workspace/Flow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
 ╭──────────────────────────────────────────────────────────────────────────────╮
 │ 1 | appId: com.example.app                                                   │
 │ 2 | ---                                                                      │

@@ -1,6 +1,6 @@
 > Config Field Required: appId
 
-{PROJECT_DIR}/src/test/resources/workspaces/e018_config_missing_appId/workspace/Flow.yaml:2
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
 ╭────────────────────────────────────────────────────────────────────────╮
 │ 1 | name: MyFlow                                                       │
 │ 2 | ---                                                                │

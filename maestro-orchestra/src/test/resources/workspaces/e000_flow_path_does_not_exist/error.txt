@@ -1,1 +1,1 @@
-Flow path does not exist: {PROJECT_DIR}/src/test/resources/workspaces/e000_flow_path_does_not_exist/workspace
+Flow path does not exist: /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace

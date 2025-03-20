@@ -1,1 +1,1 @@
-Flow path does not exist: {PROJECT_DIR}/src/test/resources/workspaces/e005_single_flow_does_not_exist/workspace/Flow.yaml
+Flow path does not exist: /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml

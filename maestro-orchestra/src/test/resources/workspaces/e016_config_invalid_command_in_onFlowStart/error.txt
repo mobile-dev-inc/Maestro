@@ -1,6 +1,6 @@
 > Invalid Command: inp
 
-{PROJECT_DIR}/src/test/resources/workspaces/e016_config_invalid_command_in_onFlowStart/workspace/Flow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
 ╭────────────────────────────────────────────────────────────────────────────────╮
 │ 1 | appId: com.example.app                                                     │
 │ 2 | onFlowStart:                                                               │

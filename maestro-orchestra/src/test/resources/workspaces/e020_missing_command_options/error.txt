@@ -1,6 +1,6 @@
 > Missing Command Options
 
-{PROJECT_DIR}/src/test/resources/workspaces/e020_missing_command_options/workspace/Flow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
 ╭──────────────────────────────────────────────────────╮
 │ 1 | appId: com.example.app                           │
 │ 2 | ---                                              │

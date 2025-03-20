@@ -1,6 +1,6 @@
 > Commands Section Required
 
-{PROJECT_DIR}/src/test/resources/workspaces/e011_missing_dashes/workspace/Flow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
 ╭───────────────────────────────────────────────────────────────────────────╮
 │ 1 | appId: com.example                                                    │
 │ 2 | ---                                                                   │

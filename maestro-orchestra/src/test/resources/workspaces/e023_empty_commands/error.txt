@@ -1,6 +1,6 @@
 > Commands Section Required
 
-{PROJECT_DIR}/src/test/resources/workspaces/e023_empty_commands/workspace/Flow.yaml:2
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
 ╭───────────────────────────────────────────────────────────────────────────╮
 │ 1 | appId: com.example.app                                                │
 │ 2 | ---                                                                   │

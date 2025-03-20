@@ -1,6 +1,6 @@
 > Unknown Property: invalidOption
 
-{PROJECT_DIR}/src/test/resources/workspaces/e007_single_flow_malformatted_command/workspace/Flow.yaml:4
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4
 ╭────────────────────────────────────────────────────╮
 │ 2 | ---                                            │
 │ 3 | - launchApp:                                   │

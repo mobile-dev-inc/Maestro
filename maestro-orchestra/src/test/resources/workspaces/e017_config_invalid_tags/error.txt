@@ -1,6 +1,6 @@
 > Incorrect Format: tags
 
-{PROJECT_DIR}/src/test/resources/workspaces/e017_config_invalid_tags/workspace/Flow.yaml:2
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
 ╭──────────────────────────────────────╮
 │ 1 | appId: com.example.app           │
 │ 2 | tags: foo, bar                   │

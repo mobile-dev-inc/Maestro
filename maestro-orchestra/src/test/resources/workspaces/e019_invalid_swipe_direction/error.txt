@@ -1,6 +1,6 @@
 > Parsing Failed
 
-{PROJECT_DIR}/src/test/resources/workspaces/e019_invalid_swipe_direction/workspace/Flow.yaml:5
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:5
 ╭─────────────────────────────────────────────────────────────────────────────────╮
 │ 3 | - swipe:                                                                    │
 │ 4 |     direction: diagonal                                                     │
