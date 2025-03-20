@@ -2,7 +2,7 @@
 
 /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:1
 ╭────────────────────────────────────────────────────────────────────────╮
-│ 1 | - launchApp                                                        │
+│ 1 |                                                                    │
 │     ^                                                                  │
 │ ╭────────────────────────────────────────────────────────────────────╮ │
 │ │ Flow files must start with a config section. Eg:                   │ │
@@ -15,5 +15,4 @@
 │ │                                                                    │ │
 │ │ > https://docs.maestro.dev/getting-started/writing-your-first-flow │ │
 │ ╰────────────────────────────────────────────────────────────────────╯ │
-│ 2 |                                                                    │
 ╰────────────────────────────────────────────────────────────────────────╯

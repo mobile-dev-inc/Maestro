@@ -1,19 +1,20 @@
-> Config Section Required
+> Config Field Required: appId
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:1
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
 ╭────────────────────────────────────────────────────────────────────────╮
-│ 1 | - launchApp                                                        │
+│ 1 | name: MyFlow                                                       │
+│ 2 | ---                                                                │
 │     ^                                                                  │
 │ ╭────────────────────────────────────────────────────────────────────╮ │
-│ │ Flow files must start with a config section. Eg:                   │ │
+│ │ The config section is missing a required field: `appId`. Eg.       │ │
 │ │                                                                    │ │
 │ │ ```yaml                                                            │ │
-│ │ appId: com.example.app # <-- config section                        │ │
+│ │ appId: com.example.app                                             │ │
 │ │ ---                                                                │ │
 │ │ - launchApp                                                        │ │
 │ │ ```                                                                │ │
 │ │                                                                    │ │
 │ │ > https://docs.maestro.dev/getting-started/writing-your-first-flow │ │
 │ ╰────────────────────────────────────────────────────────────────────╯ │
-│ 2 |                                                                    │
+│ 3 |                                                                    │
 ╰────────────────────────────────────────────────────────────────────────╯

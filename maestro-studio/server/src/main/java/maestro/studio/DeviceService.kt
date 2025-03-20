@@ -54,8 +54,7 @@ object DeviceService {
         routing.post("/api/run-command") {
             val request = call.parseBody<RunCommandRequest>()
             try {
-                val commands = YamlCommandReader.MAPPER.readValue(request.yaml, YamlFluentCommand::class.java)
-                    .toCommands(Paths.get(""), "")
+                val commands = YamlCommandReader.readSingleCommand(Paths.get(""), "", request.yaml)
                 if (request.dryRun != true) {
                     executeCommands(maestro, commands)
                 }
@@ -67,9 +66,9 @@ object DeviceService {
         }
         routing.post("/api/format-flow") {
             val request = call.parseBody<FormatCommandsRequest>()
-            val commands = request.commands.map { YamlCommandReader.MAPPER.readValue(it, YamlFluentCommand::class.java).toCommands(Paths.get(""), "") }
+            val commands = request.commands.map { YamlCommandReader.readSingleCommand(Paths.get(""), "", it) }
             val inferredAppId = commands.flatten().firstNotNullOfOrNull { it.launchAppCommand?.appId }
-            val commandsString = YamlCommandReader.MAPPER.writeValueAsString(request.commands.map { YamlCommandReader.MAPPER.readTree(it) })
+            val commandsString = YamlCommandReader.formatCommands(request.commands)
             val formattedFlow = FormattedFlow("appId: $inferredAppId", commandsString)
             val response = jacksonObjectMapper().writeValueAsString(formattedFlow)
             call.respondText(response)

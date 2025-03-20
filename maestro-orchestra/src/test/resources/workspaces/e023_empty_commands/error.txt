@@ -1,11 +1,10 @@
 > Commands Section Required
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
 ╭───────────────────────────────────────────────────────────────────────────╮
-│ 1 | appId: com.example                                                    │
+│ 1 | appId: com.example.app                                                │
 │ 2 | ---                                                                   │
-│ 3 | launchApp                                                             │
-│              ^                                                            │
+│        ^                                                                  │
 │ ╭───────────────────────────────────────────────────────────────────────╮ │
 │ │ Flow files must have a list of commands after the config section. Eg: │ │
 │ │                                                                       │ │

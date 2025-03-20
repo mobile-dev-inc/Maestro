@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- tapOn: foo
+  optional: true

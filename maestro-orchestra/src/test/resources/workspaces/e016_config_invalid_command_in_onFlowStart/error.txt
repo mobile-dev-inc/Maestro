@@ -1,16 +1,18 @@
-> Media File Not Found
+> Invalid Command: inp
 
 /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
 ╭────────────────────────────────────────────────────────────────────────────────╮
-│ 1 | appId: com.example                                                         │
-│ 2 | ---                                                                        │
-│ 3 | - addMedia:                                                                │
-│       ^                                                                        │
+│ 1 | appId: com.example.app                                                     │
+│ 2 | onFlowStart:                                                               │
+│ 3 |   - inp                                                                    │
+│            ^                                                                   │
 │ ╭────────────────────────────────────────────────────────────────────────────╮ │
-│ │ Media file at ./assets/invalid_android.png in flow file:                   │ │
-│ │ /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml not │ │
-│ │ found                                                                      │ │
+│ │ `inp` is not a valid command.                                              │ │
+│ │                                                                            │ │
+│ │ Did you mean one of: inputRandomText, inputRandomNumber, inputRandomEmail, │ │
+│ │ inputRandomPersonName, inputText                                           │ │
+│ │                                                                            │ │
+│ │ > https://docs.maestro.dev/api-reference/commands                          │ │
 │ ╰────────────────────────────────────────────────────────────────────────────╯ │
-│ 4 |   - "./assets/invalid_android.png"                                         │
-│ 5 | - launchApp                                                                │
+│ 4 | ---                                                                        │
 ╰────────────────────────────────────────────────────────────────────────────────╯
