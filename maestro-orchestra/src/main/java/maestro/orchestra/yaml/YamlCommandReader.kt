@@ -28,6 +28,7 @@ import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.SyntaxError
 import maestro.utils.drawTextBox
 import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.readText
 
@@ -69,6 +70,10 @@ object YamlCommandReader {
     }
 
     fun formatCommands(commands: List<String>): String = MaestroFlowParser.formatCommands(commands)
+
+    fun checkSyntax(maestroCode: String) = mapParsingErrors(Paths.get("/syntax-checker/")) {
+        MaestroFlowParser.checkSyntax(maestroCode)
+    }
 
     private fun <T> mapParsingErrors(path: Path, block: () -> T): T {
         try {
