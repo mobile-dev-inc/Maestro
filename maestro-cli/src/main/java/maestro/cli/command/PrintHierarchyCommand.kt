@@ -68,7 +68,7 @@ class PrintHierarchyCommand : Runnable {
         MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = null,
+            driverHostPort = parent?.driverHostPort,
             deviceId = parent?.deviceId,
             platform = parent?.platform,
         ) { session ->

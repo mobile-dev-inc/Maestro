@@ -16,10 +16,10 @@ object SessionStore {
         )
     }
 
-    fun heartbeat(sessionId: String, platform: Platform) {
+    fun heartbeat(sessionId: String, platform: Platform, deviceId: String?) {
         synchronized(keyValueStore) {
             keyValueStore.set(
-                key = key(sessionId, platform),
+                key = key(sessionId, platform, deviceId),
                 value = System.currentTimeMillis().toString(),
             )
 
@@ -37,37 +37,32 @@ object SessionStore {
             }
     }
 
-    fun delete(sessionId: String, platform: Platform) {
+    fun delete(sessionId: String, platform: Platform, deviceId: String?) {
         synchronized(keyValueStore) {
             keyValueStore.delete(
-                key(sessionId, platform)
+                key(sessionId, platform, deviceId)
             )
         }
     }
 
-    fun activeSessions(): List<String> {
-        synchronized(keyValueStore) {
-            return keyValueStore
-                .keys()
-                .filter { key ->
-                    val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
-                    lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat < TimeUnit.SECONDS.toMillis(21)
-                }
-        }
-    }
-
-    fun hasActiveSessions(
-        sessionId: String,
-        platform: Platform
+    fun hasActiveSessionOnDevice(
+        platform: Platform,
+        deviceId: String?
     ): Boolean {
         synchronized(keyValueStore) {
-            return activeSessions()
-                .any { it != key(sessionId, platform) }
+            return keyValueStore.keys().any { key ->
+                key.contains("${platform}_$deviceId") && isHeartbeatActive(key)
+            }
         }
     }
 
-    private fun key(sessionId: String, platform: Platform): String {
-        return "${platform}_$sessionId"
+    private fun isHeartbeatActive(key: String): Boolean {
+        val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
+        return lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat < TimeUnit.SECONDS.toMillis(21)
+    }
+
+    private fun key(sessionId: String, platform: Platform, deviceId: String?): String {
+        return "${platform}_${sessionId}_$deviceId"
     }
 
 }
