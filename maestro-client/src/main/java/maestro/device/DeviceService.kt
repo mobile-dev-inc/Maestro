@@ -62,7 +62,7 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start().waitFor(7,TimeUnit.SECONDS)
+                ).start().waitFor(10,TimeUnit.SECONDS)
 
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {

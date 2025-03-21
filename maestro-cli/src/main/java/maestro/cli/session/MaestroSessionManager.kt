@@ -50,6 +50,7 @@ object MaestroSessionManager {
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
 
+
     fun <T> newSession(
         host: String?,
         port: Int?,
@@ -85,10 +86,14 @@ object MaestroSessionManager {
 
         val session = createMaestro(
             selectedDevice = selectedDevice,
-            connectToExistingSession = SessionStore.hasActiveSessions(
-                sessionId,
-                selectedDevice.platform
-            ),
+            connectToExistingSession = if (isStudio) {
+                false
+            } else {
+                SessionStore.hasActiveSessions(
+                    sessionId,
+                    selectedDevice.platform
+                )
+            },
             isStudio = isStudio,
             isHeadless = isHeadless,
             driverHostPort = driverHostPort,
