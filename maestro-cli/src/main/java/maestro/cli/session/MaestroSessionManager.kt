@@ -50,21 +50,6 @@ object MaestroSessionManager {
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
 
-    /**
-     * Closes all active Maestro sessions
-     */
-    @JvmStatic
-    fun closeAllSessions() {
-        logger.info("Closing all active Maestro sessions")
-        SessionStore.activeSessions().forEach { sessionInfo ->
-            try {
-                logger.info("Closing session for platform: ${sessionInfo.platform}")
-                SessionStore.delete(sessionInfo.id, sessionInfo.platform)
-            } catch (e: Exception) {
-                logger.error("Failed to close session ${sessionInfo.id} for platform ${sessionInfo.platform}", e)
-            }
-        }
-    }
 
     fun <T> newSession(
         host: String?,
