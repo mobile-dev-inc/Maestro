@@ -101,10 +101,14 @@ object MaestroSessionManager {
 
         val session = createMaestro(
             selectedDevice = selectedDevice,
-            connectToExistingSession = SessionStore.hasActiveSessions(
-                sessionId,
-                selectedDevice.platform
-            ),
+            connectToExistingSession = if (isStudio) {
+                false
+            } else {
+                SessionStore.hasActiveSessions(
+                    sessionId,
+                    selectedDevice.platform
+                )
+            },
             isStudio = isStudio,
             isHeadless = isHeadless,
             driverHostPort = driverHostPort,
