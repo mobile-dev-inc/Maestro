@@ -1,7 +1,6 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
-import com.oracle.truffle.js.nodes.function.EvalNode
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -28,9 +27,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.awt.Color
 import java.io.File
+import java.io.IOException
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 import maestro.orchestra.util.Env.withDefaultEnvVars
+import org.graalvm.polyglot.PolyglotException
 
 class IntegrationTest {
 
@@ -3216,6 +3217,44 @@ class IntegrationTest {
                 Event.Scroll,
             )
         )
+    }
+
+    @Test
+    fun `Case 120 - GraalJs import`() {
+        // given
+        val commands = readCommands("120_graaljs_import")
+        val driver = driver { }
+        val receivedLogs = mutableMapOf<MaestroCommand, List<String>>()
+
+        // when
+        Maestro(driver).use {
+            orchestra(
+                maestro = it,
+                onCommandMetadataUpdate = { command, metadata ->
+                    receivedLogs[command] = metadata.logMessages
+                },
+            ).runFlow(commands)
+        }
+
+        // then
+        assertThat(receivedLogs.values.flatten()).containsExactly(
+            "From script.mjs",
+            "From foo.mjs",
+        )
+    }
+
+    @Test
+    fun `Case 120 - GraalJs import disallowed`() {
+        assertThrows<PolyglotException> {
+            // given
+            val commands = readCommands("120_graaljs_import_disallowed")
+            val driver = driver { }
+
+            // when
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
+        }
     }
 
     private fun orchestra(
