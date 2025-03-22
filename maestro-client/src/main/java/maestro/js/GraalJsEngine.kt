@@ -7,6 +7,7 @@ import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
 import org.graalvm.polyglot.proxy.ProxyObject
+import org.graalvm.polyglot.proxy.ProxyExecutable
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.logging.Handler
@@ -15,9 +16,7 @@ import kotlin.time.Duration.Companion.minutes
 
 private val NULL_HANDLER = object : Handler() {
     override fun publish(record: LogRecord?) {}
-
     override fun flush() {}
-
     override fun close() {}
 }
 
@@ -32,11 +31,11 @@ class GraalJsEngine(
 ) : JsEngine {
 
     private val openContexts = HashSet<Context>()
-
     private val httpBinding = GraalJsHttp(httpClient)
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
+    private val timer = GraalJsTimer()
 
     private var onLogMessage: (String) -> Unit = {}
 
@@ -44,6 +43,7 @@ class GraalJsEngine(
 
     override fun close() {
         openContexts.forEach { it.close() }
+        timer.close()
     }
 
     override fun onLogMessage(callback: (String) -> Unit) {
@@ -60,6 +60,10 @@ class GraalJsEngine(
 
     override fun setCopiedText(text: String?) {
         this.maestroBinding["copiedText"] = text
+    }
+
+    fun waitForActiveTimers() {
+        timer.waitForActiveTimers()
     }
 
     override fun evaluateScript(
@@ -96,6 +100,8 @@ class GraalJsEngine(
         context.getBindings("js").putMember("http", httpBinding)
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
+        context.getBindings("js").putMember("setTimeout", timer.setTimeout)
+        context.getBindings("js").putMember("clearTimeout", timer.clearTimeout)
 
         maestroBinding["platform"] = platform
 
