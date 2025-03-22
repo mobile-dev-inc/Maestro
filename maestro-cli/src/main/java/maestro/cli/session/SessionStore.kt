@@ -38,21 +38,27 @@ object SessionStore {
     }
 
     fun delete(sessionId: String, platform: Platform) {
+        val key = key(sessionId, platform)
         synchronized(keyValueStore) {
-            keyValueStore.delete(
-                key(sessionId, platform)
-            )
+            keyValueStore.delete(key)
         }
     }
 
     fun activeSessions(): List<String> {
         synchronized(keyValueStore) {
-            return keyValueStore
+            val currentTime = System.currentTimeMillis()
+            val activeSessionKeys = keyValueStore
                 .keys()
                 .filter { key ->
                     val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
-                    lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat < TimeUnit.SECONDS.toMillis(21)
+                    val isActive = lastHeartbeat != null && 
+                                   currentTime - lastHeartbeat < TimeUnit.SECONDS.toMillis(21)
+                    if (!isActive) {
+                        keyValueStore.delete(key)
+                    }
+                    isActive
                 }
+            return activeSessionKeys
         }
     }
 
@@ -61,13 +67,14 @@ object SessionStore {
         platform: Platform
     ): Boolean {
         synchronized(keyValueStore) {
-            return activeSessions()
-                .any { it != key(sessionId, platform) }
+            val currentKey = key(sessionId, platform)
+            val activeSessions = activeSessions()
+            val result = activeSessions.isNotEmpty() && activeSessions.any { it != currentKey }
+            return result
         }
     }
 
     private fun key(sessionId: String, platform: Platform): String {
         return "${platform}_$sessionId"
     }
-
 }

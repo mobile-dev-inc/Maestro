@@ -40,6 +40,7 @@ import xcuitest.installer.LocalXCTestInstaller
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 object MaestroSessionManager {
@@ -70,13 +71,16 @@ object MaestroSessionManager {
         )
         val sessionId = UUID.randomUUID().toString()
 
+        val isHeartbeatActive = AtomicBoolean(true) //Controlling heartbeat with an atomic bool
+
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
-                try {
-                    Thread.sleep(1000) // Add a 1-second delay here for fixing race condition
-                    SessionStore.heartbeat(sessionId, selectedDevice.platform)
-                } catch (e: Exception) {
-                    logger.error("Failed to record heartbeat", e)
+                if (isHeartbeatActive.get()) {
+                    try {
+                        SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                    } catch (e: Exception) {
+                        logger.error("Failed to record heartbeat", e)
+                    }
                 }
             },
             0L,
@@ -98,9 +102,12 @@ object MaestroSessionManager {
             isHeadless = isHeadless,
             driverHostPort = driverHostPort,
         )
+        
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
+            isHeartbeatActive.set(false)  // Stop heartbeat first
             heartbeatFuture.cancel(true)
-            SessionStore.delete(sessionId, selectedDevice.platform)
+
+            SessionStore.delete(sessionId, selectedDevice.platform) // Delete session and close if no active sessions
             runCatching { ScreenReporter.reportMaxDepth() }
             if (SessionStore.activeSessions().isEmpty()) {
                 session.close()
@@ -343,6 +350,7 @@ object MaestroSessionManager {
 
         fun close() {
             maestro.close()
+            device?.platform?.let { SessionStore.delete(maestro.sessionId.toString(), it) }
         }
     }
 }
