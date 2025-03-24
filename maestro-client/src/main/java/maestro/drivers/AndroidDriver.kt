@@ -1219,11 +1219,27 @@ class AndroidDriver(
             call()
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
-            if (status.code == Status.Code.DEADLINE_EXCEEDED) {
-                closed = true
-                throw MaestroException.DriverTimeout("Android driver unreachable")
+            when (status.code) {
+                Status.Code.DEADLINE_EXCEEDED -> {
+                    LOGGER.error("Device call failed on android with $status", throwable)
+                    closed = true
+                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                }
+                Status.Code.UNAVAILABLE -> {
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server while doing android device call")
+                        closed = true
+                        throw throwable
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
+                        throw throwable
+                    }
+                }
+                else -> {
+                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} and cause ${throwable.cause} while doing android device call", throwable)
+                    throw throwable
+                }
             }
-            throw throwable
         }
     }
 
