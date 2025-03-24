@@ -31,7 +31,7 @@ class LocalXCTestInstaller(
         connectTimeout = 1.seconds,
         readTimeout = 100.seconds,
     ),
-    override val preBuiltRunner: Boolean = false,
+    override val preBuiltRunner: Boolean = true,
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
