@@ -11,6 +11,8 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.logging.Handler
 import java.util.logging.LogRecord
+import java.nio.file.Paths
+import java.nio.file.Path
 import kotlin.time.Duration.Companion.minutes
 
 private val NULL_HANDLER = object : Handler() {
@@ -70,10 +72,20 @@ class GraalJsEngine(
     ): Value {
         envBinding.putAll(env)
         val source = Source.newBuilder("js", script, sourceName).build()
-        return createContext().eval(source)
+        val sourceDir = getSourceDirectory(sourceName)
+        return createContext(sourceDir).eval(source)
     }
 
-    private fun createContext(): Context {
+    private fun getSourceDirectory(sourceName: String): String {
+        return envBinding["MAESTRO_YAML_DIR"] ?: resolveScriptPath(sourceName).parent.toString()
+    }
+    
+    private fun resolveScriptPath(sourceName: String): Path {
+        val path = Paths.get(sourceName)
+        return if (path.isAbsolute) path else Paths.get(System.getProperty("user.dir"), sourceName)
+    }
+
+    private fun createContext(moduleDir: String): Context {
         val outputStream = object : ByteArrayOutputStream() {
             override fun flush() {
                 super.flush()
@@ -85,6 +97,10 @@ class GraalJsEngine(
 
         val context = Context.newBuilder("js")
             .option("js.strict", "true")
+            .option("js.commonjs-require", "true")
+            .option("js.commonjs-require-cwd", moduleDir)
+            .allowExperimentalOptions(true)
+            .allowIO(true)
             .logHandler(NULL_HANDLER)
             .out(outputStream)
             .build()
