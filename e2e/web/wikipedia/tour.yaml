@@ -1,0 +1,16 @@
+url: https://en.wikipedia.org
+tags:
+  - passing
+---
+- launchApp
+- tapOn:
+    leftOf:
+      text: 'Donate'
+    index: 2
+- inputText: 'Maestro'
+- assertVisible: 'Title of respect given to a master musician'
+- pressKey: 'Enter'
+- assertVisible: 'https://en.wikipedia.org/wiki/Maestro'
+- copyTextFrom:
+    id: 'firstHeading'
+- assertTrue: ${maestro.copiedText == 'Maestro'}
