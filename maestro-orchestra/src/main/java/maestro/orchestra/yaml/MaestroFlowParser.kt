@@ -439,12 +439,11 @@ object MaestroFlowParser {
     }
 
     fun parseCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> {
-        val flow = flowPath.readText()
-        MAPPER.createParser(flow).use { parser ->
+        MAPPER.createParser(command).use { parser ->
             try {
-                return MAPPER.readValue(command, YamlFluentCommand::class.java).toCommands(flowPath, appId)
+                return parser.readValueAs(YamlFluentCommand::class.java).toCommands(flowPath, appId)
             } catch (e: Throwable) {
-                throw wrapException(e, parser, flowPath, flow)
+                throw wrapException(e, parser, flowPath, command)
             }
         }
     }
