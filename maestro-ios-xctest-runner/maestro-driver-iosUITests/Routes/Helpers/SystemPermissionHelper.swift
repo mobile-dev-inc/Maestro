@@ -3,7 +3,7 @@ import XCTest
 final class SystemPermissionHelper {
     private static let notificationsPermissionLabel = "Would Like to Send You Notifications"
     
-    static func handleSystemPermissionAlertIfNeeded(springboardApplication: XCUIApplication) {
+    static func handleSystemPermissionAlertIfNeeded(foregroundApp: XCUIApplication) {
         let predicate = NSPredicate(format: "label CONTAINS[c] %@", notificationsPermissionLabel)
 
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
@@ -12,7 +12,13 @@ final class SystemPermissionHelper {
             return
         }
 
-        let alert = springboardApplication.alerts.matching(predicate).element
+        if foregroundApp.bundleID != "com.apple.springboard" {
+            NSLog("Foreground app is not springboard skipping auto tapping on permissions")
+            return
+        }
+        
+        NSLog("[Start] Foreground app is springboard attempting to tap on permissions dialog")
+        let alert = foregroundApp.alerts.matching(predicate).element
         if alert.exists {
             switch notificationsPermission.value {
             case .allow:
@@ -30,5 +36,6 @@ final class SystemPermissionHelper {
                 break
             }
         }
+        NSLog("[Done] Foreground app is springboard attempting to tap on permissions dialog")
     }
 }

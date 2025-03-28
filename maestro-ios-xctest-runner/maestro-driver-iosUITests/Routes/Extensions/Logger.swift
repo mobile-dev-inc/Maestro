@@ -10,7 +10,7 @@ extension Logger {
         let result = try block()
 
         let duration = Date().timeIntervalSince(start)
-        info("\(message) - duration \(duration)")
+        NSLog("\(message) - duration \(duration)")
 
         return result
     }
