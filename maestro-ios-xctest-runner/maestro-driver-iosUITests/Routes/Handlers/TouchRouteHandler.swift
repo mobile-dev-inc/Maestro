@@ -13,6 +13,7 @@ struct TouchRouteHandler: HTTPHandler {
         let decoder = JSONDecoder()
       
         guard let requestBody = try? decoder.decode(TouchRequest.self, from: request.body) else {
+            NSLog("Invalid request for tapping")
             return AppError(type: .precondition, message: "incorrect request body provided for tap route").httpResponse
         }
         
@@ -25,9 +26,9 @@ struct TouchRouteHandler: HTTPHandler {
         let (x, y) = (point.x, point.y)
 
         if requestBody.duration != nil {
-            logger.info("Long pressing \(x), \(y) for \(requestBody.duration!)s")
+            NSLog("Long pressing \(x), \(y) for \(requestBody.duration!)s")
         } else {
-            logger.info("Tapping \(x), \(y)")
+            NSLog("Tapping \(x), \(y)")
         }
 
         do {
@@ -39,10 +40,10 @@ struct TouchRouteHandler: HTTPHandler {
             let start = Date()
             try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
             let duration = Date().timeIntervalSince(start)
-            logger.info("Tapping took \(duration)")
+            NSLog("Tapping took \(duration)")
             return HTTPResponse(statusCode: .ok)
         } catch {
-            logger.error("Error tapping: \(error)")
+            NSLog("Error tapping: \(error)")
             return AppError(message: "Error tapping point: \(error.localizedDescription)").httpResponse
         }
     }
