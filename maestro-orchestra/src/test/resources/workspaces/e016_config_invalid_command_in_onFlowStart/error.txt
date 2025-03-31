@@ -1,0 +1,18 @@
+> Invalid Command: inp
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+╭────────────────────────────────────────────────────────────────────────────────╮
+│ 1 | appId: com.example.app                                                     │
+│ 2 | onFlowStart:                                                               │
+│ 3 |   - inp                                                                    │
+│            ^                                                                   │
+│ ╭────────────────────────────────────────────────────────────────────────────╮ │
+│ │ `inp` is not a valid command.                                              │ │
+│ │                                                                            │ │
+│ │ Did you mean one of: inputRandomText, inputRandomNumber, inputRandomEmail, │ │
+│ │ inputRandomPersonName, inputText                                           │ │
+│ │                                                                            │ │
+│ │ > https://docs.maestro.dev/api-reference/commands                          │ │
+│ ╰────────────────────────────────────────────────────────────────────────────╯ │
+│ 4 | ---                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────╯

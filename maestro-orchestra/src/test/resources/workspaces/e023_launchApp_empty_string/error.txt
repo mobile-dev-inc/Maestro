@@ -1,0 +1,13 @@
+> Incorrect Command Format: launchApp
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+╭──────────────────────────────────────────────────────────╮
+│ 1 | appId: com.example.app                               │
+│ 2 | ---                                                  │
+│ 3 | - launchApp:                                         │
+│                 ^                                        │
+│ ╭──────────────────────────────────────────────────────╮ │
+│ │ The command `launchApp` requires additional options. │ │
+│ ╰──────────────────────────────────────────────────────╯ │
+│ 4 |                                                      │
+╰──────────────────────────────────────────────────────────╯

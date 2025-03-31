@@ -20,19 +20,21 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
 
         do {
-            let app = RunningApp.getForegroundApp()
-            guard let app = app else {
+            let foregroundApp = RunningApp.getForegroundApp()
+            guard let foregroundApp = foregroundApp else {
+                NSLog("No foreground app found returning springboard app hierarchy")
                 let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
                 let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
                 let body = try JSONEncoder().encode(springBoardViewHierarchy)
                 return HTTPResponse(statusCode: .ok, body: body)
             }
-
-            let appViewHierarchy = try logger.measure(message: "View hierarchy snapshot for \(app)") {
-                try getAppViewHierarchy(app: app, excludeKeyboardElements: requestBody.excludeKeyboardElements)
+            NSLog("[Start] View hierarchy snapshot for \(foregroundApp)")
+            let appViewHierarchy = try logger.measure(message: "View hierarchy snapshot for \(foregroundApp)") {
+                try getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
             }
             let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
             
+            NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
             let body = try JSONEncoder().encode(viewHierarchy)
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
@@ -44,34 +46,17 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    func getAppViewHierarchy(app: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
-        SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(springboardApplication: springboardApplication)
-        // Fetch the view hierarchy of the springboard application
-        // to make it possible to interact with the home screen.
-        // Ignore any errors on fetching the springboard hierarchy.
-        let springboardHierarchy: AXElement?
-        do {
-            springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
-        } catch {
-            logger.error("Springboard hierarchy failed to fetch: \(error)")
-            springboardHierarchy = nil
-        }
-
-        let appHierarchy = try getHierarchyWithFallback(app)
+    func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
+        SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(foregroundApp: foregroundApp)
+        let appHierarchy = try getHierarchyWithFallback(foregroundApp)
         
-        let keyboard = app.keyboards.firstMatch
+        let keyboard = foregroundApp.keyboards.firstMatch
         if (excludeKeyboardElements && keyboard.exists) {
             let filteredChildren = appHierarchy.filterAllChildrenNotInKeyboardBounds(keyboard.frame)
-            return AXElement(children: [
-                springboardHierarchy,
-                AXElement(children: filteredChildren),
-            ].compactMap { $0 })
+            return AXElement(children: [AXElement(children: filteredChildren)].compactMap { $0 })
         }
 
-        return AXElement(children: [
-            springboardHierarchy,
-            appHierarchy,
-        ].compactMap { $0 })
+        return AXElement(children: [appHierarchy].compactMap { $0 })
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
@@ -98,7 +83,7 @@ struct ViewHierarchyHandler: HTTPHandler {
                 throw AppError(message: error.localizedDescription)
             }
 
-            logger.error("Snapshot failure, getting recovery element for fallback")
+            NSLog("Snapshot failure, getting recovery element for fallback")
             AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
             // In apps with bigger view hierarchys, calling
             // `XCUIApplication().snapshot().dictionaryRepresentation` or `XCUIApplication().allElementsBoundByIndex`

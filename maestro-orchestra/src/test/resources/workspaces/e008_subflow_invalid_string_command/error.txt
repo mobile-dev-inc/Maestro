@@ -1,3 +1,14 @@
-Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e008_subflow_invalid_string_command/workspace/Flow.yaml
-Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e008_subflow_invalid_string_command/workspace/./subflow/SubFlow.yaml:3
-Cannot construct instance of `maestro.orchestra.yaml.YamlFluentCommand`, problem: Invalid command: "invalidCommand"
+> Invalid Command: invalidCommand
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/./subflow/SubFlow.yaml:3
+╭───────────────────────────────────────────────────────╮
+│ 1 | appId: com.example                                │
+│ 2 | ---                                               │
+│ 3 | - invalidCommand                                  │
+│                     ^                                 │
+│ ╭───────────────────────────────────────────────────╮ │
+│ │ `invalidCommand` is not a valid command.          │ │
+│ │                                                   │ │
+│ │ > https://docs.maestro.dev/api-reference/commands │ │
+│ ╰───────────────────────────────────────────────────╯ │
+╰───────────────────────────────────────────────────────╯

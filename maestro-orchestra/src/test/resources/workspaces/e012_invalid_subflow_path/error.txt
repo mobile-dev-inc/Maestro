@@ -1,2 +1,14 @@
-Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e012_invalid_subflow_path/workspace/Flow.yaml
-Flow file does not exist: file://{PROJECT_DIR}/src/test/resources/workspaces/e012_invalid_subflow_path/workspace/invalidpath.yaml
+> Invalid File Path
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+╭──────────────────────────────────────────────────────────────────────────────────╮
+│ 1 | appId: com.example                                                           │
+│ 2 | ---                                                                          │
+│ 3 | - runFlow: invalidpath.yaml                                                  │
+│       ^                                                                          │
+│ ╭──────────────────────────────────────────────────────────────────────────────╮ │
+│ │ Flow file does not exist:                                                    │ │
+│ │ file:///tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/invalidp │ │
+│ │ ath.yaml                                                                     │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────╯ │
+╰──────────────────────────────────────────────────────────────────────────────────╯
