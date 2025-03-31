@@ -204,6 +204,10 @@ class AndroidDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
+        if (!open) {
+            LOGGER.info("AndroidDriver.deviceInfo() called, but driver is not open. Calling open() first.")
+            open()
+        }
         return runDeviceCall {
             val response = blockingStubWithTimeout.deviceInfo(deviceInfoRequest {})
 
