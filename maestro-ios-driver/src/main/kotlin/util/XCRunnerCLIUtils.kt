@@ -35,6 +35,10 @@ object XCRunnerCLIUtils {
         logsDirectory
     }
 
+    fun clearLogs() {
+        logDirectory.listFiles()?.forEach { it.deleteRecursively() }
+    }
+
     fun listApps(deviceId: String): Set<String> {
         val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "xcrun simctl listapps $deviceId | plutil -convert json - -o -"))
 
