@@ -39,7 +39,6 @@ class OpenAI(
         model: String?,
         maxTokens: Int?,
         imageDetail: String?,
-        identifier: String?,
         jsonSchema: JsonObject?,
     ): CompletionData {
         val imagesBase64 = images.map { it.encodeBase64() }

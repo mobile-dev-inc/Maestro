@@ -34,7 +34,6 @@ abstract class AI(
         model: String? = null,
         maxTokens: Int? = null,
         imageDetail: String? = null,
-        identifier: String? = null,
         jsonSchema: JsonObject? = null,
     ): CompletionData
 

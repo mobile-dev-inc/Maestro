@@ -30,7 +30,6 @@ class Claude(
     private val apiKey: String,
     private val defaultTemperature: Float = 0.2f,
     private val defaultMaxTokens: Int = 1024,
-    private val defaultImageDetail: String = "high",
 ) : AI(defaultModel = defaultModel, httpClient = httpClient) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -42,7 +41,6 @@ class Claude(
         model: String?,
         maxTokens: Int?,
         imageDetail: String?,
-        identifier: String?,
         jsonSchema: JsonObject?,
     ): CompletionData {
         val imagesBase64 = images.map { it.encodeBase64() }
@@ -51,7 +49,6 @@ class Claude(
         val actualTemperature = temperature ?: defaultTemperature
         val actualModel = model ?: defaultModel
         val actualMaxTokens = maxTokens ?: defaultMaxTokens
-        val actualImageDetail = imageDetail ?: defaultImageDetail
 
         val imageContents = imagesBase64
             .map { imageBase64 ->

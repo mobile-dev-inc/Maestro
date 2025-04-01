@@ -1,0 +1,31 @@
+{
+  "name": "askForDefects",
+  "description": "Returns a list of possible defects found in the mobile app's UI",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "required": ["defects"],
+    "additionalProperties": false,
+    "properties": {
+      "defects": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["category", "reasoning"],
+          "additionalProperties": false,
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": [
+                "assertion"
+              ]
+            },
+            "reasoning": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

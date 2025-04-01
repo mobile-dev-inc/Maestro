@@ -25,6 +25,10 @@ class OpenAIClient {
         readSchema("askForDefects")
     }
 
+    private val askForDefectsAssertionSchema by lazy {
+        readSchema("askForDefectsAssertion")
+    }
+
     private val extractTextSchema by lazy {
         readSchema("extractText")
     }
@@ -85,7 +89,6 @@ class OpenAIClient {
             prompt,
             model = aiClient.defaultModel,
             maxTokens = 4096,
-            identifier = "perform-assertion",
             imageDetail = "high",
             images = listOf(screen),
             jsonSchema = json.parseToJsonElement(extractTextSchema).jsonObject,
@@ -167,7 +170,6 @@ class OpenAIClient {
             prompt,
             model = aiClient.defaultModel,
             maxTokens = 4096,
-            identifier = "find-defects",
             imageDetail = "high",
             images = listOf(screen),
             jsonSchema = json.parseToJsonElement(askForDefectsSchema).jsonObject,
@@ -200,33 +202,10 @@ class OpenAIClient {
                 |
                 |RULES:
                 |* Provide response as a valid JSON, with structure described below.
-                |* If the assertion is false, the list in the JSON output MUST be empty.
-                |* If assertion is false:
+                |* If the assertion is true, the "defects" list in the JSON output MUST be an empty list.
+                |* If the assertion is false:
                 |  * Your response MUST only include a single defect with category "assertion".
                 |  * Provide detailed reasoning to explain why you think the assertion is false.
-                """.trimMargin("|")
-            )
-
-            // Claude doesn't have a JSON mode as of 21-08-2024
-            //  https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/increase-consistency
-            //  We could do "if (aiClient is Claude)", but actually, this also helps with gpt-4o sometimes
-            //  generatig never-ending stream of output.
-            append(
-                """
-                |
-                |* You must provide result as a valid JSON object, matching this structure:
-                |
-                |  {
-                |      "defects": [
-                |          {
-                |              "category": "assertion",
-                |              "reasoning": "<reasoning, string>"
-                |          },
-                |       ]
-                |  }
-                |
-                |The "defects" array MUST contain at most a single JSON object.
-                |DO NOT output any other information in the JSON object.
                 """.trimMargin("|")
             )
         }
@@ -235,10 +214,9 @@ class OpenAIClient {
             prompt,
             model = aiClient.defaultModel,
             maxTokens = 4096,
-            identifier = "perform-assertion",
             imageDetail = "high",
             images = listOf(screen),
-            jsonSchema = json.parseToJsonElement(askForDefectsSchema).jsonObject,
+            jsonSchema = json.parseToJsonElement(askForDefectsAssertionSchema).jsonObject,
         )
 
         val response = json.decodeFromString<FindDefectsResponse>(aiResponse.response)
