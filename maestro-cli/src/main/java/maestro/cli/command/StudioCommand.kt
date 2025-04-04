@@ -51,6 +51,16 @@ class StudioCommand : Callable<Int> {
     )
     private var androidWebViewHierarchy: String? = null
 
+    @CommandLine.Option(
+        names = ["--flow"],
+        description = ["Flow to load"],
+        hidden = true,
+    )
+    private var flowPath: String? = null
+
+    @CommandLine.Option(names = ["-e", "--env"])
+    private var env: Map<String, String> = emptyMap()
+
     override fun call(): Int {
 
         TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
@@ -66,7 +76,7 @@ class StudioCommand : Callable<Int> {
             session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
 
             val port = getFreePort()
-            MaestroStudio.start(port, session.maestro)
+            MaestroStudio.start(port, session.maestro, flowPath, env)
 
             val studioUrl = "http://localhost:${port}"
             val message = ("Maestro Studio".bold() + " is running at " + studioUrl.blue()).box()

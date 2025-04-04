@@ -17,7 +17,7 @@ import maestro.mockserver.MockInteractor
 
 object MaestroStudio {
 
-    fun start(port: Int, maestro: Maestro?) {
+    fun start(port: Int, maestro: Maestro?, flowPath: String?, env: Map<String, String>) {
         embeddedServer(Netty, port = port) {
             install(CORS) {
                 allowHost("localhost:3000")
@@ -39,7 +39,7 @@ object MaestroStudio {
             }
             routing {
                 if (maestro != null) {
-                    DeviceService.routes(this, maestro)
+                    DeviceService.routes(this, maestro, flowPath, env)
                     InsightService.routes(this)
                     AuthService.routes(this)
                 }

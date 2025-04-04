@@ -42,6 +42,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build-run": "react-scripts build && cp -r build/* ../server/src/main/resources/web",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "storybook": "start-storybook -p 6006",
@@ -75,6 +76,7 @@
       "last 1 safari version"
     ]
   },
+  "proxy": "http://localhost:9999",
   "devDependencies": {
     "@storybook/addon-actions": "^6.5.14",
     "@storybook/addon-essentials": "^6.5.14",

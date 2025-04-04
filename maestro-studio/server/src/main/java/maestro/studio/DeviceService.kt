@@ -23,6 +23,7 @@ import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.yaml.YamlFluentCommand
 
@@ -50,11 +51,11 @@ object DeviceService {
 
     private var lastViewHierarchy: TreeNode? = null
 
-    fun routes(routing: Routing, maestro: Maestro) {
+    fun routes(routing: Routing, maestro: Maestro, flowPath: String?, env: Map<String, String>) {
         routing.post("/api/run-command") {
-            val request = call.parseBody<RunCommandRequest>()
             try {
-                val commands = YamlCommandReader.readSingleCommand(Paths.get(""), "", request.yaml)
+                val request = call.parseBody<RunCommandRequest>()
+                val commands = YamlCommandReader.readSingleCommand(Paths.get(flowPath ?: ""), "", request.yaml).withEnv(env)
                 if (request.dryRun != true) {
                     executeCommands(maestro, commands)
                 }
@@ -66,12 +67,23 @@ object DeviceService {
         }
         routing.post("/api/format-flow") {
             val request = call.parseBody<FormatCommandsRequest>()
-            val commands = request.commands.map { YamlCommandReader.readSingleCommand(Paths.get(""), "", it) }
+            val commands = request.commands.map { YamlCommandReader.readSingleCommand(Paths.get(flowPath ?: ""), "", it) }
             val inferredAppId = commands.flatten().firstNotNullOfOrNull { it.launchAppCommand?.appId }
             val commandsString = YamlCommandReader.formatCommands(request.commands)
             val formattedFlow = FormattedFlow("appId: $inferredAppId", commandsString)
             val response = jacksonObjectMapper().writeValueAsString(formattedFlow)
             call.respondText(response)
+        }
+        routing.get("/api/load-flow") {
+            if(flowPath !== null){
+                val commands = YamlCommandReader.readCommands(Paths.get(flowPath)).withEnv(env)
+                val commandsToReturn = evaluateCommands(maestro, commands)
+                val commandsString = commandsToReturn
+                    .filter { it.applyConfigurationCommand === null }
+                    .map { it.yamlString().trimMargin("|") }
+                val response = jacksonObjectMapper().writeValueAsString(commandsString)
+                call.respondText(response)
+            }
         }
         // Ktor SSE sample project: https://github.com/ktorio/ktor-samples/blob/main/sse/src/main/kotlin/io/ktor/samples/sse/SseApplication.kt
         routing.get("/api/device-screen/sse") {
@@ -112,6 +124,18 @@ object DeviceService {
         if (failure != null) {
             throw RuntimeException("Command execution failed")
         }
+    }
+
+    private fun evaluateCommands(maestro: Maestro, commands: List<MaestroCommand>): List<MaestroCommand> {
+        var failure: Throwable? = null
+        val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
+            failure = throwable
+            Orchestra.ErrorResolution.FAIL
+        }).evaluateCommands(commands)
+        if (failure != null) {
+            throw RuntimeException("Command execution failed")
+        }
+        return result
     }
 
     private fun treeToElements(tree: TreeNode): List<UIElement> {

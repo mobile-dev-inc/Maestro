@@ -1,4 +1,5 @@
 import InteractPage from "../pages/InteractPage";
+import { AuthProvider } from "../context/AuthContext";
 
 export default {
   title: "InteractPage",
@@ -8,5 +9,9 @@ export default {
 };
 
 export const Main = () => {
-  return <InteractPage />;
+  return (
+    <AuthProvider>
+      <InteractPage />
+    </AuthProvider>
+  );
 };

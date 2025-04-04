@@ -9,6 +9,7 @@ import {
 } from "../helpers/models";
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import useSWRSubscription, { SWRSubscriptionResponse } from "swr/subscription";
+import { useState, useEffect } from "react";
 
 export class HttpError extends Error {
   constructor(public status: number, public message: string) {
@@ -55,6 +56,26 @@ const makeRequest = async <T>(
   }
 };
 
+const useA = <T>(url: string) => {
+  const [data, setData] = useState<T>();
+  const [error, setError] = useState<any>();
+
+  useEffect(() => {
+    const eventSource = new EventSource(url);
+    eventSource.onmessage = (e) => {
+      try {
+        const repl: T = JSON.parse(e.data);
+        setData(repl);
+      } catch (error) {
+        setError(error);
+      }
+    };
+    return () => eventSource.close();
+  }, [url]);
+
+  return { data, error };
+};
+
 const useSse = <T>(url: string): SWRSubscriptionResponse<T> => {
   return useSWRSubscription<T, any, string>(url, (key, { next }) => {
     const eventSource = new EventSource(key);
@@ -96,6 +117,9 @@ export const API = {
   },
   runCommand: async (yaml: string, dryRun?: boolean): Promise<void> => {
     await makeRequest("POST", "/api/run-command", { yaml, dryRun });
+  },
+  loadFlow: async (): Promise<string[]> => {
+    return makeRequest("GET", "/api/load-flow");
   },
   formatFlow: async (commands: string[]): Promise<FormattedFlow> => {
     return makeRequest("POST", "/api/format-flow", { commands });

@@ -190,4 +190,8 @@ data class MaestroCommand(
             val argName = command::class.simpleName?.replaceFirstChar(Char::lowercaseChar) ?: "command"
             "MaestroCommand($argName=$command)"
         } ?: "MaestroCommand()"
+
+    fun yamlString(): String {
+        return asCommand()?.yamlString() ?: "UNKNOWN"
+    }
 }

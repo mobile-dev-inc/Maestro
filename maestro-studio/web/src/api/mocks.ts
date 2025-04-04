@@ -71,6 +71,9 @@ const handlers = [
       })
     );
   }),
+  http.get<any, any>("/api/load-flow", async () => {
+    return new Response(JSON.stringify([]));
+  }),
   http.get("/api/banner-message", () => {
     return new Response(
       JSON.stringify({

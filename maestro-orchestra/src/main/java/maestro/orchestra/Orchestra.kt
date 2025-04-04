@@ -167,6 +167,38 @@ class Orchestra(
         }
     }
 
+    fun evaluateCommands(
+        commands: List<MaestroCommand>,
+        shouldReinitJsEngine: Boolean = true,
+    ): List<MaestroCommand> {
+        val config = YamlCommandReader.getConfig(commands)
+        if (shouldReinitJsEngine) {
+            initJsEngine(config)
+        }
+        initAndroidChromeDevTools(config)
+        executeDefineVariablesCommands(commands, config)
+        // filter out DefineVariablesCommand to not execute it twice
+        val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
+        val evaluatedCommands = filteredCommands.map{ command ->
+            jsEngine.onLogMessage { msg ->
+                val metadata = getMetadata(command)
+                updateMetadata(
+                    command,
+                    metadata.copy(logMessages = metadata.logMessages + msg)
+                )
+            }
+
+            val evaluatedCommand = command.evaluateScripts(jsEngine)
+            val metadata = getMetadata(command)
+                .copy(
+                    evaluatedCommand = evaluatedCommand,
+                )
+            updateMetadata(evaluatedCommand, metadata)
+            evaluatedCommand
+        }
+        return evaluatedCommands
+    }
+
     fun executeCommands(
         commands: List<MaestroCommand>,
         config: MaestroConfig? = null,

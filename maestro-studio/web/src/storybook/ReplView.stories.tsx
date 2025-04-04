@@ -1,14 +1,16 @@
 import ReplView from "../components/commands/ReplView";
 import { DeviceProvider } from "../context/DeviceContext";
-
+import { AuthProvider } from "../context/AuthContext";
 export default {
   title: "ReplView",
 };
 
 export const Main = () => {
   return (
-    <DeviceProvider>
-      <ReplView />
-    </DeviceProvider>
+    <AuthProvider>
+      <DeviceProvider>
+        <ReplView />
+      </DeviceProvider>
+    </AuthProvider>
   );
 };
