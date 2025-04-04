@@ -1,3 +1,4 @@
+import React from "react";
 import _ from "lodash";
 import {
   AiResponseType,
@@ -9,7 +10,6 @@ import {
 } from "../helpers/models";
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import useSWRSubscription, { SWRSubscriptionResponse } from "swr/subscription";
-import { useState, useEffect } from "react";
 
 export class HttpError extends Error {
   constructor(public status: number, public message: string) {
