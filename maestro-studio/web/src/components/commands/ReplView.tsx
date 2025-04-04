@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { API } from "../../api/api";
 import { Icon } from "../design-system/icon";
 import { FormattedFlow, ReplCommand } from "../../helpers/models";
@@ -8,7 +8,7 @@ import CommandList from "./CommandList";
 import CommandCreator from "./CommandCreator";
 import { useDeviceContext } from "../../context/DeviceContext";
 import { useRepl } from '../../context/ReplContext';
-
+import sleep from "../../helpers/sleep";
 const getFlowText = (selected: ReplCommand[]): string => {
   return selected
     .map((c) => (c.yaml.endsWith("\n") ? c.yaml : `${c.yaml}\n`))
@@ -25,12 +25,13 @@ const ReplView = () => {
   const listSize = repl?.commands.length || 0;
   const previousListSize = useRef(0);
 
-  const loadCommands = async () => {
+  const loadCommands = useCallback(async () => {
     const commands = await API.loadFlow();
     for (const command of commands) {
       await runCommandYaml(command);
+      await sleep(1000);
     }
-  }
+  }, [runCommandYaml]);
 
   useEffect(() => {
     loadCommands();
