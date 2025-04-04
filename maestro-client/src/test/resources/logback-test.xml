@@ -5,6 +5,8 @@
         </encoder>
     </appender>
 
+    <logger name="io.micrometer.common.util.internal.logging.InternalLoggerFactory" level="WARN"/>
+
     <logger name="CONSOLE" level="INFO">
         <appender-ref ref="CONSOLE" />
     </logger>
