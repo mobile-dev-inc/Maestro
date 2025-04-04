@@ -56,25 +56,25 @@ const makeRequest = async <T>(
   }
 };
 
-const useA = <T>(url: string) => {
-  const [data, setData] = useState<T>();
-  const [error, setError] = useState<any>();
+// const useEventSource = <T>(url: string) => {
+//   const [data, setData] = useState<T>();
+//   const [error, setError] = useState<any>();
 
-  useEffect(() => {
-    const eventSource = new EventSource(url);
-    eventSource.onmessage = (e) => {
-      try {
-        const repl: T = JSON.parse(e.data);
-        setData(repl);
-      } catch (error) {
-        setError(error);
-      }
-    };
-    return () => eventSource.close();
-  }, [url]);
+//   useEffect(() => {
+//     const eventSource = new EventSource(url);
+//     eventSource.onmessage = (e) => {
+//       try {
+//         const repl: T = JSON.parse(e.data);
+//         setData(repl);
+//       } catch (error) {
+//         setError(error);
+//       }
+//     };
+//     return () => eventSource.close();
+//   }, [url]);
 
-  return { data, error };
-};
+//   return { data, error };
+// };
 
 const useSse = <T>(url: string): SWRSubscriptionResponse<T> => {
   return useSWRSubscription<T, any, string>(url, (key, { next }) => {

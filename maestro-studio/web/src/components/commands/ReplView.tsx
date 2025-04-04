@@ -34,7 +34,7 @@ const ReplView = () => {
 
   useEffect(() => {
     loadCommands();
-  }, []);
+  }, [loadCommands]);
 
   // Scroll to bottom when new commands are added
   useEffect(() => {
