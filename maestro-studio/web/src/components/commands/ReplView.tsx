@@ -8,7 +8,7 @@ import CommandList from "./CommandList";
 import CommandCreator from "./CommandCreator";
 import { useDeviceContext } from "../../context/DeviceContext";
 import { useRepl } from '../../context/ReplContext';
-import sleep from "../../helpers/sleep";
+import { sleep } from "../../helpers/sleep";
 const getFlowText = (selected: ReplCommand[]): string => {
   return selected
     .map((c) => (c.yaml.endsWith("\n") ? c.yaml : `${c.yaml}\n`))
