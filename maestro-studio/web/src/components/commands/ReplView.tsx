@@ -25,17 +25,16 @@ const ReplView = () => {
   const listSize = repl?.commands.length || 0;
   const previousListSize = useRef(0);
 
-  const loadCommands = useCallback(async () => {
-    const commands = await API.loadFlow();
-    for (const command of commands) {
-      await runCommandYaml(command);
-      await sleep(1000);
-    }
-  }, [runCommandYaml]);
-
   useEffect(() => {
+    const loadCommands = async () => {
+      const commands = await API.loadFlow();
+      for (const command of commands) {
+        await runCommandYaml(command);
+        await sleep(1000);
+      }
+    }
     loadCommands();
-  }, [loadCommands]);
+  }, []);
 
   // Scroll to bottom when new commands are added
   useEffect(() => {
