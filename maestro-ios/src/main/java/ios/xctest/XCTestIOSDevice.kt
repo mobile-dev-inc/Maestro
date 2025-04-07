@@ -13,19 +13,22 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.net.SocketTimeoutException
 import java.util.UUID
 
 class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
     private val getInstalledApps: () -> Set<String>,
-) : IOSDevice {
+    val reinstallDriver: Boolean = true,
+
+    ) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
-        logger.trace("Opening a connection")
-        client.restartXCTestRunner()
+        if(reinstallDriver) {
+            logger.trace("Opening a connection")
+            client.restartXCTestRunner()
+        }
     }
 
     override fun deviceInfo(): DeviceInfo {
