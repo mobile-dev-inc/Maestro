@@ -58,6 +58,13 @@ class PrintHierarchyCommand : Runnable {
     )
     private var androidWebViewHierarchy: String? = null
 
+    @CommandLine.Option(
+        names = ["--reinstall-driver"],
+        description = ["[Beta] Reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled"],
+        hidden = true
+    )
+    private var reinstallDriver: Boolean = true
+
     override fun run() {
         TestDebugReporter.install(
             debugOutputPathAsString = null,
@@ -71,6 +78,7 @@ class PrintHierarchyCommand : Runnable {
             driverHostPort = null,
             deviceId = parent?.deviceId,
             platform = parent?.platform,
+            reinstallDriver = reinstallDriver,
         ) { session ->
             session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
             val callback: (Insight) -> Unit = {
