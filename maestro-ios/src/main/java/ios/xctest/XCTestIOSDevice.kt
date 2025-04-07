@@ -19,16 +19,13 @@ class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
     private val getInstalledApps: () -> Set<String>,
-    val reinstallDriver: Boolean = true,
 
     ) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
-        if(reinstallDriver) {
-            logger.trace("Opening a connection")
-            client.restartXCTestRunner()
-        }
+        logger.trace("Opening a connection")
+        client.restartXCTestRunner()
     }
 
     override fun deviceInfo(): DeviceInfo {

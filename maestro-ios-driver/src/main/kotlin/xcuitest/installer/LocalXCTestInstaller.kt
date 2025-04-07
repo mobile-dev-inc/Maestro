@@ -228,10 +228,10 @@ class LocalXCTestInstaller(
         tempDir.deleteRecursively()
         if(reinstallDriver) {
             uninstall()
+            LocalSimulatorUtils.terminate(deviceId = deviceId, bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID)
+            XCRunnerCLIUtils.uninstall(bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId = deviceId)
+            logger.info("[Done] Cleaning up the ui test runner files")
         }
-        LocalSimulatorUtils.terminate(deviceId = deviceId, bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID)
-        XCRunnerCLIUtils.uninstall(bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId = deviceId)
-        logger.info("[Done] Cleaning up the ui test runner files")
     }
 
     private fun extractZipToApp(appFileName: String, srcAppPath: String): File {

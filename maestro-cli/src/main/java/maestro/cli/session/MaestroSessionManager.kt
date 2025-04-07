@@ -59,7 +59,7 @@ object MaestroSessionManager {
         platform: String? = null,
         isStudio: Boolean = false,
         isHeadless: Boolean = isStudio,
-        reinstallDriver: Boolean,
+        reinstallDriver: Boolean = true,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -304,13 +304,13 @@ object MaestroSessionManager {
         val xcTestDriverClient = XCTestDriverClient(
             installer = xcTestInstaller,
             client = XCTestClient(defaultXctestHost, driverHostPort ?: defaultXcTestPort),
+            reinstallDriver = reinstallDriver,
         )
 
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
             getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
-            reinstallDriver = reinstallDriver,
         )
 
         val simctlIOSDevice = SimctlIOSDevice(
