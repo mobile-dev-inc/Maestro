@@ -18,6 +18,9 @@ import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteRecursively
 import kotlin.time.Duration.Companion.seconds
 
 class LocalXCTestInstaller(
@@ -44,7 +47,7 @@ class LocalXCTestInstaller(
      * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
-    private val tempDir = "${System.getenv("TMPDIR")}/$deviceId"
+    private val tempDir = Files.createTempDirectory(deviceId)
 
     private var xcTestProcess: Process? = null
 
@@ -185,7 +188,6 @@ class LocalXCTestInstaller(
         }
 
         logger.info("[Start] Writing xctest run file")
-        val tempDir = File(tempDir).apply { mkdir() }
         val xctestRunFile = File("$tempDir/maestro-driver-ios-config.xctestrun")
         writeFileToDestination(XCTEST_RUN_PATH, xctestRunFile)
         logger.info("[Done] Writing xctest run file")
@@ -215,13 +217,14 @@ class LocalXCTestInstaller(
         }
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun close() {
         if (useXcodeTestRunner) {
             return
         }
 
         logger.info("[Start] Cleaning up the ui test runner files")
-        FileUtils.cleanDirectory(File(tempDir))
+        tempDir.deleteRecursively()
         uninstall()
         LocalSimulatorUtils.terminate(deviceId = deviceId, bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID)
         XCRunnerCLIUtils.uninstall(bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId = deviceId)
