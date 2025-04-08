@@ -12,7 +12,7 @@ struct TouchRouteHandler: HTTPHandler {
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         let decoder = JSONDecoder()
       
-        guard let requestBody = try? decoder.decode(TouchRequest.self, from: request.body) else {
+        guard let requestBody = try? await decoder.decode(TouchRequest.self, from: request.bodyData) else {
             NSLog("Invalid request for tapping")
             return AppError(type: .precondition, message: "incorrect request body provided for tap route").httpResponse
         }

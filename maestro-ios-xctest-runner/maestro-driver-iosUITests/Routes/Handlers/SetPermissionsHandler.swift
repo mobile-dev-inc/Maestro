@@ -10,7 +10,7 @@ struct SetPermissionsHandler: HTTPHandler {
     )
     
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(SetPermissionsRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(SetPermissionsRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for set permissions").httpResponse
         }
         

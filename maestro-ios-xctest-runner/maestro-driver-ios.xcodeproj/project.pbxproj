@@ -1096,7 +1096,7 @@
 			repositoryURL = "https://github.com/swhitty/FlyingFox";
 			requirement = {
 				kind = exactVersion;
-				version = 0.9.1;
+				version = 0.22.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
