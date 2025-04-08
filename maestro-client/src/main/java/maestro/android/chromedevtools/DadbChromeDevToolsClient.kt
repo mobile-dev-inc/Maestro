@@ -9,6 +9,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dadb.Dadb
 import maestro.Maestro
 import maestro.TreeNode
+import maestro.utils.HttpClient
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -71,7 +72,7 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
-    private val okhttp = OkHttpClient.Builder()
+    private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
         .dadb(dadb)
         .build()
 
