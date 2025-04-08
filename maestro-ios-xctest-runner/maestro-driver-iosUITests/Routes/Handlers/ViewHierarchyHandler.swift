@@ -15,7 +15,7 @@ struct ViewHierarchyHandler: HTTPHandler {
     )
 
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(ViewHierarchyRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(ViewHierarchyRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided").httpResponse
         }
 

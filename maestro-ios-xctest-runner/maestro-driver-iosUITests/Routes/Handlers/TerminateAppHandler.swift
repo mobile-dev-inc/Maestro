@@ -7,7 +7,7 @@ import os
 struct TerminateAppHandler: HTTPHandler {
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(TerminateAppRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(TerminateAppRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for terminating app").httpResponse
         }
         
