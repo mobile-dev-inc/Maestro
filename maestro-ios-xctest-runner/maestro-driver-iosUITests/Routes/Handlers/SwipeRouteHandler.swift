@@ -12,7 +12,7 @@ struct SwipeRouteHandler: HTTPHandler {
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {        
         let requestBody: SwipeRequest
         do {
-            requestBody = try JSONDecoder().decode(SwipeRequest.self, from: request.body)
+            requestBody = try await JSONDecoder().decode(SwipeRequest.self, from: request.bodyData)
         } catch {
             return AppError(
                 type: .precondition,

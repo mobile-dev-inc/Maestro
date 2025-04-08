@@ -7,7 +7,7 @@ import os
 struct KeyboardRouteHandler: HTTPHandler {
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(KeyboardHandlerRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(KeyboardHandlerRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for input text").httpResponse
         }
         

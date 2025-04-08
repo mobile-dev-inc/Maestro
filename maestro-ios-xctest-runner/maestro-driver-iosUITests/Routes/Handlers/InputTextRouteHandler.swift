@@ -10,7 +10,7 @@ struct InputTextRouteHandler : HTTPHandler {
     )
 
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(InputTextRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(InputTextRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for input text").httpResponse
         }
 
