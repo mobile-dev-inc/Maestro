@@ -117,7 +117,7 @@ export const API = {
   runCommand: async (yaml: string, dryRun?: boolean): Promise<void> => {
     await makeRequest("POST", "/api/run-command", { yaml, dryRun });
   },
-  loadFlow: async (): Promise<string[]> => {
+  loadFlow: async (): Promise<string[] | null> => {
     return makeRequest("GET", "/api/load-flow");
   },
   formatFlow: async (commands: string[]): Promise<FormattedFlow> => {

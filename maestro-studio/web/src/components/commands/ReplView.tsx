@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { API } from "../../api/api";
 import { Icon } from "../design-system/icon";
 import { FormattedFlow, ReplCommand } from "../../helpers/models";
@@ -7,8 +7,8 @@ import ReplHeader from "./ReplHeader";
 import CommandList from "./CommandList";
 import CommandCreator from "./CommandCreator";
 import { useDeviceContext } from "../../context/DeviceContext";
-import { useRepl } from '../../context/ReplContext';
-import { sleep } from "../../helpers/sleep";
+import { restoreRepl, useRepl } from '../../context/ReplContext';
+import { useRunOnce } from "../../helpers/useRunOnce";
 const getFlowText = (selected: ReplCommand[]): string => {
   return selected
     .map((c) => (c.yaml.endsWith("\n") ? c.yaml : `${c.yaml}\n`))
@@ -21,20 +21,22 @@ const ReplView = () => {
   const [_selected, setSelected] = useState<string[]>([]);
   const [formattedFlow, setFormattedFlow] =
     useState<FormattedFlow | null>(null);
-  const { repl, errorMessage, setErrorMessage, reorderCommands, deleteCommands, runCommandYaml, runCommandIds } = useRepl();
+  const { repl, errorMessage, setErrorMessage, reorderCommands, deleteCommands, runCommandIds, addInitialCommandYaml, runCommandYaml, setRepl } = useRepl();
   const listSize = repl?.commands.length || 0;
   const previousListSize = useRef(0);
 
-  useEffect(() => {
-    const loadCommands = async () => {
-      const commands = await API.loadFlow();
-      for (const command of commands) {
-        await runCommandYaml(command);
-        await sleep(1000);
+  useRunOnce({
+    fn: async () => {
+      const flows = await API.loadFlow();
+      if (flows && flows.length > 0) {
+        const commands = flows.map(addInitialCommandYaml);
+        setSelected(commands.flatMap(c => c.map(c => c.id)));
+      } else {
+        setRepl(() => restoreRepl());
       }
-    }
-    loadCommands();
-  }, []);
+    },
+    sessionKey: 'repl-view-init'
+  });
 
   // Scroll to bottom when new commands are added
   useEffect(() => {

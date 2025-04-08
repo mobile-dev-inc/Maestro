@@ -15,19 +15,20 @@ const ReplContext = createContext<{
   setErrorMessage: React.Dispatch<React.SetStateAction<string | null>>;
 }>({ repl: initialState, setRepl: () => {}, errorMessage: null, setErrorMessage: () => {} });
 
-const restoreRepl = () => {
+export const restoreRepl = () => {
   const savedRepl = localStorage.getItem('repl');
   if (!savedRepl) return initialState
-  return JSON.parse(savedRepl, (key, value) => {
+  const repl: Repl = JSON.parse(savedRepl, (key, value) => {
     if (key === 'command' && !value) return []
     return value
   })
+  return repl
 }
 
 export const ReplProvider = ({ children }: {
   children: ReactNode
 }) => {
-  const [repl, setRepl] = useState<Repl>(() => restoreRepl());
+  const [repl, setRepl] = useState<Repl>(initialState);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -112,14 +113,23 @@ export const useRepl = () => {
     return !abort
   }
 
-  const parseCommands = (yaml: string): ReplCommand[] => {
+  const parseCommands = (yaml: string, status: ReplCommandStatus = 'pending'): ReplCommand[] => {
     const parsed = YAML.parse(yaml);
     const yamls = Array.isArray(parsed) ? parsed.map(o => YAML.stringify(o)) : [YAML.stringify(parsed)];
     return yamls.map(yaml => ({
       id: `${uuidv4()}`,
-      status: 'pending',
+      status,
       yaml,
     }));
+  }
+
+  const addInitialCommandYaml = (yaml: string) => {
+    const commands = parseCommands(yaml, 'loaded');
+    setRepl(prevRepl => ({
+      ...prevRepl,
+      commands: [...prevRepl.commands, ...commands]
+    }))
+    return commands;
   }
 
   const runCommandYaml = async (yaml: string): Promise<boolean> => {
@@ -147,8 +157,10 @@ export const useRepl = () => {
 
   return {
     repl,
+    setRepl,
     errorMessage,
     setErrorMessage,
+    addInitialCommandYaml,
     runCommandYaml,
     runCommandIds,
     deleteCommands,

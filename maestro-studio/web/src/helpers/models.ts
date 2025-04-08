@@ -35,6 +35,7 @@ export type DeviceScreen = {
 };
 
 export type ReplCommandStatus =
+  | "loaded"
   | "pending"
   | "running"
   | "success"

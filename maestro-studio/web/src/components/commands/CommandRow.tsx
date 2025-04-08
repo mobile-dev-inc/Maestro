@@ -66,5 +66,7 @@ const StatusIcon = ({
       return null;
     case "running":
       return <Spinner size="16" className="text-gray-900 dark:text-white" />;
+    case "loaded":
+      return null;
   }
 };
