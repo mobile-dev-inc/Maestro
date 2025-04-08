@@ -17,6 +17,18 @@
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
+          <option name="brand" value="OnePlus" />
+          <option name="codename" value="OP5552L1" />
+          <option name="id" value="OP5552L1" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="OnePlus" />
+          <option name="name" value="CPH2415" />
+          <option name="screenDensity" value="480" />
+          <option name="screenX" value="1080" />
+          <option name="screenY" value="2412" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="34" />
           <option name="brand" value="OPPO" />
           <option name="codename" value="OP573DL1" />
           <option name="id" value="OP573DL1" />
@@ -111,6 +123,18 @@
           <option name="screenDensity" value="360" />
           <option name="screenX" value="1080" />
           <option name="screenY" value="1272" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="33" />
+          <option name="brand" value="motorola" />
+          <option name="codename" value="austin" />
+          <option name="id" value="austin" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Motorola" />
+          <option name="name" value="moto g 5G (2022)" />
+          <option name="screenDensity" value="280" />
+          <option name="screenX" value="720" />
+          <option name="screenY" value="1600" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="33" />
@@ -297,6 +321,18 @@
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
           <option name="brand" value="samsung" />
+          <option name="codename" value="gta9pwifi" />
+          <option name="id" value="gta9pwifi" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Samsung" />
+          <option name="name" value="SM-X210" />
+          <option name="screenDensity" value="240" />
+          <option name="screenX" value="1200" />
+          <option name="screenY" value="1920" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="34" />
+          <option name="brand" value="samsung" />
           <option name="codename" value="gts7xllite" />
           <option name="id" value="gts7xllite" />
           <option name="labId" value="google" />
@@ -331,6 +367,18 @@
           <option name="screenDensity" value="274" />
           <option name="screenX" value="1600" />
           <option name="screenY" value="2560" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="34" />
+          <option name="brand" value="samsung" />
+          <option name="codename" value="gts9fe" />
+          <option name="id" value="gts9fe" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Samsung" />
+          <option name="name" value="Galaxy Tab S9 FE 5G" />
+          <option name="screenDensity" value="280" />
+          <option name="screenX" value="1440" />
+          <option name="screenY" value="2304" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
@@ -529,6 +577,19 @@
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
+          <option name="brand" value="google" />
+          <option name="codename" value="tokay" />
+          <option name="default" value="true" />
+          <option name="id" value="tokay" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Google" />
+          <option name="name" value="Pixel 9" />
+          <option name="screenDensity" value="420" />
+          <option name="screenX" value="1080" />
+          <option name="screenY" value="2424" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="35" />
           <option name="brand" value="google" />
           <option name="codename" value="tokay" />
           <option name="default" value="true" />
