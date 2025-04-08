@@ -31,8 +31,10 @@ data class YamlConfig(
             name = name,
             tags = tags,
             ext = ext.toMap(),
+            env = env,
             onFlowStart = onFlowStart(flowPath),
-            onFlowComplete = onFlowComplete(flowPath)
+            onFlowComplete = onFlowComplete(flowPath),
+
         )
         return MaestroCommand(ApplyConfigurationCommand(config))
     }

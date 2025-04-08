@@ -1063,6 +1063,7 @@ data class RunFlowCommand(
     val condition: Condition? = null,
     val sourceDescription: String? = null,
     val config: MaestroConfig?,
+    val env: Map<String, String>?,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
@@ -1208,6 +1209,7 @@ data class RetryCommand(
     val maxRetries: String? = null,
     val commands: List<MaestroCommand>,
     val config: MaestroConfig?,
+    val env: Map<String, String>?,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
@@ -1216,7 +1218,16 @@ data class RetryCommand(
         val yamlString = buildString {
             append(
                 """
-                |retry:
+                |retry:"""
+            )
+            if(maxRetries != null) {
+                append(
+                    """
+                    |  maxRetries: $maxRetries"""
+                )
+            }
+            append(
+                """
                 |  commands:"""
             )
             commands.forEach { command ->
