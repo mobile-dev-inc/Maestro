@@ -34,6 +34,8 @@ class RouteHandlerFactory {
             return StatusHandler()
         case .keyboard:
             return KeyboardRouteHandler()
+        case .launchApp:
+            return LaunchAppHandler()
         }
     }
 }

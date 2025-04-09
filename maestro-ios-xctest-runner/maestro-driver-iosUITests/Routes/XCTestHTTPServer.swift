@@ -17,6 +17,7 @@ enum Route: String, CaseIterable {
     case viewHierarchy
     case status
     case keyboard
+    case launchApp
     
     func toHTTPRoute() -> HTTPRoute {
         return HTTPRoute(rawValue)
@@ -26,7 +27,7 @@ enum Route: String, CaseIterable {
 struct XCTestHTTPServer {
     func start() async throws {
         let port = ProcessInfo.processInfo.environment["PORT"]?.toUInt16()
-        let server = HTTPServer(address: .loopback(port: port ?? 22087), timeout: 100)
+        let server = HTTPServer(address: try .inet(ip4: "127.0.0.1", port: port ?? 22087), timeout: 100)
         
         for route in Route.allCases {
             let handler = await RouteHandlerFactory.createRouteHandler(route: route)

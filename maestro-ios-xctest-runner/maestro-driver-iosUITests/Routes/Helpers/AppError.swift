@@ -33,3 +33,10 @@ struct AppError: Error, Codable {
         case message = "errorMessage"
     }
 }
+
+extension AppError: LocalizedError {
+    var errorDescription: String? {
+        return message
+    }
+}
+
