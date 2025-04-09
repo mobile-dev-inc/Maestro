@@ -47,7 +47,28 @@ object Analytics {
         get() = legacyUuidPath.exists() || analyticsStatePath.exists()
 
     private val analyticsState: AnalyticsState
-        get() = JSON.readValue<AnalyticsState>(analyticsStatePath.readText())
+        get() {
+            return try {
+                if (analyticsStatePath.exists()) {
+                    JSON.readValue(analyticsStatePath.readText())
+                } else {
+                    AnalyticsState(
+                      uuid = generateUUID(),
+                      enabled = false,
+                      lastUploadedForCLI = null,
+                      lastUploadedTime = null
+                    )
+                }
+            } catch (e: Exception) {
+                logger.warn("Failed to read analytics state: ${e.message}. Using default.")
+                AnalyticsState(
+                    uuid = generateUUID(),
+                    enabled = false,
+                    lastUploadedForCLI = null,
+                    lastUploadedTime = null
+                )
+            }
+      }
 
     private val uploadConditionsMet: Boolean
         get() {
