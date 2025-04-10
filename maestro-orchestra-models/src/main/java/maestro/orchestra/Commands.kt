@@ -800,12 +800,13 @@ data class OpenLinkCommand(
         return yamlString
     }
     override fun description(): String {
-        return label
-            ?: if (browser == true) {
-                if (autoVerify == true) "Open $link with auto verification in browser" else "Open $link in browser"
-            } else {
-                if (autoVerify == true) "Open $link with auto verification" else "Open $link"
-            }
+        return if (label != null) {
+            label
+        } else if (browser == true) {
+            if (autoVerify == true) "Open $link with auto verification in browser" else "Open $link in browser"
+        } else {
+            if (autoVerify == true) "Open $link with auto verification" else "Open $link"
+        }
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): OpenLinkCommand {
@@ -858,11 +859,12 @@ data class EraseTextCommand(
         return yamlString
     }
     override fun description(): String {
-        return label
-            ?: if (charactersToErase != null) {
-                "Erase $charactersToErase characters"
-            } else {
-                "Erase text"
+        return if (label != null) {
+            label
+        } else if (charactersToErase != null) {
+            "Erase $charactersToErase characters"
+        } else {
+            "Erase text"
             }
     }
 
@@ -1114,7 +1116,6 @@ data class RunFlowCommand(
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
-            commands = commands.map { it.evaluateScripts(jsEngine) }
         )
     }
 
