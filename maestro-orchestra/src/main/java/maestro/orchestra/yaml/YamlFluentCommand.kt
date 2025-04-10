@@ -549,7 +549,6 @@ data class YamlFluentCommand(
                 config = config,
                 label = runFlow.label,
                 optional = runFlow.optional,
-                env = config?.env
             )
         )
     }
@@ -583,7 +582,6 @@ data class YamlFluentCommand(
                 commands = commands,
                 label = retry.label,
                 optional = retry.optional,
-                env = config?.env,
                 config = config
             )
         )
