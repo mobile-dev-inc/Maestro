@@ -35,6 +35,7 @@ class LocalXCTestInstaller(
         readTimeout = 100.seconds,
     ),
     override val preBuiltRunner: Boolean = true,
+    val reinstallDriver: Boolean = true,
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -56,7 +57,7 @@ class LocalXCTestInstaller(
             // FIXME(bartekpacia): This method probably doesn't have to care about killing the XCTest Runner process.
             //  Just uninstalling should suffice. It automatically kills the process.
 
-            if (useXcodeTestRunner) {
+            if (useXcodeTestRunner || !reinstallDriver) {
                 logger.trace("Skipping uninstalling XCTest Runner as USE_XCODE_TEST_RUNNER is set")
                 return@measured false
             }
@@ -225,10 +226,12 @@ class LocalXCTestInstaller(
 
         logger.info("[Start] Cleaning up the ui test runner files")
         tempDir.deleteRecursively()
-        uninstall()
-        LocalSimulatorUtils.terminate(deviceId = deviceId, bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID)
-        XCRunnerCLIUtils.uninstall(bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId = deviceId)
-        logger.info("[Done] Cleaning up the ui test runner files")
+        if(reinstallDriver) {
+            uninstall()
+            LocalSimulatorUtils.terminate(deviceId = deviceId, bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID)
+            XCRunnerCLIUtils.uninstall(bundleId = UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId = deviceId)
+            logger.info("[Done] Cleaning up the ui test runner files")
+        }
     }
 
     private fun extractZipToApp(appFileName: String, srcAppPath: String): File {

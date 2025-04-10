@@ -165,9 +165,15 @@ class TestCommand : Callable<Int> {
     @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
-
     @Option(names = ["--api-key"], description = ["[Beta] API key"])
     private var apiKey: String? = null
+
+    @Option(
+        names = ["--reinstall-driver"],
+        description = ["[Beta] Reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled"],
+        hidden = true
+    )
+    private var reinstallDriver: Boolean = true
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
@@ -325,6 +331,7 @@ class TestCommand : Callable<Int> {
             deviceId = deviceId,
             platform = parent?.platform,
             isHeadless = headless,
+            reinstallDriver = reinstallDriver,
         ) { session ->
             val maestro = session.maestro
             val device = session.device

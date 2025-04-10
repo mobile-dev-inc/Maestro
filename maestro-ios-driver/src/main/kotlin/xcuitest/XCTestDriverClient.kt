@@ -19,13 +19,14 @@ class XCTestDriverClient(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
         connectTimeout = 1.seconds
-    )
+    ),
+    private val reinstallDriver: Boolean = true,
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
 
     private lateinit var client: XCTestClient
 
-    constructor(installer: XCTestInstaller, client: XCTestClient): this(installer) {
+    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = true): this(installer, reinstallDriver = reinstallDriver) {
         this.client = client
     }
 
@@ -38,10 +39,12 @@ class XCTestDriverClient(
     }
 
     fun restartXCTestRunner() {
-        logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
-        installer.uninstall()
+        if(reinstallDriver) {
+            logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
+            installer.uninstall()
+            logger.trace("XCTest Runner uninstalled, will install and start it")
+        }
 
-        logger.trace("XCTest Runner uninstalled, will install and start it")
         client = installer.start()
     }
 
