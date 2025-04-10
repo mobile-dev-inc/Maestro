@@ -26,7 +26,7 @@ class XCTestDriverClient(
 
     private lateinit var client: XCTestClient
 
-    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean): this(installer, reinstallDriver = reinstallDriver) {
+    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = true): this(installer, reinstallDriver = reinstallDriver) {
         this.client = client
     }
 
