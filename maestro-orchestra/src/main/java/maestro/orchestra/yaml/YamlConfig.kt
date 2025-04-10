@@ -14,6 +14,7 @@ data class YamlConfig(
     @JsonAlias("url")
     val appId: String,
     val tags: List<String>? = emptyList(),
+    val env: Map<String, String> = emptyMap(),
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
