@@ -10,7 +10,6 @@ data class MaestroConfig(
     val name: String? = null,
     val tags: List<String>? = emptyList(),
     val ext: Map<String, Any?> = emptyMap(),
-    val env: Map<String, String> = emptyMap(),
     val onFlowStart: MaestroOnFlowStart? = null,
     val onFlowComplete: MaestroOnFlowComplete? = null,
 ) {
