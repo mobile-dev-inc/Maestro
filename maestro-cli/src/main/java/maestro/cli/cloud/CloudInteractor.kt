@@ -124,7 +124,8 @@ class CloudInteractor(
             val project = requireNotNull(projectId)
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
-            val deviceMessage = if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+            val deviceMessage =
+                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
             return printMaestroCloudResponse(
                 async,
                 authToken,
@@ -143,10 +144,10 @@ class CloudInteractor(
     }
 
     private fun getAppFile(
-      appFile: File?,
-      appBinaryId: String?,
-      tmpDir: Path,
-      flowFile: File
+        appFile: File?,
+        appBinaryId: String?,
+        tmpDir: Path,
+        flowFile: File
     ): File? {
         when {
             appBinaryId != null -> return null
@@ -220,41 +221,21 @@ class CloudInteractor(
         }
     }
 
-    private fun printDeviceInfo(deviceInfo: DeviceInfo, iOSVersion: String?, androidApiLevel: Int?): String {
-
-        val platform = Platform.fromString(deviceInfo.platform)
-
-        val line1 = "Maestro Cloud device specs:\n* ${deviceInfo.displayInfo} - ${deviceInfo.deviceLocale}"
-        val line2 =
-            "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
-        val line3 = "To change device locale use this option: --device-locale=<device_locale>"
-
-        val version = when (platform) {
-            Platform.ANDROID -> "${androidApiLevel ?: 30}" // todo change with constant from DeviceConfigAndroid
-            Platform.IOS -> "${iOSVersion ?: 15}" // todo change with constant from DeviceConfigIos
-            else -> return ""
-        }
-
-        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${
-            platform.toString().lowercase()
-        } --os-version=$version --device-locale=${deviceInfo.deviceLocale}`"
-        return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
-    }
-
     private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
 
-        val line1 = "Robin device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}"
-        val line2 =
-            "To change OS version use this option: ${if (platform == Platform.IOS) "--ios-version=<version>" else "--android-api-level=<version>"}"
-        val line3 = "To change device locale use this option: --device-locale=<device_locale>"
-
         val version = deviceConfiguration.osVersion
+        val lines = listOf(
+            "Maestro cloud device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}",
+            "To change OS version use this option: ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}",
+            "To change devices use this option: --device-model=<device_model>",
+            "To change device locale use this option: --device-locale=<device_locale>",
+            "To create a similar device locally, run: `maestro start-device --platform=${
+                platform.toString().lowercase()
+            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
+        )
 
-        val line4 = "To create a similar device locally, run: `maestro start-device --platform=${
-            platform.toString().lowercase()
-        } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
-        return "$line1\n\n$line2\n\n$line3\n\n$line4".box()
+        return lines.joinToString("\n\n").box()
     }
 
 
