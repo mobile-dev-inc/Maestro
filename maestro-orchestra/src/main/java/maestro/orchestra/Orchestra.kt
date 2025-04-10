@@ -320,6 +320,7 @@ class Orchestra(
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is RetryCommand -> retryCommand(command, config)
+            is RotateDeviceCommand -> rotateDevice(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -1252,6 +1253,12 @@ class Orchestra(
         } else {
             attributes["accessibilityText"]
         }
+    }
+
+    private fun rotateDevice(command: RotateDeviceCommand): Boolean {
+        maestro.rotateDevice(command.direction ?: "Right")
+
+        return true
     }
 
     private fun pasteText(): Boolean {

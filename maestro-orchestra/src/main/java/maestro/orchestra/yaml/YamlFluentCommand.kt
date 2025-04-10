@@ -51,6 +51,7 @@ import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RetryCommand
+import maestro.orchestra.RotateDeviceCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
@@ -129,6 +130,7 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
+    val rotateDevice: YamlRotateDevice? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
 
@@ -474,6 +476,16 @@ data class YamlFluentCommand(
                     ToggleAirplaneModeCommand(
                         toggleAirplaneMode.label,
                         toggleAirplaneMode.optional
+                    )
+                )
+            )
+
+            rotateDevice != null -> listOf(
+                MaestroCommand(
+                    RotateDeviceCommand(
+                        rotateDevice.direction,
+                        rotateDevice.label,
+                        rotateDevice.optional
                     )
                 )
             )

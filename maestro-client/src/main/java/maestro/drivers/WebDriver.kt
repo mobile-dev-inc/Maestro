@@ -474,6 +474,10 @@ class WebDriver(
         // Do nothing
     }
 
+    override fun rotateDevice(direction: String) {
+        // Do nothing
+    }
+
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10

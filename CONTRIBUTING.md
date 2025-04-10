@@ -34,7 +34,7 @@ users still use Java 8.
 
 For development, you need to use Java 11 or newer.
 
-If you made changes to the CLI, rebuilt it with `./gradlew :maestro-cli:installDist`. This will generate a startup shell
+If you made changes to the CLI, rebuild it with `./gradlew :maestro-cli:installDist`. This will generate a startup shell
 script in `./maestro-cli/build/install/maestro/bin/maestro`. Use it instead of globally installed `maestro`.
 
 If you made changes to the iOS XCTest runner app, make sure they are compatible with the version of Xcode used by the GitHub Actions build step. It is currently built using the default version of Xcode listed in the macos runner image [readme][macos_builder_readme].

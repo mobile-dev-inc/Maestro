@@ -189,4 +189,8 @@ class SimctlIOSDevice(
         stopScreenRecording()
     }
 
+    override fun rotateDevice(direction: String) {
+        LocalSimulatorUtils.rotateDevice(direction)
+    }
+
 }

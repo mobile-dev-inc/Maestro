@@ -869,6 +869,22 @@ data class RetryCommand(
 
 }
 
+data class RotateDeviceCommand(
+    val direction: String? = null,
+    override val label: String? = null,
+    override val optional: Boolean,
+) : Command {
+
+    override fun description(): String {
+        return label ?: "Rotate device"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+
+}
+
 data class DefineVariablesCommand(
     val env: Map<String, String>,
     override val label: String? = null,

@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- rotateDevice:
+    direction: "Left"
+- rotateDevice:
+    direction: "Right"

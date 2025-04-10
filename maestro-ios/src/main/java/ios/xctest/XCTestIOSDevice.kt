@@ -11,6 +11,7 @@ import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.buffer
 import org.slf4j.LoggerFactory
+import util.LocalSimulatorUtils
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
 import java.net.SocketTimeoutException
@@ -216,6 +217,10 @@ class XCTestIOSDevice(
     override fun eraseText(charactersToErase: Int) {
         // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
         execute { client.eraseText(charactersToErase, appIds = emptySet()) }
+    }
+
+    override fun rotateDevice(direction: String) {
+        LocalSimulatorUtils.rotateDevice(direction)
     }
 
     private fun activeAppId(): String {

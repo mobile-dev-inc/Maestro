@@ -157,4 +157,8 @@ class LocalIOSDevice(
     override fun addMedia(path: String) {
         simctlIOSDevice.addMedia(path)
     }
+
+    override fun rotateDevice(direction: String) {
+        simctlIOSDevice.rotateDevice(direction)
+    }
 }

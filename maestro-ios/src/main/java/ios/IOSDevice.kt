@@ -150,6 +150,8 @@ interface IOSDevice : AutoCloseable {
     fun eraseText(charactersToErase: Int)
 
     fun addMedia(path: String)
+
+    fun rotateDevice(direction: String)
 }
 
 interface IOSScreenRecording : AutoCloseable

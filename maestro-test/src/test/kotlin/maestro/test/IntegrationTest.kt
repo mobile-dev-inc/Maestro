@@ -3218,6 +3218,29 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 120 - Rotate the iOS simulator`() {
+        // Given
+        val commands = readCommands("120_rotate_device")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.RotateDevice("Left"),
+                Event.RotateDevice("Right"),
+            )
+        )
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
