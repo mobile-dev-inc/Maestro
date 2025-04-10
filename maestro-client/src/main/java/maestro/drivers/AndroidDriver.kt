@@ -34,8 +34,7 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
-import maestro.android.chromedevtools.AndroidWebViewHierarchy
-import maestro.android.chromedevtools.DadbChromeDevToolsClient
+import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -80,6 +79,8 @@ class AndroidDriver(
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
     private val asyncStub = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
+
+    private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
 
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
@@ -197,6 +198,8 @@ class AndroidDriver(
         LOGGER.info("[Start] Shutdown GRPC channel")
         channel.shutdown()
         LOGGER.info("[Done] Shutdown GRPC channel")
+
+        androidWebViewHierarchyClient.close()
 
         if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
             throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
@@ -341,7 +344,7 @@ class AndroidDriver(
 
             val baseTree = mapHierarchy(document)
 
-            val treeNode = AndroidWebViewHierarchy.augmentHierarchy(dadb, baseTree, chromeDevToolsEnabled)
+            val treeNode = androidWebViewHierarchyClient.augmentHierarchy(baseTree, chromeDevToolsEnabled)
 
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode

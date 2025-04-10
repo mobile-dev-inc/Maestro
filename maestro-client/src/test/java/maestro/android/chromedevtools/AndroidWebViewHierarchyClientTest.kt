@@ -5,7 +5,7 @@ import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
 import org.junit.jupiter.api.Test
 
-class AndroidWebViewHierarchyTest {
+class AndroidWebViewHierarchyClientTest {
 
     @Test
     fun testMergeHierarchies1() {
@@ -159,7 +159,7 @@ class AndroidWebViewHierarchyTest {
         val baseHierarchy = stringToHierarchy(base)
         val webviewHierarchy = stringToHierarchy(webview)
 
-        val mergedHierarchy = AndroidWebViewHierarchy.mergeHierarchies(baseHierarchy, webviewHierarchy.children)
+        val mergedHierarchy = AndroidWebViewHierarchyClient.mergeHierarchies(baseHierarchy, webviewHierarchy.children)
         assertThat(hierarchyToString(mergedHierarchy)).isEqualTo(expected)
     }
 
