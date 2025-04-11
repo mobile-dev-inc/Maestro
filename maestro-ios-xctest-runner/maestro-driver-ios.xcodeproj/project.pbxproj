@@ -89,6 +89,8 @@
 		94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */; };
 		9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */; };
 		F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F328D3E52A2A98E7000546D3 /* StringExtensions.swift */; };
+		F4C52E462D9E612D008E0A1A /* LaunchAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C52E452D9E612B008E0A1A /* LaunchAppHandler.swift */; };
+		F4C52E482D9E8DF1008E0A1A /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -280,6 +282,8 @@
 		94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Extensions.swift"; sourceTree = "<group>"; };
 		9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSizeHelper.swift; sourceTree = "<group>"; };
 		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
+		F4C52E452D9E612B008E0A1A /* LaunchAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandler.swift; sourceTree = "<group>"; };
+		F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -520,6 +524,7 @@
 		9407362C2940C9F900A72E99 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */,
 				521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */,
 				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
 				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
@@ -557,6 +562,7 @@
 			isa = PBXGroup;
 			children = (
 				521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */,
+				F4C52E452D9E612B008E0A1A /* LaunchAppHandler.swift */,
 				610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
@@ -777,6 +783,7 @@
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
 				9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */,
+				F4C52E482D9E8DF1008E0A1A /* LaunchAppRequest.swift in Sources */,
 				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,
 				61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */,
 				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
@@ -792,6 +799,7 @@
 				52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */,
 				32097965297092A800340282 /* InputTextRequest.swift in Sources */,
 				52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */,
+				F4C52E462D9E612D008E0A1A /* LaunchAppHandler.swift in Sources */,
 				52D8FAB02D6DD4100015FAB3 /* FBConfiguration.m in Sources */,
 				61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */,
 				6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */,

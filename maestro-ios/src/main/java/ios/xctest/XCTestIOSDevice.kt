@@ -1,6 +1,7 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
 import ios.IOSDevice
 import ios.IOSDeviceErrors
@@ -147,7 +148,11 @@ class XCTestIOSDevice(
         launchArguments: Map<String, Any>,
         maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
-        error("Not supported")
+        return runCatching {
+            execute {
+                client.launchApp(appId = id, launchArguments = launchArguments, maestroSessionId = maestroSessionId)
+            }
+        }
     }
 
     override fun stop(id: String) {
