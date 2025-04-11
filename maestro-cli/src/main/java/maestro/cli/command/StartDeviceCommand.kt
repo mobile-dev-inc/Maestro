@@ -46,7 +46,7 @@ class StartDeviceCommand : Callable<Int> {
     @CommandLine.Option(
         order = 1,
         names = ["--os-version"],
-        description = ["OS version to use:", "iOS: 15, 16, 17", "Android: 28, 29, 30, 31, 33"],
+        description = ["OS version to use:", "iOS: 16, 17, 18", "Android: 28, 29, 30, 31, 33"],
     )
     private lateinit var osVersion: String
 
