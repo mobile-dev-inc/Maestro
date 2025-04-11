@@ -5,8 +5,7 @@ import os
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
 
-    private static let springboardBundleId = "com.apple.springboard"
-    private let springboardApplication = XCUIApplication(bundleIdentifier: Self.springboardBundleId)
+    private let springboardApplication = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private let snapshotMaxDepth = 60
 
     private let logger = Logger(
@@ -55,8 +54,14 @@ struct ViewHierarchyHandler: HTTPHandler {
             let filteredChildren = appHierarchy.filterAllChildrenNotInKeyboardBounds(keyboard.frame)
             return AXElement(children: [AXElement(children: filteredChildren)].compactMap { $0 })
         }
+        
+        
+        let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
+            fullStatusBars(springboardApplication)
+        } ?? []
 
-        return AXElement(children: [appHierarchy].compactMap { $0 })
+
+        return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
@@ -148,6 +153,18 @@ struct ViewHierarchyHandler: HTTPHandler {
         
         let alert = element.alerts.firstMatch
         return try? elementHierarchy(xcuiElement: alert)
+    }
+    
+    func fullStatusBars(_ element: XCUIApplication) -> [AXElement]? {
+        guard element.statusBars.firstMatch.exists else {
+            return nil
+        }
+        
+        let snapshots = try? element.statusBars.allElementsBoundByIndex.compactMap{ (statusBar) in
+            try elementHierarchy(xcuiElement: statusBar)
+        }
+        
+        return snapshots
     }
 
     private func findRecoveryElement(_ element: XCUIElement) throws -> XCUIElement {
