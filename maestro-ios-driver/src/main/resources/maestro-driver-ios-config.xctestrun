@@ -33,9 +33,9 @@
 		<integer>600</integer>
 		<key>DependentProductPaths</key>
 		<array>
-			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-ios.app</string>
-			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
-			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app/PlugIns/maestro-driver-iosUITests.xctest</string>
+			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-ios.app</string>
+			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-iosUITests-Runner.app</string>
+			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-iosUITests-Runner.app/PlugIns/maestro-driver-iosUITests.xctest</string>
 		</array>
 		<key>DiagnosticCollectionPolicy</key>
 		<integer>1</integer>
@@ -47,6 +47,8 @@
 			<string>YES</string>
 			<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
 			<string>1</string>
+			<key>TERM</key>
+			<string>dumb</string>
 		</dict>
 		<key>IsUITestBundle</key>
 		<true/>
@@ -65,7 +67,7 @@
 		<key>TestHostBundleIdentifier</key>
 		<string>dev.mobile.maestro-driver-iosUITests.xctrunner</string>
 		<key>TestHostPath</key>
-		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
+		<string>__TESTROOT__/Debug-iphoneos/maestro-driver-iosUITests-Runner.app</string>
 		<key>TestLanguage</key>
 		<string></string>
 		<key>TestRegion</key>
@@ -73,18 +75,7 @@
 		<key>TestTimeoutsEnabled</key>
 		<false/>
 		<key>TestingEnvironmentVariables</key>
-		<dict>
-			<key>DYLD_FRAMEWORK_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator:__TESTROOT__/Debug-iphonesimulator/PackageFrameworks:__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks</string>
-			<key>DYLD_LIBRARY_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator:__PLATFORMS__/iPhoneSimulator.platform/Developer/usr/lib</string>
-			<key>__XCODE_BUILT_PRODUCTS_DIR_PATHS</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
-			<key>__XPC_DYLD_FRAMEWORK_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
-			<key>__XPC_DYLD_LIBRARY_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
-		</dict>
+		<dict/>
 		<key>ToolchainsSettingValue</key>
 		<array/>
 		<key>UITargetAppCommandLineArguments</key>
@@ -93,19 +84,9 @@
 		<dict>
 			<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
 			<string>com.apple.AppStore</string>
-			<key>DYLD_FRAMEWORK_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator:__TESTROOT__/Debug-iphonesimulator/PackageFrameworks</string>
-			<key>DYLD_LIBRARY_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
-			<key>__XCODE_BUILT_PRODUCTS_DIR_PATHS</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
-			<key>__XPC_DYLD_FRAMEWORK_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
-			<key>__XPC_DYLD_LIBRARY_PATH</key>
-			<string>__TESTROOT__/Debug-iphonesimulator</string>
 		</dict>
 		<key>UITargetAppPath</key>
-		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-ios.app</string>
+		<string>__TESTROOT__/Debug-iphoneos/maestro-driver-ios.app</string>
 		<key>UserAttachmentLifetime</key>
 		<string>deleteOnSuccess</string>
 	</dict>
