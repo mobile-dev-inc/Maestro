@@ -2,7 +2,6 @@ package maestro.device
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer
-import maestro.device.DeviceError
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -226,17 +225,17 @@ object DeviceService {
     }
 
     private fun listIOSDevices(): List<Device> {
-        val simctlList = try {
-            util.LocalSimulatorUtils.list()
+        val deviceList = try {
+            util.LocalDeviceUtils.listDevices()
         } catch (ignored: Exception) {
             return emptyList()
         }
 
-        val runtimeNameByIdentifier = simctlList
+        val runtimeNameByIdentifier = deviceList
             .runtimes
             .associate { it.identifier to it.name }
 
-        return simctlList
+        return deviceList
             .devices
             .flatMap { runtime ->
                 runtime.value
@@ -247,8 +246,8 @@ object DeviceService {
 
     private fun device(
         runtimeNameByIdentifier: Map<String, String>,
-        runtime: Map.Entry<String, List<util.SimctlList.Device>>,
-        device: util.SimctlList.Device,
+        runtime: Map.Entry<String, List<util.IOSDeviceList.Device>>,
+        device: util.IOSDeviceList.Device,
     ): Device {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"

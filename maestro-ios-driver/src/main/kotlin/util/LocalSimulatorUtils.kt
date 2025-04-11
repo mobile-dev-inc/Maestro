@@ -48,7 +48,7 @@ object LocalSimulatorUtils {
         "location"
     )
 
-    fun list(): SimctlList {
+    fun list(): IOSDeviceList {
         val command = listOf("xcrun", "simctl", "list", "-j")
 
         val process = ProcessBuilder(command).start()

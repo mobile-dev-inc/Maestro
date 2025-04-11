@@ -3,7 +3,7 @@ package util
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class SimctlList(
+data class IOSDeviceList(
     val devicetypes: List<DeviceType>,
     val runtimes: List<Runtime>,
     val devices: Map<String, List<Device>>,
