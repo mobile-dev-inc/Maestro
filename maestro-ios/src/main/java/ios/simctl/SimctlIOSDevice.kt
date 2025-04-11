@@ -90,15 +90,7 @@ class SimctlIOSDevice(
         launchArguments: Map<String, Any>,
         maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
-        return runCatching {
-            val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()
-            LocalSimulatorUtils.launch(
-                deviceId = deviceId,
-                bundleId = id,
-                launchArguments = iOSLaunchArguments,
-                sessionId = maestroSessionId?.toString() ?: null,
-            )
-        }
+        error("Not supported")
     }
 
     override fun stop(id: String) {

@@ -11,6 +11,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
+import java.util.*
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -65,6 +66,10 @@ class XCTestDriverClient(
 
     fun terminateApp(appId: String) {
         executeJsonRequest("terminateApp", TerminateAppRequest(appId))
+    }
+
+    fun launchApp(appId: String, launchArguments: Map<String, Any>, maestroSessionId: UUID?,) {
+        executeJsonRequest("launchApp", LaunchAppRequest(appId, launchArguments, maestroSessionId))
     }
 
     fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
