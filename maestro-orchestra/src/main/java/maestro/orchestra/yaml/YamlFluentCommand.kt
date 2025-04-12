@@ -690,7 +690,13 @@ data class YamlFluentCommand(
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
         val path = flowPath.fileSystem.getPath(requestedPath)
 
-        val resolvedPath = if (path.isAbsolute) {
+        val fileParts = path.toString().split("/")
+        val resolvedPath = if(fileParts[0] == "app") {
+            val appRoot = flowPath.toString().split("/app/")[0]
+            val packageName = fileParts[1]
+            val sharedFlow = fileParts.toTypedArray().sliceArray(2 until fileParts.size).joinToString()
+            flowPath.fileSystem.getPath("$appRoot/app/packages/$packageName/src/tests/shared/$sharedFlow")
+        } else if (path.isAbsolute) {
             path
         } else {
             flowPath.resolveSibling(path).toAbsolutePath()
