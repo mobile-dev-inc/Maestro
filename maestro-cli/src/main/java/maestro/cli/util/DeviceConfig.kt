@@ -5,14 +5,15 @@ import maestro.device.util.AvdDevice
 internal object DeviceConfigIos {
 
     val device: String = "iPhone-11"
-    val versions = listOf(15, 16, 17)
+    val versions = listOf(15, 16, 17, 18)
     val runtimes = mapOf(
         15 to "iOS-15-5",
         16 to "iOS-16-2",
-        17 to "iOS-17-0"
+        17 to "iOS-17-0",
+        18 to "iOS-18-2"
     )
 
-    val defaultVersion = 15
+    val defaultVersion = 16
 
     fun generateDeviceName(version: Int) = "Maestro_iPhone11_$version"
 }

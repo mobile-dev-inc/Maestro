@@ -144,7 +144,7 @@ class CloudCommand : Callable<Int> {
     )
     private var output: File? = null
 
-    @Option(order = 17, names = ["--ios-version"], description = ["iOS version to run your flow against"])
+    @Option(order = 17, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
     private var iOSVersion: String? = null
 
     @Option(order = 18, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
@@ -153,10 +153,10 @@ class CloudCommand : Callable<Int> {
     @Option(order = 19, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
     private var deviceLocale: String? = null
 
-    @Option(order = 20, names = ["--device-model"], description = ["Device model to run your flow against [closed beta]"])
+    @Option(order = 20, names = ["--device-model"], description = ["Device model to run your flow against. Supported values include iPhone-11, etc. Only supported for iOS at the moment."])
     private var deviceModel: String? = null
 
-    @Option(order = 21, names = ["--device-os"], description = ["OS version to run your flow against [closed beta]"])
+    @Option(order = 21, names = ["--device-os"], description = ["OS version to run your flow against. Supported values include iOS-16-4, iOS-17-5, iOS-18-2, etc. Only supported for iOS at the moment."])
     private var deviceOs: String? = null
 
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
