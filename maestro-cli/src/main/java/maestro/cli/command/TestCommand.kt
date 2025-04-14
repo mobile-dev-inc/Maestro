@@ -45,6 +45,8 @@ import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.box
+import maestro.cli.api.ApiClient
+import maestro.cli.auth.Auth
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
@@ -167,6 +169,10 @@ class TestCommand : Callable<Int> {
 
     @Option(names = ["--api-key"], description = ["[Beta] API key"])
     private var apiKey: String? = null
+
+    private val client: ApiClient = ApiClient(baseUrl = apiUrl)
+    private val auth: Auth = Auth(client)
+    private val authToken: String? = auth.getAuthToken(apiKey, triggerSignIn = false)
 
     @Option(
         names = ["--reinstall-driver"],
@@ -353,7 +359,7 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze)
+                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken)
                 } else {
                     runSingleFlow(maestro, device, flowFile, debugOutputPath)
                 }
@@ -387,7 +393,8 @@ class TestCommand : Callable<Int> {
             env = env,
             resultView = resultView,
             debugOutputPath = debugOutputPath,
-            analyze = analyze
+            analyze = analyze,
+            apiKey = authToken,
         )
 
         if (resultSingle == 1) {

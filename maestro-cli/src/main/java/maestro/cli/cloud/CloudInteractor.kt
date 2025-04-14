@@ -82,7 +82,8 @@ class CloudInteractor(
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
-        val authToken = getAuthToken(apiKey)
+        val authToken = auth.getAuthToken(apiKey)
+        if (authToken == null) throw CliError("Failed to get authentication token")
 
         PrintUtils.message("Uploading Flow(s)...")
 
@@ -452,19 +453,13 @@ class CloudInteractor(
         )
     }
 
-    private fun getAuthToken(apiKey: String?): String {
-        return apiKey // Check for API key
-            ?: auth.getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
-            ?: auth.triggerSignInFlow() // Otherwise, trigger the sign-in flow
-    }
-
     fun analyze(
         apiKey: String?,
         debugFiles: AnalysisDebugFiles,
         debugOutputPath: Path,
     ): Int {
-        val authToken = getAuthToken(apiKey)
+        val authToken = auth.getAuthToken(apiKey)
+        if (authToken == null) throw CliError("Failed to get authentication token")
 
         PrintUtils.info("\n\uD83D\uDD0E Analyzing Flow(s)...")
 

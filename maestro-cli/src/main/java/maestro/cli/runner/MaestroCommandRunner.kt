@@ -56,6 +56,7 @@ object MaestroCommandRunner {
         commands: List<MaestroCommand>,
         debugOutput: FlowDebugOutput,
         aiOutput: FlowAIOutput,
+        apiKey: String? = null,
         analyze: Boolean = false
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
@@ -181,7 +182,8 @@ object MaestroCommandRunner {
                         defects = defects,
                     )
                 )
-            }
+            },
+            apiKey = apiKey,    
         )
 
         val flowSuccess = orchestra.runFlow(commands)
