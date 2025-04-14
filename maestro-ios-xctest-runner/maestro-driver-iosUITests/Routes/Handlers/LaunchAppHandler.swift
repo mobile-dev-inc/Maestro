@@ -8,7 +8,7 @@ struct LaunchAppHandler: HTTPHandler {
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         // Decode request body to extract appId and optional launch arguments
-        guard let requestBody = try? JSONDecoder().decode(LaunchAppRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(LaunchAppRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "Incorrect request body for launching app").httpResponse
         }
         
