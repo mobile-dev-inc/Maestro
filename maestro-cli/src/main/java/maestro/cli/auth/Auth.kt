@@ -73,15 +73,13 @@ class Auth(
     private val apiClient: ApiClient
 ) {
 
-    fun getAuthToken(apiKey: String?, triggerSignIn: Boolean = true): String {
-        return apiKey // Check for API key
-            ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
-            ?: if (triggerSignIn) triggerSignInFlow() else throw IllegalStateException("No API key provided and no cached auth token found") // Otherwise, trigger the sign-in flow
-    }
-
-    fun getAuthTokenSimple(apiKey: String?): String? {
-        message("Using API key from environment: $apiKey")
+    fun getAuthToken(apiKey: String?, triggerSignIn: Boolean = true): String? {
+        if (triggerSignIn) {
+            return apiKey // Check for API key
+                ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
+                ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+                ?: triggerSignInFlow() // Otherwise, trigger the sign-in flow
+        }
         return apiKey // Check for API key
             ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
             ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set

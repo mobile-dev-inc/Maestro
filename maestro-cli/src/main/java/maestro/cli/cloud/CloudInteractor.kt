@@ -83,6 +83,7 @@ class CloudInteractor(
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
         val authToken = auth.getAuthToken(apiKey)
+        if (authToken == null) throw CliError("Failed to get authentication token")
 
         PrintUtils.message("Uploading Flow(s)...")
 
@@ -458,6 +459,7 @@ class CloudInteractor(
         debugOutputPath: Path,
     ): Int {
         val authToken = auth.getAuthToken(apiKey)
+        if (authToken == null) throw CliError("Failed to get authentication token")
 
         PrintUtils.info("\n\uD83D\uDD0E Analyzing Flow(s)...")
 
