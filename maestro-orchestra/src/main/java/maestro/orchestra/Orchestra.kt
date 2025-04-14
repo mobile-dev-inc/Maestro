@@ -98,7 +98,8 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
-    private val AIPredictionEngine: AIPredictionEngine? = CloudAIPredictionEngine(System.getenv("MAESTRO_CLOUD_API_KEY") ?: ""),
+    private val apiKey: String? = null,
+    private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
 ) {
 
     private lateinit var jsEngine: JsEngine

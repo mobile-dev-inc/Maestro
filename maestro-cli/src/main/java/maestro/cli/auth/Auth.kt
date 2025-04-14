@@ -25,6 +25,7 @@ import maestro.cli.util.PrintUtils.info
 import maestro.cli.util.PrintUtils.message
 import maestro.cli.util.PrintUtils.success
 import maestro.cli.util.getFreePort
+import maestro.cli.util.EnvUtils
 
 private const val SUCCESS_HTML = """
     <!DOCTYPE html>
@@ -71,6 +72,20 @@ private const val FAILURE_HTML = """
 class Auth(
     private val apiClient: ApiClient
 ) {
+
+    fun getAuthToken(apiKey: String?): String {
+        return apiKey // Check for API key
+            ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
+            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+            ?: triggerSignInFlow() // Otherwise, trigger the sign-in flow
+    }
+
+    fun getAuthTokenSimple(apiKey: String?): String? {
+        message("Using API key from environment: $apiKey")
+        return apiKey // Check for API key
+            ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
+            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+    }
 
     fun getCachedAuthToken(): String? {
         if (!cachedAuthTokenFile.exists()) return null
