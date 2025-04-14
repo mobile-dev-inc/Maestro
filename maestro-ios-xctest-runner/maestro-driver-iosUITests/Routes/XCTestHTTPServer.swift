@@ -35,6 +35,6 @@ struct XCTestHTTPServer {
             await server.appendRoute(route.toHTTPRoute(), to: handler)
         }
         
-        try await server.start()
+        try await server.run()
     }
 }
