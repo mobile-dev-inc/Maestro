@@ -33,6 +33,7 @@ import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import org.slf4j.LoggerFactory
+import util.IOSDeviceType
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
@@ -44,7 +45,7 @@ import kotlin.concurrent.thread
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
-    private const val defaultXctestHost = "[::1]"
+    private const val defaultXctestHost = "127.0.0.1"
     private const val defaultXcTestPort = 22087
 
     private val executor = Executors.newScheduledThreadPool(1)
@@ -119,9 +120,11 @@ object MaestroSessionManager {
         deviceId: String?,
         platform: Platform? = null,
     ): SelectedDevice {
+
         if (deviceId == "chromium" || platform == Platform.WEB) {
             return SelectedDevice(
-                platform = Platform.WEB
+                platform = Platform.WEB,
+                deviceType = Device.DeviceType.BROWSER
             )
         }
 
@@ -131,15 +134,18 @@ object MaestroSessionManager {
             return SelectedDevice(
                 platform = device.platform,
                 device = device,
+                deviceType = device.deviceType
             )
         }
 
+        // TODO: check if android physical or emulator device
         if (isAndroid(host, port)) {
             return SelectedDevice(
                 platform = Platform.ANDROID,
                 host = host,
                 port = port,
                 deviceId = deviceId,
+                deviceType = Device.DeviceType.EMULATOR
             )
         }
 
@@ -148,6 +154,7 @@ object MaestroSessionManager {
             host = null,
             port = null,
             deviceId = deviceId,
+            deviceType = Device.DeviceType.SIMULATOR
         )
     }
 
@@ -173,6 +180,7 @@ object MaestroSessionManager {
                         !connectToExistingSession,
                         driverHostPort,
                         reinstallDriver,
+                        selectedDevice.device.deviceType
                     )
 
                     Platform.WEB -> pickWebDevice(isStudio, isHeadless)
@@ -262,7 +270,13 @@ object MaestroSessionManager {
         reinstallDriver: Boolean,
     ): Maestro {
         val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort)
-        return createIOS(device.instanceId, openDriver, driverHostPort, reinstallDriver)
+        return createIOS(
+            device.instanceId,
+            openDriver,
+            driverHostPort,
+            reinstallDriver,
+            device.deviceType
+        )
     }
 
     private fun createAndroid(
@@ -291,14 +305,31 @@ object MaestroSessionManager {
         openDriver: Boolean,
         driverHostPort: Int?,
         reinstallDriver: Boolean,
+        deviceType: Device.DeviceType,
     ): Maestro {
+
+        val iOSDeviceType = when (deviceType) {
+            Device.DeviceType.REAL -> IOSDeviceType.REAL
+            Device.DeviceType.SIMULATOR -> IOSDeviceType.SIMULATOR
+            else -> {
+                throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
+            }
+        }
+        val prebuilt = when (deviceType) {
+            Device.DeviceType.REAL -> false
+            Device.DeviceType.SIMULATOR -> true
+            else -> {
+                throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
+            }
+        }
 
         val xcTestInstaller = LocalXCTestInstaller(
             deviceId = deviceId,
             host = defaultXctestHost,
             defaultPort = driverHostPort ?: defaultXcTestPort,
-            enableXCTestOutputFileLogging = true,
             reinstallDriver = reinstallDriver,
+            deviceType = iOSDeviceType,
+            preBuiltRunner = prebuilt,
         )
 
         val xcTestDriverClient = XCTestDriverClient(
@@ -343,6 +374,7 @@ object MaestroSessionManager {
         val host: String? = null,
         val port: Int? = null,
         val deviceId: String? = null,
+        val deviceType: Device.DeviceType,
     )
 
     data class MaestroSession(

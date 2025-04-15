@@ -281,7 +281,7 @@ fun main() {
     view.setState(
         UiState.Running(
             flowName = "Flow for playing around",
-            device = Device.Connected("device", "description", Platform.ANDROID),
+            device = Device.Connected("device", "description", Platform.ANDROID, Device.DeviceType.EMULATOR),
             onFlowStartCommands = listOf(),
             onFlowCompleteCommands = listOf(),
             commands = listOf(

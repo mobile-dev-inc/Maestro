@@ -2,7 +2,6 @@ package maestro.device
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer
-import maestro.device.DeviceError
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -19,6 +18,7 @@ import java.util.concurrent.TimeoutException
 
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
+
     fun startDevice(
         device: Device.AvailableForLaunch,
         driverHostPort: Int?,
@@ -48,6 +48,7 @@ object DeviceService {
                     instanceId = device.modelId,
                     description = device.description,
                     platform = device.platform,
+                    deviceType = device.deviceType,
                 )
             }
 
@@ -102,6 +103,7 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = device.description,
                     platform = device.platform,
+                    deviceType = device.deviceType,
                 )
             }
 
@@ -110,6 +112,7 @@ object DeviceService {
                     instanceId = "",
                     description = "Chromium Web Browser",
                     platform = device.platform,
+                    deviceType = device.deviceType,
                 )
             }
         }
@@ -147,18 +150,21 @@ object DeviceService {
             Device.Connected(
                 platform = Platform.WEB,
                 description = "Chromium Web Browser",
-                instanceId = "chromium"
+                instanceId = "chromium",
+                deviceType = Device.DeviceType.BROWSER
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
                 language = null,
                 country = null,
                 description = "Chromium Web Browser",
-                platform = Platform.WEB
+                platform = Platform.WEB,
+                deviceType = Device.DeviceType.BROWSER
             )
         )
     }
 
+    // TODO: check how can we distinguish connected android real device and emulators
     private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
         val host = host ?: "localhost"
         if (port != null) {
@@ -168,6 +174,7 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
+                    deviceType = Device.DeviceType.EMULATOR
                 )
             )
         }
@@ -193,6 +200,7 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
+                    deviceType = Device.DeviceType.EMULATOR
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -214,6 +222,7 @@ object DeviceService {
                                 platform = Platform.ANDROID,
                                 language = null,
                                 country = null,
+                                deviceType = Device.DeviceType.EMULATOR
                             )
                         }
                         .toList()
@@ -242,7 +251,22 @@ object DeviceService {
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
-            }
+            } + listIOSConnectedDevices()
+    }
+
+    private fun listIOSConnectedDevices(): List<Device.Connected> {
+        val connectedIphoneList = util.LocalIOSDevice.listDeviceViaXcDevice()
+
+        return connectedIphoneList.map {
+            val description = "${it.name} - ${it.operatingSystemVersion} - ${it.identifier}"
+
+            Device.Connected(
+                instanceId = it.identifier,
+                description = description,
+                platform = Platform.IOS,
+                deviceType = Device.DeviceType.REAL
+            )
+        }
     }
 
     private fun device(
@@ -258,6 +282,7 @@ object DeviceService {
                 instanceId = device.udid,
                 description = description,
                 platform = Platform.IOS,
+                deviceType = Device.DeviceType.SIMULATOR
             )
         } else {
             Device.AvailableForLaunch(
@@ -266,6 +291,7 @@ object DeviceService {
                 platform = Platform.IOS,
                 language = null,
                 country = null,
+                deviceType =  Device.DeviceType.SIMULATOR
             )
         }
     }
@@ -286,7 +312,8 @@ object DeviceService {
                         Device.Connected(
                             instanceId = output,
                             description = output,
-                            platform = Platform.ANDROID
+                            platform = Platform.ANDROID,
+                            deviceType = Device.DeviceType.EMULATOR
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }

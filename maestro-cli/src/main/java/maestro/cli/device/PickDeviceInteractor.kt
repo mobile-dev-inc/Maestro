@@ -82,6 +82,7 @@ object PickDeviceInteractor {
                         modelId = "chromium",
                         language = null,
                         country = null,
+                        deviceType = Device.DeviceType.BROWSER
                     )
                 }
                 return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, null, null, options.forceCreate)

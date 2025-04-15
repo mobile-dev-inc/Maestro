@@ -10,9 +10,10 @@ import okhttp3.Request
 import okio.buffer
 import okio.sink
 import okio.source
-import org.apache.commons.io.FileUtils
 import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
+import util.IOSDeviceType
+import util.LocalIOSDeviceController
 import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
@@ -25,8 +26,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class LocalXCTestInstaller(
     private val deviceId: String,
-    private val host: String = "[::1]",
-    private val enableXCTestOutputFileLogging: Boolean,
+    private val host: String = "127.0.0.1",
+    private val deviceType: IOSDeviceType,
     private val defaultPort: Int,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     private val httpClient: OkHttpClient = HttpClient.build(
@@ -153,7 +154,7 @@ class LocalXCTestInstaller(
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
-                .host("[::1]")
+                .host("127.0.0.1")
                 .addPathSegment(pathSegment)
                 .port(defaultPort)
         }
@@ -200,11 +201,9 @@ class LocalXCTestInstaller(
         logger.info("[Start] Writing maestro-driver-ios app")
         extractZipToApp("maestro-driver-ios", UI_TEST_HOST_PATH)
         logger.info("[Done] Writing maestro-driver-ios app")
-
         if (preBuiltRunner) {
             logger.info("Installing pre built driver without xcodebuild")
-            LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
-            LocalSimulatorUtils.launchUITestRunner(deviceId, defaultPort)
+            installPrebuiltRunner(deviceId, bundlePath)
         } else {
             logger.info("Installing driver with xcodebuild")
             logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
@@ -212,9 +211,22 @@ class LocalXCTestInstaller(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = xctestRunFile.absolutePath,
                 port = defaultPort,
-                enableXCTestOutputFileLogging = enableXCTestOutputFileLogging,
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
+        }
+    }
+
+    private fun installPrebuiltRunner(deviceId: String, bundlePath: File) {
+        logger.info("Installing prebuilt driver for $deviceId and type $deviceType")
+        when (deviceType) {
+            IOSDeviceType.REAL -> {
+                LocalIOSDeviceController.install(deviceId, bundlePath.toPath())
+                LocalIOSDeviceController.launchRunner(deviceId, defaultPort)
+            }
+            IOSDeviceType.SIMULATOR -> {
+                LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
+                LocalSimulatorUtils.launchUITestRunner(deviceId, defaultPort)
+            }
         }
     }
 
