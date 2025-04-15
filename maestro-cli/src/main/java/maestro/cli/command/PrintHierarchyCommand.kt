@@ -68,10 +68,10 @@ class PrintHierarchyCommand : Runnable {
 
     @CommandLine.Option(
         names = ["--compact"],
-        description = ["[Beta] Remove empty values to make the output json smaller"],
+        description = ["Output in CSV format with element_num,depth,attributes,parent_num columns"],
         hidden = false
     )
-    private var compact: Boolean = true
+    private var compact: Boolean = false
 
     override fun run() {
         TestDebugReporter.install(
@@ -102,20 +102,78 @@ class PrintHierarchyCommand : Runnable {
 
             insights.onInsightsUpdated(callback)
 
-            val tree = if (compact) {
-                removeEmptyValues(session.maestro.viewHierarchy().root)
-            } else {
-                session.maestro.viewHierarchy().root
-            }
-
-            val hierarchy = jacksonObjectMapper()
-                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                .writerWithDefaultPrettyPrinter()
-                .writeValueAsString(tree)
+            val tree = session.maestro.viewHierarchy().root
 
             insights.unregisterListener(callback)
 
-            println(hierarchy)
+            if (compact) {
+                // Output in CSV format
+                println("element_num,depth,attributes,parent_num")
+                val nodeToId = mutableMapOf<TreeNode, Int>()
+                val csv = StringBuilder()
+                
+                // Assign IDs to each node
+                var counter = 0
+                tree?.aggregate()?.forEach { node ->
+                    nodeToId[node] = counter++
+                }
+                
+                // Process tree recursively to generate CSV
+                processTreeToCSV(tree, 0, null, nodeToId, csv)
+                
+                println(csv.toString())
+            } else {
+                // Original JSON output format
+                val hierarchy = jacksonObjectMapper()
+                    .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(tree)
+                
+                println(hierarchy)
+            }
+        }
+    }
+    
+    private fun processTreeToCSV(
+        node: TreeNode?, 
+        depth: Int, 
+        parentId: Int?, 
+        nodeToId: Map<TreeNode, Int>,
+        csv: StringBuilder
+    ) {
+        if (node == null) return
+        
+        val nodeId = nodeToId[node] ?: return
+        
+        // Build attributes string
+        val attributesList = mutableListOf<String>()
+        
+        // Add normal attributes
+        node.attributes.forEach { (key, value) ->
+            if (value.isNotEmpty() && value != "false") {
+                attributesList.add("$key=$value")
+            }
+        }
+        
+        // Add boolean properties if true
+        if (node.clickable == true) attributesList.add("clickable=true")
+        if (node.enabled == true) attributesList.add("enabled=true")
+        if (node.focused == true) attributesList.add("focused=true")
+        if (node.checked == true) attributesList.add("checked=true")
+        if (node.selected == true) attributesList.add("selected=true")
+        
+        // Join all attributes with "; "
+        val attributesString = attributesList.joinToString("; ")
+        
+        // Escape quotes in the attributes string if needed
+        val escapedAttributes = attributesString.replace("\"", "\"\"")
+        
+        // Add this node to CSV
+        csv.append("$nodeId,$depth,\"$escapedAttributes\",${parentId ?: ""}\n")
+        
+        // Process children
+        node.children.forEach { child ->
+            processTreeToCSV(child, depth + 1, nodeId, nodeToId, csv)
         }
     }
 
