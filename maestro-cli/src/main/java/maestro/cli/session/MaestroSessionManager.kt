@@ -315,12 +315,27 @@ object MaestroSessionManager {
                 throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
             }
         }
-        val prebuilt = when (deviceType) {
-            Device.DeviceType.REAL -> false
-            Device.DeviceType.SIMULATOR -> true
-            else -> {
-                throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
+        val iOSDriverConfig = when (deviceType) {
+            // TODO: Testing < iOS 17
+            Device.DeviceType.REAL -> {
+                LocalXCTestInstaller.IOSDriverConfig(
+                    uiTestRunnerAppPath = "driver-iphoneos/maestro-driver-iosUITests-runner.zip",
+                    hostAppPath = "driver-iphoneos/maestro-driver-ios.zip",
+                    prebuiltRunner = false,
+                    outputDirectory = "Debug-iphoneos",
+                    xctestConfigPath = "driver-iphoneos/maestro-driver-ios-config.xctestrun"
+                )
             }
+            Device.DeviceType.SIMULATOR -> {
+                LocalXCTestInstaller.IOSDriverConfig(
+                    uiTestRunnerAppPath = "driver-iPhoneSimulator/maestro-driver-iosUITests-runner.zip",
+                    hostAppPath = "driver-iPhoneSimulator/maestro-driver-ios.zip",
+                    xctestConfigPath = "driver-iPhoneSimulator/maestro-driver-ios-config.xctestrun",
+                    prebuiltRunner = true,
+                    outputDirectory = "Debug-iphonesimulator"
+                )
+            }
+            else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
         val xcTestInstaller = LocalXCTestInstaller(
@@ -329,7 +344,7 @@ object MaestroSessionManager {
             defaultPort = driverHostPort ?: defaultXcTestPort,
             reinstallDriver = reinstallDriver,
             deviceType = iOSDeviceType,
-            preBuiltRunner = prebuilt,
+            iOSDriverConfig = iOSDriverConfig,
         )
 
         val xcTestDriverClient = XCTestDriverClient(
