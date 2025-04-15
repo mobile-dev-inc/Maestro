@@ -382,6 +382,9 @@ class Orchestra(
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
+        val maestroCommand = MaestroCommand(command)
+        val metadata = getMetadata(maestroCommand)
+
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
@@ -393,6 +396,9 @@ class Orchestra(
             onCommandGeneratedOutput(command, defects, imageData)
 
             val word = if (defects.size == 1) "defect" else "defects"
+            val message = "Found ${defects.size} possible $word: ${defects.joinToString { it.reasoning }}"
+            updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + message))
+
             throw MaestroException.AssertionFailure(
                 message = """
                     |Found ${defects.size} possible $word:
@@ -411,15 +417,18 @@ class Orchestra(
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
+        val maestroCommand = MaestroCommand(command)
+        val metadata = getMetadata(maestroCommand)
+
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-
         val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             assertion = command.assertion,
         )
 
         if (defect != null) {
+            updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + "${defect.reasoning}"))
             onCommandGeneratedOutput(command, listOf(defect), imageData)
             throw MaestroException.AssertionFailure(
                 message = """
@@ -438,6 +447,9 @@ class Orchestra(
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
+        val maestroCommand = MaestroCommand(command)
+        val metadata = getMetadata(maestroCommand)
+
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
         val text = AIPredictionEngine.extractText(
@@ -445,6 +457,7 @@ class Orchestra(
             query = command.query,
         )
 
+        updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + "$text"))
         jsEngine.putEnv(command.outputVariable, text)
 
         false
