@@ -41,7 +41,7 @@ class Maestro(
      val driver: Driver,
 ) : AutoCloseable {
 
-    private val sessionId = UUID.randomUUID()
+    val sessionId = UUID.randomUUID()
 
     val deviceName: String
         get() = driver.name()
