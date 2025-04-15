@@ -71,7 +71,7 @@ class PrintHierarchyCommand : Runnable {
         description = ["Output in CSV format with element_num,depth,attributes,parent_num columns"],
         hidden = false
     )
-    private var compact: Boolean = true
+    private var compact: Boolean = false
 
     override fun run() {
         TestDebugReporter.install(
