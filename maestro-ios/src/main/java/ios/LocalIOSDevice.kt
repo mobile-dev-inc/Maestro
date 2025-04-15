@@ -103,9 +103,8 @@ class LocalIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-        maestroSessionId: UUID?
-    ): Result<Unit, Throwable> {
-        return simctlIOSDevice.launch(id, launchArguments, maestroSessionId)
+    ) {
+        xcTestDevice.launch(id, launchArguments)
     }
 
     override fun stop(id: String) {
@@ -138,7 +137,6 @@ class LocalIOSDevice(
 
     override fun close() {
         xcTestDevice.close()
-        simctlIOSDevice.close()
     }
 
     override fun isScreenStatic(): Boolean {
