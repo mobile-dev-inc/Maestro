@@ -457,7 +457,7 @@ class Orchestra(
             query = command.query,
         )
 
-        updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + "$text"))
+        updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + "\n$text"))
         jsEngine.putEnv(command.outputVariable, text)
 
         false
