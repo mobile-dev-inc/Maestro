@@ -2,9 +2,13 @@ package util
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Files
 
 object LocalIOSDevice {
+
+    private val logger = LoggerFactory.getLogger(LocalIOSDevice::class.java)
 
     fun listDeviceViaXcDevice(): List<XCDevice> {
         val process = ProcessBuilder(listOf("xcrun","xcdevice","list"))
@@ -21,6 +25,21 @@ object LocalIOSDevice {
         return xcDeviceList.filter { !it.simulator && it.platform == XCDevice.IPHONE_PLATFORM }
     }
 
+    fun uninstall(deviceId: String, bundleIdentifier: String) {
+        CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "devicectl",
+                "device",
+                "uninstall",
+                "app",
+                "--device",
+                deviceId,
+                bundleIdentifier
+            )
+        )
+    }
+
     fun listDeviceViaDeviceCtl(deviceId: String): DeviceCtlResponse.Device {
         val tempOutput = File.createTempFile("devicectl_response", ".json")
         try {
@@ -32,7 +51,7 @@ object LocalIOSDevice {
             val response = String(bytes)
 
             val deviceCtlResponse = jacksonObjectMapper().readValue<DeviceCtlResponse>(response)
-            return deviceCtlResponse.result.devices.find {
+            return deviceCtlResponse.result.devices?.find {
                 it.hardwareProperties.udid == deviceId
             } ?: throw IllegalArgumentException("iOS device with identifier $deviceId not connected or available")
         } finally {

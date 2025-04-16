@@ -321,7 +321,6 @@ object MaestroSessionManager {
             }
         }
         val iOSDriverConfig = when (deviceType) {
-            // TODO: Testing < iOS 17
             Device.DeviceType.REAL -> {
                 IOSDriverConfig(
                     prebuiltRunner = false,

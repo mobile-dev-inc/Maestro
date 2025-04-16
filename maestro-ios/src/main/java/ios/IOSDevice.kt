@@ -67,7 +67,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param id = bundle id of the app to uninstall
      */
-    fun uninstall(id: String): Result<Unit, Throwable>
+    fun uninstall(id: String)
 
     /**
      * Clears state of a given application.

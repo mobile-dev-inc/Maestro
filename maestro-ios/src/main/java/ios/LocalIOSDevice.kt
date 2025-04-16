@@ -88,8 +88,8 @@ class LocalIOSDevice(
         deviceController.install(stream)
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
-        return deviceController.uninstall(id)
+    override fun uninstall(id: String) {
+        deviceController.uninstall(id)
     }
 
     override fun clearAppState(id: String) {
@@ -136,8 +136,8 @@ class LocalIOSDevice(
     }
 
     override fun close() {
-        xcTestDevice.close()
         deviceController.close()
+        xcTestDevice.close()
     }
 
     override fun isScreenStatic(): Boolean {

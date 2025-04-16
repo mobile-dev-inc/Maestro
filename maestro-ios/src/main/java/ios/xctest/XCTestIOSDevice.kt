@@ -132,7 +132,7 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
+    override fun uninstall(id: String) {
         error("Not supported")
     }
 

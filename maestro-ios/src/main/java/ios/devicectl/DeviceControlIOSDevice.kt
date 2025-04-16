@@ -5,10 +5,17 @@ import hierarchy.ViewHierarchy
 import ios.IOSDevice
 import ios.IOSScreenRecording
 import okio.Sink
+import org.slf4j.LoggerFactory
+import util.LocalIOSDevice
 import xcuitest.api.DeviceInfo
+import xcuitest.installer.LocalXCTestInstaller
 import java.io.InputStream
 
 class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(DeviceControlIOSDevice::class.java)
+    }
 
     override fun open() {
         TODO("Not yet implemented")
@@ -42,8 +49,8 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
-        TODO("Not yet implemented")
+    override fun uninstall(id: String) {
+        LocalIOSDevice.uninstall(deviceId, id)
     }
 
     override fun clearAppState(id: String) {
@@ -59,7 +66,7 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun stop(id: String) {
-        TODO("Not yet implemented")
+        error("not supported")
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -111,6 +118,8 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun close() {
-        /* noop */
+        logger.info("[Start] Uninstall the runner app")
+        uninstall(id = LocalXCTestInstaller.UI_TEST_RUNNER_APP_BUNDLE_ID)
+        logger.info("[Done] Uninstall the runner app")
     }
 }
