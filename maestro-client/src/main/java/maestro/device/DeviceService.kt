@@ -164,7 +164,6 @@ object DeviceService {
         )
     }
 
-    // TODO: check how can we distinguish connected android real device and emulators
     private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
         val host = host ?: "localhost"
         if (port != null) {
@@ -196,11 +195,16 @@ object DeviceService {
                     }
                 }.getOrNull()
 
+                val instanceId = dadb.toString()
+                val deviceType = when  {
+                    instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
+                    else -> Device.DeviceType.REAL
+                }
                 Device.Connected(
-                    instanceId = dadb.toString(),
+                    instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = Device.DeviceType.EMULATOR
+                    deviceType = deviceType
                 )
             }
         }.getOrNull() ?: emptyList()

@@ -140,14 +140,17 @@ object MaestroSessionManager {
             )
         }
 
-        // TODO: check if android physical or emulator device
         if (isAndroid(host, port)) {
+            val deviceType = when {
+                deviceId?.startsWith("emulator") == true -> Device.DeviceType.EMULATOR
+                else -> Device.DeviceType.REAL
+            }
             return SelectedDevice(
                 platform = Platform.ANDROID,
                 host = host,
                 port = port,
                 deviceId = deviceId,
-                deviceType = Device.DeviceType.EMULATOR
+                deviceType = deviceType
             )
         }
 
