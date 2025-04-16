@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## 1.40.00
+
+Fix:
+- JavaScript fails when running maestro test in continuos mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
+- Ignore notifications in analyse command for CI ([#2306](https://github.com/mobile-dev-inc/Maestro/pull/2306))
+- `config.yaml` not resolving on Windows ([#2327](https://github.com/mobile-dev-inc/Maestro/pull/2327))
+- Fix swipe command failure on iOS after upgrading to Xcode 16.2 [issue #2422](https://github.com/mobile-dev-inc/maestro/issues/2422) ([#2332](https://github.com/mobile-dev-inc/maestro/pull/2332))
+- Fix `app-binary-id` option on maestro cloud upload ([#2361](https://github.com/mobile-dev-inc/Maestro/pull/2361))
+- Ensure commands with missing elements fail as expected in Studio ([#2140](https://github.com/mobile-dev-inc/Maestro/pull/2140))
+- Prevent flows from getting stuck on the cloud by properly setting driver closing state ([#2364](https://github.com/mobile-dev-inc/Maestro/pull/2364))
+- Fix `maestro cloud` & `maestro start-device` on windows ([#2371](https://github.com/mobile-dev-inc/Maestro/pull/2371))
+- Improved `maestro cloud` to only process valid flow `.yaml`/`.yml` files and skip unrelated files like `config.yaml`, preventing parsing errors when uploading folders with mixed content ([#2359](https://github.com/mobile-dev-inc/Maestro/pull/2359))
+- Improved `maestro cloud` to skip validating non-flow files (e.g., .js, README, config.yaml) in folders, preventing parsing errors and upload failures
+- Fix setting up iOS Driver when not on bash environment ([#2412](https://github.com/mobile-dev-inc/Maestro/pull/2412))
+- Speed up view hierarchy generation by reducing SpringBoard queries and avoiding redundant app list calls on iOS. ([#2419](https://github.com/mobile-dev-inc/Maestro/pull/2419))
+
+Features:
+- Added support for `androidWebViewHierarchy: devtools` option to build Android WebView hierarchy using Chrome DevTools ([#2350](https://github.com/mobile-dev-inc/Maestro/pull/2350))
+- Added Chrome to available devices for web automation ([#2360](https://github.com/mobile-dev-inc/Maestro/pull/2360))
+- Introduced pre-built mode for setting up iOS driver on simulators without relying on `xcodebuild` ([#2325](https://github.com/mobile-dev-inc/Maestro/pull/2325))
+- Added command-line chat mode to Maestro CLI accessable by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
+- Introduced `maestro check-syntax` command for validating flow syntax ([#2387](https://github.com/mobile-dev-inc/Maestro/pull/2387))
+- Added `--reinstall-driver` flag that reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added `--compact` flag that remove empty values to make the output hierarchy json smaller ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added `--device-os` and `--device-model` options to target specific iOS minor versions and devices ([Docs](https://docs.maestro.dev/cloud/reference/configuring-os-version#using-a-specific-ios-minor-version-and-device-recommended)) ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added support for ios 18 on cloud and local
+- Bumped default iOS version to 16 for `maestro start-device`
+- Enabled AI command usage on `mobile.dev` ([#2425](https://github.com/mobile-dev-inc/Maestro/pull/2425))
+
+Chore: 
+- Update Flying Fox HTTP server on iOS driver ([#2415](https://github.com/mobile-dev-inc/Maestro/pull/2415))
+- Migrated app termination from `simctl` to `xctest` for improved stability` ([#2418](https://github.com/mobile-dev-inc/Maestro/pull/2418))
+
 ## 1.39.13
 
 - Fix : Adding upload route back again
