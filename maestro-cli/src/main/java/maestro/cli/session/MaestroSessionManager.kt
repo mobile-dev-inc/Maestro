@@ -22,6 +22,7 @@ package maestro.cli.session
 import dadb.Dadb
 import dadb.adbserver.AdbServer
 import ios.LocalIOSDevice
+import ios.devicectl.DeviceControlIOSDevice
 import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
@@ -354,15 +355,26 @@ object MaestroSessionManager {
             getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
         )
 
-        val simctlIOSDevice = SimctlIOSDevice(
-            deviceId = deviceId,
-        )
+        val deviceController = when (deviceType) {
+            Device.DeviceType.REAL -> {
+                val device = util.LocalIOSDevice.listDeviceViaDeviceCtl(deviceId)
+                val deviceCtlDevice = DeviceControlIOSDevice(deviceId = device.identifier)
+                deviceCtlDevice
+            }
+            Device.DeviceType.SIMULATOR -> {
+                val simctlIOSDevice = SimctlIOSDevice(
+                    deviceId = deviceId,
+                )
+                simctlIOSDevice
+            }
+            else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
+        }
 
         val iosDriver = IOSDriver(
             LocalIOSDevice(
                 deviceId = deviceId,
                 xcTestDevice = xcTestDevice,
-                simctlIOSDevice = simctlIOSDevice,
+                deviceController = deviceController,
                 insights = CliInsights
             ),
             insights = CliInsights
