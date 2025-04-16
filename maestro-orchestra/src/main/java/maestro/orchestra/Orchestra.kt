@@ -209,7 +209,7 @@ class Orchestra(
 
                 try {
                     try {
-                        executeCommand(evaluatedCommand, config, command)
+                        executeCommand(evaluatedCommand, config)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional =
@@ -275,7 +275,7 @@ class Orchestra(
     /**
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
-    private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?, originalCommand: MaestroCommand): Boolean {
+    private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
 
         return when (command) {
@@ -299,9 +299,9 @@ class Orchestra(
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
-            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, originalCommand)
-            is AssertWithAICommand -> assertWithAICommand(command, originalCommand)
-            is ExtractTextWithAICommand -> extractTextWithAICommand(command, originalCommand)
+            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
+            is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
+            is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -769,7 +769,7 @@ class Orchestra(
 
                     return@mapIndexed try {
                         try {
-                            executeCommand(evaluatedCommand, config, command)
+                            executeCommand(evaluatedCommand, config)
                                 .also {
                                     onCommandComplete(index, command)
                                 }
