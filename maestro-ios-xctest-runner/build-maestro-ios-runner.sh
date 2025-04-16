@@ -22,6 +22,7 @@ rm -rf "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
 
 mkdir -p "$PWD/$DERIVED_DATA_PATH"
 mkdir -p "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
+mkdir -p "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR"
 
 xcodebuild clean build-for-testing \
   -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
@@ -47,8 +48,8 @@ WORKING_DIR=$PWD
 
 OUTPUT_DIR=./$DERIVED_DATA_PATH/Build/Products/$BUILD_OUTPUT_DIR
 cd $OUTPUT_DIR
-zip -r "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/maestro-driver-iosUITests-Runner.zip" "./maestro-driver-iosUITests-Runner.app"
-zip -r "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/maestro-driver-ios.zip" "./maestro-driver-ios.app"
+zip -r "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR/maestro-driver-iosUITests-Runner.zip" "./maestro-driver-iosUITests-Runner.app"
+zip -r "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR/maestro-driver-ios.zip" "./maestro-driver-ios.app"
 
 # Clean up
 cd $WORKING_DIR

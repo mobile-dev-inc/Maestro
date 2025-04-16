@@ -80,14 +80,10 @@ class IOSDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
-            iosDevice.launch(appId, launchArguments, sessionId)
-                .onSuccess { this.appId = appId }
-                .getOrThrow {
-                    MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")
-                }
+            iosDevice.launch(appId, launchArguments)
+            this.appId = appId
         }
     }
 

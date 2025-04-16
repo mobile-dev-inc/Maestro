@@ -7,10 +7,6 @@ import maestro.utils.MetricsProvider
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okio.buffer
-import okio.sink
-import okio.source
-import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import util.LocalIOSDeviceController
@@ -50,6 +46,7 @@ class LocalXCTestInstaller(
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
     private val tempDir = Files.createTempDirectory(deviceId)
+    private val iosBuildProductsExtractor = IOSBuildProductsExtractor(tempDir)
 
     private var xcTestProcess: Process? = null
 
@@ -189,27 +186,17 @@ class LocalXCTestInstaller(
             return
         }
 
-        logger.info("[Start] Writing xctest run file")
-        val xctestRunFile = File("$tempDir/maestro-driver-ios-config.xctestrun")
-        writeFileToDestination(iOSDriverConfig.xctestConfigPath, xctestRunFile)
-        logger.info("[Done] Writing xctest run file")
+        val buildProducts = iosBuildProductsExtractor.extract(iOSDriverConfig.sourceDirectory)
 
-        logger.info("[Start] Writing maestro-driver-iosUITests-Runner app")
-        val bundlePath = extractZipToApp("maestro-driver-iosUITests-Runner", iOSDriverConfig.uiTestRunnerAppPath)
-        logger.info("[Done] Writing maestro-driver-iosUITests-Runner app")
-
-        logger.info("[Start] Writing maestro-driver-ios app")
-        extractZipToApp("maestro-driver-ios", iOSDriverConfig.hostAppPath)
-        logger.info("[Done] Writing maestro-driver-ios app")
         if (preBuiltRunner) {
             logger.info("Installing pre built driver without xcodebuild")
-            installPrebuiltRunner(deviceId, bundlePath)
+            installPrebuiltRunner(deviceId, buildProducts.uiRunnerPath)
         } else {
             logger.info("Installing driver with xcodebuild")
             logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
             xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
                 deviceId = this.deviceId,
-                xcTestRunFilePath = xctestRunFile.absolutePath,
+                xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
                 port = defaultPort,
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
@@ -246,32 +233,9 @@ class LocalXCTestInstaller(
         }
     }
 
-    private fun extractZipToApp(appFileName: String, srcAppPath: String): File {
-        val bundlePath = File("$tempDir/${iOSDriverConfig.outputDirectory}").apply { mkdir() }
-        val appZip = File("$tempDir/$appFileName.zip")
-
-        writeFileToDestination(srcAppPath, appZip)
-        ArchiverFactory.createArchiver(appZip).apply {
-            extract(appZip, bundlePath)
-        }
-
-        return File(bundlePath.path + "/$appFileName.app")
-    }
-
-    private fun writeFileToDestination(srcPath: String, destFile: File) {
-        LocalXCTestInstaller::class.java.getResourceAsStream(srcPath)?.let {
-            val bufferedSink = destFile.sink().buffer()
-            bufferedSink.writeAll(it.source())
-            bufferedSink.flush()
-        }
-    }
-
     data class IOSDriverConfig(
-        val uiTestRunnerAppPath: String,
         val prebuiltRunner: Boolean,
-        val xctestConfigPath: String,
-        val hostAppPath: String,
-        val outputDirectory: String,
+        val sourceDirectory: String,
     )
 
     companion object {

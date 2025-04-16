@@ -38,6 +38,7 @@ import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.LocalXCTestInstaller
+import xcuitest.installer.LocalXCTestInstaller.*
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -318,21 +319,15 @@ object MaestroSessionManager {
         val iOSDriverConfig = when (deviceType) {
             // TODO: Testing < iOS 17
             Device.DeviceType.REAL -> {
-                LocalXCTestInstaller.IOSDriverConfig(
-                    uiTestRunnerAppPath = "driver-iphoneos/maestro-driver-iosUITests-runner.zip",
-                    hostAppPath = "driver-iphoneos/maestro-driver-ios.zip",
+                IOSDriverConfig(
                     prebuiltRunner = false,
-                    outputDirectory = "Debug-iphoneos",
-                    xctestConfigPath = "driver-iphoneos/maestro-driver-ios-config.xctestrun"
+                    sourceDirectory = "driver-iphoneos"
                 )
             }
             Device.DeviceType.SIMULATOR -> {
-                LocalXCTestInstaller.IOSDriverConfig(
-                    uiTestRunnerAppPath = "driver-iPhoneSimulator/maestro-driver-iosUITests-runner.zip",
-                    hostAppPath = "driver-iPhoneSimulator/maestro-driver-ios.zip",
-                    xctestConfigPath = "driver-iPhoneSimulator/maestro-driver-ios-config.xctestrun",
+                IOSDriverConfig(
                     prebuiltRunner = true,
-                    outputDirectory = "Debug-iphonesimulator"
+                    sourceDirectory =  "driver-iPhoneSimulator"
                 )
             }
             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")

@@ -160,7 +160,6 @@ class WebDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         injectedArguments = injectedArguments + launchArguments
 

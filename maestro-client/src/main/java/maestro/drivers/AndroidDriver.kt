@@ -223,7 +223,6 @@ class AndroidDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
             if(!open) // pick device flow, no open() invocation
@@ -234,8 +233,6 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            val sessionUUID = sessionId ?: UUID.randomUUID()
-            dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
             runDeviceCall {
                 blockingStubWithTimeout.launchApp(
                     launchAppRequest {
