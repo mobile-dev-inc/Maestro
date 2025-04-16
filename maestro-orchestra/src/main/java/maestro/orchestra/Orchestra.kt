@@ -209,7 +209,7 @@ class Orchestra(
 
                 try {
                     try {
-                        executeCommand(evaluatedCommand, config)
+                        executeCommand(evaluatedCommand, config, command)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional =
@@ -275,7 +275,7 @@ class Orchestra(
     /**
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
-    private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+    private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?, originalCommand: MaestroCommand): Boolean {
         val command = maestroCommand.asCommand()
 
         return when (command) {
@@ -299,9 +299,9 @@ class Orchestra(
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
-            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command)
-            is AssertWithAICommand -> assertWithAICommand(command)
-            is ExtractTextWithAICommand -> extractTextWithAICommand(command)
+            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, originalCommand)
+            is AssertWithAICommand -> assertWithAICommand(command, originalCommand)
+            is ExtractTextWithAICommand -> extractTextWithAICommand(command, originalCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -377,12 +377,11 @@ class Orchestra(
         return false
     }
 
-    private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand): Boolean = runBlocking {
+    private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
         if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
-        val maestroCommand = MaestroCommand(command)
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
@@ -396,13 +395,14 @@ class Orchestra(
             onCommandGeneratedOutput(command, defects, imageData)
 
             val word = if (defects.size == 1) "defect" else "defects"
-            val message = "Found ${defects.size} possible $word: ${defects.joinToString { it.reasoning }}"
-            updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + message))
+            val reasoning = "Found ${defects.size} possible $word:\n${defects.joinToString("\n") { "- ${it.reasoning}" }}"
+            
+            updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
+            
 
             throw MaestroException.AssertionFailure(
                 message = """
-                    |Found ${defects.size} possible $word:
-                    ${defects.joinToString("\n") { "| - ${it.reasoning}" }}
+                    |$reasoning
                     |
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
@@ -412,12 +412,11 @@ class Orchestra(
         false
     }
 
-    private fun assertWithAICommand(command: AssertWithAICommand): Boolean = runBlocking {
+    private fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
         if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
-        val maestroCommand = MaestroCommand(command)
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
@@ -428,12 +427,14 @@ class Orchestra(
         )
 
         if (defect != null) {
-            updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + "${defect.reasoning}"))
             onCommandGeneratedOutput(command, listOf(defect), imageData)
+            
+            val reasoning = "Assertion \"${command.assertion}\" failed:\n${defect.reasoning}"
+            updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
+
             throw MaestroException.AssertionFailure(
                 message = """
-                    |Assertion "${command.assertion}" is false.
-                    |Reasoning: ${defect.reasoning}
+                    |$reasoning
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
             )
@@ -442,12 +443,11 @@ class Orchestra(
         false
     }
 
-    private fun extractTextWithAICommand(command: ExtractTextWithAICommand): Boolean = runBlocking {
+    private fun extractTextWithAICommand(command: ExtractTextWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
         if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
-        val maestroCommand = MaestroCommand(command)
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
@@ -457,7 +457,9 @@ class Orchestra(
             query = command.query,
         )
 
-        updateMetadata(maestroCommand, metadata.copy(logMessages = metadata.logMessages + "\n$text"))
+        updateMetadata(maestroCommand, metadata.copy(
+            aiReasoning = "Query: \"${command.query}\"\nExtracted text: $text"
+        ))
         jsEngine.putEnv(command.outputVariable, text)
 
         false
@@ -767,7 +769,7 @@ class Orchestra(
 
                     return@mapIndexed try {
                         try {
-                            executeCommand(evaluatedCommand, config)
+                            executeCommand(evaluatedCommand, config, command)
                                 .also {
                                     onCommandComplete(index, command)
                                 }
@@ -1293,6 +1295,7 @@ class Orchestra(
         val evaluatedCommand: MaestroCommand? = null,
         val logMessages: List<String> = emptyList(),
         val insight: Insight = Insight("", Insight.Level.NONE),
+        val aiReasoning: String? = null
     )
 
     enum class ErrorResolution {
