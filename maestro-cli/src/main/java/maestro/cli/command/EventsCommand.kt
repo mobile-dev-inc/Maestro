@@ -46,6 +46,12 @@ private fun AdbShellStream.lines(): Sequence<String> {
                 }
                 prev = lines.last()
             }
+            if (packet is AdbShellPacket.Exit) {
+                if (prev.isNotEmpty()) {
+                    yield(prev)
+                }
+                break
+            }
         }
     }
 }
