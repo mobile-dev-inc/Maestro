@@ -33,6 +33,23 @@ import maestro.cli.session.MaestroSessionManager
 import maestro.drivers.AndroidDriver
 import picocli.CommandLine
 
+private fun AdbShellStream.lines(): Sequence<String> {
+    return sequence {
+        var prev = ""
+        while (true) {
+            val packet = read()
+            if (packet is AdbShellPacket.StdOut) {
+                val output = prev + String(packet.payload, Charsets.UTF_8)
+                val lines = output.split("\n")
+                lines.dropLast(1).forEach { line ->
+                    yield(line)
+                }
+                prev = lines.last()
+            }
+        }
+    }
+}
+
 @CommandLine.Command(
     name = "events",
     description = [
@@ -60,12 +77,8 @@ class EventsCommand : Runnable {
         (Dadb.discover() ?: throw CliError("No Android devices detected")).use { dadb ->
             Maestro.android(AndroidDriver(dadb)).use { maestro ->
                 dadb.openShell("getevent -lt").use { stream ->
-                    while (true) {
-                        val packet = stream.read()
-                        if (packet is AdbShellPacket.StdOut) {
-                            val output = String(packet.payload, Charsets.UTF_8)
-                            print(output)
-                        }
+                    stream.lines().forEach { line ->
+                        println(line)
                     }
                 }
             }
