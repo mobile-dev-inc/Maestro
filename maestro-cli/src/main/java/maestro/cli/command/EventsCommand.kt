@@ -24,6 +24,7 @@ import dadb.AdbShellStream
 import dadb.AdbStream
 import dadb.Dadb
 import maestro.Maestro
+import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -32,6 +33,8 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import maestro.drivers.AndroidDriver
 import picocli.CommandLine
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 private fun AdbShellStream.lines(): Sequence<String> {
     return sequence {
@@ -51,6 +54,24 @@ private fun AdbShellStream.lines(): Sequence<String> {
                     yield(prev)
                 }
                 break
+            }
+        }
+    }
+}
+
+class HierarchyPoller(private val maestro: Maestro) {
+
+    private val hierarchyRef = AtomicReference<TreeNode>(null)
+
+    fun get(): TreeNode? {
+        return hierarchyRef.get()
+    }
+
+    fun start() {
+        thread {
+            while (true) {
+                val hierarchy = maestro.viewHierarchy()
+                hierarchyRef.set(hierarchy.root)
             }
         }
     }
@@ -82,6 +103,9 @@ class EventsCommand : Runnable {
 
         (Dadb.discover() ?: throw CliError("No Android devices detected")).use { dadb ->
             Maestro.android(AndroidDriver(dadb)).use { maestro ->
+                val hierarchyPoller = HierarchyPoller(maestro)
+                hierarchyPoller.start()
+
                 dadb.openShell("getevent -lt").use { stream ->
                     stream.lines().forEach { line ->
                         println(line)
