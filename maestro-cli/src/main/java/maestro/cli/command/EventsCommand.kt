@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dadb.AdbShellPacket
 import dadb.AdbShellStream
@@ -81,7 +82,7 @@ class HierarchyPoller(private val maestro: Maestro) {
     }
 
     fun start() {
-        println("\nMonitoring touch and key events. Press Ctrl+C to exit")
+        println("\nMonitoring touch and key events. Press Ctrl+C to exit\n")
         thread {
             while (true) {
                 val hierarchy = maestro.viewHierarchy()
@@ -112,7 +113,7 @@ class EventsCommand : Runnable {
     private val objectMapper = ObjectMapper().apply { enable(SerializationFeature.INDENT_OUTPUT) }
 
     // YAML formatter using Maestro's own serializer
-    private val yamlMapper = ObjectMapper(YAMLFactory()).apply {
+    private val yamlMapper = ObjectMapper(YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)).apply {
         registerModule(KotlinModule.Builder().build())
         setSerializationInclusion(JsonInclude.Include.NON_NULL)
         // Configure mixin to ignore duration and optional fields
