@@ -28,7 +28,8 @@ struct ScreenSizeHelper {
         let (actualWidth, actualHeight) = switch (orientation) {
         case .portrait, .portraitUpsideDown: (width, height)
         case .landscapeLeft, .landscapeRight: (height, width)
-        case .faceDown, .faceUp, .unknown: throw AppError(message: "Unsupported orientation: \(orientation)")
+        case .faceDown, .faceUp: (width, height)
+        case .unknown: throw AppError(message: "Unsupported orientation: \(orientation)")
         @unknown default: throw AppError(message: "Unsupported orientation: \(orientation)")
         }
 
