@@ -87,8 +87,8 @@ class MaestroEventParser {
     private var touchXMax = 0
     private var touchYMin = 0
     private var touchYMax = 0
-    private var screenWidth = 0
-    private var screenHeight = 0
+    internal var screenWidth = 0
+    internal var screenHeight = 0
 
     private val ABS_MT_POSITION_X = "0035"
     private val ABS_MT_POSITION_Y = "0036"
@@ -118,6 +118,17 @@ class MaestroEventParser {
         this.preEventHierarchy = hierarchy
     }
 
+    fun normalizeHierarchyPoint(rawX: Int, rawY: Int): Pair<Int, Int> {
+        return normalizedToPixelX(rawX) to normalizedToPixelY(rawY)
+    }
+
+    fun normalizeHierarchyBounds(bounds: List<Int>): Pair<Int, Int>? {
+        if (bounds.size < 2) return null
+        val rawX = bounds[0]
+        val rawY = bounds[1]
+        return normalizeHierarchyPoint(rawX, rawY)
+    }
+    
     private fun detectScreenSize() {
         try {
             val process = Runtime.getRuntime().exec("adb shell wm size")
@@ -458,12 +469,22 @@ class MaestroEventParser {
                 println("Detected Maestro command: $swipeCommand")
             }
         } else {
-            val tapCommand =
-                    MaestroCommandData.createTap(
-                            x = startX,
-                            y = startY,
-                            preEventHierarchy = preEventHierarchy
-                    )
+            // For taps, try to find the element at the tap point
+            val elementAtTap = findSmallestElementAtPoint(startX, startY, preEventHierarchy)
+            val elementId = elementAtTap?.let { getElementIdentifier(it) }
+            
+            val tapCommand = if (elementId != null) {
+                MaestroCommandData.createTapOnId(
+                    id = elementId,
+                    preEventHierarchy = preEventHierarchy
+                )
+            } else {
+                MaestroCommandData.createTap(
+                    x = startX,
+                    y = startY,
+                    preEventHierarchy = preEventHierarchy
+                )
+            }
 
             commandCallback?.invoke(tapCommand)
             if (verbose) {
@@ -551,5 +572,48 @@ class MaestroEventParser {
             "GRAVE" -> if (isShiftPressed) '~' else '`'
             else -> null
         }
+    }
+
+    private fun isPointInsideBounds(x: Int, y: Int, bounds: List<Int>): Boolean {
+        if (bounds.size != 4) return false
+        val (left, top, right, bottom) = bounds
+        return x >= left && x <= right && y >= top && y <= bottom
+    }
+
+    private fun getElementArea(bounds: List<Int>): Int {
+        if (bounds.size != 4) return Int.MAX_VALUE
+        val (left, top, right, bottom) = bounds
+        return (right - left) * (bottom - top)
+    }
+
+    private fun findSmallestElementAtPoint(x: Int, y: Int, hierarchy: TreeNode?): TreeNode? {
+        if (hierarchy == null) return null
+        
+        val elementsAtPoint = mutableListOf<TreeNode>()
+        
+        fun traverse(node: TreeNode) {
+            val bounds = node.attributes["bounds"]?.let { 
+                ViewHierarchyData.parseBounds(it)
+            }
+            
+            if (bounds != null && isPointInsideBounds(x, y, bounds)) {
+                elementsAtPoint.add(node)
+            }
+            
+            node.children.forEach { traverse(it) }
+        }
+        
+        traverse(hierarchy)
+        
+        return elementsAtPoint.minByOrNull { node ->
+            val bounds = node.attributes["bounds"]?.let { 
+                ViewHierarchyData.parseBounds(it)
+            }
+            bounds?.let { getElementArea(it) } ?: Int.MAX_VALUE
+        }
+    }
+
+    private fun getElementIdentifier(node: TreeNode): String? {
+        return node.attributes["resource-id"]?.takeIf { it.isNotEmpty() }
     }
 }

@@ -19,8 +19,17 @@
 
 package maestro.cli.command
 
+import com.fasterxml.jackson.annotation.JsonFilter
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.core.JsonLocation
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dadb.AdbShellPacket
 import dadb.AdbShellStream
 import dadb.Dadb
@@ -35,6 +44,11 @@ import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.report.TestDebugReporter
 import maestro.drivers.AndroidDriver
+import maestro.orchestra.yaml.YamlActionBack
+import maestro.orchestra.yaml.YamlCoordinateSwipe
+import maestro.orchestra.yaml.YamlElementSelector
+import maestro.orchestra.yaml.YamlFluentCommand
+import maestro.orchestra.yaml.YamlInputText
 import picocli.CommandLine
 
 private fun AdbShellStream.lines(): Sequence<String> {
@@ -67,6 +81,7 @@ class HierarchyPoller(private val maestro: Maestro) {
     }
 
     fun start() {
+        println("Starting hierarchy poller")
         thread {
             while (true) {
                 val hierarchy = maestro.viewHierarchy()
@@ -96,6 +111,75 @@ class EventsCommand : Runnable {
     // JSON formatter
     private val objectMapper = ObjectMapper().apply { enable(SerializationFeature.INDENT_OUTPUT) }
 
+    // YAML formatter using Maestro's own serializer
+    private val yamlMapper = ObjectMapper(YAMLFactory()).apply {
+        registerModule(KotlinModule.Builder().build())
+        setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        // Configure mixin to ignore duration and optional fields
+        addMixIn(YamlCoordinateSwipe::class.java, SwipeMixin::class.java)
+    }
+
+    @JsonIgnoreProperties("duration", "optional")
+    private abstract class SwipeMixin
+
+    private val eventParser = MaestroEventParser()
+
+    private fun toPercentage(x: Int, y: Int): Pair<Int, Int> {
+        val xPercent = ((x.toFloat() / eventParser.screenWidth.toFloat()) * 100).toInt()
+        val yPercent = ((y.toFloat() / eventParser.screenHeight.toFloat()) * 100).toInt()
+        return Pair(xPercent, yPercent)
+    }
+
+    private fun convertToYamlCommand(command: MaestroCommandData): YamlFluentCommand {
+        return when {
+            command.event == "tapOn" && command.content.id != null -> {
+                YamlFluentCommand(
+                    tapOn = YamlElementSelector(
+                        id = command.content.id
+                    ),
+                    _location = JsonLocation(null, 0, 0, 0)
+                )
+            }
+            command.event == "tapOn" && command.content.point != null -> {
+                val (xPercent, yPercent) = toPercentage(command.content.point.x, command.content.point.y)
+                YamlFluentCommand(
+                    tapOn = YamlElementSelector(
+                        point = "${xPercent}%, ${yPercent}%"
+                    ),
+                    _location = JsonLocation(null, 0, 0, 0)
+                )
+            }
+            command.event == "swipe" && command.content.start != null && command.content.end != null -> {
+                val (startXPercent, startYPercent) = toPercentage(command.content.start.x, command.content.start.y)
+                val (endXPercent, endYPercent) = toPercentage(command.content.end.x, command.content.end.y)
+                YamlFluentCommand(
+                    swipe = YamlCoordinateSwipe(
+                        start = "${startXPercent}%, ${startYPercent}%",
+                        end = "${endXPercent}%, ${endYPercent}%",
+                        duration = 400,
+                        optional = true
+                    ),
+                    _location = JsonLocation(null, 0, 0, 0)
+                )
+            }
+            command.event == "inputText" && command.content.text != null -> {
+                YamlFluentCommand(
+                    inputText = YamlInputText(
+                        text = command.content.text
+                    ),
+                    _location = JsonLocation(null, 0, 0, 0)
+                )
+            }
+            command.event == "back" -> {
+                YamlFluentCommand(
+                    back = YamlActionBack(),
+                    _location = JsonLocation(null, 0, 0, 0)
+                )
+            }
+            else -> throw IllegalStateException("Unsupported command type: ${command.event}")
+        }
+    }
+
     override fun run() {
         TestDebugReporter.install(
                 debugOutputPathAsString = null,
@@ -106,11 +190,21 @@ class EventsCommand : Runnable {
         println("Monitoring touch and key events. Press Ctrl+C to exit")
 
         try {
-            val eventParser = MaestroEventParser()
-
             eventParser.setCommandCallback { command ->
-                val json = objectMapper.writeValueAsString(command)
-                println(json)
+                // Convert to YamlFluentCommand and print
+                try {
+                    val yamlCommand = convertToYamlCommand(command)
+                    println(yamlMapper.writeValueAsString(yamlCommand))
+                } catch (e: Exception) {
+                    println("\nFailed to convert to YAML: ${e.message}")
+                }
+
+                // Print raw JSON only in verbose mode
+                if (parent?.verbose == true) {
+                    val json = objectMapper.writeValueAsString(command)
+                    println("\nDebug JSON output:")
+                    println(json)
+                }
             }
 
             processingTimer =

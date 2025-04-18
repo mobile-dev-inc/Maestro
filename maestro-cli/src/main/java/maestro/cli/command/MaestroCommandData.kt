@@ -46,6 +46,26 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
             )
         }
 
+        fun createTapOnId(
+                id: String,
+                preEventHierarchy: TreeNode? = null,
+                hierarchy: TreeNode? = null
+        ): MaestroCommandData {
+            return MaestroCommandData(
+                    event = "tapOn",
+                    content =
+                            CommandContent(
+                                    id = id,
+                                    preEventHierarchy =
+                                            preEventHierarchy?.let {
+                                                ViewHierarchyData.fromTreeNode(it)
+                                            },
+                                    hierarchy =
+                                            hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
+                            )
+            )
+        }
+
         fun createSwipe(
                 startX: Int,
                 startY: Int,
@@ -135,6 +155,7 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class CommandContent(
         val point: Coordinates? = null,
+        val id: String? = null,
         val start: Coordinates? = null,
         val end: Coordinates? = null,
         val duration: Int? = null,
@@ -158,7 +179,7 @@ data class ViewHierarchyData(
 ) {
     companion object {
         fun fromTreeNode(node: TreeNode): ViewHierarchyData {
-            val children = node.children?.map { fromTreeNode(it) }
+            val children = node.children.map { fromTreeNode(it) }
 
             return ViewHierarchyData(
                     className = node.attributes["class"] ?: "",
@@ -170,12 +191,19 @@ data class ViewHierarchyData(
             )
         }
 
-        private fun parseBounds(bounds: String?): List<Int>? {
+        internal fun parseBounds(bounds: String?): List<Int>? {
             if (bounds == null) return null
-            // Format is usually "[left,top][right,bottom]"
-            return bounds.replace("[", "").replace("]", "").split(",").mapNotNull {
-                it.trim().toIntOrNull()
-            }
+            
+            // Format is "[left,top][right,bottom]"
+            val pattern = Regex("\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]")
+            val matchResult = pattern.matchEntire(bounds) ?: return null
+            
+            return listOf(
+                matchResult.groupValues[1].toIntOrNull() ?: return null, // left
+                matchResult.groupValues[2].toIntOrNull() ?: return null, // top
+                matchResult.groupValues[3].toIntOrNull() ?: return null, // right
+                matchResult.groupValues[4].toIntOrNull() ?: return null  // bottom
+            )
         }
     }
 }
