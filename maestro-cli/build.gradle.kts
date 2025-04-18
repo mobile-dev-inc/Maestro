@@ -24,6 +24,15 @@ tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = "maestro.cli.AppKt"
     }
+    // Include the driver source directly
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**",
+        )
+    }
 }
 
 tasks.named<JavaExec>("run") {
