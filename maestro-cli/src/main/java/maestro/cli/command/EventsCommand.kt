@@ -19,10 +19,13 @@
 
 package maestro.cli.command
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
 import dadb.AdbShellPacket
 import dadb.AdbShellStream
 import dadb.AdbStream
 import dadb.Dadb
+import kotlin.concurrent.fixedRateTimer
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.cli.App
@@ -44,9 +47,7 @@ private fun AdbShellStream.lines(): Sequence<String> {
             if (packet is AdbShellPacket.StdOut) {
                 val output = prev + String(packet.payload, Charsets.UTF_8)
                 val lines = output.split("\n")
-                lines.dropLast(1).forEach { line ->
-                    yield(line)
-                }
+                lines.dropLast(1).forEach { line -> yield(line) }
                 prev = lines.last()
             }
             if (packet is AdbShellPacket.Exit) {
@@ -78,40 +79,79 @@ class HierarchyPoller(private val maestro: Maestro) {
 }
 
 @CommandLine.Command(
-    name = "events",
-    description = [
-        "Translate interaction on the connected device to Maestro commands."
-    ],
+        name = "events",
+        description = ["Translate interaction on the connected device to Maestro commands."],
 )
 class EventsCommand : Runnable {
 
-    @CommandLine.Mixin
-    var disableANSIMixin: DisableAnsiMixin? = null
+    @CommandLine.Mixin var disableANSIMixin: DisableAnsiMixin? = null
 
-    @CommandLine.Mixin
-    var showHelpMixin: ShowHelpMixin? = null
+    @CommandLine.Mixin var showHelpMixin: ShowHelpMixin? = null
 
-    @CommandLine.ParentCommand
-    private val parent: App? = null
+    @CommandLine.ParentCommand private val parent: App? = null
+
+    // Storage for collected events
+    private var interactionEvents = mutableListOf<EventData>()
+    private var processingTimer: java.util.Timer? = null
+    private val bufferTimeoutMs = 1000L
+
+    // JSON formatter
+    private val objectMapper = ObjectMapper().apply { enable(SerializationFeature.INDENT_OUTPUT) }
 
     override fun run() {
         TestDebugReporter.install(
-            debugOutputPathAsString = null,
-            flattenDebugOutput = false,
-            printToConsole = parent?.verbose == true,
+                debugOutputPathAsString = null,
+                flattenDebugOutput = false,
+                printToConsole = parent?.verbose == true,
         )
 
-        (Dadb.discover() ?: throw CliError("No Android devices detected")).use { dadb ->
-            Maestro.android(AndroidDriver(dadb)).use { maestro ->
-                val hierarchyPoller = HierarchyPoller(maestro)
-                hierarchyPoller.start()
+        println("Monitoring touch and key events. Press Ctrl+C to exit")
 
-                dadb.openShell("getevent -lt").use { stream ->
-                    stream.lines().forEach { line ->
-                        println(line)
+        try {
+            val eventParser = MaestroEventParser()
+
+            eventParser.setCommandCallback { command ->
+                val json = objectMapper.writeValueAsString(command)
+                println(json)
+            }
+
+            processingTimer =
+                    fixedRateTimer(
+                            name = "event-processor",
+                            initialDelay = bufferTimeoutMs,
+                            period = bufferTimeoutMs
+                    ) { processBufferedEvents() }
+
+            (Dadb.discover() ?: throw CliError("No Android devices detected")).use { dadb ->
+                Maestro.android(AndroidDriver(dadb)).use { maestro ->
+                    val hierarchyPoller = HierarchyPoller(maestro)
+                    hierarchyPoller.start()
+
+                    dadb.openShell("getevent -lt").use { stream ->
+                        stream.lines().forEach { line ->
+                            if (line.contains("/dev/input/event")) {
+                                val eventData = eventParser.parseEventData(line)
+                                if (eventData != null) {
+                                    synchronized(interactionEvents) {
+                                        interactionEvents.add(eventData)
+                                    }
+                                    eventParser.handleEvent(eventData, parent?.verbose == true)
+                                }
+                            } else if (parent?.verbose == true) {
+                                println(line)
+                            }
+                        }
                     }
                 }
             }
+        } catch (e: DeviceDetectionException) {
+            println("Error: ${e.message}")
+        } finally {
+            processingTimer?.cancel()
         }
+    }
+
+    private fun processBufferedEvents() {
+        synchronized(interactionEvents) { interactionEvents.clear() }
     }
 }
