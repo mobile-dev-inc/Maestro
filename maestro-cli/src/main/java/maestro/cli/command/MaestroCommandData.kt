@@ -51,11 +51,21 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
                 preEventHierarchy: TreeNode? = null,
                 hierarchy: TreeNode? = null
         ): MaestroCommandData {
+            // Check for duplicate IDs in the hierarchy
+            val duplicateCount = preEventHierarchy?.let { countElementsWithId(it, id) } ?: 0
+            val finalId = if (duplicateCount > 1) {
+                // If there are duplicates, find the index of the current element
+                val index = preEventHierarchy?.let { findElementIndex(it, id) } ?: 0
+                "$id:$index" // Append index to the ID
+            } else {
+                id
+            }
+
             return MaestroCommandData(
                     event = "tapOn",
                     content =
                             CommandContent(
-                                    id = id,
+                                    id = finalId,
                                     preEventHierarchy =
                                             preEventHierarchy?.let {
                                                 ViewHierarchyData.fromTreeNode(it)
@@ -64,6 +74,27 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
                                             hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
                             )
             )
+        }
+
+        private fun countElementsWithId(node: TreeNode, targetId: String): Int {
+            var count = if (node.attributes["resource-id"] == targetId) 1 else 0
+            node.children.forEach { child ->
+                count += countElementsWithId(child, targetId)
+            }
+            return count
+        }
+
+        private fun findElementIndex(node: TreeNode, targetId: String): Int {
+            var index = 0
+            fun traverse(current: TreeNode) {
+                if (current.attributes["resource-id"] == targetId) {
+                    return
+                }
+                index++
+                current.children.forEach { traverse(it) }
+            }
+            traverse(node)
+            return index
         }
 
         fun createSwipe(

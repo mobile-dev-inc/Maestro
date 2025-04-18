@@ -50,6 +50,7 @@ import maestro.orchestra.yaml.YamlCoordinateSwipe
 import maestro.orchestra.yaml.YamlElementSelector
 import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.orchestra.yaml.YamlInputText
+import maestro.orchestra.yaml.YamlEraseText
 import picocli.CommandLine
 
 private fun AdbShellStream.lines(): Sequence<String> {
@@ -174,6 +175,14 @@ class EventsCommand : Runnable {
             command.event == "back" -> {
                 YamlFluentCommand(
                     back = YamlActionBack(),
+                    _location = JsonLocation(null, 0, 0, 0)
+                )
+            }
+            command.event == "eraseText" -> {
+                YamlFluentCommand(
+                    eraseText = YamlEraseText(
+                        charactersToErase = command.content.count
+                    ),
                     _location = JsonLocation(null, 0, 0, 0)
                 )
             }
