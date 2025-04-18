@@ -24,6 +24,7 @@ import java.util.Timer
 import java.util.TimerTask
 import kotlin.math.pow
 import kotlin.math.sqrt
+import maestro.TreeNode
 
 data class EventData(
         val timestamp: String,
@@ -46,7 +47,7 @@ sealed class MaestroCommand {
             val endY: Int,
     ) : MaestroCommand() {
         override fun toString(): String =
-                "swipe: { start: { x: $startX, y: $startY }, end: { x: $endX, y: $endY }, duration: $duration }"
+                "swipe: { start: { x: $startX, y: $startY }, end: { x: $endX, y: $endY } }"
     }
 
     data class InputTextCommand(val text: String) : MaestroCommand() {
@@ -93,6 +94,7 @@ class MaestroEventParser {
     private val ABS_MT_POSITION_Y = "0036"
 
     private var commandCallback: ((MaestroCommandData) -> Unit)? = null
+    private var preEventHierarchy: TreeNode? = null
 
     init {
         // Initialize device info during startup
@@ -110,6 +112,10 @@ class MaestroEventParser {
 
     fun setCommandCallback(callback: (MaestroCommandData) -> Unit) {
         this.commandCallback = callback
+    }
+
+    fun setPreEventHierarchy(hierarchy: TreeNode?) {
+        this.preEventHierarchy = hierarchy
     }
 
     private fun detectScreenSize() {
@@ -378,7 +384,8 @@ class MaestroEventParser {
                     commitPendingText(verbose)
                     commitBackspaces(verbose)
 
-                    val backCommand = MaestroCommandData.createBack()
+                    val backCommand =
+                            MaestroCommandData.createBack(preEventHierarchy = preEventHierarchy)
                     commandCallback?.invoke(backCommand)
                     if (verbose) {
                         println("Detected Maestro command: $backCommand")
@@ -442,7 +449,8 @@ class MaestroEventParser {
                             startX = startX,
                             startY = startY,
                             endX = endX,
-                            endY = endY
+                            endY = endY,
+                            preEventHierarchy = preEventHierarchy
                     )
 
             commandCallback?.invoke(swipeCommand)
@@ -450,7 +458,12 @@ class MaestroEventParser {
                 println("Detected Maestro command: $swipeCommand")
             }
         } else {
-            val tapCommand = MaestroCommandData.createTap(x = startX, y = startY)
+            val tapCommand =
+                    MaestroCommandData.createTap(
+                            x = startX,
+                            y = startY,
+                            preEventHierarchy = preEventHierarchy
+                    )
 
             commandCallback?.invoke(tapCommand)
             if (verbose) {
@@ -461,7 +474,11 @@ class MaestroEventParser {
 
     private fun commitPendingText(verbose: Boolean = false) {
         if (pendingText.isNotEmpty()) {
-            val inputCommand = MaestroCommandData.createInputText(pendingText.toString())
+            val inputCommand =
+                    MaestroCommandData.createInputText(
+                            pendingText.toString(),
+                            preEventHierarchy = preEventHierarchy
+                    )
 
             commandCallback?.invoke(inputCommand)
             if (verbose) {
@@ -476,7 +493,11 @@ class MaestroEventParser {
 
     private fun commitBackspaces(verbose: Boolean = false) {
         if (backspaceCount > 0) {
-            val eraseCommand = MaestroCommandData.createEraseText(backspaceCount)
+            val eraseCommand =
+                    MaestroCommandData.createEraseText(
+                            backspaceCount,
+                            preEventHierarchy = preEventHierarchy
+                    )
 
             commandCallback?.invoke(eraseCommand)
             if (verbose) {

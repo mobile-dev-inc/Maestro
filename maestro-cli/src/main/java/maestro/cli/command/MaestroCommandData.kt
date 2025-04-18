@@ -19,15 +19,30 @@
 package maestro.cli.command
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import maestro.TreeNode
 
 /** Unified structure for all Maestro commands */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class MaestroCommandData(val event: String, val content: CommandContent) {
     companion object {
-        fun createTap(x: Int, y: Int): MaestroCommandData {
+        fun createTap(
+                x: Int,
+                y: Int,
+                preEventHierarchy: TreeNode? = null,
+                hierarchy: TreeNode? = null
+        ): MaestroCommandData {
             return MaestroCommandData(
                     event = "tapOn",
-                    content = CommandContent(point = Coordinates(x, y))
+                    content =
+                            CommandContent(
+                                    point = Coordinates(x, y),
+                                    preEventHierarchy =
+                                            preEventHierarchy?.let {
+                                                ViewHierarchyData.fromTreeNode(it)
+                                            },
+                                    hierarchy =
+                                            hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
+                            )
             )
         }
 
@@ -36,7 +51,9 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
                 startY: Int,
                 endX: Int,
                 endY: Int,
-                duration: Int = 300
+                duration: Int = 300,
+                preEventHierarchy: TreeNode? = null,
+                hierarchy: TreeNode? = null
         ): MaestroCommandData {
             return MaestroCommandData(
                     event = "swipe",
@@ -44,21 +61,73 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
                             CommandContent(
                                     start = Coordinates(startX, startY),
                                     end = Coordinates(endX, endY),
-                                    duration = duration
+                                    duration = duration,
+                                    preEventHierarchy =
+                                            preEventHierarchy?.let {
+                                                ViewHierarchyData.fromTreeNode(it)
+                                            },
+                                    hierarchy =
+                                            hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
                             )
             )
         }
 
-        fun createInputText(text: String): MaestroCommandData {
-            return MaestroCommandData(event = "inputText", content = CommandContent(text = text))
+        fun createInputText(
+                text: String,
+                preEventHierarchy: TreeNode? = null,
+                hierarchy: TreeNode? = null
+        ): MaestroCommandData {
+            return MaestroCommandData(
+                    event = "inputText",
+                    content =
+                            CommandContent(
+                                    text = text,
+                                    preEventHierarchy =
+                                            preEventHierarchy?.let {
+                                                ViewHierarchyData.fromTreeNode(it)
+                                            },
+                                    hierarchy =
+                                            hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
+                            )
+            )
         }
 
-        fun createEraseText(count: Int): MaestroCommandData {
-            return MaestroCommandData(event = "eraseText", content = CommandContent(count = count))
+        fun createEraseText(
+                count: Int,
+                preEventHierarchy: TreeNode? = null,
+                hierarchy: TreeNode? = null
+        ): MaestroCommandData {
+            return MaestroCommandData(
+                    event = "eraseText",
+                    content =
+                            CommandContent(
+                                    count = count,
+                                    preEventHierarchy =
+                                            preEventHierarchy?.let {
+                                                ViewHierarchyData.fromTreeNode(it)
+                                            },
+                                    hierarchy =
+                                            hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
+                            )
+            )
         }
 
-        fun createBack(): MaestroCommandData {
-            return MaestroCommandData(event = "back", content = CommandContent())
+        fun createBack(
+                preEventHierarchy: TreeNode? = null,
+                hierarchy: TreeNode? = null
+        ): MaestroCommandData {
+            return MaestroCommandData(
+                    event = "back",
+                    content =
+                            CommandContent(
+                                    preEventHierarchy =
+                                            preEventHierarchy?.let {
+                                                ViewHierarchyData.fromTreeNode(it)
+                                            },
+                                    hierarchy =
+                                            hierarchy?.let { ViewHierarchyData.fromTreeNode(it) }
+                            )
+            )
         }
     }
 }
@@ -70,7 +139,43 @@ data class CommandContent(
         val end: Coordinates? = null,
         val duration: Int? = null,
         val text: String? = null,
-        val count: Int? = null
+        val count: Int? = null,
+        val preEventHierarchy: ViewHierarchyData? = null,
+        val hierarchy: ViewHierarchyData? = null
 )
 
 data class Coordinates(val x: Int, val y: Int)
+
+/** Represents view hierarchy data in a JSON-serializable format */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ViewHierarchyData(
+        val className: String,
+        val resourceId: String? = null,
+        val text: String? = null,
+        val contentDescription: String? = null,
+        val bounds: List<Int>? = null,
+        val children: List<ViewHierarchyData>? = null
+) {
+    companion object {
+        fun fromTreeNode(node: TreeNode): ViewHierarchyData {
+            val children = node.children?.map { fromTreeNode(it) }
+
+            return ViewHierarchyData(
+                    className = node.attributes["class"] ?: "",
+                    resourceId = node.attributes["resource-id"],
+                    text = node.attributes["text"],
+                    contentDescription = node.attributes["content-desc"],
+                    bounds = parseBounds(node.attributes["bounds"]),
+                    children = children
+            )
+        }
+
+        private fun parseBounds(bounds: String?): List<Int>? {
+            if (bounds == null) return null
+            // Format is usually "[left,top][right,bottom]"
+            return bounds.replace("[", "").replace("]", "").split(",").mapNotNull {
+                it.trim().toIntOrNull()
+            }
+        }
+    }
+}

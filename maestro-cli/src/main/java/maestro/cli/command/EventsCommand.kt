@@ -23,9 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import dadb.AdbShellPacket
 import dadb.AdbShellStream
-import dadb.AdbStream
 import dadb.Dadb
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.fixedRateTimer
+import kotlin.concurrent.thread
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.cli.App
@@ -33,11 +34,8 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.report.TestDebugReporter
-import maestro.cli.session.MaestroSessionManager
 import maestro.drivers.AndroidDriver
 import picocli.CommandLine
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.concurrent.thread
 
 private fun AdbShellStream.lines(): Sequence<String> {
     return sequence {
@@ -132,6 +130,8 @@ class EventsCommand : Runnable {
                             if (line.contains("/dev/input/event")) {
                                 val eventData = eventParser.parseEventData(line)
                                 if (eventData != null) {
+                                    eventParser.setPreEventHierarchy(hierarchyPoller.get())
+
                                     synchronized(interactionEvents) {
                                         interactionEvents.add(eventData)
                                     }
