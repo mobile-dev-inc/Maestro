@@ -81,7 +81,7 @@ class HierarchyPoller(private val maestro: Maestro) {
     }
 
     fun start() {
-        println("Starting hierarchy poller")
+        println("Monitoring touch and key events. Press Ctrl+C to exit")
         thread {
             while (true) {
                 val hierarchy = maestro.viewHierarchy()
@@ -187,7 +187,7 @@ class EventsCommand : Runnable {
                 printToConsole = parent?.verbose == true,
         )
 
-        println("Monitoring touch and key events. Press Ctrl+C to exit")
+        println("Starting...")
 
         try {
             eventParser.setCommandCallback { command ->
