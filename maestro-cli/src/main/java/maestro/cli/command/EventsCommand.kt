@@ -137,7 +137,8 @@ class EventsCommand : Runnable {
             command.event == "tapOn" && command.content.id != null -> {
                 YamlFluentCommand(
                     tapOn = YamlElementSelector(
-                        id = command.content.id
+                        id = command.content.id,
+                        index = command.content.index?.toString()
                     ),
                     _location = JsonLocation(null, 0, 0, 0)
                 )
@@ -204,7 +205,8 @@ class EventsCommand : Runnable {
                 // Convert to YamlFluentCommand and print
                 try {
                     val yamlCommand = convertToYamlCommand(command)
-                    println(yamlMapper.writeValueAsString(yamlCommand))
+                    // Create a single-element list and serialize it
+                    print(yamlMapper.writeValueAsString(listOf(yamlCommand)))
                 } catch (e: Exception) {
                     println("\nFailed to convert to YAML: ${e.message}")
                 }

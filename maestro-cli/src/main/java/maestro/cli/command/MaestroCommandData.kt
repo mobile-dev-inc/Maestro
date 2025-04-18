@@ -53,19 +53,19 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
         ): MaestroCommandData {
             // Check for duplicate IDs in the hierarchy
             val duplicateCount = preEventHierarchy?.let { countElementsWithId(it, id) } ?: 0
-            val finalId = if (duplicateCount > 1) {
+            val index = if (duplicateCount > 1) {
                 // If there are duplicates, find the index of the current element
-                val index = preEventHierarchy?.let { findElementIndex(it, id) } ?: 0
-                "$id:$index" // Append index to the ID
+                preEventHierarchy?.let { findElementIndex(it, id) } ?: 0
             } else {
-                id
+                null
             }
 
             return MaestroCommandData(
                     event = "tapOn",
                     content =
                             CommandContent(
-                                    id = finalId,
+                                    id = id,
+                                    index = index,
                                     preEventHierarchy =
                                             preEventHierarchy?.let {
                                                 ViewHierarchyData.fromTreeNode(it)
@@ -187,6 +187,7 @@ data class MaestroCommandData(val event: String, val content: CommandContent) {
 data class CommandContent(
         val point: Coordinates? = null,
         val id: String? = null,
+        val index: Int? = null,
         val start: Coordinates? = null,
         val end: Coordinates? = null,
         val duration: Int? = null,
