@@ -4,6 +4,7 @@ import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
+import java.nio.file.FileSystemNotFoundException
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
@@ -58,7 +59,12 @@ class IOSBuildProductsExtractor(private val target: Path) {
         val uri = LocalXCTestInstaller::class.java.classLoader.getResource(sourceDirectory)?.toURI() ?: throw IllegalArgumentException("Resource not found: $sourceDirectory")
 
         val sourcePath = if (uri.scheme == "jar") {
-            FileSystems.newFileSystem(uri, emptyMap<String, Any>()).getPath(sourceDirectory)
+            val fs = try {
+                FileSystems.getFileSystem(uri)
+            } catch (e: FileSystemNotFoundException) {
+                FileSystems.newFileSystem(uri, emptyMap<String, Any>())
+            }
+            fs.getPath(sourceDirectory)
         } else {
             Paths.get(uri)
         }
