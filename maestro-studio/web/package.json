@@ -43,9 +43,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "storybook": "start-storybook -p 6006",
-    "build-storybook": "build-storybook"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
@@ -76,17 +74,6 @@
     ]
   },
   "devDependencies": {
-    "@storybook/addon-actions": "^6.5.14",
-    "@storybook/addon-essentials": "^6.5.14",
-    "@storybook/addon-interactions": "^6.5.14",
-    "@storybook/addon-links": "^6.5.14",
-    "@storybook/addon-postcss": "^2.0.0",
-    "@storybook/builder-webpack5": "^6.5.14",
-    "@storybook/manager-webpack5": "^6.5.14",
-    "@storybook/node-logger": "^6.5.14",
-    "@storybook/preset-create-react-app": "^4.1.2",
-    "@storybook/react": "^6.5.14",
-    "@storybook/testing-library": "^0.0.13",
     "@types/file-saver": "^2.0.5",
     "@types/react-beautiful-dnd": "^13.1.4",
     "@types/uuid": "^9.0.3",
@@ -95,11 +82,7 @@
     "msw": "^0.0.0-fetch.rc-16",
     "postcss": "^8.4.31",
     "prop-types": "^15.8.1",
-    "storybook-addon-react-router-v6": "^0.2.1",
     "tailwindcss": "^3.2.4",
     "webpack": "^5.94.0"
-  },
-  "msw": {
-    "workerDirectory": "storybook-assets"
   }
 }
