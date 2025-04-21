@@ -41,8 +41,6 @@ class Maestro(
      val driver: Driver,
 ) : AutoCloseable {
 
-    private val sessionId = UUID.randomUUID()
-
     val deviceName: String
         get() = driver.name()
 
@@ -68,7 +66,7 @@ class Maestro(
         if (stopIfRunning) {
             driver.stopApp(appId)
         }
-        driver.launchApp(appId, launchArguments, sessionId = sessionId)
+        driver.launchApp(appId, launchArguments)
     }
 
     fun stopApp(appId: String) {

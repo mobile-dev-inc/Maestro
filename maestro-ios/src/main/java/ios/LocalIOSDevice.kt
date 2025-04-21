@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 class LocalIOSDevice(
     override val deviceId: String?,
     private val xcTestDevice: XCTestIOSDevice,
-    private val simctlIOSDevice: SimctlIOSDevice,
+    private val deviceController: IOSDevice,
     private val insights: Insights = NoopInsights
 ) : IOSDevice {
 
@@ -85,27 +85,26 @@ class LocalIOSDevice(
     }
 
     override fun install(stream: InputStream) {
-        simctlIOSDevice.install(stream)
+        deviceController.install(stream)
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.uninstall(id)
+    override fun uninstall(id: String) {
+        deviceController.uninstall(id)
     }
 
     override fun clearAppState(id: String) {
-        simctlIOSDevice.clearAppState(id)
+        deviceController.clearAppState(id)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {
-        return simctlIOSDevice.clearKeychain()
+        return deviceController.clearKeychain()
     }
 
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-        maestroSessionId: UUID?
-    ): Result<Unit, Throwable> {
-        return simctlIOSDevice.launch(id, launchArguments, maestroSessionId)
+    ) {
+        deviceController.launch(id, launchArguments)
     }
 
     override fun stop(id: String) {
@@ -117,7 +116,7 @@ class LocalIOSDevice(
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.openLink(link)
+        return deviceController.openLink(link)
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
@@ -125,11 +124,11 @@ class LocalIOSDevice(
     }
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
-        return simctlIOSDevice.startScreenRecording(out)
+        return deviceController.startScreenRecording(out)
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
-        return simctlIOSDevice.setLocation(latitude, longitude)
+        return deviceController.setLocation(latitude, longitude)
     }
 
     override fun isShutdown(): Boolean {
@@ -137,8 +136,8 @@ class LocalIOSDevice(
     }
 
     override fun close() {
+        deviceController.close()
         xcTestDevice.close()
-        simctlIOSDevice.close()
     }
 
     override fun isScreenStatic(): Boolean {
@@ -146,7 +145,7 @@ class LocalIOSDevice(
     }
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
-        simctlIOSDevice.setPermissions(id, permissions)
+        deviceController.setPermissions(id, permissions)
         xcTestDevice.setPermissions(id, permissions)
     }
 
@@ -155,6 +154,6 @@ class LocalIOSDevice(
     }
 
     override fun addMedia(path: String) {
-        simctlIOSDevice.addMedia(path)
+        deviceController.addMedia(path)
     }
 }

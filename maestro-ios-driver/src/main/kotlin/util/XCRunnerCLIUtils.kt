@@ -1,7 +1,6 @@
 package util
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.utils.MaestroTimer
 import net.harawata.appdirs.AppDirsFactory
 import java.io.File
 import java.nio.file.Files
@@ -117,22 +116,13 @@ object XCRunnerCLIUtils {
             }
     }
 
-    fun isAppAlive(bundleId: String, deviceId: String): Boolean {
-        return runningApps(deviceId)
-            .containsKey(bundleId)
-    }
-
     fun pidForApp(bundleId: String, deviceId: String): Int? {
         return runningApps(deviceId)[bundleId]
     }
 
-    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int, enableXCTestOutputFileLogging: Boolean = false): Process {
+    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int): Process {
         val date = dateFormatter.format(LocalDateTime.now())
-        val outputFile = if (enableXCTestOutputFileLogging) {
-            File(logDirectory, "xctest_runner_$date.log")
-        } else {
-            null
-        }
+        val outputFile = File(logDirectory, "xctest_runner_$date.log")
         val logOutputDir = Files.createTempDirectory("maestro_xctestrunner_xcodebuild_output")
         return CommandLineUtils.runCommand(
             listOf(

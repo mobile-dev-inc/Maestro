@@ -36,7 +36,6 @@ interface Driver {
     fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID? = null,
     )
 
     fun stopApp(appId: String)
