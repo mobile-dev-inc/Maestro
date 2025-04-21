@@ -109,7 +109,20 @@ tasks.create("createProperties") {
     }
 }
 
+tasks.register<Copy>("createTestResources") {
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**"
+        )
+    }
+    into(layout.buildDirectory.dir("resources/test"))
+}
+
 tasks.named("classes") {
+    dependsOn("createTestResources")
     dependsOn("createProperties")
 }
 

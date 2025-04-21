@@ -26,6 +26,7 @@ import maestro.cli.command.BugReportCommand
 import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
+import maestro.cli.command.DriverCommand
 import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
 import maestro.cli.command.PrintHierarchyCommand
@@ -66,6 +67,7 @@ import kotlin.system.exitProcess
         GenerateCompletion::class,
         ChatCommand::class,
         CheckSyntaxCommand::class,
+        DriverCommand::class,
     ]
 )
 class App {
