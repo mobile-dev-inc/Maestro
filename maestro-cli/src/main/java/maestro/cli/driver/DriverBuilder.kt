@@ -7,6 +7,28 @@ import kotlin.io.path.pathString
 
 class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderFactory = XcodeBuildProcessBuilderFactory()) {
 
+    /**
+     * Builds the iOS driver for real iOS devices by extracting the driver source, copying it to a temporary build
+     * directory, and executing the Xcode build process. The resulting build products are placed in the specified
+     * derived data path.
+     *
+     * @param config A configuration object containing details like team ID, derived data path, destination platform,
+     *               architectures, and other parameters required for building the driver.
+     * @return The path to the directory containing build products.
+     * @throws RuntimeException if the build process fails.
+     *
+     * Directory Structure:
+     *   1. workingDirectory (Path): Root working directory for Maestro stored in the user's home directory.
+     *      .maestro
+     *      |_ maestro-iphoneos-driver-build
+     *         |_ driver-iphoneos: Consists the build products to setup iOS driver: maestro-driver-*.xctestrun,
+     *            Debug-iphoneos/maestro-driver-iosUITests-Runner.app, and Debug-iphoneos/maestro-driver-ios.app
+     *         |_ output.log: In case of errors output.log would be there to help debug
+     *
+     *   2. xcodebuildOutput (Path): A temporary directory created to store the output logs of the xcodebuild process and source code.
+     *      It exists only for the duration of the build operation.
+     *      e.g., $TMPDIR/maestro-xcodebuild-outputXXXXXX
+     */
     fun buildDriver(config: DriverBuildConfig): Path {
         // Get driver source from resources
         val driverSourcePath = getDriverSourceFromResources(config)
