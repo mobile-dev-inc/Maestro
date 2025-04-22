@@ -57,11 +57,11 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
         message: String,
     ) : MaestroException(message)
 
-    class DeprecatedCommand(message: String) : MaestroException(message)
-
     class NoRootAccess(message: String) : MaestroException(message)
 
     class UnsupportedJavaVersion(message: String) : MaestroException(message)
+
+    class MissingAppleTeamId(message: String): MaestroException(message)
 }
 
 sealed class MaestroDriverStartupException(override val message: String): RuntimeException() {

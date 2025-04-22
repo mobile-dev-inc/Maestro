@@ -265,7 +265,7 @@ object DeviceService {
             val description = "${it.deviceProperties.name} - ${it.deviceProperties.osVersionNumber} - ${it.identifier}"
 
             Device.Connected(
-                instanceId = it.identifier,
+                instanceId = it.hardwareProperties.udid,
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL

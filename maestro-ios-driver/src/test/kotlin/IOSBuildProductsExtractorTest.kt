@@ -2,6 +2,8 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertTrue
+import util.IOSDeviceType
+import xcuitest.installer.Context
 import xcuitest.installer.IOSBuildProductsExtractor
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,7 +20,11 @@ class IOSBuildProductsExtractorTest {
     @Test
     fun `test drivers are extracted in expected structure for simulator`() {
         // when
-        IOSBuildProductsExtractor(target).extract("driver-iphoneSimulator")
+        IOSBuildProductsExtractor(
+            target,
+            deviceType = IOSDeviceType.SIMULATOR,
+            context = Context.CLI
+        ).extract("driver-iphoneSimulator")
 
         // then
         val configFile = target.resolve("maestro-driver-ios-config.xctestrun")

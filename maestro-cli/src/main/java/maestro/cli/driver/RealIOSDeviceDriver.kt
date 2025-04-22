@@ -1,5 +1,6 @@
 package maestro.cli.driver
 
+import maestro.MaestroException
 import maestro.cli.api.CliVersion
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils.message
@@ -7,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Properties
+import kotlin.io.path.notExists
 
 class RealIOSDeviceDriver(private val teamId: String?, private val destination: String, private val driverBuilder: DriverBuilder) {
 
@@ -28,9 +30,13 @@ class RealIOSDeviceDriver(private val teamId: String?, private val destination: 
             val localVersion = properties.getProperty("version")?.let { CliVersion.parse(it) }
                 ?: throw IllegalStateException("Invalid or missing version in version.properties.")
 
+            val products = driverDirectory.resolve("driver-iphoneos").resolve("Build").resolve("Products")
             if (currentCliVersion > localVersion) {
                 message("Local version $localVersion of iOS driver is outdated. Updating to latest.")
                 buildDriver(driverDirectory, message = "Validating and updating iOS driver for real iOS device: $destination...")
+            } else if (products.notExists()) {
+                message("Drivers for $destination not found, building the drivers.")
+                buildDriver(driverDirectory, message = "Building the drivers for $destination")
             }
         } else {
             buildDriver(driverDirectory, "Building iOS driver for $destination...")
@@ -41,14 +47,20 @@ class RealIOSDeviceDriver(private val teamId: String?, private val destination: 
         val spinner = Spinner(message).apply {
             start()
         }
+        // Build the new driver
+        val teamId = try {
+            requireNotNull(teamId) { "Apple account team ID must be specified." }
+        } catch (e: IllegalArgumentException) {
+            throw MaestroException.MissingAppleTeamId(
+                "Apple account team ID must be specified to build drivers for connected iPhone."
+            )
+        }
+
         // Cleanup old driver files if necessary
         if (Files.exists(driverDirectory)) {
             message("Cleaning up old driver files...")
             driverDirectory.toFile().deleteRecursively()
         }
-
-        // Build the new driver
-        val teamId = requireNotNull(teamId) { "Apple account team ID must be specified." }
 
         driverBuilder.buildDriver(
             DriverBuildConfig(

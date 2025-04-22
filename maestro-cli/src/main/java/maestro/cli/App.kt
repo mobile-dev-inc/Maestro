@@ -127,6 +127,7 @@ fun main(args: Array<String>) {
             runCatching { ErrorReporter.report(ex, cmdParseResult) }
 
             // make errors red
+            println()
             cmd.colorScheme = CommandLine.Help.ColorScheme.Builder()
                 .errors(CommandLine.Help.Ansi.Style.fg_red)
                 .build()
@@ -135,7 +136,7 @@ fun main(args: Array<String>) {
                 cmd.colorScheme.errorText(ex.message.orEmpty())
             )
 
-            if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion) {
+            if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion && ex !is MaestroException.MissingAppleTeamId) {
                 cmd.err.println("\nThe stack trace was:")
                 cmd.err.println(ex.stackTraceToString())
             }

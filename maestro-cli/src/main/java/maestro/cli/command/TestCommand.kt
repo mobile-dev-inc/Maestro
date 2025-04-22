@@ -47,8 +47,6 @@ import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.box
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
-import maestro.cli.driver.RealIOSDeviceDriver
-import maestro.device.Platform
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
