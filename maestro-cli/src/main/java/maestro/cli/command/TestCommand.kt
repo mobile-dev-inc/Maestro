@@ -246,7 +246,7 @@ class TestCommand : Callable<Int> {
             host = parent?.host,
             port = parent?.port,
         ).map { it.instanceId }.toSet()
-        val deviceIds = getPassedOptionsDeviceIds()
+        val passedDeviceIds = getPassedOptionsDeviceIds()
             .filter { device ->
                 if (device !in availableDevices) {
                     throw CliError("Device $device was requested, but it is not connected.")
@@ -254,30 +254,63 @@ class TestCommand : Callable<Int> {
                     true
                 }
             }
-            .ifEmpty { availableDevices }
-            .toList()
+            // Don't default to all available devices here. Handle it based on sharding later.
+            // .ifEmpty { availableDevices }
+            // .toList()
 
-        val missingDevices = requestedShards - deviceIds.size
-        if (missingDevices > 0) {
-            PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
-            throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
-        }
-
+        // Determine effective shards based on requested shards and flow count/type
         val effectiveShards = when {
-
-            onlySequenceFlows -> 1
-
-            shardAll == null -> requestedShards.coerceAtMost(plan.flowsToRun.size)
-
-            shardSplit == null -> requestedShards.coerceAtMost(deviceIds.size)
-
-            else -> 1
+            onlySequenceFlows -> 1 // Sequence flows always run on one device
+            shardAll != null -> requestedShards.coerceAtMost(DeviceService.listConnectedDevices().size) // Cannot run more shards than connected devices if replicating all flows
+            shardSplit != null -> requestedShards.coerceAtMost(plan.flowsToRun.size).coerceAtMost(DeviceService.listConnectedDevices().size) // Cannot run more shards than flows or connected devices
+            else -> 1 // Default to 1 shard if no sharding options are provided
         }
 
-        val warning = "Requested $requestedShards shards, " +
-                "but it cannot be higher than the number of flows (${plan.flowsToRun.size}). " +
-                "Will use $effectiveShards shards instead."
-        if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
+        // Determine the list of device IDs to use for the shards
+        val deviceIds: List<String?> = if (passedDeviceIds.isNotEmpty()) {
+            // If specific devices were passed, use them
+            passedDeviceIds
+        } else {
+            // If no devices were passed...
+            if (effectiveShards == 1) {
+                // For a single shard, pass null to trigger device selection prompt if needed
+                listOf(null)
+            } else {
+                // For multiple shards, use all available connected devices.
+                // Note: This maintains existing behavior for sharding without explicit devices.
+                // The user might want prompting even for sharding, but that's a larger change.
+                val connectedDeviceIds = availableDevices.toList()
+                if (connectedDeviceIds.size < effectiveShards) {
+                    throw CliError("Not enough devices connected (${connectedDeviceIds.size}) to run the requested number of shards ($effectiveShards).")
+                }
+                // Use only as many devices as needed for the shards
+                connectedDeviceIds.take(effectiveShards)
+            }
+        }
+
+
+        // Validate if enough devices are available for the requested shards IF specific devices were requested OR sharding is used without specific devices
+        if (passedDeviceIds.isNotEmpty() || (passedDeviceIds.isEmpty() && effectiveShards > 1)) {
+            val missingDevices = effectiveShards - deviceIds.size
+            if (missingDevices > 0) {
+                 PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $effectiveShards shards. Missing $missingDevices device(s).")
+                 throw CliError("Not enough devices available ($missingDevices missing) for the requested number of shards ($effectiveShards). Ensure devices are connected or reduce shard count.")
+            }
+        }
+
+        // Existing shard warning logic (adjusting message slightly)
+        if (shardAll == null && shardSplit != null && requestedShards > plan.flowsToRun.size) {
+            val warning = "Requested $requestedShards shards, " +
+                    "but cannot run more shards than flows (${plan.flowsToRun.size}). " +
+                    "Will use $effectiveShards shards instead."
+            PrintUtils.warn(warning)
+        } else if (shardAll != null && requestedShards > availableDevices.size) {
+             val warning = "Requested $requestedShards shards, " +
+                    "but cannot run more shards than connected devices (${availableDevices.size}). " +
+                    "Will use $effectiveShards shards instead."
+             PrintUtils.warn(warning)
+        }
+
 
         val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
 
@@ -320,21 +353,28 @@ class TestCommand : Callable<Int> {
 
     private suspend fun runShardSuite(
         effectiveShards: Int,
-        deviceIds: List<String>,
+        deviceIds: List<String?>, // Allow null device IDs
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
-        val deviceId = deviceIds[shardIndex]
+        // DeviceId can be null if we need to prompt
+        val deviceId: String? = deviceIds[shardIndex]
 
-        logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort")
+        // Log device selection or indicate prompting might occur
+        if (deviceId != null) {
+            logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort")
+        } else {
+            logger.info("[shard ${shardIndex + 1}] No device specified, will attempt connection or prompt for selection. Using port $driverHostPort")
+        }
+
 
         return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = driverHostPort,
-            deviceId = deviceId,
+            deviceId = deviceId, // Pass the potentially null deviceId
             platform = parent?.platform,
             isHeadless = headless,
             reinstallDriver = reinstallDriver,
