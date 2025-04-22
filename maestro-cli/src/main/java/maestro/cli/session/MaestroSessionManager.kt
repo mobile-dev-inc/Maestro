@@ -28,6 +28,8 @@ import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.device.Device
 import maestro.cli.device.PickDeviceInteractor
+import maestro.cli.driver.DriverBuilder
+import maestro.cli.driver.RealIOSDeviceDriver
 import maestro.device.Platform
 import maestro.utils.CliInsights
 import maestro.cli.util.ScreenReporter
@@ -59,6 +61,7 @@ object MaestroSessionManager {
         port: Int?,
         driverHostPort: Int?,
         deviceId: String?,
+        teamId: String? = null,
         platform: String? = null,
         isStudio: Boolean = false,
         isHeadless: Boolean = isStudio,
@@ -70,6 +73,7 @@ object MaestroSessionManager {
             port = port,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
+            teamId = teamId,
             platform = Platform.fromString(platform)
         )
         val sessionId = UUID.randomUUID().toString()
@@ -121,6 +125,7 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         deviceId: String?,
         platform: Platform? = null,
+        teamId: String? = null
     ): SelectedDevice {
 
         if (deviceId == "chromium" || platform == Platform.WEB) {
@@ -133,6 +138,14 @@ object MaestroSessionManager {
         if (host == null) {
             val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform)
 
+            if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
+                val driverBuilder = DriverBuilder()
+                RealIOSDeviceDriver(
+                    destination = device.instanceId,
+                    teamId = teamId,
+                    driverBuilder = driverBuilder
+                ).validateAndUpdateDriver()
+            }
             return SelectedDevice(
                 platform = device.platform,
                 device = device,

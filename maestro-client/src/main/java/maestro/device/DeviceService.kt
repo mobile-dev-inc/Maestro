@@ -259,10 +259,10 @@ object DeviceService {
     }
 
     private fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = util.LocalIOSDevice.listDeviceViaXcDevice()
+        val connectedIphoneList = util.LocalIOSDevice.listDeviceViaDeviceCtl()
 
         return connectedIphoneList.map {
-            val description = "${it.name} - ${it.operatingSystemVersion} - ${it.identifier}"
+            val description = "${it.deviceProperties.name} - ${it.deviceProperties.osVersionNumber} - ${it.identifier}"
 
             Device.Connected(
                 instanceId = it.identifier,

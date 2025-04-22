@@ -5,6 +5,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.*
 import io.mockk.spyk
+import maestro.cli.api.CliVersion
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -29,7 +30,8 @@ class DriverBuilderTest {
             DriverBuildConfig(
                 teamId = "25CQD4CKK3",
                 derivedDataPath = "driver-iphoneos",
-                sourceCodePath = "driver/ios"
+                sourceCodePath = "driver/ios",
+                cliVersion = CliVersion(1, 40, 0)
             )
         )
         val xctestRunFile = buildProducts.toFile().walk().firstOrNull { it.extension == "xctestrun" }
@@ -53,6 +55,7 @@ class DriverBuilderTest {
         every { driverBuildConfig.teamId } returns "mock-team-id"
         every { driverBuildConfig.architectures } returns "arm64"
         every { driverBuildConfig.destination } returns "generic/platform=ios"
+        every { driverBuildConfig.cliVersion } returns CliVersion.parse("1.40.0")
 
         val driverBuilder = spyk(DriverBuilder())
         every { driverBuilder.getDriverSourceFromResources(any()) } returns tempDir

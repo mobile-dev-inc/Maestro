@@ -2,6 +2,7 @@ package maestro.cli.driver
 
 import java.io.File
 import java.nio.file.*
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.pathString
 
@@ -87,6 +88,11 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
             // Return path to build products
             return derivedDataPath.resolve("Build/Products")
         } finally {
+            File(buildDir.toFile(), "version.properties").writer().use {
+                val p = Properties()
+                p["version"] = config.cliVersion.toString()
+                p.store(it, null)
+            }
             xcodebuildOutput.toFile().deleteRecursively()
         }
     }
