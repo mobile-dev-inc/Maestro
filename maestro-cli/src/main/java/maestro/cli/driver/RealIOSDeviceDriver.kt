@@ -8,7 +8,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Properties
-import kotlin.io.path.notExists
 
 class RealIOSDeviceDriver(private val teamId: String?, private val destination: String, private val driverBuilder: DriverBuilder) {
 
@@ -31,10 +30,11 @@ class RealIOSDeviceDriver(private val teamId: String?, private val destination: 
                 ?: throw IllegalStateException("Invalid or missing version in version.properties.")
 
             val products = driverDirectory.resolve("driver-iphoneos").resolve("Build").resolve("Products")
+            val xctestRun = products.toFile().walk().find { it.extension == "xctestrun" }
             if (currentCliVersion > localVersion) {
                 message("Local version $localVersion of iOS driver is outdated. Updating to latest.")
                 buildDriver(driverDirectory, message = "Validating and updating iOS driver for real iOS device: $destination...")
-            } else if (products.notExists()) {
+            } else if (xctestRun?.exists() == false || xctestRun == null) {
                 message("Drivers for $destination not found, building the drivers.")
                 buildDriver(driverDirectory, message = "Building the drivers for $destination")
             }
@@ -80,5 +80,4 @@ class RealIOSDeviceDriver(private val teamId: String?, private val destination: 
         val maestroDirectory = Paths.get(System.getProperty("user.home"), ".maestro")
         return maestroDirectory
     }
-
 }

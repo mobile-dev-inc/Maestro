@@ -1,18 +1,23 @@
 package maestro.cli.driver
 
+import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.verify
 import maestro.cli.api.CliVersion
 import maestro.cli.util.EnvUtils
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
+import kotlin.io.path.createDirectories
+import kotlin.io.path.createFile
 import kotlin.io.path.pathString
+import kotlin.io.path.writeText
 
 
 class RealDeviceDriverTest {
@@ -48,6 +53,7 @@ class RealDeviceDriverTest {
 
         // Verify that the driver was built due to outdated version
         verify(exactly = 1) { driverBuilder.buildDriver(any()) } // Assert buildDriver was called
+        driverDirectory.toFile().deleteRecursively()
     }
 
     @Test
@@ -60,6 +66,11 @@ class RealDeviceDriverTest {
         every { EnvUtils.getCLIVersion() } returns CliVersion.parse("1.3.0")
         every { EnvUtils.CLI_VERSION } returns CliVersion.parse("1.3.0")
         val driverDirectory = Files.createDirectories(Paths.get(tempDir.pathString + "/maestro-iphoneos-driver-build"))
+        val productDirectory = driverDirectory.resolve("driver-iphoneos").resolve("Build").resolve("Products").createDirectories()
+        productDirectory.resolve("maestro-driver-ios-config.xctestrun").createFile()
+            .apply {
+                writeText("Fake Runner xctestrun file")
+            }
         val propertiesFile = driverDirectory.resolve("version.properties")
         val teamId = "dummy-team"
         val destination = "destination"
@@ -77,6 +88,8 @@ class RealDeviceDriverTest {
 
         // Verify that the driver was built due to outdated version
         verify(exactly = 0) { driverBuilder.buildDriver(any()) } // Assert buildDriver was called
+
+        driverDirectory.toFile().deleteRecursively()
     }
 
     @Test
@@ -101,5 +114,8 @@ class RealDeviceDriverTest {
         verify(exactly = 1) { driverBuilder.buildDriver(any()) } // Assert buildDriver was called
     }
 
-
+    @AfterEach
+    fun cleanup() {
+        clearAllMocks()
+    }
 }

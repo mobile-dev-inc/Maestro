@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.40.00
+## 1.40.0
 
 Fix:
 - JavaScript fails when running maestro test in continuos mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
