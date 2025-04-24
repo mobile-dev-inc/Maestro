@@ -33,8 +33,7 @@ class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
 
     override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         return execute {
-            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
-            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
+            val viewHierarchy = client.viewHierarchy(excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
@@ -80,9 +79,7 @@ class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
         duration: Double,
     ) {
         execute {
-            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             client.swipeV2(
-                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
@@ -100,9 +97,7 @@ class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
         duration: Double,
     ) {
         execute {
-            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             client.swipeV2(
-                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
@@ -114,10 +109,8 @@ class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
 
     override fun input(text: String) {
        execute {
-           // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
            client.inputText(
                text = text,
-               appIds = emptySet(),
            )
        }
     }
@@ -206,8 +199,7 @@ class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
     }
 
     override fun eraseText(charactersToErase: Int) {
-        // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
-        execute { client.eraseText(charactersToErase, appIds = emptySet()) }
+        execute { client.eraseText(charactersToErase) }
     }
 
     private fun <T> execute(call: () -> T): T {

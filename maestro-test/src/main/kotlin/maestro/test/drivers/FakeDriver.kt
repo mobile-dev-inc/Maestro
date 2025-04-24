@@ -161,12 +161,6 @@ class FakeDriver : Driver {
         events += Event.Scroll
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        ensureOpen()
-
-        return !events.contains(Event.HideKeyboard)
-    }
-
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         ensureOpen()
 
