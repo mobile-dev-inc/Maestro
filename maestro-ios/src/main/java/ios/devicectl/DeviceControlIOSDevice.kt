@@ -69,10 +69,6 @@ class DeviceControlIOSDevice(val deviceId: String) : IOSDevice {
         error("not supported")
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        TODO("Not yet implemented")
-    }
-
     override fun openLink(link: String): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }

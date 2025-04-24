@@ -56,8 +56,6 @@ interface Driver {
 
     fun scrollVertical()
 
-    fun isKeyboardVisible(): Boolean
-
     fun swipe(start: Point, end: Point, durationMs: Long)
 
     fun swipe(swipeDirection: SwipeDirection, durationMs: Long)

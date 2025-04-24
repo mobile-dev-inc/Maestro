@@ -111,10 +111,6 @@ class LocalIOSDevice(
         xcTestDevice.stop(id)
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        return xcTestDevice.isKeyboardVisible()
-    }
-
     override fun openLink(link: String): Result<Unit, Throwable> {
         return deviceController.openLink(link)
     }

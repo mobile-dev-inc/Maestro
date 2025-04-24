@@ -306,10 +306,6 @@ class WebDriver(
         scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        return false
-    }
-
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         val driver = ensureOpen()
 

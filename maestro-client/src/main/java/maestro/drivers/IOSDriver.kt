@@ -216,12 +216,6 @@ class IOSDriver(
         )
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        return metrics.measured("operation", mapOf("command" to "isKeyboardVisible")) {
-            runDeviceCall("isKeyboardVisible") { iosDevice.isKeyboardVisible() }
-        }
-    }
-
     override fun swipe(
         start: Point,
         end: Point,

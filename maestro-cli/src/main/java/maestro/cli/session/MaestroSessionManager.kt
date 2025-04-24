@@ -39,7 +39,6 @@ import maestro.drivers.IOSDriver
 import maestro.utils.MetricsProvider
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
-import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.Context
@@ -375,10 +374,7 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
         )
 
-        val xcTestDevice = XCTestIOSDevice(
-            client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
-        )
+        val xcTestDevice = XCTestIOSDevice(client = xcTestDriverClient)
 
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {

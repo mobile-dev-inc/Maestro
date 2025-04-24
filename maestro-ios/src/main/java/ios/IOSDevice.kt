@@ -96,8 +96,6 @@ interface IOSDevice : AutoCloseable {
      */
     fun stop(id: String)
 
-    fun isKeyboardVisible(): Boolean
-
     /**
      * Opens a link
      *

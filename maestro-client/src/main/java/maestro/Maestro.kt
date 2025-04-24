@@ -110,10 +110,6 @@ class Maestro(
         driver.hideKeyboard()
     }
 
-    fun isKeyboardVisible(): Boolean {
-        return driver.isKeyboardVisible()
-    }
-
     fun swipe(
         swipeDirection: SwipeDirection? = null,
         startPoint: Point? = null,

@@ -1,7 +1,6 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.toResultOr
 import hierarchy.ViewHierarchy
 import ios.IOSDevice
 import ios.IOSDeviceErrors
@@ -14,14 +13,9 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.util.UUID
-import javax.security.auth.callback.ConfirmationCallback.OK
 
-class XCTestIOSDevice(
-    private val client: XCTestDriverClient,
-    private val getInstalledApps: () -> Set<String>,
+class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
 
-    ) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
@@ -86,13 +80,14 @@ class XCTestIOSDevice(
         duration: Double,
     ) {
         execute {
-            client.swipe(
-                appId = activeAppId(),
+            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
+            client.swipeV2(
+                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
                 endY = yEnd,
-                duration = duration
+                duration = duration,
             )
         }
     }
@@ -158,11 +153,6 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        val appIds = getInstalledApps()
-        return execute { client.keyboardInfo(appIds).isKeyboardVisible }
-    }
-
     override fun openLink(link: String): Result<Unit, Throwable> {
         error("Not supported")
     }
@@ -218,15 +208,6 @@ class XCTestIOSDevice(
     override fun eraseText(charactersToErase: Int) {
         // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
         execute { client.eraseText(charactersToErase, appIds = emptySet()) }
-    }
-
-    private fun activeAppId(): String {
-        return execute {
-            val appIds = getInstalledApps()
-            logger.info("installed apps: $appIds")
-
-            client.runningAppId(appIds).runningAppBundleId
-        }
     }
 
     private fun <T> execute(call: () -> T): T {
