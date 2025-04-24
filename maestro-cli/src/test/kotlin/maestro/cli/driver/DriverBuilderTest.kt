@@ -102,7 +102,7 @@ class DriverBuilderTest {
         }
 
         // then
-        assertThat(error.message).contains("Failed to build driver, output log on")
+        assertThat(error.message).contains("Failed to build iOS driver for connected iOS device")
         // Verify that the error log has been written inside the `.maestro` directory
         val maestroDir = Paths.get(sourceCodeRoot, ".maestro")
         val errorLog = maestroDir.resolve("maestro-iphoneos-driver-build").resolve("output.log")

@@ -1,5 +1,6 @@
 package maestro.cli.driver
 
+import maestro.MaestroException
 import java.io.File
 import java.nio.file.*
 import java.util.*
@@ -80,7 +81,15 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                 // copy the error log inside driver output
                 val targetErrorFile = File(buildDir.toFile(), outputFile.name)
                 outputFile.copyTo(targetErrorFile, overwrite = true)
-                throw RuntimeException("Failed to build driver, output log on ${targetErrorFile.path}")
+                throw MaestroException.IOSDeviceDriverSetupException(
+                    """
+                        
+                        Failed to build iOS driver for connected iOS device.
+                        
+                        Error details:
+                        - Build log: ${targetErrorFile.path}
+                    """.trimIndent()
+                )
             }
 
             // Return path to build products

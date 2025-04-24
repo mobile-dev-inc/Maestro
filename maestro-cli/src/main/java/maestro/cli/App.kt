@@ -22,7 +22,7 @@ package maestro.cli
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.command.BugReportCommand
- import maestro.cli.command.ChatCommand
+import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
@@ -136,7 +136,10 @@ fun main(args: Array<String>) {
                 cmd.colorScheme.errorText(ex.message.orEmpty())
             )
 
-            if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion && ex !is MaestroException.MissingAppleTeamId) {
+            if (
+                ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion
+                && ex !is MaestroException.MissingAppleTeamId && ex !is MaestroException.IOSDeviceDriverSetupException
+            ) {
                 cmd.err.println("\nThe stack trace was:")
                 cmd.err.println(ex.stackTraceToString())
             }
