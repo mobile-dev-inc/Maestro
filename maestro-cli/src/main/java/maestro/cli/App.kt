@@ -22,10 +22,11 @@ package maestro.cli
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.command.BugReportCommand
- import maestro.cli.command.ChatCommand
+import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
+import maestro.cli.command.DriverCommand
 import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
 import maestro.cli.command.PrintHierarchyCommand
@@ -66,6 +67,7 @@ import kotlin.system.exitProcess
         GenerateCompletion::class,
         ChatCommand::class,
         CheckSyntaxCommand::class,
+        DriverCommand::class,
     ]
 )
 class App {
@@ -125,6 +127,7 @@ fun main(args: Array<String>) {
             runCatching { ErrorReporter.report(ex, cmdParseResult) }
 
             // make errors red
+            println()
             cmd.colorScheme = CommandLine.Help.ColorScheme.Builder()
                 .errors(CommandLine.Help.Ansi.Style.fg_red)
                 .build()
@@ -133,7 +136,10 @@ fun main(args: Array<String>) {
                 cmd.colorScheme.errorText(ex.message.orEmpty())
             )
 
-            if (ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion) {
+            if (
+                ex !is CliError && ex !is MaestroException.UnsupportedJavaVersion
+                && ex !is MaestroException.MissingAppleTeamId && ex !is MaestroException.IOSDeviceDriverSetupException
+            ) {
                 cmd.err.println("\nThe stack trace was:")
                 cmd.err.println(ex.stackTraceToString())
             }

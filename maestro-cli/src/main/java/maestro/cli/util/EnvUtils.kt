@@ -131,7 +131,7 @@ object EnvUtils {
         }
     }
 
-    private fun getCLIVersion(): CliVersion? {
+    fun getCLIVersion(): CliVersion? {
         val props = try {
             Updates::class.java.classLoader.getResourceAsStream("version.properties").use {
                 Properties().apply { load(it) }

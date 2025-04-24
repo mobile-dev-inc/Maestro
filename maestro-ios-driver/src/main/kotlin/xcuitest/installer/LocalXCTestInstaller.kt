@@ -46,7 +46,11 @@ class LocalXCTestInstaller(
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
     private val tempDir = Files.createTempDirectory(deviceId)
-    private val iosBuildProductsExtractor = IOSBuildProductsExtractor(tempDir)
+    private val iosBuildProductsExtractor = IOSBuildProductsExtractor(
+        target = tempDir,
+        context = iOSDriverConfig.context,
+        deviceType = deviceType,
+    )
 
     private var xcTestProcess: Process? = null
 
@@ -234,6 +238,7 @@ class LocalXCTestInstaller(
     data class IOSDriverConfig(
         val prebuiltRunner: Boolean,
         val sourceDirectory: String,
+        val context: Context
     )
 
     companion object {

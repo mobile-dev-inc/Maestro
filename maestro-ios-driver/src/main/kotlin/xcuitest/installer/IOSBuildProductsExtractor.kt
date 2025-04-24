@@ -2,6 +2,7 @@ package xcuitest.installer
 
 import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
+import util.IOSDeviceType
 import java.io.File
 import java.io.FileNotFoundException
 import java.nio.file.FileSystemNotFoundException
@@ -14,7 +15,16 @@ import kotlin.io.path.isRegularFile
 
 data class BuildProducts(val xctestRunPath: File, val uiRunnerPath: File)
 
-class IOSBuildProductsExtractor(private val target: Path) {
+enum class Context {
+    CLI,
+    CLOUD
+}
+
+class IOSBuildProductsExtractor(
+    private val target: Path,
+    private val context: Context,
+    private val deviceType: IOSDeviceType
+) {
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(IOSBuildProductsExtractor::class.java)
@@ -34,8 +44,10 @@ class IOSBuildProductsExtractor(private val target: Path) {
         LOGGER.info("[Done] Writing maestro-driver-ios app")
 
         val targetFile = target.toFile()
-        val xctestRun = targetFile.walkTopDown().firstOrNull { it.extension == "xctestrun" } ?: throw FileNotFoundException("xctestrun config does not exist")
-        val uiRunner = targetFile.walkTopDown().firstOrNull { it.name == "maestro-driver-iosUITests-Runner.app" } ?: throw FileNotFoundException("ui test runner does not exist")
+        val xctestRun = targetFile.walkTopDown().firstOrNull { it.extension == "xctestrun" }
+            ?: throw FileNotFoundException("xctestrun config does not exist")
+        val uiRunner = targetFile.walkTopDown().firstOrNull { it.name == "maestro-driver-iosUITests-Runner.app" }
+            ?: throw FileNotFoundException("ui test runner does not exist")
 
         return BuildProducts(
             xctestRunPath = xctestRun,
@@ -44,7 +56,11 @@ class IOSBuildProductsExtractor(private val target: Path) {
     }
 
     private fun extractZipToApp(appFileName: String) {
-        val appZip = target.toFile().walk().firstOrNull { it.name == appFileName } ?: throw FileNotFoundException("$appFileName not found")
+        val appZip = target.toFile().walk().firstOrNull { it.name == appFileName && it.extension == "zip" }
+            ?: run {
+                LOGGER.info("zip extension not present in the target directory, skipping unzipping operation.")
+                return
+            }
 
         try {
             ArchiverFactory.createArchiver(appZip).apply {
@@ -56,15 +72,34 @@ class IOSBuildProductsExtractor(private val target: Path) {
     }
 
     private fun writeBuildProducts(sourceDirectory: String) {
-        val uri = LocalXCTestInstaller::class.java.classLoader.getResource(sourceDirectory)?.toURI() ?: throw IllegalArgumentException("Resource not found: $sourceDirectory")
+        val uri = when  {
+            deviceType == IOSDeviceType.SIMULATOR -> {
+                LocalXCTestInstaller::class.java.classLoader.getResource(sourceDirectory)?.toURI()
+                    ?: throw IllegalArgumentException("Resource not found: $sourceDirectory")
+            }
+            context == Context.CLI && deviceType == IOSDeviceType.REAL -> {
+                Paths.get(sourceDirectory).toUri()
+            }
+            else ->  {
+                LocalXCTestInstaller::class.java.classLoader.getResource(sourceDirectory)?.toURI()
+                    ?: throw IllegalArgumentException("Resource not found: $sourceDirectory")
+            }
+        }
 
         val sourcePath = if (uri.scheme == "jar") {
-            val fs = try {
-                FileSystems.getFileSystem(uri)
-            } catch (e: FileSystemNotFoundException) {
-                FileSystems.newFileSystem(uri, emptyMap<String, Any>())
+            when (deviceType) {
+                IOSDeviceType.REAL -> {
+                    Paths.get(uri)
+                }
+                IOSDeviceType.SIMULATOR -> {
+                    val fs = try {
+                        FileSystems.getFileSystem(uri)
+                    } catch (e: FileSystemNotFoundException) {
+                        FileSystems.newFileSystem(uri, emptyMap<String, Any>())
+                    }
+                    fs.getPath(sourceDirectory)
+                }
             }
-            fs.getPath(sourceDirectory)
         } else {
             Paths.get(uri)
         }

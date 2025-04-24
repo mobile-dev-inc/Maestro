@@ -25,10 +25,6 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
 
     class UnableToClearState(message: String) : MaestroException(message)
 
-    class UnableToPullState(message: String) : MaestroException(message)
-
-    class UnableToPushState(message: String) : MaestroException(message)
-
     class AppCrash(message: String): MaestroException(message)
 
     class DriverTimeout(message: String): MaestroException(message)
@@ -43,10 +39,6 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
         hierarchyRoot: TreeNode,
     ) : AssertionFailure(message, hierarchyRoot)
 
-    class UnableToTakeScreenshot(message: String) : MaestroException(message)
-
-    class AINotAvailable(message: String) : MaestroException(message)
-
     class CloudApiKeyNotAvailable(message: String) : MaestroException(message)
 
     class DestinationIsNotWritable(message: String) : MaestroException(message)
@@ -57,11 +49,13 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
         message: String,
     ) : MaestroException(message)
 
-    class DeprecatedCommand(message: String) : MaestroException(message)
-
     class NoRootAccess(message: String) : MaestroException(message)
 
     class UnsupportedJavaVersion(message: String) : MaestroException(message)
+
+    class MissingAppleTeamId(message: String): MaestroException(message)
+
+    class IOSDeviceDriverSetupException(message: String): MaestroException(message)
 }
 
 sealed class MaestroDriverStartupException(override val message: String): RuntimeException() {

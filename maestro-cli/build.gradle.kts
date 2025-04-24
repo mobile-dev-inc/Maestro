@@ -24,6 +24,15 @@ tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = "maestro.cli.AppKt"
     }
+    // Include the driver source directly
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**",
+        )
+    }
 }
 
 tasks.named<JavaExec>("run") {
@@ -74,6 +83,7 @@ dependencies {
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
 }
 
@@ -100,7 +110,20 @@ tasks.create("createProperties") {
     }
 }
 
+tasks.register<Copy>("createTestResources") {
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**"
+        )
+    }
+    into(layout.buildDirectory.dir("resources/test"))
+}
+
 tasks.named("classes") {
+    dependsOn("createTestResources")
     dependsOn("createProperties")
 }
 
