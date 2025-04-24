@@ -20,7 +20,7 @@ import java.nio.channels.Channels
 import java.nio.file.Files
 
 class SimctlIOSDevice(
-    override val deviceId: String,
+    val deviceId: String,
 ) : IOSDevice {
 
     companion object {

@@ -28,8 +28,6 @@ import java.util.UUID
 
 interface IOSDevice : AutoCloseable {
 
-    val deviceId: String?
-
     fun open()
 
     fun deviceInfo(): DeviceInfo

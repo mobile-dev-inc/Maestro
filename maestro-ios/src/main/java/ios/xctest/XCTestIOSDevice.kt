@@ -18,7 +18,6 @@ import java.util.UUID
 import javax.security.auth.callback.ConfirmationCallback.OK
 
 class XCTestIOSDevice(
-    override val deviceId: String?,
     private val client: XCTestDriverClient,
     private val getInstalledApps: () -> Set<String>,
 

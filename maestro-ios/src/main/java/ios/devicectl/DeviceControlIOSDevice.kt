@@ -11,7 +11,7 @@ import xcuitest.api.DeviceInfo
 import xcuitest.installer.LocalXCTestInstaller
 import java.io.InputStream
 
-class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
+class DeviceControlIOSDevice(val deviceId: String) : IOSDevice {
 
     companion object {
         private val logger = LoggerFactory.getLogger(DeviceControlIOSDevice::class.java)
