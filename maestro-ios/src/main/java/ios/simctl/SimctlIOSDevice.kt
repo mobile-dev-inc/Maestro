@@ -188,4 +188,8 @@ class SimctlIOSDevice(
         logger.info("[Done] Stop and uninstall the runner app")
     }
 
+    override fun rotateDevice(direction: String) {
+        LocalSimulatorUtils.rotateDevice(direction)
+    }
+
 }

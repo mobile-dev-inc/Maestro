@@ -677,4 +677,16 @@ object LocalSimulatorUtils {
         screenRecording.process.waitFor()
         return screenRecording.file
     }
+
+    fun rotateDevice(direction: String) {
+        runCommand(
+            listOf(
+                "osascript",
+                "-e",
+                "tell application \"Simulator\" to activate",
+                "-e",
+                "tell application \"System Events\" to click menu item \"Rotate ${direction}\" of menu 1 of menu bar item \"Device\" of menu bar 1 of application process \"Simulator\""
+            )
+        )
+    }
 }

@@ -499,6 +499,14 @@ class IOSDriver(
         LOGGER.warn("Airplane mode is not available on iOS simulators")
     }
 
+    override fun rotateDevice(direction: String) {
+        metrics.measured("operation", mapOf("command" to "rotateDevice", "appId" to appId)) {
+            runDeviceCall("rotateDevice") {
+                iosDevice.rotateDevice(direction)
+            }
+        }
+    }
+
     private fun addMediaToDevice(mediaFile: File) {
         metrics.measured("operation", mapOf("command" to "addMediaToDevice")) {
             val namedSource = NamedSource(

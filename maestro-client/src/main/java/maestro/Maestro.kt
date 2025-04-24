@@ -615,6 +615,10 @@ class Maestro(
         driver.setAndroidChromeDevToolsEnabled(enabled)
     }
 
+    fun rotateDevice(direction: String) {
+        driver.rotateDevice(direction)
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

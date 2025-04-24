@@ -841,6 +841,11 @@ class AndroidDriver(
         }
     }
 
+    override fun rotateDevice(direction: String) {
+        // This command is only needed to rotate an iOS simulator and has no effect here
+        return
+    }
+
     override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
         this.chromeDevToolsEnabled = enabled
     }

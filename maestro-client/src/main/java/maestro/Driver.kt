@@ -103,4 +103,6 @@ interface Driver {
     fun setAirplaneMode(enabled: Boolean)
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
+
+    fun rotateDevice(direction: String)
 }

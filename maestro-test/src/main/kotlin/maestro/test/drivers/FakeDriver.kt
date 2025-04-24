@@ -390,6 +390,10 @@ class FakeDriver : Driver {
         this.airplaneMode = enabled
     }
 
+    override fun rotateDevice(direction: String) {
+        events.add(Event.RotateDevice(direction))
+    }
+
     sealed class Event {
 
         data class Tap(
@@ -482,6 +486,10 @@ class FakeDriver : Driver {
         object StartRecording : Event()
 
         object StopRecording : Event()
+
+        data class RotateDevice(
+            val direction: String,
+        ) : Event()
     }
 
     interface UserInteraction
