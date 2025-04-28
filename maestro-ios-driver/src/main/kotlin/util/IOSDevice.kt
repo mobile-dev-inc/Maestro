@@ -90,7 +90,7 @@ data class DeviceCtlResponse(
     data class HardwareProperties(
         val cpuType: CpuType,
         val deviceType: String,
-        val ecid: Long,
+        val ecid: String,
         val hardwareModel: String,
         val internalStorageCapacity: Long,
         val isProductionFused: Boolean,
