@@ -92,15 +92,15 @@ data class DeviceCtlResponse(
         val deviceType: String,
         val ecid: String,
         val hardwareModel: String,
-        val internalStorageCapacity: Long,
+        val internalStorageCapacity: String?,
         val isProductionFused: Boolean,
         val marketingName: String,
         val platform: String,
         val productType: String,
         val reality: String,
         val serialNumber: String,
-        val supportedCPUTypes: List<CpuType>,
-        val supportedDeviceFamilies: List<Int>,
+        val supportedCPUTypes: List<CpuType>?,
+        val supportedDeviceFamilies: List<Int>?,
         val thinningProductType: String,
         val udid: String
     )
