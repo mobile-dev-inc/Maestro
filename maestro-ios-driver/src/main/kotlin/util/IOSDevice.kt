@@ -68,9 +68,9 @@ data class DeviceCtlResponse(
         val lastConnectionDate: String,
         val pairingState: String,
         val potentialHostnames: List<String>,
-        val transportType: String,
+        val transportType: String?,
         val tunnelState: String,
-        val tunnelTransportProtocol: String
+        val tunnelTransportProtocol: String?
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
