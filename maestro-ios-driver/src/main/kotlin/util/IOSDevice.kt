@@ -75,8 +75,8 @@ data class DeviceCtlResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class DeviceProperties(
-        val bootedFromSnapshot: Boolean,
-        val bootedSnapshotName: String,
+        val bootedFromSnapshot: Boolean?,
+        val bootedSnapshotName: String?,
         val ddiServicesAvailable: Boolean,
         val developerModeStatus: String,
         val hasInternalOSBuild: Boolean,
