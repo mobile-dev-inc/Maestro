@@ -20,7 +20,7 @@ import java.nio.channels.Channels
 import java.nio.file.Files
 
 class SimctlIOSDevice(
-    override val deviceId: String,
+    val deviceId: String,
 ) : IOSDevice {
 
     companion object {
@@ -97,10 +97,6 @@ class SimctlIOSDevice(
 
     override fun stop(id: String) {
         LocalSimulatorUtils.terminate(deviceId, bundleId = id)
-    }
-
-    override fun isKeyboardVisible(): Boolean {
-        error("Not Supported")
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {

@@ -413,20 +413,6 @@ class AndroidDriver(
         }
     }
 
-    override fun isKeyboardVisible(): Boolean {
-        return metrics.measured("operation", mapOf("command" to "isKeyboardVisible")) {
-            val root = contentDescriptor().let {
-                val deviceInfo = deviceInfo()
-                val filtered = it.filterOutOfBounds(
-                    width = deviceInfo.widthGrid,
-                    height = deviceInfo.heightGrid
-                )
-                filtered ?: it
-            }
-            "com.google.android.inputmethod.latin:id" in jacksonObjectMapper().writeValueAsString(root)
-        }
-    }
-
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
     }

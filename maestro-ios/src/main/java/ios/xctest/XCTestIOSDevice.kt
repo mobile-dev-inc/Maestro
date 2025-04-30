@@ -1,7 +1,6 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.toResultOr
 import hierarchy.ViewHierarchy
 import ios.IOSDevice
 import ios.IOSDeviceErrors
@@ -14,15 +13,9 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.util.UUID
-import javax.security.auth.callback.ConfirmationCallback.OK
 
-class XCTestIOSDevice(
-    override val deviceId: String?,
-    private val client: XCTestDriverClient,
-    private val getInstalledApps: () -> Set<String>,
+class XCTestIOSDevice(private val client: XCTestDriverClient) : IOSDevice {
 
-    ) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
@@ -40,8 +33,7 @@ class XCTestIOSDevice(
 
     override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         return execute {
-            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
-            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
+            val viewHierarchy = client.viewHierarchy(excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
@@ -87,13 +79,12 @@ class XCTestIOSDevice(
         duration: Double,
     ) {
         execute {
-            client.swipe(
-                appId = activeAppId(),
+            client.swipeV2(
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
                 endY = yEnd,
-                duration = duration
+                duration = duration,
             )
         }
     }
@@ -106,9 +97,7 @@ class XCTestIOSDevice(
         duration: Double,
     ) {
         execute {
-            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             client.swipeV2(
-                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
@@ -120,10 +109,8 @@ class XCTestIOSDevice(
 
     override fun input(text: String) {
        execute {
-           // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
            client.inputText(
                text = text,
-               appIds = emptySet(),
            )
        }
     }
@@ -157,11 +144,6 @@ class XCTestIOSDevice(
         execute {
             client.terminateApp(appId = id)
         }
-    }
-
-    override fun isKeyboardVisible(): Boolean {
-        val appIds = getInstalledApps()
-        return execute { client.keyboardInfo(appIds).isKeyboardVisible }
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
@@ -217,17 +199,7 @@ class XCTestIOSDevice(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
-        execute { client.eraseText(charactersToErase, appIds = emptySet()) }
-    }
-
-    private fun activeAppId(): String {
-        return execute {
-            val appIds = getInstalledApps()
-            logger.info("installed apps: $appIds")
-
-            client.runningAppId(appIds).runningAppBundleId
-        }
+        execute { client.eraseText(charactersToErase) }
     }
 
     private fun <T> execute(call: () -> T): T {

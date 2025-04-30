@@ -36,9 +36,9 @@ import maestro.utils.CliInsights
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
+import maestro.utils.MetricsProvider
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
-import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
 import xcuitest.installer.Context
@@ -382,11 +382,7 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
         )
 
-        val xcTestDevice = XCTestIOSDevice(
-            deviceId = deviceId,
-            client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
-        )
+        val xcTestDevice = XCTestIOSDevice(client = xcTestDriverClient)
 
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
@@ -403,6 +399,11 @@ object MaestroSessionManager {
             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
+        val metricsProvider = MetricsProvider.getInstance()
+            .withPrefix("maestro.driver")
+            .withTags(mapOf("platform" to "ios", "deviceId" to deviceId)
+                .filterValues { true }.mapValues { it.value })
+
         val iosDriver = IOSDriver(
             LocalIOSDevice(
                 deviceId = deviceId,
@@ -410,7 +411,8 @@ object MaestroSessionManager {
                 deviceController = deviceController,
                 insights = CliInsights
             ),
-            insights = CliInsights
+            insights = CliInsights,
+            metrics = metricsProvider
         )
 
         return Maestro.ios(

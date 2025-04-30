@@ -50,10 +50,10 @@ class XCTestDriverClient(
 
     private val mapper = jacksonObjectMapper()
 
-    fun viewHierarchy(installedApps: Set<String>, excludeKeyboardElements: Boolean): ViewHierarchy {
+    fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         val responseString = executeJsonRequest(
             "viewHierarchy",
-            ViewHierarchyRequest(installedApps, excludeKeyboardElements)
+            ViewHierarchyRequest(excludeKeyboardElements)
         )
         return mapper.readValue(responseString, ViewHierarchy::class.java)
     }
@@ -74,50 +74,12 @@ class XCTestDriverClient(
         executeJsonRequest("launchApp", LaunchAppRequest(appId))
     }
 
-    fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
-        val response = executeJsonRequest(
-            "keyboard",
-            KeyboardInfoRequest(installedApps)
-        )
-        return mapper.readValue(response, KeyboardInfoResponse::class.java)
-    }
-
     fun isScreenStatic(): IsScreenStaticResponse {
         val responseString = executeJsonRequest("isScreenStatic")
         return mapper.readValue(responseString, IsScreenStaticResponse::class.java)
     }
 
-    fun runningAppId(appIds: Set<String>): GetRunningAppIdResponse {
-        val response = executeJsonRequest(
-            "runningApp",
-            GetRunningAppRequest(appIds)
-        )
-        return mapper.readValue(response, GetRunningAppIdResponse::class.java)
-    }
-
-    @Deprecated("swipeV2 is the latest one getting used everywhere because it requires one http call")
-    fun swipe(
-        appId: String,
-        startX: Double,
-        startY: Double,
-        endX: Double,
-        endY: Double,
-        duration: Double,
-    ) {
-        executeJsonRequest("swipe",
-            SwipeRequest(
-                appId = appId,
-                startX = startX,
-                startY = startY,
-                endX = endX,
-                endY = endY,
-                duration = duration
-            )
-        )
-    }
-
     fun swipeV2(
-        installedApps: Set<String>,
         startX: Double,
         startY: Double,
         endX: Double,
@@ -131,16 +93,14 @@ class XCTestDriverClient(
                 endX = endX,
                 endY = endY,
                 duration = duration,
-                appIds = installedApps
             )
         )
     }
 
     fun inputText(
         text: String,
-        appIds: Set<String>,
     ) {
-        executeJsonRequest("inputText", InputTextRequest(text, appIds))
+        executeJsonRequest("inputText", InputTextRequest(text))
     }
 
     fun tap(
@@ -163,8 +123,8 @@ class XCTestDriverClient(
         executeJsonRequest("pressButton", PressButtonRequest(name))
     }
 
-    fun eraseText(charactersToErase: Int, appIds: Set<String>) {
-        executeJsonRequest("eraseText", EraseTextRequest(charactersToErase, appIds))
+    fun eraseText(charactersToErase: Int) {
+        executeJsonRequest("eraseText", EraseTextRequest(charactersToErase))
     }
 
     fun deviceInfo(httpUrl: HttpUrl = client.xctestAPIBuilder("deviceInfo").build()): DeviceInfo {

@@ -28,8 +28,6 @@ import java.util.UUID
 
 interface IOSDevice : AutoCloseable {
 
-    val deviceId: String?
-
     fun open()
 
     fun deviceInfo(): DeviceInfo
@@ -97,8 +95,6 @@ interface IOSDevice : AutoCloseable {
      * @param id - bundle id of the app to terminate
      */
     fun stop(id: String)
-
-    fun isKeyboardVisible(): Boolean
 
     /**
      * Opens a link

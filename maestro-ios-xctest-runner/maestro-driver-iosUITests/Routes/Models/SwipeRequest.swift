@@ -10,6 +10,7 @@ struct SwipeRequest: Decodable {
     let start: CGPoint
     let end: CGPoint
     let duration: TimeInterval
+    @available(*, deprecated, message: "This field is no longer used and will be removed in a future version")
     let appIds: [String]?
 
     init(appId: String?, start: CGPoint, end: CGPoint, duration: Double, appIds: [String]?) {

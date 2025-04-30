@@ -41,10 +41,8 @@ import kotlin.collections.set
 class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
-    private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    private val metrics: Metrics = MetricsProvider.getInstance(),
  ) : Driver {
-
-    private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
 
     private var appId: String? = null
     private var proxySet = false
@@ -216,12 +214,6 @@ class IOSDriver(
             end = Point(0.5.asPercentOf(width), 0.1.asPercentOf(height)),
             durationMs = 333,
         )
-    }
-
-    override fun isKeyboardVisible(): Boolean {
-        return metrics.measured("operation", mapOf("command" to "isKeyboardVisible")) {
-            runDeviceCall("isKeyboardVisible") { iosDevice.isKeyboardVisible() }
-        }
     }
 
     override fun swipe(

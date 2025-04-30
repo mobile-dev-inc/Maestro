@@ -15,7 +15,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class LocalIOSDevice(
-    override val deviceId: String?,
+    val deviceId: String,
     private val xcTestDevice: XCTestIOSDevice,
     private val deviceController: IOSDevice,
     private val insights: Insights = NoopInsights
@@ -109,10 +109,6 @@ class LocalIOSDevice(
 
     override fun stop(id: String) {
         xcTestDevice.stop(id)
-    }
-
-    override fun isKeyboardVisible(): Boolean {
-        return xcTestDevice.isKeyboardVisible()
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
