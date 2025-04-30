@@ -187,7 +187,9 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
         val body = response.body?.string() ?: throw IllegalStateException("No body found")
 
         return try {
-            json.readValue<List<WebViewResponse>>(body).map { parsed ->
+            json.readValue<List<WebViewResponse>>(body).mapNotNull { parsed ->
+                // Description is empty for eg. service workers
+                if (parsed.description.isBlank()) return@mapNotNull null
                 val description = json.readValue(parsed.description, WebViewDescription::class.java)
                 WebViewInfo(
                     socketName = socketName,
