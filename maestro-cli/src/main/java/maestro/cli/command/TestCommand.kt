@@ -347,6 +347,7 @@ class TestCommand : Callable<Int> {
             platform = parent?.platform,
             isHeadless = headless,
             reinstallDriver = reinstallDriver,
+            prebuiltIOSRunner = true,
         ) { session ->
             val maestro = session.maestro
             val device = session.device
