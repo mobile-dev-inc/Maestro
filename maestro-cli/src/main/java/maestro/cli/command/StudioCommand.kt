@@ -69,7 +69,8 @@ class StudioCommand : Callable<Int> {
             teamId = appleTeamId,
             deviceId = parent?.deviceId,
             platform = parent?.platform,
-            isStudio = true
+            isStudio = true,
+            prebuiltIOSRunner = false,
         ) { session ->
             session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
 
