@@ -68,15 +68,15 @@ data class DeviceCtlResponse(
         val lastConnectionDate: String,
         val pairingState: String,
         val potentialHostnames: List<String>,
-        val transportType: String,
+        val transportType: String?,
         val tunnelState: String,
-        val tunnelTransportProtocol: String
+        val tunnelTransportProtocol: String?
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class DeviceProperties(
-        val bootedFromSnapshot: Boolean,
-        val bootedSnapshotName: String,
+        val bootedFromSnapshot: Boolean?,
+        val bootedSnapshotName: String?,
         val ddiServicesAvailable: Boolean,
         val developerModeStatus: String,
         val hasInternalOSBuild: Boolean,
@@ -90,17 +90,17 @@ data class DeviceCtlResponse(
     data class HardwareProperties(
         val cpuType: CpuType,
         val deviceType: String,
-        val ecid: Long,
+        val ecid: String,
         val hardwareModel: String,
-        val internalStorageCapacity: Long,
+        val internalStorageCapacity: String?,
         val isProductionFused: Boolean,
         val marketingName: String,
         val platform: String,
         val productType: String,
         val reality: String,
         val serialNumber: String,
-        val supportedCPUTypes: List<CpuType>,
-        val supportedDeviceFamilies: List<Int>,
+        val supportedCPUTypes: List<CpuType>?,
+        val supportedDeviceFamilies: List<Int>?,
         val thinningProductType: String,
         val udid: String
     )
