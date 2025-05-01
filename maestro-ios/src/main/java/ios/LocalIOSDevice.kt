@@ -1,12 +1,12 @@
 package ios
 
 import com.github.michaelbull.result.*
+import device.IOSDevice
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
-import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import okio.Sink
 import java.io.InputStream
-import java.util.UUID
 import hierarchy.ViewHierarchy
 import maestro.utils.Insight
 import maestro.utils.Insights
@@ -136,7 +136,6 @@ class LocalIOSDevice(
     }
 
     override fun close() {
-        deviceController.close()
         xcTestDevice.close()
     }
 

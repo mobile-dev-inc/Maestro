@@ -1,11 +1,10 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.toResultOr
+import device.IOSDevice
 import hierarchy.ViewHierarchy
-import ios.IOSDevice
 import ios.IOSDeviceErrors
-import ios.IOSScreenRecording
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
 import maestro.utils.DepthTracker
 import maestro.utils.network.XCUITestServerError
@@ -14,8 +13,6 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.util.UUID
-import javax.security.auth.callback.ConfirmationCallback.OK
 
 class XCTestIOSDevice(
     override val deviceId: String?,

@@ -23,7 +23,7 @@ import dadb.Dadb
 import dadb.adbserver.AdbServer
 import ios.LocalIOSDevice
 import ios.devicectl.DeviceControlIOSDevice
-import ios.simctl.SimctlIOSDevice
+import device.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.device.Device
@@ -367,27 +367,6 @@ object MaestroSessionManager {
             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
-        val xcTestInstaller = LocalXCTestInstaller(
-            deviceId = deviceId,
-            host = defaultXctestHost,
-            defaultPort = driverHostPort ?: defaultXcTestPort,
-            reinstallDriver = reinstallDriver,
-            deviceType = iOSDeviceType,
-            iOSDriverConfig = iOSDriverConfig,
-        )
-
-        val xcTestDriverClient = XCTestDriverClient(
-            installer = xcTestInstaller,
-            client = XCTestClient(defaultXctestHost, driverHostPort ?: defaultXcTestPort),
-            reinstallDriver = reinstallDriver,
-        )
-
-        val xcTestDevice = XCTestIOSDevice(
-            deviceId = deviceId,
-            client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
-        )
-
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
                 val device = util.LocalIOSDevice.listDeviceViaDeviceCtl(deviceId)
@@ -402,6 +381,28 @@ object MaestroSessionManager {
             }
             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
+
+        val xcTestInstaller = LocalXCTestInstaller(
+            deviceId = deviceId,
+            host = defaultXctestHost,
+            defaultPort = driverHostPort ?: defaultXcTestPort,
+            reinstallDriver = reinstallDriver,
+            deviceType = iOSDeviceType,
+            iOSDriverConfig = iOSDriverConfig,
+            deviceController = deviceController
+        )
+
+        val xcTestDriverClient = XCTestDriverClient(
+            installer = xcTestInstaller,
+            client = XCTestClient(defaultXctestHost, driverHostPort ?: defaultXcTestPort),
+            reinstallDriver = reinstallDriver,
+        )
+
+        val xcTestDevice = XCTestIOSDevice(
+            deviceId = deviceId,
+            client = xcTestDriverClient,
+            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
+        )
 
         val iosDriver = IOSDriver(
             LocalIOSDevice(
