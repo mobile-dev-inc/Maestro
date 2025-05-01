@@ -23,7 +23,7 @@ import dadb.Dadb
 import dadb.adbserver.AdbServer
 import ios.LocalIOSDevice
 import ios.devicectl.DeviceControlIOSDevice
-import ios.simctl.SimctlIOSDevice
+import device.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.device.Device
