@@ -1,9 +1,9 @@
 package ios.devicectl
 
 import com.github.michaelbull.result.Result
+import device.IOSDevice
+import device.IOSScreenRecording
 import hierarchy.ViewHierarchy
-import ios.IOSDevice
-import ios.IOSScreenRecording
 import okio.Sink
 import org.slf4j.LoggerFactory
 import util.LocalIOSDevice

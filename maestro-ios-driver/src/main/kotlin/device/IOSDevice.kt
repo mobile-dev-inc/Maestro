@@ -17,14 +17,13 @@
  *
  */
 
-package ios
+package device
 
 import com.github.michaelbull.result.Result
 import hierarchy.ViewHierarchy
 import xcuitest.api.DeviceInfo
 import okio.Sink
 import java.io.InputStream
-import java.util.UUID
 
 interface IOSDevice : AutoCloseable {
 

@@ -3,9 +3,9 @@ package ios.simctl
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.runCatching
+import device.IOSDevice
 import hierarchy.ViewHierarchy
-import ios.IOSDevice
-import ios.IOSScreenRecording
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
 import okio.Sink
 import okio.buffer
