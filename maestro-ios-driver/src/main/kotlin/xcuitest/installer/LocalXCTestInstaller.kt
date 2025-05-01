@@ -1,5 +1,6 @@
 package xcuitest.installer
 
+import device.IOSDevice
 import maestro.utils.HttpClient
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -33,6 +34,7 @@ class LocalXCTestInstaller(
     ),
     val reinstallDriver: Boolean = true,
     private val iOSDriverConfig: IOSDriverConfig,
+    private val deviceController: IOSDevice,
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -231,6 +233,7 @@ class LocalXCTestInstaller(
         tempDir.deleteRecursively()
         if(reinstallDriver) {
             uninstall()
+            deviceController.close()
             logger.info("[Done] Cleaning up the ui test runner files")
         }
     }
