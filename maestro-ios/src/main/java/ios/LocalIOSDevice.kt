@@ -136,7 +136,6 @@ class LocalIOSDevice(
     }
 
     override fun close() {
-        deviceController.close()
         xcTestDevice.close()
     }
 
