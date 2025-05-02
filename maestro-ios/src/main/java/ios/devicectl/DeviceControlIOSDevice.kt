@@ -13,6 +13,8 @@ import java.io.InputStream
 
 class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
 
+    private val localIOSDevice by lazy { LocalIOSDevice() }
+
     companion object {
         private val logger = LoggerFactory.getLogger(DeviceControlIOSDevice::class.java)
     }
@@ -50,7 +52,7 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun uninstall(id: String) {
-        LocalIOSDevice.uninstall(deviceId, id)
+        localIOSDevice.uninstall(deviceId, id)
     }
 
     override fun clearAppState(id: String) {

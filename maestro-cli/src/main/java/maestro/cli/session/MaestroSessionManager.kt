@@ -368,7 +368,7 @@ object MaestroSessionManager {
 
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
-                val device = util.LocalIOSDevice.listDeviceViaDeviceCtl(deviceId)
+                val device = util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
                 val deviceCtlDevice = DeviceControlIOSDevice(deviceId = device.identifier)
                 deviceCtlDevice
             }
