@@ -14,6 +14,7 @@ object PickDeviceInteractor {
         deviceId: String? = null,
         driverHostPort: Int? = null,
         platform: Platform? = null,
+        deviceIndex: Int? = null,
     ): Device.Connected {
         if (deviceId != null) {
             return DeviceService.listConnectedDevices()
@@ -22,7 +23,7 @@ object PickDeviceInteractor {
                 } ?: throw CliError("Device with id $deviceId is not connected")
         }
 
-        return pickDeviceInternal(platform)
+        return pickDeviceInternal(platform, deviceIndex)
             .let { pickedDevice ->
                 var result: Device = pickedDevice
 
@@ -44,11 +45,19 @@ object PickDeviceInteractor {
             }
     }
 
-    private fun pickDeviceInternal(platform: Platform?): Device {
+    private fun pickDeviceInternal(platform: Platform?, selectedIndex: Int? = null): Device {
         val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platform)
 
-        if (connectedDevices.size == 1) {
-            val device = connectedDevices[0]
+        val selected = if(selectedIndex != null) {
+            selectedIndex
+        } else if (connectedDevices.size == 1) {
+            0
+        } else {
+            null
+        }
+
+        if (selected != null) {
+            val device = connectedDevices[selected]
 
             PickDeviceView.showRunOnDevice(device)
 
