@@ -81,6 +81,13 @@ class PrintHierarchyCommand : Runnable {
     )
     private var compact: Boolean = false
 
+    @CommandLine.Option(
+        names = ["--device-index"],
+        description = ["The index of the device to run the test on"],
+        hidden = true
+    )
+    private var deviceIndex: Int? = null
+
     override fun run() {
         TestDebugReporter.install(
             debugOutputPathAsString = null,
@@ -96,6 +103,7 @@ class PrintHierarchyCommand : Runnable {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
             reinstallDriver = reinstallDriver,
+            deviceIndex = deviceIndex
         ) { session ->
             session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
             val callback: (Insight) -> Unit = {
