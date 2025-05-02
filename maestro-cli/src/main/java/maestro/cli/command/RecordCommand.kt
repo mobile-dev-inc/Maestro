@@ -118,7 +118,6 @@ class RecordCommand : Callable<Int> {
             deviceId = deviceId,
             platform = parent?.platform,
             teamId = appleTeamId,
-            prebuiltIOSRunner = true,
         ) { session ->
             val maestro = session.maestro
             val device = session.device

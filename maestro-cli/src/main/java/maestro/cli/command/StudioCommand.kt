@@ -70,7 +70,6 @@ class StudioCommand : Callable<Int> {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
             isStudio = true,
-            prebuiltIOSRunner = false,
         ) { session ->
             session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
 

@@ -70,7 +70,6 @@ object MaestroSessionManager {
         isStudio: Boolean = false,
         isHeadless: Boolean = isStudio,
         reinstallDriver: Boolean = true,
-        prebuiltIOSRunner: Boolean,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -111,7 +110,7 @@ object MaestroSessionManager {
             isHeadless = isHeadless,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
-            prebuiltIOSRunner = prebuiltIOSRunner
+            prebuiltIOSRunner = false
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
