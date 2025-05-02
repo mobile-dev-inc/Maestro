@@ -70,7 +70,7 @@ class XCTestDriverClient(
     fun terminateApp(appId: String) {
         executeJsonRequest("terminateApp", TerminateAppRequest(appId))
     }
-
+    
     fun launchApp(appId: String, launchArguments: Map<String, Any>, maestroSessionId: UUID?,) {
         executeJsonRequest("launchApp", LaunchAppRequest(appId, launchArguments, maestroSessionId))
     }

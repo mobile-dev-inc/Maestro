@@ -35,6 +35,8 @@ import maestro.ai.Prediction
 import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
 import maestro.ai.openai.OpenAI
+import maestro.ai.CloudAIPredictionEngine
+import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
@@ -96,6 +98,8 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
+    private val apiKey: String? = null,
+    private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -214,13 +218,16 @@ class Orchestra(
                         else throw e
                     }
                 } catch (ignored: CommandWarned) {
+                    logger.info("[Command execution] CommandWarned: ${ignored.message}")
                     // Swallow exception, but add a warning as an insight
                     insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
                     onCommandWarned(index, command)
                 } catch (ignored: CommandSkipped) {
+                    logger.info("[Command execution] CommandSkipped: ${ignored.message}")
                     // Swallow exception
                     onCommandSkipped(index, command)
                 } catch (e: Throwable) {
+                    logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
                         ErrorResolution.FAIL -> return false
@@ -255,6 +262,7 @@ class Orchestra(
     }
 
     private fun initAI(): AI? {
+        logger.info("[Orchestra] Initializing AI")
         val apiKey = System.getenv(AI_KEY_ENV_VAR) ?: return null
         val modelName: String? = System.getenv(AI.AI_MODEL_ENV_VAR)
 
@@ -291,9 +299,9 @@ class Orchestra(
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
-            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command)
-            is AssertWithAICommand -> assertWithAICommand(command)
-            is ExtractTextWithAICommand -> extractTextWithAICommand(command)
+            is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
+            is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
+            is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -369,18 +377,17 @@ class Orchestra(
         return false
     }
 
-    private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand): Boolean = runBlocking {
-        // TODO(bartekpacia): make all of Orchestra suspending
-        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
-        if (apiKey.isNullOrEmpty()) {
+    private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
+        if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
+
+        val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
-        val defects = Prediction.findDefects(
-            apiKey = apiKey,
+        val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
         )
 
@@ -388,10 +395,14 @@ class Orchestra(
             onCommandGeneratedOutput(command, defects, imageData)
 
             val word = if (defects.size == 1) "defect" else "defects"
+            val reasoning = "Found ${defects.size} possible $word:\n${defects.joinToString("\n") { "- ${it.reasoning}" }}"
+            
+            updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
+            
+
             throw MaestroException.AssertionFailure(
                 message = """
-                    |Found ${defects.size} possible $word:
-                    ${defects.joinToString("\n") { "| - ${it.reasoning}" }}
+                    |$reasoning
                     |
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
@@ -401,28 +412,29 @@ class Orchestra(
         false
     }
 
-    private fun assertWithAICommand(command: AssertWithAICommand): Boolean = runBlocking {
-        // TODO(bartekpacia): make all of Orchestra suspending
-        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
-        if (apiKey.isNullOrEmpty()) {
+    private fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
+        if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
+        val metadata = getMetadata(maestroCommand)
+
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-
-        val defect = Prediction.performAssertion(
-            apiKey = apiKey,
-            assertion = command.assertion,
+        val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
+            assertion = command.assertion,
         )
 
         if (defect != null) {
             onCommandGeneratedOutput(command, listOf(defect), imageData)
+            
+            val reasoning = "Assertion \"${command.assertion}\" failed:\n${defect.reasoning}"
+            updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
+
             throw MaestroException.AssertionFailure(
                 message = """
-                    |Assertion "${command.assertion}" is false.
-                    |Reasoning: ${defect.reasoning}
+                    |$reasoning
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
             )
@@ -431,20 +443,23 @@ class Orchestra(
         false
     }
 
-    private fun extractTextWithAICommand(command: ExtractTextWithAICommand): Boolean = runBlocking {
-        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
-        if (apiKey.isNullOrEmpty()) {
+    private fun extractTextWithAICommand(command: ExtractTextWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
+        if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
+        val metadata = getMetadata(maestroCommand)
+
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-        val text = Prediction.extractText(
-            apiKey = apiKey,
-            query = command.query,
+        val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
+            query = command.query,
         )
 
+        updateMetadata(maestroCommand, metadata.copy(
+            aiReasoning = "Query: \"${command.query}\"\nExtracted text: $text"
+        ))
         jsEngine.putEnv(command.outputVariable, text)
 
         false
@@ -766,11 +781,13 @@ class Orchestra(
                         }
                     } catch (ignored: CommandWarned) {
                         // Swallow exception, but add a warning as an insight
+                        logger.info("[Command execution subflow] CommandWarned: ${ignored.message}")
                         insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
                         onCommandWarned(index, command)
                         false
                     } catch (ignored: CommandSkipped) {
                         // Swallow exception
+                        logger.info("[Command execution subflow] CommandSkipped: ${ignored.message}")
                         onCommandSkipped(index, command)
                         false
                     } catch (e: Throwable) {
@@ -1278,6 +1295,7 @@ class Orchestra(
         val evaluatedCommand: MaestroCommand? = null,
         val logMessages: List<String> = emptyList(),
         val insight: Insight = Insight("", Insight.Level.NONE),
+        val aiReasoning: String? = null
     )
 
     enum class ErrorResolution {

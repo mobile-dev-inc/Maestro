@@ -11,6 +11,8 @@
 		32097965297092A800340282 /* InputTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32097964297092A800340282 /* InputTextRequest.swift */; };
 		32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
 		32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF92966DC8300FB69BD /* SwipeRequest.swift */; };
+		32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */; };
+		32A9C73E2D7A631A00545435 /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */; };
 		32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB252980449200A1A0A0 /* TouchRequest.swift */; };
 		32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */; };
 		52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52047F772A7A638E00BF982D /* StatusHandler.swift */; };
@@ -108,6 +110,8 @@
 		32097964297092A800340282 /* InputTextRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRequest.swift; sourceTree = "<group>"; };
 		32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandler.swift; sourceTree = "<group>"; };
 		32762AF92966DC8300FB69BD /* SwipeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRequest.swift; sourceTree = "<group>"; };
+		32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandler.swift; sourceTree = "<group>"; };
+		32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
 		32ECCB252980449200A1A0A0 /* TouchRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRequest.swift; sourceTree = "<group>"; };
 		32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRouteHandler.swift; sourceTree = "<group>"; };
 		52047F772A7A638E00BF982D /* StatusHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusHandler.swift; sourceTree = "<group>"; };
@@ -526,6 +530,7 @@
 			children = (
 				F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */,
 				521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */,
+				32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */,
 				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
 				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
 				32097964297092A800340282 /* InputTextRequest.swift */,
@@ -562,7 +567,7 @@
 			isa = PBXGroup;
 			children = (
 				521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */,
-				F4C52E452D9E612B008E0A1A /* LaunchAppHandler.swift */,
+				32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */,
 				610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */,
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
@@ -766,6 +771,8 @@
 				61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */,
 				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
 				52F33A942AE6823100692902 /* StatusResponse.swift in Sources */,
+				32A9C73E2D7A631A00545435 /* LaunchAppRequest.swift in Sources */,
+				32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */,
 				610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */,
 				F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */,
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,

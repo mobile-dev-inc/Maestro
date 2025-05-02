@@ -2,10 +2,10 @@ package ios.xctest
 
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.runCatching
+import device.IOSDevice
 import hierarchy.ViewHierarchy
-import ios.IOSDevice
 import ios.IOSDeviceErrors
-import ios.IOSScreenRecording
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
 import maestro.utils.DepthTracker
 import maestro.utils.network.XCUITestServerError
@@ -14,7 +14,6 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.util.UUID
 
 class XCTestIOSDevice(
     override val deviceId: String?,
@@ -131,7 +130,7 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
+    override fun uninstall(id: String) {
         error("Not supported")
     }
 
