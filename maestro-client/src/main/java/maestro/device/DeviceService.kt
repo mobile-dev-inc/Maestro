@@ -11,6 +11,7 @@ import maestro.utils.MaestroTimer
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
+import util.DeviceCtlResponse
 import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -261,7 +262,9 @@ object DeviceService {
     private fun listIOSConnectedDevices(): List<Device.Connected> {
         val connectedIphoneList = util.LocalIOSDevice().listDeviceViaDeviceCtl()
 
-        return connectedIphoneList.map {
+        return connectedIphoneList.filter {
+            it.connectionProperties.tunnelState == DeviceCtlResponse.ConnectionProperties.CONNECTED
+        }.map {
             val description = "${it.deviceProperties.name} - ${it.deviceProperties.osVersionNumber} - ${it.identifier}"
 
             Device.Connected(

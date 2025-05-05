@@ -20,8 +20,18 @@ data class DeviceCtlResponse(
     data class Device(
         val identifier: String,
         val deviceProperties: DeviceProperties,
-        val hardwareProperties: HardwareProperties
+        val hardwareProperties: HardwareProperties,
+        val connectionProperties: ConnectionProperties,
     )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class ConnectionProperties(
+        val tunnelState: String,
+    ) {
+        companion object {
+            const val CONNECTED  = "connected"
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class DeviceProperties(
