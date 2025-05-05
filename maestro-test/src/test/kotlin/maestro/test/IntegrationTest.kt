@@ -3222,7 +3222,7 @@ class IntegrationTest {
     @Test
     fun `Case 120 - Set orientation`() {
         // Given
-        val commands = readCommands("122_set_orientation")
+        val commands = readCommands("120_set_orientation")
 
         val driver = driver {
         }
