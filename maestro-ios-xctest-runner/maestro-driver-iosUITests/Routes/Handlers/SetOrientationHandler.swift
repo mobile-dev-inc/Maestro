@@ -11,7 +11,7 @@ struct SetOrientationHandler: HTTPHandler {
     )
     
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(SetOrientationRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(SetOrientationRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for set orientation").httpResponse
         }
 

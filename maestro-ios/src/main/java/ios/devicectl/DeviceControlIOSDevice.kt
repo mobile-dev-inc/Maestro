@@ -91,6 +91,10 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
+    override fun setOrientation(orientation: String) {
+        TODO("Not yet implemented")
+    }
+
     override fun isShutdown(): Boolean {
         TODO("Not yet implemented")
     }
