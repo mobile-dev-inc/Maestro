@@ -25,6 +25,7 @@ import hierarchy.AXElement
 import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceOrientation
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
