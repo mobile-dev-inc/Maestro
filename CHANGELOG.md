@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.40.1
+Fix
+- iOS apps going on background while using maestro commands
+
+Feature
+- Flag to skip interactive device selection by picking a --device-index
+
 ## 1.40.0
 
 Fix:
