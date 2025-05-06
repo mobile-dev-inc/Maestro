@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import java.io.File
 import java.io.FileNotFoundException
+import java.net.URI
+import java.nio.file.FileSystem
+import java.nio.file.FileSystemAlreadyExistsException
 import java.nio.file.FileSystemNotFoundException
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -95,7 +98,7 @@ class IOSBuildProductsExtractor(
                     val fs = try {
                         FileSystems.getFileSystem(uri)
                     } catch (e: FileSystemNotFoundException) {
-                        FileSystems.newFileSystem(uri, emptyMap<String, Any>())
+                        uri.getOrCreateFileSystem()
                     }
                     fs.getPath(sourceDirectory)
                 }
@@ -112,6 +115,14 @@ class IOSBuildProductsExtractor(
                 Files.createDirectories(targetPath.parent)
                 Files.copy(file, targetPath, StandardCopyOption.REPLACE_EXISTING)
             }
+        }
+    }
+
+    private fun URI.getOrCreateFileSystem(): FileSystem {
+        return try {
+            FileSystems.newFileSystem(this, emptyMap<String, Any>())
+        } catch (e: FileSystemAlreadyExistsException) {
+            FileSystems.getFileSystem(this)
         }
     }
 }
