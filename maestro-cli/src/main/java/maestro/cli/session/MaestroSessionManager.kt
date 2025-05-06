@@ -70,6 +70,7 @@ object MaestroSessionManager {
         isStudio: Boolean = false,
         isHeadless: Boolean = isStudio,
         reinstallDriver: Boolean = true,
+        deviceIndex: Int? = null,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -78,7 +79,8 @@ object MaestroSessionManager {
             driverHostPort = driverHostPort,
             deviceId = deviceId,
             teamId = teamId,
-            platform = Platform.fromString(platform)
+            platform = Platform.fromString(platform),
+            deviceIndex = deviceIndex,
         )
         val sessionId = UUID.randomUUID().toString()
 
@@ -130,7 +132,8 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         deviceId: String?,
         platform: Platform? = null,
-        teamId: String? = null
+        teamId: String? = null,
+        deviceIndex: Int? = null,
     ): SelectedDevice {
 
         if (deviceId == "chromium" || platform == Platform.WEB) {
@@ -141,7 +144,7 @@ object MaestroSessionManager {
         }
 
         if (host == null) {
-            val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform)
+            val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform, deviceIndex)
 
             if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
                 PrintUtils.message("Detected connected iPhone with ${device.instanceId}!")
