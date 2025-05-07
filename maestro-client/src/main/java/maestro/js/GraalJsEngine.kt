@@ -6,6 +6,8 @@ import okhttp3.Protocol
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
+import org.graalvm.polyglot.HostAccess
+import org.graalvm.polyglot.io.FileSystem
 import org.graalvm.polyglot.proxy.ProxyObject
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
@@ -77,7 +79,11 @@ class GraalJsEngine(
     }
 
     private fun getSourceDirectory(sourceName: String): String {
-        return envBinding["MAESTRO_YAML_DIR"] ?: resolveScriptPath(sourceName).parent.toString()
+        return envBinding["MAESTRO_YAML_DIR"] ?: run {
+            val path = resolveScriptPath(sourceName)
+            val parent = path.parent
+            return parent?.toString() ?: System.getProperty("user.dir")
+        }
     }
     
     private fun resolveScriptPath(sourceName: String): Path {
@@ -95,12 +101,19 @@ class GraalJsEngine(
             }
         }
 
+        val secureFileSystem = GraalJsSecurityFileSystem(moduleDir)
+
         val context = Context.newBuilder("js")
             .option("js.strict", "true")
             .option("js.commonjs-require", "true")
             .option("js.commonjs-require-cwd", moduleDir)
             .allowExperimentalOptions(true)
             .allowIO(true)
+            .fileSystem(secureFileSystem)
+            .allowHostAccess(HostAccess.newBuilder()
+                .allowPublicAccess(true)
+                .build())
+            .allowHostClassLookup { false }
             .logHandler(NULL_HANDLER)
             .out(outputStream)
             .build()
@@ -113,17 +126,17 @@ class GraalJsEngine(
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 
+
         maestroBinding["platform"] = platform
 
         context.eval(
             "js", """
-            // Prevent a reference error on referencing undeclared variables. Enables patterns like {MY_ENV_VAR || 'default-value'}.
-            // Instead of throwing an error, undeclared variables will evaluate to undefined.
+            // Prevent a reference error on referencing undeclared variables
             Object.setPrototypeOf(globalThis, new Proxy(Object.prototype, {
                 has(target, key) {
                     return true;
                 }
-            }))
+            }));
             function json(text) {
                 return JSON.parse(text)
             }

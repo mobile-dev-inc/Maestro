@@ -3242,6 +3242,40 @@ class IntegrationTest {
         ).inOrder()
     }
 
+    @Test
+    fun `Case 122 - CommonJS require security`() {
+        // Given
+        val commands = readCommands("122_security_test")
+        val driver = driver { }
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            orchestra(
+                it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        // Check for presence of expected logs
+        assertThat(receivedLogs).contains("Starting security test")
+        assertThat(receivedLogs).contains("Test 1 (Regular require): SUCCESS - {\"name\":\"myrequire\",\"version\":\"1.0.0\"}")
+        assertThat(receivedLogs.any { it.contains("Test 2 (Path traversal): SUCCESS -") }).isTrue()
+        assertThat(receivedLogs.any { it.contains("Test 3 (Absolute path): SUCCESS -") }).isTrue()
+        assertThat(receivedLogs.any { it.contains("Test 4 (Normalized traversal): SUCCESS -") }).isTrue()
+        assertThat(receivedLogs).contains("Security test complete")
+        
+        // Ensure no test failures
+        assertThat(receivedLogs.any { it.contains("Test 1 (Regular require): FAILED -") }).isFalse()
+        assertThat(receivedLogs.any { it.contains("Test 2 (Path traversal): FAILED -") }).isFalse()
+        assertThat(receivedLogs.any { it.contains("Test 3 (Absolute path): FAILED -") }).isFalse()
+        assertThat(receivedLogs.any { it.contains("Test 4 (Normalized traversal): FAILED -") }).isFalse()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
