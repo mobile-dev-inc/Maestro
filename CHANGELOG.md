@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.40.2
+Fix
+- Sharding on iOS, throwing FileSystemAlreadyExistsException exception 
+
 ## 1.40.1
 Fix
 - iOS apps going on background while using maestro commands
