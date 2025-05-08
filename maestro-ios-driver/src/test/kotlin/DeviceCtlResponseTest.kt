@@ -72,7 +72,6 @@ class DeviceCtlResponseTest {
                      "developerModeStatus" : "enabled",
                      "hasInternalOSBuild" : false,
                      "name" : "xx's iPhone ",
-                     "osVersionNumber" : "18.1.1",
                      "rootFileSystemIsWritable" : false
                    },
                    "hardwareProperties" : {
