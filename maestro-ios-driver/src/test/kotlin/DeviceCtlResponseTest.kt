@@ -146,7 +146,6 @@ class DeviceCtlResponseTest {
                      "ddiServicesAvailable" : false,
                      "developerModeStatus" : "disabled",
                      "hasInternalOSBuild" : false,
-                     "name" : "S’s Apple's Watch",
                      "osBuildUpdate" : "22S560",
                      "osVersionNumber" : "11.3.1"
                    },
