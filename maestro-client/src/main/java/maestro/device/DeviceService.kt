@@ -265,7 +265,11 @@ object DeviceService {
         return connectedIphoneList.filter {
             it.connectionProperties.tunnelState == DeviceCtlResponse.ConnectionProperties.CONNECTED
         }.map {
-            val description = "${it.deviceProperties.name} - ${it.deviceProperties.osVersionNumber} - ${it.identifier}"
+            val description = listOfNotNull(
+                it.deviceProperties?.name,
+                it.deviceProperties?.osVersionNumber,
+                it.identifier
+            ).joinToString(" - ")
 
             Device.Connected(
                 instanceId = it.hardwareProperties.udid,
