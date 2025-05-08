@@ -103,8 +103,9 @@ class LocalIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-    ) {
-        deviceController.launch(id, launchArguments)
+        maestroSessionId: UUID?
+    ): Result<Unit, Throwable> {
+        return xcTestDevice.launch(id, launchArguments, maestroSessionId)
     }
 
     override fun stop(id: String) {
