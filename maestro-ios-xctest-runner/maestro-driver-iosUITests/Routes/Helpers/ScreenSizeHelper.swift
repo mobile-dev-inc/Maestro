@@ -5,7 +5,7 @@ struct ScreenSizeHelper {
     static func physicalScreenSize() -> (Float, Float) {
         let springboardBundleId = "com.apple.springboard"
         let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
-        let screenSize = app.frame.size
+        let screenSize = app.windows.firstMatch.frame.size
         return (Float(screenSize.width), Float(screenSize.height))
     }
 
