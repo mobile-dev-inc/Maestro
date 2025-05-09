@@ -131,6 +131,10 @@ class LocalIOSDevice(
         return deviceController.setLocation(latitude, longitude)
     }
 
+    override fun setOrientation(orientation: String) {
+        return xcTestDevice.setOrientation(orientation)
+    }
+
     override fun isShutdown(): Boolean {
         return xcTestDevice.isShutdown()
     }

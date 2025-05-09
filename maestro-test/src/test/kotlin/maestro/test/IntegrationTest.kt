@@ -2,6 +2,7 @@ package maestro.test
 
 import com.google.common.truth.Truth.assertThat
 import com.oracle.truffle.js.nodes.function.EvalNode
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -3216,6 +3217,26 @@ class IntegrationTest {
                 Event.Scroll,
             )
         )
+    }
+
+    @Test
+    fun `Case 120 - Set orientation`() {
+        // Given
+        val commands = readCommands("120_set_orientation")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.PORTRAIT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_LEFT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
     }
 
     private fun orchestra(
