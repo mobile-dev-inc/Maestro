@@ -273,8 +273,9 @@ class Service(
             val charactersToErase = request.charactersToErase
             Log.d("Maestro", "Erasing text $charactersToErase")
 
-            for (i in 0..charactersToErase) {
+            for (i in 1..charactersToErase) {
                 uiDevice.pressDelete()
+                Thread.sleep(50) // Attempt to ensure perfect count of taps on emulators
             }
 
             responseObserver.onNext(eraseAllTextResponse { })
