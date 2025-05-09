@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.40.3
+Fix
+- MissingKotlinParameterException during using maestro commands.
+
 ## 1.40.2
 Fix
 - Sharding on iOS, throwing FileSystemAlreadyExistsException exception 
