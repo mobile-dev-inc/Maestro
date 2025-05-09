@@ -262,17 +262,20 @@ object DeviceService {
     private fun listIOSConnectedDevices(): List<Device.Connected> {
         val connectedIphoneList = util.LocalIOSDevice().listDeviceViaDeviceCtl()
 
-        return connectedIphoneList.filter {
-            it.connectionProperties.tunnelState == DeviceCtlResponse.ConnectionProperties.CONNECTED
-        }.map {
+        return connectedIphoneList.mapNotNull { device ->
+            val udid = device.hardwareProperties?.udid
+            if (device.connectionProperties.tunnelState != DeviceCtlResponse.ConnectionProperties.CONNECTED || udid == null) {
+                return@mapNotNull null
+            }
+
             val description = listOfNotNull(
-                it.deviceProperties?.name,
-                it.deviceProperties?.osVersionNumber,
-                it.identifier
+                device.deviceProperties?.name,
+                device.deviceProperties?.osVersionNumber,
+                device.identifier
             ).joinToString(" - ")
 
             Device.Connected(
-                instanceId = it.hardwareProperties.udid,
+                instanceId = udid,
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL

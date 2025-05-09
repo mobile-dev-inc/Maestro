@@ -27,7 +27,7 @@ class DeviceCtlResponseTest {
         assertThat(connectedDevices).isNotEmpty()
     }
 
-    fun getDeviceCtlOutput(): String {
+    private fun getDeviceCtlOutput(): String {
        return """
            {
              "info" : {
