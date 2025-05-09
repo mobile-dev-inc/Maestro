@@ -3218,6 +3218,35 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 120 - setTimeout executes after specified delay`() {
+        // Given
+        val commands = readCommands("120_set_time_out")
+        val driver = driver { }
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use { maestro ->
+            orchestra(
+                maestro,
+                onCommandMetadataUpdate = { _, metadata ->
+                    metadata.logMessages.forEach { log ->
+                        receivedLogs.add(log)
+                    }
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "Start",
+            "First timeout",
+            "Second timeout",
+            "Third timeout",
+            "End"
+        ).inOrder()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
