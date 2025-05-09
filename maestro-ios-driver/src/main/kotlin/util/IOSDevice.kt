@@ -20,7 +20,7 @@ data class DeviceCtlResponse(
     data class Device(
         val identifier: String,
         val deviceProperties: DeviceProperties?,
-        val hardwareProperties: HardwareProperties,
+        val hardwareProperties: HardwareProperties?,
         val connectionProperties: ConnectionProperties,
     )
 
@@ -41,6 +41,6 @@ data class DeviceCtlResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class HardwareProperties(
-        val udid: String
+        val udid: String?
     )
 }

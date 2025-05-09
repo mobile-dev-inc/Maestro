@@ -51,7 +51,7 @@ class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlP
             jacksonObjectMapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false)
             val deviceCtlResponse = jacksonObjectMapper.readValue<DeviceCtlResponse>(response)
             return deviceCtlResponse.result.devices.find {
-                it.hardwareProperties.udid == deviceId
+                it.hardwareProperties?.udid == deviceId
             } ?: throw IllegalArgumentException("iOS device with identifier $deviceId not connected or available")
         } finally {
             tempOutput.delete()
