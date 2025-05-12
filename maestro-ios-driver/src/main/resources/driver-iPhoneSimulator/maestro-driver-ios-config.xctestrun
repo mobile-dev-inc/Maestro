@@ -60,6 +60,11 @@
 		<string>maestro_driver_iosUITests</string>
 		<key>RunOrder</key>
 		<integer>0</integer>
+		<key>SkipTestIdentifiers</key>
+		<array>
+			<string>ViewHierarchyHandlerTests</string>
+			<string>ViewHierarchyHandlerTests/testViewHierarchyHandlerReturnsNonEmptyHierarchy</string>
+		</array>
 		<key>SystemAttachmentLifetime</key>
 		<string>deleteOnSuccess</string>
 		<key>TestBundlePath</key>

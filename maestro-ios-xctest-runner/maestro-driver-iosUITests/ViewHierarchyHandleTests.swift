@@ -16,7 +16,7 @@ final class ViewHierarchyHandlerTests: XCTestCase {
         try await server.run()
     }
     
-    func testAppFrameGetsScaledCorrectly() async throws {
+    func testAppOffsetAdjustsCorrectly() async throws {
         // given
         guard let url = URL(string: "http://localhost:8080/hierarchy") else {
             throw NSError(domain: "XCTestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to construct URL"])
@@ -54,7 +54,7 @@ final class ViewHierarchyHandlerTests: XCTestCase {
             actualY,
             expectedY,
             accuracy: 0.5,
-            "Scaled app element height matches"
+            "Y offset matches"
         )
         
         let originalX = rawAppAXElement.frame["X"] ?? 0
@@ -64,7 +64,7 @@ final class ViewHierarchyHandlerTests: XCTestCase {
             actualX,
             expectedX,
             accuracy: 0.5,
-            "Scaled app element width matches"
+            "X offset matches"
         )
     }
 }
