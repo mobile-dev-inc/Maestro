@@ -7,6 +7,11 @@ struct ViewHierarchy : Codable {
     let depth: Int
 }
 
+struct WindowOffset: Codable {
+    let offsetX: Double
+    let offsetY: Double
+}
+
 typealias AXFrame = [String: Double]
 extension AXFrame {
     static var zero: Self {
@@ -16,7 +21,7 @@ extension AXFrame {
 
 struct AXElement: Codable {
     let identifier: String
-    let frame: AXFrame
+    var frame: AXFrame
     let value: String?
     let title: String?
     let label: String
@@ -30,10 +35,10 @@ struct AXElement: Codable {
     var children: [AXElement]?
     let windowContextID: Double
     let displayID: Int
-
+    
     init(children: [AXElement]) {
         self.children = children
-
+        
         self.label = ""
         self.elementType = 0
         self.identifier = ""
@@ -49,12 +54,12 @@ struct AXElement: Codable {
         self.enabled = false
         self.title = nil
     }
-
+    
     init(_ dict: [XCUIElement.AttributeName: Any]) {
         func valueFor(_ name: String) -> Any {
             dict[XCUIElement.AttributeName(rawValue: name)] as Any
         }
-
+        
         self.label = valueFor("label") as? String ?? ""
         self.elementType = valueFor("elementType") as? Int ?? 0
         self.identifier = valueFor("identifier") as? String ?? ""
@@ -72,7 +77,7 @@ struct AXElement: Codable {
         let childrenDictionaries = valueFor("children") as? [[XCUIElement.AttributeName: Any]]
         self.children = childrenDictionaries?.map { AXElement($0) } ?? []
     }
-
+    
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.identifier, forKey: .identifier)
@@ -91,22 +96,22 @@ struct AXElement: Codable {
         try container.encode(self.windowContextID, forKey: .windowContextID)
         try container.encode(self.displayID, forKey: .displayID)
     }
-
+    
     func depth() -> Int {
         guard let children = children
         else { return 1 }
-
+        
         let max = children
             .map { child in child.depth() + 1 }
             .max()
-
+        
         return max ?? 1
     }
     
     
     func filterAllChildrenNotInKeyboardBounds(_ keyboardFrame: CGRect) -> [AXElement] {
         var filteredChildren = [AXElement]()
-                
+        
         // Function to recursively filter children
         func filterChildrenRecursively(_ element: AXElement, _ ancestorAdded: Bool) {
             // Check if the element's frame intersects with the keyboard frame
@@ -118,7 +123,7 @@ struct AXElement: Codable {
             )
             
             var currentAncestorAdded = ancestorAdded
-
+            
             // If it does not intersect, and no ancestor has been added, append the element
             if !keyboardFrame.intersects(childFrame) && !ancestorAdded {
                 filteredChildren.append(element)
@@ -130,7 +135,7 @@ struct AXElement: Codable {
                 filterChildrenRecursively(child, currentAncestorAdded)
             }
         }
-                
+        
         // Start the recursive filtering with no ancestor added
         filterChildrenRecursively(self, false)
         return filteredChildren

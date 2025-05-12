@@ -48,20 +48,36 @@ struct ViewHierarchyHandler: HTTPHandler {
     func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
         SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(foregroundApp: foregroundApp)
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
-        
-        let keyboard = foregroundApp.keyboards.firstMatch
-        if (excludeKeyboardElements && keyboard.exists) {
-            let filteredChildren = appHierarchy.filterAllChildrenNotInKeyboardBounds(keyboard.frame)
-            return AXElement(children: [AXElement(children: filteredChildren)].compactMap { $0 })
-        }
-        
-        
+                
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
             fullStatusBars(springboardApplication)
         } ?? []
 
 
-        return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+        let springboardFrame = springboardApplication.frame
+        let appFrame = foregroundApp.frame
+        
+        if springboardFrame != appFrame {
+            let offsetX = springboardFrame.width - appFrame.width
+            let offsetY = springboardFrame.height - appFrame.height
+            let offset = WindowOffset(offsetX: offsetX, offsetY: offsetY)
+            
+            NSLog("Adjusting view hierarchy with offset: \(offset)")
+            
+            let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
+
+            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+        } else {
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+        }
+    }
+    
+    func expandElementSizes(_ element: AXElement, offset: WindowOffset) -> AXElement {
+        var adjusted = element
+        adjusted.frame["X"] = (adjusted.frame["X"] ?? 0) + offset.offsetX
+        adjusted.frame["Y"] = (adjusted.frame["Y"] ?? 0) + offset.offsetY
+        adjusted.children = adjusted.children?.map { expandElementSizes($0, offset: offset) }
+        return adjusted
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
