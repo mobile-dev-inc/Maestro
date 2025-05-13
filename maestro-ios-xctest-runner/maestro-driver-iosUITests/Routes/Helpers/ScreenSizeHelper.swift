@@ -1,41 +1,12 @@
 import XCTest
 
 struct ScreenSizeHelper {
-    
-    private static var cachedSize: (Float, Float)?
-    private static var lastAppBundleId: String?
-    private static var lastOrientation: UIDeviceOrientation?
-    
+        
     static func physicalScreenSize() -> (Float, Float) {
         let springboardBundleId = "com.apple.springboard"
-        let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
-        let currentAppBundleId = app.bundleID
-        let currentOrientation = XCUIDevice.shared.orientation
-        
-        if let cached = cachedSize,
-           currentAppBundleId == lastAppBundleId,
-           currentOrientation == lastOrientation {
-            return cached
-        }
-        
-        do {
-            let _ = try app.snapshot()
-            
-            let screenSize = app.firstMatch.frame.size
-            let size = (Float(screenSize.width), Float(screenSize.height))
-            
-            // Cache results
-            cachedSize = size
-            lastAppBundleId = currentAppBundleId
-            lastOrientation = currentOrientation
-            
-            return size
-        } catch let error {
-            NSLog("Failure while getting screen size: \(error), falling back to get springboard size.")
-            let application = XCUIApplication(bundleIdentifier: springboardBundleId)
-            let screenSize = application.frame.size
-            return (Float(screenSize.width), Float(screenSize.height))
-        }
+        let springboardApp = XCUIApplication(bundleIdentifier: springboardBundleId)
+        let screenSize = springboardApp.frame.size
+        return (Float(screenSize.width), Float(screenSize.height))
     }
     
     private static func actualOrientation() -> UIDeviceOrientation {
