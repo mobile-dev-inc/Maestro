@@ -65,16 +65,16 @@ struct ViewHierarchyHandler: HTTPHandler {
         
         if deviceAxFrame != appFrame {
             guard
-                let deviceWidth = deviceAxFrame["Width"],
-                let deviceHeight = deviceAxFrame["Height"],
-                let appWidth = appFrame["Width"],
-                let appHeight = appFrame["Height"]
+                let deviceWidth = deviceAxFrame["Width"], deviceWidth > 0,
+                let deviceHeight = deviceAxFrame["Height"], deviceHeight > 0,
+                let appWidth = appFrame["Width"], appWidth > 0,
+                let appHeight = appFrame["Height"], appHeight > 0
             else {
                 return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
             }
             
-            let offsetX = deviceAxFrame["Width"]! - appFrame["Width"]!
-            let offsetY = deviceAxFrame["Height"]! - appFrame["Height"]!
+            let offsetX = deviceWidth - appWidth
+            let offsetY = deviceHeight - appHeight
             let offset = WindowOffset(offsetX: offsetX, offsetY: offsetY)
             
             NSLog("Adjusting view hierarchy with offset: \(offset)")

@@ -59,7 +59,7 @@ struct AXElement: Codable {
         identifier: String, frame: AXFrame, value: String?, title: String?, label: String,
         elementType: Int, enabled: Bool, horizontalSizeClass: Int,
         verticalSizeClass: Int, placeholderValue: String?, selected: Bool,
-        hasFocus: Bool, displayID: Int, windowContextID: Double, children: [AXElement]
+        hasFocus: Bool, displayID: Int, windowContextID: Double, children: [AXElement]?
     ) {
         self.identifier = identifier
         self.frame = frame
