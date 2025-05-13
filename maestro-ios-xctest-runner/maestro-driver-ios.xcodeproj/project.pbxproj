@@ -35,6 +35,7 @@
 		521C1F142D86D3900024EE42 /* TerminateAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */; };
 		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
+		52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */; };
 		52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */; };
 		52D8FA9F2D6DD0B50015FAB3 /* XCUIApplicationProcess+FBQuiescence.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA9B2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.h */; };
 		52D8FAA02D6DD0E60015FAB3 /* XCAXClient_iOS.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA402D6DCC600015FAB3 /* XCAXClient_iOS.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -133,6 +134,7 @@
 		521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppHandler.swift; sourceTree = "<group>"; };
 		521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppRequest.swift; sourceTree = "<group>"; };
 		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandleTests.swift; sourceTree = "<group>"; };
 		52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCInternalTestRun.h; sourceTree = "<group>"; };
 		52D8FA282D6DCC600015FAB3 /* _XCKVOExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCKVOExpectationImplementation.h; sourceTree = "<group>"; };
 		52D8FA292D6DCC600015FAB3 /* _XCTDarwinNotificationExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTDarwinNotificationExpectationImplementation.h; sourceTree = "<group>"; };
@@ -342,6 +344,7 @@
 		52049BF6293503A200807AA3 /* maestro-driver-iosUITests */ = {
 			isa = PBXGroup;
 			children = (
+				52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */,
 				52D8FAA92D6DD3850015FAB3 /* Utilities */,
 				52D8FA8E2D6DCF010015FAB3 /* Categories */,
 				52D8F8F12D6DCC150015FAB3 /* PrivateHeaders */,
@@ -783,6 +786,7 @@
 				61C0AFE729C7AB0C005D1FC5 /* PressKeyHandler.swift in Sources */,
 				61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */,
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
+				52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */,
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
 				9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */,
 				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,

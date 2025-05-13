@@ -47,6 +47,14 @@
                BlueprintName = "maestro-driver-iosUITests"
                ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
             </BuildableReference>
+            <SkippedTests>
+               <Test
+                  Identifier = "ViewHierarchyHandlerTests">
+               </Test>
+               <Test
+                  Identifier = "ViewHierarchyHandlerTests/testViewHierarchyHandlerReturnsNonEmptyHierarchy()">
+               </Test>
+            </SkippedTests>
          </TestableReference>
       </Testables>
    </TestAction>

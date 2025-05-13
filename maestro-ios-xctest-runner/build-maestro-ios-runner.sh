@@ -17,6 +17,13 @@ else
 	BUILD_OUTPUT_DIR="Debug-iphoneos"
 fi
 
+if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
+  DEVELOPMENT_TEAM_OPT=""
+else
+  echo "Building iphoneos drivers for team: ${DEVELOPMENT_TEAM}..."
+	DEVELOPMENT_TEAM_OPT="DEVELOPMENT_TEAM=${DEVELOPMENT_TEAM}"
+fi
+
 rm -rf "$PWD/$DERIVED_DATA_PATH"
 rm -rf "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
 
@@ -29,7 +36,7 @@ xcodebuild clean build-for-testing \
   -derivedDataPath "$PWD/$DERIVED_DATA_PATH" \
   -scheme maestro-driver-ios \
   -destination "$DESTINATION" \
-  ARCHS="$ARCHS"
+  ARCHS="$ARCHS" ${DEVELOPMENT_TEAM_OPT}
 
 ## Copy built apps and xctestrun file
 cp -r \
