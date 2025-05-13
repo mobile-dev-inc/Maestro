@@ -73,11 +73,31 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
     
     func expandElementSizes(_ element: AXElement, offset: WindowOffset) -> AXElement {
-        var adjusted = element
-        adjusted.frame["X"] = (adjusted.frame["X"] ?? 0) + offset.offsetX
-        adjusted.frame["Y"] = (adjusted.frame["Y"] ?? 0) + offset.offsetY
-        adjusted.children = adjusted.children?.map { expandElementSizes($0, offset: offset) }
-        return adjusted
+        let adjustedFrame: AXFrame = [
+            "X": (element.frame["X"] ?? 0) + offset.offsetX,
+            "Y": (element.frame["Y"] ?? 0) + offset.offsetY,
+            "Width": element.frame["Width"] ?? 0,
+            "Height": element.frame["Height"] ?? 0
+        ]
+        let adjustedChildren = element.children?.map { expandElementSizes($0, offset: offset) } ?? []
+        
+        return AXElement(
+            identifier: element.identifier,
+            frame: adjustedFrame,
+            value: element.value,
+            title: element.title,
+            label: element.label,
+            elementType: element.elementType,
+            enabled: element.enabled,
+            horizontalSizeClass: element.horizontalSizeClass,
+            verticalSizeClass: element.verticalSizeClass,
+            placeholderValue: element.placeholderValue,
+            selected: element.selected,
+            hasFocus: element.hasFocus,
+            displayID: element.displayID,
+            windowContextID: element.windowContextID,
+            children: adjustedChildren
+        )
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {

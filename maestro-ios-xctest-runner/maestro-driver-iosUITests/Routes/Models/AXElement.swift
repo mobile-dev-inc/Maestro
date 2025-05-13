@@ -21,7 +21,7 @@ extension AXFrame {
 
 struct AXElement: Codable {
     let identifier: String
-    var frame: AXFrame
+    let frame: AXFrame
     let value: String?
     let title: String?
     let label: String
@@ -53,6 +53,29 @@ struct AXElement: Codable {
         self.frame = .zero
         self.enabled = false
         self.title = nil
+    }
+    
+    init(
+        identifier: String, frame: AXFrame, value: String?, title: String?, label: String,
+        elementType: Int, enabled: Bool, horizontalSizeClass: Int,
+        verticalSizeClass: Int, placeholderValue: String?, selected: Bool,
+        hasFocus: Bool, displayID: Int, windowContextID: Double, children: [AXElement]
+    ) {
+        self.identifier = identifier
+        self.frame = frame
+        self.value = value
+        self.title = title
+        self.label = label
+        self.elementType = elementType
+        self.enabled = enabled
+        self.horizontalSizeClass = horizontalSizeClass
+        self.verticalSizeClass = verticalSizeClass
+        self.placeholderValue = placeholderValue
+        self.selected = selected
+        self.hasFocus = hasFocus
+        self.displayID = displayID
+        self.windowContextID = windowContextID
+        self.children = children
     }
     
     init(_ dict: [XCUIElement.AttributeName: Any]) {
