@@ -19,6 +19,10 @@
 
 package maestro
 
+data class DebugInfo (
+    val debugMessage: String
+)
+
 sealed class MaestroException(override val message: String) : RuntimeException(message) {
 
     class UnableToLaunchApp(message: String) : MaestroException(message)
@@ -32,12 +36,14 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
     open class AssertionFailure(
         message: String,
         val hierarchyRoot: TreeNode,
+        val debugInfo: DebugInfo,
     ) : MaestroException(message)
 
     class ElementNotFound(
         message: String,
         hierarchyRoot: TreeNode,
-    ) : AssertionFailure(message, hierarchyRoot)
+        debugInfo: DebugInfo,
+    ) : AssertionFailure(message, hierarchyRoot, debugInfo)
 
     class CloudApiKeyNotAvailable(message: String) : MaestroException(message)
 

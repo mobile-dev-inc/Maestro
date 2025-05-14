@@ -27,11 +27,11 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.DebugInfo
 import maestro.ScreenRecording
 import maestro.ViewHierarchy
 import maestro.ai.AI
 import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.Prediction
 import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
 import maestro.ai.openai.OpenAI
@@ -371,6 +371,7 @@ class Orchestra(
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugInfo = DebugInfo("Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.")
             )
         }
 
@@ -406,6 +407,7 @@ class Orchestra(
                     |
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugInfo = DebugInfo("AI-powered visual defect detection failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
             )
         }
 
@@ -437,6 +439,7 @@ class Orchestra(
                     |$reasoning
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugInfo = DebugInfo("AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
             )
         }
 
@@ -598,8 +601,9 @@ class Orchestra(
             appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
         }
         throw MaestroException.ElementNotFound(
-            debugMessage,
-            maestro.viewHierarchy().root
+            message = "No visible element found: ${command.selector.description()}",
+            maestro.viewHierarchy().root,
+            debugInfo = DebugInfo(debugMessage)
         )
     }
 
@@ -1075,6 +1079,7 @@ class Orchestra(
             ) ?: throw MaestroException.ElementNotFound(
                 "Element not found: $description",
                 parentViewHierarchy.root,
+                DebugInfo("Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.")
             )
         }
 
@@ -1085,6 +1090,7 @@ class Orchestra(
         ) ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             maestro.viewHierarchy().root,
+            DebugInfo("Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.")
         )
     }
 
@@ -1104,6 +1110,7 @@ class Orchestra(
         )?.hierarchy ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             parentViewHierarchy.root,
+            DebugInfo("Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.")
         )
     }
 
