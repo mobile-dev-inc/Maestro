@@ -540,8 +540,7 @@ class Orchestra(
         val deviceInfo = maestro.deviceInfo()
 
         var retryCenterCount = 0
-        val maxRetryCenterCount =
-            4 // for when the list is no longer scrollable (last element) but the element is visible
+        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
 
         do {
             try {
@@ -568,8 +567,38 @@ class Orchestra(
             maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong(), waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
         } while (System.currentTimeMillis() < endTime)
 
+        val debugMessage = buildString {
+            appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
+            appendLine("Tip: Try adjusting the following settings to improve detection:")
+            appendLine("- `timeout`: current = ${command.timeout}ms → Increase if you need more time to find the element")
+            val originalSpeed = command.originalSpeedValue?.toIntOrNull()
+            val speedAdvice = if (originalSpeed != null && originalSpeed > 50) {
+                "Reduce for slower, more precise scrolling to avoid overshooting elements"
+            } else {
+                "Increase for faster scrolling if element is far away"
+            }
+            appendLine("- `speed`: current = ${command.originalSpeedValue} (0-100 scale) → $speedAdvice")
+            val waitSettleAdvice = if (command.waitToSettleTimeoutMs == null) {
+                "Set this value (e.g., 500ms) if your UI updates frequently between scrolls"
+            } else {
+                "Increase if your UI needs more time to update between scrolls"
+            }
+            val waitToTimeSettleMessage = if (command.waitToSettleTimeoutMs != null) {
+                "${command.waitToSettleTimeoutMs}ms"
+            } else {
+                "Not defined"
+            }
+            appendLine("- `waitToSettleTimeoutMs`: current = $waitToTimeSettleMessage → $waitSettleAdvice")
+            appendLine("- `visibilityPercentage`: current = ${command.visibilityPercentage}% → Lower this value if you want to detect partially visible elements")
+            val centerAdvice = if (command.centerElement) {
+                "Disable if you don't need the element to be centered after finding it"
+            } else {
+                "Enable if you want the element to be centered after finding it"
+            }
+            appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
+        }
         throw MaestroException.ElementNotFound(
-            "No visible element found: ${command.selector.description()}",
+            debugMessage,
             maestro.viewHierarchy().root
         )
     }
