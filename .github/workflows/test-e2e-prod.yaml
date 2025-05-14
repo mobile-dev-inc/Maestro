@@ -40,6 +40,7 @@ jobs:
             --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
             --timeout 180 \
             --fail-on-cancellation \
+            --project-id ${{ secrets.E2E_MOBILE_DEV_PROJECT_ID }} \
             --include-tags=advanced \
             samples/sample.zip samples
 
@@ -48,6 +49,7 @@ jobs:
           maestro cloud \
             --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
             --fail-on-cancellation \
+            --project-id ${{ secrets.E2E_MOBILE_DEV_PROJECT_ID }} \
             --include-tags advanced \
             samples/sample.apk samples
 
