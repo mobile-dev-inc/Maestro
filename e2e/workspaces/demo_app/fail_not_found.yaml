@@ -4,5 +4,11 @@ tags:
 ---
 - launchApp:
     clearState: true
-- tapOn:
-    id: non-existent-id
+- evalScript: ${output.didFail = 1}
+- runFlow:
+    optional: true
+    commands:
+        - tapOn:
+            id: non-existent-id
+        - evalScript: ${output.didFail = 0}
+- evalScript: ${output.didFail = 1}

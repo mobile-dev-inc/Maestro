@@ -2,5 +2,11 @@ appId: com.example.example
 tags:
     - failing
 ---
-- launchApp:
-    appId: com.nonexistent
+- evalScript: ${output.didFail = 1}
+- runFlow:
+    optional: true
+    commands:
+        - launchApp:
+            appId: com.nonexistent
+        - evalScript: ${output.didFail = 0}
+- evalScript: ${output.didFail = 1}

@@ -4,6 +4,12 @@ tags:
 ---
 - launchApp:
     clearState: true
-- assertTrue:
-    condition: ${ false }
-    label: Fail the flow
+- evalScript: ${output.didFail = 1}
+- runFlow:
+    optional: true
+    commands:
+        - assertTrue:
+            condition: ${ false }
+            label: Fail the flow
+        - evalScript: ${output.didFail = 0} # This should never run
+- evalScript: ${output.didFail = 1}
