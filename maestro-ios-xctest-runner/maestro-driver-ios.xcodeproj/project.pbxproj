@@ -92,6 +92,8 @@
 		94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */; };
 		9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */; };
 		F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F328D3E52A2A98E7000546D3 /* StringExtensions.swift */; };
+		F45C3D762DD5EC93007A6ECE /* maestro_driver_iosUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45C3D752DD5EC93007A6ECE /* maestro_driver_iosUITestsLaunchTests.swift */; };
+		F45C3D782DD5FB57007A6ECE /* LaunchAppHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45C3D772DD5FB4A007A6ECE /* LaunchAppHandlerTests.swift */; };
 		F4C52E482D9E8DF1008E0A1A /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */; };
 		F4FD416F2DCB480E0063BDB3 /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = F4FD416E2DCB480E0063BDB3 /* AnyCodable */; };
 /* End PBXBuildFile section */
@@ -288,6 +290,9 @@
 		94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Extensions.swift"; sourceTree = "<group>"; };
 		9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSizeHelper.swift; sourceTree = "<group>"; };
 		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
+		F45C3D752DD5EC93007A6ECE /* maestro_driver_iosUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		F45C3D772DD5FB4A007A6ECE /* LaunchAppHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandlerTests.swift; sourceTree = "<group>"; };
+		F45C3D792DD6010E007A6ECE /* driver-verification-tests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "driver-verification-tests.xctestplan"; sourceTree = "<group>"; };
 		F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -315,6 +320,7 @@
 		52049BCA2935039F00807AA3 = {
 			isa = PBXGroup;
 			children = (
+				F45C3D792DD6010E007A6ECE /* driver-verification-tests.xctestplan */,
 				52049BD52935039F00807AA3 /* maestro-driver-ios */,
 				52049BF6293503A200807AA3 /* maestro-driver-iosUITests */,
 				52049BD42935039F00807AA3 /* Products */,
@@ -349,6 +355,8 @@
 		52049BF6293503A200807AA3 /* maestro-driver-iosUITests */ = {
 			isa = PBXGroup;
 			children = (
+				F45C3D772DD5FB4A007A6ECE /* LaunchAppHandlerTests.swift */,
+				F45C3D752DD5EC93007A6ECE /* maestro_driver_iosUITestsLaunchTests.swift */,
 				52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */,
 				52D8FAA92D6DD3850015FAB3 /* Utilities */,
 				52D8FA8E2D6DCF010015FAB3 /* Categories */,
@@ -774,6 +782,7 @@
 				610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */,
 				52F0B1B32B3C26DF00C6471A /* KeyboardHandlerRequest.swift in Sources */,
 				612DE4122984114B003C2BE0 /* RunnerDaemonProxy.swift in Sources */,
+				F45C3D762DD5EC93007A6ECE /* maestro_driver_iosUITestsLaunchTests.swift in Sources */,
 				61C0AFEB29C863BB005D1FC5 /* PressButtonHandler.swift in Sources */,
 				94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */,
 				52D8FAAC2D6DD3A20015FAB3 /* FBLogger.m in Sources */,
@@ -813,6 +822,7 @@
 				941AE8EF2A77D4B20097C02A /* TimeoutHelper.swift in Sources */,
 				6124329C2A4B368100F5F619 /* ViewHierarchyRequest.swift in Sources */,
 				61C0AFE529C7AAB3005D1FC5 /* PressKeyRequest.swift in Sources */,
+				F45C3D782DD5FB57007A6ECE /* LaunchAppHandlerTests.swift in Sources */,
 				61C0AFF329C8C040005D1FC5 /* DeviceInfoResponse.swift in Sources */,
 				94256BAD298D39DE00CDB55D /* ScreenDiffHandler.swift in Sources */,
 				521C1F0B2D801A360024EE42 /* XCUIApplication+Helper.m in Sources */,

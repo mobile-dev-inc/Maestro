@@ -6,6 +6,11 @@ import os
 @MainActor
 struct LaunchAppHandler: HTTPHandler {
     
+    private let logger = Logger(
+           subsystem: Bundle.main.bundleIdentifier!,
+           category: String(describing: Self.self)
+    )
+    
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         // Decode request body to extract appId and optional launch arguments
         guard let requestBody = try? await JSONDecoder().decode(LaunchAppRequest.self, from: request.bodyData) else {
@@ -41,5 +46,6 @@ struct LaunchAppHandler: HTTPHandler {
                 message: "Failed to launch app. Error: \(error.localizedDescription)"
             ).httpResponse
         }
+        NSLog("[Done] Launching app with bundle ID: \(requestBody.appId)")
     }
 }
