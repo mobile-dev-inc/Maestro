@@ -197,7 +197,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 008 - Tap on element - Retry if no UI change`() {
+    fun `Case 008 - Tap on element - Do not retry by default if no UI change`() {
         // Given
         val commands = readCommands("008_tap_on_element")
 
@@ -215,7 +215,7 @@ class IntegrationTest {
 
         // Then
         // No test failure
-        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
     }
 
     @Test
@@ -3216,6 +3216,28 @@ class IntegrationTest {
                 Event.Scroll,
             )
         )
+    }
+
+    @Test
+    fun `Case 120 - Tap on element - Retry if no UI change opt-in`() {
+        // Given
+        val commands = readCommands("120_tap_on_element_retryTapIfNoChange")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
     }
 
     private fun orchestra(

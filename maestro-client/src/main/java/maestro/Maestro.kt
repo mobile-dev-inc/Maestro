@@ -174,7 +174,7 @@ class Maestro(
     fun tap(
         element: UiElement,
         initialHierarchy: ViewHierarchy,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         waitUntilVisible: Boolean = false,
         longPress: Boolean = false,
         appId: String? = null,
@@ -228,7 +228,7 @@ class Maestro(
     fun tapOnRelative(
         percentX: Int,
         percentY: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -249,7 +249,7 @@ class Maestro(
     fun tap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -271,7 +271,7 @@ class Maestro(
     private fun performTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
@@ -289,7 +289,7 @@ class Maestro(
     private fun screenshotBasedTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
@@ -325,7 +325,7 @@ class Maestro(
     private fun hierarchyBasedTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
