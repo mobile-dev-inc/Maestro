@@ -9,4 +9,4 @@ tags:
         - launchApp:
             appId: com.nonexistent
         - evalScript: ${output.didFail = 0}
-- evalScript: ${output.didFail = 1}
+- assertTrue: ${output.didFail == 1}
