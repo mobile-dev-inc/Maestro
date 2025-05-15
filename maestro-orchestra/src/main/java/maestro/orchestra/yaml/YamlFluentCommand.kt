@@ -940,6 +940,7 @@ data class YamlFluentCommand(
                 centerElement = yaml.centerElement,
                 label = yaml.label,
                 optional = yaml.optional,
+                originalSpeedValue = yaml.speed,
                 waitToSettleTimeoutMs = yaml.waitToSettleTimeoutMs
             )
         )
