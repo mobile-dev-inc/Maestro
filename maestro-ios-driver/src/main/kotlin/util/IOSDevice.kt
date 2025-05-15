@@ -19,8 +19,8 @@ data class DeviceCtlResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Device(
         val identifier: String,
-        val deviceProperties: DeviceProperties,
-        val hardwareProperties: HardwareProperties,
+        val deviceProperties: DeviceProperties?,
+        val hardwareProperties: HardwareProperties?,
         val connectionProperties: ConnectionProperties,
     )
 
@@ -35,12 +35,12 @@ data class DeviceCtlResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class DeviceProperties(
-        val name: String,
-        val osVersionNumber: String,
+        val name: String?,
+        val osVersionNumber: String?,
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class HardwareProperties(
-        val udid: String
+        val udid: String?
     )
 }

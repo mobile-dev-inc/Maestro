@@ -27,7 +27,7 @@ class DeviceCtlResponseTest {
         assertThat(connectedDevices).isNotEmpty()
     }
 
-    fun getDeviceCtlOutput(): String {
+    private fun getDeviceCtlOutput(): String {
        return """
            {
              "info" : {
@@ -72,7 +72,6 @@ class DeviceCtlResponseTest {
                      "developerModeStatus" : "enabled",
                      "hasInternalOSBuild" : false,
                      "name" : "xx's iPhone ",
-                     "osVersionNumber" : "18.1.1",
                      "rootFileSystemIsWritable" : false
                    },
                    "hardwareProperties" : {
@@ -147,7 +146,6 @@ class DeviceCtlResponseTest {
                      "ddiServicesAvailable" : false,
                      "developerModeStatus" : "disabled",
                      "hasInternalOSBuild" : false,
-                     "name" : "S’s Apple's Watch",
                      "osBuildUpdate" : "22S560",
                      "osVersionNumber" : "11.3.1"
                    },
