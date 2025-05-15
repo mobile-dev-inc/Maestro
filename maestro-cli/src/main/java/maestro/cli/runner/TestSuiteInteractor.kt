@@ -48,7 +48,7 @@ class TestSuiteInteractor(
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
     private val shardPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
 
-    fun runTestSuite(
+    suspend fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
         reportOut: Sink?,
         env: Map<String, String>,
@@ -148,7 +148,7 @@ class TestSuiteInteractor(
         return summary
     }
 
-    private fun runFlow(
+    private suspend fun runFlow(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,

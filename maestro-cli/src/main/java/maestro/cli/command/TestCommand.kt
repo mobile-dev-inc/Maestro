@@ -361,7 +361,9 @@ class TestCommand : Callable<Int> {
                         "Continuous mode is not supported when running multiple flows. (${flowFiles.joinToString(", ")})",
                     )
                 }
-                runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath)
+                runBlocking {
+                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath)
+                }
             } else {
                 val flowFile = flowFiles.first()
                 if (continuous) {
@@ -418,7 +420,7 @@ class TestCommand : Callable<Int> {
         return Triple(result, 1, null)
     }
 
-    private fun runMultipleFlows(
+    private suspend fun runMultipleFlows(
         maestro: Maestro,
         device: Device?,
         chunkPlans: List<ExecutionPlan>,
