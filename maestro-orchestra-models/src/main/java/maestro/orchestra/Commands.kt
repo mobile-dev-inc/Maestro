@@ -131,7 +131,21 @@ data class ScrollUntilVisibleCommand(
     }
 
     override fun description(): String {
-        return label ?: "Scrolling $direction until ${selector.description()} is visible."
+        val baseDescription = "Scrolling $direction until ${selector.description()} is visible"
+        val additionalDescription = mutableListOf<String>()
+        additionalDescription.add("with speed $originalSpeedValue")
+        additionalDescription.add("visibility percentage $visibilityPercentage%")
+        additionalDescription.add("timeout $timeout ms")
+        waitToSettleTimeoutMs?.let {
+            additionalDescription.add("wait to settle $it ms")
+        }
+        if (centerElement) {
+            additionalDescription.add("with centering enabled")
+        } else {
+            additionalDescription.add("with centering disabled")
+        }
+        val description = "$baseDescription ${additionalDescription.joinToString(", ")}"
+        return label ?: description
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
