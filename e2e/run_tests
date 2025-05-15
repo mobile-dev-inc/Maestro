@@ -71,12 +71,12 @@ for workspace_dir in ./workspaces/*; do
 	    _h3 "$app_name" "failing" "$line"
 	done < pipe &
 
-	maestro --verbose --platform "$platform" test --include-tags failing --config ./failing_config.yaml --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 && WORKSPACE_PASS=false
+	maestro --verbose --platform "$platform" test --include-tags failing --config ./failing_config.yaml --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 || WORKSPACE_PASS=false
 
 	if [ "$WORKSPACE_PASS" = "false" ]; then
-		_h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
+        _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"
 		ALL_PASS=false
-    fi
+	fi
 done
 
 if [ "$ALL_PASS" = "false" ]; then
