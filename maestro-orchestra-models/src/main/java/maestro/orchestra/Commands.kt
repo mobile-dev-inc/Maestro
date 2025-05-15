@@ -39,6 +39,30 @@ sealed interface Command {
     val label: String?
 
     val optional: Boolean
+
+    /**
+     * Returns the description that would be generated if no label was present
+     */
+    fun rawDescription(): String {
+        // Temporarily store the label
+        val originalLabel = this.label
+        // Create a copy with null label
+        val commandWithoutLabel = when (this) {
+            is AssertConditionCommand -> this.copy(label = null)
+            is AssertNoDefectsWithAICommand -> this.copy(label = null)
+            is AssertWithAICommand -> this.copy(label = null)
+            is ExtractTextWithAICommand -> this.copy(label = null)
+            is InputTextCommand -> this.copy(label = null)
+            is LaunchAppCommand -> this.copy(label = null)
+            is ApplyConfigurationCommand -> this.copy(label = null)
+            is OpenLinkCommand -> this.copy(label = null)
+            is PressKeyCommand -> this.copy(label = null)
+            // Add other command types here
+            else -> this
+        }
+        // Get description with null label
+        return commandWithoutLabel.description()
+    }
 }
 
 sealed interface CompositeCommand : Command {
