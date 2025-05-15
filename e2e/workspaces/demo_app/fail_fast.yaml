@@ -12,4 +12,4 @@ tags:
             condition: ${ false }
             label: Fail the flow
         - evalScript: ${output.didFail = 0} # This should never run
-- evalScript: ${output.didFail = 1}
+- assertTrue: ${output.didFail == 1}
