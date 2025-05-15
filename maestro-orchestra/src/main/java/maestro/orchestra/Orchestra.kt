@@ -180,7 +180,7 @@ class Orchestra(
             initJsEngine(config)
         }
 
-        if(!coroutineContext.isActive) {
+        if (!coroutineContext.isActive) {
             logger.info("Flow cancelled, skipping initAndroidChromeDevTools...")
         } else {
             initAndroidChromeDevTools(config)
@@ -290,7 +290,7 @@ class Orchestra(
     /**
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
-    private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+    private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
 
         return when (command) {
@@ -401,10 +401,10 @@ class Orchestra(
         return false
     }
 
-    private fun assertNoDefectsWithAICommand(
+    private suspend fun assertNoDefectsWithAICommand(
         command: AssertNoDefectsWithAICommand,
         maestroCommand: MaestroCommand
-    ): Boolean = runBlocking {
+    ): Boolean {
         if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
@@ -438,65 +438,66 @@ class Orchestra(
             )
         }
 
-        false
+        return false
     }
 
-    private fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean =
-        runBlocking {
-            if (AIPredictionEngine == null) {
-                throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-            }
+    private suspend fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean {
+        if (AIPredictionEngine == null) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+        }
 
-            val metadata = getMetadata(maestroCommand)
+        val metadata = getMetadata(maestroCommand)
 
-            val imageData = Buffer()
-            maestro.takeScreenshot(imageData, compressed = false)
-            val defect = AIPredictionEngine.performAssertion(
-                screen = imageData.copy().readByteArray(),
-                assertion = command.assertion,
-            )
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+        val defect = AIPredictionEngine.performAssertion(
+            screen = imageData.copy().readByteArray(),
+            assertion = command.assertion,
+        )
 
-            if (defect != null) {
-                onCommandGeneratedOutput(command, listOf(defect), imageData)
+        if (defect != null) {
+            onCommandGeneratedOutput(command, listOf(defect), imageData)
 
-                val reasoning = "Assertion \"${command.assertion}\" failed:\n${defect.reasoning}"
-                updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
+            val reasoning = "Assertion \"${command.assertion}\" failed:\n${defect.reasoning}"
+            updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
 
-                throw MaestroException.AssertionFailure(
-                    message = """
+            throw MaestroException.AssertionFailure(
+                message = """
                     |$reasoning
                     """.trimMargin(),
-                    hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
-            }
-
-            false
+                hierarchyRoot = maestro.viewHierarchy().root,
+            debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
-    private fun extractTextWithAICommand(command: ExtractTextWithAICommand, maestroCommand: MaestroCommand): Boolean =
-        runBlocking {
-            if (AIPredictionEngine == null) {
-                throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-            }
+        return false
+    }
 
-            val metadata = getMetadata(maestroCommand)
-
-            val imageData = Buffer()
-            maestro.takeScreenshot(imageData, compressed = false)
-            val text = AIPredictionEngine.extractText(
-                screen = imageData.copy().readByteArray(),
-                query = command.query,
-            )
-
-            updateMetadata(
-                maestroCommand, metadata.copy(
-                    aiReasoning = "Query: \"${command.query}\"\nExtracted text: $text"
-                )
-            )
-            jsEngine.putEnv(command.outputVariable, text)
-
-            false
+    private suspend fun extractTextWithAICommand(
+        command: ExtractTextWithAICommand,
+        maestroCommand: MaestroCommand
+    ): Boolean {
+        if (AIPredictionEngine == null) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
+
+        val metadata = getMetadata(maestroCommand)
+
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+        val text = AIPredictionEngine.extractText(
+            screen = imageData.copy().readByteArray(),
+            query = command.query,
+        )
+
+        updateMetadata(
+            maestroCommand, metadata.copy(
+                aiReasoning = "Query: \"${command.query}\"\nExtracted text: $text"
+            )
+        )
+        jsEngine.putEnv(command.outputVariable, text)
+
+        return false
+    }
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
         command.scriptString.evaluateScripts(jsEngine)
@@ -651,7 +652,7 @@ class Orchestra(
         return true
     }
 
-    private fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+    private suspend fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val maxRuns = command.times?.toDoubleOrNull()?.toInt() ?: Int.MAX_VALUE
 
         var counter = 0
@@ -690,7 +691,7 @@ class Orchestra(
         return mutatiing
     }
 
-    private fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
+    private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
         val maxRetries = (command.maxRetries?.toIntOrNull() ?: 1).coerceAtMost(MAX_RETRIES_ALLOWED)
 
         var attempt = 0
@@ -733,7 +734,7 @@ class Orchestra(
         }
     }
 
-    private fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
+    private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
         return if (evaluateCondition(command.condition, command.optional)) {
             runSubFlow(command.commands, config, command.config)
         } else {
@@ -819,7 +820,7 @@ class Orchestra(
         return true
     }
 
-    private fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
+    private suspend fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
         jsEngine.enterScope()
 
         return try {
@@ -873,7 +874,7 @@ class Orchestra(
         }
     }
 
-    private fun runSubFlow(
+    private suspend fun runSubFlow(
         commands: List<MaestroCommand>,
         config: MaestroConfig?,
         subflowConfig: MaestroConfig?,
@@ -1385,15 +1386,13 @@ class Orchestra(
         return true
     }
 
-    private fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {
+    private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {
         commands.filter { it.asCommand() is DefineVariablesCommand }.takeIf { it.isNotEmpty() }?.let {
-            runBlocking {
-                executeCommands(
-                    commands = it,
-                    config = config,
-                    shouldReinitJsEngine = false
-                )
-            }
+            executeCommands(
+                commands = it,
+                config = config,
+                shouldReinitJsEngine = false
+            )
         }
     }
 
