@@ -71,8 +71,8 @@ class XCTestDriverClient(
         executeJsonRequest("terminateApp", TerminateAppRequest(appId))
     }
     
-    fun launchApp(appId: String, launchArguments: Map<String, Any>, maestroSessionId: UUID?,) {
-        executeJsonRequest("launchApp", LaunchAppRequest(appId, launchArguments, maestroSessionId))
+    fun launchApp(appId: String, launchArguments: Map<String, Any>) {
+        executeJsonRequest("launchApp", LaunchAppRequest(appId, launchArguments))
     }
 
     fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {

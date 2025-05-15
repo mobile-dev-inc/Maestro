@@ -91,8 +91,8 @@
 		94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */; };
 		9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */; };
 		F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F328D3E52A2A98E7000546D3 /* StringExtensions.swift */; };
-		F4C52E462D9E612D008E0A1A /* LaunchAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C52E452D9E612B008E0A1A /* LaunchAppHandler.swift */; };
 		F4C52E482D9E8DF1008E0A1A /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */; };
+		F4FD416F2DCB480E0063BDB3 /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = F4FD416E2DCB480E0063BDB3 /* AnyCodable */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -286,7 +286,6 @@
 		94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Extensions.swift"; sourceTree = "<group>"; };
 		9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSizeHelper.swift; sourceTree = "<group>"; };
 		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
-		F4C52E452D9E612B008E0A1A /* LaunchAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandler.swift; sourceTree = "<group>"; };
 		F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -303,6 +302,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */,
+				F4FD416F2DCB480E0063BDB3 /* AnyCodable in Frameworks */,
 				5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -317,6 +317,7 @@
 				52049BF6293503A200807AA3 /* maestro-driver-iosUITests */,
 				52049BD42935039F00807AA3 /* Products */,
 				5279BFD42935ECE20056C609 /* Frameworks */,
+				F4FD416C2DCA0EDA0063BDB3 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -609,6 +610,13 @@
 			path = Extensions;
 			sourceTree = "<group>";
 		};
+		F4FD416C2DCA0EDA0063BDB3 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -676,6 +684,7 @@
 			name = "maestro-driver-iosUITests";
 			packageProductDependencies = (
 				5279BFD52935ECE20056C609 /* FlyingFox */,
+				F4FD416E2DCB480E0063BDB3 /* AnyCodable */,
 			);
 			productName = "maestro-driver-iosUITests";
 			productReference = 52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */;
@@ -712,6 +721,7 @@
 			mainGroup = 52049BCA2935039F00807AA3;
 			packageReferences = (
 				52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+				F4FD416D2DCA33440063BDB3 /* XCRemoteSwiftPackageReference "AnyCodable" */,
 			);
 			productRefGroup = 52049BD42935039F00807AA3 /* Products */;
 			projectDirPath = "";
@@ -806,7 +816,6 @@
 				52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */,
 				32097965297092A800340282 /* InputTextRequest.swift in Sources */,
 				52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */,
-				F4C52E462D9E612D008E0A1A /* LaunchAppHandler.swift in Sources */,
 				52D8FAB02D6DD4100015FAB3 /* FBConfiguration.m in Sources */,
 				61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */,
 				6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */,
@@ -971,7 +980,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = QJD7W9832N;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -985,7 +994,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_BUNDLE_IDENTIFIER = com.maestrofk.flipkart;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1000,7 +1009,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = QJD7W9832N;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1014,7 +1023,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_BUNDLE_IDENTIFIER = com.maestrofk.flipkart;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1029,7 +1038,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2P56S3D7L7;
+				DEVELOPMENT_TEAM = QJD7W9832N;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1037,7 +1046,7 @@
 					"@loader_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.maestrofkuitest.flipkart;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
@@ -1055,7 +1064,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2P56S3D7L7;
+				DEVELOPMENT_TEAM = QJD7W9832N;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1063,7 +1072,7 @@
 					"@loader_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.maestrofkuitest.flipkart;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
@@ -1114,6 +1123,14 @@
 				version = 0.22.0;
 			};
 		};
+		F4FD416D2DCA33440063BDB3 /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Flight-School/AnyCodable.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.6.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1121,6 +1138,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */;
 			productName = FlyingFox;
+		};
+		F4FD416E2DCB480E0063BDB3 /* AnyCodable */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4FD416D2DCA33440063BDB3 /* XCRemoteSwiftPackageReference "AnyCodable" */;
+			productName = AnyCodable;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

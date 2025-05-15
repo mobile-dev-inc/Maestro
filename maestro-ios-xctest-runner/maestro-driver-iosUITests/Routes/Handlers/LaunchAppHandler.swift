@@ -12,29 +12,30 @@ struct LaunchAppHandler: HTTPHandler {
             return AppError(type: .precondition, message: "Incorrect request body for launching app").httpResponse
         }
         
-        let app = XCUIApplication(bundleIdentifier: requestBody.bundleId)
+        let app = XCUIApplication(bundleIdentifier: requestBody.appId)
 
         // Set launch arguments if available
-        if let arguments = requestBody.arguments {
-            app.launchArguments.append(contentsOf: arguments)
-        }
-
-        // Set environment variables if available
-        if let environment = requestBody.environment {
-            for (key, value) in environment {
-                app.launchEnvironment[key] = value
+        let arguments = requestBody.launchArguments
+        let flattenedArgs = arguments.flatMap { key, value -> [String] in
+            switch value.value {
+            case let bool as Bool:
+                return bool ? ["--\(key)"] : []
+            default:
+                return ["--\(key)", "\(value)"]
             }
         }
+        app.launchArguments.append(contentsOf: flattenedArgs)
 
-        NSLog("[Start] Launching app \(requestBody.bundleId) with arguments: \(app.launchArguments) and environment: \(app.launchEnvironment)")
+
+        NSLog("[Start] Launching app \(requestBody.appId) with arguments: \(app.launchArguments) and environment: \(app.launchEnvironment)")
 
         do {
             app.launch()
 
-            NSLog("[End] Successfully launched app \(requestBody.bundleId)")
+            NSLog("[End] Successfully launched app \(requestBody.appId)")
             return HTTPResponse(statusCode: .ok)
         } catch {
-            NSLog("[Error] Failed to launch app \(requestBody.bundleId): \(error.localizedDescription)")
+            NSLog("[Error] Failed to launch app \(requestBody.appId): \(error.localizedDescription)")
             return AppError(
                 type: .internal,
                 message: "Failed to launch app. Error: \(error.localizedDescription)"

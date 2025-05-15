@@ -84,7 +84,6 @@ class SimctlIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-        maestroSessionId: UUID?,
     ): Result<Unit, Throwable> {
         return runCatching {
             val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()

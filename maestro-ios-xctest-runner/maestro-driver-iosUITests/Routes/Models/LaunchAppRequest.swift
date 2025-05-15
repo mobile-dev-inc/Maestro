@@ -1,5 +1,6 @@
+import AnyCodable
+
 struct LaunchAppRequest: Codable {
-    let bundleId: String
-    let arguments: [String]?
-    let environment: [String: String]?
+    let appId: String
+    let launchArguments: [String: AnyCodable]
 }
