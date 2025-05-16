@@ -366,11 +366,19 @@ class Orchestra(
 
     private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
+        val debugMessage = """
+            Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state
+            - This could be a real regression that needs to be addressed
+        """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
                 hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties."
+                debugMessage = debugMessage
             )
         }
 
@@ -1066,6 +1074,14 @@ class Orchestra(
             )
 
         val (description, filterFunc) = buildFilter(selector = selector)
+        val debugMessage = """
+            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state.
+            - This could be a real regression that needs to be addressed.
+        """.trimIndent()
         if (selector.childOf != null) {
             val parentViewHierarchy = findElementViewHierarchy(
                 selector.childOf,
@@ -1078,18 +1094,26 @@ class Orchestra(
             ) ?: throw MaestroException.ElementNotFound(
                 "Element not found: $description",
                 parentViewHierarchy.root,
-                debugMessage = "Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists."
+                debugMessage = debugMessage
             )
         }
 
 
+        val exceptionDebugMessage = """
+            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state.
+            - This could be a real regression that needs to be addressed.
+        """.trimIndent()
         return maestro.findElementWithTimeout(
             timeoutMs = timeout,
             filter = filterFunc
         ) ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             maestro.viewHierarchy().root,
-            debugMessage = "Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists."
+            debugMessage = exceptionDebugMessage
         )
     }
 
@@ -1102,6 +1126,14 @@ class Orchestra(
         }
         val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout)
         val (description, filterFunc) = buildFilter(selector = selector)
+        val debugMessage = """
+            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state.
+            - This could be a real regression that needs to be addressed.
+        """.trimIndent()
         return maestro.findElementWithTimeout(
             timeout,
             filterFunc,
@@ -1109,7 +1141,7 @@ class Orchestra(
         )?.hierarchy ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             parentViewHierarchy.root,
-            debugMessage = "Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists."
+            debugMessage = debugMessage
         )
     }
 
