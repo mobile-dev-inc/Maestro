@@ -1,4 +1,5 @@
 import dadb.Dadb
+import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.drivers.AndroidDriver
 import maestro.orchestra.AssertCommand
@@ -57,6 +58,8 @@ private fun executeAndroidCommands() {
     )
 
     maestro.use {
-        Orchestra(it).executeCommands(commands)
+        runBlocking {
+            Orchestra(it).executeCommands(commands)
+        }
     }
 }

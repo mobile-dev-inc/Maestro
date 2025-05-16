@@ -1,7 +1,10 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
-import com.oracle.truffle.js.nodes.function.EvalNode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -62,7 +65,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -84,7 +89,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -106,7 +113,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -129,7 +138,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -149,7 +160,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -169,7 +182,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -188,7 +203,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -210,7 +227,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -236,7 +255,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -262,7 +283,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -284,7 +307,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -301,7 +326,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -319,7 +346,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -337,7 +366,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -358,7 +389,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -381,7 +414,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -435,7 +470,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -468,7 +505,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -486,7 +525,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -512,7 +553,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -537,7 +580,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -586,7 +631,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -606,7 +653,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.UnableToLaunchApp> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -657,7 +706,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -690,7 +741,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -712,7 +765,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -726,7 +781,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -768,7 +825,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -801,7 +860,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -819,7 +880,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -849,7 +912,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -881,7 +946,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -908,7 +975,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -926,7 +995,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -987,7 +1058,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1004,7 +1077,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1022,7 +1097,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<UnicodeNotSupportedError> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -1046,7 +1123,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1068,7 +1147,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1094,7 +1175,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1111,7 +1194,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1138,7 +1223,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1157,7 +1244,9 @@ class IntegrationTest {
         // When running flow - throw an exception
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -1172,7 +1261,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1194,7 +1285,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1215,7 +1308,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1246,7 +1341,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1280,7 +1377,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1317,7 +1416,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1355,7 +1456,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1375,7 +1478,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1398,7 +1503,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1452,7 +1559,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1488,7 +1597,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1513,7 +1624,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1535,16 +1648,18 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(
-                maestro = it,
-                onCommandFailed = { _, command, _ ->
-                    if (command.tapOnElement?.selector?.textRegex == "Non existent text") {
-                        Orchestra.ErrorResolution.CONTINUE
-                    } else {
-                        Orchestra.ErrorResolution.FAIL
-                    }
-                },
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    maestro = it,
+                    onCommandFailed = { _, command, _ ->
+                        if (command.tapOnElement?.selector?.textRegex == "Non existent text") {
+                            Orchestra.ErrorResolution.CONTINUE
+                        } else {
+                            Orchestra.ErrorResolution.FAIL
+                        }
+                    },
+                ).runFlow(commands)
+            }
         }
 
         // Then
@@ -1566,7 +1681,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1586,7 +1703,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1603,7 +1722,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -1622,7 +1743,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -1638,7 +1761,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -1667,7 +1792,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1683,7 +1810,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -1706,7 +1835,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -1733,7 +1864,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -1765,7 +1898,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1787,7 +1922,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1805,7 +1942,9 @@ class IntegrationTest {
         // Then
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }
@@ -1819,7 +1958,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         driver.assertCurrentTextInput("")
@@ -1834,7 +1975,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1857,7 +2000,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1882,7 +2027,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1922,7 +2069,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1953,7 +2102,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -1975,7 +2126,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -2012,7 +2165,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2035,7 +2190,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2057,7 +2214,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2079,7 +2238,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2104,7 +2265,9 @@ class IntegrationTest {
         // Then fail
         assertThrows<MaestroException.ElementNotFound> {
             Maestro(driver).use {
-                assertThat(orchestra(it).runFlow(commands))
+                runBlocking {
+                    assertThat(orchestra(it).runFlow(commands))
+                }
             }
         }
     }
@@ -2125,7 +2288,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            assertThat(orchestra(it).runFlow(commands)).isTrue()
+            runBlocking {
+                assertThat(orchestra(it).runFlow(commands)).isTrue()
+            }
         }
 
         // Then
@@ -2172,7 +2337,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2216,7 +2383,9 @@ class IntegrationTest {
 
         // When & Then
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2248,7 +2417,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2288,7 +2459,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2305,7 +2478,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -2325,7 +2500,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2346,7 +2523,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2367,7 +2546,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2388,7 +2569,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2409,7 +2592,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2430,7 +2615,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2465,7 +2652,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2483,12 +2672,14 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
+            runBlocking {
             orchestra(
                 it,
                 onCommandMetadataUpdate = { _, metadata ->
                     receivedLogs += metadata.logMessages
                 }
             ).runFlow(commands)
+            }
         }
 
         // Then
@@ -2508,7 +2699,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2524,7 +2717,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2541,7 +2736,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2567,7 +2764,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2607,7 +2806,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2634,12 +2835,14 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(
-                it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
         }
 
         // Then
@@ -2661,7 +2864,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -2689,7 +2894,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
 
@@ -2712,7 +2919,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
 
@@ -2729,7 +2938,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -2751,12 +2962,14 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(
-                it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
         }
 
         // Then
@@ -2788,7 +3001,9 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
         driver.assertEvents(
@@ -2810,12 +3025,14 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(
-                it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
         }
 
         // Then
@@ -2836,12 +3053,14 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(
-                it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
         }
 
         // Then
@@ -2864,12 +3083,14 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(
-                it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
         }
 
         // Then
@@ -2894,12 +3115,14 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             val result = Maestro(driver).use {
-                orchestra(
-                    it,
-                    onCommandMetadataUpdate = { _, metadata ->
-                        receivedLogs += metadata.logMessages
-                    }
-                ).runFlow(commands)
+                runBlocking {
+                    orchestra(
+                        it,
+                        onCommandMetadataUpdate = { _, metadata ->
+                            receivedLogs += metadata.logMessages
+                        }
+                    ).runFlow(commands)
+                }
             }
 
             assertThat(result).isFalse()
@@ -2921,12 +3144,14 @@ class IntegrationTest {
         // When & Then
         assertThrows<MaestroException.AssertionFailure> {
             val result = Maestro(driver).use {
-                orchestra(
-                    it,
-                    onCommandMetadataUpdate = { _, metadata ->
-                        receivedLogs += metadata.logMessages
-                    }
-                ).runFlow(commands)
+                runBlocking {
+                    orchestra(
+                        it,
+                        onCommandMetadataUpdate = { _, metadata ->
+                            receivedLogs += metadata.logMessages
+                        }
+                    ).runFlow(commands)
+            }
             }
 
             assertThat(result).isFalse()
@@ -2946,7 +3171,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -2961,7 +3188,9 @@ class IntegrationTest {
 
         // when
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // then
@@ -2984,7 +3213,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            assertThat(orchestra(it).runFlow(commands)).isTrue()
+            runBlocking {
+                assertThat(orchestra(it).runFlow(commands)).isTrue()
+            }
         }
 
         // Then
@@ -3013,7 +3244,9 @@ class IntegrationTest {
         var elapsedTime: Long
         Maestro(driver).use { maestro ->
             elapsedTime = measureTimeMillis {
-                orchestra(maestro).runFlow(commands)
+                runBlocking {
+                    orchestra(maestro).runFlow(commands)
+                }
             }
         }
 
@@ -3062,7 +3295,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -3077,7 +3312,9 @@ class IntegrationTest {
         val driver = driver { }
 
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
     }
 
@@ -3091,7 +3328,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -3120,10 +3359,12 @@ class IntegrationTest {
         var scrollDuration = "0"
         var timeout = "0"
         Maestro(driver).use {
-            orchestra(it, onCommandMetadataUpdate = { _, metaData ->
-                scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
-                timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
-            }).runFlow(commands)
+            runBlocking {
+                orchestra(it, onCommandMetadataUpdate = { _, metaData ->
+                    scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
+                    timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+                }).runFlow(commands)
+            }
         }
 
         // Then
@@ -3156,10 +3397,12 @@ class IntegrationTest {
         var scrollDuration = "0"
         var timeout = "0"
         Maestro(driver).use {
-            orchestra(it, onCommandMetadataUpdate = { _, metaData ->
-                scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
-                timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
-            }).runFlow(commands)
+            runBlocking {
+                orchestra(it, onCommandMetadataUpdate = { _, metaData ->
+                    scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
+                    timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
+                }).runFlow(commands)
+            }
         }
 
         // Then
@@ -3200,7 +3443,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -3216,6 +3461,49 @@ class IntegrationTest {
                 Event.Scroll,
             )
         )
+    }
+
+    @Test
+    fun `Cancellation before the flow starts skips all the commands`() {
+        val commands = readCommands("098_runscript_conditionals")
+        val info = driver { }.deviceInfo()
+
+        val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+        val driver = driver {
+            element {
+                id = "maestro"
+                bounds = elementBounds
+            }
+        }
+
+        var skipped = 0
+        var completed = 0
+
+        // When
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                withContext(Dispatchers.IO) {
+                    launch {
+                        Orchestra(
+                            maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandComplete = { _, _ ->
+                                completed += 1
+                            },
+                            onCommandSkipped = { _, cmd ->
+                                skipped += 1
+                            },
+                        ).runFlow(commands)
+                    }.cancel()
+                }
+            }
+        }
+
+        // Then
+        assertThat(skipped).isEqualTo(7)
+        assertThat(completed).isEqualTo(0)
+
     }
 
     private fun orchestra(
