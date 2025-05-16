@@ -1,0 +1,5 @@
+appId: com.other.app
+jsEngine: graaljs
+---
+- runScript:
+    file: 121-testrequire.js 
