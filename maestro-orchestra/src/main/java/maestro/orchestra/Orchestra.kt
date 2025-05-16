@@ -120,12 +120,8 @@ class Orchestra(
 
         val config = YamlCommandReader.getConfig(commands)
 
-        if (!coroutineContext.isActive) {
-            logger.info("Flow cancelled, skipping initialization...")
-        } else {
-            initJsEngine(config)
-            initAndroidChromeDevTools(config)
-        }
+        initJsEngine(config)
+        initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
 
@@ -189,7 +185,7 @@ class Orchestra(
         commands
             .forEachIndexed { index, command ->
                 if (!coroutineContext.isActive) {
-                    logger.info("Flow cancelled, skipping command...")
+                    logger.info("[Command execution] Command skipped due to cancellation: ${command}")
                     onCommandSkipped(index, command)
                     return@forEachIndexed
                 }
