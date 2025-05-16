@@ -32,8 +32,8 @@ class ChromeSeleniumFactory(
                 if (isHeadless) {
                     addArguments("--headless=new")
 
-                    if(screenSize == "1920"){
-                        addArguments("--window-size=1920,1080")
+                    if(screenSize != null){
+                        addArguments("--window-size=" + screenSize.replace('x',','))
                     }
                     else{
                         addArguments("--window-size=1024,768")
