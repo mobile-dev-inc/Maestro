@@ -181,7 +181,7 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--screen-size"],
-        description = ["(Web only) Set the size of the headless browser. Usage limited for now to --screenSize 1920"],
+        description = ["(Web only) Set the size of the headless browser. Use the format {Width}x{Height}. Usage is --screen-size 1920x1080"],
     )
     private var screenSize: String? = null
 
