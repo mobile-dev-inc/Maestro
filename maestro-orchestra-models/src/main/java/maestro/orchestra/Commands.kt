@@ -39,6 +39,60 @@ sealed interface Command {
     val label: String?
 
     val optional: Boolean
+
+    /**
+     * Returns the description that would be generated if no label was present
+     */
+    fun rawDescription(): String {
+        // Temporarily store the label
+        val originalLabel = this.label
+        // Create a copy with null label
+        val commandWithoutLabel = when (this) {
+            is AssertConditionCommand -> this.copy(label = null)
+            is AssertNoDefectsWithAICommand -> this.copy(label = null)
+            is AssertWithAICommand -> this.copy(label = null)
+            is ExtractTextWithAICommand -> this.copy(label = null)
+            is InputTextCommand -> this.copy(label = null)
+            is LaunchAppCommand -> this.copy(label = null)
+            is ApplyConfigurationCommand -> this.copy(label = null)
+            is OpenLinkCommand -> this.copy(label = null)
+            is PressKeyCommand -> this.copy(label = null)
+            is SwipeCommand -> this.copy(label = null)
+            is ScrollUntilVisibleCommand -> this.copy(label = null)
+            is ScrollCommand -> this.copy(label = null)
+            is BackPressCommand -> this.copy(label = null)
+            is HideKeyboardCommand -> this.copy(label = null)
+            is CopyTextFromCommand -> this.copy(label = null)
+            is PasteTextCommand -> this.copy(label = null)
+            is TapOnElementCommand -> this.copy(label = null)
+            is TapOnPointCommand -> this.copy(label = null)
+            is TapOnPointV2Command -> this.copy(label = null)
+            is AssertCommand -> this.copy(label = null)
+            is EraseTextCommand -> this.copy(label = null)
+            is TakeScreenshotCommand -> this.copy(label = null)
+            is StopAppCommand -> this.copy(label = null)
+            is KillAppCommand -> this.copy(label = null)
+            is ClearStateCommand -> this.copy(label = null)
+            is ClearKeychainCommand -> this.copy(label = null)
+            is InputRandomCommand -> this.copy(label = null)
+            is RunFlowCommand -> this.copy(label = null)
+            is SetLocationCommand -> this.copy(label = null)
+            is RepeatCommand -> this.copy(label = null)
+            is RetryCommand -> this.copy(label = null)
+            is DefineVariablesCommand -> this.copy(label = null)
+            is RunScriptCommand -> this.copy(label = null)
+            is WaitForAnimationToEndCommand -> this.copy(label = null)
+            is EvalScriptCommand -> this.copy(label = null)
+            is TravelCommand -> this.copy(label = null)
+            is StartRecordingCommand -> this.copy(label = null)
+            is AddMediaCommand -> this.copy(label = null)
+            is StopRecordingCommand -> this.copy(label = null)
+            is SetAirplaneModeCommand -> this.copy(label = null)
+            is ToggleAirplaneModeCommand -> this.copy(label = null)
+        }
+        // Get description with null label
+        return commandWithoutLabel.description()
+    }
 }
 
 sealed interface CompositeCommand : Command {
