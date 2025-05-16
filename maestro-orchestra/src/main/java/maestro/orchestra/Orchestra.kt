@@ -105,8 +105,6 @@ class Orchestra(
 
     private lateinit var jsEngine: JsEngine
 
-    private val ai: AI? = initAI()
-
     private var copiedText: String? = null
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
@@ -270,17 +268,6 @@ class Orchestra(
         if (config == null) return
         val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
         maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
-    }
-
-    private fun initAI(): AI? {
-        logger.info("[Orchestra] Initializing AI")
-        val apiKey = System.getenv(AI_KEY_ENV_VAR) ?: return null
-        val modelName: String? = System.getenv(AI.AI_MODEL_ENV_VAR)
-
-        return if (modelName == null) OpenAI(apiKey = apiKey)
-        else if (modelName.startsWith("gpt-")) OpenAI(apiKey = apiKey, defaultModel = modelName)
-        else if (modelName.startsWith("claude-")) Claude(apiKey = apiKey, defaultModel = modelName)
-        else throw IllegalStateException("Unsupported AI model: $modelName")
     }
 
     /**
