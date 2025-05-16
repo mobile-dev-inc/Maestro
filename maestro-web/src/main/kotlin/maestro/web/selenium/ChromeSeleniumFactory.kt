@@ -9,7 +9,8 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 class ChromeSeleniumFactory(
-    private val isHeadless: Boolean
+    private val isHeadless: Boolean,
+    private val screenSize: String?
 ) : SeleniumFactory {
 
     override fun create(): WebDriver {
@@ -30,7 +31,14 @@ class ChromeSeleniumFactory(
                 addArguments("--lang=en")
                 if (isHeadless) {
                     addArguments("--headless=new")
-                    addArguments("--window-size=1024,768")
+
+                    if(screenSize == "1920"){
+                        addArguments("--window-size=1920,1080")
+                    }
+                    else{
+                        addArguments("--window-size=1024,768")
+                    }
+
                     setExperimentalOption("detach", true)
                 }
             }
