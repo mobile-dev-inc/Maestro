@@ -159,6 +159,12 @@ class TestCommand : Callable<Int> {
     private var headless: Boolean = false
 
     @Option(
+        names = ["--screenSize"],
+        description = ["(Web only) Set the size of the headless browser. Usage limited for now to --screenSize 1920"],
+    )
+    private var screenSize: String? = null
+
+    @Option(
         names = ["--analyze"],
         description = ["[Beta] Enhance the test output analysis with AI Insights"],
     )
@@ -346,6 +352,7 @@ class TestCommand : Callable<Int> {
             deviceId = deviceId,
             platform = parent?.platform,
             isHeadless = headless,
+            screenSize = screenSize,
             reinstallDriver = reinstallDriver,
         ) { session ->
             val maestro = session.maestro
