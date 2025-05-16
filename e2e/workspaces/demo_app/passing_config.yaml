@@ -1,6 +1,0 @@
-# Used on runs where all flows should pass
-executionOrder:
-  continueOnFailure: false
-  flowsOrder:
-    - commands/ai_simple.yaml
-    - commands/fail_fast.yaml
