@@ -180,7 +180,7 @@ class TestCommand : Callable<Int> {
     private var headless: Boolean = false
 
     @Option(
-        names = ["--screenSize"],
+        names = ["--screen-size"],
         description = ["(Web only) Set the size of the headless browser. Usage limited for now to --screenSize 1920"],
     )
     private var screenSize: String? = null
