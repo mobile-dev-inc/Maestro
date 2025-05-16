@@ -1,6 +1,7 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.runCatching
 import device.IOSDevice
 import hierarchy.ViewHierarchy
 import ios.IOSDeviceErrors
@@ -143,10 +144,12 @@ class XCTestIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: Map<String, Any>,
-    ) {
-        execute {
-            client.launchApp(id)
+        launchArguments: Map<String, Any>
+    ): Result<Unit, Throwable> {
+        return runCatching {
+            execute {
+                client.launchApp(appId = id, launchArguments = launchArguments)
+            }
         }
     }
 

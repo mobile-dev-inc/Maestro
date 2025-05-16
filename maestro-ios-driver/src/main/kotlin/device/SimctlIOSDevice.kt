@@ -84,13 +84,15 @@ class SimctlIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-    ) {
-        val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()
-        LocalSimulatorUtils.launch(
-            deviceId = deviceId,
-            bundleId = id,
-            launchArguments = iOSLaunchArguments,
-        )
+    ): Result<Unit, Throwable> {
+        return runCatching {
+            val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()
+            LocalSimulatorUtils.launch(
+                deviceId = deviceId,
+                bundleId = id,
+                launchArguments = iOSLaunchArguments,
+            )
+        }
     }
 
     override fun stop(id: String) {

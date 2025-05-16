@@ -63,7 +63,7 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
-    override fun launch(id: String, launchArguments: Map<String, Any>) {
+    override fun launch(id: String, launchArguments: Map<String, Any>): Result<Unit, Throwable> {
         TODO("Not yet implemented")
     }
 

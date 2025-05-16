@@ -1,3 +1,5 @@
 package xcuitest.api
 
-data class LaunchAppRequest(val bundleId: String)
+import java.util.*
+
+data class LaunchAppRequest(val appId: String, val launchArguments: Map<String, Any>)
