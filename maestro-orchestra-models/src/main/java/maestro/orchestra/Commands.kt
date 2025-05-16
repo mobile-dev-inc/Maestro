@@ -110,7 +110,7 @@ data class ScrollUntilVisibleCommand(
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
     val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
-    val originalSpeedValue: String? = null,
+    val originalSpeedValue: String? = scrollDuration,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
