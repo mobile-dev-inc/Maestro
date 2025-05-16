@@ -110,6 +110,7 @@ data class ScrollUntilVisibleCommand(
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
     val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
+    val originalSpeedValue: String? = scrollDuration,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -130,11 +131,26 @@ data class ScrollUntilVisibleCommand(
     }
 
     override fun description(): String {
-        return label ?: "Scrolling $direction until ${selector.description()} is visible."
+        val baseDescription = "Scrolling $direction until ${selector.description()} is visible"
+        val additionalDescription = mutableListOf<String>()
+        additionalDescription.add("with speed $originalSpeedValue")
+        additionalDescription.add("visibility percentage $visibilityPercentage%")
+        additionalDescription.add("timeout $timeout ms")
+        waitToSettleTimeoutMs?.let {
+            additionalDescription.add("wait to settle $it ms")
+        }
+        if (centerElement) {
+            additionalDescription.add("with centering enabled")
+        } else {
+            additionalDescription.add("with centering disabled")
+        }
+        val description = "$baseDescription ${additionalDescription.joinToString(", ")}"
+        return label ?: description
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
         return copy(
+            originalSpeedValue = scrollDuration,
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),

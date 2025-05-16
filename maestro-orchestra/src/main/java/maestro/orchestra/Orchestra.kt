@@ -31,7 +31,6 @@ import maestro.ScreenRecording
 import maestro.ViewHierarchy
 import maestro.ai.AI
 import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.Prediction
 import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
 import maestro.ai.openai.OpenAI
@@ -367,10 +366,19 @@ class Orchestra(
 
     private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
+        val debugMessage = """
+            Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state
+            - This could be a real regression that needs to be addressed
+        """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = debugMessage
             )
         }
 
@@ -406,6 +414,7 @@ class Orchestra(
                     |
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "AI-powered visual defect detection failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
             )
         }
 
@@ -437,6 +446,7 @@ class Orchestra(
                     |$reasoning
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
             )
         }
 
@@ -540,8 +550,7 @@ class Orchestra(
         val deviceInfo = maestro.deviceInfo()
 
         var retryCenterCount = 0
-        val maxRetryCenterCount =
-            4 // for when the list is no longer scrollable (last element) but the element is visible
+        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
 
         do {
             try {
@@ -568,9 +577,40 @@ class Orchestra(
             maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong(), waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
         } while (System.currentTimeMillis() < endTime)
 
+        val debugMessage = buildString {
+            appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
+            appendLine("Tip: Try adjusting the following settings to improve detection:")
+            appendLine("- `timeout`: current = ${command.timeout}ms → Increase if you need more time to find the element")
+            val originalSpeed = command.originalSpeedValue?.toIntOrNull()
+            val speedAdvice = if (originalSpeed != null && originalSpeed > 50) {
+                "Reduce for slower, more precise scrolling to avoid overshooting elements"
+            } else {
+                "Increase for faster scrolling if element is far away"
+            }
+            appendLine("- `speed`: current = ${command.originalSpeedValue} (0-100 scale) → $speedAdvice")
+            val waitSettleAdvice = if (command.waitToSettleTimeoutMs == null) {
+                "Set this value (e.g., 500ms) if your UI updates frequently between scrolls"
+            } else {
+                "Increase if your UI needs more time to update between scrolls"
+            }
+            val waitToTimeSettleMessage = if (command.waitToSettleTimeoutMs != null) {
+                "${command.waitToSettleTimeoutMs}ms"
+            } else {
+                "Not defined"
+            }
+            appendLine("- `waitToSettleTimeoutMs`: current = $waitToTimeSettleMessage → $waitSettleAdvice")
+            appendLine("- `visibilityPercentage`: current = ${command.visibilityPercentage}% → Lower this value if you want to detect partially visible elements")
+            val centerAdvice = if (command.centerElement) {
+                "Disable if you don't need the element to be centered after finding it"
+            } else {
+                "Enable if you want the element to be centered after finding it"
+            }
+            appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
+        }
         throw MaestroException.ElementNotFound(
-            "No visible element found: ${command.selector.description()}",
-            maestro.viewHierarchy().root
+            message = "No visible element found: ${command.selector.description()}",
+            maestro.viewHierarchy().root,
+            debugMessage = debugMessage
         )
     }
 
@@ -1034,6 +1074,14 @@ class Orchestra(
             )
 
         val (description, filterFunc) = buildFilter(selector = selector)
+        val debugMessage = """
+            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state.
+            - This could be a real regression that needs to be addressed.
+        """.trimIndent()
         if (selector.childOf != null) {
             val parentViewHierarchy = findElementViewHierarchy(
                 selector.childOf,
@@ -1046,16 +1094,26 @@ class Orchestra(
             ) ?: throw MaestroException.ElementNotFound(
                 "Element not found: $description",
                 parentViewHierarchy.root,
+                debugMessage = debugMessage
             )
         }
 
 
+        val exceptionDebugMessage = """
+            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state.
+            - This could be a real regression that needs to be addressed.
+        """.trimIndent()
         return maestro.findElementWithTimeout(
             timeoutMs = timeout,
             filter = filterFunc
         ) ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             maestro.viewHierarchy().root,
+            debugMessage = exceptionDebugMessage
         )
     }
 
@@ -1068,6 +1126,14 @@ class Orchestra(
         }
         val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout)
         val (description, filterFunc) = buildFilter(selector = selector)
+        val debugMessage = """
+            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
+            
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state.
+            - This could be a real regression that needs to be addressed.
+        """.trimIndent()
         return maestro.findElementWithTimeout(
             timeout,
             filterFunc,
@@ -1075,6 +1141,7 @@ class Orchestra(
         )?.hierarchy ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
             parentViewHierarchy.root,
+            debugMessage = debugMessage
         )
     }
 

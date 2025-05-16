@@ -32,12 +32,14 @@ sealed class MaestroException(override val message: String) : RuntimeException(m
     open class AssertionFailure(
         message: String,
         val hierarchyRoot: TreeNode,
+        val debugMessage: String,
     ) : MaestroException(message)
 
     class ElementNotFound(
         message: String,
         hierarchyRoot: TreeNode,
-    ) : AssertionFailure(message, hierarchyRoot)
+        debugMessage: String,
+    ) : AssertionFailure(message, hierarchyRoot, debugMessage)
 
     class CloudApiKeyNotAvailable(message: String) : MaestroException(message)
 
