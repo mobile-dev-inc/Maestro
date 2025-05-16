@@ -7,6 +7,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.device.Device
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
@@ -91,7 +92,13 @@ object TestRunner {
             path = debugOutputPath,
         )
 
-        if (debugOutput.exception != null) PrintUtils.err("${debugOutput.exception?.message}")
+        val exception = debugOutput.exception
+        if (exception != null) {
+            PrintUtils.err(exception.message)
+            if (exception is MaestroException.AssertionFailure) {
+                PrintUtils.err(exception.debugMessage)
+            }
+        }
 
         return if (result.get() == true) 0 else 1
     }
