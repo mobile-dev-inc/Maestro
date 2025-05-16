@@ -1,0 +1,9 @@
+appId: com.other.app
+jsEngine: graaljs
+---
+- evalScript: ${console.log("Start");}
+- runScript:
+    file: 120_set_time_out.js
+- evalScript: ${setTimeout(() => { console.log("Second timeout"); }, 1000);}
+- evalScript: ${setTimeout(() => { console.log("Third timeout"); }, 2000);}
+- evalScript: ${console.log("End");}

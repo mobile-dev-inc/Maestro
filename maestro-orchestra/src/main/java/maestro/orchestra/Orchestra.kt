@@ -477,31 +477,40 @@ class Orchestra(
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
         command.scriptString.evaluateScripts(jsEngine)
-
+        waitForTimersIfGraal()
         // We do not actually know if there were any mutations, but we assume there were
         return true
     }
 
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
-        return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
-            jsEngine.evaluateScript(
-                script = command.script,
-                env = command.env,
-                sourceName = command.sourceDescription,
-                runInSubScope = true,
-            )
-
-            // We do not actually know if there were any mutations, but we assume there were
-            true
-        } else {
+        if (!evaluateCondition(command.condition, command.optional)) {
             throw CommandSkipped
         }
+    
+        jsEngine.evaluateScript(
+            script = command.script,
+            env = command.env,
+            sourceName = command.sourceDescription,
+            runInSubScope = true,
+        )
+    
+        waitForTimersIfGraal()
+        
+        // We do not actually know if there were any mutations, but we assume there were
+        return true
     }
-
+    
     private fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {
         maestro.waitForAnimationToEnd(command.timeout)
 
         return true
+    }
+
+    private fun waitForTimersIfGraal() {
+        val engine = jsEngine
+        if (engine is GraalJsEngine) {
+            engine.waitForActiveTimers()
+        }
     }
 
     private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
