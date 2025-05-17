@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.40.4
+Features:
+- Added `--screen-size` which accepts a set of dimesions like `1920x1080` for running the headless web driver at user defined sizes
+
 ## 1.40.3
 Fix
 - MissingKotlinParameterException during using maestro commands.
