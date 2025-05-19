@@ -54,6 +54,7 @@ logback = "1.2.6"
 coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
 clikt = "4.2.2"
+gmsLocation = "21.3.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -129,6 +130,7 @@ square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 
 [bundles]
 
