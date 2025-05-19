@@ -40,10 +40,10 @@ object WorkspaceExecutionPlanner {
 
         val (files, directories) = input.partition { it.isRegularFile() }
 
-        val flowFiles = files.filter { isFlowFile(it) }
+        val flowFiles = files.filter { isFlowFile(it, config) }
         val flowFilesInDirs: List<Path> = directories.flatMap { dir -> Files
             .walk(dir)
-            .filter { isFlowFile(it) }
+            .filter { isFlowFile(it, config) }
             .toList()
         }
         if (flowFilesInDirs.isEmpty() && flowFiles.isEmpty()) {
