@@ -89,7 +89,7 @@ class SimctlIOSDevice(
         LocalSimulatorUtils.launch(
             deviceId = deviceId,
             bundleId = id,
-            launchArguments = iOSLaunchArguments
+            launchArguments = iOSLaunchArguments,
         )
     }
 
