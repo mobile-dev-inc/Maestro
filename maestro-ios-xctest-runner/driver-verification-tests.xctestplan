@@ -1,0 +1,28 @@
+{
+  "configurations" : [
+    {
+      "id" : "9B7D766D-8F1E-4EF0-9EA2-26B191A4ED99",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "skippedTests" : [
+        "maestro_driver_iosUITests",
+        "maestro_driver_iosUITests\/testHttpServer()"
+      ],
+      "target" : {
+        "containerPath" : "container:maestro-driver-ios.xcodeproj",
+        "identifier" : "52049BF2293503A200807AA3",
+        "name" : "maestro-driver-iosUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

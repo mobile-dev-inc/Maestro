@@ -42,7 +42,7 @@ final class LaunchAppHandlerTests: XCTestCase {
 
         // Verify app is running and arguments are displayed
         let app = XCUIApplication(bundleIdentifier: launchRequest.appId)
-        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "App did not launch")
 
         let expected = [
                     "--featureFlagA",
