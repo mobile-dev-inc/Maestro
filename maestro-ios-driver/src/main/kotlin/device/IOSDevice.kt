@@ -88,7 +88,7 @@ interface IOSDevice : AutoCloseable {
     fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-    ): Result<Unit, Throwable>
+    )
 
     /**
      * Terminates the app.

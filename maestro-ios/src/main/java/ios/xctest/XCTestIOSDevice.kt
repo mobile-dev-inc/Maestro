@@ -145,11 +145,9 @@ class XCTestIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>
-    ): Result<Unit, Throwable> {
-        return runCatching {
-            execute {
-                client.launchApp(appId = id, launchArguments = launchArguments)
-            }
+    ) {
+        execute {
+            client.launchApp(appId = id, launchArguments = launchArguments)
         }
     }
 

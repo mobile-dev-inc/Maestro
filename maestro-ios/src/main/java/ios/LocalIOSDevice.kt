@@ -103,8 +103,8 @@ class LocalIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>
-    ): Result<Unit, Throwable> {
-        return xcTestDevice.launch(id, launchArguments)
+    ) {
+        xcTestDevice.launch(id, launchArguments)
     }
 
     override fun stop(id: String) {
