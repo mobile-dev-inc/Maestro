@@ -86,6 +86,7 @@ class AndroidDriver(
     private var proxySet = false
     private var closed = false
 
+    private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
 
     override fun name(): String {
@@ -172,6 +173,10 @@ class AndroidDriver(
         if (closed) return
         if (proxySet) {
             resetProxy()
+        }
+        if (isLocationMocked) {
+            blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
+            isLocationMocked = false
         }
 
         LOGGER.info("[Start] close port forwarder")
@@ -674,7 +679,18 @@ class AndroidDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         metrics.measured("operation", mapOf("command" to "setLocation")) {
-            shell("appops set dev.mobile.maestro android:mock_location allow")
+            if (!isLocationMocked) {
+                LOGGER.info("[Start] Setting up for mocking location $latitude, $longitude")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
+                shell("appops set dev.mobile.maestro android:mock_location allow")
+                runDeviceCall {
+                    blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
+                }
+                LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
+
+                isLocationMocked = true
+            }
 
             runDeviceCall {
                 blockingStubWithTimeout.setLocation(
