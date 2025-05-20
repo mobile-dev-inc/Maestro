@@ -160,6 +160,7 @@ dependencies {
     implementation(libs.commons.lang3)
     implementation(libs.hiddenapibypass)
 
+    androidTestImplementation(libs.gmsLocation)
     implementation(libs.gmsLocation)
 
     androidTestImplementation(libs.androidx.test.junit)

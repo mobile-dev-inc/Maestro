@@ -350,10 +350,13 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
     ) {
         try {
+            Log.d(TAG, "[Start] Disabling location updates")
+            locationTimerTask?.cancel()
             locationTimer.cancel()
             mockLocationProviderList.forEach {
                 it.disable()
             }
+            Log.d(TAG, "[Done] Disabling location updates")
             responseObserver.onNext(emptyResponse {  })
             responseObserver.onCompleted()
         } catch (exception: Exception) {
@@ -366,8 +369,8 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
     ) {
         try {
-            val context = InstrumentationRegistry.getInstrumentation()
-                .context
+            Log.d(TAG, "[Start] Enabling mock location providers")
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
             val locationManager = context.getSystemService(LOCATION_SERVICE) as LocationManager
 
             mockLocationProviderList.addAll(
@@ -377,6 +380,7 @@ class Service(
             mockLocationProviderList.forEach {
                 it.enable()
             }
+            Log.d(TAG, "[Done] Enabling mock location providers")
 
             responseObserver.onNext(emptyResponse {  })
             responseObserver.onCompleted()
@@ -394,7 +398,7 @@ class Service(
         val fusedLocationProvider: MockLocationProvider? = if (playServices.isAvailable(context)) {
             val fusedLocationProviderClient =
                 LocationServices.getFusedLocationProviderClient(context)
-            FusedLocationProvider(context, fusedLocationProviderClient)
+            FusedLocationProvider(fusedLocationProviderClient)
         } else {
             null
         }
@@ -456,6 +460,10 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.SetLocationResponse>
     ) {
         try {
+            if (locationTimerTask != null) {
+                locationTimerTask?.cancel()
+            }
+
             locationTimerTask = object : TimerTask() {
                 override fun run() {
                     mockLocationProviderList.forEach {
