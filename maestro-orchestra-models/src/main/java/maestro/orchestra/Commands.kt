@@ -27,9 +27,11 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.util.InputRandomTextHelper
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 sealed interface Command {
 
+    @get:JsonIgnore
     val originalDescription: String
 
     /**
