@@ -737,7 +737,7 @@ data class YamlFluentCommand(
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null
     ): MaestroCommand {
-        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
+        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: false
         val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: false
         val point = (tapOn as? YamlElementSelector)?.point
         val label = (tapOn as? YamlElementSelector)?.label

@@ -228,14 +228,14 @@ internal class YamlCommandReaderTest {
             // Taps
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false,
                 label = "Tap on the important button"
             ),
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false,
                 repeat = TapRepeat(
@@ -246,14 +246,14 @@ internal class YamlCommandReaderTest {
             ),
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = true,
                 label = "Press and hold the important button"
             ),
             TapOnPointV2Command(
                 point = "50%,50%",
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 longPress = false,
                 label = "Tap on the middle of the screen"
             ),
@@ -431,7 +431,7 @@ internal class YamlCommandReaderTest {
                     MaestroCommand(
                         command = TapOnElementCommand(
                             selector = ElementSelector(idRegex = "foo"),
-                            retryIfNoChange = true,
+                            retryIfNoChange = false,
                             waitUntilVisible = false,
                             longPress = false,
                             label = "Tap on the important button"
@@ -440,7 +440,7 @@ internal class YamlCommandReaderTest {
                     MaestroCommand(
                         command = TapOnElementCommand(
                             selector = ElementSelector(idRegex = "bar"),
-                            retryIfNoChange = true,
+                            retryIfNoChange = false,
                             waitUntilVisible = false,
                             longPress = false,
                             label = "Tap on the other important button"
@@ -490,21 +490,21 @@ internal class YamlCommandReaderTest {
                 ElementSelector(
                     textRegex = "Hello",
                 ),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false
             ),
             TapOnElementCommand(
                 selector = ElementSelector(textRegex = "Hello"),
                 repeat = TapRepeat(2, TapOnElementCommand.DEFAULT_REPEAT_DELAY),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false
             ),
             TapOnElementCommand(
                 selector = ElementSelector(textRegex = "Hello"),
                 longPress = true,
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false
             ),
             AssertConditionCommand(
