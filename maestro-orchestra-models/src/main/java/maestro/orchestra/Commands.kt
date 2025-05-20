@@ -37,10 +37,9 @@ sealed interface Command {
 
     /**
      * Returns the final description used for display/debug
-     * If useLabel is true and a label exists, returns the label
-     * Otherwise returns the original description
+     * Returns the label if it exists, otherwise returns the original description
      */
-    fun description(): String = if (label != null) label!! else originalDescription()
+    fun description(): String = label ?: originalDescription()
 
     fun evaluateScripts(jsEngine: JsEngine): Command
 
