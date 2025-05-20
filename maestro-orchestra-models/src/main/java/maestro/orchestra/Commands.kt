@@ -31,10 +31,16 @@ import maestro.orchestra.util.InputRandomTextHelper
 sealed interface Command {
 
     /**
-     * Returns the description of the command.
-     * @param useLabel if true, returns the label if present, otherwise returns the raw description
+     * Returns the raw parsed description of the command, ignoring any labels
      */
-    fun description(useLabel: Boolean = true): String
+    fun originalDescription(): String
+
+    /**
+     * Returns the final description used for display/debug
+     * If useLabel is true and a label exists, returns the label
+     * Otherwise returns the original description
+     */
+    fun description(useLabel: Boolean = true): String = if (useLabel && label != null) label!! else originalDescription()
 
     fun evaluateScripts(jsEngine: JsEngine): Command
 
@@ -64,11 +70,7 @@ data class SwipeCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-
+    override fun originalDescription(): String {
         return when {
             elementSelector != null && direction != null -> {
                 "Swiping in $direction direction on ${elementSelector.description()}"
@@ -130,11 +132,7 @@ data class ScrollUntilVisibleCommand(
         } else this
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-
+    override fun originalDescription(): String {
         val baseDescription = "Scrolling $direction until ${selector.description()} is visible"
         val additionalDescription = mutableListOf<String>()
         additionalDescription.add("with speed $originalSpeedValue")
@@ -187,10 +185,7 @@ class ScrollCommand(
         return "ScrollCommand()"
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Scroll vertically"
     }
 
@@ -218,10 +213,7 @@ class BackPressCommand(
         return "BackPressCommand()"
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Press back"
     }
 
@@ -249,10 +241,7 @@ class HideKeyboardCommand(
         return "HideKeyboardCommand()"
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Hide Keyboard"
     }
 
@@ -267,10 +256,7 @@ data class CopyTextFromCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Copy text from element with ${selector.description()}"
     }
 
@@ -286,10 +272,7 @@ data class PasteTextCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Paste text"
     }
 
@@ -309,10 +292,7 @@ data class TapOnElementCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         val optional = if (optional || selector.optional) "(Optional) " else ""
         return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
     }
@@ -341,10 +321,7 @@ data class TapOnPointCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "${tapOnDescription(longPress, repeat)} on point ($x, $y)"
     }
 
@@ -363,10 +340,7 @@ data class TapOnPointV2Command(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "${tapOnDescription(longPress, repeat)} on point ($point)"
     }
 
@@ -377,7 +351,6 @@ data class TapOnPointV2Command(
     }
 }
 
-// Do not delete this class. It might have been already serialized in the past and stored in DB.
 @Deprecated("Use AssertConditionCommand instead")
 data class AssertCommand(
     val visible: ElementSelector? = null,
@@ -387,10 +360,7 @@ data class AssertCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         val timeoutStr = timeout?.let { " within $timeout ms" } ?: ""
         return when {
             visible != null -> "Assert visible ${visible.description()}" + timeoutStr
@@ -415,7 +385,6 @@ data class AssertCommand(
             timeout = timeout?.toString(),
         )
     }
-
 }
 
 data class AssertConditionCommand(
@@ -429,10 +398,7 @@ data class AssertConditionCommand(
         return timeout?.replace("_", "")?.toLong()
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         val optional = if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true) "(Optional) " else ""
         return "Assert that $optional${condition.description()}"
     }
@@ -449,10 +415,7 @@ data class AssertNoDefectsWithAICommand(
     override val optional: Boolean = true,
     override val label: String? = null,
 ) : Command {
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Assert no defects with AI"
     }
 
@@ -464,10 +427,7 @@ data class AssertWithAICommand(
     override val optional: Boolean = true,
     override val label: String? = null,
 ) : Command {
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Assert with AI: $assertion"
     }
 
@@ -484,10 +444,7 @@ data class ExtractTextWithAICommand(
     override val optional: Boolean = true,
     override val label: String? = null
 ) : Command {
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Extract text with AI: $query"
     }
 
@@ -504,10 +461,7 @@ data class InputTextCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Input text $text"
     }
 
@@ -529,11 +483,7 @@ data class LaunchAppCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-
+    override fun originalDescription(): String {
         var result = if (clearState != true) {
             "Launch app \"$appId\""
         } else {
@@ -561,7 +511,7 @@ data class LaunchAppCommand(
             launchArguments = launchArguments?.entries?.associate {
                 val value = it.value
                 it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
-            },
+            }
         )
     }
 }
@@ -572,10 +522,7 @@ data class ApplyConfigurationCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Apply configuration"
     }
 
@@ -596,10 +543,7 @@ data class OpenLinkCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return when {
             browser == true -> if (autoVerify == true) "Open $link with auto verification in browser" else "Open $link in browser"
             else -> if (autoVerify == true) "Open $link with auto verification" else "Open $link"
@@ -619,17 +563,13 @@ data class PressKeyCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Press ${code.description} key"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): PressKeyCommand {
         return this
     }
-
 }
 
 data class EraseTextCommand(
@@ -638,10 +578,7 @@ data class EraseTextCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return when (charactersToErase) {
             null -> "Erase text"
             else -> "Erase $charactersToErase characters"
@@ -660,10 +597,7 @@ data class TakeScreenshotCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Take screenshot $path"
     }
 
@@ -680,10 +614,7 @@ data class StopAppCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Stop $appId"
     }
 
@@ -700,10 +631,7 @@ data class KillAppCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Kill $appId"
     }
 
@@ -720,10 +648,7 @@ data class ClearStateCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Clear state of $appId"
     }
 
@@ -739,10 +664,7 @@ class ClearKeychainCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Clear keychain"
     }
 
@@ -759,7 +681,6 @@ class ClearKeychainCommand(
     override fun hashCode(): Int {
         return javaClass.hashCode()
     }
-
 }
 
 enum class InputRandomType {
@@ -786,10 +707,7 @@ data class InputRandomCommand(
         }
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Input text random $inputType"
     }
 
@@ -815,11 +733,7 @@ data class RunFlowCommand(
         return config
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-
+    override fun originalDescription(): String {
         val runDescription = if (sourceDescription != null) {
             "Run $sourceDescription"
         } else {
@@ -839,7 +753,6 @@ data class RunFlowCommand(
             config = config?.evaluateScripts(jsEngine),
         )
     }
-
 }
 
 data class SetLocationCommand(
@@ -849,10 +762,7 @@ data class SetLocationCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Set location (${latitude}, ${longitude})"
     }
 
@@ -880,11 +790,7 @@ data class RepeatCommand(
         return null
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-
+    override fun originalDescription(): String {
         val timesInt = times?.toIntOrNull() ?: 1
 
         return when {
@@ -923,10 +829,7 @@ data class RetryCommand(
         return null
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         val maxAttempts = maxRetries?.toIntOrNull() ?: 1
         return "Retry $maxAttempts times"
     }
@@ -945,10 +848,7 @@ data class DefineVariablesCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Define variables"
     }
 
@@ -961,7 +861,6 @@ data class DefineVariablesCommand(
     }
 
     override fun visible(): Boolean = false
-
 }
 
 data class RunScriptCommand(
@@ -973,10 +872,7 @@ data class RunScriptCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return if (condition == null) {
             "Run $sourceDescription"
         } else {
@@ -992,7 +888,6 @@ data class RunScriptCommand(
             condition = condition?.evaluateScripts(jsEngine),
         )
     }
-
 }
 
 data class WaitForAnimationToEndCommand(
@@ -1001,10 +896,7 @@ data class WaitForAnimationToEndCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Wait for animation to end"
     }
 
@@ -1019,10 +911,7 @@ data class EvalScriptCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Run $scriptString"
     }
 
@@ -1067,10 +956,7 @@ data class TravelCommand(
 
     }
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Travel path ${points.joinToString { "(${it.latitude}, ${it.longitude})" }}"
     }
 
@@ -1093,10 +979,7 @@ data class StartRecordingCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Start recording $path"
     }
 
@@ -1113,10 +996,7 @@ data class AddMediaCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Adding media files(${mediaPaths.size}) to the device"
     }
 
@@ -1133,10 +1013,7 @@ data class StopRecordingCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
+    override fun originalDescription(): String {
         return "Stop recording"
     }
 
@@ -1150,44 +1027,7 @@ enum class AirplaneValue {
     Disable,
 }
 
-data class SetAirplaneModeCommand(
-    val value: AirplaneValue,
-    override val label: String? = null,
-    override val optional: Boolean = false,
-) : Command {
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-        return when (value) {
-            AirplaneValue.Enable -> "Enable airplane mode"
-            AirplaneValue.Disable -> "Disable airplane mode"
-        }
-    }
-
-    override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
-    }
-}
-
-data class ToggleAirplaneModeCommand(
-    override val label: String? = null,
-    override val optional: Boolean = false,
-) : Command {
-
-    override fun description(useLabel: Boolean): String {
-        if (useLabel && label != null) {
-            return label
-        }
-        return "Toggle airplane mode"
-    }
-
-    override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
-    }
-}
-
-internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
+fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {
         when (repeat.repeat) {
