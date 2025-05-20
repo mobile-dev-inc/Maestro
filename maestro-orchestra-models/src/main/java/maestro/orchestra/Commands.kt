@@ -619,12 +619,17 @@ data class EraseTextCommand(
 
 data class TakeScreenshotCommand(
     val path: String,
+    val cropOn: ElementSelector? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
     override fun description(): String {
-        return label ?: "Take screenshot $path"
+        return label ?: if (cropOn != null) {
+            "Take screenshot $path, cropped to ${cropOn.description()}"
+        } else {
+            "Take screenshot $path"
+        }
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {

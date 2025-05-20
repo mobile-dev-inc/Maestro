@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- takeScreenshot:
+    path: ${MAESTRO_FILENAME}_with_filename
+    cropOn:
+      id: element_id
