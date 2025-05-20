@@ -354,6 +354,8 @@ class Service(
             mockLocationProviderList.forEach {
                 it.disable()
             }
+            responseObserver.onNext(emptyResponse {  })
+            responseObserver.onCompleted()
         } catch (exception: Exception) {
             responseObserver.onError(exception.internalError())
         }
