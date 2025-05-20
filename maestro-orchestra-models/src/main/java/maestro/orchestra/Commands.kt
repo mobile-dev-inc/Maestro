@@ -1027,7 +1027,37 @@ enum class AirplaneValue {
     Disable,
 }
 
-fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
+data class SetAirplaneModeCommand(
+    val value: AirplaneValue,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override fun originalDescription(): String {
+        return when (value) {
+            AirplaneValue.Enable -> "Enable airplane mode"
+            AirplaneValue.Disable -> "Disable airplane mode"
+        }
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class ToggleAirplaneModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override fun originalDescription(): String {
+        return "Toggle airplane mode"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {
         when (repeat.repeat) {
