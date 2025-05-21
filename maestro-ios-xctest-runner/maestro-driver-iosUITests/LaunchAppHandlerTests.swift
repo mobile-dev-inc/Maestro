@@ -43,5 +43,17 @@ final class LaunchAppHandlerTests: XCTestCase {
         // Verify app is running and arguments are displayed
         let app = XCUIApplication(bundleIdentifier: launchRequest.appId)
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "App did not launch")
+        
+        let launchArgsButton = app.buttons["Launch Argument Test"]
+        XCTAssertTrue(launchArgsButton.waitForExistence(timeout: 5), "Launch-Arguments button not found")
+        launchArgsButton.tap()
+        
+        XCTAssertTrue(app.staticTexts["--username"].exists)
+        XCTAssertTrue(app.staticTexts["maestroUser"].exists)
+        XCTAssertTrue(app.staticTexts["--retryCount"].exists)
+        XCTAssertTrue(app.staticTexts["3"].exists)
+        XCTAssertTrue(app.staticTexts["--featureFlagA"].exists)
+        XCTAssertTrue(app.staticTexts["true"].exists)
+
     }
 }
