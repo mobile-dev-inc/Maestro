@@ -34,10 +34,6 @@ sealed interface Command {
     @get:JsonIgnore
     val originalDescription: String
 
-    /**
-     * Returns the final description used for display/debug
-     * Returns the label if it exists, otherwise returns the original description
-     */
     fun description(): String = label ?: originalDescription
 
     fun evaluateScripts(jsEngine: JsEngine): Command
