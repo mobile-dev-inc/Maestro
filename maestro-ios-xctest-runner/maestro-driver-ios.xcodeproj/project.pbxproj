@@ -290,10 +290,8 @@
 		94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Extensions.swift"; sourceTree = "<group>"; };
 		9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSizeHelper.swift; sourceTree = "<group>"; };
 		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
-		F43A39042DDB48AA00B93A88 /* driver-verification-tests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "driver-verification-tests.xctestplan"; sourceTree = "<group>"; };
 		F45C3D752DD5EC93007A6ECE /* maestro_driver_iosUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		F45C3D772DD5FB4A007A6ECE /* LaunchAppHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandlerTests.swift; sourceTree = "<group>"; };
-		F45C3D792DD6010E007A6ECE /* driver-verification-tests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "driver-verification-tests.xctestplan"; sourceTree = "<group>"; };
 		F4C52E472D9E8DE9008E0A1A /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -321,8 +319,6 @@
 		52049BCA2935039F00807AA3 = {
 			isa = PBXGroup;
 			children = (
-				F43A39042DDB48AA00B93A88 /* driver-verification-tests.xctestplan */,
-				F45C3D792DD6010E007A6ECE /* driver-verification-tests.xctestplan */,
 				52049BD52935039F00807AA3 /* maestro-driver-ios */,
 				52049BF6293503A200807AA3 /* maestro-driver-iosUITests */,
 				52049BD42935039F00807AA3 /* Products */,
