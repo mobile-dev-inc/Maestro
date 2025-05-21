@@ -14,8 +14,6 @@ internal class CommandDescriptionTest {
     fun `original description contains raw command details`(
         @YamlFile("028_command_descriptions.yaml") commands: List<Command>
     ) {
-            println("HERE")
-            println(commands)
             val tapCommand = commands[1] as TapOnElementCommand
             assertThat(tapCommand.label).isEqualTo("Scroll to find the maybe-later button")
             val inputCommand = commands[2] as InputTextCommand
