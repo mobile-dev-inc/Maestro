@@ -22,12 +22,7 @@ struct LaunchAppHandler: HTTPHandler {
         // Set launch arguments if available
         let arguments = requestBody.launchArguments
         let flattenedArgs = arguments.flatMap { key, value -> [String] in
-            switch value.value {
-            case let bool as Bool:
-                return bool ? ["--\(key)"] : []
-            default:
-                return ["--\(key)", "\(value)"]
-            }
+            return ["--\(key)", "\(value)"]
         }
         app.launchArguments.append(contentsOf: flattenedArgs)
 
@@ -46,6 +41,5 @@ struct LaunchAppHandler: HTTPHandler {
                 message: "Failed to launch app. Error: \(error.localizedDescription)"
             ).httpResponse
         }
-        NSLog("[Done] Launching app with bundle ID: \(requestBody.appId)")
     }
 }
