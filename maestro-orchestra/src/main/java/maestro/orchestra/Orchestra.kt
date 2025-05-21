@@ -1362,7 +1362,8 @@ class Orchestra(
         val evaluatedCommand: MaestroCommand? = null,
         val logMessages: List<String> = emptyList(),
         val insight: Insight = Insight("", Insight.Level.NONE),
-        val aiReasoning: String? = null
+        val aiReasoning: String? = null,
+        val labeledCommand: String? = null
     )
 
     enum class ErrorResolution {
