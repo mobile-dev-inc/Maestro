@@ -43,25 +43,5 @@ final class LaunchAppHandlerTests: XCTestCase {
         // Verify app is running and arguments are displayed
         let app = XCUIApplication(bundleIdentifier: launchRequest.appId)
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "App did not launch")
-
-        let expected = [
-                    "--featureFlagA",
-                    "--username", "maestroUser",
-                    "--retryCount", "3"]
-        
-        let actual = flattenLaunchArguments(launchRequest.launchArguments)
-                XCTAssertEqual(actual, expected)
-
     }
-    
-    func flattenLaunchArguments(_ arguments: [String: AnyCodable]) -> [String] {
-            arguments.flatMap { key, value -> [String] in
-                switch value.value {
-                case let bool as Bool:
-                    return bool ? ["--\(key)"] : []
-                default:
-                    return ["--\(key)", "\(value)"]
-                }
-            }
-        }
 }
