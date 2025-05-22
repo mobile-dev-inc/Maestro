@@ -42,7 +42,15 @@ mavenPublishing {
     publishToMavenCentral(SonatypeHost.S01)
 }
 
+tasks.register<Test>("integrationTest") {
+    useJUnitPlatform {
+        includeTags("IntegrationTest")
+    }
+}
+
 tasks.named<Test>("test") {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("IntegrationTest")
+    }
     environment.put("PROJECT_DIR", projectDir.absolutePath)
 }
