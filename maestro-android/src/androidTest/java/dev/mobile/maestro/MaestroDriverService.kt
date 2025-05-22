@@ -7,10 +7,7 @@ import android.graphics.Bitmap
 import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
-import android.location.LocationProvider
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
@@ -44,7 +41,12 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
+import com.google.android.gms.location.LocationServices
 import com.google.protobuf.ByteString
+import dev.mobile.maestro.location.FusedLocationProvider
+import dev.mobile.maestro.location.LocationManagerProvider
+import dev.mobile.maestro.location.MockLocationProvider
+import dev.mobile.maestro.location.PlayServices
 import io.grpc.Status
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
@@ -53,6 +55,7 @@ import maestro_android.MaestroDriverGrpc
 import maestro_android.addMediaResponse
 import maestro_android.checkWindowUpdatingResponse
 import maestro_android.deviceInfo
+import maestro_android.emptyResponse
 import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
 import maestro_android.launchAppResponse
@@ -64,6 +67,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import java.util.Timer
+import java.util.TimerTask
 import kotlin.system.measureTimeMillis
 
 /**
@@ -105,9 +110,16 @@ class Service(
     private val uiAutomation: UiAutomation,
 ) : MaestroDriverGrpc.MaestroDriverImplBase() {
 
-    private val geoHandler = Handler(Looper.getMainLooper())
-    private var locationCounter = 0
+    private var locationTimerTask : TimerTask? = null
+    private val locationTimer = Timer()
+
+    private val mockLocationProviderList = mutableListOf<MockLocationProvider>()
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
+
+    companion object {
+        private const val TAG = "Maestro"
+        private const val UPDATE_INTERVAL_IN_MILLIS = 2000L
+    }
 
     override fun launchApp(
         request: MaestroAndroid.LaunchAppRequest,
@@ -258,7 +270,7 @@ class Service(
             }
 
             override fun onCompleted() {
-                responseObserver.onNext(addMediaResponse {  })
+                responseObserver.onNext(addMediaResponse { })
                 responseObserver.onCompleted()
             }
 
@@ -328,74 +340,153 @@ class Service(
                 isWindowUpdating = uiDevice.waitForWindowUpdate(request.appId, 500)
             })
             responseObserver.onCompleted()
-        } catch(e: Throwable) {
+        } catch (e: Throwable) {
             responseObserver.onError(e.internalError())
         }
     }
+
+    override fun disableLocationUpdates(
+        request: MaestroAndroid.EmptyRequest,
+        responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
+    ) {
+        try {
+            Log.d(TAG, "[Start] Disabling location updates")
+            locationTimerTask?.cancel()
+            locationTimer.cancel()
+            mockLocationProviderList.forEach {
+                it.disable()
+            }
+            Log.d(TAG, "[Done] Disabling location updates")
+            responseObserver.onNext(emptyResponse {  })
+            responseObserver.onCompleted()
+        } catch (exception: Exception) {
+            responseObserver.onError(exception.internalError())
+        }
+    }
+
+    override fun enableMockLocationProviders(
+        request: MaestroAndroid.EmptyRequest,
+        responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
+    ) {
+        try {
+            Log.d(TAG, "[Start] Enabling mock location providers")
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val locationManager = context.getSystemService(LOCATION_SERVICE) as LocationManager
+
+            mockLocationProviderList.addAll(
+                createMockProviders(context, locationManager)
+            )
+
+            mockLocationProviderList.forEach {
+                it.enable()
+            }
+            Log.d(TAG, "[Done] Enabling mock location providers")
+
+            responseObserver.onNext(emptyResponse {  })
+            responseObserver.onCompleted()
+        } catch (exception: Exception) {
+            Log.e(TAG, "Error while enabling mock location provider", exception)
+            responseObserver.onError(exception.internalError())
+        }
+    }
+
+    private fun createMockProviders(
+        context: Context,
+        locationManager: LocationManager
+    ): List<MockLocationProvider> {
+        val playServices = PlayServices()
+        val fusedLocationProvider: MockLocationProvider? = if (playServices.isAvailable(context)) {
+            val fusedLocationProviderClient =
+                LocationServices.getFusedLocationProviderClient(context)
+            FusedLocationProvider(fusedLocationProviderClient)
+        } else {
+            null
+        }
+        return (locationManager.allProviders.mapNotNull {
+            if (it.equals(LocationManager.PASSIVE_PROVIDER)) {
+                null
+            } else {
+                val mockProvider = createLocationManagerMockProvider(locationManager, it)
+                mockProvider
+            }
+        } + fusedLocationProvider).mapNotNull { it }
+    }
+
+    private fun createLocationManagerMockProvider(
+        locationManager: LocationManager,
+        providerName: String?
+    ): MockLocationProvider? {
+        if (providerName == null) {
+            return null
+        }
+        // API level check for existence of provider properties
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // API level 31 and above
+            val providerProperties =
+                locationManager.getProviderProperties(providerName) ?: return null
+            return LocationManagerProvider(
+                locationManager,
+                providerName,
+                providerProperties.hasNetworkRequirement(),
+                providerProperties.hasSatelliteRequirement(),
+                providerProperties.hasCellRequirement(),
+                providerProperties.hasMonetaryCost(),
+                providerProperties.hasAltitudeSupport(),
+                providerProperties.hasSpeedSupport(),
+                providerProperties.hasBearingSupport(),
+                providerProperties.powerUsage,
+                providerProperties.accuracy
+            )
+        }
+        val provider = locationManager.getProvider(providerName) ?: return null
+        return LocationManagerProvider(
+            locationManager,
+            provider.name,
+            provider.requiresNetwork(),
+            provider.requiresSatellite(),
+            provider.requiresCell(),
+            provider.hasMonetaryCost(),
+            provider.supportsAltitude(),
+            provider.supportsSpeed(),
+            provider.supportsBearing(),
+            provider.powerRequirement,
+            provider.accuracy
+        )
+    }
+
 
     override fun setLocation(
         request: MaestroAndroid.SetLocationRequest,
         responseObserver: StreamObserver<MaestroAndroid.SetLocationResponse>
     ) {
         try {
-            locationCounter++
-            val version = locationCounter
-
-            geoHandler.removeCallbacksAndMessages(null)
-
-            val latitude = request.latitude
-            val longitude = request.longitude
-            val accuracy = 1F
-
-            val locMgr = InstrumentationRegistry.getInstrumentation()
-                .context
-                .getSystemService(LOCATION_SERVICE) as LocationManager
-
-            locMgr.addTestProvider(
-                LocationManager.GPS_PROVIDER,
-                false,
-                true,
-                false,
-                false,
-                true,
-                false,
-                false,
-                Criteria.POWER_LOW,
-                Criteria.ACCURACY_FINE
-            )
-
-            val newLocation = Location(LocationManager.GPS_PROVIDER)
-
-            newLocation.latitude = latitude
-            newLocation.longitude = longitude
-            newLocation.accuracy = accuracy
-            newLocation.altitude = 0.0
-            locMgr.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
-
-            fun postLocation() {
-                geoHandler.post {
-                    if (locationCounter != version) {
-                        return@post
-                    }
-
-                    newLocation.time = System.currentTimeMillis()
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                        newLocation.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                    }
-                    locMgr.setTestProviderStatus(
-                        LocationManager.GPS_PROVIDER,
-                        LocationProvider.AVAILABLE,
-                        null, System.currentTimeMillis()
-                    )
-
-                    locMgr.setTestProviderLocation(LocationManager.GPS_PROVIDER, newLocation)
-
-                    postLocation()
-                }
+            if (locationTimerTask != null) {
+                locationTimerTask?.cancel()
             }
 
-            postLocation()
-
+            locationTimerTask = object : TimerTask() {
+                override fun run() {
+                    mockLocationProviderList.forEach {
+                        val latitude = request.latitude
+                        val longitude = request.longitude
+                        Log.d(TAG, "Setting location latitude: $latitude and longitude: $longitude for ${it.getProviderName()}")
+                        val location = Location(it.getProviderName()).apply {
+                            setLatitude(latitude)
+                            setLongitude(longitude)
+                            accuracy = Criteria.ACCURACY_FINE.toFloat()
+                            altitude = 0.0
+                            time = System.currentTimeMillis()
+                            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                        }
+                        it.setLocation(location)
+                    }
+                }
+            }
+            locationTimer.schedule(
+                locationTimerTask,
+                0,
+                UPDATE_INTERVAL_IN_MILLIS
+            )
             responseObserver.onNext(setLocationResponse { })
             responseObserver.onCompleted()
         } catch (t: Throwable) {
@@ -411,14 +502,17 @@ class Service(
                     /** 0~9 **/
                     uiDevice.pressKeyCode(element.code - 41)
                 }
+
                 in 65..90 -> {
                     /** A~Z **/
                     uiDevice.pressKeyCode(element.code - 36, 1)
                 }
+
                 in 97..122 -> {
                     /** a~z **/
                     uiDevice.pressKeyCode(element.code - 68)
                 }
+
                 ';'.code -> uiDevice.pressKeyCode(KEYCODE_SEMICOLON)
                 '='.code -> uiDevice.pressKeyCode(KEYCODE_EQUALS)
                 ','.code -> uiDevice.pressKeyCode(KEYCODE_COMMA)
