@@ -1,4 +1,4 @@
-package maestro.orchestra.android
+package maestro.cli.android
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer

@@ -209,6 +209,14 @@ jreleaser {
     }
 }
 
+tasks.register<Test>("integrationTest") {
+    useJUnitPlatform {
+        includeTags("IntegrationTest")
+    }
+}
+
 tasks.named<Test>("test") {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("IntegrationTest")
+    }
 }

@@ -1,6 +1,7 @@
 appId: "com.google.android.apps.maps"
 ---
 - launchApp
+- tapOn: Skip
 - setLocation:
     longitude: 2.295188
     latitude: 48.8578065
