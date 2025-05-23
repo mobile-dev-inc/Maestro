@@ -35,14 +35,32 @@ class DisableAnsiMixin {
             return null
         }
 
+        private fun isWindowsTerminalColorCapable(): Boolean {
+            // Check for modern Windows terminals that support ANSI
+            return System.getenv("PSVersionTable") != null || // PowerShell
+                   System.getenv("WT_SESSION") != null || // Windows Terminal
+                   System.getenv("TERM_PROGRAM") == "vscode" // VS Code terminal
+        }
+
         private fun applyCLIMixin(parseResult: CommandLine.ParseResult) {
             // Find the first mixin for which of the enable-ansi parameter was specified
             val parserWithANSIOption = findFirstParserWithMatchedParamLabel(parseResult, "<enableANSIOutput>")
             val mixin = parserWithANSIOption?.commandSpec()?.mixins()?.values?.firstNotNullOfOrNull { it.userObject() as? DisableAnsiMixin }
 
-            val stdoutIsTTY = CLibrary.isatty(CLibrary.STDOUT_FILENO) != 0
+            // Instead of using CLibrary.isatty, use environment variables to detect terminal
+            val forceDisable = System.getenv("MAESTRO_DISABLE_ANSI")?.toBoolean() ?: false
+            val forceEnable = System.getenv("MAESTRO_FORCE_ANSI")?.toBoolean() ?: false
+            
+            val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+            val isTTY = when {
+                forceEnable -> true
+                forceDisable -> false
+                isWindows -> isWindowsTerminalColorCapable()
+                else -> System.getenv("TERM") != null
+            }
+
             ansiEnabled = mixin?.enableANSIOutput // Use the param value if it was specified
-                ?: stdoutIsTTY // Otherwise fall back to checking if output is a tty
+                ?: isTTY // Otherwise fall back to checking environment
 
             Ansi.setEnabled(ansiEnabled)
 
