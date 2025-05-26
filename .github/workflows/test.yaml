@@ -15,6 +15,13 @@ jobs:
         java-version: [11, 17]
 
     steps:
+      # This is needed to enable hardware acceleration
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Clone repository
         uses: actions/checkout@v4
 
@@ -27,6 +34,25 @@ jobs:
 
       - name: Test
         run: ./gradlew test
+
+      - name: Run Integration test
+        if: matrix.java-version == '17'
+        id: integration-test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          script: ./gradlew integrationTest
+
+      - name: Upload Maestro integration debug artifacts
+        uses: actions/upload-artifact@v4
+        if: steps.integration-test.outcome == 'failure'
+        with:
+          name: maestro-root-dir-android
+          path: ~/.maestro
+          retention-days: 1
+          include-hidden-files: true
 
 
   validate-gradle-wrapper:

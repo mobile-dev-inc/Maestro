@@ -151,7 +151,7 @@ object TestDebugReporter {
      * Calls to this method should be done as soon as possible, to make all
      * loggers use our custom configuration rather than the defaults.
      */
-    fun install(debugOutputPathAsString: String?, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
+    fun install(debugOutputPathAsString: String? = null, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
         this.debugOutputPathAsString = debugOutputPathAsString
         this.flattenDebugOutput = flattenDebugOutput
         val path = getDebugOutputPath()
