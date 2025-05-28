@@ -48,7 +48,6 @@ static id swizzledDefaultParameters(id self, SEL _cmd) {
         [NSMutableDictionary dictionaryWithDictionary:defaultRequestParameters];
     [result addEntriesFromDictionary:defaultAdditionalRequestParameters ?: @{}];
     [result addEntriesFromDictionary:customRequestParameters ?: @{}];
-    NSLog(@"Hello %@", result);
     return result.copy;
 }
 

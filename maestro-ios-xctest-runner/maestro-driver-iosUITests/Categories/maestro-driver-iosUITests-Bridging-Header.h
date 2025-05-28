@@ -5,3 +5,4 @@
 #import "XCUIApplication+FBQuiescence.h"
 #import "XCUIApplication+Helper.h"
 #import "XCAXClient_iOS+FBSnapshotReqParams.h"
+#import "AXClientProxy.h"

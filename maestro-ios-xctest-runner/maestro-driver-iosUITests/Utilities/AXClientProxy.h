@@ -7,4 +7,6 @@
 
 - (NSArray<id<XCAccessibilityElement>> *)activeApplications;
 
+- (NSDictionary *)defaultParameters;
+
 @end
