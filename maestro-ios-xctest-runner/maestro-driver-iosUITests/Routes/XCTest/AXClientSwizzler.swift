@@ -6,7 +6,6 @@ import XCTest
 private var _overwriteDefaultParameters = [String: Int]()
 
 struct AXClientSwizzler {
-    fileprivate static let proxy = AXClientiOS_Standin()
 
     // Make this type not-initializable
     private init() {}
@@ -17,6 +16,7 @@ struct AXClientSwizzler {
     }
 
     static let setup: Void = {
+        let proxy = AXClientiOS_Standin()
         let axClientiOSClass: AnyClass = objc_getClass("XCAXClient_iOS") as! AnyClass
         let defaultParametersSelector = Selector(("defaultParameters"))
         let original = class_getInstanceMethod(axClientiOSClass, defaultParametersSelector)!
@@ -41,10 +41,16 @@ struct AXClientSwizzler {
 
     @objc func swizzledDefaultParameters() -> NSDictionary {
         let defaultParameters = originalDefaultParameters().mutableCopy() as! NSMutableDictionary
+        
+        // Log parameters before modification
+        NSLog("Default parameters before modification: %@", defaultParameters)
 
         for (key, value) in _overwriteDefaultParameters {
             defaultParameters[key] = value
         }
+        
+        // Log parameters after modification
+        NSLog("Default parameters after modification: %@", defaultParameters)
 
         return defaultParameters
     }

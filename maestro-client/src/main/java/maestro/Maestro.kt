@@ -313,6 +313,7 @@ class Maestro(
                     if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
                 }
             } else driver.tap(Point(x, y))
+            // TODO
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
             if (hierarchyAfterTap == null || hierarchyBeforeTap != hierarchyAfterTap) {

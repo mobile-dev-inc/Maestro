@@ -36,6 +36,10 @@
 		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
 		526111782DE5E8DA007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */ = {isa = PBXBuildFile; fileRef = 526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */; };
 		5261117A2DE5E8E7007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
+		5261117C2DE73E7C007C356B /* FBScreenshot.h in Headers */ = {isa = PBXBuildFile; fileRef = 5261117B2DE73E78007C356B /* FBScreenshot.h */; };
+		5261117E2DE73E86007C356B /* FBScreenshot.m in Sources */ = {isa = PBXBuildFile; fileRef = 5261117D2DE73E85007C356B /* FBScreenshot.m */; };
+		526111802DE73FC3007C356B /* XCUIDevice+Helper.h in Headers */ = {isa = PBXBuildFile; fileRef = 5261117F2DE73FB9007C356B /* XCUIDevice+Helper.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		526111822DE74017007C356B /* XCUIDevice+Helper.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111812DE74016007C356B /* XCUIDevice+Helper.m */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
 		52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */; };
 		52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */; };
@@ -138,6 +142,10 @@
 		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCAXClient_iOS+FBSnapshotReqParams.h"; sourceTree = "<group>"; };
 		526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCAXClient_iOS+FBSnapshotReqParams.m"; sourceTree = "<group>"; };
+		5261117B2DE73E78007C356B /* FBScreenshot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FBScreenshot.h; sourceTree = "<group>"; };
+		5261117D2DE73E85007C356B /* FBScreenshot.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FBScreenshot.m; sourceTree = "<group>"; };
+		5261117F2DE73FB9007C356B /* XCUIDevice+Helper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIDevice+Helper.h"; sourceTree = "<group>"; };
+		526111812DE74016007C356B /* XCUIDevice+Helper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIDevice+Helper.m"; sourceTree = "<group>"; };
 		52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandleTests.swift; sourceTree = "<group>"; };
 		52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCInternalTestRun.h; sourceTree = "<group>"; };
 		52D8FA282D6DCC600015FAB3 /* _XCKVOExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCKVOExpectationImplementation.h; sourceTree = "<group>"; };
@@ -487,6 +495,8 @@
 		52D8FA8E2D6DCF010015FAB3 /* Categories */ = {
 			isa = PBXGroup;
 			children = (
+				526111812DE74016007C356B /* XCUIDevice+Helper.m */,
+				5261117F2DE73FB9007C356B /* XCUIDevice+Helper.h */,
 				526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */,
 				526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */,
 				521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */,
@@ -503,6 +513,8 @@
 		52D8FAA92D6DD3850015FAB3 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				5261117D2DE73E85007C356B /* FBScreenshot.m */,
+				5261117B2DE73E78007C356B /* FBScreenshot.h */,
 				521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */,
 				521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */,
 				521C1F062D8017460024EE42 /* AXClientProxy.m */,
@@ -622,7 +634,9 @@
 			files = (
 				52D8FAA72D6DD1950015FAB3 /* XCUICoordinate.h in Headers */,
 				52D8FAA52D6DD1950015FAB3 /* XCUIApplicationImpl.h in Headers */,
+				5261117C2DE73E7C007C356B /* FBScreenshot.h in Headers */,
 				52D8FAB52D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h in Headers */,
+				526111802DE73FC3007C356B /* XCUIDevice+Helper.h in Headers */,
 				52D8FAA62D6DD1950015FAB3 /* XCUIApplicationProcess.h in Headers */,
 				52D8FAA82D6DD1950015FAB3 /* XCUIDevice.h in Headers */,
 				52D8FAA42D6DD1950015FAB3 /* XCUIApplication.h in Headers */,
@@ -783,6 +797,7 @@
 				F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */,
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
 				521C1F102D8051FC0024EE42 /* XCTestDaemonsProxy.m in Sources */,
+				526111822DE74017007C356B /* XCUIDevice+Helper.m in Sources */,
 				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
 				52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */,
 				52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */,
@@ -798,6 +813,7 @@
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
 				9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */,
 				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,
+				5261117E2DE73E86007C356B /* FBScreenshot.m in Sources */,
 				61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */,
 				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
 				32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */,

@@ -17,6 +17,10 @@ extern NSString *const FBSnapshotMaxDepthKey;
 
 void FBSetCustomParameterForElementSnapshot (NSString* name, id value);
 
+void FBResetAllCustomParameters(void);
+
+void FBDisableHonorModalViews(void);
+
 id __nullable FBGetCustomParameterForElementSnapshot (NSString *name);
 
 @interface XCAXClient_iOS (FBSnapshotReqParams)

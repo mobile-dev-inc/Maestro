@@ -13,12 +13,14 @@ struct IsScreenStaticHandler: HTTPHandler {
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         do {
-            let screenshot1 = XCUIScreen.main.screenshot()
-            let screenshot2 = XCUIScreen.main.screenshot()
+            AXClientProxy.load()
+            let screenshot1 = RunningApp.getForegroundApp()!.screenshot()
+            let screenshot2 = RunningApp.getForegroundApp()!.screenshot()
             let hash1 = SHA256.hash(data: screenshot1.pngRepresentation)
             let hash2 = SHA256.hash(data: screenshot2.pngRepresentation)
             
-            let isScreenStatic = hash1 == hash2
+
+            let isScreenStatic = screenshot1.pngRepresentation == screenshot2.pngRepresentation
             
             let response = ["isScreenStatic" : isScreenStatic]
             

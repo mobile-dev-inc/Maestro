@@ -20,6 +20,8 @@ struct ViewHierarchyHandler: HTTPHandler {
 
         do {
             let foregroundApp = RunningApp.getForegroundApp()
+            FBDisableHonorModalViews()
+
             guard let foregroundApp = foregroundApp else {
                 NSLog("No foreground app found returning springboard app hierarchy")
                 let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
@@ -35,6 +37,9 @@ struct ViewHierarchyHandler: HTTPHandler {
             
             NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
             let body = try JSONEncoder().encode(viewHierarchy)
+            FBResetAllCustomParameters()
+            AXClientProxy.load()
+            XCUIDevice.load()
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
             logger.error("AppError in handleRequest, Error:\(error)");
@@ -117,6 +122,7 @@ struct ViewHierarchyHandler: HTTPHandler {
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
         logger.info("Starting getHierarchyWithFallback for element.")
+//        FBSetCustomParameterForElementSnapshot("snapshotKeyHonorModalViews", 0)
 
         do {
             var hierarchy = try elementHierarchy(xcuiElement: element)

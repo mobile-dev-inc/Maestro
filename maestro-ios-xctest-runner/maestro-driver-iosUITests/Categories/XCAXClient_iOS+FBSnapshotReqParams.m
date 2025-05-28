@@ -26,18 +26,15 @@ static id (*original_snapshotParameters)(id, SEL);
 static NSDictionary *defaultRequestParameters;
 static NSDictionary *defaultAdditionalRequestParameters;
 static NSMutableDictionary *customRequestParameters;
+static BOOL swizzlingPerformed = NO;
+static Method originalMethodMan;
+static Method orirgin;
 
-void FBSetCustomParameterForElementSnapshot(NSString *name, id value) {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-      customRequestParameters = [NSMutableDictionary new];
-    });
-    customRequestParameters[name] = value;
-}
-
-id FBGetCustomParameterForElementSnapshot(NSString *name) {
-    return customRequestParameters[name];
-}
+static id (*original_defaultParameters)(id, SEL);
+static id (*original_snapshotParameters)(id, SEL);
+static NSDictionary *defaultRequestParameters;
+static NSDictionary *defaultAdditionalRequestParameters;
+static NSMutableDictionary *customRequestParameters;
 
 static id swizzledDefaultParameters(id self, SEL _cmd) {
     static dispatch_once_t onceToken;
@@ -57,6 +54,70 @@ static id swizzledSnapshotParameters(id self, SEL _cmd) {
     return result;
 }
 
+// Separate function for swizzling setup
+static void FBPerformSnapshotSwizzlingIfNeeded(void) {
+    // Initialize the dictionary
+    customRequestParameters = [NSMutableDictionary new];
+    
+    // Swizzle defaultParameters
+    Method original_defaultParametersMethod =
+        class_getInstanceMethod(NSClassFromString(@"XCAXClient_iOS"), @selector(defaultParameters));
+    original_defaultParameters = (id(*)(id, SEL))method_getImplementation(original_defaultParametersMethod);
+    method_setImplementation(original_defaultParametersMethod, (IMP)swizzledDefaultParameters);
+    
+    // Swizzle snapshotParameters
+    Method original_snapshotParametersMethod =
+        class_getInstanceMethod(NSClassFromString(@"XCTElementQuery"),
+                        NSSelectorFromString(@"snapshotParameters"));
+    original_snapshotParameters = (id(*)(id, SEL))method_getImplementation(original_snapshotParametersMethod);
+    method_setImplementation(original_snapshotParametersMethod, (IMP)swizzledSnapshotParameters);
+    
+    swizzlingPerformed = YES;
+}
+
+void FBDisableHonorModalViews(void) {
+    FBSetCustomParameterForElementSnapshot(@"snapshotKeyHonorModalViews", @NO);
+}
+
+// Set a custom parameter for element snapshot
+void FBSetCustomParameterForElementSnapshot(NSString *name, id value) {
+    // Ensure swizzling is performed
+    FBPerformSnapshotSwizzlingIfNeeded();
+    
+    // Set parameter
+    customRequestParameters[name] = value;
+    
+    // Force parameters to update (important!)
+    id axClient = [[NSClassFromString(@"XCAXClient_iOS") alloc] init];
+    [axClient defaultParameters];
+    
+    NSLog(@"Parameter set - %@: %@, Current parameters: %@", name, value, [axClient defaultParameters]);
+}
+\
+void FBResetAllCustomParameters(void) {
+    // Reset our custom parameters dictionary
+    FBPerformSnapshotSwizzlingIfNeeded();
+    
+    [customRequestParameters removeAllObjects];
+    
+    // Restore original implementations
+//    Method currentDefaultMethod = class_getInstanceMethod(NSClassFromString(@"XCAXClient_iOS"),
+//                                                          @selector(defaultParameters));
+//    method_setImplementation(currentDefaultMethod, (IMP)original_defaultParameters);
+//    
+//    Method currentSnapshotMethod = class_getInstanceMethod(NSClassFromString(@"XCTElementQuery"),
+//                                                           NSSelectorFromString(@"snapshotParameters"));
+//    method_setImplementation(currentSnapshotMethod, (IMP)original_snapshotParameters);
+    
+    // Reset our state
+    swizzlingPerformed = NO;
+    
+    // Log for debugging
+    id axClient = [[NSClassFromString(@"XCAXClient_iOS") alloc] init];
+    NSLog(@"After reset: %@", [axClient defaultParameters]);
+}
+
+
 @implementation XCAXClient_iOS (FBSnapshotReqParams)
 
 #pragma clang diagnostic push
@@ -64,21 +125,11 @@ static id swizzledSnapshotParameters(id self, SEL _cmd) {
 #pragma clang diagnostic ignored "-Wcast-function-type-strict"
 
 + (void)load {
-    // snapshotKeyHonorModalViews to false to make modals and dialogs visible that are invisible otherwise
-    FBSetCustomParameterForElementSnapshot(@"snapshotKeyHonorModalViews", @0);
-
-    Method original_defaultParametersMethod =
-        class_getInstanceMethod(self.class, @selector(defaultParameters));
-    IMP swizzledDefaultParametersImp = (IMP)swizzledDefaultParameters;
-    original_defaultParameters = (id(*)(id, SEL))method_setImplementation(
-        original_defaultParametersMethod, swizzledDefaultParametersImp);
-
-    Method original_snapshotParametersMethod =
-        class_getInstanceMethod(NSClassFromString(@"XCTElementQuery"),
-                                NSSelectorFromString(@"snapshotParameters"));
-    IMP swizzledSnapshotParametersImp = (IMP)swizzledSnapshotParameters;
-    original_snapshotParameters = (id(*)(id, SEL))method_setImplementation(
-        original_snapshotParametersMethod, swizzledSnapshotParametersImp);
+    // You can optionally trigger the initial swizzling here
+    // FBPerformSnapshotSwizzlingIfNeeded();
+    
+    // Or set initial values
+    // FBDisableHonorModalViews();
 }
 
 #pragma clang diagnostic pop
