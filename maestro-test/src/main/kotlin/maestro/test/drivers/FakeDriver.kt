@@ -365,9 +365,7 @@ class FakeDriver : Driver {
     }
 
     override fun capabilities(): List<Capability> {
-        return listOf(
-            Capability.FAST_HIERARCHY
-        )
+        return emptyList()
     }
 
     override fun setPermissions(appId: String, permissions: Map<String, String>) {
