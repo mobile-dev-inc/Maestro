@@ -21,7 +21,7 @@ struct IsScreenStaticHandler: HTTPHandler {
                 XCUIScreen.main.screenshot()
             }
             logger.log("[Delay] before")
-            await delay(2)
+            await delay(0.5)
             logger.log("[Delay] after")
 
 
