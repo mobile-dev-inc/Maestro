@@ -20,6 +20,7 @@
 package maestro.drivers
 
 import com.github.michaelbull.result.expect
+import com.github.romankh3.image.comparison.ImageComparison
 import device.IOSDevice
 import hierarchy.AXElement
 import ios.IOSDeviceErrors
@@ -28,6 +29,9 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
+import maestro.Maestro
+import maestro.Maestro.Companion
+import maestro.Maestro.Companion.SCREENSHOT_DIFF_THRESHOLD
 import maestro.MaestroException
 import maestro.MediaExt
 import maestro.NamedSource
@@ -468,19 +472,26 @@ class IOSDriver(
 
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
         return metrics.measured("operation", mapOf("command" to "waitUntilScreenIsStatic", "timeoutMs" to timeoutMs.toString())) {
-             MaestroTimer.retryUntilTrue(timeoutMs) {
-                val isScreenStatic = isScreenStatic()
-
-                LOGGER.info("screen static = $isScreenStatic")
-                return@retryUntilTrue isScreenStatic
-            }
+            ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, AndroidDriver.SCREENSHOT_DIFF_THRESHOLD, this)
         }
     }
 
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId.toString(), "timeoutMs" to timeoutMs.toString())) {
             LOGGER.info("Waiting for animation to end with timeout $SCREEN_SETTLE_TIMEOUT_MS")
-            val didFinishOnTime = waitUntilScreenIsStatic(SCREEN_SETTLE_TIMEOUT_MS)
+            val imageDiff = ImageComparison(
+                ScreenshotUtils.tryTakingScreenshot(driver = this),
+                ScreenshotUtils.tryTakingScreenshot(driver = this)
+            ).compareImages().differencePercent
+
+            val isscreenstatic = if (imageDiff > SCREENSHOT_DIFF_THRESHOLD) {
+                LOGGER.info("Something have changed in the UI judging by screenshot (d=$imageDiff). Proceed.")
+                false
+            } else {
+                LOGGER.info("Screenshots are not different enough (d=$imageDiff)")
+                true
+            }
+            val didFinishOnTime = isscreenstatic
 
             if (didFinishOnTime) null else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
         }
