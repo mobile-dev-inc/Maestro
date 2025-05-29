@@ -76,6 +76,7 @@ class ScreenshotUtils {
         fun waitUntilScreenIsStatic(timeoutMs: Long, threshold: Double, driver: Driver): Boolean {
             return MaestroTimer.retryUntilTrue(timeoutMs) {
                 val startScreenshot: BufferedImage? = tryTakingScreenshot(driver)
+                MaestroTimer.sleep(MaestroTimer.Reason.WAIT_TO_SETTLE, 500)
                 val endScreenshot: BufferedImage? = tryTakingScreenshot(driver)
 
                 if (startScreenshot != null &&

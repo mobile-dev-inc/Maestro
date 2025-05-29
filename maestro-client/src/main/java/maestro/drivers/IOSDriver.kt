@@ -38,6 +38,7 @@ import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
+import maestro.drivers.AndroidDriver.Companion.SCREENSHOT_DIFF_THRESHOLD
 import maestro.toCommonDeviceInfo
 import maestro.utils.Insight
 import maestro.utils.Insights
@@ -469,7 +470,7 @@ class IOSDriver(
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
         return metrics.measured("operation", mapOf("command" to "waitUntilScreenIsStatic", "timeoutMs" to timeoutMs.toString())) {
              MaestroTimer.retryUntilTrue(timeoutMs) {
-                val isScreenStatic = isScreenStatic()
+                val isScreenStatic = ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
 
                 LOGGER.info("screen static = $isScreenStatic")
                 return@retryUntilTrue isScreenStatic
