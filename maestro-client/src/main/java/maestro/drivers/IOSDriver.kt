@@ -28,6 +28,7 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
+import maestro.Maestro.Companion.SCREENSHOT_DIFF_THRESHOLD
 import maestro.MaestroException
 import maestro.MediaExt
 import maestro.NamedSource
@@ -469,7 +470,9 @@ class IOSDriver(
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
         return metrics.measured("operation", mapOf("command" to "waitUntilScreenIsStatic", "timeoutMs" to timeoutMs.toString())) {
              MaestroTimer.retryUntilTrue(timeoutMs) {
-                val isScreenStatic = isScreenStatic()
+                 LOGGER.info("New way")
+                val isScreenStatic = ScreenshotUtils.waitUntilScreenIsStatic(15000, SCREENSHOT_DIFF_THRESHOLD, this)
+                 LOGGER.info("New way")
 
                 LOGGER.info("screen static = $isScreenStatic")
                 return@retryUntilTrue isScreenStatic
