@@ -102,5 +102,9 @@ interface Driver {
 
     fun setAirplaneMode(enabled: Boolean)
 
+    fun isDarkModeEnabled(): Boolean
+
+    fun setDarkMode(enabled: Boolean)
+
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
 }

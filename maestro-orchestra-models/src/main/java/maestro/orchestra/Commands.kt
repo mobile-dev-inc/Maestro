@@ -1026,6 +1026,39 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
+enum class DarkValue {
+    Enable,
+    Disable,
+}
+
+data class SetDarkModeCommand(
+    val value: DarkValue,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = when (value) {
+            DarkValue.Enable -> "Enable dark mode"
+            DarkValue.Disable -> "Disable dark mode"
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class ToggleDarkModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Toggle dark mode"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
 internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {

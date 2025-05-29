@@ -857,6 +857,23 @@ class AndroidDriver(
         }
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return metrics.measured("operation", mapOf("command" to "isDarkModeEnabled")) {
+            when (val result = shell("adb shell cmd uimode night").trim()) {
+                "Night mode: no" -> false
+                "Night mode: yes" -> true
+                else -> throw IllegalStateException("Received invalid response while trying to read dark mode state: $result")
+            }
+        }
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        metrics.measured("operation", mapOf("command" to "setDarkMode", "enabled" to enabled.toString())) {
+            val value = if (enabled) "yes" else "no"
+            shell("adb shell 'cmd uimode night $value'")
+        }
+    }
+
     override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
         this.chromeDevToolsEnabled = enabled
     }

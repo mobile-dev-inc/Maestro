@@ -8,6 +8,7 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
+import maestro.orchestra.DarkValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
@@ -39,6 +40,7 @@ import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
+import maestro.orchestra.SetDarkModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
@@ -48,6 +50,7 @@ import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
+import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.SyntaxError
@@ -424,6 +427,13 @@ internal class YamlCommandReaderTest {
             ),
             ToggleAirplaneModeCommand(
                 label = "Toggle airplane mode for testing"
+            ),
+            SetDarkModeCommand(
+                value = DarkValue.Enable,
+                label = "Turn on dark mode for testing"
+            ),
+            ToggleDarkModeCommand(
+                label = "Toggle dark mode for testing"
             ),
             RepeatCommand(
                 condition = Condition(visible = ElementSelector(textRegex = "Some important text")),

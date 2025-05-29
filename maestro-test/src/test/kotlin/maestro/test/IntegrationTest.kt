@@ -3240,6 +3240,16 @@ class IntegrationTest {
         driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
     }
 
+    @Test
+    fun `Case 121 - dark mode`() {
+        val commands = readCommands("121_dark_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

@@ -582,6 +582,14 @@ class Maestro(
         driver.setAirplaneMode(enabled)
     }
 
+    fun isDarkModeEnabled(): Boolean {
+        return driver.isDarkModeEnabled()
+    }
+
+    fun setDarkModeState(enabled: Boolean) {
+        driver.setDarkMode(enabled)
+    }
+
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
         driver.setAndroidChromeDevToolsEnabled(enabled)
     }
