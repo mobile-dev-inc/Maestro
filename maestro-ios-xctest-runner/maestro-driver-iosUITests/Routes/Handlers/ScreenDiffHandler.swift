@@ -11,10 +11,24 @@ struct IsScreenStaticHandler: HTTPHandler {
         category: String(describing: Self.self)
     )
     
+    func delay(_ seconds: Double) async {
+        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    }
+
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         do {
-            let screenshot1 = XCUIScreen.main.screenshot()
-            let screenshot2 = XCUIScreen.main.screenshot()
+            let screenshot1 = logger.measure(message: "Screenshot one") {
+                XCUIScreen.main.screenshot()
+            }
+            
+            await delay(0.1)
+
+
+            let screenshot2 = logger.measure(message: "Screenshot two") {
+                XCUIScreen.main.screenshot()
+            }
+            
+            
             let hash1 = SHA256.hash(data: screenshot1.pngRepresentation)
             let hash2 = SHA256.hash(data: screenshot2.pngRepresentation)
             
