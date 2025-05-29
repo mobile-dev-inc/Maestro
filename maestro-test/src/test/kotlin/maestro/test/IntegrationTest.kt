@@ -3084,7 +3084,7 @@ class IntegrationTest {
     @Test
     fun `Case 116 - Kill app`() {
         // Given
-        val commands = readCommands("115_kill_app")
+        val commands = readCommands("116_kill_app")
 
         val driver = driver {
         }
