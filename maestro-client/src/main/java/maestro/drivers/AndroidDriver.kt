@@ -859,7 +859,8 @@ class AndroidDriver(
 
     override fun isDarkModeEnabled(): Boolean {
         return metrics.measured("operation", mapOf("command" to "isDarkModeEnabled")) {
-            when (val result = shell("adb shell cmd uimode night").trim()) {
+            val uiModeResult = dadb.shell("cmd uimode night")
+            when (val result = uiModeResult.output.trim()) {
                 "Night mode: no" -> false
                 "Night mode: yes" -> true
                 else -> throw IllegalStateException("Received invalid response while trying to read dark mode state: $result")
@@ -870,7 +871,7 @@ class AndroidDriver(
     override fun setDarkMode(enabled: Boolean) {
         metrics.measured("operation", mapOf("command" to "setDarkMode", "enabled" to enabled.toString())) {
             val value = if (enabled) "yes" else "no"
-            shell("adb shell 'cmd uimode night $value'")
+            dadb.shell("cmd uimode night $value")
         }
     }
 
