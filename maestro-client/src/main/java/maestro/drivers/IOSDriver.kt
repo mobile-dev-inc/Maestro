@@ -481,8 +481,9 @@ class IOSDriver(
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId.toString(), "timeoutMs" to timeoutMs.toString())) {
             LOGGER.info("Waiting for animation to end with timeout $SCREEN_SETTLE_TIMEOUT_MS")
             val didFinishOnTime = waitUntilScreenIsStatic(SCREEN_SETTLE_TIMEOUT_MS)
+            LOGGER.info("Did finish on time $didFinishOnTime")
 
-            if (didFinishOnTime) null else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
+            return@measured ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
         }
     }
 
