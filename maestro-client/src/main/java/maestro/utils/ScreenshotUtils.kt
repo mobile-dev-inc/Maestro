@@ -11,6 +11,9 @@ import javax.imageio.ImageIO
 
 class ScreenshotUtils {
     companion object {
+
+        const val SCREENSHOT_DIFF_THRESHOLD = 0.005
+
         private val LOGGER = LoggerFactory.getLogger(ScreenshotUtils::class.java)
 
         fun takeScreenshot(out: Sink, compressed: Boolean, driver: Driver) {

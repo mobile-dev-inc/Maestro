@@ -47,6 +47,7 @@ import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.NoopInsights
 import maestro.utils.ScreenshotUtils
+import maestro.utils.ScreenshotUtils.Companion.SCREENSHOT_DIFF_THRESHOLD
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
