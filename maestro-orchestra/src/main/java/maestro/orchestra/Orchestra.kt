@@ -353,8 +353,8 @@ class Orchestra(
 
     private fun setDarkMode(command: SetDarkModeCommand): Boolean {
         when (command.value) {
-            DarkValue.Enable -> maestro.setDarkModeState(true)
-            DarkValue.Disable -> maestro.setDarkModeState(false)
+            DarkModeValue.Enable -> maestro.setDarkModeState(true)
+            DarkModeValue.Disable -> maestro.setDarkModeState(false)
         }
 
         return true

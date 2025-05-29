@@ -8,7 +8,7 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
-import maestro.orchestra.DarkValue
+import maestro.orchestra.DarkModeValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
@@ -429,7 +429,7 @@ internal class YamlCommandReaderTest {
                 label = "Toggle airplane mode for testing"
             ),
             SetDarkModeCommand(
-                value = DarkValue.Enable,
+                value = DarkModeValue.Enable,
                 label = "Turn on dark mode for testing"
             ),
             ToggleDarkModeCommand(

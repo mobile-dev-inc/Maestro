@@ -1026,20 +1026,20 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
-enum class DarkValue {
+enum class DarkModeValue {
     Enable,
     Disable,
 }
 
 data class SetDarkModeCommand(
-    val value: DarkValue,
+    val value: DarkModeValue,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
     override val originalDescription: String
         get() = when (value) {
-            DarkValue.Enable -> "Enable dark mode"
-            DarkValue.Disable -> "Disable dark mode"
+            DarkModeValue.Enable -> "Enable dark mode"
+            DarkModeValue.Disable -> "Disable dark mode"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {

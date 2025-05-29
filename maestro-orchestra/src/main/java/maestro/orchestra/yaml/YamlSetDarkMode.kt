@@ -7,18 +7,18 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import maestro.orchestra.DarkValue
+import maestro.orchestra.DarkModeValue
 
 @JsonDeserialize(using = YamlSetDarkModeDeserializer::class)
 data class YamlSetDarkMode(
-    val value: DarkValue,
+    val value: DarkModeValue,
     val label: String? = null,
     val optional: Boolean = false,
 ) {
     companion object {
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun parse(value: DarkValue): YamlSetDarkMode {
+        fun parse(value: DarkModeValue): YamlSetDarkMode {
             return YamlSetDarkMode(value)
         }
     }
@@ -35,17 +35,17 @@ class YamlSetDarkModeDeserializer : JsonDeserializer<YamlSetDarkMode>() {
             input.contains("value") -> {
                 val parsedValue = root.get("value").toString().replace("\"", "")
                 val returnValue = when (parsedValue) {
-                    "enabled" -> DarkValue.Enable
-                    "disabled" -> DarkValue.Disable
+                    "enabled" -> DarkModeValue.Enable
+                    "disabled" -> DarkModeValue.Disable
                     else -> throwInvalidInputException(input)
                 }
                 return YamlSetDarkMode(returnValue, label)
             }
             (root.isValueNode && root.toString().contains("enabled")) -> {
-                return YamlSetDarkMode(DarkValue.Enable, label)
+                return YamlSetDarkMode(DarkModeValue.Enable, label)
             }
             (root.isValueNode && root.toString().contains("disabled")) -> {
-                return YamlSetDarkMode(DarkValue.Disable, label)
+                return YamlSetDarkMode(DarkModeValue.Disable, label)
             }
             else -> throwInvalidInputException(input)
         }
