@@ -38,7 +38,6 @@ import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
-import maestro.drivers.AndroidDriver.Companion.SCREENSHOT_DIFF_THRESHOLD
 import maestro.toCommonDeviceInfo
 import maestro.utils.Insight
 import maestro.utils.Insights
@@ -531,10 +530,6 @@ class IOSDriver(
                 )
             iosDevice.addMedia(namedSource.path)
         }
-    }
-
-    private fun isScreenStatic(): Boolean {
-        return runDeviceCall("isScreenStatic") { iosDevice.isScreenStatic() }
     }
 
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
