@@ -21,7 +21,7 @@ struct IsScreenStaticHandler: HTTPHandler {
                 XCUIScreen.main.screenshot()
             }
             
-            await delay(0.1)
+            await delay(1)
 
 
             let screenshot2 = logger.measure(message: "Screenshot two") {
