@@ -44,6 +44,7 @@ class FakeDriver : Driver {
     private var currentText: String = ""
 
     private var airplaneMode: Boolean = false
+    private var darkMode: Boolean = false
 
     override fun name(): String {
         return "Fake Device"
@@ -388,6 +389,14 @@ class FakeDriver : Driver {
 
     override fun setAirplaneMode(enabled: Boolean) {
         this.airplaneMode = enabled
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        return this.darkMode
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        this.darkMode = enabled
     }
 
     sealed class Event {

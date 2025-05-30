@@ -124,6 +124,11 @@ appId: com.example.app
       label: "Turn on airplane mode for testing"
 - toggleAirplaneMode:
       label: "Toggle airplane mode for testing"
+- setDarkMode:
+      value: enabled
+      label: "Turn on dark mode for testing"
+- toggleDarkMode:
+      label: "Toggle dark mode for testing"
 
 # Repeats
 - repeat:

@@ -3079,7 +3079,11 @@ class IntegrationTest {
         Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
-    }
+ 
+        // Then
+        // No test failures
+        driver.assertNoInteraction()
+   }
 
     @Test
     fun `Case 116 - Kill app`() {
@@ -3238,6 +3242,20 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+    }
+
+    @Test
+    fun `Case 121 - dark mode`() {
+        val commands = readCommands("121_dark_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            orchestra(it).runFlow(commands)
+        }
+
+        // Then
+        // No test failures
+        driver.assertNoInteraction()
     }
 
     private fun orchestra(
