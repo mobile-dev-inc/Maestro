@@ -702,7 +702,7 @@ data class LaunchAppCommand(
                 }
 
                 if (launchArguments != null) {
-                    append("\n\nLaunch arguments:\n${launchArguments.map { k -> "  -${k.key}: ${k.value}" }.joinToString (separator = "\n") { it }}\n")
+                    append("\n ║\n ║    Launch arguments:\n${launchArguments.map { k -> " ║      -${k.key}: ${k.value}" }.joinToString (separator = "\n") { it }}\n ║")
                 }
             }
             return result
