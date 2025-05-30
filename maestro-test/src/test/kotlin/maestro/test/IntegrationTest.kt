@@ -3079,7 +3079,11 @@ class IntegrationTest {
         Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
-    }
+ 
+        // Then
+        // No test failures
+        driver.assertNoInteraction()
+   }
 
     @Test
     fun `Case 116 - Kill app`() {
@@ -3248,6 +3252,10 @@ class IntegrationTest {
         Maestro(driver).use {
             orchestra(it).runFlow(commands)
         }
+
+        // Then
+        // No test failures
+        driver.assertNoInteraction()
     }
 
     private fun orchestra(
