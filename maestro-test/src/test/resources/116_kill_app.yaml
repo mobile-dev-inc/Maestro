@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- killApp
+- killApp: another.app

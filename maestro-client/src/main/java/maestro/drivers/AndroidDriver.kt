@@ -40,6 +40,7 @@ import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.ScreenshotUtils
+import maestro.utils.ScreenshotUtils.Companion.SCREENSHOT_DIFF_THRESHOLD
 import maestro.utils.StringUtils.toRegexSafe
 import maestro_android.*
 import net.dongliu.apk.parser.ApkFile
@@ -86,6 +87,7 @@ class AndroidDriver(
     private var proxySet = false
     private var closed = false
 
+    private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
 
     override fun name(): String {
@@ -173,6 +175,10 @@ class AndroidDriver(
         if (proxySet) {
             resetProxy()
         }
+        if (isLocationMocked) {
+            blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
+            isLocationMocked = false
+        }
 
         LOGGER.info("[Start] close port forwarder")
         PORT_TO_FORWARDER[hostPort]?.close()
@@ -223,7 +229,6 @@ class AndroidDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
             if(!open) // pick device flow, no open() invocation
@@ -234,8 +239,6 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            val sessionUUID = sessionId ?: UUID.randomUUID()
-            dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
             runDeviceCall {
                 blockingStubWithTimeout.launchApp(
                     launchAppRequest {
@@ -677,7 +680,18 @@ class AndroidDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         metrics.measured("operation", mapOf("command" to "setLocation")) {
-            shell("appops set dev.mobile.maestro android:mock_location allow")
+            if (!isLocationMocked) {
+                LOGGER.info("[Start] Setting up for mocking location $latitude, $longitude")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
+                shell("appops set dev.mobile.maestro android:mock_location allow")
+                runDeviceCall {
+                    blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
+                }
+                LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
+
+                isLocationMocked = true
+            }
 
             runDeviceCall {
                 blockingStubWithTimeout.setLocation(
@@ -1260,7 +1274,6 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
         private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
-        private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }
 }

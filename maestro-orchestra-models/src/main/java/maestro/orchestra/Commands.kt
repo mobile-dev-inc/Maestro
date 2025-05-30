@@ -27,10 +27,14 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.util.InputRandomTextHelper
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 sealed interface Command {
 
-    fun description(): String
+    @get:JsonIgnore
+    val originalDescription: String
+
+    fun description(): String = label ?: originalDescription
 
     fun evaluateScripts(jsEngine: JsEngine): Command
 
@@ -55,9 +59,14 @@ data class AssertVisualCommand(
     override val optional: Boolean = false,
     override val label: String? = null,
 ) : Command {
-    override fun description(): String {
-        return label ?: "Assert visual difference with baseline $baseline (threshold: $thresholdPercentage%)"
-    }
+
+    override val originalDescription: String
+        get() = when {
+            label != null -> {
+                label
+            }
+            else -> "Assert visual difference with baseline $baseline (threshold: $thresholdPercentage%)"
+        }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -93,31 +102,22 @@ data class SwipeCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    override fun description(): String {
-        return when {
-            label != null -> {
-                label
-            }
-
+    override val originalDescription: String
+        get() = when {
             elementSelector != null && direction != null -> {
                 "Swiping in $direction direction on ${elementSelector.description()}"
             }
-
             direction != null -> {
                 "Swiping in $direction direction in $duration ms"
             }
-
             startPoint != null && endPoint != null -> {
                 "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y}) in $duration ms"
             }
-
             startRelative != null && endRelative != null -> {
                 "Swipe from ($startRelative) to ($endRelative) in $duration ms"
             }
-
             else -> "Invalid input to swipe command"
         }
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): SwipeCommand {
         return copy(
@@ -154,11 +154,30 @@ data class ScrollUntilVisibleCommand(
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
     val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
+    val originalSpeedValue: String? = scrollDuration,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
     val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
+
+    override val originalDescription: String
+        get() {
+            val baseDescription = "Scrolling $direction until ${selector.description()} is visible"
+            val additionalDescription = mutableListOf<String>()
+            additionalDescription.add("with speed $originalSpeedValue")
+            additionalDescription.add("visibility percentage $visibilityPercentage%")
+            additionalDescription.add("timeout $timeout ms")
+            waitToSettleTimeoutMs?.let {
+                additionalDescription.add("wait to settle $it ms")
+            }
+            if (centerElement) {
+                additionalDescription.add("with centering enabled")
+            } else {
+                additionalDescription.add("with centering disabled")
+            }
+            return "$baseDescription ${additionalDescription.joinToString(", ")}"
+        }
 
     private fun String.speedToDuration(): String {
         val duration = ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1)
@@ -173,12 +192,9 @@ data class ScrollUntilVisibleCommand(
         } else this
     }
 
-    override fun description(): String {
-        return label ?: "Scrolling $direction until ${selector.description()} is visible."
-    }
-
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
         return copy(
+            originalSpeedValue = scrollDuration,
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
@@ -209,6 +225,9 @@ class ScrollCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Scroll vertically"
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -221,10 +240,6 @@ class ScrollCommand(
 
     override fun toString(): String {
         return "ScrollCommand()"
-    }
-
-    override fun description(): String {
-        return label ?: "Scroll vertically"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollCommand {
@@ -247,6 +262,9 @@ class BackPressCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    override val originalDescription: String
+        get() = "Press back"
 
     override fun yamlString(): String {
         val yamlString = buildString {
@@ -273,10 +291,6 @@ class BackPressCommand(
         return "BackPressCommand()"
     }
 
-    override fun description(): String {
-        return label ?: "Press back"
-    }
-
     override fun evaluateScripts(jsEngine: JsEngine): BackPressCommand {
         return this
     }
@@ -286,6 +300,9 @@ class HideKeyboardCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    override val originalDescription: String
+        get() = "Hide Keyboard"
 
     override fun yamlString(): String {
         val yamlString = buildString {
@@ -311,10 +328,6 @@ class HideKeyboardCommand(
         return "HideKeyboardCommand()"
     }
 
-    override fun description(): String {
-        return label ?: "Hide Keyboard"
-    }
-
     override fun evaluateScripts(jsEngine: JsEngine): HideKeyboardCommand {
         return this
     }
@@ -326,6 +339,8 @@ data class CopyTextFromCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Copy text from element with ${selector.description()}"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -352,6 +367,9 @@ data class PasteTextCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Paste text"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -361,9 +379,6 @@ data class PasteTextCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Paste text"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): PasteTextCommand {
@@ -382,6 +397,11 @@ data class TapOnElementCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() {
+            val optional = if (optional || selector.optional) "(Optional) " else ""
+            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
+        }
     override fun yamlString(): String {
         val yamlString = buildString {
             append(
@@ -394,10 +414,6 @@ data class TapOnElementCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        val optional = if (optional || selector.optional) "(Optional) " else ""
-        return label ?: "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
@@ -424,6 +440,8 @@ data class TapOnPointCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "${tapOnDescription(longPress, repeat)} on point ($x, $y)"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -433,9 +451,6 @@ data class TapOnPointCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "${tapOnDescription(longPress, repeat)} on point ($x, $y)"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointCommand {
@@ -453,6 +468,8 @@ data class TapOnPointV2Command(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "${tapOnDescription(longPress, repeat)} on point ($point)"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -463,9 +480,6 @@ data class TapOnPointV2Command(
         }
         return yamlString
     }
-    override fun description(): String {
-        return label ?: "${tapOnDescription(longPress, repeat)} on point ($point)"
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
         return copy(
@@ -474,7 +488,6 @@ data class TapOnPointV2Command(
     }
 }
 
-// Do not delete this class. It might have been already serialized in the past and stored in DB.
 @Deprecated("Use AssertConditionCommand instead")
 data class AssertCommand(
     val visible: ElementSelector? = null,
@@ -484,6 +497,14 @@ data class AssertCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() {
+            val timeoutStr = timeout?.let { " within $timeout ms" } ?: ""
+            return when {
+                visible != null -> "Assert visible ${visible.description()}" + timeoutStr
+                notVisible != null -> "Assert not visible ${notVisible.description()}" + timeoutStr
+                else -> "No op"
+            }
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -493,21 +514,6 @@ data class AssertCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        if (label != null) {
-            return label
-        }
-        val timeoutStr = timeout?.let { " within $timeout ms" } ?: ""
-        if (visible != null) {
-            return "Assert visible ${visible.description()}" + timeoutStr
-        }
-
-        if (notVisible != null) {
-            return "Assert not visible ${notVisible.description()}" + timeoutStr
-        }
-
-        return "No op"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): AssertCommand {
@@ -526,7 +532,6 @@ data class AssertCommand(
             timeout = timeout?.toString(),
         )
     }
-
 }
 
 data class AssertConditionCommand(
@@ -550,11 +555,11 @@ data class AssertConditionCommand(
         return timeout?.replace("_", "")?.toLong()
     }
 
-    override fun description(): String {
-        val optional =
-            if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true) "(Optional) " else ""
-        return label ?: "Assert that $optional${condition.description()}"
-    }
+    override val originalDescription: String
+        get() {
+            val optional = if (optional || condition.visible?.optional == true || condition.notVisible?.optional == true) "(Optional) " else ""
+            return "Assert that $optional${condition.description()}"
+        }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -568,6 +573,8 @@ data class AssertNoDefectsWithAICommand(
     override val optional: Boolean = true,
     override val label: String? = null,
 ) : Command {
+    override val originalDescription: String
+        get() = "Assert no defects with AI"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -578,11 +585,6 @@ data class AssertNoDefectsWithAICommand(
         }
         return yamlString
     }
-    override fun description(): String {
-        if (label != null) return label
-
-        return "Assert no defects with AI"
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command = this
 }
@@ -592,6 +594,8 @@ data class AssertWithAICommand(
     override val optional: Boolean = true,
     override val label: String? = null,
 ) : Command {
+    override val originalDescription: String
+        get() = "Assert with AI: $assertion"
     override fun yamlString(): String {
         val yamlString = buildString {
             append(
@@ -609,11 +613,6 @@ data class AssertWithAICommand(
         }
         return yamlString
     }
-    override fun description(): String {
-        if (label != null) return label
-
-        return "Assert with AI: $assertion"
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -628,6 +627,8 @@ data class ExtractTextWithAICommand(
     override val optional: Boolean = true,
     override val label: String? = null
 ) : Command {
+    override val originalDescription: String
+        get() = "Extract text with AI: $query"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -637,11 +638,6 @@ data class ExtractTextWithAICommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        if (label != null) return label
-
-        return "Extract text with AI: $query"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -657,6 +653,8 @@ data class InputTextCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Input text $text"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -666,9 +664,6 @@ data class InputTextCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Input text $text"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): InputTextCommand {
@@ -689,6 +684,29 @@ data class LaunchAppCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() {
+            var result = if (clearState != true) {
+                "Launch app \"$appId\""
+            } else {
+                "Launch app \"$appId\" with clear state"
+            }
+
+            if (clearKeychain == true) {
+                result += " and clear keychain"
+            }
+
+            if (stopApp == false) {
+                result += " without stopping app"
+            }
+
+            if (launchArguments != null) {
+                result += " (launch arguments: ${launchArguments})"
+            }
+
+            return result
+        }
+
     override fun yamlString(): String {
         val yamlString = buildString {
             append(
@@ -698,11 +716,11 @@ data class LaunchAppCommand(
             launchArguments.let {
                 if (!it.isNullOrEmpty()) {
                     append(
-                """
+                        """
                 |  arguments:""")
                     launchArguments?.forEach { (t, u) ->
                         append(
-                """
+                            """
                 |    $t: $u"""
                         )
                     }
@@ -711,39 +729,13 @@ data class LaunchAppCommand(
         }
         return yamlString
     }
-    override fun description(): String {
-        if (label != null) {
-            return label
-        }
-
-        var result = if (clearState != true) {
-            "Launch app \"$appId\""
-        } else {
-            "Launch app \"$appId\" with clear state"
-        }
-
-        if (clearKeychain == true) {
-            result += " and clear keychain"
-        }
-
-        if (stopApp == false) {
-            result += " without stopping app"
-        }
-
-        if (launchArguments != null) {
-            result += " (launch arguments: ${launchArguments})"
-        }
-
-        return result
-    }
-
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
             launchArguments = launchArguments?.entries?.associate {
                 val value = it.value
                 it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
-            },
+            }
         )
     }
 }
@@ -754,6 +746,8 @@ data class ApplyConfigurationCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Apply configuration"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine("appId: ${config.appId}")
@@ -767,9 +761,6 @@ data class ApplyConfigurationCommand(
         }
 
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Apply configuration"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ApplyConfigurationCommand {
@@ -789,6 +780,12 @@ data class OpenLinkCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = when {
+            browser == true -> if (autoVerify == true) "Open $link with auto verification in browser" else "Open $link in browser"
+            else -> if (autoVerify == true) "Open $link with auto verification" else "Open $link"
+        }
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -798,15 +795,6 @@ data class OpenLinkCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return if (label != null) {
-            label
-        } else if (browser == true) {
-            if (autoVerify == true) "Open $link with auto verification in browser" else "Open $link in browser"
-        } else {
-            if (autoVerify == true) "Open $link with auto verification" else "Open $link"
-        }
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): OpenLinkCommand {
@@ -822,6 +810,9 @@ data class PressKeyCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Press ${code.description} key"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -832,14 +823,10 @@ data class PressKeyCommand(
         }
         return yamlString
     }
-    override fun description(): String {
-        return label ?: "Press ${code.description} key"
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): PressKeyCommand {
         return this
     }
-
 }
 
 data class EraseTextCommand(
@@ -847,6 +834,12 @@ data class EraseTextCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    override val originalDescription: String
+        get() = when (charactersToErase) {
+            null -> "Erase text"
+            else -> "Erase $charactersToErase characters"
+        }
 
     override fun yamlString(): String {
         val yamlString = buildString {
@@ -857,15 +850,6 @@ data class EraseTextCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return if (label != null) {
-            label
-        } else if (charactersToErase != null) {
-            "Erase $charactersToErase characters"
-        } else {
-            "Erase text"
-            }
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): EraseTextCommand {
@@ -880,6 +864,9 @@ data class TakeScreenshotCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Take screenshot $path"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -889,9 +876,6 @@ data class TakeScreenshotCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Take screenshot $path"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
@@ -907,6 +891,9 @@ data class StopAppCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Stop $appId"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -916,9 +903,6 @@ data class StopAppCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Stop $appId"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -934,6 +918,9 @@ data class KillAppCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Kill $appId"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -943,9 +930,6 @@ data class KillAppCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Kill $appId"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -961,6 +945,9 @@ data class ClearStateCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Clear state of $appId"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -970,9 +957,6 @@ data class ClearStateCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Clear state of $appId"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -987,6 +971,9 @@ class ClearKeychainCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Clear keychain"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -996,9 +983,6 @@ class ClearKeychainCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Clear keychain"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -1014,7 +998,6 @@ class ClearKeychainCommand(
     override fun hashCode(): Int {
         return javaClass.hashCode()
     }
-
 }
 
 enum class InputRandomType {
@@ -1038,6 +1021,7 @@ data class InputRandomCommand(
         }
         return yamlString
     }
+
     fun genRandomString(): String {
         val lengthNonNull = length ?: 8
         val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
@@ -1051,9 +1035,8 @@ data class InputRandomCommand(
         }
     }
 
-    override fun description(): String {
-        return label ?: "Input text random $inputType"
-    }
+    override val originalDescription: String
+        get() = "Input text random $inputType"
 
     override fun evaluateScripts(jsEngine: JsEngine): InputRandomCommand {
         return this
@@ -1096,21 +1079,20 @@ data class RunFlowCommand(
         return config
     }
 
-    override fun description(): String {
-        if (label != null) return label
+    override val originalDescription: String
+        get() {
+            val runDescription = if (sourceDescription != null) {
+                "Run $sourceDescription"
+            } else {
+                "Run flow"
+            }
 
-        val runDescription = if (sourceDescription != null) {
-            "Run $sourceDescription"
-        } else {
-            "Run flow"
+            return if (condition == null) {
+                runDescription
+            } else {
+                "$runDescription when ${condition.description()}"
+            }
         }
-
-        return if (condition == null) {
-            runDescription
-        } else {
-            "$runDescription when ${condition.description()}"
-        }
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -1118,7 +1100,6 @@ data class RunFlowCommand(
             config = config?.evaluateScripts(jsEngine),
         )
     }
-
 }
 
 data class SetLocationCommand(
@@ -1127,6 +1108,9 @@ data class SetLocationCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    override val originalDescription: String
+        get() = "Set location (${latitude}, ${longitude})"
 
     override fun yamlString(): String {
         val yamlString = buildString {
@@ -1137,9 +1121,6 @@ data class SetLocationCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Set location (${latitude}, ${longitude})"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): SetLocationCommand {
@@ -1176,26 +1157,21 @@ data class RepeatCommand(
         return null
     }
 
-    override fun description(): String {
-        val timesInt = times?.toIntOrNull() ?: 1
+    override val originalDescription: String
+        get() {
+            val timesInt = times?.toIntOrNull() ?: 1
 
-        return when {
-            label != null -> {
-                label
+            return when {
+                condition != null && timesInt > 1 -> {
+                    "Repeat while ${condition.description()} (up to $timesInt times)"
+                }
+                condition != null -> {
+                    "Repeat while ${condition.description()}"
+                }
+                timesInt > 1 -> "Repeat $timesInt times"
+                else -> "Repeat indefinitely"
             }
-
-            condition != null && timesInt > 1 -> {
-                "Repeat while ${condition.description()} (up to $timesInt times)"
-            }
-
-            condition != null -> {
-                "Repeat while ${condition.description()}"
-            }
-
-            timesInt > 1 -> "Repeat $timesInt times"
-            else -> "Repeat indefinitely"
         }
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -1243,17 +1219,11 @@ data class RetryCommand(
         return null
     }
 
-    override fun description(): String {
-        val maxAttempts = maxRetries?.toIntOrNull() ?: 1
-
-        return when {
-            label != null -> {
-                label
-            }
-
-            else -> "Retry $maxAttempts times"
+    override val originalDescription: String
+        get() {
+            val maxAttempts = maxRetries?.toIntOrNull() ?: 1
+            return "Retry $maxAttempts times"
         }
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -1269,6 +1239,9 @@ data class DefineVariablesCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Define variables"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1278,9 +1251,6 @@ data class DefineVariablesCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Define variables"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): DefineVariablesCommand {
@@ -1292,7 +1262,6 @@ data class DefineVariablesCommand(
     }
 
     override fun visible(): Boolean = false
-
 }
 
 data class RunScriptCommand(
@@ -1304,6 +1273,13 @@ data class RunScriptCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = if (condition == null) {
+            "Run $sourceDescription"
+        } else {
+            "Run $sourceDescription when ${condition.description()}"
+        }
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1314,14 +1290,6 @@ data class RunScriptCommand(
         }
         return yamlString
     }
-    override fun description(): String {
-        return label
-            ?: if (condition == null) {
-                "Run $sourceDescription"
-            } else {
-                "Run $sourceDescription when ${condition.description()}"
-            }
-    }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -1331,7 +1299,6 @@ data class RunScriptCommand(
             condition = condition?.evaluateScripts(jsEngine),
         )
     }
-
 }
 
 data class WaitForAnimationToEndCommand(
@@ -1340,6 +1307,8 @@ data class WaitForAnimationToEndCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Wait for animation to end"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1349,9 +1318,6 @@ data class WaitForAnimationToEndCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Wait for animation to end"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -1365,6 +1331,8 @@ data class EvalScriptCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Run $scriptString"
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1374,9 +1342,6 @@ data class EvalScriptCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Run $scriptString"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -1430,9 +1395,8 @@ data class TravelCommand(
 
     }
 
-    override fun description(): String {
-        return label ?: "Travel path ${points.joinToString { "(${it.latitude}, ${it.longitude})" }}"
-    }
+    override val originalDescription: String
+        get() = "Travel path ${points.joinToString { "(${it.latitude}, ${it.longitude})" }}"
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
@@ -1453,6 +1417,9 @@ data class StartRecordingCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Start recording $path"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1462,9 +1429,6 @@ data class StartRecordingCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Start recording $path"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): StartRecordingCommand {
@@ -1480,6 +1444,9 @@ data class AddMediaCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Adding media files(${mediaPaths.size}) to the device"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1489,9 +1456,6 @@ data class AddMediaCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Adding media files(${mediaPaths.size}) to the device"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -1507,6 +1471,9 @@ data class StopRecordingCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Stop recording"
+
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -1516,9 +1483,6 @@ data class StopRecordingCommand(
             )
         }
         return yamlString
-    }
-    override fun description(): String {
-        return label ?: "Stop recording"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
@@ -1536,13 +1500,11 @@ data class SetAirplaneModeCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
-    override fun description(): String {
-        return label
-            ?: when (value) {
-                AirplaneValue.Enable -> "Enable airplane mode"
-                AirplaneValue.Disable -> "Disable airplane mode"
-            }
-    }
+    override val originalDescription: String
+        get() = when (value) {
+            AirplaneValue.Enable -> "Enable airplane mode"
+            AirplaneValue.Disable -> "Disable airplane mode"
+        }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return this
@@ -1564,10 +1526,8 @@ data class ToggleAirplaneModeCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
-
-    override fun description(): String {
-        return label ?: "Toggle airplane mode"
-    }
+    override val originalDescription: String
+        get() = "Toggle airplane mode"
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return this

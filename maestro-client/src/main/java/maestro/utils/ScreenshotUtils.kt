@@ -11,6 +11,9 @@ import javax.imageio.ImageIO
 
 class ScreenshotUtils {
     companion object {
+
+        const val SCREENSHOT_DIFF_THRESHOLD = 0.005
+
         private val LOGGER = LoggerFactory.getLogger(ScreenshotUtils::class.java)
 
         fun takeScreenshot(out: Sink, compressed: Boolean, driver: Driver) {
@@ -76,6 +79,7 @@ class ScreenshotUtils {
         fun waitUntilScreenIsStatic(timeoutMs: Long, threshold: Double, driver: Driver): Boolean {
             return MaestroTimer.retryUntilTrue(timeoutMs) {
                 val startScreenshot: BufferedImage? = tryTakingScreenshot(driver)
+                MaestroTimer.sleep(MaestroTimer.Reason.WAIT_TO_SETTLE, 500)
                 val endScreenshot: BufferedImage? = tryTakingScreenshot(driver)
 
                 if (startScreenshot != null &&

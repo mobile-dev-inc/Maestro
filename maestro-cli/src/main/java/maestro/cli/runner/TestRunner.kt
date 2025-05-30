@@ -7,6 +7,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.device.Device
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
@@ -46,7 +47,8 @@ object TestRunner {
         env: Map<String, String>,
         resultView: ResultView,
         debugOutputPath: Path,
-        analyze: Boolean = false
+        analyze: Boolean = false,
+        apiKey: String? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -76,6 +78,7 @@ object TestRunner {
                 debugOutput = debugOutput,
                 aiOutput = aiOutput,
                 analyze = analyze,
+                apiKey = apiKey,
             )
         }
 
@@ -89,7 +92,13 @@ object TestRunner {
             path = debugOutputPath,
         )
 
-        if (debugOutput.exception != null) PrintUtils.err("${debugOutput.exception?.message}")
+        val exception = debugOutput.exception
+        if (exception != null) {
+            PrintUtils.err(exception.message)
+            if (exception is MaestroException.AssertionFailure) {
+                PrintUtils.err(exception.debugMessage)
+            }
+        }
 
         return if (result.get() == true) 0 else 1
     }
@@ -103,6 +112,7 @@ object TestRunner {
         flowFile: File,
         env: Map<String, String>,
         analyze: Boolean = false,
+        apiKey: String? = null,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
@@ -146,7 +156,8 @@ object TestRunner {
                                     flowName = "TODO",
                                     flowFile = flowFile,
                                 ),
-                                analyze = analyze
+                                analyze = analyze,
+                                apiKey = apiKey,
                             )
                         }.get()
                     }

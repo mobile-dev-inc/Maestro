@@ -83,6 +83,7 @@ internal object DeviceCreateUtil {
             platform = Platform.IOS,
             language = language,
             country = country,
+            deviceType = Device.DeviceType.SIMULATOR
         )
 
     }
@@ -166,6 +167,7 @@ internal object DeviceCreateUtil {
             platform = Platform.ANDROID,
             language = language,
             country = country,
+            deviceType = Device.DeviceType.EMULATOR,
         )
     }
 }

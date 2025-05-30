@@ -20,22 +20,39 @@
 package maestro.drivers
 
 import com.github.michaelbull.result.expect
-import com.github.michaelbull.result.getOrThrow
-import com.github.michaelbull.result.onSuccess
+import device.IOSDevice
 import hierarchy.AXElement
-import ios.IOSDevice
 import ios.IOSDeviceErrors
-import maestro.*
+import maestro.Capability
+import maestro.DeviceInfo
+import maestro.Driver
+import maestro.Filters
+import maestro.KeyCode
+import maestro.MaestroException
+import maestro.MediaExt
+import maestro.NamedSource
+import maestro.Point
+import maestro.ScreenRecording
+import maestro.SwipeDirection
+import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
-import maestro.utils.*
+import maestro.ViewHierarchy
+import maestro.toCommonDeviceInfo
+import maestro.utils.Insight
+import maestro.utils.Insights
+import maestro.utils.MaestroTimer
+import maestro.utils.Metrics
+import maestro.utils.MetricsProvider
+import maestro.utils.NoopInsights
+import maestro.utils.ScreenshotUtils
+import maestro.utils.ScreenshotUtils.Companion.SCREENSHOT_DIFF_THRESHOLD
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
 import java.net.SocketTimeoutException
-import java.util.UUID
 import kotlin.collections.set
 
 class IOSDriver(
@@ -80,14 +97,10 @@ class IOSDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
-            iosDevice.launch(appId, launchArguments, sessionId)
-                .onSuccess { this.appId = appId }
-                .getOrThrow {
-                    MaestroException.UnableToLaunchApp("Unable to launch app $appId ${it.message}")
-                }
+            iosDevice.launch(appId, launchArguments)
+            this.appId = appId
         }
     }
 
@@ -457,7 +470,7 @@ class IOSDriver(
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
         return metrics.measured("operation", mapOf("command" to "waitUntilScreenIsStatic", "timeoutMs" to timeoutMs.toString())) {
              MaestroTimer.retryUntilTrue(timeoutMs) {
-                val isScreenStatic = isScreenStatic()
+                val isScreenStatic = ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
 
                 LOGGER.info("screen static = $isScreenStatic")
                 return@retryUntilTrue isScreenStatic
@@ -517,10 +530,6 @@ class IOSDriver(
                 )
             iosDevice.addMedia(namedSource.path)
         }
-    }
-
-    private fun isScreenStatic(): Boolean {
-        return runDeviceCall("isScreenStatic") { iosDevice.isScreenStatic() }
     }
 
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
