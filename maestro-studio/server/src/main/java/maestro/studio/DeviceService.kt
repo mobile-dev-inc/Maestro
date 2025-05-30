@@ -57,8 +57,7 @@ object DeviceService {
         routing.post("/api/run-command") {
             try {
                 val request = call.parseBody<RunCommandRequest>()
-                val commands = YamlCommandReader.readSingleCommand(Paths.get(flowPath ?: ""), "", request.yaml).withEnv(env)
-                val commands = MaestroFlowParser.parseCommand(Paths.get(""), "", request.yaml)
+                val commands = MaestroFlowParser.parseCommand(Paths.get(""), "", request.yaml).withEnv(env)
                 if (request.dryRun != true) {
                     executeCommands(maestro, commands)
                 }

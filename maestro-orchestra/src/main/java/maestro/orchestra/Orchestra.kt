@@ -108,7 +108,7 @@ class Orchestra(
 
     private lateinit var jsEngine: JsEngine
 
-    private val ai: AI? = initAI()
+    private val ai: AI = initAI()
 
     private var copiedText: String? = null
 
@@ -297,9 +297,9 @@ class Orchestra(
         maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
     }
 
-    private fun initAI(): AI? {
+    private fun initAI(): AI {
         logger.info("[Orchestra] Initializing AI")
-        val apiKey = System.getenv(AI_KEY_ENV_VAR) ?: return null
+        val apiKey = System.getenv(AI_KEY_ENV_VAR)
         val modelName: String? = System.getenv(AI.AI_MODEL_ENV_VAR)
 
         return if (modelName == null) OpenAI(apiKey = apiKey)
@@ -424,9 +424,7 @@ class Orchestra(
     }
 
     private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
-        // TODO(bartekpacia): make all of Orchestra suspending
-        val apiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
-        if (apiKey.isNullOrEmpty()) {
+        if (AIPredictionEngine == null) {
             throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
         }
 
@@ -435,10 +433,9 @@ class Orchestra(
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
-        val defects = Prediction.findDefects(
-            apiKey = apiKey,
-            aiClient = ai,
+        val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
+            aiClient = ai,
         )
 
         if (defects.isNotEmpty()) {
@@ -474,6 +471,7 @@ class Orchestra(
         maestro.takeScreenshot(imageData, compressed = false)
         val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
+            aiClient = ai,
             assertion = command.assertion,
         )
 
@@ -506,6 +504,7 @@ class Orchestra(
         maestro.takeScreenshot(imageData, compressed = false)
         val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
+            aiClient = ai,
             query = command.query,
         )
 
@@ -1069,9 +1068,14 @@ class Orchestra(
                     ImageIO.read(actual),
                 ), "failed_visual_regression")
 
+            val debugMessage = """
+                Comparison '${command.description()}' failed.
+            """.trimIndent()
+
             throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}",
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = debugMessage
             )
         }
         return false

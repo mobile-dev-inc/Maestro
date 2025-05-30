@@ -505,6 +505,7 @@ data class AssertCommand(
                 notVisible != null -> "Assert not visible ${notVisible.description()}" + timeoutStr
                 else -> "No op"
             }
+        }
     override fun yamlString(): String {
         val yamlString = buildString {
             appendLine(
@@ -686,24 +687,24 @@ data class LaunchAppCommand(
 
     override val originalDescription: String
         get() {
-            var result = if (clearState != true) {
-                "Launch app \"$appId\""
-            } else {
-                "Launch app \"$appId\" with clear state"
-            }
+            val result = buildString {
+                if (clearState != true) {
+                    append("Launch app \"$appId\"")
+                } else {
+                    append("Launch app \"$appId\" with clear state")
+                }
+                if (clearKeychain == true) {
+                    append(" and clear keychain")
+                }
 
-            if (clearKeychain == true) {
-                result += " and clear keychain"
-            }
+                if (stopApp == false) {
+                    append(" without stopping app")
+                }
 
-            if (stopApp == false) {
-                result += " without stopping app"
+                if (launchArguments != null) {
+                    append("\n\nLaunch arguments:\n${launchArguments.map { k -> "  -${k.key}: ${k.value}" }.joinToString (separator = "\n") { it }}\n")
+                }
             }
-
-            if (launchArguments != null) {
-                result += " (launch arguments: ${launchArguments})"
-            }
-
             return result
         }
 
