@@ -40,6 +40,7 @@ import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.ScreenshotUtils
+import maestro.utils.ScreenshotUtils.Companion.SCREENSHOT_DIFF_THRESHOLD
 import maestro.utils.StringUtils.toRegexSafe
 import maestro_android.*
 import net.dongliu.apk.parser.ApkFile
@@ -1273,7 +1274,6 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
         private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
-        private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }
 }

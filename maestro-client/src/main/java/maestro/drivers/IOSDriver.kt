@@ -46,6 +46,7 @@ import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.NoopInsights
 import maestro.utils.ScreenshotUtils
+import maestro.utils.ScreenshotUtils.Companion.SCREENSHOT_DIFF_THRESHOLD
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
@@ -469,7 +470,7 @@ class IOSDriver(
     override fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean {
         return metrics.measured("operation", mapOf("command" to "waitUntilScreenIsStatic", "timeoutMs" to timeoutMs.toString())) {
              MaestroTimer.retryUntilTrue(timeoutMs) {
-                val isScreenStatic = isScreenStatic()
+                val isScreenStatic = ScreenshotUtils.waitUntilScreenIsStatic(timeoutMs, SCREENSHOT_DIFF_THRESHOLD, this)
 
                 LOGGER.info("screen static = $isScreenStatic")
                 return@retryUntilTrue isScreenStatic
@@ -529,10 +530,6 @@ class IOSDriver(
                 )
             iosDevice.addMedia(namedSource.path)
         }
-    }
-
-    private fun isScreenStatic(): Boolean {
-        return runDeviceCall("isScreenStatic") { iosDevice.isScreenStatic() }
     }
 
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
