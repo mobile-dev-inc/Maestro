@@ -119,22 +119,15 @@ class DemoApp : CliktCommand() {
             else -> throw IllegalArgumentException("Unknown model: $model")
         }
 
-        val cloudApiKey = System.getenv("MAESTRO_CLOUD_API_KEY")
-        if (cloudApiKey.isNullOrEmpty()) {
-            throw IllegalArgumentException("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
-
         testCases.forEach { testCase ->
             val bytes = testCase.screenshot.readBytes()
 
             val job = async {
                 val defects = if (testCase.prompt == null) Prediction.findDefects(
-                    apiKey = cloudApiKey,
                     aiClient = aiClient,
                     screen = bytes,
                 ) else {
                     val result = Prediction.performAssertion(
-                        apiKey = cloudApiKey,
                         aiClient = aiClient,
                         screen = bytes,
                         assertion = testCase.prompt,

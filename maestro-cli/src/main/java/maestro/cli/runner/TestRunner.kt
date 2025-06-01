@@ -78,7 +78,6 @@ object TestRunner {
                 debugOutput = debugOutput,
                 aiOutput = aiOutput,
                 analyze = analyze,
-                apiKey = apiKey,
             )
         }
 

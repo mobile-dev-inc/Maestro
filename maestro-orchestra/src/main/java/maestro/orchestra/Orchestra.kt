@@ -102,8 +102,7 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
-    private val apiKey: String? = null,
-    private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
+    private val aiPredictionEngine: AIPredictionEngine = CloudAIPredictionEngine(),
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -424,16 +423,12 @@ class Orchestra(
     }
 
     private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
-
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
-        val defects = AIPredictionEngine.findDefects(
+        val defects = aiPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
             aiClient = ai,
         )
@@ -461,15 +456,11 @@ class Orchestra(
     }
 
     private fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
-
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-        val defect = AIPredictionEngine.performAssertion(
+        val defect = aiPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             aiClient = ai,
             assertion = command.assertion,
@@ -494,15 +485,11 @@ class Orchestra(
     }
 
     private fun extractTextWithAICommand(command: ExtractTextWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
-
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-        val text = AIPredictionEngine.extractText(
+        val text = aiPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
             aiClient = ai,
             query = command.query,
