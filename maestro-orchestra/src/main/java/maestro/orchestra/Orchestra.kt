@@ -113,6 +113,12 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
+    private var isStopping = false
+
+    fun stopFlow() {
+        isStopping = true
+    }
+
     fun runFlow(commands: List<MaestroCommand>): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
@@ -151,6 +157,10 @@ class Orchestra(
         } catch (e: Throwable) {
             exception = e
         } finally {
+            if (isStopping) {
+                isStopping = false
+            }
+
             val onCompleteSuccess = config?.onFlowComplete?.commands?.let {
                 executeCommands(
                     commands = it,
@@ -178,6 +188,11 @@ class Orchestra(
 
         commands
             .forEachIndexed { index, command ->
+                if (isStopping) {
+                    onCommandSkipped(index, command)
+                    return true
+                }
+
                 onCommandStart(index, command)
 
                 jsEngine.onLogMessage { msg ->
@@ -275,6 +290,10 @@ class Orchestra(
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
     private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+        if (isStopping) {
+            return true
+        }
+
         val command = maestroCommand.asCommand()
 
         return when (command) {
