@@ -84,7 +84,7 @@ interface FlowController {
 
 class DefaultFlowController : FlowController {
     private var _isPaused = false
-    
+
     override suspend fun waitIfPaused() {
         while (_isPaused) {
             if (!coroutineContext.isActive) {
@@ -93,15 +93,15 @@ class DefaultFlowController : FlowController {
             Thread.sleep(500)
         }
     }
-    
-    override fun pause() { 
-        _isPaused = true 
+
+    override fun pause() {
+        _isPaused = true
     }
-    
-    override fun resume() { 
+
+    override fun resume() {
         _isPaused = false
     }
-    
+
     override val isPaused: Boolean get() = _isPaused
 }
 

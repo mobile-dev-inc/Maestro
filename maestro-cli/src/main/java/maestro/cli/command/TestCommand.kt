@@ -335,8 +335,9 @@ class TestCommand : Callable<Int> {
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
+        val executionPlan = chunkPlans[shardIndex]
 
-        logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort")
+        logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort with execution plan $executionPlan")
 
         return MaestroSessionManager.newSession(
             host = parent?.host,
@@ -347,6 +348,7 @@ class TestCommand : Callable<Int> {
             platform = parent?.platform,
             isHeadless = headless,
             reinstallDriver = reinstallDriver,
+            executionPlan = executionPlan
         ) { session ->
             val maestro = session.maestro
             val device = session.device
@@ -457,7 +459,7 @@ class TestCommand : Callable<Int> {
             .groupBy { it.index % effectiveShards }
             .map { (_, files) ->
                 val flowsToRun = files.map { it.value }
-                ExecutionPlan(flowsToRun, plan.sequence)
+                ExecutionPlan(flowsToRun, plan.sequence, plan.workspaceConfig)
             }
     }
 
