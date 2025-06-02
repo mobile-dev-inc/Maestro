@@ -65,6 +65,8 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
 
+    private var includeNonModalElements = false
+
     override fun name(): String {
         return metrics.measured("name") {
             NAME
@@ -166,13 +168,13 @@ class IOSDriver(
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         return metrics.measured("operation", mapOf("command" to "contentDescriptor")) {
-            runDeviceCall("contentDescriptor") { viewHierarchy(excludeKeyboardElements) }
+            runDeviceCall("contentDescriptor") { viewHierarchy(excludeKeyboardElements, includeNonModalElements) }
         }
     }
 
-    private fun viewHierarchy(excludeKeyboardElements: Boolean): TreeNode {
+    private fun viewHierarchy(excludeKeyboardElements: Boolean, includeNonModalElements: Boolean): TreeNode {
         LOGGER.info("Requesting view hierarchy of the screen")
-        val hierarchyResult = iosDevice.viewHierarchy(excludeKeyboardElements)
+        val hierarchyResult = iosDevice.viewHierarchy(excludeKeyboardElements, includeNonModalElements)
         LOGGER.info("Depth of the screen is ${hierarchyResult.depth}")
         if (hierarchyResult.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +
@@ -545,6 +547,10 @@ class IOSDriver(
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
         }
+    }
+
+    override fun setIncludeNonModalElements(includeNonModalElements: Boolean) {
+        this.includeNonModalElements = includeNonModalElements
     }
 
     companion object {
