@@ -114,9 +114,42 @@ class Orchestra(
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
     private var isStopping = false
+    private var isPaused = false
+    private val pauseLock = Object()
 
     fun stopFlow() {
         isStopping = true
+
+        synchronized(pauseLock) {
+            pauseLock.notifyAll()
+        }
+    }
+
+    fun pauseFlow() {
+        synchronized(pauseLock) {
+            isPaused = true
+            pauseLock.notifyAll() 
+        }
+    }
+
+    fun resumeFlow() {
+        synchronized(pauseLock) {
+            isPaused = false
+            pauseLock.notifyAll()
+        }
+    }
+
+    private fun checkPauseState() {
+        synchronized(pauseLock) {
+            while (isPaused && !isStopping) {
+                try {
+                    pauseLock.wait()
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    break
+                }
+            }
+        }
     }
 
     fun runFlow(commands: List<MaestroCommand>): Boolean {
@@ -290,6 +323,7 @@ class Orchestra(
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
     private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+        checkPauseState()
         if (isStopping) {
             return true
         }
