@@ -35,7 +35,7 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
+    override fun viewHierarchy(excludeKeyboardElements: Boolean, includeNonModalElements: Boolean): ViewHierarchy {
         TODO("Not yet implemented")
     }
 

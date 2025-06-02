@@ -35,10 +35,10 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
+    override fun viewHierarchy(excludeKeyboardElements: Boolean, includeNonModalElements: Boolean): ViewHierarchy {
         return execute {
             // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
-            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
+            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements, includeNonModalElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
