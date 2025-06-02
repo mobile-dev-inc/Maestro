@@ -473,6 +473,14 @@ class WebDriver(
         // Do nothing
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return false;
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        // Do nothing
+    }
+
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10

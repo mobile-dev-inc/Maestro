@@ -138,6 +138,10 @@ private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
         _location = location,
         toggleAirplaneMode = YamlToggleAirplaneMode()
     )},
+    "toggleDarkMode" to { location -> YamlFluentCommand(
+        _location = location,
+        toggleDarkMode = YamlToggleDarkMode()
+    )},
     "assertNoDefectsWithAI" to { location -> YamlFluentCommand(
         _location = location,
         assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()

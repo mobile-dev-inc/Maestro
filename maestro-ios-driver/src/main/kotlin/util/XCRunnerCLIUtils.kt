@@ -140,4 +140,25 @@ object XCRunnerCLIUtils {
             params = mapOf("TEST_RUNNER_PORT" to port.toString())
         )
     }
+
+    fun isDarkModeEnabled(deviceId: String): Boolean {
+        val process = Runtime.getRuntime().exec(arrayOf("bash", "-c", "xcrun simctl ui $deviceId appearance"))
+        val appearance = String(process.inputStream.readBytes())
+
+        return appearance.trim() == "dark"
+    }
+
+    fun setDarkMode(deviceId: String, enabled: Boolean): Process {
+        val changeTo = if (enabled) "dark" else "light"
+        return CommandLineUtils.runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "ui",
+                deviceId,
+                "appearance",
+                changeTo
+            )
+        )
+    }
 }
