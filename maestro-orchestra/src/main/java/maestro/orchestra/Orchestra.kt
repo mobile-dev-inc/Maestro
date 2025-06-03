@@ -120,7 +120,6 @@ class Orchestra(
 
         initJsEngine(config)
         initAndroidChromeDevTools(config)
-        initIOSIncludeNonModalElements(config)
 
         onFlowStart(commands)
 
@@ -259,13 +258,6 @@ class Orchestra(
         if (config == null) return
         val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
         maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
-    }
-
-    private fun initIOSIncludeNonModalElements(config: MaestroConfig?) {
-        if (config == null) return
-
-        val shouldIncludeNonModalElements = config.ext["iosIncludeNonModalElements"] == "true"
-        maestro.setIncludeNonModalElements(shouldIncludeNonModalElements)
     }
 
     private fun initAI(): AI? {
