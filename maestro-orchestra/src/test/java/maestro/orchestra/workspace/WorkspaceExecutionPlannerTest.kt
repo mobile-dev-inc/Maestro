@@ -338,6 +338,27 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `016 - Upload Config gets correct values`() {
+        // When
+        val planWithoutConfig = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/000_individual_file"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null
+        )
+
+        val planWithIncludeNonModalElements = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/013_execution_order"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null
+        )
+
+        assertThat(planWithoutConfig.workspaceConfig.iosIncludeNonModalElements).isNull()
+        assertThat(planWithIncludeNonModalElements.workspaceConfig.iosIncludeNonModalElements).isTrue()
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()
