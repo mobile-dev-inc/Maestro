@@ -65,20 +65,21 @@ static id swizzledSnapshotParameters(id self, SEL _cmd) {
 
 + (void)load {
     // snapshotKeyHonorModalViews to false to make modals and dialogs visible that are invisible otherwise
-    FBSetCustomParameterForElementSnapshot(@"snapshotKeyHonorModalViews", @0);
+    NSString *includeNonModalElementsStr = [[[NSProcessInfo processInfo] environment] objectForKey:@"includeNonModalElements"];
+    if ([includeNonModalElementsStr isEqualToString:@"true"]) {
+        NSLog(@"Disabling snapshotKeyHonorModalViews to make elements behind modals visible");
+        FBSetCustomParameterForElementSnapshot(@"snapshotKeyHonorModalViews", @0);
 
-    Method original_defaultParametersMethod =
-        class_getInstanceMethod(self.class, @selector(defaultParameters));
-    IMP swizzledDefaultParametersImp = (IMP)swizzledDefaultParameters;
-    original_defaultParameters = (id(*)(id, SEL))method_setImplementation(
-        original_defaultParametersMethod, swizzledDefaultParametersImp);
+        Method original_defaultParametersMethod =
+            class_getInstanceMethod(self.class, @selector(defaultParameters));
+        IMP swizzledDefaultParametersImp = (IMP)swizzledDefaultParameters;
+        original_defaultParameters = (id(*)(id, SEL))method_setImplementation(
+            original_defaultParametersMethod, swizzledDefaultParametersImp);
 
-    Method original_snapshotParametersMethod =
-        class_getInstanceMethod(NSClassFromString(@"XCTElementQuery"),
-                                NSSelectorFromString(@"snapshotParameters"));
-    IMP swizzledSnapshotParametersImp = (IMP)swizzledSnapshotParameters;
-    original_snapshotParameters = (id(*)(id, SEL))method_setImplementation(
-        original_snapshotParametersMethod, swizzledSnapshotParametersImp);
+        Method original_snapshotParametersMethod = class_getInstanceMethod(NSClassFromString(@"XCTElementQuery"), NSSelectorFromString(@"snapshotParameters"));
+        IMP swizzledSnapshotParametersImp = (IMP)swizzledSnapshotParameters;
+        original_snapshotParameters = (id(*)(id, SEL))method_setImplementation(original_snapshotParametersMethod, swizzledSnapshotParametersImp);
+    }
 }
 
 #pragma clang diagnostic pop
