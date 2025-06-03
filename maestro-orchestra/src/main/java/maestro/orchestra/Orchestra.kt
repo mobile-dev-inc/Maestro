@@ -193,6 +193,7 @@ class Orchestra(
             if (isStopping) {
                 isStopping = false
             }
+            isPaused = false
 
             val onCompleteSuccess = config?.onFlowComplete?.commands?.let {
                 executeCommands(
