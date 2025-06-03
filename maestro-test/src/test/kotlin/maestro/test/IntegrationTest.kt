@@ -1,7 +1,10 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -3480,6 +3483,50 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+
+    }
+
+    @Test
+    fun `Cancellation before the flow starts skips all the commands`() {
+        val commands = readCommands("098_runscript_conditionals")
+        val info = driver { }.deviceInfo()
+
+        val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+        val driver = driver {
+            element {
+                id = "maestro"
+                bounds = elementBounds
+            }
+        }
+
+        var skipped = 0
+        var completed = 0
+
+        // When
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                withContext(Dispatchers.IO) {
+                    launch {
+                        Orchestra(
+                            maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandComplete = { _, _ ->
+                                completed += 1
+                            },
+                            onCommandSkipped = { _, cmd ->
+                                skipped += 1
+                            },
+                        ).runFlow(commands)
+                    }.cancel()
+                }
+            }
+        }
+
+        // Then
+        assertThat(skipped).isEqualTo(7)
+        assertThat(completed).isEqualTo(0)
+
     }
 
     private fun orchestra(
