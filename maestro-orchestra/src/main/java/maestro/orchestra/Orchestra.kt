@@ -80,20 +80,35 @@ interface FlowController {
     fun pause()
     fun resume()
     val isPaused: Boolean
+    fun setJsEngine(engine: JsEngine?)
+    fun getStoredJsEngine(): JsEngine?
 }
 
 class DefaultFlowController : FlowController {
     private var _isPaused = false
+    private var _jsEngine: JsEngine? = null
     
     override suspend fun waitIfPaused() {
         while (_isPaused) {
-            delay(500) // 1 second delay is fine for our use case
+            delay(500)
         }
     }
     
-    override fun pause() { _isPaused = true }
-    override fun resume() { _isPaused = false }
+    override fun pause() { 
+        _isPaused = true 
+    }
+    
+    override fun resume() { 
+        _isPaused = false
+    }
+    
     override val isPaused: Boolean get() = _isPaused
+
+    override fun setJsEngine(engine: JsEngine?) {
+        _jsEngine = engine
+    }
+
+    override fun getStoredJsEngine(): JsEngine? = _jsEngine
 }
 
 /**
@@ -288,6 +303,7 @@ class Orchestra(
         } else {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
         }
+        (flowController as? DefaultFlowController)?.setJsEngine(jsEngine)
     }
 
     private fun initAndroidChromeDevTools(config: MaestroConfig?) {
@@ -1440,13 +1456,21 @@ class Orchestra(
 
     // Add pause/resume functions
     fun pause() {
+        (flowController as? DefaultFlowController)?.setJsEngine(jsEngine)
         flowController.pause()
     }
 
     fun resume() {
         flowController.resume()
+        // After resume, restore the engine if needed
+        flowController.getStoredJsEngine()?.let { storedEngine ->
+            if (jsEngine !== storedEngine) {
+                jsEngine = storedEngine
+            }
+        }
     }
 
     val isPaused: Boolean
         get() = flowController.isPaused
 }
+
