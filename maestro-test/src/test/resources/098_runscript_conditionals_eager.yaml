@@ -1,0 +1,7 @@
+appId: com.other.app
+---
+- runScript:
+    when:
+      true: ${ 1 + 1 != 2 }
+      visible: Click me
+    file: 098_runScript.js
