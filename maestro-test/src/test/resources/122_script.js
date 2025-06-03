@@ -1,0 +1,1 @@
+output.mainValue = "main test"

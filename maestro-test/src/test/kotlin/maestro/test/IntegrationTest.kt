@@ -5,6 +5,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.TestScope
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -34,6 +36,7 @@ import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 import maestro.orchestra.util.Env.withDefaultEnvVars
+import kotlinx.coroutines.delay
 
 class IntegrationTest {
 
@@ -3475,9 +3478,10 @@ class IntegrationTest {
             }
         }
 
-        // When
-        Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+        runBlocking {
+            Maestro(driver).use {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
@@ -3527,6 +3531,84 @@ class IntegrationTest {
         assertThat(skipped).isEqualTo(7)
         assertThat(completed).isEqualTo(0)
 
+    }
+
+    @Test
+    fun `Case 122 - Pause and resume preserves JavaScript engine state`() = runTest {
+        // Given
+        val commands = readCommands("122_pause_resume_js_state")
+        val driver = driver {
+            element {
+                text = "Search Wikipedia"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        driver.addInstalledApp("org.wikipedia")
+        val maestro = Maestro(driver)
+        val orchestra = Orchestra(maestro)
+
+        // Start the flow in a coroutine using the test scope
+        val flowJob = this.launch {
+            orchestra.runFlow(commands)
+        }
+
+        // Wait for the first script to complete
+        delay(1000)
+
+        // Pause the flow
+        orchestra.pause()
+        
+        // Verify it's paused
+        assertThat(orchestra.isPaused).isTrue()
+        
+        // Wait a bit to ensure we're in the paused state
+        delay(1000)
+        
+        // Resume the flow
+        orchestra.resume()
+        
+        // Wait for the flow to complete
+        flowJob.join()
+
+        // Verify the flow completed successfully
+        assertThat(flowJob.isCompleted).isTrue()
+    }
+
+    @Test
+    fun `Case 121 - Pause and resume in subflow preserves JavaScript engine state`() = runTest {
+        // Given
+        val commands = readCommands("121_pause_resume_js_state_subflow")
+        val driver = driver {
+            element {
+                text = "Search Wikipedia"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        driver.addInstalledApp("org.wikipedia")
+        val maestro = Maestro(driver)
+        val orchestra = Orchestra(maestro)
+
+        // Start the flow in a coroutine using the test scope
+        val flowJob = this.launch {
+            orchestra.runFlow(commands)
+        }
+
+        // Wait for the first script to complete
+        delay(1000)
+
+        // Pause during subflow execution
+        orchestra.pause()
+        assertThat(orchestra.isPaused).isTrue()
+        delay(1000)
+        
+        // Resume the flow
+        orchestra.resume()
+        
+        // Wait for the flow to complete
+        flowJob.join()
+
+        // Verify the flow completed successfully
+        assertThat(flowJob.isCompleted).isTrue()
     }
 
     private fun orchestra(
