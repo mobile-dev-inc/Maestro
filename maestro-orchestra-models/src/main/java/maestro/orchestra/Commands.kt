@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -748,6 +749,24 @@ data class SetLocationCommand(
             latitude = latitude.evaluateScripts(jsEngine),
             longitude = longitude.evaluateScripts(jsEngine),
         )
+    }
+}
+
+data class SetOrientationCommand(
+    val orientation: DeviceOrientation,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Set orientation ${orientation}"
+
+    override fun description(): String {
+        return label ?: "Set orientation ${orientation}"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
+        return this
     }
 }
 
