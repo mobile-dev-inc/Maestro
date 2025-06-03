@@ -758,6 +758,9 @@ data class SetOrientationCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    override val originalDescription: String
+        get() = "Set orientation ${orientation}"
+
     override fun description(): String {
         return label ?: "Set orientation ${orientation}"
     }
