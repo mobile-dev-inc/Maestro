@@ -1,1 +1,0 @@
-output.mainValue = "main test"

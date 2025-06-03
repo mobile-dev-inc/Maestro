@@ -1,5 +1,0 @@
-appId: org.wikipedia
----
-- runScript: 122_script.js
-- tapOn: "Search Wikipedia"
-- runScript: 122_script.js
