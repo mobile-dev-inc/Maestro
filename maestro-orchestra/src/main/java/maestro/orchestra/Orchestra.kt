@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import maestro.Driver
@@ -74,6 +75,27 @@ sealed class CommandOutput {
     data class AIDefects(val defects: List<Defect>, val screenshot: Buffer) : CommandOutput()
 }
 
+interface FlowController {
+    suspend fun waitIfPaused()
+    fun pause()
+    fun resume()
+    val isPaused: Boolean
+}
+
+class DefaultFlowController : FlowController {
+    private var _isPaused = false
+    
+    override suspend fun waitIfPaused() {
+        while (_isPaused) {
+            delay(500) // 1 second delay is fine for our use case
+        }
+    }
+    
+    override fun pause() { _isPaused = true }
+    override fun resume() { _isPaused = false }
+    override val isPaused: Boolean get() = _isPaused
+}
+
 /**
  * Orchestra translates high-level Maestro commands into method calls on the [Maestro] object.
  * It's the glue between the CLI and platform-specific [Driver]s (encapsulated in the [Maestro] object).
@@ -101,6 +123,7 @@ class Orchestra(
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
+    private val flowController: FlowController = DefaultFlowController(),
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -187,6 +210,9 @@ class Orchestra(
                     onCommandSkipped(index, command)
                     return@forEachIndexed
                 }
+
+                // Check for pause before executing each command
+                flowController.waitIfPaused()
 
                 onCommandStart(index, command)
 
@@ -279,6 +305,8 @@ class Orchestra(
         if (!coroutineContext.isActive) {
             throw CommandSkipped
         }
+
+        flowController.waitIfPaused()
 
         return when (command) {
             is TapOnElementCommand -> {
@@ -1409,4 +1437,16 @@ class Orchestra(
         private const val MAX_RETRIES_ALLOWED = 3
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
     }
+
+    // Add pause/resume functions
+    fun pause() {
+        flowController.pause()
+    }
+
+    fun resume() {
+        flowController.resume()
+    }
+
+    val isPaused: Boolean
+        get() = flowController.isPaused
 }
