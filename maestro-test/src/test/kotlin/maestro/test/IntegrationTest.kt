@@ -214,7 +214,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 008 - Tap on element - Retry if no UI change`() {
+    fun `Case 008 - Tap on element - Do not retry by default if no UI change`() {
         // Given
         val commands = readCommands("008_tap_on_element")
 
