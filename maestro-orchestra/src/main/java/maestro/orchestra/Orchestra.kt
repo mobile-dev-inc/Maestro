@@ -276,6 +276,10 @@ class Orchestra(
     private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
 
+        if (!coroutineContext.isActive) {
+            throw CommandSkipped
+        }
+
         return when (command) {
             is TapOnElementCommand -> {
                 tapOnElement(
