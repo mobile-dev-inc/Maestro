@@ -3464,6 +3464,30 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 120 - Tap on element - Retry if no UI change opt-in`() {
+        // Given
+        val commands = readCommands("120_tap_on_element_retryTapIfNoChange")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+    }
+
+    @Test
     fun `Cancellation before the flow starts skips all the commands`() {
         val commands = readCommands("098_runscript_conditionals")
         val info = driver { }.deviceInfo()
