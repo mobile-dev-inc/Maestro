@@ -62,7 +62,7 @@ class PrintHierarchyCommand : Runnable {
 
     @CommandLine.Option(
         names = ["--reinstall-driver"],
-        description = ["[Beta] Reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled"],
+        description = ["[Beta] Reinstalls iOS/Android driver before printing the hierarchy. Set to false if the driver shouldn't be reinstalled"],
         hidden = true
     )
     private var reinstallDriver: Boolean = true

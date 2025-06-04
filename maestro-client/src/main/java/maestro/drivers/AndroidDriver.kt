@@ -64,6 +64,7 @@ private const val DefaultDriverHostPort = 7001
 class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
+    private val reinstallDriver: Boolean = true,
     private var emulatorName: String = "",
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
@@ -95,6 +96,20 @@ class AndroidDriver(
 
     override fun open() {
         allocateForwarder()
+
+        if (!reinstallDriver) {
+            // Try to connect to already running instrumentation session
+            try {
+                LOGGER.info("Attempting to connect to existing instrumentation session")
+                awaitLaunch(timeout = 1)
+                LOGGER.info("Connected to existing instrumentation session")
+                Thread.sleep(100)
+                return
+            } catch (timeout: AndroidDriverTimeoutException) {
+                LOGGER.info("Failed to connect to existing instrumentation session")
+            }
+        }
+
         installMaestroApks()
         startInstrumentationSession(hostPort)
 
@@ -155,10 +170,10 @@ class AndroidDriver(
         PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
     }
 
-    private fun awaitLaunch() {
+    private fun awaitLaunch(timeout: Long = getStartupTimeout()) {
         val startTime = System.currentTimeMillis()
 
-        while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+        while (System.currentTimeMillis() - startTime < timeout) {
             runCatching {
                 dadb.open("tcp:$hostPort").close()
                 return
@@ -179,26 +194,28 @@ class AndroidDriver(
             isLocationMocked = false
         }
 
-        LOGGER.info("[Start] close port forwarder")
-        PORT_TO_FORWARDER[hostPort]?.close()
-        LOGGER.info("[Done] close port forwarder")
+        if (reinstallDriver) {
+            LOGGER.info("[Start] close port forwarder")
+            PORT_TO_FORWARDER[hostPort]?.close()
+            LOGGER.info("[Done] close port forwarder")
 
-        LOGGER.info("[Start] Remove host port from port forwarder map")
-        PORT_TO_FORWARDER.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port forwarder map")
+            LOGGER.info("[Start] Remove host port from port forwarder map")
+            PORT_TO_FORWARDER.remove(hostPort)
+            LOGGER.info("[Done] Remove host port from port forwarder map")
 
-        LOGGER.info("[Start] Remove host port from port to allocation map")
-        PORT_TO_ALLOCATION_POINT.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port to allocation map")
+            LOGGER.info("[Start] Remove host port from port to allocation map")
+            PORT_TO_ALLOCATION_POINT.remove(hostPort)
+            LOGGER.info("[Done] Remove host port from port to allocation map")
 
-        LOGGER.info("[Start] Uninstall driver from device")
-        uninstallMaestroApks()
-        LOGGER.info("[Done] Uninstall driver from device")
+            LOGGER.info("[Start] Uninstall driver from device")
+            uninstallMaestroApks()
+            LOGGER.info("[Done] Uninstall driver from device")
 
-        LOGGER.info("[Start] Close instrumentation session")
-        instrumentationSession?.close()
-        instrumentationSession = null
-        LOGGER.info("[Done] Close instrumentation session")
+            LOGGER.info("[Start] Close instrumentation session")
+            instrumentationSession?.close()
+            instrumentationSession = null
+            LOGGER.info("[Done] Close instrumentation session")
+        }
 
         LOGGER.info("[Start] Shutdown GRPC channel")
         channel.shutdown()
