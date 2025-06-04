@@ -5,6 +5,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -34,6 +41,7 @@ import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.test.FlowControllerTest
 
 class IntegrationTest {
 
@@ -2956,8 +2964,7 @@ class IntegrationTest {
     fun `Case 103 - execute onFlowStart and onFlowComplete hooks`() {
         // given
         val commands = readCommands("103_on_flow_start_complete_hooks")
-        val driver = driver {
-        }
+        val driver = driver { }
         val receivedLogs = mutableListOf<String>()
 
         // when
@@ -3488,7 +3495,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Cancellation before the flow starts skips all the commands`() {
+    fun `Case 121 - Cancellation before the flow starts skips all the commands`() {
         val commands = readCommands("098_runscript_conditionals")
         val info = driver { }.deviceInfo()
 
@@ -3528,6 +3535,266 @@ class IntegrationTest {
         assertThat(skipped).isEqualTo(7)
         assertThat(completed).isEqualTo(0)
 
+    }
+
+    @Test
+    fun `Case 122 - Pause and resume works`() {
+        // Given
+        val commands = readCommands("122_pause_resume")
+        val driver = driver {
+            element {
+                text = "Button" 
+                bounds = Bounds(0, 0, 100, 100)
+                clickable = true
+                onClick = { element ->
+                    element.text = "Clicked"
+                }
+            }
+        }
+        driver.addInstalledApp("com.example.app")
+        val executedCommands = mutableListOf<String>()
+        val maestro = Maestro(driver)
+        val flowController = FlowControllerTest()
+        val orchestra = Orchestra(
+            maestro = maestro,
+            flowController = flowController
+        )
+
+        // When
+        runBlocking {
+            val flowJob = launch {
+                orchestra(
+                    maestro,
+                    onCommandMetadataUpdate = { cmd, metadata ->
+                        val commandName = when {
+                            cmd.launchAppCommand != null -> "LaunchAppCommand"
+                            cmd.inputTextCommand != null -> "InputTextCommand"
+                            cmd.tapOnElement != null -> "TapOnCommand"
+                            cmd.defineVariablesCommand != null -> "DefineVariablesCommand"
+                            cmd.applyConfigurationCommand != null -> "ApplyConfigurationCommand"
+                            else -> "UnknownCommand"
+                        }
+                        executedCommands.add(commandName)
+                    }
+                ).runFlow(commands)
+            }
+
+            delay(100)
+            orchestra.pause()
+            assertThat(orchestra.isPaused).isTrue()
+            
+            val commandsBeforeResume = executedCommands.toList()
+            delay(100)
+            assertThat(executedCommands).isEqualTo(commandsBeforeResume)
+            
+            orchestra.resume()
+            assertThat(orchestra.isPaused).isFalse()
+            
+            flowJob.join()
+        }
+
+        // Then
+        assertThat(executedCommands).containsAtLeast(
+            "LaunchAppCommand",
+            "InputTextCommand",
+            "TapOnCommand"
+        ).inOrder()
+        
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+                Event.InputText("Test after pause resume"),
+                Event.Tap(Point(50, 50))
+            )
+        )
+    }
+
+    @Test
+    fun `Case 123 - Pause and resume preserves JsEngine`() {
+        // Given
+        val commands = readCommands("123_pause_resume_preserves_js_engine")
+        val driver = driver { }
+        driver.addInstalledApp("com.example.app")
+        val executedCommands = mutableListOf<String>()
+        val maestro = Maestro(driver)
+        val flowController = FlowControllerTest()
+        val orchestra = Orchestra(
+            maestro = maestro,
+            flowController = flowController
+        )
+
+        // When
+        runBlocking {
+            val flowJob = launch {
+                orchestra(
+                    maestro,
+                    onCommandMetadataUpdate = { cmd, metadata ->
+                        val commandName = when {
+                            cmd.launchAppCommand != null -> "LaunchAppCommand"
+                            cmd.inputTextCommand != null -> "InputTextCommand"
+                            cmd.evalScriptCommand != null -> "EvalScriptCommand"
+                            cmd.defineVariablesCommand != null -> "DefineVariablesCommand"
+                            cmd.applyConfigurationCommand != null -> "ApplyConfigurationCommand"
+                            else -> "UnknownCommand"
+                        }
+                        executedCommands.add(commandName)
+                    }
+                ).runFlow(commands)
+            }
+
+            // Let both inputText commands run before pause
+            delay(100)
+            
+            // Pause after both inputText commands
+            orchestra.pause()
+            assertThat(orchestra.isPaused).isTrue()
+            
+            // Verify no new commands execute during pause
+            val commandsBeforeResume = executedCommands.toList()
+            delay(100)
+            assertThat(executedCommands).isEqualTo(commandsBeforeResume)
+            
+            // Resume the flow
+            orchestra.resume()
+            assertThat(orchestra.isPaused).isFalse()
+            
+            // Wait for the flow to complete
+            flowJob.join()
+        }
+
+        // Then
+        // Verify commands were executed in the expected order
+        assertThat(executedCommands).containsAtLeast(
+            "DefineVariablesCommand",
+            "ApplyConfigurationCommand",
+            "LaunchAppCommand",
+            "EvalScriptCommand",  // First evalScript that sets up variables
+            "InputTextCommand",    // First input using preMessage
+            "InputTextCommand",    // Second input using message
+            "EvalScriptCommand"    // Second evalScript that verifies state
+        ).inOrder()
+        
+        // Verify the flow completed successfully with both messages
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+                Event.InputText("Hello from pre-message"),     // First message
+                Event.InputText("Hello from preserved JS state!")  // Second message
+            )
+        )
+    }
+
+    @Test
+    fun `Case 124 - Cancellation during flow execution`() {
+        // Given
+        val commands = readCommands("124_cancellation_during_flow_execution")
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                clickable = true
+                onClick = { element ->
+                    element.text = "Button was clicked"
+                }
+            }
+        }
+        driver.addInstalledApp("com.example.app")
+
+        var completed = 0
+        var skipped = 0
+        val executedCommands = mutableListOf<String>()
+        val cancellationSignal = CompletableDeferred<Unit>()
+        val activeFlows = mutableMapOf<String, Job?>()
+
+        // When
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+                val flowId = "test-flow-124"
+                
+                val flowJob = supervisorScope.launch {
+                    try {
+                        val orchestra = Orchestra(
+                            maestro,
+                            onCommandComplete = { cmd, _ ->
+                                val isActive = coroutineContext[Job]?.isActive ?: false
+                                if (!isActive) {
+                                    skipped += 1
+                                    return@Orchestra
+                                }
+                                completed += 1
+                            },
+                            onCommandSkipped = { _, _ ->
+                                skipped += 1
+                            },
+                            onCommandMetadataUpdate = { cmd, _ ->
+                                val isActive = coroutineContext[Job]?.isActive ?: false
+                                if (!isActive) {
+                                    return@Orchestra
+                                }
+                                
+                                val commandName = when {
+                                    cmd.launchAppCommand != null -> "LaunchAppCommand"
+                                    cmd.inputTextCommand != null -> "InputTextCommand"
+                                    cmd.evalScriptCommand != null -> "EvalScriptCommand"
+                                    cmd.defineVariablesCommand != null -> "DefineVariablesCommand"
+                                    cmd.applyConfigurationCommand != null -> "ApplyConfigurationCommand"
+                                    cmd.tapOnElement != null -> "TapOnCommand"
+                                    else -> "UnknownCommand"
+                                }
+                                executedCommands.add(commandName)
+                                
+                                if (commandName == "InputTextCommand" && !cancellationSignal.isCompleted) {
+                                    cancellationSignal.complete(Unit)
+                                }
+                            }
+                        )
+
+                        activeFlows[flowId] = coroutineContext[Job]
+                        
+                        try {
+                            orchestra.runFlow(commands)
+                        } finally {
+                            activeFlows.remove(flowId)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        throw e
+                    }
+                }
+
+                cancellationSignal.await()
+                activeFlows[flowId]?.cancel()
+                
+                try {
+                    flowJob.join()
+                } catch (e: CancellationException) {
+                    // Expected
+                }
+            }
+        }
+
+        // Then
+        assertThat(completed).isGreaterThan(0)
+        assertThat(skipped).isGreaterThan(0)
+        
+        assertThat(executedCommands).containsAtLeast(
+            "LaunchAppCommand",
+            "EvalScriptCommand",
+            "InputTextCommand"
+        ).inOrder()
+        
+        assertThat(executedCommands).doesNotContain("TapOnCommand")
+        
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp("com.example.app"),
+                Event.InputText("Hello before cancellation")
+            )
+        )
+        
+        assertThat(activeFlows).isEmpty()
     }
 
     private fun orchestra(

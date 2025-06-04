@@ -1,0 +1,35 @@
+appId: com.example.app
+---
+# First evalScript to set up variables and functions
+- launchApp
+- evalScript: ${output.preMessage = "Hello from pre-message"; output.preMessage}
+- evalScript: ${output.message = "Hello from preserved JS state!"; output.message}
+- evalScript: ${output.getMessage = function() { return output.message; }; output.counter = 1; output.counter}
+
+# Input text using the pre-message variable
+- inputText: ${output.preMessage}
+
+# Input text using the preserved JS variable
+- inputText: ${output.message}
+
+# Pause will happen here in the test
+
+# Second evalScript to verify state preservation
+- evalScript:
+    // Verify that our variables and functions are still available
+    if (output.message !== "Hello from preserved JS state!") {
+      throw new Error("Message variable was not preserved");
+    }
+    if (output.counter !== 1) {
+      throw new Error("Counter variable was not preserved");
+    }
+    if (output.getMessage() !== "Hello from preserved JS state!") {
+      throw new Error("Function was not preserved");
+    }
+    // Try to modify and verify the state is still mutable
+    output.counter++;
+    if (output.counter !== 2) {
+      throw new Error("Counter was not mutable");
+    }
+    // Return a value to ensure the script completes successfully
+    output.counter 
