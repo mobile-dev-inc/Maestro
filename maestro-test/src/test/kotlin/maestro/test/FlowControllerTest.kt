@@ -6,7 +6,6 @@ import kotlinx.coroutines.channels.Channel
 
 class FlowControllerTest : FlowController {
     private var _isPaused = false
-    private var _jsEngine: JsEngine? = null
     private val pauseChannel = Channel<Unit>()
     private val resumeChannel = Channel<Unit>()
 
@@ -28,12 +27,6 @@ class FlowControllerTest : FlowController {
     }
 
     override val isPaused: Boolean get() = _isPaused
-
-    override fun setJsEngine(engine: JsEngine?) {
-        _jsEngine = engine
-    }
-
-    override fun getStoredJsEngine(): JsEngine? = _jsEngine
 
     // Test helper methods
     suspend fun waitForPause() {
