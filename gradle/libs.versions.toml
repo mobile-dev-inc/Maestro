@@ -36,6 +36,7 @@ jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "1.8.22"
 kotlinResult = "1.1.18"
+kotlinx-serialization-json = "1.5.0"
 ktor = "2.3.6"
 micrometerObservation = "1.13.4"
 micrometerCore = "1.13.4"
@@ -59,6 +60,7 @@ gmsLocation = "21.3.0"
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
 androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidxUiautomator" }
