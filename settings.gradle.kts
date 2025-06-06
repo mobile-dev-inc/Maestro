@@ -16,7 +16,6 @@ dependencyResolutionManagement {
     }
 }
 
-include("example")
 include("maestro-utils")
 include("maestro-android")
 include("maestro-cli")
