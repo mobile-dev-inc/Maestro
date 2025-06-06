@@ -48,7 +48,7 @@ object MaestroCommandRunner {
 
     private val logger = LoggerFactory.getLogger(MaestroCommandRunner::class.java)
 
-    fun runCommands(
+    suspend fun runCommands(
         flowName: String,
         maestro: Maestro,
         device: Device?,

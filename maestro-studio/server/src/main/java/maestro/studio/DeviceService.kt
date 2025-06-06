@@ -8,6 +8,7 @@ import io.ktor.server.http.content.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.runBlocking
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Maestro
@@ -108,13 +109,15 @@ object DeviceService {
     }
 
     private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>) {
-        var failure: Throwable? = null
-        val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
-            failure = throwable
-            Orchestra.ErrorResolution.FAIL
-        }).executeCommands(commands)
-        if (failure != null) {
-            throw RuntimeException("Command execution failed")
+        runBlocking {
+            var failure: Throwable? = null
+            val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
+                failure = throwable
+                Orchestra.ErrorResolution.FAIL
+            }).executeCommands(commands)
+            if (failure != null) {
+                throw RuntimeException("Command execution failed")
+            }
         }
     }
 
