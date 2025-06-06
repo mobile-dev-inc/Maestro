@@ -198,9 +198,10 @@ object MaestroSessionManager {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
                     Platform.ANDROID -> createAndroid(
-                        selectedDevice.device.instanceId,
-                        !connectToExistingSession,
-                        driverHostPort,
+                        instanceId = selectedDevice.device.instanceId,
+                        reinstallDriver = reinstallDriver,
+                        openDriver = !connectToExistingSession,
+                        driverHostPort = driverHostPort,
                     )
 
                     Platform.IOS -> createIOS(
@@ -313,6 +314,7 @@ object MaestroSessionManager {
 
     private fun createAndroid(
         instanceId: String,
+        reinstallDriver: Boolean = true,
         openDriver: Boolean,
         driverHostPort: Int?,
     ): Maestro {
@@ -323,6 +325,7 @@ object MaestroSessionManager {
                 ?: Dadb.discover()
                 ?: error("Unable to find device with id $instanceId"),
             hostPort = driverHostPort,
+            reinstallDriver = reinstallDriver,
             emulatorName = instanceId,
         )
 
