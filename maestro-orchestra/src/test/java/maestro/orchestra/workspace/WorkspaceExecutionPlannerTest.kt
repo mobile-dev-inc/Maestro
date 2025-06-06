@@ -359,6 +359,22 @@ internal class WorkspaceExecutionPlannerTest {
         assertThat(planWithIncludeNonModalElements.workspaceConfig.iosIncludeNonModalElements).isTrue()
     }
 
+    @Test
+    internal fun `017 - Upload configs on local and cloud both are supported`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/015_workspace_cloud_configs"),
+            includeTags = listOf("included"),
+            excludeTags = listOf("notIncluded"),
+            config = null
+        )
+
+        assertThat(plan.workspaceConfig.notifications?.email?.recipients).containsExactly("abc@mobile.dev")
+        assertThat(plan.workspaceConfig.notifications?.slack?.channels).containsExactly("e2e-testing")
+        assertThat(plan.workspaceConfig.executionOrder?.flowsOrder).containsExactly("flowA", "flowB")
+        assertThat(plan.workspaceConfig.disableRetries).isTrue()
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()

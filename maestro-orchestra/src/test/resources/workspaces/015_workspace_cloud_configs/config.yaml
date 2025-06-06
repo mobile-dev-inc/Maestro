@@ -1,0 +1,15 @@
+excludeTags: notIncluded
+includeTags: included
+notifications:
+  email:
+      recipients:
+        - "abc@mobile.dev"
+  slack:
+      channels:
+        - "e2e-testing"
+      apiKey: "slack-api-key"
+disableRetries: true
+executionOrder:
+  flowsOrder:
+    - flowA
+    - flowB

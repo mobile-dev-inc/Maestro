@@ -10,7 +10,49 @@ data class WorkspaceConfig(
     val local: Local? = null,
     val executionOrder: ExecutionOrder? = null,
     val iosIncludeNonModalElements: Boolean? = null,
+    @Deprecated("not supported on maestro cloud") val baselineBranch: String? = null,
+    val notifications: MaestroNotificationConfiguration? = null,
+    @Deprecated("not supported now by default on cloud") val disableRetries: Boolean = false,
+    val deviceConfig: DeviceConfig? = null
 ) {
+
+    data class MaestroNotificationConfiguration(
+        val email: EmailConfig? = null,
+        val slack: SlackConfig? = null,
+    ) {
+        data class EmailConfig(
+            val recipients: List<String>,
+            val enabled: Boolean = true,
+            val onSuccess: Boolean = false,
+        )
+
+        data class SlackConfig(
+            val channels: List<String>,
+            val apiKey: String,
+            val enabled: Boolean = true,
+            val onSuccess: Boolean = false,
+        )
+    }
+
+    data class DeviceConfig(
+        val android: List<TopLevelDeviceConfig>? = null,
+        val iOS: List<TopLevelDeviceConfig>? = null
+    ) {
+        sealed class TopLevelDeviceConfig {
+            object DisableAnimations : TopLevelDeviceConfig()
+
+            companion object {
+                @JsonCreator
+                @JvmStatic
+                fun fromValue(value: String): TopLevelDeviceConfig {
+                    return when (value) {
+                        "disableAnimations" -> DisableAnimations
+                        else -> throw IllegalArgumentException("Invalid deviceConfig: $value")
+                    }
+                }
+            }
+        }
+    }
 
     @JsonAnySetter
     fun setOtherField(key: String, other: Any?) {
