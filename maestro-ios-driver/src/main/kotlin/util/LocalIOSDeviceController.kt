@@ -27,8 +27,12 @@ object LocalIOSDeviceController {
         )
     }
 
-    fun launchRunner(deviceId: String, port: Int) {
+    fun launchRunner(deviceId: String, port: Int, includeNonModalElements: Boolean?) {
         val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+        val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
+        if (includeNonModalElements != null) {
+            params["TEST_RUNNER_includeNonModalElements"] = includeNonModalElements.toString()
+        }
         runCommand(
             listOf(
                 "xcrun",
@@ -41,7 +45,7 @@ object LocalIOSDeviceController {
                 deviceId,
                 "dev.mobile.maestro-driver-iosUITests.xctrunner"
             ),
-            params = mapOf("SIMCTL_CHILD_PORT" to port.toString()),
+            params = params,
             waitForCompletion = false,
             outputFile = outputFile
         )
