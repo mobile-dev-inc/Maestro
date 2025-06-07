@@ -20,6 +20,8 @@
 package maestro.orchestra
 
 import maestro.js.JsEngine
+import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * The Mobile.dev platform uses this class in the backend and hence the custom
@@ -70,9 +72,10 @@ data class MaestroCommand(
     val setAirplaneModeCommand: SetAirplaneModeCommand? = null,
     val toggleAirplaneModeCommand: ToggleAirplaneModeCommand? = null,
     val retryCommand: RetryCommand? = null,
+    val location: SourceLocation? = null,
 ) {
 
-    constructor(command: Command) : this(
+    constructor(command: Command, location: SourceLocation? = null, flowPath: Path = Paths.get("/")) : this(
         tapOnElement = command as? TapOnElementCommand,
         tapOnPoint = command as? TapOnPointCommand,
         tapOnPointV2Command = command as? TapOnPointV2Command,
@@ -114,7 +117,8 @@ data class MaestroCommand(
         addMediaCommand = command as? AddMediaCommand,
         setAirplaneModeCommand = command as? SetAirplaneModeCommand,
         toggleAirplaneModeCommand = command as? ToggleAirplaneModeCommand,
-        retryCommand = command as? RetryCommand
+        retryCommand = command as? RetryCommand,
+        location = location,
     )
 
     fun asCommand(): Command? = when {
@@ -177,8 +181,8 @@ data class MaestroCommand(
 
     fun evaluateScripts(jsEngine: JsEngine): MaestroCommand {
         return asCommand()
-            ?.let { MaestroCommand(it.evaluateScripts(jsEngine)) }
-            ?: MaestroCommand()
+            ?.let { MaestroCommand(it.evaluateScripts(jsEngine), location) }
+            ?: MaestroCommand(location = location)
     }
 
     fun description(): String {
