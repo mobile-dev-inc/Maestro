@@ -61,6 +61,7 @@ data class YamlRelativeCoordinateSwipeElement(
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
+    override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
 private const val DEFAULT_DURATION_IN_MILLIS = 400L
