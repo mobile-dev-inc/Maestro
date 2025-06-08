@@ -56,7 +56,7 @@ class UploadCommand : Callable<Int> {
     private var apiKey: String? = null
 
     @Option(order = 1, names = ["--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = "https://api.mobile.dev"
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     @Option(order = 2, names = ["--mapping"], description = ["dSYM file (iOS) or Proguard mapping file (Android)"])
     private var mapping: File? = null
@@ -81,6 +81,13 @@ class UploadCommand : Callable<Int> {
 
     @Option(order = 9, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
+
+    @Option(order = 10, names = ["--device-model"], description = ["Device model to run your flow against"])
+    private var deviceModel: String? = null
+
+    @Option(order = 11, names = ["--device-os"], description = ["OS version to run your flow against"])
+    private var deviceOs: String? = null
+
 
     override fun call(): Int {
         println(
@@ -109,6 +116,8 @@ class UploadCommand : Callable<Int> {
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             androidApiLevel = androidApiLevel,
+            deviceModel = deviceModel,
+            deviceOs = deviceOs
         )
     }
 

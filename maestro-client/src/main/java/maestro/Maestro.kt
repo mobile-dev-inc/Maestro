@@ -38,10 +38,8 @@ import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(
-    private val driver: Driver,
+     val driver: Driver,
 ) : AutoCloseable {
-
-    private val sessionId = UUID.randomUUID()
 
     val deviceName: String
         get() = driver.name()
@@ -68,7 +66,7 @@ class Maestro(
         if (stopIfRunning) {
             driver.stopApp(appId)
         }
-        driver.launchApp(appId, launchArguments, sessionId = sessionId)
+        driver.launchApp(appId, launchArguments)
     }
 
     fun stopApp(appId: String) {
@@ -122,7 +120,8 @@ class Maestro(
         endPoint: Point? = null,
         startRelative: String? = null,
         endRelative: String? = null,
-        duration: Long
+        duration: Long,
+        waitToSettleTimeoutMs: Int? = null
     ) {
         val deviceInfo = deviceInfo()
 
@@ -146,23 +145,23 @@ class Maestro(
             }
         }
 
-        waitForAppToSettle()
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long) {
+    fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
         driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs)
 
-        waitForAppToSettle()
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long) {
+    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         val deviceInfo = deviceInfo()
 
         LOGGER.info("Swiping ${swipeDirection.name} from center")
         val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
         driver.swipe(center, swipeDirection, durationMs)
-        waitForAppToSettle()
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
     fun swipeFromElementToPoint(
@@ -199,7 +198,7 @@ class Maestro(
     fun tap(
         element: UiElement,
         initialHierarchy: ViewHierarchy,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         waitUntilVisible: Boolean = false,
         longPress: Boolean = false,
         appId: String? = null,
@@ -253,7 +252,7 @@ class Maestro(
     fun tapOnRelative(
         percentX: Int,
         percentY: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -274,7 +273,7 @@ class Maestro(
     fun tap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -296,7 +295,7 @@ class Maestro(
     private fun performTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
@@ -314,7 +313,7 @@ class Maestro(
     private fun screenshotBasedTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
@@ -350,7 +349,7 @@ class Maestro(
     private fun hierarchyBasedTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
@@ -435,37 +434,8 @@ class Maestro(
         }
     }
 
-    fun findElementByRegexp(regex: Regex, timeoutMs: Long): UiElement {
-        LOGGER.info("Looking for element by regex: ${regex.pattern} (timeout $timeoutMs)")
-
-        return findElementWithTimeout(timeoutMs, Filters.textMatches(regex))?.element
-            ?: throw MaestroException.ElementNotFound(
-                "No element that matches regex: $regex",
-                viewHierarchy().root
-            )
-    }
-
     fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy {
         return ViewHierarchy.from(driver, excludeKeyboardElements)
-    }
-
-    fun findElementByIdRegex(regex: Regex, timeoutMs: Long): UiElement {
-        LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
-
-        return findElementWithTimeout(timeoutMs, Filters.idMatches(regex))?.element
-            ?: throw MaestroException.ElementNotFound(
-                "No element has id that matches regex $regex",
-                viewHierarchy().root
-            )
-    }
-
-    fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
-        LOGGER.info("Looking for element by size: $width x $height (tolerance $tolerance) (timeout $timeoutMs)")
-
-        return findElementWithTimeout(
-            timeoutMs,
-            Filters.sizeMatches(width, height, tolerance).asFilter()
-        )?.element
     }
 
     fun findElementWithTimeout(
@@ -636,6 +606,10 @@ class Maestro(
         driver.setAirplaneMode(enabled)
     }
 
+    fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
+        driver.setAndroidChromeDevToolsEnabled(enabled)
+    }
+
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)
@@ -657,8 +631,25 @@ class Maestro(
             return Maestro(driver)
         }
 
-        fun web(isStudio: Boolean): Maestro {
-            val driver = WebDriver(isStudio)
+        fun web(
+            isStudio: Boolean,
+            isHeadless: Boolean,
+        ): Maestro {
+            // Check that JRE is at least 11
+            val version = System.getProperty("java.version")
+            if (version.startsWith("1.")) {
+                val majorVersion = version.substring(2, 3).toInt()
+                if (majorVersion < 11) {
+                    throw MaestroException.UnsupportedJavaVersion(
+                        "Maestro Web requires Java 11 or later. Current version: $version"
+                    )
+                }
+            }
+
+            val driver = WebDriver(
+                isStudio = isStudio,
+                isHeadless = isHeadless,
+            )
             driver.open()
             return Maestro(driver)
         }

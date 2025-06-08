@@ -84,7 +84,6 @@ class FakeDriver : Driver {
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         ensureOpen()
 

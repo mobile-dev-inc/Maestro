@@ -1,0 +1,23 @@
+appId: com.example.app
+---
+- scrollUntilVisible:
+    element:
+      id: "maybe-later"
+    waitToSettleTimeoutMs: 50
+    direction: DOWN
+- swipe:
+    start: 90%, 50%
+    end: 10%, 50%
+    waitToSettleTimeoutMs: 50
+- swipe:
+    direction: LEFT
+    waitToSettleTimeoutMs: 50
+- swipe:
+    from:
+      id: "feeditem_identifier"
+    direction: LEFT
+    waitToSettleTimeoutMs: 50
+- swipe:
+    start: 100, 200
+    end: 300, 400
+    waitToSettleTimeoutMs: 50

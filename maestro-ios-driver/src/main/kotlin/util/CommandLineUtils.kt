@@ -20,11 +20,11 @@ object CommandLineUtils {
         val processBuilder = if (outputFile != null) {
             ProcessBuilder(*parts.toTypedArray())
                 .redirectOutput(outputFile)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .redirectError(outputFile)
         } else {
             ProcessBuilder(*parts.toTypedArray())
                 .redirectOutput(nullFile)
-                .redirectError(nullFile)
+                .redirectError(ProcessBuilder.Redirect.PIPE)
         }
 
         processBuilder.environment().putAll(params)
@@ -42,7 +42,7 @@ object CommandLineUtils {
                     .readUtf8()
 
                 logger.error("Process failed with exit code ${process.exitValue()}")
-                logger.error(processOutput)
+                logger.error("Error output $processOutput")
 
                 throw IllegalStateException(processOutput)
             }

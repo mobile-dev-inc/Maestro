@@ -1,10 +1,10 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
+import device.IOSDevice
 import hierarchy.ViewHierarchy
-import ios.IOSDevice
 import ios.IOSDeviceErrors
-import ios.IOSScreenRecording
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
 import maestro.utils.DepthTracker
 import maestro.utils.network.XCUITestServerError
@@ -13,13 +13,13 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.util.UUID
 
 class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
     private val getInstalledApps: () -> Set<String>,
-) : IOSDevice {
+
+    ) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
@@ -37,8 +37,8 @@ class XCTestIOSDevice(
 
     override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         return execute {
-            val installedApps = getInstalledApps()
-            val viewHierarchy = client.viewHierarchy(installedApps, excludeKeyboardElements)
+            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
+            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
@@ -103,8 +103,9 @@ class XCTestIOSDevice(
         duration: Double,
     ) {
         execute {
+            // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             client.swipeV2(
-                installedApps = getInstalledApps(),
+                installedApps = emptySet(),
                 startX = xStart,
                 startY = yStart,
                 endX = xEnd,
@@ -116,10 +117,10 @@ class XCTestIOSDevice(
 
     override fun input(text: String) {
        execute {
-           val appIds = getInstalledApps()
+           // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
            client.inputText(
                text = text,
-               appIds = appIds,
+               appIds = emptySet(),
            )
        }
     }
@@ -128,7 +129,7 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
+    override fun uninstall(id: String) {
         error("Not supported")
     }
 
@@ -143,13 +144,16 @@ class XCTestIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-        maestroSessionId: UUID?,
-    ): Result<Unit, Throwable> {
-        error("Not supported")
+    ) {
+        execute {
+            client.launchApp(id)
+        }
     }
 
-    override fun stop(id: String): Result<Unit, Throwable> {
-        error("Not supported")
+    override fun stop(id: String) {
+        execute {
+            client.terminateApp(appId = id)
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -210,8 +214,8 @@ class XCTestIOSDevice(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        val appIds = getInstalledApps()
-        execute { client.eraseText(charactersToErase, appIds) }
+        // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
+        execute { client.eraseText(charactersToErase, appIds = emptySet()) }
     }
 
     private fun activeAppId(): String {

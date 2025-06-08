@@ -1,7 +1,12 @@
 package maestro.cli.device
 
+import maestro.device.DeviceService
+import maestro.device.Device
+import maestro.device.Platform
+
 import maestro.cli.CliError
 import maestro.cli.util.*
+import maestro.device.util.AvdDevice
 
 internal object DeviceCreateUtil {
 
@@ -78,6 +83,7 @@ internal object DeviceCreateUtil {
             platform = Platform.IOS,
             language = language,
             country = country,
+            deviceType = Device.DeviceType.SIMULATOR
         )
 
     }
@@ -161,6 +167,7 @@ internal object DeviceCreateUtil {
             platform = Platform.ANDROID,
             language = language,
             country = country,
+            deviceType = Device.DeviceType.EMULATOR,
         )
     }
 }

@@ -12,6 +12,8 @@ import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
 
@@ -19,7 +21,10 @@ object LocalSimulatorUtils {
 
     data class SimctlError(override val message: String) : Throwable(message)
 
+    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private val homedir = System.getProperty("user.home")
+    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
+    private val date = dateFormatter.format(LocalDateTime.now())
 
     private val logger = LoggerFactory.getLogger(LocalSimulatorUtils::class.java)
 
@@ -164,17 +169,24 @@ object LocalSimulatorUtils {
 
     fun terminate(deviceId: String, bundleId: String) {
         // Ignore error return: terminate will fail if the app is not running
-        ProcessBuilder(
-            listOf(
-                "xcrun",
-                "simctl",
-                "terminate",
-                deviceId,
-                bundleId
+        logger.info("[Start] Terminating app $bundleId")
+        runCatching {
+            runCommand(
+                listOf(
+                    "xcrun",
+                    "simctl",
+                    "terminate",
+                    deviceId,
+                    bundleId
+                )
             )
-        )
-            .start()
-            .waitFor()
+        }.onFailure {
+            if (it.message?.contains("found nothing to terminate") == false) {
+                logger.info("The bundle $bundleId is already terminated")
+                throw it
+            }
+        }
+        logger.info("[Done] Terminating app $bundleId")
     }
 
     private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
@@ -301,23 +313,7 @@ object LocalSimulatorUtils {
         deviceId: String,
         bundleId: String,
         launchArguments: List<String> = emptyList(),
-        sessionId: String?,
     ) {
-        sessionId?.let {
-            runCommand(
-                listOf(
-                    "xcrun",
-                    "simctl",
-                    "spawn",
-                    deviceId,
-                    "launchctl",
-                    "setenv",
-                    "MAESTRO_SESSION_ID",
-                    sessionId,
-                )
-            )
-        }
-
         runCommand(
             listOf(
                 "xcrun",
@@ -326,6 +322,27 @@ object LocalSimulatorUtils {
                 deviceId,
                 bundleId,
             ) + launchArguments,
+        )
+    }
+
+    fun launchUITestRunner(
+        deviceId: String,
+        port: Int,
+    ) {
+        val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "launch",
+                "--console",
+                "--terminate-running-process",
+                deviceId,
+                "dev.mobile.maestro-driver-iosUITests.xctrunner"
+            ),
+            params = mapOf("SIMCTL_CHILD_PORT" to port.toString()),
+            outputFile = outputFile,
+            waitForCompletion = false,
         )
     }
 
@@ -380,38 +397,11 @@ object LocalSimulatorUtils {
 
     fun clearKeychain(deviceId: String) {
         runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "spawn",
-                deviceId,
-                "launchctl",
-                "stop",
-                "com.apple.securityd",
-            )
-        )
-
-        runCommand(
-            listOf(
-                "rm", "-rf",
-                "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
-            )
-        )
-
-        runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "spawn",
-                deviceId,
-                "launchctl",
-                "start",
-                "com.apple.securityd",
-            )
+            listOf("xcrun", "simctl", "keychain", deviceId, "reset")
         )
     }
 
-    fun setPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+    fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
         if (permissionsMap.containsKey("all")) {
             val value = permissionsMap.remove("all")
@@ -432,6 +422,7 @@ object LocalSimulatorUtils {
 
         if (permissionsArgument.isNotEmpty()) {
             try {
+                logger.info("[Start] Setting permissions via pinned applesimutils")
                 runCommand(
                     listOf(
                         "$homedir/.maestro/deps/applesimutils",
@@ -443,7 +434,10 @@ object LocalSimulatorUtils {
                         permissionsArgument
                     )
                 )
+                logger.info("[Done] Setting permissions pinned applesimutils")
             } catch (e: Exception) {
+                logger.error("Exception while setting permissions through pinned applesimutils ${e.message}", e)
+                logger.info("[Start] Setting permissions via applesimutils as fallback")
                 runCommand(
                     listOf(
                         "applesimutils",
@@ -455,13 +449,12 @@ object LocalSimulatorUtils {
                         permissionsArgument
                     )
                 )
+                logger.info("[Done] Setting permissions via applesimutils as fallback")
             }
         }
-
-        setSimctlPermissions(deviceId, bundleId, permissions)
     }
 
-    private fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+    fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
 
         permissionsMap.remove("all")?.let { value ->

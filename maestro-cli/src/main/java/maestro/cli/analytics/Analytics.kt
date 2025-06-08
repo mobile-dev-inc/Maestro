@@ -8,10 +8,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.cli.api.ApiClient
-import maestro.cli.util.AndroidEnvUtils
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
+import maestro.device.util.AndroidEnvUtils
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.nio.file.Path
@@ -47,7 +47,28 @@ object Analytics {
         get() = legacyUuidPath.exists() || analyticsStatePath.exists()
 
     private val analyticsState: AnalyticsState
-        get() = JSON.readValue<AnalyticsState>(analyticsStatePath.readText())
+        get() {
+            return try {
+                if (analyticsStatePath.exists()) {
+                    JSON.readValue(analyticsStatePath.readText())
+                } else {
+                    AnalyticsState(
+                      uuid = generateUUID(),
+                      enabled = false,
+                      lastUploadedForCLI = null,
+                      lastUploadedTime = null
+                    )
+                }
+            } catch (e: Exception) {
+                logger.warn("Failed to read analytics state: ${e.message}. Using default.")
+                AnalyticsState(
+                    uuid = generateUUID(),
+                    enabled = false,
+                    lastUploadedForCLI = null,
+                    lastUploadedTime = null
+                )
+            }
+      }
 
     private val uploadConditionsMet: Boolean
         get() {

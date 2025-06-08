@@ -5,12 +5,9 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.*
 import maestro.studio.BannerMessage.*
 import maestro.utils.Insight
-import maestro.utils.Insights
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import maestro.utils.CliInsights
 
 object InsightService {
 
@@ -41,7 +38,7 @@ object InsightService {
     }
 
     private fun registerInsightUpdateCallback() {
-        Insights.onInsightsUpdated {
+        CliInsights.onInsightsUpdated {
             currentInsight = it
         }
     }

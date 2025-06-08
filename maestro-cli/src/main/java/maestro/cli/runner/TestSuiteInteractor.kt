@@ -3,7 +3,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.CliError
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
@@ -48,7 +48,7 @@ class TestSuiteInteractor(
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
     private val shardPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
 
-    fun runTestSuite(
+    suspend fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
         reportOut: Sink?,
         env: Map<String, String>,
@@ -88,7 +88,11 @@ class TestSuiteInteractor(
 
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
-            val (result, aiOutput) = runFlow(flow.toFile(), env, maestro, debugOutputPath)
+            val flowFile = flow.toFile()
+            val updatedEnv = env
+                .withInjectedShellEnvVars()
+                .withDefaultEnvVars(flowFile)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -144,7 +148,7 @@ class TestSuiteInteractor(
         return summary
     }
 
-    private fun runFlow(
+    private suspend fun runFlow(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,

@@ -1,18 +1,18 @@
 import maestro.utils.Insight
-import maestro.utils.Insights
+import maestro.utils.CliInsights
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class InsightsTest {
+class CliInsightsTest {
 
     @Test
     fun `report should update insight and notify listeners`() {
         val insight = Insight("Test message", Insight.Level.INFO)
         var notifiedInsight: Insight? = null
 
-        Insights.onInsightsUpdated { notifiedInsight = it }
-        Insights.report(insight)
+        CliInsights.onInsightsUpdated { notifiedInsight = it }
+        CliInsights.report(insight)
 
         assertEquals(insight, notifiedInsight)
     }
@@ -22,8 +22,8 @@ class InsightsTest {
         val insight = Insight("Test message", Insight.Level.INFO)
         var notified = false
 
-        Insights.onInsightsUpdated { notified = true }
-        Insights.report(insight)
+        CliInsights.onInsightsUpdated { notified = true }
+        CliInsights.report(insight)
 
         assertTrue(notified)
     }
@@ -34,9 +34,9 @@ class InsightsTest {
         var notified = false
         val listener: (Insight) -> Unit = { notified = true }
 
-        Insights.onInsightsUpdated(listener)
-        Insights.unregisterListener(listener)
-        Insights.report(insight)
+        CliInsights.onInsightsUpdated(listener)
+        CliInsights.unregisterListener(listener)
+        CliInsights.report(insight)
 
         assertTrue(!notified)
     }

@@ -1,0 +1,5 @@
+appId: com.nonexistent
+tags:
+    - failing
+---
+- launchApp

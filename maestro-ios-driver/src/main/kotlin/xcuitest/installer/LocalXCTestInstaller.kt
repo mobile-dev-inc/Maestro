@@ -1,29 +1,44 @@
 package xcuitest.installer
 
+import device.IOSDevice
+import maestro.utils.HttpClient
 import maestro.utils.MaestroTimer
+import maestro.utils.Metrics
+import maestro.utils.MetricsProvider
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okio.buffer
-import okio.sink
-import okio.source
-import org.apache.commons.io.FileUtils
-import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
+import util.IOSDeviceType
+import util.LocalIOSDeviceController
+import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.nio.file.Files
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteRecursively
+import kotlin.time.Duration.Companion.seconds
 
 class LocalXCTestInstaller(
     private val deviceId: String,
-    private val host: String = "[::1]",
-    private val enableXCTestOutputFileLogging: Boolean,
+    private val host: String = "127.0.0.1",
+    private val deviceType: IOSDeviceType,
     private val defaultPort: Int,
+    private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    private val httpClient: OkHttpClient = HttpClient.build(
+        name = "XCUITestDriverStatusCheck",
+        connectTimeout = 1.seconds,
+        readTimeout = 100.seconds,
+    ),
+    val reinstallDriver: Boolean = true,
+    private val iOSDriverConfig: IOSDriverConfig,
+    private val deviceController: IOSDevice,
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
+    private val metrics = metricsProvider.withPrefix("xcuitest.installer").withTags(mapOf("kind" to "local", "deviceId" to deviceId, "host" to host))
 
     /**
      * If true, allow for using a xctest runner started from Xcode.
@@ -32,85 +47,99 @@ class LocalXCTestInstaller(
      * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
-    private val tempDir = "${System.getenv("TMPDIR")}/$deviceId"
+    private val tempDir = Files.createTempDirectory(deviceId)
+    private val iosBuildProductsExtractor = IOSBuildProductsExtractor(
+        target = tempDir,
+        context = iOSDriverConfig.context,
+        deviceType = deviceType,
+    )
 
     private var xcTestProcess: Process? = null
 
     override fun uninstall(): Boolean {
-        // FIXME(bartekpacia): This method probably doesn't have to care about killing the XCTest Runner process.
-        //  Just uninstalling should suffice. It automatically kills the process.
+        return metrics.measured("operation", mapOf("command" to "uninstall")) {
+            // FIXME(bartekpacia): This method probably doesn't have to care about killing the XCTest Runner process.
+            //  Just uninstalling should suffice. It automatically kills the process.
 
-        if (useXcodeTestRunner) {
-            logger.trace("Skipping uninstalling XCTest Runner as USE_XCODE_TEST_RUNNER is set")
-            return false
-        }
-
-        fun killXCTestRunnerProcess() {
-            logger.trace("Will attempt to stop all alive XCTest Runner processes before uninstalling")
-
-            if (xcTestProcess?.isAlive == true) {
-                logger.trace("XCTest Runner process started by us is alive, killing it")
-                xcTestProcess?.destroy()
-            }
-            xcTestProcess = null
-
-            val pid = XCRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
-            if (pid != null) {
-                logger.trace("Killing XCTest Runner process with the `kill` command")
-                ProcessBuilder(listOf("kill", pid.toString()))
-                    .start()
-                    .waitFor()
+            if (useXcodeTestRunner || !reinstallDriver) {
+                logger.trace("Skipping uninstalling XCTest Runner as USE_XCODE_TEST_RUNNER is set")
+                return@measured false
             }
 
-            logger.trace("All XCTest Runner processes were stopped")
+            if (!isChannelAlive()) return@measured false
+
+            fun killXCTestRunnerProcess() {
+                logger.trace("Will attempt to stop all alive XCTest Runner processes before uninstalling")
+
+                if (xcTestProcess?.isAlive == true) {
+                    logger.trace("XCTest Runner process started by us is alive, killing it")
+                    xcTestProcess?.destroy()
+                }
+                xcTestProcess = null
+
+                val pid = XCRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
+                if (pid != null) {
+                    logger.trace("Killing XCTest Runner process with the `kill` command")
+                    ProcessBuilder(listOf("kill", pid.toString()))
+                        .start()
+                        .waitFor()
+                }
+
+                logger.trace("All XCTest Runner processes were stopped")
+            }
+
+            killXCTestRunnerProcess()
+
+            logger.trace("Uninstalling XCTest Runner from device $deviceId")
+            true
         }
-
-        killXCTestRunnerProcess()
-
-        logger.trace("Uninstalling XCTest Runner from device $deviceId")
-        XCRunnerCLIUtils.uninstall(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
-        return true
     }
 
-    override fun start(): XCTestClient? {
-        logger.info("start()")
+    override fun start(): XCTestClient {
+        return metrics.measured("operation", mapOf("command" to "start")) {
+            logger.info("start()")
 
-        if (useXcodeTestRunner) {
-            logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
+            if (useXcodeTestRunner) {
+                logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
 
-            repeat(20) {
-                if (ensureOpen()) {
-                    return XCTestClient(host, defaultPort)
+                repeat(20) {
+                    if (ensureOpen()) {
+                        return@measured XCTestClient(host, defaultPort)
+                    }
+                    logger.info("==> Start XCTest runner to continue flow")
+                    Thread.sleep(500)
                 }
-                logger.info("==> Start XCTest runner to continue flow")
-                Thread.sleep(500)
+                throw IllegalStateException("XCTest was not started manually")
             }
-            throw IllegalStateException("XCTest was not started manually")
-        }
 
-        uninstall()
 
-        repeat(3) { i ->
             logger.info("[Start] Install XCUITest runner on $deviceId")
-            startXCTestRunner()
+            startXCTestRunner(deviceId, iOSDriverConfig.prebuiltRunner)
             logger.info("[Done] Install XCUITest runner on $deviceId")
 
-            logger.info("[Start] Ensure XCUITest runner is running on $deviceId")
-            if (ensureOpen()) {
-                logger.info("[Done] Ensure XCUITest runner is running on $deviceId")
-                return XCTestClient(host, defaultPort)
-            } else {
-                uninstall()
-                logger.info("[Failed] Ensure XCUITest runner is running on $deviceId")
-                logger.info("[Retry] Retrying setup() ${i}th time")
+            val startTime = System.currentTimeMillis()
+
+            while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+                runCatching {
+                    if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
+                }
+                Thread.sleep(500)
             }
+
+            throw IOSDriverTimeoutException("iOS driver not ready in time, consider increasing timeout by configuring MAESTRO_DRIVER_STARTUP_TIMEOUT env variable")
         }
-        return null
     }
 
+    class IOSDriverTimeoutException(message: String): RuntimeException(message)
+
+    private fun getStartupTimeout(): Long = runCatching {
+        System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
+    }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
+
     override fun isChannelAlive(): Boolean {
-        val appAlive = XCRunnerCLIUtils.isAppAlive(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
-        return appAlive && xcTestDriverStatusCheck()
+        return metrics.measured("operation", mapOf("command" to "isChannelAlive")) {
+        return@measured xcTestDriverStatusCheck()
+        }
     }
 
     private fun ensureOpen(): Boolean {
@@ -128,26 +157,24 @@ class LocalXCTestInstaller(
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
-                .host("[::1]")
+                .host("127.0.0.1")
                 .addPathSegment(pathSegment)
                 .port(defaultPort)
         }
 
-        val url = xctestAPIBuilder("status")
-            .build()
+        val url by lazy {
+            xctestAPIBuilder("status")
+                .build()
+        }
 
-        val request = Request.Builder()
+        val request by lazy {  Request.Builder()
             .get()
             .url(url)
             .build()
-
-        val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(40, TimeUnit.SECONDS)
-            .readTimeout(100, TimeUnit.SECONDS)
-            .build()
+        }
 
         val checkSuccessful = try {
-            okHttpClient.newCall(request).execute().use {
+            httpClient.newCall(request).execute().use {
                 logger.info("[Done] Perform XCUITest driver status check on $deviceId")
                 it.isSuccessful
             }
@@ -159,76 +186,69 @@ class LocalXCTestInstaller(
         return checkSuccessful
     }
 
-    private fun startXCTestRunner() {
-        val processOutput = ProcessBuilder(listOf("xcrun", "simctl", "spawn", deviceId, "launchctl", "list"))
-            .start()
-            .inputStream.source().buffer().readUtf8()
-            .trim()
-
-        logger.info("[Start] Writing xctest run file")
-        val tempDir = File(tempDir).apply { mkdir() }
-        val xctestRunFile = File("$tempDir/maestro-driver-ios-config.xctestrun")
-        writeFileToDestination(XCTEST_RUN_PATH, xctestRunFile)
-        logger.info("[Done] Writing xctest run file")
-
-        if (processOutput.contains(UI_TEST_RUNNER_APP_BUNDLE_ID)) {
-            logger.info("UI Test runner already running, stopping it")
-            uninstall()
-        } else {
-            logger.info("Not able to find ui test runner app running, going to install now")
-
-            logger.info("[Start] Writing maestro-driver-iosUITests-Runner app")
-            extractZipToApp("maestro-driver-iosUITests-Runner", UI_TEST_RUNNER_PATH)
-            logger.info("[Done] Writing maestro-driver-iosUITests-Runner app")
-
-            logger.info("[Start] Writing maestro-driver-ios app")
-            extractZipToApp("maestro-driver-ios", UI_TEST_HOST_PATH)
-            logger.info("[Done] Writing maestro-driver-ios app")
+    private fun startXCTestRunner(deviceId: String, preBuiltRunner: Boolean) {
+        if (isChannelAlive()) {
+            logger.info("UI Test runner already running, returning")
+            return
         }
 
-        logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
-        xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
-            deviceId = deviceId,
-            xcTestRunFilePath = xctestRunFile.absolutePath,
-            port = defaultPort,
-            enableXCTestOutputFileLogging = enableXCTestOutputFileLogging,
-        )
-        logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
+        val buildProducts = iosBuildProductsExtractor.extract(iOSDriverConfig.sourceDirectory)
+
+        if (preBuiltRunner) {
+            logger.info("Installing pre built driver without xcodebuild")
+            installPrebuiltRunner(deviceId, buildProducts.uiRunnerPath)
+        } else {
+            logger.info("Installing driver with xcodebuild")
+            logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
+            xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
+                deviceId = this.deviceId,
+                xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
+                port = defaultPort,
+            )
+            logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
+        }
     }
 
+    private fun installPrebuiltRunner(deviceId: String, bundlePath: File) {
+        logger.info("Installing prebuilt driver for $deviceId and type $deviceType")
+        when (deviceType) {
+            IOSDeviceType.REAL -> {
+                LocalIOSDeviceController.install(deviceId, bundlePath.toPath())
+                LocalIOSDeviceController.launchRunner(deviceId, defaultPort)
+            }
+            IOSDeviceType.SIMULATOR -> {
+                LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
+                LocalSimulatorUtils.launchUITestRunner(deviceId, defaultPort)
+            }
+        }
+    }
+
+    @OptIn(ExperimentalPathApi::class)
     override fun close() {
         if (useXcodeTestRunner) {
             return
         }
 
         logger.info("[Start] Cleaning up the ui test runner files")
-        FileUtils.cleanDirectory(File(tempDir))
-        uninstall()
-        logger.info("[Done] Cleaning up the ui test runner files")
-    }
-
-    private fun extractZipToApp(appFileName: String, srcAppPath: String) {
-        val appFile = File("$tempDir/Debug-iphonesimulator").apply { mkdir() }
-        val appZip = File("$tempDir/$appFileName.zip")
-
-        writeFileToDestination(srcAppPath, appZip)
-        ArchiverFactory.createArchiver(appZip).apply {
-            extract(appZip, appFile)
+        tempDir.deleteRecursively()
+        if(reinstallDriver) {
+            uninstall()
+            deviceController.close()
+            logger.info("[Done] Cleaning up the ui test runner files")
         }
     }
 
-    private fun writeFileToDestination(srcPath: String, destFile: File) {
-        LocalXCTestInstaller::class.java.getResourceAsStream(srcPath)?.let {
-            val bufferedSink = destFile.sink().buffer()
-            bufferedSink.writeAll(it.source())
-            bufferedSink.flush()
-        }
-    }
+    data class IOSDriverConfig(
+        val prebuiltRunner: Boolean,
+        val sourceDirectory: String,
+        val context: Context
+    )
 
     companion object {
-        private const val UI_TEST_RUNNER_PATH = "/maestro-driver-iosUITests-Runner.zip"
-        private const val XCTEST_RUN_PATH = "/maestro-driver-ios-config.xctestrun"
-        private const val UI_TEST_HOST_PATH = "/maestro-driver-ios.zip"
-        private const val UI_TEST_RUNNER_APP_BUNDLE_ID = "dev.mobile.maestro-driver-iosUITests.xctrunner"
+        const val UI_TEST_RUNNER_APP_BUNDLE_ID = "dev.mobile.maestro-driver-iosUITests.xctrunner"
+
+        private const val SERVER_LAUNCH_TIMEOUT_MS = 120000L
+        private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
     }
+
 }

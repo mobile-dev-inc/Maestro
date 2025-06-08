@@ -1,0 +1,19 @@
+appId: com.example.example
+---
+- launchApp # For idempotence of sections
+
+- assertVisible: '0'
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: 'fabAddIcon'
+- assertVisible: '3'
+- assertNotVisible: '0'
+
+- evalScript: ${output.counter = 0}
+- repeat:
+    while:
+      true: ${output.counter < 3}
+    commands:
+      - evalScript: ${output.counter = output.counter + 1}

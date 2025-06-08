@@ -3,9 +3,12 @@ import XCTest
 
 @MainActor
 struct EventTarget {
+    
     let eventTarget: NSObject
-    init(bundleId: String) {
-        let application = XCUIApplication(bundleIdentifier: bundleId)
+    
+    init() {
+        let application = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
+        
         eventTarget = application.children(matching: .any).firstMatch
             .perform(NSSelectorFromString("eventTarget"))
             .takeUnretainedValue() as! NSObject

@@ -40,10 +40,10 @@ object WorkspaceExecutionPlanner {
 
         val (files, directories) = input.partition { it.isRegularFile() }
 
-        val flowFiles = files.filter { isFlowFile(it) }
+        val flowFiles = files.filter { isFlowFile(it, config) }
         val flowFilesInDirs: List<Path> = directories.flatMap { dir -> Files
             .walk(dir)
-            .filter { isFlowFile(it) }
+            .filter { isFlowFile(it, config) }
             .toList()
         }
         if (flowFilesInDirs.isEmpty() && flowFiles.isEmpty()) {
@@ -63,7 +63,7 @@ object WorkspaceExecutionPlanner {
         val globs = workspaceConfig.flows ?: listOf("*")
 
         val matchers = globs.flatMap { glob ->
-            directories.map { it.fileSystem.getPathMatcher("glob:${it.pathString}/$glob") }
+            directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
         }
 
         val unsortedFlowFiles = flowFiles + flowFilesInDirs.filter { path ->
@@ -174,6 +174,10 @@ object WorkspaceExecutionPlanner {
 
     private fun parseFileName(file: Path): String {
         return file.fileName.toString().substringBeforeLast(".")
+    }
+
+    private fun escapeSlashesForWindows(pathString: String): String {
+        return pathString.replace("\\","\\\\")
     }
 
     data class FlowSequence(

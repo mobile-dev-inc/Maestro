@@ -19,9 +19,11 @@
 
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlLaunchApp(
+    @JsonAlias("url")
     val appId: String?,
     val clearState: Boolean?,
     val clearKeychain: Boolean?,

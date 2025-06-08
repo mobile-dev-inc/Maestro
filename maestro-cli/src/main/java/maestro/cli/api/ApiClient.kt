@@ -1,24 +1,25 @@
 package maestro.cli.api
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.map
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.AnalyticsReport
+import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.utils.HttpClient
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -32,21 +33,22 @@ import okio.IOException
 import okio.buffer
 import java.io.File
 import java.nio.file.Path
-import java.util.UUID
-import java.util.concurrent.TimeUnit
+import java.util.Scanner
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
+import kotlin.time.Duration.Companion.minutes
 
 class ApiClient(
     private val baseUrl: String,
 ) {
 
-    private val client = OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .writeTimeout(5, TimeUnit.MINUTES)
-        .protocols(listOf(Protocol.HTTP_1_1))
-        .addInterceptor(SystemInformationInterceptor())
-        .build()
+    private val client = HttpClient.build(
+        name = "ApiClient",
+        readTimeout = 5.minutes,
+        writeTimeout = 5.minutes,
+        protocols = listOf(Protocol.HTTP_1_1),
+        interceptors = listOf(SystemInformationInterceptor()),
+    )
 
     val domain: String
         get() {
@@ -110,55 +112,33 @@ class ApiClient(
         }
     }
 
-    fun magicLinkLogin(email: String, redirectUrl: String): Result<String, Response> {
-        return post<Map<String, Any>>(
-            "/magiclink/login", mapOf(
-                "deviceId" to "",
-                "email" to email,
-                "redirectUrl" to redirectUrl,
-                "agent" to "cli",
-            )
-        ).map { it["requestToken"].toString() }
+    fun getAuthUrl(port: String): String {
+        return "$baseUrl/maestroLogin/authUrl?port=$port"
     }
 
-    fun magicLinkSignUp(email: String, teamName: String, redirectUrl: String): Result<String, Response> {
-        return post(
-            "/magiclink/signup", mapOf(
-                "deviceId" to "",
-                "userEmail" to email,
-                "teamName" to teamName,
-                "redirectUrl" to redirectUrl,
-                "agent" to "cli",
-            )
-        )
-    }
+    fun exchangeToken(code: String): String {
+        val requestBody = code.toRequestBody("text/plain".toMediaType())
 
-    fun magicLinkGetToken(requestToken: String): Result<String, Response> {
-        return post<Map<String, Any>>(
-            "/magiclink/gettoken", mapOf(
-                "requestToken" to requestToken,
-            )
-        ).map { it["authToken"].toString() }
+        val request = Request.Builder()
+            .url("$baseUrl/maestroLogin/exchange")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+            return response.body?.string() ?: throw IOException("Empty response body")
+        }
     }
 
     fun isAuthTokenValid(authToken: String): Boolean {
-        val request = try {
-            Request.Builder()
-                .get()
-                .header("Authorization", "Bearer $authToken")
-                .url("$baseUrl/auth")
-                .build()
-        } catch (e: IllegalArgumentException) {
-            if (e.message?.contains("Unexpected char") == true) {
-                return false
-            } else {
-                throw e
-            }
-        }
-        val response = client.newCall(request).execute()
+        val request = Request.Builder()
+            .url("$baseUrl/maestroLogin/valid")
+            .header("Authorization", "Bearer $authToken")
+            .get()
+            .build()
 
-        response.use {
-            return response.isSuccessful
+        client.newCall(request).execute().use { response ->
+            return !(!response.isSuccessful && (response.code == 401 || response.code == 403))
         }
     }
 
@@ -171,11 +151,8 @@ class ApiClient(
         uploadId: String,
         projectId: String?,
     ): UploadStatus {
-        val baseUrl = if (projectId != null) {
-            "$baseUrl/upload/$uploadId"
-        } else {
-            "$baseUrl/v2/upload/$uploadId/status?includeErrors=true"
-        }
+        val baseUrl = "$baseUrl/v2/project/$projectId/upload/$uploadId"
+
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(baseUrl)
@@ -207,7 +184,11 @@ class ApiClient(
         val baseUrl = "https://maestro-record.ngrok.io"
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("screenRecording", screenRecording.name, screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener))
+            .addFormDataPart(
+                "screenRecording",
+                screenRecording.name,
+                screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener)
+            )
             .addFormDataPart("frames", JSON.writeValueAsString(frames))
             .build()
         val request = Request.Builder()
@@ -261,7 +242,9 @@ class ApiClient(
         disableNotifications: Boolean,
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-        projectId: String? = null,
+        projectId: String,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -282,22 +265,36 @@ class ApiClient(
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
-        projectId?.let { requestPart["projectId"] = it }
+        requestPart["projectId"] = projectId
+        deviceModel?.let { requestPart["deviceModel"] = it }
+        deviceOs?.let { requestPart["deviceOs"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("workspace", "workspace.zip", workspaceZip.toFile().asRequestBody("application/zip".toMediaType()))
+            .addFormDataPart(
+                "workspace",
+                "workspace.zip",
+                workspaceZip.toFile().asRequestBody("application/zip".toMediaType())
+            )
             .addFormDataPart("request", JSON.writeValueAsString(requestPart))
 
         if (appFile != null) {
-            bodyBuilder.addFormDataPart("app_binary", "app.zip", appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener))
+            bodyBuilder.addFormDataPart(
+                "app_binary",
+                "app.zip",
+                appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
+            )
         }
 
         if (mappingFile != null) {
-            bodyBuilder.addFormDataPart("mapping", "mapping.txt", mappingFile.toFile().asRequestBody("text/plain".toMediaType()))
+            bodyBuilder.addFormDataPart(
+                "mapping",
+                "mapping.txt",
+                mappingFile.toFile().asRequestBody("text/plain".toMediaType())
+            )
         }
 
         val body = bodyBuilder.build()
@@ -308,7 +305,7 @@ class ApiClient(
                 throw CliError(message)
             }
 
-            PrintUtils.message("$message, retrying (${completedRetries+1}/$maxRetryCount)...")
+            PrintUtils.message("$message, retrying (${completedRetries + 1}/$maxRetryCount)...")
             Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
 
             return upload(
@@ -333,14 +330,12 @@ class ApiClient(
                 appBinaryId = appBinaryId,
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
+                projectId = projectId,
             )
         }
 
-        val url = if (projectId != null) {
-            "$baseUrl/runMaestroTest"
-        } else {
-            "$baseUrl/v2/upload"
-        }
+        val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
+
         val response = try {
             val request = Request.Builder()
                 .header("Authorization", "Bearer $authToken")
@@ -357,6 +352,55 @@ class ApiClient(
             if (!response.isSuccessful) {
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
+                if (response.code == 403 && errorMessage.contains(
+                        "Your trial has not started yet",
+                        ignoreCase = true
+                    )
+                ) {
+                    println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
+                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
+
+                    val scanner = Scanner(System.`in`)
+                    val companyName = scanner.nextLine().trim()
+
+                    if (companyName.isNotEmpty()) {
+                        println("\u001B[33;1m[INFO]\u001B[0m Starting your trial for company: \u001B[36;1m$companyName\u001B[0m...")
+
+                        val isTrialStarted = startTrial(authToken, companyName);
+                        if (isTrialStarted) {
+                            println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
+                            return upload(
+                                authToken = authToken,
+                                appFile = appFile,
+                                workspaceZip = workspaceZip,
+                                uploadName = uploadName,
+                                mappingFile = mappingFile,
+                                repoOwner = repoOwner,
+                                repoName = repoName,
+                                branch = branch,
+                                commitSha = commitSha,
+                                pullRequestId = pullRequestId,
+                                env = env,
+                                androidApiLevel = androidApiLevel,
+                                iOSVersion = iOSVersion,
+                                includeTags = includeTags,
+                                excludeTags = excludeTags,
+                                maxRetryCount = maxRetryCount,
+                                completedRetries = completedRetries + 1,
+                                progressListener = progressListener,
+                                appBinaryId = appBinaryId,
+                                disableNotifications = disableNotifications,
+                                deviceLocale = deviceLocale,
+                                projectId = projectId
+                            )
+                        } else {
+                            println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
+                        }
+                    } else {
+                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
+                    }
+                }
+
                 if (response.code >= 500) {
                     return retry("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
@@ -366,15 +410,33 @@ class ApiClient(
 
             val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
 
-            return if (projectId != null) {
-                parseRobinUploadResponse(responseBody)
-            } else {
-                parseMaestroCloudUpload(responseBody)
-            }
+            return parseUploadResponse(responseBody)
         }
     }
 
-    private fun parseRobinUploadResponse(responseBody: Map<*, *>): UploadResponse {
+    private fun startTrial(authToken: String, companyName: String): Boolean {
+        println("Starting your trial...")
+        val url = "$baseUrl/v2/start-trial"
+
+        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
+        val trialRequest = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(jsonBody)
+            .build()
+
+        try {
+            val response = client.newCall(trialRequest).execute()
+            if (response.isSuccessful) return true;
+            println("\u001B[31m${response.body?.string()}\u001B[0m");
+            return false
+        } catch (e: IOException) {
+            println("\u001B[31;1m[ERROR]\u001B[0m We're experiencing connectivity issues, please try again in sometime, reach out to the slack channel in case if this doesn't work.")
+            return false
+        }
+    }
+
+    private fun parseUploadResponse(responseBody: Map<*, *>): UploadResponse {
         @Suppress("UNCHECKED_CAST")
         val orgId = responseBody["orgId"] as String
         val uploadId = responseBody["uploadId"] as String
@@ -392,34 +454,13 @@ class ApiClient(
             deviceLocale = deviceConfigMap["deviceLocale"] as? String
         )
 
-        return RobinUploadResponse(
+        return UploadResponse(
             orgId = orgId,
             uploadId = uploadId,
             deviceConfiguration = deviceConfiguration,
             appId = appId,
             appBinaryId = appBinaryId
         )
-    }
-
-    private fun parseMaestroCloudUpload(responseBody: Map<*, *>): UploadResponse {
-        @Suppress("UNCHECKED_CAST")
-        val analysisRequest = responseBody["analysisRequest"] as Map<String, Any>
-        val uploadId = analysisRequest["id"] as String
-        val teamId = analysisRequest["teamId"] as String
-        val appId = responseBody["targetId"] as String
-        val appBinaryIdResponse = responseBody["appBinaryId"] as? String
-        val deviceInfoStr = responseBody["deviceInfo"] as? Map<String, Any>
-
-        val deviceInfo = deviceInfoStr?.let {
-            DeviceInfo(
-                platform = it["platform"] as String,
-                displayInfo = it["displayInfo"] as String,
-                isDefaultOsVersion = it["isDefaultOsVersion"] as Boolean,
-                deviceLocale = responseBody["deviceLocale"] as String
-            )
-        }
-
-        return MaestroCloudUploadResponse(teamId, appId, uploadId, appBinaryIdResponse, deviceInfo)
     }
 
 
@@ -462,6 +503,73 @@ class ApiClient(
         }
     }
 
+    fun analyze(
+        authToken: String,
+        debugFiles: AnalysisDebugFiles,
+    ): AnalyzeResponse {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val body = JSON.writeValueAsString(debugFiles).toRequestBody(mediaType)
+
+        val url = "$baseUrl/v2/analyze"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(body)
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+                throw CliError("Analyze request failed (${response.code}): $errorMessage")
+            }
+
+            val parsed = JSON.readValue(response.body?.bytes(), AnalyzeResponse::class.java)
+
+            return parsed;
+        }
+    }
+
+    fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
+        val body = JSON.writeValueAsString(
+            MessageRequest(
+                sessionId = sessionId,
+                context = emptyList(),
+                messages = listOf(
+                    ContentDetail(
+                        type = "text",
+                        text = question
+                    )
+                )
+            )
+        )
+
+        val url = "$baseUrl/v2/bot/message"
+
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $authToken")
+            .post(body.toRequestBody("application/json".toMediaType()))
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+                throw CliError("bot message request failed (${response.code}): $errorMessage")
+            }
+
+            val data = response.body?.bytes()
+            val parsed = JSON.readValue(data, object : TypeReference<List<MessageContent>>() {})
+
+            return parsed;
+        }
+    }
+
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -472,25 +580,14 @@ class ApiClient(
     }
 }
 
-sealed class UploadResponse
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class RobinUploadResponse(
+data class UploadResponse(
     val orgId: String,
     val uploadId: String,
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
-): UploadResponse()
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class MaestroCloudUploadResponse(
-    val teamId: String,
-    val appId: String,
-    val uploadId: String,
-    val appBinaryId: String?,
-    val deviceInfo: DeviceInfo?
-): UploadResponse()
+)
 
 data class DeviceConfiguration(
     val platform: String,
@@ -526,6 +623,8 @@ data class UploadStatus(
 
     enum class Status {
         PENDING,
+        PREPARING,
+        INSTALLING,
         RUNNING,
         SUCCESS,
         ERROR,
@@ -533,7 +632,6 @@ data class UploadStatus(
         WARNING,
         STOPPED
     }
-
 
     // These values must match backend monorepo models
     // in package models.benchmark.BenchmarkCancellationReason
@@ -600,3 +698,14 @@ class SystemInformationInterceptor : Interceptor {
         return chain.proceed(newRequest)
     }
 }
+
+data class Insight(
+    val category: String,
+    val reasoning: String,
+)
+
+class AnalyzeResponse(
+    val htmlReport: String?,
+    val output: String,
+    val insights: List<Insight>
+)

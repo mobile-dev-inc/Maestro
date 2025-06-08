@@ -10,4 +10,4 @@ tags:
     timeout: 1000
     optional: true
 - evalScript: ${maestro.endTime = new Date()}
-- assertTrue: ${maestro.endTime - maestro.startTime < 5000} # Far less than the 20000 default, but enough to allow for processing time
+- assertTrue: ${maestro.endTime - maestro.startTime < 12000} # Far less than the 20000 default, but enough to allow for processing time

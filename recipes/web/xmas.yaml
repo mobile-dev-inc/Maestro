@@ -1,0 +1,26 @@
+url: https://amazon.com
+---
+- launchApp
+- extractTextWithAI: CAPTCHA value
+- tapOn: Type characters
+- inputText: ${aiOutput}
+- tapOn: Continue shopping
+- tapOn: .*Dismiss.*
+- tapOn: "Search Amazon"
+- inputText: "Ugly Christmas Sweater With Darth Vader"
+- pressKey: "Enter"
+- assertWithAI:
+      assertion: All sweaters have Darth Vader's mask on them
+- assertWithAI:
+      assertion: At least one result is Star Wars themed
+- extractTextWithAI: Dollar price without cents and currency of the first item
+- tapOn: ${aiOutput}
+- assertWithAI:
+      assertion: User is shown a product detail page that fits in the screen
+- swipe:
+      start: 50%,50%
+      end: 20%,50%
+- tapOn: "Add to Cart"
+- tapOn: "Proceed to checkout"
+- assertWithAI:
+      assertion: User is asked to sign in

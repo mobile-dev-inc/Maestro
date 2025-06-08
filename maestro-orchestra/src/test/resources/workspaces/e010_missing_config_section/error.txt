@@ -1,6 +1,19 @@
-Failed to parse file: {PROJECT_DIR}/src/test/resources/workspaces/e010_missing_config_section/workspace/Flow.yaml
-Flow files must contain a config section and a commands section separated by "---". For example:
+> Config Section Required
 
-appId: com.example
----
-- launchApp
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:1
+╭────────────────────────────────────────────────────────────────────────╮
+│ 1 | - launchApp                                                        │
+│     ^                                                                  │
+│ ╭────────────────────────────────────────────────────────────────────╮ │
+│ │ Flow files must start with a config section. Eg:                   │ │
+│ │                                                                    │ │
+│ │ ```yaml                                                            │ │
+│ │ appId: com.example.app # <-- config section                        │ │
+│ │ ---                                                                │ │
+│ │ - launchApp                                                        │ │
+│ │ ```                                                                │ │
+│ │                                                                    │ │
+│ │ > https://docs.maestro.dev/getting-started/writing-your-first-flow │ │
+│ ╰────────────────────────────────────────────────────────────────────╯ │
+│ 2 |                                                                    │
+╰────────────────────────────────────────────────────────────────────────╯

@@ -1,0 +1,21 @@
+> Invalid Command Format: tapOn
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ 2 | ---                                                                      │
+│ 3 | - tapOn: foo                                                             │
+│ 4 |   optional: true                                                         │
+│               ^                                                              │
+│ ╭──────────────────────────────────────────────────────────────────────────╮ │
+│ │ Found unexpected top-level field: `optional`. Missing an indent or dash? │ │
+│ │                                                                          │ │
+│ │ Example of correctly formatted list of commands:                         │ │
+│ │ ```yaml                                                                  │ │
+│ │ - tapOn:                                                                 │ │
+│ │ text: submit                                                             │ │
+│ │ optional: true                                                           │ │
+│ │ - inputText: hello                                                       │ │
+│ │ ```                                                                      │ │
+│ ╰──────────────────────────────────────────────────────────────────────────╯ │
+│ 5 |                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯

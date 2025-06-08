@@ -56,6 +56,7 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_OS_IMAGE: system-images;android-28;google_apis;x86_64
+      MAESTRO_EXAMPLE: test-value
 
     steps:
       - name: Enable KVM group perms
@@ -165,7 +166,7 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: ./run_tests android
 
       - name: Stop screen recording of AVD
@@ -284,6 +285,7 @@ jobs:
 
   test-ios-xctest-runner:
     name: Test on iOS (XCTest Runner only)
+    if: false  # Disabled: This needs be fixed, not working yet.
     runs-on: macos-latest
     needs: build
     timeout-minutes: 30

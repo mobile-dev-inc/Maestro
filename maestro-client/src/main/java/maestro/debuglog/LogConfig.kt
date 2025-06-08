@@ -17,12 +17,14 @@ object LogConfig {
     private val FILE_LOG_PATTERN: String = System.getenv("MAESTRO_CLI_LOG_PATTERN_FILE") ?: DEFAULT_FILE_LOG_PATTERN
     private val CONSOLE_LOG_PATTERN: String = System.getenv("MAESTRO_CLI_LOG_PATTERN_CONSOLE") ?: DEFAULT_CONSOLE_LOG_PATTERN
 
-    fun configure(logFileName: String, printToConsole: Boolean) {
+    fun configure(logFileName: String? = null, printToConsole: Boolean) {
         val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
         loggerContext.statusManager.add(NopStatusListener())
         loggerContext.reset()
 
-        createAndAddFileAppender(loggerContext, logFileName)
+        if (logFileName != null) {
+            createAndAddFileAppender(loggerContext, logFileName)
+        }
         if (printToConsole) {
             createAndAddConsoleAppender(loggerContext)
         }

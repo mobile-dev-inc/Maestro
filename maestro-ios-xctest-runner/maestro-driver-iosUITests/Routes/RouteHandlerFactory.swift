@@ -34,6 +34,10 @@ class RouteHandlerFactory {
             return StatusHandler()
         case .keyboard:
             return KeyboardRouteHandler()
+        case .terminateApp:
+            return TerminateAppHandler()
+        case .launchApp:
+             return LaunchAppHandler()
         }
     }
 }

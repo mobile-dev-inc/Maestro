@@ -10,7 +10,7 @@ struct SwipeRouteHandlerV2: HTTPHandler {
     )
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(SwipeRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(SwipeRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for swipe request v2").httpResponse
         }
         
@@ -42,8 +42,7 @@ struct SwipeRouteHandlerV2: HTTPHandler {
         let description = "Swipe (v2) from \(request.start) to \(request.end) with \(request.duration) duration"
         logger.info("\(description)")
 
-        let runningAppId = RunningApp.getForegroundAppId(request.appIds ?? [])
-        let eventTarget = EventTarget(bundleId: runningAppId)
+        let eventTarget = EventTarget()
         try await eventTarget.dispatchEvent(description: description) {
             EventRecord(orientation: .portrait)
                 .addSwipeEvent(

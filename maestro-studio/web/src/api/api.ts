@@ -123,7 +123,7 @@ export const API = {
     signal?: AbortSignal;
   }): Promise<AiResponseType> => {
     const response = await fetch(
-      "https://api.mobile.dev/mai/generate-command",
+      "https://api.copilot.mobile.dev/v2/maestro-studio/generate-command",
       {
         method: "POST",
         headers: {

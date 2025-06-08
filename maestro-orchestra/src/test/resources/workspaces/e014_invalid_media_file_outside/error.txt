@@ -1,1 +1,17 @@
-The File "android.png" referenced in flow file: {PROJECT_DIR}/src/test/resources/workspaces/e014_invalid_media_file_outside/workspace/Flow.yaml not found in workspace
+> Media File Not Found
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+╭─────────────────────────────────────────────────────────────────────────────────╮
+│ 1 | appId: com.example                                                          │
+│ 2 | ---                                                                         │
+│ 3 | - addMedia:                                                                 │
+│       ^                                                                         │
+│ ╭─────────────────────────────────────────────────────────────────────────────╮ │
+│ │ Media file at ../../e013_invalid_media_file/workspace/assets/android.png in │ │
+│ │ flow file:                                                                  │ │
+│ │ /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml not  │ │
+│ │ found                                                                       │ │
+│ ╰─────────────────────────────────────────────────────────────────────────────╯ │
+│ 4 |     - "../../e013_invalid_media_file/workspace/assets/android.png"          │
+│ 5 | - launchApp                                                                 │
+╰─────────────────────────────────────────────────────────────────────────────────╯

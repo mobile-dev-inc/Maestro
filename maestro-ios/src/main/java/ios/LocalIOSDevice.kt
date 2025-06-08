@@ -1,22 +1,24 @@
 package ios
 
 import com.github.michaelbull.result.*
+import device.IOSDevice
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
-import ios.simctl.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import okio.Sink
 import java.io.InputStream
-import java.util.UUID
 import hierarchy.ViewHierarchy
 import maestro.utils.Insight
 import maestro.utils.Insights
+import maestro.utils.NoopInsights
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class LocalIOSDevice(
     override val deviceId: String?,
     private val xcTestDevice: XCTestIOSDevice,
-    private val simctlIOSDevice: SimctlIOSDevice,
+    private val deviceController: IOSDevice,
+    private val insights: Insights = NoopInsights
 ) : IOSDevice {
 
     private val executor by lazy { Executors.newSingleThreadScheduledExecutor() }
@@ -34,7 +36,7 @@ class LocalIOSDevice(
         val future = executor.schedule(
             {
                 if (isViewHierarchyInProgress) {
-                    Insights.report(
+                    insights.report(
                         Insight(
                             message = "Retrieving the hierarchy is taking longer than usual. This might be due to a " +
                                     "deep hierarchy in the current view. Please wait a bit more to complete the operation.",
@@ -83,31 +85,30 @@ class LocalIOSDevice(
     }
 
     override fun install(stream: InputStream) {
-        simctlIOSDevice.install(stream)
+        deviceController.install(stream)
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.uninstall(id)
+    override fun uninstall(id: String) {
+        deviceController.uninstall(id)
     }
 
     override fun clearAppState(id: String) {
-        simctlIOSDevice.clearAppState(id)
+        deviceController.clearAppState(id)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {
-        return simctlIOSDevice.clearKeychain()
+        return deviceController.clearKeychain()
     }
 
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-        maestroSessionId: UUID?
-    ): Result<Unit, Throwable> {
-        return simctlIOSDevice.launch(id, launchArguments, maestroSessionId)
+    ) {
+        deviceController.launch(id, launchArguments)
     }
 
-    override fun stop(id: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.stop(id)
+    override fun stop(id: String) {
+        xcTestDevice.stop(id)
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -115,7 +116,7 @@ class LocalIOSDevice(
     }
 
     override fun openLink(link: String): Result<Unit, Throwable> {
-        return simctlIOSDevice.openLink(link)
+        return deviceController.openLink(link)
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
@@ -123,11 +124,11 @@ class LocalIOSDevice(
     }
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
-        return simctlIOSDevice.startScreenRecording(out)
+        return deviceController.startScreenRecording(out)
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
-        return simctlIOSDevice.setLocation(latitude, longitude)
+        return deviceController.setLocation(latitude, longitude)
     }
 
     override fun isShutdown(): Boolean {
@@ -136,7 +137,6 @@ class LocalIOSDevice(
 
     override fun close() {
         xcTestDevice.close()
-        simctlIOSDevice.close()
     }
 
     override fun isScreenStatic(): Boolean {
@@ -144,7 +144,7 @@ class LocalIOSDevice(
     }
 
     override fun setPermissions(id: String, permissions: Map<String, String>) {
-        simctlIOSDevice.setPermissions(id, permissions)
+        deviceController.setPermissions(id, permissions)
         xcTestDevice.setPermissions(id, permissions)
     }
 
@@ -153,6 +153,6 @@ class LocalIOSDevice(
     }
 
     override fun addMedia(path: String) {
-        simctlIOSDevice.addMedia(path)
+        deviceController.addMedia(path)
     }
 }

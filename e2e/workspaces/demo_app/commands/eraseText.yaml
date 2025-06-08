@@ -1,0 +1,21 @@
+appId: com.example.example
+---
+- launchApp # For idempotence of sections
+
+- tapOn: 'Form Test'
+- tapOn: 'Email'
+- inputText: 'foo'
+- assertVisible: 'foo'
+- eraseText
+# Fix me this part is flaky on CI only not local, needs to be addressed why
+- assertNotVisible:
+    text: 'foo'
+    optional: true
+
+- inputText: 'testing'
+- assertVisible: 'testing'
+- eraseText: 3
+- assertNotVisible: 'testing'
+- assertVisible:
+    text: 'test'
+    optional: true # FIXME: This still takes an extra character sometimes, even after #2123

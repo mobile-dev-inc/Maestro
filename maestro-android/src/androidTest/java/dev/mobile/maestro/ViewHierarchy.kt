@@ -220,6 +220,7 @@ object ViewHierarchy {
         val childCount = node.childCount
         for (x in 0 until childCount) {
             val childNode = node.getChild(x)
+            if (childNode == null) continue;
             if (!safeCharSeqToString(childNode.contentDescription).isEmpty()
                 || !safeCharSeqToString(childNode.text).isEmpty()
             ) return true

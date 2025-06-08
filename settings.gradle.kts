@@ -16,7 +16,6 @@ dependencyResolutionManagement {
     }
 }
 
-include("example")
 include("maestro-utils")
 include("maestro-android")
 include("maestro-cli")
@@ -31,3 +30,4 @@ include("maestro-studio:server")
 include("maestro-studio:web")
 include("maestro-test")
 include("maestro-ai")
+include("maestro-web")

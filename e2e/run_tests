@@ -10,15 +10,15 @@ command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 ALL_PASS=true
 
 _h1() {
-	printf "=>\n=> $1\n=>\n"
+	printf "=>\n=> %s\n=>\n" "$1"
 }
 
 _h2() {
-	printf "==> [$1] $2\n"
+	printf "==> [%s] %s\n" "$1" "$2"
 }
 
 _h3() {
-	printf "==> [$1] [$2] => $3\n"
+	printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"
 }
 
 platform="${1:-}"
