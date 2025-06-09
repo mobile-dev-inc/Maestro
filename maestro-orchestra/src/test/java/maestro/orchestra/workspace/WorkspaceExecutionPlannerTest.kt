@@ -1,6 +1,8 @@
 package maestro.orchestra.workspace
 
 import com.google.common.truth.Truth.assertThat
+import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.WorkspaceConfig.*
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -339,27 +341,6 @@ internal class WorkspaceExecutionPlannerTest {
     }
 
     @Test
-    internal fun `016 - Upload Config gets correct values`() {
-        // When
-        val planWithoutConfig = WorkspaceExecutionPlanner.plan(
-            input = paths("/workspaces/000_individual_file"),
-            includeTags = listOf(),
-            excludeTags = listOf(),
-            config = null
-        )
-
-        val planWithIncludeNonModalElements = WorkspaceExecutionPlanner.plan(
-            input = paths("/workspaces/013_execution_order"),
-            includeTags = listOf(),
-            excludeTags = listOf(),
-            config = null
-        )
-
-        assertThat(planWithoutConfig.workspaceConfig.iosIncludeNonModalElements).isNull()
-        assertThat(planWithIncludeNonModalElements.workspaceConfig.iosIncludeNonModalElements).isTrue()
-    }
-
-    @Test
     internal fun `017 - Upload configs on local and cloud both are supported`() {
         // when
         val plan = WorkspaceExecutionPlanner.plan(
@@ -373,6 +354,25 @@ internal class WorkspaceExecutionPlannerTest {
         assertThat(plan.workspaceConfig.notifications?.slack?.channels).containsExactly("e2e-testing")
         assertThat(plan.workspaceConfig.executionOrder?.flowsOrder).containsExactly("flowA", "flowB")
         assertThat(plan.workspaceConfig.disableRetries).isTrue()
+    }
+
+    @Test
+    internal fun `017 - Upload platform configs on are supported`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/015_workspace_cloud_configs"),
+            includeTags = listOf("included"),
+            excludeTags = listOf("notIncluded"),
+            config = null
+        )
+
+        val platformConfiguration = plan.workspaceConfig.platform
+        assertThat(platformConfiguration).isEqualTo(
+            PlatformConfiguration(
+                android = PlatformConfiguration.AndroidConfiguration(disableAnimations = true),
+                ios = PlatformConfiguration.IOSConfiguration(disableAnimations = true, snapshotKeyHonorModalViews = false)
+            )
+        )
     }
 
     private fun path(path: String): Path? {

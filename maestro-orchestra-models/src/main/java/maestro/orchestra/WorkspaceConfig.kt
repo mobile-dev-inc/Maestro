@@ -9,11 +9,10 @@ data class WorkspaceConfig(
     val excludeTags: StringList? = null,
     val local: Local? = null,
     val executionOrder: ExecutionOrder? = null,
-    val iosIncludeNonModalElements: Boolean? = null,
     @Deprecated("not supported on maestro cloud") val baselineBranch: String? = null,
     val notifications: MaestroNotificationConfiguration? = null,
     @Deprecated("not supported now by default on cloud") val disableRetries: Boolean = false,
-    val deviceConfig: DeviceConfig? = null
+    val platform: PlatformConfiguration? = null,
 ) {
 
     data class MaestroNotificationConfiguration(
@@ -34,24 +33,18 @@ data class WorkspaceConfig(
         )
     }
 
-    data class DeviceConfig(
-        val android: List<TopLevelDeviceConfig>? = null,
-        val iOS: List<TopLevelDeviceConfig>? = null
+    data class PlatformConfiguration(
+        val android: AndroidConfiguration? = null,
+        val ios: IOSConfiguration? = null
     ) {
-        sealed class TopLevelDeviceConfig {
-            object DisableAnimations : TopLevelDeviceConfig()
+        data class AndroidConfiguration(
+            val disableAnimations: Boolean = false,
+        )
 
-            companion object {
-                @JsonCreator
-                @JvmStatic
-                fun fromValue(value: String): TopLevelDeviceConfig {
-                    return when (value) {
-                        "disableAnimations" -> DisableAnimations
-                        else -> throw IllegalArgumentException("Invalid deviceConfig: $value")
-                    }
-                }
-            }
-        }
+        data class IOSConfiguration(
+            val disableAnimations: Boolean = false,
+            val snapshotKeyHonorModalViews: Boolean? = null,
+        )
     }
 
     @JsonAnySetter

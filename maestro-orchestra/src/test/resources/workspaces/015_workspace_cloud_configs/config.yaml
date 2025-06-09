@@ -13,3 +13,9 @@ executionOrder:
   flowsOrder:
     - flowA
     - flowB
+platform:
+  ios:
+    disableAnimations: true
+    snapshotKeyHonorModalViews: false
+  android:
+    disableAnimations: true
