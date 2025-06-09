@@ -65,8 +65,8 @@ static id swizzledSnapshotParameters(id self, SEL _cmd) {
 
 + (void)load {
     // snapshotKeyHonorModalViews to false to make modals and dialogs visible that are invisible otherwise
-    NSString *includeNonModalElementsStr = [[[NSProcessInfo processInfo] environment] objectForKey:@"includeNonModalElements"];
-    if ([includeNonModalElementsStr isEqualToString:@"true"]) {
+    NSString *snapshotKeyHonorModalViewsKey = [[[NSProcessInfo processInfo] environment] objectForKey:@"snapshotKeyHonorModalViews"];
+    if ([snapshotKeyHonorModalViewsKey isEqualToString:@"false"]) {
         NSLog(@"Disabling snapshotKeyHonorModalViews to make elements behind modals visible");
         FBSetCustomParameterForElementSnapshot(@"snapshotKeyHonorModalViews", @0);
 

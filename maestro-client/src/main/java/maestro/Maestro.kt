@@ -586,10 +586,6 @@ class Maestro(
         driver.setAndroidChromeDevToolsEnabled(enabled)
     }
 
-    fun setIncludeNonModalElements(enabled: Boolean) {
-        driver.setIncludeNonModalElements(enabled)
-    }
-
     companion object {
 
         private val LOGGER = LoggerFactory.getLogger(Maestro::class.java)

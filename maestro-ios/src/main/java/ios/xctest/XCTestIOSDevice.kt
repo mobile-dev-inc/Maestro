@@ -18,8 +18,7 @@ class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
     private val getInstalledApps: () -> Set<String>,
-
-    ) : IOSDevice {
+) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
@@ -35,10 +34,10 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun viewHierarchy(excludeKeyboardElements: Boolean, includeNonModalElements: Boolean): ViewHierarchy {
+    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         return execute {
             // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
-            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements, includeNonModalElements)
+            val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
             logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy

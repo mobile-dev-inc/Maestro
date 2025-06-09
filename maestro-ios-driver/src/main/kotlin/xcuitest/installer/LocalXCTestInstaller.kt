@@ -204,7 +204,7 @@ class LocalXCTestInstaller(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
                 port = defaultPort,
-                includeNonModalElements = iOSDriverConfig.includeNonModalElements
+                snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
         }
@@ -215,11 +215,19 @@ class LocalXCTestInstaller(
         when (deviceType) {
             IOSDeviceType.REAL -> {
                 LocalIOSDeviceController.install(deviceId, bundlePath.toPath())
-                LocalIOSDeviceController.launchRunner(deviceId, defaultPort, iOSDriverConfig.includeNonModalElements)
+                LocalIOSDeviceController.launchRunner(
+                    deviceId = deviceId,
+                    port = defaultPort,
+                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                )
             }
             IOSDeviceType.SIMULATOR -> {
                 LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
-                LocalSimulatorUtils.launchUITestRunner(deviceId, defaultPort, iOSDriverConfig.includeNonModalElements)
+                LocalSimulatorUtils.launchUITestRunner(
+                    deviceId = deviceId,
+                    port = defaultPort,
+                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                )
             }
         }
     }
@@ -243,7 +251,7 @@ class LocalXCTestInstaller(
         val prebuiltRunner: Boolean,
         val sourceDirectory: String,
         val context: Context,
-        val includeNonModalElements: Boolean?
+        val snapshotKeyHonorModalViews: Boolean?
     )
 
     companion object {

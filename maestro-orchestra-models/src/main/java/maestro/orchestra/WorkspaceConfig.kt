@@ -12,7 +12,10 @@ data class WorkspaceConfig(
     @Deprecated("not supported on maestro cloud") val baselineBranch: String? = null,
     val notifications: MaestroNotificationConfiguration? = null,
     @Deprecated("not supported now by default on cloud") val disableRetries: Boolean = false,
-    val platform: PlatformConfiguration? = null,
+    val platform: PlatformConfiguration? = PlatformConfiguration(
+        android = PlatformConfiguration.AndroidConfiguration(disableAnimations = false),
+        ios = PlatformConfiguration.IOSConfiguration(disableAnimations = false)
+    ),
 ) {
 
     data class MaestroNotificationConfiguration(

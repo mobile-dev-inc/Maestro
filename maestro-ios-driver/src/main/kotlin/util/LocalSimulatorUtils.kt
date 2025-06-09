@@ -328,12 +328,12 @@ object LocalSimulatorUtils {
     fun launchUITestRunner(
         deviceId: String,
         port: Int,
-        includeNonModalElements: Boolean?,
+        snapshotKeyHonorModalViews: Boolean?,
     ) {
         val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
         val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
-        if (includeNonModalElements != null) {
-            params["TEST_RUNNER_includeNonModalElements"] = includeNonModalElements.toString()
+        if (snapshotKeyHonorModalViews != null) {
+            params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
         }
         runCommand(
             listOf(

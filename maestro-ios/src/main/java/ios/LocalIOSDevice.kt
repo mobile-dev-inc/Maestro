@@ -31,7 +31,7 @@ class LocalIOSDevice(
         return xcTestDevice.deviceInfo()
     }
 
-    override fun viewHierarchy(excludeKeyboardElements: Boolean, includeNonModalElements: Boolean): ViewHierarchy {
+    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
         var isViewHierarchyInProgress = true
         val future = executor.schedule(
             {
@@ -46,7 +46,7 @@ class LocalIOSDevice(
                 }
             }, 15, TimeUnit.SECONDS
         )
-        val result = xcTestDevice.viewHierarchy(excludeKeyboardElements, includeNonModalElements)
+        val result = xcTestDevice.viewHierarchy(excludeKeyboardElements)
         isViewHierarchyInProgress = false
         if (!future.isDone) {
             future.cancel(false)

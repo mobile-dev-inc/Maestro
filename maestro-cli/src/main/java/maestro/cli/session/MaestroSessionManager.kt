@@ -36,6 +36,7 @@ import maestro.utils.CliInsights
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
+import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
@@ -114,7 +115,7 @@ object MaestroSessionManager {
             isHeadless = isHeadless,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
-            includeNonModalElements = executionPlan?.workspaceConfig?.iosIncludeNonModalElements
+            platformConfiguration = executionPlan?.workspaceConfig?.platform
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
@@ -194,7 +195,7 @@ object MaestroSessionManager {
         isHeadless: Boolean,
         reinstallDriver: Boolean,
         driverHostPort: Int?,
-        includeNonModalElements: Boolean? = null,
+        platformConfiguration: PlatformConfiguration? = null,
     ): MaestroSession {
         return when {
             selectedDevice.device != null -> MaestroSession(
@@ -211,7 +212,7 @@ object MaestroSessionManager {
                         driverHostPort,
                         reinstallDriver,
                         deviceType = selectedDevice.device.deviceType,
-                        includeNonModalElements = includeNonModalElements
+                        platformConfiguration = platformConfiguration
                     )
 
                     Platform.WEB -> pickWebDevice(isStudio, isHeadless)
@@ -236,7 +237,7 @@ object MaestroSessionManager {
                     driverHostPort = driverHostPort ?: defaultXcTestPort,
                     reinstallDriver = reinstallDriver,
                     isStudio = isStudio,
-                    includeNonModalElements = includeNonModalElements,
+                    platformConfiguration = platformConfiguration,
                 ),
                 device = null,
             )
@@ -302,7 +303,7 @@ object MaestroSessionManager {
         driverHostPort: Int,
         reinstallDriver: Boolean,
         isStudio: Boolean,
-        includeNonModalElements: Boolean?,
+        platformConfiguration: PlatformConfiguration?,
     ): Maestro {
         val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort)
         return createIOS(
@@ -311,7 +312,7 @@ object MaestroSessionManager {
             driverHostPort,
             reinstallDriver,
             deviceType = device.deviceType,
-            includeNonModalElements = includeNonModalElements
+            platformConfiguration = platformConfiguration
         )
     }
 
@@ -341,7 +342,7 @@ object MaestroSessionManager {
         openDriver: Boolean,
         driverHostPort: Int?,
         reinstallDriver: Boolean,
-        includeNonModalElements: Boolean?,
+        platformConfiguration: PlatformConfiguration?,
         deviceType: Device.DeviceType,
     ): Maestro {
 
@@ -361,7 +362,7 @@ object MaestroSessionManager {
                     prebuiltRunner = false,
                     sourceDirectory = driverPath.pathString,
                     context = Context.CLI,
-                    includeNonModalElements = includeNonModalElements
+                    snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
                 )
             }
             Device.DeviceType.SIMULATOR -> {
@@ -369,7 +370,7 @@ object MaestroSessionManager {
                     prebuiltRunner = false,
                     sourceDirectory =  "driver-iPhoneSimulator",
                     context = Context.CLI,
-                    includeNonModalElements = includeNonModalElements
+                    snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
                 )
             }
             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
