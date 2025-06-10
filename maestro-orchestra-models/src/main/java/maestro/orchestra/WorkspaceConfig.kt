@@ -9,7 +9,7 @@ data class WorkspaceConfig(
     val excludeTags: StringList? = null,
     val local: Local? = null,
     val executionOrder: ExecutionOrder? = null,
-    @Deprecated("not supported on maestro cloud") val baselineBranch: String? = null,
+    val baselineBranch: String? = null,
     val notifications: MaestroNotificationConfiguration? = null,
     @Deprecated("not supported now by default on cloud") val disableRetries: Boolean = false,
     val platform: PlatformConfiguration? = PlatformConfiguration(
