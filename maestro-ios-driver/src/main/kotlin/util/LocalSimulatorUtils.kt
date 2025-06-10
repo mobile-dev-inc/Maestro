@@ -245,7 +245,7 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId)) //this is returning None
+        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId)) 
 
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
@@ -269,7 +269,7 @@ object LocalSimulatorUtils {
         logger.info("Clearing app $bundleId state")
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
-        terminate(deviceId, bundleId) //We got a found nothing to terminate here
+        terminate(deviceId, bundleId) 
         ensureStopped(deviceId, bundleId)
 
         // reinstall the app as that is the most stable way to clear state
