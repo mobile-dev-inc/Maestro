@@ -935,7 +935,7 @@ class Orchestra(
 
         } catch (e: Exception) { 
             logger.error("Failed clearing app state", e)
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}")
         }
 
         try {
@@ -945,7 +945,7 @@ class Orchestra(
                 stopIfRunning = command.stopApp ?: true
             )
         } catch (e: Exception) {
-            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}", e)
+            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}")
         }
 
         return true
