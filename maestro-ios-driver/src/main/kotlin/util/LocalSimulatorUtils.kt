@@ -380,7 +380,7 @@ object LocalSimulatorUtils {
         )
     }
 
-    fun uninstall(deviceId: String, bundleId: String) { //The error happens here
+    fun uninstall(deviceId: String, bundleId: String) {
         runCommand(
             listOf(
                 "xcrun",
