@@ -934,7 +934,7 @@ class Orchestra(
             maestro.setPermissions(command.appId, permissions)
 
         } catch (e: Exception) { 
-            logger.error(e.stackTraceToString())
+            logger.error("Failed clearing app state", e)
             throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}")
         }
 
