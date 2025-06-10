@@ -22,8 +22,5 @@ static id AXClient = nil;
     return [AXClient activeApplications];
 }
 
-- (NSDictionary *)defaultParameters {
-    return [AXClient defaultParameters];
-}
 
 @end
