@@ -19,48 +19,51 @@
 
 package maestro
 
-sealed class MaestroException(override val message: String) : RuntimeException(message) {
+sealed class MaestroException(override val message: String, cause: Throwable? = null) : RuntimeException(message, cause) {
 
-    class UnableToLaunchApp(message: String) : MaestroException(message)
+    class UnableToLaunchApp(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class UnableToClearState(message: String) : MaestroException(message)
+    class UnableToClearState(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class AppCrash(message: String): MaestroException(message)
+    class AppCrash(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
-    class DriverTimeout(message: String): MaestroException(message)
+    class DriverTimeout(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
     open class AssertionFailure(
         message: String,
         val hierarchyRoot: TreeNode,
         val debugMessage: String,
-    ) : MaestroException(message)
+        cause: Throwable? = null,
+    ) : MaestroException(message, cause)
 
     class ElementNotFound(
         message: String,
         hierarchyRoot: TreeNode,
         debugMessage: String,
-    ) : AssertionFailure(message, hierarchyRoot, debugMessage)
+        cause: Throwable? = null,
+    ) : AssertionFailure(message, hierarchyRoot, debugMessage, cause)
 
-    class CloudApiKeyNotAvailable(message: String) : MaestroException(message)
+    class CloudApiKeyNotAvailable(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class DestinationIsNotWritable(message: String) : MaestroException(message)
+    class DestinationIsNotWritable(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class UnableToCopyTextFromElement(message: String): MaestroException(message)
+    class UnableToCopyTextFromElement(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
     class InvalidCommand(
         message: String,
-    ) : MaestroException(message)
+        cause: Throwable? = null,
+    ) : MaestroException(message, cause)
 
-    class NoRootAccess(message: String) : MaestroException(message)
+    class NoRootAccess(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class UnsupportedJavaVersion(message: String) : MaestroException(message)
+    class UnsupportedJavaVersion(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class MissingAppleTeamId(message: String): MaestroException(message)
+    class MissingAppleTeamId(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
-    class IOSDeviceDriverSetupException(message: String): MaestroException(message)
+    class IOSDeviceDriverSetupException(message: String, cause: Throwable? = null): MaestroException(message, cause)
 }
 
-sealed class MaestroDriverStartupException(override val message: String): RuntimeException() {
-    class AndroidDriverTimeoutException(message: String): MaestroDriverStartupException(message)
-    class AndroidInstrumentationSetupFailure(message: String): MaestroDriverStartupException(message)
+sealed class MaestroDriverStartupException(override val message: String, cause: Throwable? = null): RuntimeException(message, cause) {
+    class AndroidDriverTimeoutException(message: String, cause: Throwable? = null): MaestroDriverStartupException(message, cause)
+    class AndroidInstrumentationSetupFailure(message: String, cause: Throwable? = null): MaestroDriverStartupException(message, cause)
 }
