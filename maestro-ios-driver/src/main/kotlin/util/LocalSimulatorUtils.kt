@@ -16,7 +16,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
-import kotlin.io.path.createTempFile
 
 object LocalSimulatorUtils {
 
@@ -250,7 +249,7 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId)) //this is returning None
+        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
 
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
@@ -274,7 +273,7 @@ object LocalSimulatorUtils {
         logger.info("Clearing app $bundleId state")
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
-        terminate(deviceId, bundleId) //We got a found nothing to terminate here
+        terminate(deviceId, bundleId)
         ensureStopped(deviceId, bundleId)
 
         // reinstall the app as that is the most stable way to clear state
@@ -386,7 +385,7 @@ object LocalSimulatorUtils {
         )
     }
 
-    fun uninstall(deviceId: String, bundleId: String) { //The error happens here
+    fun uninstall(deviceId: String, bundleId: String) {
         runCommand(
             listOf(
                 "xcrun",
