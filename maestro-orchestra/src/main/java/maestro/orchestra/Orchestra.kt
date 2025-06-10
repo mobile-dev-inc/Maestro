@@ -933,7 +933,8 @@ class Orchestra(
             val permissions = command.permissions ?: mapOf("all" to "allow")
             maestro.setPermissions(command.appId, permissions)
 
-        } catch (e: Exception) {
+        } catch (e: Exception) { 
+            logger.error(e.stackTraceToString())
             throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}")
         }
 

@@ -16,6 +16,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
+import kotlin.io.path.createTempFile
 
 object LocalSimulatorUtils {
 
@@ -88,7 +89,7 @@ object LocalSimulatorUtils {
         return process.inputStream.bufferedReader().readLine()
     }
 
-    fun bootSimulator(deviceId: String) {
+    fun bootSimulator(deviceId: String) { 
         runCommand(
             listOf(
                 "xcrun",
@@ -249,7 +250,7 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
+        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId)) //this is returning None
 
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
@@ -273,7 +274,7 @@ object LocalSimulatorUtils {
         logger.info("Clearing app $bundleId state")
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
-        terminate(deviceId, bundleId)
+        terminate(deviceId, bundleId) //We got a found nothing to terminate here
         ensureStopped(deviceId, bundleId)
 
         // reinstall the app as that is the most stable way to clear state
@@ -281,6 +282,8 @@ object LocalSimulatorUtils {
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
+        logger.info("[Start] getAppBinaryDirectory: $deviceId, $bundleId")
+        
         val process = ProcessBuilder(
             listOf(
                 "xcrun",
@@ -290,8 +293,20 @@ object LocalSimulatorUtils {
                 bundleId,
             )
         ).start()
-
-        return String(process.inputStream.readBytes()).trimEnd()
+        if (!process.waitFor(5, java.util.concurrent.TimeUnit.MINUTES)) {
+            process.destroyForcibly()
+            throw java.util.concurrent.TimeoutException("Command timed out after 5 minutes")
+        }        
+        if (process.exitValue() != 0) {
+            val errorOutput = String(process.errorStream.readBytes())
+            logger.error("Failed to get app binary directory. Exit code: ${process.exitValue()}")
+            logger.error("Error output: $errorOutput")
+            throw IllegalStateException("Failed to get app binary directory: $errorOutput")
+        }
+        
+        val result = String(process.inputStream.readBytes()).trimEnd()
+        logger.info("[Done] getAppBinaryDirectory: $deviceId, $bundleId")
+        return result
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
@@ -371,7 +386,7 @@ object LocalSimulatorUtils {
         )
     }
 
-    fun uninstall(deviceId: String, bundleId: String) {
+    fun uninstall(deviceId: String, bundleId: String) { //The error happens here
         runCommand(
             listOf(
                 "xcrun",
