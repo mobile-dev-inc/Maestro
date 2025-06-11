@@ -19,7 +19,7 @@ import kotlin.io.path.createTempDirectory
 
 object LocalSimulatorUtils {
 
-    data class SimctlError(override val message: String) : Throwable(message)
+    data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
     private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private val homedir = System.getProperty("user.home")
