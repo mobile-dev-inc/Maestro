@@ -245,7 +245,11 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId)) 
+        val pathToBinary = try {
+            Path(getAppBinaryDirectory(deviceId, bundleId))
+        } catch (exception: Exception) {
+            throw SimctlError("Could not find app binary for bundle $bundleId: ${exception.message}", exception)
+        }
 
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
@@ -277,45 +281,32 @@ object LocalSimulatorUtils {
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
-        logger.info("[Start] getAppBinaryDirectory: $deviceId, $bundleId")
-        return runCatching {
-            val process = runCommand(
-                listOf(
-                    "xcrun",
-                    "simctl",
-                    "get_app_container",
-                    deviceId,
-                    bundleId,
-                ),
-                captureOutput = true
-            )
-            val result = String(process.inputStream.readBytes()).trimEnd()
-            logger.info("[Done] getAppBinaryDirectory: $deviceId, $bundleId")
-            result
-        }.getOrElse { exception ->
-            logger.error("Failed to get app binary directory: ${exception.message}")
-            throw exception
-        }
+        val process = runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "get_app_container",
+                deviceId,
+                bundleId,
+            ),
+            captureOutput = true
+        )
+        return String(process.inputStream.readBytes()).trimEnd()
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
-        return runCatching {
-            val process = runCommand(
-                listOf(
-                    "xcrun",
-                    "simctl",
-                    "get_app_container",
-                    deviceId,
-                    bundleId,
-                    "data"
-                ),
-                captureOutput = true
-            )
-            String(process.inputStream.readBytes()).trimEnd()
-        }.getOrElse { exception ->
-            logger.error("Failed to get application data directory: ${exception.message}")
-            throw exception
-        }
+        val process = runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "get_app_container",
+                deviceId,
+                bundleId,
+                "data"
+            ),
+            captureOutput = true
+        )
+        return String(process.inputStream.readBytes()).trimEnd()
     }
 
     fun launch(
