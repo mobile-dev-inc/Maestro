@@ -62,7 +62,7 @@ value class ViewHierarchy(val root: TreeNode) {
         return matches[0]
     }
 
-    private fun getElementAt(
+    fun getElementAt(
         node: TreeNode,
         x: Int,
         y: Int
