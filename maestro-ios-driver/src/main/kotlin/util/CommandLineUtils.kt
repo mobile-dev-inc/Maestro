@@ -15,7 +15,7 @@ object CommandLineUtils {
 
     @Suppress("SpreadOperator")
     fun runCommand(parts: List<String>, waitForCompletion: Boolean = true, outputFile: File? = null, params: Map<String, String> = emptyMap()): Process {
-        logger.info("Running command line operation: $parts")
+        logger.info("Running command line operation: $parts with $params")
 
         val processBuilder = if (outputFile != null) {
             ProcessBuilder(*parts.toTypedArray())
