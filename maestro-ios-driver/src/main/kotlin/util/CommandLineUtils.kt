@@ -20,7 +20,7 @@ object CommandLineUtils {
             outputFile: File? = null,
             params: Map<String, String> = emptyMap()
     ): Process {
-        logger.info("Running command line operation: $parts")
+        logger.info("Running command line operation: $parts with $params")
 
         val processBuilder =
                 if (outputFile != null) {
