@@ -4,6 +4,10 @@ import FlyingFox
 final class ViewHierarchyHandlerTests: XCTestCase {
     
     override func setUpWithError() throws {
+        let port = ProcessInfo.processInfo.environment["PORT"]?.toUInt16()
+        if port != nil {
+            throw XCTSkip("Running tests on cloud, skipping")
+        }
         continueAfterFailure = false
         Task {
             try await startFlyingFoxServer()
