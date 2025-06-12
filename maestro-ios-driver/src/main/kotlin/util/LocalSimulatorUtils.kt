@@ -19,7 +19,7 @@ import kotlin.io.path.createTempDirectory
 
 object LocalSimulatorUtils {
 
-    data class SimctlError(override val message: String) : Throwable(message)
+    data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
     private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private val homedir = System.getProperty("user.home")
@@ -49,11 +49,8 @@ object LocalSimulatorUtils {
     )
 
     fun list(): SimctlList {
-        val command = listOf("xcrun", "simctl", "list", "-j")
-
-        val process = ProcessBuilder(command).start()
+        val process = runCommand(listOf("xcrun", "simctl", "list", "-j"), captureOutput = true)
         val json = String(process.inputStream.readBytes())
-
         return jacksonObjectMapper().readValue(json)
     }
 
@@ -82,13 +79,11 @@ object LocalSimulatorUtils {
     }
 
     private fun xcodePath(): String {
-        val process = ProcessBuilder(listOf("xcode-select", "-p"))
-            .start()
-
-        return process.inputStream.bufferedReader().readLine()
+        val process = runCommand(listOf("xcode-select", "-p"), captureOutput = true)
+        return String(process.inputStream.readBytes()).trimEnd().lines().first()
     }
 
-    fun bootSimulator(deviceId: String) {
+    fun bootSimulator(deviceId: String) { 
         runCommand(
             listOf(
                 "xcrun",
@@ -190,7 +185,7 @@ object LocalSimulatorUtils {
     }
 
     private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
-        val process = ProcessBuilder(
+        val process = runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -198,10 +193,11 @@ object LocalSimulatorUtils {
                 deviceId,
                 "launchctl",
                 "list",
-            )
-        ).start()
-
-        return String(process.inputStream.readBytes()).trimEnd().contains(bundleId)
+            ),
+            captureOutput = true
+        )
+        val output = String(process.inputStream.readBytes()).trimEnd()
+        return output.contains(bundleId)
     }
 
     private fun ensureStopped(deviceId: String, bundleId: String) {
@@ -249,7 +245,11 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
+        val pathToBinary = try {
+            Path(getAppBinaryDirectory(deviceId, bundleId))
+        } catch (exception: Exception) {
+            throw SimctlError("Could not find app binary for bundle $bundleId: ${exception.message}", exception)
+        }
 
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
@@ -273,7 +273,7 @@ object LocalSimulatorUtils {
         logger.info("Clearing app $bundleId state")
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
-        terminate(deviceId, bundleId)
+        terminate(deviceId, bundleId) 
         ensureStopped(deviceId, bundleId)
 
         // reinstall the app as that is the most stable way to clear state
@@ -281,21 +281,21 @@ object LocalSimulatorUtils {
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
-        val process = ProcessBuilder(
+        val process = runCommand(
             listOf(
                 "xcrun",
                 "simctl",
                 "get_app_container",
                 deviceId,
                 bundleId,
-            )
-        ).start()
-
+            ),
+            captureOutput = true
+        )
         return String(process.inputStream.readBytes()).trimEnd()
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
-        val process = ProcessBuilder(
+        val process = runCommand(
             listOf(
                 "xcrun",
                 "simctl",
@@ -303,9 +303,9 @@ object LocalSimulatorUtils {
                 deviceId,
                 bundleId,
                 "data"
-            )
-        ).start()
-
+            ),
+            captureOutput = true
+        )
         return String(process.inputStream.readBytes()).trimEnd()
     }
 

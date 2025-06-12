@@ -14,17 +14,31 @@ object CommandLineUtils {
     private val logger = LoggerFactory.getLogger(CommandLineUtils::class.java)
 
     @Suppress("SpreadOperator")
-    fun runCommand(parts: List<String>, waitForCompletion: Boolean = true, outputFile: File? = null, params: Map<String, String> = emptyMap()): Process {
+    fun runCommand(
+        parts: List<String>, 
+        waitForCompletion: Boolean = true, 
+        outputFile: File? = null, 
+        params: Map<String, String> = emptyMap(),
+        captureOutput: Boolean = false
+    ): Process {
         logger.info("Running command line operation: $parts")
 
-        val processBuilder = if (outputFile != null) {
-            ProcessBuilder(*parts.toTypedArray())
-                .redirectOutput(outputFile)
-                .redirectError(outputFile)
-        } else {
-            ProcessBuilder(*parts.toTypedArray())
-                .redirectOutput(nullFile)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
+        val processBuilder = when {
+            outputFile != null -> {
+                ProcessBuilder(*parts.toTypedArray())
+                    .redirectOutput(outputFile)
+                    .redirectError(outputFile)
+            }
+            captureOutput -> {
+                ProcessBuilder(*parts.toTypedArray())
+                    .redirectError(ProcessBuilder.Redirect.PIPE)
+                // Don't redirect stdout when capturing output
+            }
+            else -> {
+                ProcessBuilder(*parts.toTypedArray())
+                    .redirectOutput(nullFile)
+                    .redirectError(ProcessBuilder.Redirect.PIPE)
+            }
         }
 
         processBuilder.environment().putAll(params)
