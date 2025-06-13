@@ -100,6 +100,11 @@ object TestRunner {
             PrintUtils.err(exception.message)
             if (exception is MaestroException.AssertionFailure) {
                 PrintUtils.err(exception.debugMessage)
+            } else {
+                val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
+                if (exception is MaestroException.DriverTimeout && debugMessage != null) {
+                    PrintUtils.err(debugMessage)
+                }
             }
         }
 
