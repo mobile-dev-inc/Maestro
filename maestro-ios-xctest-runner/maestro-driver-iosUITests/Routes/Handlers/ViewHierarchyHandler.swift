@@ -37,10 +37,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             let body = try JSONEncoder().encode(viewHierarchy)
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
-            logger.error("AppError in handleRequest, Error:\(error)");
+            NSLog("AppError in handleRequest, Error:\(error)");
             return error.httpResponse
         } catch let error {
-            logger.error("Error in handleRequest, Error:\(error)");
+            NSLog("Error in handleRequest, Error:\(error)");
             return AppError(message: "Snapshot failure while getting view hierarchy. Error: \(error.localizedDescription)").httpResponse
         }
     }
@@ -135,8 +135,15 @@ struct ViewHierarchyHandler: HTTPHandler {
             return hierarchy
         } catch let error {
             guard isIllegalArgumentError(error) else {
-                logger.error("Snapshot failure, cannot return view hierarchy due to \(error.localizedDescription)")
-                throw AppError(message: error.localizedDescription)
+                NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
+                if let nsError = error as NSError?,
+                   nsError.domain == "com.apple.dt.XCTest.XCTFuture",
+                   nsError.code == 1000,
+                   nsError.localizedDescription.contains("Timed out while evaluating UI query") {
+                    throw AppError(type: .timeout, message: "Snapshot timed out for app")
+                } else {
+                    throw AppError(message: error.localizedDescription)
+                }
             }
 
             NSLog("Snapshot failure, getting recovery element for fallback")
