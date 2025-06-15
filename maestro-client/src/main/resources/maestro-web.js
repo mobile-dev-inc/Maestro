@@ -76,10 +76,12 @@
 
     const isDocumentLoading = () => document.readyState !== 'complete'
 
-    const traverse = (node) => {
+    const traverse = (node, includeChildren = true) => {
       if (!node || isInvalidTag(node)) return null
 
-      const children = [...node.children || []].map(child => traverse(child)).filter(el => !!el)
+      const children = includeChildren
+        ? [...node.children || []].map(child => traverse(child)).filter(el => !!el)
+        : []
 
       const attributes = {
           text: getNodeText(node),
@@ -123,6 +125,16 @@
 
     maestro.getContentDescription = () => {
         return traverse(document.body)
+    }
+
+    maestro.queryCss = (selector) => {
+        // Returns a list of matching elements for the given CSS selector.
+        // Does not include children of discovered elements.
+        const elements = document.querySelectorAll(selector);
+
+        return Array.from(elements).map(el => {
+            return traverse(el, false);
+        });
     }
 
     maestro.tapOnSyntheticElement = (x, y) => {

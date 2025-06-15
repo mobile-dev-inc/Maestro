@@ -20,7 +20,6 @@
 package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
-import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.drivers.WebDriver
 import maestro.utils.MaestroTimer
@@ -33,12 +32,11 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
-import java.util.*
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(
-     val driver: Driver,
+    val driver: Driver,
 ) : AutoCloseable {
 
     val deviceName: String
@@ -432,6 +430,19 @@ class Maestro(
                 hierarchy = ViewHierarchy(element.treeNode)
             }
             return FindElementResult(element, hierarchy)
+        }
+    }
+
+    fun findElementsByOnDeviceQuery(
+        timeoutMs: Long,
+        query: OnDeviceElementQuery
+    ): OnDeviceElementQueryResult? {
+        return MaestroTimer.withTimeout(timeoutMs) {
+            val elements = driver.queryOnDeviceElements(query)
+
+            OnDeviceElementQueryResult(
+                elements = elements.mapNotNull { it.toUiElementOrNull() },
+            )
         }
     }
 
