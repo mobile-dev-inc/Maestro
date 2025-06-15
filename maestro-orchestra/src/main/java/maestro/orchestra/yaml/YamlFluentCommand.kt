@@ -903,7 +903,8 @@ data class YamlFluentCommand(
             selected = selector.selected,
             checked = selector.checked,
             focused = selector.focused,
-            childOf = selector.childOf?.let { toElementSelector(it) }
+            childOf = selector.childOf?.let { toElementSelector(it) },
+            css = selector.css,
         )
     }
 
