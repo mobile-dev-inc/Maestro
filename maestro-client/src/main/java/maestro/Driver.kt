@@ -21,7 +21,6 @@ package maestro
 
 import okio.Sink
 import java.io.File
-import java.util.UUID
 
 interface Driver {
 
@@ -103,4 +102,9 @@ interface Driver {
     fun setAirplaneMode(enabled: Boolean)
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
+
+    fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+        return listOf()
+    }
+
 }
