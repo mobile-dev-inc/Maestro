@@ -249,10 +249,10 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
-        
-        if (pathToBinary.isBlank()) {
-            throw SimctlError("Could not find app binary for bundle $bundleId - get_app_container returned empty path. App may not be properly installed.")
+        val pathToBinary = try {
+            Path(getAppBinaryDirectory(deviceId, bundleId))
+        } catch (e: Exception) {
+            throw SimctlError("Could not find app binary for bundle $bundleId at ${getAppBinaryDirectory(deviceId, bundleId)}", e)
         }
 
         if (Files.isDirectory(pathToBinary)) {
