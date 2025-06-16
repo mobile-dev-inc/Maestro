@@ -140,7 +140,12 @@ struct ViewHierarchyHandler: HTTPHandler {
                    nsError.domain == "com.apple.dt.XCTest.XCTFuture",
                    nsError.code == 1000,
                    nsError.localizedDescription.contains("Timed out while evaluating UI query") {
-                    throw AppError(type: .timeout, message: "Snapshot timed out for app")
+                    throw AppError(type: .timeout, message: error.localizedDescription)
+                } else if let nsError = error as NSError?,
+                           nsError.domain == "com.apple.dt.xctest.automation-support.error",
+                           nsError.code == 6,
+                           nsError.localizedDescription.contains("Unable to perform work on main run loop, process main thread busy for") {
+                    throw AppError(type: .timeout, message: nsError.localizedDescription)
                 } else {
                     throw AppError(message: error.localizedDescription)
                 }
