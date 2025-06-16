@@ -49,8 +49,11 @@ object LocalSimulatorUtils {
     )
 
     fun list(): SimctlList {
-        val process = runCommand(listOf("xcrun", "simctl", "list", "-j"), captureOutput = true)
+        val command = listOf("xcrun", "simctl", "list", "-j")
+
+        val process = ProcessBuilder(command).start()
         val json = String(process.inputStream.readBytes())
+
         return jacksonObjectMapper().readValue(json)
     }
 
@@ -79,11 +82,13 @@ object LocalSimulatorUtils {
     }
 
     private fun xcodePath(): String {
-        val process = runCommand(listOf("xcode-select", "-p"), captureOutput = true)
-        return String(process.inputStream.readBytes()).trimEnd().lines().first()
+        val process = ProcessBuilder(listOf("xcode-select", "-p"))
+            .start()
+
+        return process.inputStream.bufferedReader().readLine()
     }
 
-    fun bootSimulator(deviceId: String) { 
+    fun bootSimulator(deviceId: String) {
         runCommand(
             listOf(
                 "xcrun",
@@ -185,7 +190,7 @@ object LocalSimulatorUtils {
     }
 
     private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
-        val process = runCommand(
+        val process = ProcessBuilder(
             listOf(
                 "xcrun",
                 "simctl",
@@ -193,11 +198,10 @@ object LocalSimulatorUtils {
                 deviceId,
                 "launchctl",
                 "list",
-            ),
-            captureOutput = true
-        )
-        val output = String(process.inputStream.readBytes()).trimEnd()
-        return output.contains(bundleId)
+            )
+        ).start()
+
+        return String(process.inputStream.readBytes()).trimEnd().contains(bundleId)
     }
 
     private fun ensureStopped(deviceId: String, bundleId: String) {
@@ -247,8 +251,8 @@ object LocalSimulatorUtils {
     private fun reinstallApp(deviceId: String, bundleId: String) {
         val pathToBinary = try {
             Path(getAppBinaryDirectory(deviceId, bundleId))
-        } catch (exception: Exception) {
-            throw SimctlError("Could not find app binary for bundle $bundleId: ${exception.message}", exception)
+        } catch (e: Exception) {
+            throw SimctlError("Could not find app binary for bundle $bundleId at ${getAppBinaryDirectory(deviceId, bundleId)}", e)
         }
 
         if (Files.isDirectory(pathToBinary)) {
@@ -273,7 +277,7 @@ object LocalSimulatorUtils {
         logger.info("Clearing app $bundleId state")
         // Stop the app before clearing the file system
         // This prevents the app from saving its state after it has been cleared
-        terminate(deviceId, bundleId) 
+        terminate(deviceId, bundleId)
         ensureStopped(deviceId, bundleId)
 
         // reinstall the app as that is the most stable way to clear state
@@ -281,21 +285,21 @@ object LocalSimulatorUtils {
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
-        val process = runCommand(
+        val process = ProcessBuilder(
             listOf(
                 "xcrun",
                 "simctl",
                 "get_app_container",
                 deviceId,
                 bundleId,
-            ),
-            captureOutput = true
-        )
+            )
+        ).start()
+
         return String(process.inputStream.readBytes()).trimEnd()
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
-        val process = runCommand(
+        val process = ProcessBuilder(
             listOf(
                 "xcrun",
                 "simctl",
@@ -303,9 +307,9 @@ object LocalSimulatorUtils {
                 deviceId,
                 bundleId,
                 "data"
-            ),
-            captureOutput = true
-        )
+            )
+        ).start()
+
         return String(process.inputStream.readBytes()).trimEnd()
     }
 
