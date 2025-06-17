@@ -1,0 +1,58 @@
+appId: com.example.example
+tags:
+    - passing
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    text: Swipe Test (from_to)
+- assertVisible:
+    text: "Selected: Item 1"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 47% # x, y
+- assertVisible:
+    text: "Selected: Item 2"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 47% # x, y
+- assertVisible:
+    text: "Selected: Item 3"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 47% # x, y
+- assertVisible:
+    text: "Selected: Item 4"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 47% # x, y
+- assertVisible:
+    text: "Selected: Item 5"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 58% # x, y
+- assertVisible:
+    text: "Selected: Item 4"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 58% # x, y
+- assertVisible:
+    text: "Selected: Item 3"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 58% # x, y
+- assertVisible:
+    text: "Selected: Item 2"
+- swipe:
+    from:
+        id: "scrollWheel"
+    to: 50%, 58% # x, y
+- assertVisible:
+    text: "Selected: Item 1"
