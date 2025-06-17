@@ -1,17 +1,16 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.Job
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -24,6 +23,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.test.drivers.FakeDriver
@@ -40,8 +40,6 @@ import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
-import maestro.orchestra.util.Env.withDefaultEnvVars
-import maestro.test.FlowControllerTest
 
 class IntegrationTest {
 
@@ -2681,12 +2679,12 @@ class IntegrationTest {
         // When
         Maestro(driver).use {
             runBlocking {
-            orchestra(
-                it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
             }
         }
 
@@ -3158,7 +3156,7 @@ class IntegrationTest {
                             receivedLogs += metadata.logMessages
                         }
                     ).runFlow(commands)
-            }
+                }
             }
 
             assertThat(result).isFalse()
@@ -3543,7 +3541,7 @@ class IntegrationTest {
         val commands = readCommands("122_pause_resume")
         val driver = driver {
             element {
-                text = "Button" 
+                text = "Button"
                 bounds = Bounds(0, 0, 100, 100)
                 clickable = true
                 onClick = { element ->
@@ -3582,14 +3580,14 @@ class IntegrationTest {
             delay(100)
             orchestra.pause()
             assertThat(orchestra.isPaused).isTrue()
-            
+
             val commandsBeforeResume = executedCommands.toList()
             delay(100)
             assertThat(executedCommands).isEqualTo(commandsBeforeResume)
-            
+
             orchestra.resume()
             assertThat(orchestra.isPaused).isFalse()
-            
+
             flowJob.join()
         }
 
@@ -3599,7 +3597,7 @@ class IntegrationTest {
             "InputTextCommand",
             "TapOnCommand"
         ).inOrder()
-        
+
         driver.assertEvents(
             listOf(
                 Event.LaunchApp("com.example.app"),
@@ -3644,20 +3642,20 @@ class IntegrationTest {
 
             // Let both inputText commands run before pause
             delay(100)
-            
+
             // Pause after both inputText commands
             orchestra.pause()
             assertThat(orchestra.isPaused).isTrue()
-            
+
             // Verify no new commands execute during pause
             val commandsBeforeResume = executedCommands.toList()
             delay(100)
             assertThat(executedCommands).isEqualTo(commandsBeforeResume)
-            
+
             // Resume the flow
             orchestra.resume()
             assertThat(orchestra.isPaused).isFalse()
-            
+
             // Wait for the flow to complete
             flowJob.join()
         }
@@ -3673,7 +3671,7 @@ class IntegrationTest {
             "InputTextCommand",    // Second input using message
             "EvalScriptCommand"    // Second evalScript that verifies state
         ).inOrder()
-        
+
         // Verify the flow completed successfully with both messages
         driver.assertEvents(
             listOf(
@@ -3711,7 +3709,7 @@ class IntegrationTest {
             runBlocking {
                 val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
                 val flowId = "test-flow-124"
-                
+
                 val flowJob = supervisorScope.launch {
                     try {
                         val orchestra = Orchestra(
@@ -3732,7 +3730,7 @@ class IntegrationTest {
                                 if (!isActive) {
                                     return@Orchestra
                                 }
-                                
+
                                 val commandName = when {
                                     cmd.launchAppCommand != null -> "LaunchAppCommand"
                                     cmd.inputTextCommand != null -> "InputTextCommand"
@@ -3743,7 +3741,7 @@ class IntegrationTest {
                                     else -> "UnknownCommand"
                                 }
                                 executedCommands.add(commandName)
-                                
+
                                 if (commandName == "InputTextCommand" && !cancellationSignal.isCompleted) {
                                     cancellationSignal.complete(Unit)
                                 }
@@ -3751,7 +3749,7 @@ class IntegrationTest {
                         )
 
                         activeFlows[flowId] = coroutineContext[Job]
-                        
+
                         try {
                             orchestra.runFlow(commands)
                         } finally {
@@ -3766,7 +3764,7 @@ class IntegrationTest {
 
                 cancellationSignal.await()
                 activeFlows[flowId]?.cancel()
-                
+
                 try {
                     flowJob.join()
                 } catch (e: CancellationException) {
@@ -3778,23 +3776,49 @@ class IntegrationTest {
         // Then
         assertThat(completed).isGreaterThan(0)
         assertThat(skipped).isGreaterThan(0)
-        
+
         assertThat(executedCommands).containsAtLeast(
             "LaunchAppCommand",
             "EvalScriptCommand",
             "InputTextCommand"
         ).inOrder()
-        
+
         assertThat(executedCommands).doesNotContain("TapOnCommand")
-        
+
         driver.assertEvents(
             listOf(
                 Event.LaunchApp("com.example.app"),
                 Event.InputText("Hello before cancellation")
             )
         )
-        
+
         assertThat(activeFlows).isEmpty()
+    }
+
+    @Test
+    fun `Case 125 - Assert visible by CSS selector`() {
+        // Given
+        val commands = readCommands("125_assert_by_css")
+
+        val driver = driver {
+            element {
+                bounds = Bounds(0, 0, 100, 100)
+                text = "Test Element"
+                matchesCssFilter = ".test"
+            }
+        }
+
+        driver.addInstalledApp("http://example.com")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
     }
 
     private fun orchestra(
@@ -3832,7 +3856,10 @@ class IntegrationTest {
         return driver
     }
 
-    private fun readCommands(caseName: String, withEnv: () -> Map<String, String> = { emptyMap() }): List<MaestroCommand> {
+    private fun readCommands(
+        caseName: String,
+        withEnv: () -> Map<String, String> = { emptyMap() }
+    ): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
