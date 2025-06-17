@@ -547,7 +547,6 @@ class IOSDriver(
         } catch (timeoutException: IOSDeviceErrors.OperationTimeout) {
             throw MaestroException.DriverTimeout(
                 message = "Maestro driver timed out during $callName call",
-                operation = callName,
                 debugMessage = """
                     Your app screen might be too complex.
                     

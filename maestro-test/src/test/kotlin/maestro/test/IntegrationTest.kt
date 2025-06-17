@@ -3513,7 +3513,7 @@ class IntegrationTest {
         // When
         Maestro(driver).use { maestro ->
             runBlocking {
-                withContext(Dispatchers.IO) {
+                withContext(Dispatchers.Default) {
                     launch {
                         Orchestra(
                             maestro,
