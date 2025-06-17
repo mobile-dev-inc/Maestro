@@ -4,6 +4,10 @@ import FlyingFox
 final class ViewHierarchyHandlerTests: XCTestCase {
     
     override func setUpWithError() throws {
+        let port = ProcessInfo.processInfo.environment["PORT"]?.toUInt16()
+        if port != nil {
+            throw XCTSkip("Running tests on cloud, skipping")
+        }
         continueAfterFailure = false
         Task {
             try await startFlyingFoxServer()
@@ -66,5 +70,27 @@ final class ViewHierarchyHandlerTests: XCTestCase {
             accuracy: 0.5,
             "X offset matches"
         )
+    }
+    
+    func testAssertExpectedSnapshotRequestParameters() {
+        // given
+        let parameterDictionary = AXClientProxy.sharedClient().defaultParameters()
+        
+        // then
+        // First, make sure the dictionary is not nil
+        XCTAssertNotNil(parameterDictionary, "Parameter dictionary should not be nil")
+        
+        // Safely unwrap the optional dictionary
+        guard let unwrappedDictionary = parameterDictionary else {
+            XCTFail("Could not unwrap parameter dictionary because its nil")
+            return
+        }
+
+        // Assert individual values
+        XCTAssertEqual(unwrappedDictionary["snapshotKeyHonorModalViews"] as? Int, 0)
+        XCTAssertEqual(unwrappedDictionary["maxChildren"] as? Int, 2147483647)
+        XCTAssertEqual(unwrappedDictionary["maxDepth"] as? Int, 2147483647)
+        XCTAssertEqual(unwrappedDictionary["maxArrayCount"] as? Int, 2147483647)
+        XCTAssertEqual(unwrappedDictionary["traverseFromParentsToChildren"] as? Int, 1)
     }
 }

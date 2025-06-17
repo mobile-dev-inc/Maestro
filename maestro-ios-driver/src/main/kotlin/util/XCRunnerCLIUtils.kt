@@ -120,10 +120,14 @@ object XCRunnerCLIUtils {
         return runningApps(deviceId)[bundleId]
     }
 
-    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int): Process {
+    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int, snapshotKeyHonorModalViews: Boolean?): Process {
         val date = dateFormatter.format(LocalDateTime.now())
         val outputFile = File(logDirectory, "xctest_runner_$date.log")
         val logOutputDir = Files.createTempDirectory("maestro_xctestrunner_xcodebuild_output")
+        val params = mutableMapOf("TEST_RUNNER_PORT" to port.toString())
+        if (snapshotKeyHonorModalViews != null) {
+            params["TEST_RUNNER_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
+        }
         return CommandLineUtils.runCommand(
             listOf(
                 "xcodebuild",
@@ -137,7 +141,7 @@ object XCRunnerCLIUtils {
             ),
             waitForCompletion = false,
             outputFile = outputFile,
-            params = mapOf("TEST_RUNNER_PORT" to port.toString())
+            params = params,
         )
     }
 }

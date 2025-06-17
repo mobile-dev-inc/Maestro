@@ -8,8 +8,47 @@ data class WorkspaceConfig(
     val includeTags: StringList? = null,
     val excludeTags: StringList? = null,
     val local: Local? = null,
-    val executionOrder: ExecutionOrder? = null
+    val executionOrder: ExecutionOrder? = null,
+    val baselineBranch: String? = null,
+    val notifications: MaestroNotificationConfiguration? = null,
+    @Deprecated("not supported now by default on cloud") val disableRetries: Boolean = false,
+    val platform: PlatformConfiguration? = PlatformConfiguration(
+        android = PlatformConfiguration.AndroidConfiguration(disableAnimations = false),
+        ios = PlatformConfiguration.IOSConfiguration(disableAnimations = false)
+    ),
 ) {
+
+    data class MaestroNotificationConfiguration(
+        val email: EmailConfig? = null,
+        val slack: SlackConfig? = null,
+    ) {
+        data class EmailConfig(
+            val recipients: List<String>,
+            val enabled: Boolean = true,
+            val onSuccess: Boolean = false,
+        )
+
+        data class SlackConfig(
+            val channels: List<String>,
+            val apiKey: String,
+            val enabled: Boolean = true,
+            val onSuccess: Boolean = false,
+        )
+    }
+
+    data class PlatformConfiguration(
+        val android: AndroidConfiguration? = null,
+        val ios: IOSConfiguration? = null
+    ) {
+        data class AndroidConfiguration(
+            val disableAnimations: Boolean = false,
+        )
+
+        data class IOSConfiguration(
+            val disableAnimations: Boolean = false,
+            val snapshotKeyHonorModalViews: Boolean? = null,
+        )
+    }
 
     @JsonAnySetter
     fun setOtherField(key: String, other: Any?) {

@@ -332,8 +332,13 @@ object LocalSimulatorUtils {
     fun launchUITestRunner(
         deviceId: String,
         port: Int,
+        snapshotKeyHonorModalViews: Boolean?,
     ) {
         val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+        val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
+        if (snapshotKeyHonorModalViews != null) {
+            params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
+        }
         runCommand(
             listOf(
                 "xcrun",
@@ -344,7 +349,7 @@ object LocalSimulatorUtils {
                 deviceId,
                 "dev.mobile.maestro-driver-iosUITests.xctrunner"
             ),
-            params = mapOf("SIMCTL_CHILD_PORT" to port.toString()),
+            params = params,
             outputFile = outputFile,
             waitForCompletion = false,
         )

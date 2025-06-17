@@ -34,6 +34,8 @@
 		521C1F122D86CE940024EE42 /* TerminateAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */; };
 		521C1F142D86D3900024EE42 /* TerminateAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */; };
 		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
+		526111782DE5E8DA007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */ = {isa = PBXBuildFile; fileRef = 526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */; };
+		5261117A2DE5E8E7007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
 		52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */; };
 		52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */; };
@@ -134,6 +136,8 @@
 		521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppHandler.swift; sourceTree = "<group>"; };
 		521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppRequest.swift; sourceTree = "<group>"; };
 		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCAXClient_iOS+FBSnapshotReqParams.h"; sourceTree = "<group>"; };
+		526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCAXClient_iOS+FBSnapshotReqParams.m"; sourceTree = "<group>"; };
 		52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandleTests.swift; sourceTree = "<group>"; };
 		52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCInternalTestRun.h; sourceTree = "<group>"; };
 		52D8FA282D6DCC600015FAB3 /* _XCKVOExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCKVOExpectationImplementation.h; sourceTree = "<group>"; };
@@ -483,6 +487,8 @@
 		52D8FA8E2D6DCF010015FAB3 /* Categories */ = {
 			isa = PBXGroup;
 			children = (
+				526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */,
+				526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */,
 				521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */,
 				521C1F082D80184D0024EE42 /* XCUIApplication+Helper.h */,
 				52D8FAB22D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h */,
@@ -620,6 +626,7 @@
 				52D8FAA62D6DD1950015FAB3 /* XCUIApplicationProcess.h in Headers */,
 				52D8FAA82D6DD1950015FAB3 /* XCUIDevice.h in Headers */,
 				52D8FAA42D6DD1950015FAB3 /* XCUIApplication.h in Headers */,
+				526111782DE5E8DA007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */,
 				521C1F092D8018590024EE42 /* XCUIApplication+Helper.h in Headers */,
 				52D8FAA12D6DD13B0015FAB3 /* _XCTestImplementation.h in Headers */,
 				52D8FAAD2D6DD3A20015FAB3 /* FBLogger.h in Headers */,
@@ -768,6 +775,7 @@
 				521C1F072D8017480024EE42 /* AXClientProxy.m in Sources */,
 				61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */,
 				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
+				5261117A2DE5E8E7007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */,
 				52F33A942AE6823100692902 /* StatusResponse.swift in Sources */,
 				32A9C73E2D7A631A00545435 /* LaunchAppRequest.swift in Sources */,
 				32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */,
