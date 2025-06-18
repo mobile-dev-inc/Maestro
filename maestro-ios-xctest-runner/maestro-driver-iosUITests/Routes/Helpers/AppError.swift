@@ -5,6 +5,7 @@ import FlyingFox
 enum AppErrorType: String, Codable {
     case `internal`
     case precondition
+    case timeout
 }
 
 struct AppError: Error, Codable {
@@ -15,6 +16,7 @@ struct AppError: Error, Codable {
         switch type {
         case .internal: return .internalServerError
         case .precondition: return .badRequest
+        case .timeout: return .requestTimeout
         }
     }
 

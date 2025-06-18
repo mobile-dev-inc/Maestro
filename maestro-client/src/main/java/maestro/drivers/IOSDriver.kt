@@ -166,7 +166,7 @@ class IOSDriver(
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         return metrics.measured("operation", mapOf("command" to "contentDescriptor")) {
-            runDeviceCall("contentDescriptor") { viewHierarchy(excludeKeyboardElements) }
+            runDeviceCall("snapshot") { viewHierarchy(excludeKeyboardElements) }
         }
     }
 
@@ -544,6 +544,16 @@ class IOSDriver(
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
+        } catch (timeoutException: IOSDeviceErrors.OperationTimeout) {
+            throw MaestroException.DriverTimeout(
+                message = "Maestro driver timed out during $callName call",
+                debugMessage = """
+                    Your app screen might be too complex.
+                    
+                    * This usually happens when the screen has very large view hierarchies, such as table views loading with large amount of data.
+                    * Try loading fewer cells initially or implementing lazy loading to reduce the load during tests.
+               """.trimIndent()
+            )
         }
     }
 

@@ -33,6 +33,7 @@ jobs:
           cache: gradle
 
       - name: Test
+        id: unit-test
         run: ./gradlew test
 
       - name: Run Integration test
@@ -51,6 +52,15 @@ jobs:
         with:
           name: maestro-root-dir-android
           path: ~/.maestro
+          retention-days: 1
+          include-hidden-files: true
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-test-report
+          path: ./maestro-test/build/reports/tests/test/index.html
           retention-days: 1
           include-hidden-files: true
 
