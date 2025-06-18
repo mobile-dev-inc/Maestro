@@ -60,7 +60,7 @@ jobs:
         if: failure()
         with:
           name: maestro-test-report
-          path: ./maestro-test/build/reports/tests/test/index.html
+          path: ./maestro-test/build/reports
           retention-days: 1
           include-hidden-files: true
 

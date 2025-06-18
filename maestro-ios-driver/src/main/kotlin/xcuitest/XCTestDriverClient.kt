@@ -266,7 +266,7 @@ class XCTestDriverClient(
         when {
             code == 408 -> {
                 logger.error("Request for $pathString timeout, body: $responseBodyAsString")
-                throw XCUITestServerError.OperationTimeout("Request for $pathString timed out", pathString)
+                throw XCUITestServerError.OperationTimeout(error.errorMessage, pathString)
             }
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")

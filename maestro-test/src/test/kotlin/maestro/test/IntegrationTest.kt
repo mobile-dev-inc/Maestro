@@ -12,6 +12,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -3509,12 +3511,21 @@ class IntegrationTest {
 
         var skipped = 0
         var completed = 0
+        val expectedSkipped = 7
+
 
         // When
         Maestro(driver).use { maestro ->
             runBlocking {
-                withContext(Dispatchers.Default) {
-                    launch {
+                // Create a job that we can cancel
+                val job = Job()
+
+                // Create a supervisor scope so our skipped counter can still update after cancellation
+                val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+                // Launch the work in our cancellable scope
+                scope.launch(job) {
+                    try {
                         Orchestra(
                             maestro,
                             lookupTimeoutMs = 0L,
@@ -3526,15 +3537,32 @@ class IntegrationTest {
                                 skipped += 1
                             },
                         ).runFlow(commands)
-                    }.cancel()
+                    } catch (e: CancellationException) {
+                        // Expected cancellation
+                    }
                 }
+
+                // Cancel the job immediately
+                job.cancel()
+
+                // Actively wait for skipped count to reach expected value or timeout
+                withTimeout(2000) {
+                    while (skipped < expectedSkipped) {
+                        yield() // Cooperatively yield to let other coroutines run
+
+                        // Check every 10ms
+                        delay(10)
+                    }
+                }
+
+                // Clean up the scope
+                scope.cancel()
             }
         }
 
         // Then
         assertThat(skipped).isEqualTo(7)
         assertThat(completed).isEqualTo(0)
-
     }
 
     @Test
