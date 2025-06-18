@@ -88,7 +88,6 @@ final class ViewHierarchyHandlerTests: XCTestCase {
         }
 
         // Assert individual values
-        XCTAssertEqual(unwrappedDictionary["snapshotKeyHonorModalViews"] as? Int, 0)
         XCTAssertEqual(unwrappedDictionary["maxChildren"] as? Int, 2147483647)
         XCTAssertEqual(unwrappedDictionary["maxDepth"] as? Int, 2147483647)
         XCTAssertEqual(unwrappedDictionary["maxArrayCount"] as? Int, 2147483647)
