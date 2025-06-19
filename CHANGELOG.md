@@ -1,6 +1,21 @@
 # Changelog
 
 ## Unreleased
+Fix:
+- Resolved an issue where view hierarchy was incorrectly returned on full-screen apps or larger devices (e.g., iPhone Pro models, iOS 18). This affected selector matching for taps and assertions.
+- Maestro now properly handles timeouts from the XCTest framework when the app UI is slow or too large. These are surfaced as actionable exceptions with helpful messages.
+- setLocation now mocks all major location providers (GPS, network, fused). Also ensures proper cleanup when the driver shuts down.
+- Errors when .maestro config file is misinterpreted as a test flow file.
+
+Features:
+- Platform configs are now supported via workspace configuration [(Docs)](https://docs.maestro.dev/api-reference/configuration/workspace-configuration#platform-configuration):
+  * `disableAnimations` for both android and iOS.
+  * `snapshotKeyHonorModalViews`: On iOS, includes elements behind modals that are still visible on modal to user but gets missing in hierarchy.
+- Added support for selecting `select` tags dropdown elements in web flows.
+- Debug messages are now attached to Maestro exceptions to help users understand failures faster.
+
+Breaking Change:
+- `retryTapIfNoChange` is now disabled by default. It was causing side effects in some apps. If needed, it can still be manually enabled.
 
 ## 1.40.3
 Fix
