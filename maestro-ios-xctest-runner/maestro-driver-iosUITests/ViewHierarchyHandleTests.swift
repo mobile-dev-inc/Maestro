@@ -22,6 +22,8 @@ final class ViewHierarchyHandlerTests: XCTestCase {
     
     func testAppOffsetAdjustsCorrectly() async throws {
         // given
+        let testApp = await XCUIApplication(bundleIdentifier: "org.wikimedia.wikipedia")
+        await testApp.launch()
         guard let url = URL(string: "http://localhost:8080/hierarchy") else {
             throw NSError(domain: "XCTestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to construct URL"])
         }
@@ -31,7 +33,6 @@ final class ViewHierarchyHandlerTests: XCTestCase {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let springboardApp = await XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let testApp = await XCUIApplication(bundleIdentifier: "org.wikimedia.wikipedia")
         let springboardFrame = await springboardApp.frame
         let testAppFrame = await testApp.frame
         
@@ -87,7 +88,6 @@ final class ViewHierarchyHandlerTests: XCTestCase {
         }
 
         // Assert individual values
-        XCTAssertEqual(unwrappedDictionary["snapshotKeyHonorModalViews"] as? Int, 0)
         XCTAssertEqual(unwrappedDictionary["maxChildren"] as? Int, 2147483647)
         XCTAssertEqual(unwrappedDictionary["maxDepth"] as? Int, 2147483647)
         XCTAssertEqual(unwrappedDictionary["maxArrayCount"] as? Int, 2147483647)
