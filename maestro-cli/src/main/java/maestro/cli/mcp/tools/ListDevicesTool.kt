@@ -1,64 +1,64 @@
 package maestro.cli.mcp.tools
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
+import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
+import kotlinx.serialization.json.*
 import maestro.device.DeviceService
-import maestro.cli.mcp.McpTool
-import maestro.cli.mcp.ToolCallResult
-import maestro.cli.session.MaestroSessionManager
 
-// Empty params class for tools with no parameters
-@Serializable
-class EmptyParams
-
-@Serializable
-data class DeviceInfo(
-    val device_id: String,
-    val name: String,
-    val platform: String,
-    val type: String,
-    val connected: Boolean
-)
-
-@Serializable
-data class ListDevicesResult(val devices: List<DeviceInfo>)
-
-class ListDevicesTool(
-    private val sessionManager: MaestroSessionManager
-) : McpTool() {
-    override val definition = generateToolDefinition<EmptyParams>(
-        "list_devices",
-        "List all devices, both connected and available for launch, with a connected flag."
-    )
-
-    override suspend fun execute(arguments: JsonElement): ToolCallResult {
-        return safeExecute {
-            val connectedDevices = DeviceService.listConnectedDevices(includeWeb = true)
-            val availableDevices = DeviceService.listAvailableForLaunchDevices(includeWeb = true)
-
-            val connectedSet = connectedDevices.map { it.instanceId }.toSet()
-
-            val devices = mutableListOf<DeviceInfo>()
-            devices += connectedDevices.map { device ->
-                DeviceInfo(
-                    device_id = device.instanceId,
-                    name = device.description,
-                    platform = device.platform.name.lowercase(),
-                    type = device.deviceType.name.lowercase(),
-                    connected = true
+object ListDevicesTool {
+    fun create(): RegisteredTool {
+        return RegisteredTool(
+            Tool(
+                name = "list_devices",
+                description = "List all available devices that can be used for automation",
+                inputSchema = Tool.Input(
+                    properties = buildJsonObject { },
+                    required = emptyList()
+                )
+            )
+        ) { _ ->
+            try {
+                val availableDevices = DeviceService.listAvailableForLaunchDevices(includeWeb = true)
+                val connectedDevices = DeviceService.listConnectedDevices()
+                
+                val allDevices = buildJsonArray {
+                    // Add connected devices
+                    connectedDevices.forEach { device ->
+                        addJsonObject {
+                            put("device_id", device.instanceId)
+                            put("name", device.description)
+                            put("platform", device.platform.name.lowercase())
+                            put("type", device.deviceType.name.lowercase())
+                            put("connected", true)
+                        }
+                    }
+                    
+                    // Add available devices that aren't already connected
+                    availableDevices.forEach { device ->
+                        val alreadyConnected = connectedDevices.any { it.instanceId == device.modelId }
+                        if (!alreadyConnected) {
+                            addJsonObject {
+                                put("device_id", device.modelId)
+                                put("name", device.description)
+                                put("platform", device.platform.name.lowercase())
+                                put("type", device.deviceType.name.lowercase()) 
+                                put("connected", false)
+                            }
+                        }
+                    }
+                }
+                
+                val result = buildJsonObject {
+                    put("devices", allDevices)
+                }
+                
+                CallToolResult(content = listOf(TextContent(result.toString())))
+            } catch (e: Exception) {
+                CallToolResult(
+                    content = listOf(TextContent("Failed to list devices: ${e.message}")),
+                    isError = true
                 )
             }
-            devices += availableDevices.filter { it.modelId !in connectedSet }.map { device ->
-                DeviceInfo(
-                    device_id = device.modelId,
-                    name = device.description,
-                    platform = device.platform.name.lowercase(),
-                    type = device.deviceType.name.lowercase(),
-                    connected = false
-                )
-            }
-            val result = ListDevicesResult(devices)
-            successResponse(result)
         }
     }
 }

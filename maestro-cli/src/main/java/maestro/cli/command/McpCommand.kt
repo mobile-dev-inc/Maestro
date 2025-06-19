@@ -2,7 +2,7 @@ package maestro.cli.command
 
 import picocli.CommandLine
 import java.util.concurrent.Callable
-import maestro.cli.mcp.McpServer
+import maestro.cli.mcp.runMaestroMcpServer
 
 @CommandLine.Command(
     name = "mcp",
@@ -12,7 +12,7 @@ import maestro.cli.mcp.McpServer
 )
 class McpCommand : Callable<Int> {
     override fun call(): Int {
-        McpServer.start()
+        runMaestroMcpServer()
         return 0
     }
 } 
