@@ -82,6 +82,12 @@ dependencies {
     implementation(libs.skiko.windows.arm64)
     implementation(libs.skiko.windows.x64)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.mcp.kotlin.sdk) {
+        version {
+            branch = "steviec/kotlin-1.8"
+        }
+        exclude(group = "org.slf4j", module = "slf4j-simple")
+    }
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
