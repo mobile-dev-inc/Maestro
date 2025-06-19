@@ -40,19 +40,19 @@ object TapOnTool {
                         }
                         putJsonObject("enabled") {
                             put("type", "boolean")
-                            put("description", "Additional filter: only match elements that are enabled (true) or disabled (false)")
+                            put("description", "If true, only match enabled elements. If false, only match disabled elements. Omit this field to match regardless of enabled state.")
                         }
                         putJsonObject("checked") {
                             put("type", "boolean")
-                            put("description", "Additional filter: only match elements that are checked (true) or unchecked (false)")
+                            put("description", "If true, only match checked elements. If false, only match unchecked elements. Omit this field to match regardless of checked state.")
                         }
                         putJsonObject("focused") {
                             put("type", "boolean")
-                            put("description", "Additional filter: only match elements that are focused")
+                            put("description", "If true, only match focused elements. If false, only match unfocused elements. Omit this field to match regardless of focus state.")
                         }
                         putJsonObject("selected") {
                             put("type", "boolean")
-                            put("description", "Additional filter: only match elements that are selected")
+                            put("description", "If true, only match selected elements. If false, only match unselected elements. Omit this field to match regardless of selection state.")
                         }
                     },
                     required = listOf("device_id")

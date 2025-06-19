@@ -19,6 +19,9 @@ import maestro.cli.mcp.tools.TapOnTool
 import maestro.cli.mcp.tools.InputTextTool
 import maestro.cli.mcp.tools.BackTool
 import maestro.cli.mcp.tools.StopAppTool
+import maestro.cli.mcp.tools.RunFlowTool
+import maestro.cli.mcp.tools.RunFlowFilesTool
+import maestro.cli.mcp.tools.CheckFlowSyntaxTool
 
 // Main function to run the Maestro MCP server
 fun runMaestroMcpServer() {
@@ -49,7 +52,10 @@ fun runMaestroMcpServer() {
         TapOnTool.create(sessionManager),
         InputTextTool.create(sessionManager),
         BackTool.create(sessionManager),
-        StopAppTool.create(sessionManager)
+        StopAppTool.create(sessionManager),
+        RunFlowTool.create(sessionManager),
+        RunFlowFilesTool.create(sessionManager),
+        CheckFlowSyntaxTool.create()
     ))
 
 

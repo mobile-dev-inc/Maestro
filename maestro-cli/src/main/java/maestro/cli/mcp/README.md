@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Maestro MCP (Model Context Protocol) server enables LLM-driven automation and orchestration of Maestro commands and device management. It exposes Maestro's capabilities as a set of tools accessible via the MCP protocol, allowing integration with LLM agents, IDEs, etc.
+The Maestro MCP (Model Context Protocol) server enables LLM-driven automation and orchestration of Maestro commands and device management. It serves two primary functions for calling LLMs:
+- enables LLMs to direct control and interact with devices using Maestro device capabilities
+- enables LLMs to write, validate, and run Maestro code (flows)
 
 The MCP server is designed to be extensible, maintainable, and easy to run as part of the Maestro CLI. It supports real-time device management, app automation, and more, all via a standardized protocol.
 
@@ -10,6 +12,7 @@ The MCP server is designed to be extensible, maintainable, and easy to run as pa
 
 - Exposes Maestro device and automation commands as MCP tools
 - Supports listing, launching, and interacting with devices
+- Supports running flow yaml or files and checking the flow file syntax
 - Easily extensible: add new tools with minimal boilerplate
 - Includes a test script and config for automated validation
 
@@ -28,19 +31,17 @@ This launches the MCP server via the Maestro CLI, exposing Maestro tools over ST
 ## Extending the MCP Server
 
 To add a new tool:
-1. Create a new file in `maestro-cli/src/main/java/maestro/cli/mcp/tools/` subclassing `McpTool` or `McpCommandTool`.
-2. Register your tool in `McpServer.kt` by adding `register(YourNewTool(sessionManager))` to the tool registry.
+1. Create a new file in `maestro-cli/src/main/java/maestro/cli/mcp/tools/` following the same patterns as the other tools.
+2. Add your tool to the `addTools` call in `McpServer.kt`
 3. Build the CLI with `./gradlew :maestro-cli:installDist`
-4. Test your tool by running `./maestro-cli/src/test/mcp/test-mcp-tool.sh`
+4. Test your tool by running `./maestro-cli/src/test/mcp/test-mcp-tool.sh` with appropriate args for your tool
 
 ## Implementation Notes & Rationale
 
-### Why Not Use the Official MCP Kotlin SDK?
+### Using forked version of official kotlin MCP SDK
 
-The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) was considered as a starting point. However, it was not used for the following reasons:
-- **Version Incompatibility:** The SDK requires Java 21 and Kotlin 2.x, while Maestro is built on Java 8 and Kotlin 1.8.x for broad compatibility.
-- **Spec Lag:** At the time of integration, the SDK lagged behind the latest MCP protocol specification, which would have required significant patching or forking.
-- **Minimalism:** Only a small subset of the SDK's functionality was needed, so a minimal, self-contained implementation was preferred for maintainability and reviewability.
+The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) can't be used directly because it requires Java 21 and Kotlin 2.x, while Maestro is built on Java 8 and Kotlin 1.8.x for broad compatibility. However, we want to be able to benefit from features added to the SDK since the MCP spec is changing rapiadly. So we created a fork that "downgrades" the reference SDK to Java 8 and Kotlin 1.8.22.
+
 
 ### Why Integrate MCP Server Directly Into `maestro-cli`?
 
@@ -48,8 +49,8 @@ The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk
 - **Simplicity:** Keeping all MCP logic within `maestro-cli` avoids complex build configurations and makes the integration easier to maintain and review.
 - **Extensibility:** This approach allows new tools to be added with minimal boilerplate and direct access to CLI features.
 
-### Potential Future Refactorings
+### Potential Future Improvements
 
 - **Shared Abstractions:** If more MCP-related code or other integrations are needed, consider extracting shared abstractions (e.g., session management, tool interfaces) into a `common` or `core` module. This would allow for a clean separation and potentially enable a standalone `maestro-mcp` module.
-- **Standalone Binary:** The MCP server could be refactored into its own binary, decoupled from the main CLI, for use cases where a dedicated MCP endpoint is desired.
+- **Streamable HTTP:** This MCP server currently only uses STDIO for communication.
 
