@@ -22,6 +22,7 @@ import maestro.cli.mcp.tools.StopAppTool
 import maestro.cli.mcp.tools.RunFlowTool
 import maestro.cli.mcp.tools.RunFlowFilesTool
 import maestro.cli.mcp.tools.CheckFlowSyntaxTool
+import maestro.cli.mcp.tools.InspectViewHierarchyTool
 
 // Main function to run the Maestro MCP server
 fun runMaestroMcpServer() {
@@ -55,7 +56,8 @@ fun runMaestroMcpServer() {
         StopAppTool.create(sessionManager),
         RunFlowTool.create(sessionManager),
         RunFlowFilesTool.create(sessionManager),
-        CheckFlowSyntaxTool.create()
+        CheckFlowSyntaxTool.create(),
+        InspectViewHierarchyTool.create(sessionManager)
     ))
 
 
