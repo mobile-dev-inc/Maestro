@@ -43,6 +43,7 @@ import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
+import kotlin.collections.plusAssign
 
 class IntegrationTest {
 
@@ -4013,6 +4014,30 @@ class IntegrationTest {
 
         // Then
         // No test failure - if we reach this point, the test passed successfully
+    }
+
+    @Test
+    fun `Case 131 - runScript with string interpolation file name`() {
+        val commands = readCommands("131_run_script_with_string_interpolation")
+        val driver = driver {}
+
+        val receivedLogs = mutableListOf<String>()
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }).runFlow(commands)
+            }
+        }
+
+        assertThat(receivedLogs).containsExactly(
+            "Log from myScript.js",
+            "Log from myScript.js",
+            "Log from myScript.js",
+            "Log from myScript.js",
+        )
     }
 
     private fun orchestra(
