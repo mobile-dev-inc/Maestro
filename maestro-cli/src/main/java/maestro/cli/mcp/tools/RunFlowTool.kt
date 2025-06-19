@@ -15,11 +15,42 @@ object RunFlowTool {
         return RegisteredTool(
             Tool(
                 name = "run_flow",
-                description = "Use this when interacting with a device and running adhoc commands, preferably one at a time. " +
-                    "Explore an app, test commands, or debug by running Maestro commands. " +
-                    "Call list_devices first if you don't have an up-to-date view of available devices. " +
-                    "Syntax will be automatically checked during execution. " +
-                    "Example formats: '- tapOn: 123' or 'appId: com.example\\n---\\n- tapOn: 123'",
+                description = """
+                    Use this when interacting with a device and running adhoc commands, preferably one at a time.
+
+                    Whenever you're exploring an app, testing out commands or debugging, prefer using this tool over creating temp files and using run_flow_files.
+
+                    Run a set of Maestro commands (one or more). This can be a full maestro script (including headers), a set of commands (one per line) or simply a single command (eg '- tapOn: 123').
+
+                    If this fails due to no device running, please ask the user to start a device!
+
+                    If you don't have an up-to-date view hierarchy or screenshot on which to execute the commands, please call inspect_view_hierarchy first, instead of blindly guessing.
+
+                    *** You don't need to call check_syntax before executing this, as syntax will be checked as part of the execution flow. ***
+
+                    Use the `inspect_view_hierarchy` tool to retrieve the current view hierarchy and use it to execute commands on the device.
+                    Use the `cheat_sheet` tool to retrieve a summary of Maestro's flow syntax before using any of the other tools.
+
+                    Examples of valid inputs:
+                    ```
+                    - tapOn: 123
+                    ```
+
+                    ```
+                    appId: any
+                    ---
+                    - tapOn: 123
+                    ```
+
+                    ```
+                    appId: any
+                    # other headers here
+                    ---
+                    - tapOn: 456
+                    - scroll
+                    # other commands here
+                    ```
+                """.trimIndent(),
                 inputSchema = Tool.Input(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
