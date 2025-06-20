@@ -96,8 +96,11 @@ echo "Testing $TOOL..." >&2
 
 # Capture both stdout and stderr
 debug "Command output:"
-eval "$FULL_CMD" 2>&1 | tee >(cat 1>&2)
-STATUS=${PIPESTATUS[0]}
+OUTPUT=$(eval "$FULL_CMD" 2>&1)
+STATUS=$?
+
+# Show output only once
+echo "$OUTPUT"
 
 if [ $STATUS -ne 0 ]; then
   echo -e "${RED}FAIL${NC}: Tool execution failed with status $STATUS" >&2
