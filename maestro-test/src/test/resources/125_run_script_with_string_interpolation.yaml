@@ -1,0 +1,10 @@
+appId: com.example.app
+env:
+    SCRIPT_FILE: 125_myScript.js
+---
+- runScript: 125_myScript.js
+- runScript:
+      file: ${SCRIPT_FILE}
+- runScript: ${ (120 + 5) + '_myScript.js' }
+- evalScript: ${ output.somePath = "125_myScript.js" }
+- runScript: ${ output.somePath }

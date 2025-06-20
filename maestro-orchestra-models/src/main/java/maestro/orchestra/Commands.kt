@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -26,8 +27,9 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.FileReader
 import maestro.orchestra.util.InputRandomTextHelper
-import com.fasterxml.jackson.annotation.JsonIgnore
+import java.nio.file.Path
 
 sealed interface Command {
 
@@ -842,10 +844,11 @@ data class DefineVariablesCommand(
 }
 
 data class RunScriptCommand(
-    val script: String,
+    val script: String = "",
     val env: Map<String, String> = emptyMap(),
     val sourceDescription: String,
     val condition: Condition?,
+    val flowPath: Path,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -863,6 +866,11 @@ data class RunScriptCommand(
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
+            sourceDescription = sourceDescription.evaluateScripts(jsEngine),
+            script = FileReader.readFile(
+                currentFlow = flowPath,
+                fileToRead = sourceDescription.evaluateScripts(jsEngine)
+            )
         )
     }
 }
