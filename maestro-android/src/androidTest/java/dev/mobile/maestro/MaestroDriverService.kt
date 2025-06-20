@@ -64,6 +64,7 @@ import maestro_android.setLocationResponse
 import maestro_android.tapResponse
 import maestro_android.viewHierarchyResponse
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
