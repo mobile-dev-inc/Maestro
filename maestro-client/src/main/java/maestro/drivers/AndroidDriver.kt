@@ -73,6 +73,9 @@ class AndroidDriver(
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
+        .keepAliveTime(2, TimeUnit.MINUTES) // Send pings every 1 minute
+        .keepAliveTimeout(20, TimeUnit.SECONDS) // Wait up to 20s for ACK
+        .keepAliveWithoutCalls(true)
         .usePlaintext()
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
