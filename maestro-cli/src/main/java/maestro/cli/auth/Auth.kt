@@ -11,6 +11,8 @@ import io.ktor.server.routing.routing
 import java.awt.Desktop
 import java.net.URI
 import java.nio.file.Paths
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
@@ -103,6 +105,10 @@ class Auth(
         val deferredToken = CompletableDeferred<String>()
 
         val port = getFreePort()
+        val logMessage = "[Auth] Starting local callback server on port $port"
+        info(logMessage)
+        logToFile(logMessage)
+        
         val server = embeddedServer(Netty, configure = { shutdownTimeout = 0; shutdownGracePeriod = 0 }, port = port) {
             routing {
                 get("/callback") {
@@ -112,36 +118,67 @@ class Auth(
         }.start(wait = false)
 
         val authUrl = apiClient.getAuthUrl(port.toString())
-        info("Your browser has been opened to visit:\n\n\t$authUrl")
+        val urlMessage = "Your browser has been opened to visit:\n\n\t$authUrl"
+        info(urlMessage)
+        logToFile(urlMessage)
 
         if (Desktop.isDesktopSupported()) {
             Desktop.getDesktop().browse(URI(authUrl))
         } else {
-            err("Failed to open browser on this platform. Please open the above URL in your preferred browser.")
+            val errorMessage = "Failed to open browser on this platform. Please open the above URL in your preferred browser."
+            err(errorMessage)
+            logToFile("[ERROR] $errorMessage")
             throw UnsupportedOperationException("Failed to open browser automatically on this platform. Please open the above URL in your preferred browser.")
         }
 
         val token = runBlocking {
             deferredToken.await()
         }
+        val stopMessage = "[Auth] Stopping local callback server on port $port"
+        info(stopMessage)
+        logToFile(stopMessage)
+        
         server.stop(0, 0)
         setCachedAuthToken(token)
-        success("Authentication completed.")
+        val successMessage = "Authentication completed."
+        success(successMessage)
+        logToFile(successMessage)
         return token
     }
 
     private suspend fun handleCallback(call: ApplicationCall, deferredToken: CompletableDeferred<String>) {
+        val requestMessage = "[Auth] Handling /callback request. Query params: ${call.request}"
+        info(requestMessage)
+        logToFile(requestMessage)
+        
         val code = call.request.queryParameters["code"]
         if (code.isNullOrEmpty()) {
-            err("No authorization code received. Please try again.")
+            val errorMessage = "[Auth] No authorization code received in callback. Query string: ${call.request}"
+            err(errorMessage)
+            logToFile("[ERROR] $errorMessage")
             call.respondText(FAILURE_HTML, ContentType.Text.Html)
             return
         }
 
-        val newApiKey = apiClient.exchangeToken(code)
-
-        call.respondText(SUCCESS_HTML, ContentType.Text.Html)
-        deferredToken.complete(newApiKey)
+        try {
+            val exchangeMessage = "[Auth] Attempting to exchange code for token"
+            info(exchangeMessage)
+            logToFile(exchangeMessage)
+            
+            val newApiKey = apiClient.exchangeToken(code)
+            val successMessage = "[Auth] Token exchange successful."
+            info(successMessage)
+            logToFile(successMessage)
+            
+            call.respondText(SUCCESS_HTML, ContentType.Text.Html)
+            deferredToken.complete(newApiKey)
+        } catch (e: Exception) {
+            val errorMessage = "[Auth] Exception during token exchange: ${e::class.simpleName}: ${e.message}"
+            err(errorMessage)
+            logToFile("[ERROR] $errorMessage")
+            e.printStackTrace()
+            call.respondText(FAILURE_HTML, ContentType.Text.Html)
+        }
     }
 
     private fun setCachedAuthToken(token: String?) {
@@ -153,6 +190,18 @@ class Auth(
         }
     }
 
+    private fun logToFile(message: String) {
+        try {
+            val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))
+            val logEntry = "$timestamp | INFO | Auth | $message\n"
+            authLogFile.parent.createDirectories()
+            authLogFile.toFile().appendText(logEntry)
+        } catch (e: Exception) {
+            // Print error to console for debugging
+            println("[DEBUG] Failed to log to file: "+e.message)
+        }
+    }
+
     companion object {
 
         private val cachedAuthTokenFile by lazy {
@@ -161,6 +210,19 @@ class Auth(
                 ".mobiledev",
                 "authtoken"
             )
+        }
+
+        private val authLogFile by lazy {
+            val userHome = System.getProperty("user.home")
+            val appName = "maestro-studio"
+            
+            val userDataPath = when (System.getProperty("os.name").lowercase()) {
+                "mac os x" -> Paths.get(userHome, "Library", "Application Support", appName)
+                "windows" -> Paths.get(System.getenv("APPDATA") ?: userHome, appName)
+                else -> Paths.get(userHome, ".config", appName) // Linux
+            }
+            
+            userDataPath.resolve("logs").resolve("maestro-cli-auth.log")
         }
 
     }
