@@ -295,7 +295,14 @@ object LocalSimulatorUtils {
             )
         ).start()
 
-        return String(process.inputStream.readBytes()).trimEnd()
+        val output = String(process.inputStream.readBytes()).trimEnd()
+        val errorOutput = String(process.errorStream.readBytes()).trimEnd()
+        val exitCode = process.waitFor() //avoiding race conditions
+
+        if (exitCode != 0) {
+            throw SimctlError("Failed to get app binary directory for bundle $bundleId on device $deviceId: $errorOutput")
+        }
+        return output
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
