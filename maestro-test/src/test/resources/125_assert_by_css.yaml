@@ -1,0 +1,5 @@
+url: http://example.com
+---
+- launchApp
+- assertVisible:
+    css: .test

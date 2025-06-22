@@ -35,7 +35,8 @@ data class FakeLayoutElement(
     var color: Color = Color.BLACK,
     var onClick: (FakeLayoutElement) -> Unit = {},
     val children: MutableList<FakeLayoutElement> = mutableListOf(),
-    var mutatingText: (() -> String)? = null
+    var mutatingText: (() -> String)? = null,
+    var matchesCssFilter: String? = null,
 ) {
 
     fun toTreeNode(): TreeNode {

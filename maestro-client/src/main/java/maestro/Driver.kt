@@ -102,4 +102,9 @@ interface Driver {
     fun setAirplaneMode(enabled: Boolean)
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
+
+    fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+        return listOf()
+    }
+
 }
