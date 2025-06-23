@@ -36,6 +36,7 @@ jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "1.8.22"
 kotlinResult = "1.1.18"
+kotlinx-serialization-json = "1.5.0"
 ktor = "2.3.6"
 micrometerObservation = "1.13.4"
 micrometerCore = "1.13.4"
@@ -55,10 +56,12 @@ coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
 clikt = "4.2.2"
 gmsLocation = "21.3.0"
+mcpKotlinSdk = "steviec/kotlin-1.8"  # Git branch name
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
 androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidxUiautomator" }
@@ -131,6 +134,7 @@ square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.re
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
+mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
 
 [bundles]
 

@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.jreleaser)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 group = "dev.mobile"
@@ -48,8 +49,8 @@ dependencies {
     implementation(project(path = ":maestro-utils"))
     annotationProcessor(libs.picocli.codegen)
 
-    implementation(project(":maestro-client"))
     implementation(project(":maestro-orchestra"))
+    implementation(project(":maestro-client"))
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-ios-driver"))
     implementation(project(":maestro-studio:server"))
@@ -80,6 +81,14 @@ dependencies {
     implementation(libs.skiko.linux.x64)
     implementation(libs.skiko.windows.arm64)
     implementation(libs.skiko.windows.x64)
+    implementation(libs.kotlinx.serialization.json)
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.2.0")
+    implementation(libs.mcp.kotlin.sdk) {
+        version {
+            branch = "steviec/kotlin-1.8"
+        }
+        exclude(group = "org.slf4j", module = "slf4j-simple")
+    }
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
