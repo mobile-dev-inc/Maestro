@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.auth.ApiKey
 import maestro.utils.HttpClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -37,10 +38,10 @@ object QueryDocsTool {
                     )
                 }
                 
-                val apiKey = System.getenv("MAESTRO_API_KEY")
+                val apiKey = ApiKey.getToken()
                 if (apiKey.isNullOrBlank()) {
                     return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("MAESTRO_API_KEY environment variable is required")),
+                        content = listOf(TextContent("MAESTRO_CLOUD_API_KEY environment variable is required")),
                         isError = true
                     )
                 }
