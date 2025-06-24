@@ -5,6 +5,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import maestro.auth.ApiKey
 import java.io.IOException
 import java.nio.file.Paths
 import kotlin.io.path.createDirectories
@@ -25,12 +26,11 @@ data class AuthResponse(
 object AuthService {
 
     private val mobileDevDir = Paths.get(System.getProperty("user.home"), ".mobiledev")
-    private val authTokenFile = mobileDevDir.resolve("authtoken")
     private val openAiTokenFile = mobileDevDir.resolve("openaitoken")
 
     fun routes(routing: Routing) {
         routing.get("/api/auth-token") {
-            val authToken = getAuthToken()
+            val authToken = ApiKey.getToken()
             if (authToken == null) {
                 call.respond(HttpStatusCode.NotFound, "No auth token found")
             } else {
@@ -38,7 +38,7 @@ object AuthService {
             }
         }
         routing.get("/api/auth") {
-            val authToken = getAuthToken()
+            val authToken = ApiKey.getToken()
             val openAiToken = getOpenAiToken()
             val response = AuthResponse(authToken, openAiToken)
             val responseString = jacksonObjectMapper().writeValueAsString(response)
@@ -61,12 +61,6 @@ object AuthService {
                 call.respond(HttpStatusCode.BadRequest, "Failed to delete OpenAI token: ${e.message}")
             }
         }
-    }
-
-    private fun getAuthToken(): String? {
-        System.getProperty("MAESTRO_CLOUD_API_KEY")?.let { if (it.isNotEmpty()) return it }
-        if (!authTokenFile.isRegularFile()) return null
-        return authTokenFile.readText()
     }
 
     private fun getOpenAiToken(): String? {

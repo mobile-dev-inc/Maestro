@@ -48,10 +48,6 @@ object EnvUtils {
         return Paths.get(System.getProperty("user.home"), ".maestro")
     }
 
-    fun maestroCloudApiKey(): String? {
-        return System.getenv("MAESTRO_CLOUD_API_KEY")
-    }
-
     /**
      * @return true, if we're executing from Windows Linux shell (WSL)
      */

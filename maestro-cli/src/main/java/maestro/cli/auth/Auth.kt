@@ -1,31 +1,21 @@
 package maestro.cli.auth
 
-import io.ktor.http.ContentType
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
-import java.awt.Desktop
-import java.net.URI
-import java.nio.file.Paths
-import kotlin.io.path.createDirectories
-import kotlin.io.path.deleteIfExists
-import kotlin.io.path.exists
-import kotlin.io.path.isDirectory
-import kotlin.io.path.readText
-import kotlin.io.path.writeText
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.util.PrintUtils.err
 import maestro.cli.util.PrintUtils.info
-import maestro.cli.util.PrintUtils.message
 import maestro.cli.util.PrintUtils.success
 import maestro.cli.util.getFreePort
-import maestro.cli.util.EnvUtils
+import java.awt.Desktop
+import java.net.URI
 
 private const val SUCCESS_HTML = """
     <!DOCTYPE html>
@@ -76,28 +66,13 @@ class Auth(
     fun getAuthToken(apiKey: String?, triggerSignIn: Boolean = true): String? {
         if (triggerSignIn) {
             return apiKey // Check for API key
-                ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
-                ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+                ?: ApiKey.getToken()
                 ?: triggerSignInFlow() // Otherwise, trigger the sign-in flow
         }
         return apiKey // Check for API key
-            ?: getCachedAuthToken() // Otherwise, if the user has already logged in, use the cached auth token
-            ?: EnvUtils.maestroCloudApiKey() // Resolve API key from shell if set
+            ?: ApiKey.getToken()
     }
 
-    fun getCachedAuthToken(): String? {
-        if (!cachedAuthTokenFile.exists()) return null
-        if (cachedAuthTokenFile.isDirectory()) return null
-        val cachedAuthToken = cachedAuthTokenFile.readText()
-        return cachedAuthToken
-//        return if (apiClient.isAuthTokenValid(cachedAuthToken)) {
-//            cachedAuthToken
-//        } else {
-//            message("Existing Authentication token is invalid or expired")
-//            cachedAuthTokenFile.deleteIfExists()
-//            null
-//        }
-    }
 
     fun triggerSignInFlow(): String {
         val deferredToken = CompletableDeferred<String>()
@@ -125,7 +100,7 @@ class Auth(
             deferredToken.await()
         }
         server.stop(0, 0)
-        setCachedAuthToken(token)
+        ApiKey.setToken(token)
         success("Authentication completed.")
         return token
     }
@@ -142,27 +117,6 @@ class Auth(
 
         call.respondText(SUCCESS_HTML, ContentType.Text.Html)
         deferredToken.complete(newApiKey)
-    }
-
-    private fun setCachedAuthToken(token: String?) {
-        cachedAuthTokenFile.parent.createDirectories()
-        if (token == null) {
-            cachedAuthTokenFile.deleteIfExists()
-        } else {
-            cachedAuthTokenFile.writeText(token)
-        }
-    }
-
-    companion object {
-
-        private val cachedAuthTokenFile by lazy {
-            Paths.get(
-                System.getProperty("user.home"),
-                ".mobiledev",
-                "authtoken"
-            )
-        }
-
     }
 
 }

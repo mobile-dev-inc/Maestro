@@ -2,16 +2,12 @@ package maestro.mockserver
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import maestro.auth.ApiKey
 import maestro.utils.HttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import java.nio.file.Paths
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-import kotlin.io.path.exists
-import kotlin.io.path.isDirectory
-import kotlin.io.path.readText
-import kotlin.math.max
+import java.util.*
 import kotlin.time.Duration.Companion.minutes
 
 data class Auth(
@@ -47,15 +43,8 @@ class MockInteractor {
         protocols = listOf(Protocol.HTTP_1_1)
     )
 
-    fun getCachedAuthToken(): String? {
-        if (!System.getProperty("MAESTRO_CLOUD_API_KEY").isNullOrEmpty()) return System.getProperty("MAESTRO_CLOUD_API_KEY")
-        if (!cachedAuthTokenFile.exists()) return null
-        if (cachedAuthTokenFile.isDirectory()) return null
-        return cachedAuthTokenFile.readText()
-    }
-
     fun getProjectId(): UUID? {
-        val authToken = getCachedAuthToken() ?: return null
+        val authToken = ApiKey.getToken()
 
         val request = try {
             Request.Builder()
@@ -86,7 +75,7 @@ class MockInteractor {
     }
 
     fun getMockEvents(): List<MockEvent> {
-        val authToken = getCachedAuthToken()
+        val authToken = ApiKey.getToken()
 
         val request = try {
             Request.Builder()

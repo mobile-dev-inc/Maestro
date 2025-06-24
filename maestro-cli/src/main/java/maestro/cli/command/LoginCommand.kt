@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.auth.ApiKey
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
@@ -36,7 +37,7 @@ class LoginCommand : Callable<Int> {
     override fun call(): Int {
         LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
 
-        val existingToken = auth.getCachedAuthToken()
+        val existingToken = ApiKey.getToken()
 
         if (existingToken != null) {
             message("Already logged in. Run \"maestro logout\" to logout.")
