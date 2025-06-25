@@ -1,0 +1,6 @@
+# first failure should cancel the run if this config is used
+executionOrder:
+  continueOnFailure: true
+  flowsOrder:
+    - commands/ai_simple.yaml
+    - commands/fail_fast.yaml
