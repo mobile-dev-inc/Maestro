@@ -5,6 +5,7 @@ import maestro.DeviceInfo
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
+import maestro.OnDeviceElementQuery
 import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
@@ -34,6 +35,8 @@ import java.io.File
 import java.time.Duration
 import java.util.*
 
+
+private const val SYNTHETHIC_COORDINATE_SPACE_OFFSET = 100000
 
 class WebDriver(
     val isStudio: Boolean,
@@ -204,27 +207,36 @@ class WebDriver(
             }
         }
 
-        // parse into TreeNodes
-        fun parse(domRepresentation: Map<String, Any>): TreeNode {
-            val attrs = domRepresentation["attributes"] as Map<String, Any>
-
-            val attributes = mutableMapOf(
-                "text" to attrs["text"] as String,
-                "bounds" to attrs["bounds"] as String,
-            )
-            if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
-                attributes["resource-id"] = attrs["resource-id"] as String
-            }
-            val children = domRepresentation["children"] as List<Map<String, Any>>
-
-            return TreeNode(attributes = attributes, children = children.map { parse(it) })
-        }
-
-        val root = parse(contentDesc as Map<String, Any>)
+        val root = parseDomAsTreeNodes(contentDesc as Map<String, Any>)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
         }
         return root
+    }
+
+    fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
+        val attrs = domRepresentation["attributes"] as Map<String, Any>
+
+        val attributes = mutableMapOf(
+            "text" to attrs["text"] as String,
+            "bounds" to attrs["bounds"] as String,
+        )
+        if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
+            attributes["resource-id"] = attrs["resource-id"] as String
+        }
+        if (attrs.containsKey("selected") && attrs["selected"] != null) {
+            attributes["selected"] = (attrs["selected"] as Boolean).toString()
+        }
+        if (attrs.containsKey("synthetic") && attrs["synthetic"] != null) {
+            attributes["synthetic"] = (attrs["synthetic"] as Boolean).toString()
+        }
+        if (attrs.containsKey("ignoreBoundsFiltering") && attrs["ignoreBoundsFiltering"] != null) {
+            attributes["ignoreBoundsFiltering"] = (attrs["ignoreBoundsFiltering"] as Boolean).toString()
+        }
+
+        val children = domRepresentation["children"] as List<Map<String, Any>>
+
+        return TreeNode(attributes = attributes, children = children.map { parseDomAsTreeNodes(it) })
     }
 
     private fun detectWindowChange() {
@@ -256,6 +268,12 @@ class WebDriver(
 
     override fun tap(point: Point) {
         val driver = ensureOpen()
+
+        if (point.x >= SYNTHETHIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETHIC_COORDINATE_SPACE_OFFSET) {
+            tapOnSyntheticCoordinateSpace(point)
+            return
+        }
+
         val pixelsScrolled = scrollToPoint(point)
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
@@ -272,6 +290,23 @@ class WebDriver(
         (driver as RemoteWebDriver).perform(listOf(actions))
 
         Actions(driver).click().build().perform()
+    }
+
+    private fun tapOnSyntheticCoordinateSpace(point: Point) {
+        val elements = contentDescriptor()
+
+        val hit = ViewHierarchy.from(this, true)
+            .getElementAt(elements, point.x, point.y)
+
+        if (hit == null) {
+            return
+        }
+
+        if (hit.attributes["synthetic"] != "true") {
+            return
+        }
+
+        executeJS("window.maestro.tapOnSyntheticElement(${point.x}, ${point.y})")
     }
 
     override fun longPress(point: Point) {
@@ -471,6 +506,32 @@ class WebDriver(
 
     override fun setAirplaneMode(enabled: Boolean) {
         // Do nothing
+    }
+
+    override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+        return when (query) {
+            is OnDeviceElementQuery.Css -> queryCss(query)
+            else -> super.queryOnDeviceElements(query)
+        }
+    }
+
+    private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
+        ensureOpen()
+
+        val jsResult: Any? = executeJS("return window.maestro.queryCss('${query.css}')")
+
+        if (jsResult == null) {
+            return emptyList()
+        }
+
+        if (jsResult is List<*>) {
+            return jsResult
+                .mapNotNull { it as? Map<*, *> }
+                .map { parseDomAsTreeNodes(it as Map<String, Any>) }
+        } else {
+            LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
+            return emptyList()
+        }
     }
 
     companion object {

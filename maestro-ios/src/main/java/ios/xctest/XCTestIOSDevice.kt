@@ -18,8 +18,7 @@ class XCTestIOSDevice(
     override val deviceId: String?,
     private val client: XCTestDriverClient,
     private val getInstalledApps: () -> Set<String>,
-
-    ) : IOSDevice {
+) : IOSDevice {
     private val logger = LoggerFactory.getLogger(XCTestIOSDevice::class.java)
 
     override fun open() {
@@ -235,6 +234,8 @@ class XCTestIOSDevice(
                 "App crashed or stopped while executing flow, please check diagnostic logs: " +
                         "~/Library/Logs/DiagnosticReports directory"
             )
+        } catch (timeout: XCUITestServerError.OperationTimeout) {
+            throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
         }
     }
 

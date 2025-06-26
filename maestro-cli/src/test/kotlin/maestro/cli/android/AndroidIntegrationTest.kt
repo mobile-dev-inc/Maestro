@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlinx.coroutines.runBlocking
 
 @Tag("IntegrationTest")
 class AndroidIntegrationTest {
@@ -67,7 +68,9 @@ class AndroidIntegrationTest {
         val orchestra = Orchestra(maestro)
 
         try {
-            orchestra.runFlow(commands)
+            runBlocking {
+                orchestra.runFlow(commands)
+            }
         } catch (exception: MaestroException) {
             val debugOutput =  TestDebugReporter.getDebugOutputPath()
             val screenshotFile = debugOutput.resolve(flowName + "_failure.png")

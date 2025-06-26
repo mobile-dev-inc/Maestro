@@ -199,11 +199,12 @@ class LocalXCTestInstaller(
             installPrebuiltRunner(deviceId, buildProducts.uiRunnerPath)
         } else {
             logger.info("Installing driver with xcodebuild")
-            logger.info("[Start] Running XcUITest with `xcodebuild test-without-building`")
+            logger.info("[Start] Running XcUITest with `xcodebuild test-without-building` with $defaultPort and config: $iOSDriverConfig")
             xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
                 port = defaultPort,
+                snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
         }
@@ -214,11 +215,19 @@ class LocalXCTestInstaller(
         when (deviceType) {
             IOSDeviceType.REAL -> {
                 LocalIOSDeviceController.install(deviceId, bundlePath.toPath())
-                LocalIOSDeviceController.launchRunner(deviceId, defaultPort)
+                LocalIOSDeviceController.launchRunner(
+                    deviceId = deviceId,
+                    port = defaultPort,
+                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                )
             }
             IOSDeviceType.SIMULATOR -> {
                 LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
-                LocalSimulatorUtils.launchUITestRunner(deviceId, defaultPort)
+                LocalSimulatorUtils.launchUITestRunner(
+                    deviceId = deviceId,
+                    port = defaultPort,
+                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                )
             }
         }
     }
@@ -241,7 +250,8 @@ class LocalXCTestInstaller(
     data class IOSDriverConfig(
         val prebuiltRunner: Boolean,
         val sourceDirectory: String,
-        val context: Context
+        val context: Context,
+        val snapshotKeyHonorModalViews: Boolean?
     )
 
     companion object {

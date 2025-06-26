@@ -22,6 +22,8 @@ package maestro.orchestra
 import ImageConcatenate
 import com.github.romankh3.image.comparison.ImageComparison
 import com.github.romankh3.image.comparison.model.ImageComparisonState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
@@ -64,6 +66,8 @@ import java.lang.Long.max
 import javax.imageio.ImageIO
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.lang.Long.max
+import kotlin.coroutines.coroutineContext
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -75,6 +79,36 @@ sealed class CommandOutput {
     data class Screenshot(val screenshot: Buffer) : CommandOutput()
     data class ScreenRecording(val screenRecording: Buffer) : CommandOutput()
     data class AIDefects(val defects: List<Defect>, val screenshot: Buffer) : CommandOutput()
+}
+
+interface FlowController {
+    suspend fun waitIfPaused()
+    fun pause()
+    fun resume()
+    val isPaused: Boolean
+}
+
+class DefaultFlowController : FlowController {
+    private var _isPaused = false
+
+    override suspend fun waitIfPaused() {
+        while (_isPaused) {
+            if (!coroutineContext.isActive) {
+                break
+            }
+            Thread.sleep(500)
+        }
+    }
+
+    override fun pause() {
+        _isPaused = true
+    }
+
+    override fun resume() {
+        _isPaused = false
+    }
+
+    override val isPaused: Boolean get() = _isPaused
 }
 
 /**
@@ -102,7 +136,8 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
-    private val aiPredictionEngine: AIPredictionEngine = CloudAIPredictionEngine(),
+    private val AIPredictionEngine: AIPredictionEngine = CloudAIPredictionEngine(),
+    private val flowController: FlowController = DefaultFlowController(),
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -117,7 +152,7 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    fun runFlow(commands: List<MaestroCommand>): Boolean {
+    suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -201,7 +236,7 @@ class Orchestra(
         return evaluatedCommands
     }
 
-    fun executeCommands(
+    suspend fun executeCommands(
         commands: List<MaestroCommand>,
         config: MaestroConfig? = null,
         shouldReinitJsEngine: Boolean = true,
@@ -210,10 +245,23 @@ class Orchestra(
             initJsEngine(config)
         }
 
-        initAndroidChromeDevTools(config)
+        if (!coroutineContext.isActive) {
+            logger.info("Flow cancelled, skipping initAndroidChromeDevTools...")
+        } else {
+            initAndroidChromeDevTools(config)
+        }
 
         commands
             .forEachIndexed { index, command ->
+                if (!coroutineContext.isActive) {
+                    logger.info("[Command execution] Command skipped due to cancellation: ${command}")
+                    onCommandSkipped(index, command)
+                    return@forEachIndexed
+                }
+
+                // Check for pause before executing each command
+                flowController.waitIfPaused()
+
                 onCommandStart(index, command)
 
                 jsEngine.onLogMessage { msg ->
@@ -310,8 +358,14 @@ class Orchestra(
     /**
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
-    private fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+    private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
+
+        if (!coroutineContext.isActive) {
+            throw CommandSkipped
+        }
+
+        flowController.waitIfPaused()
 
         return when (command) {
             is TapOnElementCommand -> {
@@ -422,13 +476,16 @@ class Orchestra(
         return false
     }
 
-    private fun assertNoDefectsWithAICommand(command: AssertNoDefectsWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
+    private suspend fun assertNoDefectsWithAICommand(
+        command: AssertNoDefectsWithAICommand,
+        maestroCommand: MaestroCommand
+    ): Boolean {
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
 
-        val defects = aiPredictionEngine.findDefects(
+        val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
             aiClient = ai,
         )
@@ -437,7 +494,8 @@ class Orchestra(
             onCommandGeneratedOutput(command, defects, imageData)
 
             val word = if (defects.size == 1) "defect" else "defects"
-            val reasoning = "Found ${defects.size} possible $word:\n${defects.joinToString("\n") { "- ${it.reasoning}" }}"
+            val reasoning =
+                "Found ${defects.size} possible $word:\n${defects.joinToString("\n") { "- ${it.reasoning}" }}"
 
             updateMetadata(maestroCommand, metadata.copy(aiReasoning = reasoning))
 
@@ -452,15 +510,15 @@ class Orchestra(
             )
         }
 
-        false
+        return false
     }
 
-    private fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
+    private suspend fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean {
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-        val defect = aiPredictionEngine.performAssertion(
+        val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             aiClient = ai,
             assertion = command.assertion,
@@ -477,30 +535,35 @@ class Orchestra(
                     |$reasoning
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
-            )
+            debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
-        false
+        return false
     }
 
-    private fun extractTextWithAICommand(command: ExtractTextWithAICommand, maestroCommand: MaestroCommand): Boolean = runBlocking {
+    private suspend fun extractTextWithAICommand(
+        command: ExtractTextWithAICommand,
+        maestroCommand: MaestroCommand
+    ): Boolean {
+
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-        val text = aiPredictionEngine.extractText(
+        val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
             aiClient = ai,
             query = command.query,
         )
 
-        updateMetadata(maestroCommand, metadata.copy(
-            aiReasoning = "Query: \"${command.query}\"\nExtracted text: $text"
-        ))
+        updateMetadata(
+            maestroCommand, metadata.copy(
+                aiReasoning = "Query: \"${command.query}\"\nExtracted text: $text"
+            )
+        )
         jsEngine.putEnv(command.outputVariable, text)
 
-        false
+        return false
     }
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
@@ -600,9 +663,13 @@ class Orchestra(
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
-              logger.error("Error: $ignored")
+                logger.error("Error: $ignored")
             }
-            maestro.swipeFromCenter(direction, durationMs = command.scrollDuration.toLong(), waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+            maestro.swipeFromCenter(
+                direction,
+                durationMs = command.scrollDuration.toLong(),
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
         } while (System.currentTimeMillis() < endTime)
 
         val debugMessage = buildString {
@@ -652,7 +719,7 @@ class Orchestra(
         return true
     }
 
-    private fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
+    private suspend fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val maxRuns = command.times?.toDoubleOrNull()?.toInt() ?: Int.MAX_VALUE
 
         var counter = 0
@@ -691,7 +758,7 @@ class Orchestra(
         return mutatiing
     }
 
-    private fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
+    private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
         val maxRetries = (command.maxRetries?.toIntOrNull() ?: 1).coerceAtMost(MAX_RETRIES_ALLOWED)
 
         var attempt = 0
@@ -734,7 +801,7 @@ class Orchestra(
         }
     }
 
-    private fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
+    private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
         return if (evaluateCondition(command.condition, command.optional)) {
             runSubFlow(command.commands, config, command.config)
         } else {
@@ -820,7 +887,7 @@ class Orchestra(
         return true
     }
 
-    private fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
+    private suspend fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
         jsEngine.enterScope()
 
         return try {
@@ -874,7 +941,7 @@ class Orchestra(
         }
     }
 
-    private fun runSubFlow(
+    private suspend fun runSubFlow(
         commands: List<MaestroCommand>,
         config: MaestroConfig?,
         subflowConfig: MaestroConfig?,
@@ -962,7 +1029,7 @@ class Orchestra(
             maestro.setPermissions(command.appId, permissions)
 
         } catch (e: Exception) {
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}")
+            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
         }
 
         try {
@@ -972,7 +1039,7 @@ class Orchestra(
                 stopIfRunning = command.stopApp ?: true
             )
         } catch (e: Exception) {
-            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}")
+            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}", e)
         }
 
         return true
@@ -1348,6 +1415,12 @@ class Orchestra(
                 filters += Filters.focused(it)
             }
 
+        selector.css
+            ?.let {
+                descriptions += "CSS: $it"
+                filters += Filters.css(maestro, it)
+            }
+
         var resultFilter = Filters.intersect(filters)
         resultFilter = selector.index
             ?.toDouble()
@@ -1378,14 +1451,29 @@ class Orchestra(
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector, optional = command.optional)
-                maestro.swipe(direction, uiElement.element, command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                maestro.swipe(
+                    direction,
+                    uiElement.element,
+                    command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
             }
 
             startRelative != null && endRelative != null -> {
-                maestro.swipe(startRelative = startRelative, endRelative = endRelative, duration = command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                maestro.swipe(
+                    startRelative = startRelative,
+                    endRelative = endRelative,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
             }
 
-            direction != null -> maestro.swipe(swipeDirection = direction, duration = command.duration, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+            direction != null -> maestro.swipe(
+                swipeDirection = direction,
+                duration = command.duration,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
+
             start != null && end != null -> maestro.swipe(
                 startPoint = start,
                 endPoint = end,
@@ -1428,7 +1516,7 @@ class Orchestra(
         return true
     }
 
-    private fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {
+    private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {
         commands.filter { it.asCommand() is DefineVariablesCommand }.takeIf { it.isNotEmpty() }?.let {
             executeCommands(
                 commands = it,
@@ -1464,4 +1552,17 @@ class Orchestra(
         private const val MAX_RETRIES_ALLOWED = 3
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
     }
+
+    // Remove pause/resume functions that were storing/restoring engine
+    fun pause() {
+        flowController.pause()
+    }
+
+    fun resume() {
+        flowController.resume()
+    }
+
+    val isPaused: Boolean
+        get() = flowController.isPaused
 }
+

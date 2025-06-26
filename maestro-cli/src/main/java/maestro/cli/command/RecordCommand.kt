@@ -31,6 +31,7 @@ import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.FileUtils.isWebFlow
+import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import okio.sink
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -111,47 +112,56 @@ class RecordCommand : Callable<Int> {
             parent?.deviceId
         }
 
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = setOf(flowFile.toPath()),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+            config = configFile?.toPath()
+        )
+
         return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = null,
             deviceId = deviceId,
-            platform = parent?.platform,
             teamId = appleTeamId,
-        ) { session ->
-            val maestro = session.maestro
-            val device = session.device
+            platform = parent?.platform,
+            executionPlan = plan,
+            block = { session ->
+                val maestro = session.maestro
+                val device = session.device
 
-            if (flowFile.isDirectory) {
-                throw CommandLine.ParameterException(
-                    commandSpec.commandLine(),
-                    "Only single Flows are supported by \"maestro record\". $flowFile is a directory.",
-                )
-            }
-
-            val resultView = AnsiResultView()
-            val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
-            val exitCode = screenRecording.sink().use { out ->
-                maestro.startScreenRecording(out).use {
-                    TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
+                if (flowFile.isDirectory) {
+                    throw CommandLine.ParameterException(
+                        commandSpec.commandLine(),
+                        "Only single Flows are supported by \"maestro record\". $flowFile is a directory.",
+                    )
                 }
-            }
 
-            val frames = resultView.getFrames()
+                val resultView = AnsiResultView()
+                val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
+                val exitCode = screenRecording.sink().use { out ->
+                    maestro.startScreenRecording(out).use {
+                        TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
+                    }
+                }
 
-            val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
-            val videoRenderer = if (local) LocalVideoRenderer(
-                frameRenderer = SkiaFrameRenderer(),
-                outputFile = localOutputFile,
-                outputFPS = 25,
-                outputWidthPx = 1920,
-                outputHeightPx = 1080,
-            ) else RemoteVideoRenderer()
-            videoRenderer.render(screenRecording, frames)
+                val frames = resultView.getFrames()
 
-            TestDebugReporter.deleteOldFiles()
+                val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
+                val videoRenderer = if (local) LocalVideoRenderer(
+                    frameRenderer = SkiaFrameRenderer(),
+                    outputFile = localOutputFile,
+                    outputFPS = 25,
+                    outputWidthPx = 1920,
+                    outputHeightPx = 1080,
+                ) else RemoteVideoRenderer()
+                videoRenderer.render(screenRecording, frames)
 
-            exitCode
-        }
+                TestDebugReporter.deleteOldFiles()
+
+                exitCode
+            },
+        )
     }
 }

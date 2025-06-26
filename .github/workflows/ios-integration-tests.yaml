@@ -1,0 +1,59 @@
+name: Integration Test iOS
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  test-ios:
+    name: Test on iOS
+    runs-on: macos-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 8
+
+      - name: Set permission to scripts
+        run: chmod +x .github/scripts/boot_simulator.sh
+
+      - name: Boot Simulator
+        run: ./.github/scripts/boot_simulator.sh
+
+      - name: Set Simulator
+        run: |
+          SIMULATOR_ID=$(xcrun simctl list -j | jq -r '.devices | to_entries[] | .value[] | select(.isAvailable==true and .state=="Booted") | .udid' | head -n 1)
+          echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: |
+          unzip apps/wikipedia.zip
+          xcrun simctl install $SIMULATOR_ID ./Wikipedia.app
+
+      - name: Build for Testing
+        working-directory: ${{ github.workspace }}
+        run: |
+          xcodebuild clean build-for-testing \
+          -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
+          -derivedDataPath "./driver-verification" \
+          -scheme driver-verification-tests \
+          -destination "generic/platform=iOS Simulator"
+
+      - name: Run Integration tests
+        run: |
+          XCTESTRUN_FILE=$(find ./driver-verification/Build/Products -name "driver-verification-tests*.xctestrun" | head -n 1)
+          echo "Running tests on $SIMULATOR_ID"
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN_FILE" \
+            -destination "id=$SIMULATOR_ID"

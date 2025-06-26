@@ -264,6 +264,10 @@ class XCTestDriverClient(
             Error("Unable to parse error", "unknown")
         }
         when {
+            code == 408 -> {
+                logger.error("Request for $pathString timeout, body: $responseBodyAsString")
+                throw XCUITestServerError.OperationTimeout(error.errorMessage, pathString)
+            }
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
                 throw XCUITestServerError.BadRequest(

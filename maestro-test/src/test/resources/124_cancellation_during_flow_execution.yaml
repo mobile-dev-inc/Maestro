@@ -1,0 +1,14 @@
+appId: com.example.app
+---
+# First set of commands that should complete
+- launchApp
+- evalScript: ${output.message = "Hello before cancellation"; output.message}
+- inputText: ${output.message}
+
+# These commands should be skipped when we cancel
+- evalScript: ${output.message = "This should be skipped"; output.message}
+- inputText: ${output.message}
+- tapOn: Button
+- assertVisible: "Button was clicked"
+- evalScript: ${output.message = "This should also be skipped"; output.message}
+- inputText: ${output.message} 
