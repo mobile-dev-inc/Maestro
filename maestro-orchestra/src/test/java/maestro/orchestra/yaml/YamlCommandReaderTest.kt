@@ -36,6 +36,7 @@ import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
+import maestro.orchestra.RunShellCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
@@ -576,6 +577,25 @@ internal class YamlCommandReaderTest {
                 endPoint = Point(x = 300, y = 400),
                 waitToSettleTimeoutMs = 50,
                 duration = 400L
+            )
+        )
+    }
+
+    @Test
+    fun runShellCommand(
+        @YamlFile("029_runShellCommand.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            RunShellCommand(
+                command = "echo Hello, world!",
+                outputVariable = "SHELL_OUTPUT",
+                timeout = 1000L,
+                optional = false,
+                label = "Run echo command",
+                condition = null,
             )
         )
     }

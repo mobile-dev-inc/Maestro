@@ -53,6 +53,8 @@ import maestro.utils.Insights
 import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
+import maestro.utils.parseCommand
+import maestro.utils.escapeShellOutput
 import okhttp3.OkHttpClient
 import okio.Buffer
 import okio.Sink
@@ -62,6 +64,8 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.Long.max
 import kotlin.coroutines.coroutineContext
+import java.util.concurrent.TimeUnit
+
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -357,6 +361,7 @@ class Orchestra(
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
             is DefineVariablesCommand -> defineVariablesCommand(command)
             is RunScriptCommand -> runScriptCommand(command)
+            is RunShellCommand -> runShellCommand(command)
             is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
@@ -541,6 +546,56 @@ class Orchestra(
 
             // We do not actually know if there were any mutations, but we assume there were
             true
+        } else {
+            throw CommandSkipped
+        }
+    }
+
+    fun runShellCommand(command: RunShellCommand): Boolean {
+        return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
+            try {
+                val cmd = mutableListOf<String>().apply {
+                    addAll(parseCommand(command.command))
+                }
+                val processBuilder = ProcessBuilder(cmd)
+                    .apply {
+                        // Set the working directory if specified
+                        command.workingDirectory?.let { directory(File(it)) }
+                        // Set the environment variables if specified
+                        command.env?.let { environment().putAll(it) }
+                    }
+                processBuilder.redirectErrorStream(true)
+                val process = processBuilder.start()
+
+                val timeout = command.timeout ?: 0L // Default to 0 if not specified, meaning no timeout
+                if (timeout <= 0) {
+                    process.waitFor() // Wait indefinitely for the process to finish
+                } else {
+                    if (!process.waitFor(timeout, TimeUnit.MILLISECONDS)) {
+                        // If the process is still running after the timeout, destroy it
+                        process.destroyForcibly()
+                        throw MaestroException.ShellCommandException("Shell command '${command.command}' timed out after $timeout ms",)
+                    }
+                }
+
+                val exitCode = process.exitValue()
+                if (exitCode != 0 && !command.optional) {
+                    val errorMessage = process.inputStream.bufferedReader().use { it.readText() }
+                    throw MaestroException.ShellCommandException(
+                        "Shell command '${command.command}' failed with exit code $exitCode: $errorMessage"
+                    )
+                }
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                jsEngine.putEnv(command.outputVariable ?: "SHELL_COMMAND_OUTPUT", escapeShellOutput(output))
+                true
+            } catch (e: Exception) {
+                if (command.optional) {
+                    logger.warn("Optional shell command '${command.command}' failed: ${e.message}")
+                    false
+                } else {
+                    throw MaestroException.ShellCommandException("Failed to execute shell command '${command.command}': ${e.message}", e)
+                }
+            }
         } else {
             throw CommandSkipped
         }

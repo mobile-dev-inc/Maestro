@@ -867,6 +867,35 @@ data class RunScriptCommand(
     }
 }
 
+data class RunShellCommand(
+    val command: String,
+    val args: List<String> = emptyList(),
+    val env: Map<String, String> = emptyMap(),
+    val workingDirectory: String? = null,
+    val condition: Condition?,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+    val outputVariable: String? = null,
+    val timeout: Long? = null,
+) : Command {
+
+    override val originalDescription: String
+        get() = if (condition == null) {
+            "Run shell command $command with args ${args.joinToString(", ")}" +
+                    if (workingDirectory != null) " in working directory $workingDirectory" else ""
+        } else {
+            "Run shell command $command with args ${args.joinToString(", ")}" +
+                    " when ${condition.description()}"
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            env = env.mapValues { (_, value) -> value.evaluateScripts(jsEngine) },
+            condition = condition?.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class WaitForAnimationToEndCommand(
     val timeout: Long?,
     override val label: String? = null,
