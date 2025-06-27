@@ -1,11 +1,12 @@
 package maestro.cli.mcp.tools
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.TreeNode
-import kotlinx.coroutines.runBlocking
 
 object InspectViewHierarchyTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
@@ -22,6 +23,16 @@ object InspectViewHierarchyTool {
                             put("type", "string")
                             put("description", "The ID of the device to get hierarchy from")
                         }
+                        putJsonObject("format") {
+                            put("type", "string")
+                            putJsonArray("enum") {
+                                add("yaml")
+                                add("json")
+                            }
+                            put("description", "The format of the returned view hierarchy. " +
+                                    "`yaml` (the default) is a compact representation. " +
+                                    "`json` is the default representation used by the maestro CLI.")
+                        }
                     },
                     required = listOf("device_id")
                 )
@@ -29,6 +40,7 @@ object InspectViewHierarchyTool {
         ) { request ->
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
+                val format = request.arguments["format"]?.jsonPrimitive?.content?.ifBlank { null }
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -48,9 +60,21 @@ object InspectViewHierarchyTool {
                     
                     val viewHierarchy = maestro.viewHierarchy()
                     val tree = viewHierarchy.root
-                    
-                    // Always return YAML format
-                    extractYamlOutput(tree)
+
+                    when (format) {
+                        null, "yaml" -> {
+                            extractYamlOutput(tree)
+                        }
+                        "json" -> {
+                            jacksonObjectMapper()
+                                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                                .writerWithDefaultPrettyPrinter()
+                                .writeValueAsString(tree)
+                        }
+                        else -> {
+                            throw IllegalArgumentException("Unsupported format: $format")
+                        }
+                    }
                 }
                 
                 CallToolResult(content = listOf(TextContent(result)))
