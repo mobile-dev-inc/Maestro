@@ -66,9 +66,11 @@ fun parseCommand(cmd: String?): List<String> {
  */
 fun escapeShellOutput(output: String): String {
     return output
+        .replace("\r\n", "\n") // Normalize Windows newlines
+        .replace("\r", "\n")   // Normalize old Mac newlines
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
-        .replace("\r", "")
         .replace("\n", "\\n")
-        .trimEnd()
+        .replace(Regex("(\\\\n)+$"), "") // Remove trailing \n sequences
+        .trim()
 }
