@@ -55,7 +55,7 @@ object Filters {
     }
 
     fun nonClickable(): ElementFilter {
-        return  { nodes -> nodes.filter { it.clickable == false } }
+        return { nodes -> nodes.filter { it.clickable == false } }
     }
 
     fun textMatches(regex: Regex): ElementFilter {
@@ -65,9 +65,9 @@ object Filters {
                     val strippedValue = value.replace('\n', ' ')
 
                     regex.matches(value)
-                        || regex.pattern == value
-                        || regex.matches(strippedValue)
-                        || regex.pattern == strippedValue
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
                 } ?: false
             }.toSet()
 
@@ -76,9 +76,9 @@ object Filters {
                     val strippedValue = value.replace('\n', ' ')
 
                     regex.matches(value)
-                        || regex.pattern == value
-                        || regex.matches(strippedValue)
-                        || regex.pattern == strippedValue
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
                 } ?: false
             }
 
@@ -87,9 +87,9 @@ object Filters {
                     val strippedValue = value.replace('\n', ' ')
 
                     regex.matches(value)
-                        || regex.pattern == value
-                        || regex.matches(strippedValue)
-                        || regex.pattern == strippedValue
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
                 } ?: false
             }.toSet()
 
@@ -276,6 +276,19 @@ object Filters {
                     matchingChildren.lastOrNull()
                         ?: it
                 }
+        }
+    }
+
+    fun css(maestro: Maestro, cssSelector: String): ElementFilter {
+        return { nodes ->
+            val matchingNodes = maestro.findElementsByOnDeviceQuery(
+                timeoutMs = 5000,
+                query = OnDeviceElementQuery.Css(css = cssSelector),
+            )?.elements?.map { it.treeNode } ?: emptyList()
+
+            nodes.filter { node ->
+                matchingNodes.any { it == node }
+            }
         }
     }
 

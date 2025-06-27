@@ -1,0 +1,1 @@
+npx @modelcontextprotocol/inspector --cli --config maestro-cli/src/test/mcp/mcp-server-config.json --server maestro-mcp --method tools/list

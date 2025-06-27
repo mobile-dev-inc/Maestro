@@ -21,14 +21,23 @@ package maestro.test.drivers
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
-import maestro.*
+import maestro.Capability
+import maestro.DeviceInfo
+import maestro.Driver
+import maestro.KeyCode
+import maestro.MaestroException
+import maestro.OnDeviceElementQuery
+import maestro.Platform
+import maestro.Point
+import maestro.ScreenRecording
+import maestro.SwipeDirection
+import maestro.TreeNode
+import maestro.ViewHierarchy
 import maestro.utils.ScreenshotUtils
 import okio.Sink
-import okio.Source
 import okio.buffer
 import java.awt.image.BufferedImage
 import java.io.File
-import java.util.UUID
 import javax.imageio.ImageIO
 
 class FakeDriver : Driver {
@@ -91,10 +100,12 @@ class FakeDriver : Driver {
             throw MaestroException.UnableToLaunchApp("App $appId is not installed")
         }
 
-        events.add(Event.LaunchApp(
-            appId = appId,
-            launchArguments = launchArguments,
-        ))
+        events.add(
+            Event.LaunchApp(
+                appId = appId,
+                launchArguments = launchArguments,
+            )
+        )
     }
 
     override fun stopApp(appId: String) {
@@ -186,7 +197,7 @@ class FakeDriver : Driver {
             val next = todo.removeLast()
             todo.addAll(next.children)
             if (next.bounds != null) {
-                when(direction) {
+                when (direction) {
                     SwipeDirection.UP -> next.bounds = next.bounds!!.translate(x = 0, y = -300)
                     SwipeDirection.DOWN -> next.bounds = next.bounds!!.translate(x = 0, y = 300)
                     SwipeDirection.RIGHT -> next.bounds = next.bounds!!.translate(x = -300, y = 0)
@@ -390,6 +401,28 @@ class FakeDriver : Driver {
         this.airplaneMode = enabled
     }
 
+    override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+        if (query is OnDeviceElementQuery.Css) {
+            return searchCssRecursive(layout, query.css)
+        } else {
+            return super.queryOnDeviceElements(query)
+        }
+    }
+
+    private fun searchCssRecursive(element: FakeLayoutElement, css: String): List<TreeNode> {
+        val result = mutableListOf<TreeNode>()
+
+        if (element.matchesCssFilter == css) {
+            result.add(element.toTreeNode())
+        }
+
+        for (child in element.children) {
+            result.addAll(searchCssRecursive(child, css))
+        }
+
+        return result
+    }
+
     sealed class Event {
 
         data class Tap(
@@ -416,7 +449,8 @@ class FakeDriver : Driver {
             val durationMs: Long
         ) : Event(), UserInteraction
 
-        data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(), UserInteraction
+        data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(),
+            UserInteraction
 
         data class SwipeElementWithDirection(
             val point: Point,

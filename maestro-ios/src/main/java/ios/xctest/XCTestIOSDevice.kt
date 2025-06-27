@@ -234,6 +234,8 @@ class XCTestIOSDevice(
                 "App crashed or stopped while executing flow, please check diagnostic logs: " +
                         "~/Library/Logs/DiagnosticReports directory"
             )
+        } catch (timeout: XCUITestServerError.OperationTimeout) {
+            throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
         }
     }
 

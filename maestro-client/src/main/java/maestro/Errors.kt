@@ -27,7 +27,7 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class AppCrash(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
-    class DriverTimeout(message: String, cause: Throwable? = null): MaestroException(message, cause)
+    class DriverTimeout(message: String, val debugMessage: String? = null, cause: Throwable? = null): MaestroException(message, cause)
 
     open class AssertionFailure(
         message: String,

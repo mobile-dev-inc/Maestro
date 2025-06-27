@@ -1370,6 +1370,12 @@ class Orchestra(
                 filters += Filters.focused(it)
             }
 
+        selector.css
+            ?.let {
+                descriptions += "CSS: $it"
+                filters += Filters.css(maestro, it)
+            }
+
         var resultFilter = Filters.intersect(filters)
         resultFilter = selector.index
             ?.toDouble()
