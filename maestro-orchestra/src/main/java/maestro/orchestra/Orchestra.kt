@@ -204,7 +204,7 @@ class Orchestra(
         }
     }
 
-    fun evaluateCommands(
+    suspend fun evaluateCommands(
         commands: List<MaestroCommand>,
         shouldReinitJsEngine: Boolean = true,
     ): List<MaestroCommand> {

@@ -140,7 +140,7 @@ class OpenAIClient {
             // Claude doesn't have a JSON mode as of 21-08-2024
             //  https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/increase-consistency
             //  We could do "if (aiClient is Claude)", but actually, this also helps with gpt-4o sometimes
-            //  generatig never-ending stream of output.
+            //  generating never-ending stream of output.
             append(
                 """
                 |

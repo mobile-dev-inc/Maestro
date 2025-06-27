@@ -133,7 +133,7 @@ object DeviceService {
         }
     }
 
-    private fun evaluateCommands(maestro: Maestro, commands: List<MaestroCommand>): List<MaestroCommand> {
+    private suspend fun evaluateCommands(maestro: Maestro, commands: List<MaestroCommand>): List<MaestroCommand> {
         var failure: Throwable? = null
         val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
             failure = throwable
