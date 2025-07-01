@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CONFIG="maestro-cli/src/test/mcp/mcp-server-config.json"
+CONFIG="./mcp-server-config.json"
 SERVER="maestro-mcp"
 QUIET=false
 DEBUG=false
@@ -19,7 +19,7 @@ function debug() {
 }
 
 function inspector() {
-  npx @modelcontextprotocol/inspector --cli --config "$CONFIG" --server "$SERVER" "$@"
+  npx -y "./modelcontextprotocol-inspector-0.15.0.tgz" --cli --config "./mcp-server-config.json" --server "$SERVER" "$@"
 }
 
 function print_usage() {
@@ -88,7 +88,7 @@ if [ -z "$TOOL" ]; then
 fi
 
 # Construct the full command for debugging
-FULL_CMD="npx @modelcontextprotocol/inspector --cli --config \"$CONFIG\" --server \"$SERVER\" --method tools/call --tool-name \"$TOOL\" ${ARGS[*]}"
+FULL_CMD="inspector --method tools/call --tool-name \"$TOOL\" ${ARGS[*]}"
 debug "Executing command: $FULL_CMD"
 
 # Run the tool
@@ -96,7 +96,7 @@ echo "Testing $TOOL..." >&2
 
 # Capture both stdout and stderr
 debug "Command output:"
-OUTPUT=$(eval "$FULL_CMD" 2>&1)
+OUTPUT=$(inspector --method tools/call --tool-name "$TOOL" "${ARGS[@]}" 2>&1)
 STATUS=$?
 
 # Show output only once

@@ -1,20 +1,21 @@
 #!/bin/bash
 set -e
 
-CONFIG="maestro-cli/src/test/mcp/mcp-server-config.json"
+CONFIG="./mcp-server-config.json"
 SERVER="maestro-mcp"
 
 failures=0
 tests_run=0
 
 function inspector() {
-  npx @modelcontextprotocol/inspector --cli --config "$CONFIG" --server "$SERVER" "$@"
+  npx -y "./modelcontextprotocol-inspector-0.15.0.tgz" --cli --config "./mcp-server-config.json" --server "$SERVER" "$@"
 }
 
 # Helper function to run a test and track failures
 function run_test() {
   local TEST_OUTPUT
-  TEST_OUTPUT=$(./maestro-cli/src/test/mcp/test-mcp-tool.sh --quiet "$@" 2>&1)
+  local SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  TEST_OUTPUT=$("$SCRIPT_DIR/test-single-mcp-tool.sh" --quiet "$@" 2>&1)
   local STATUS=$?
   tests_run=$((tests_run+1))
   
@@ -28,7 +29,8 @@ function run_test() {
 
 # Helper function to run a test and get the response
 function run_test_get_response() {
-  ./maestro-cli/src/test/mcp/test-mcp-tool.sh "$@" 2>/dev/null
+  local SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  "$SCRIPT_DIR/test-single-mcp-tool.sh" "$@" 2>/dev/null
 }
 
 echo "=== MCP Server Integration Tests ==="
@@ -99,8 +101,8 @@ if [ -n "$DEVICE_ID" ] && [ "$DEVICE_ID" != "null" ]; then
   run_test run_flow --arg "device_id=$DEVICE_ID" --arg "flow_yaml=appId:com.apple.Preferences" --expect-contains "Failed"
   
   # Test flow files execution (using test files if they exist)
-  if [ -f "maestro-cli/src/test/mcp/flow1.yaml" ] && [ -f "maestro-cli/src/test/mcp/flow2.yaml" ]; then
-    run_test run_flow_files --arg "device_id=$DEVICE_ID" --arg "flow_files=maestro-cli/src/test/mcp/flow1.yaml,maestro-cli/src/test/mcp/flow2.yaml" --expect-contains "success"
+  if [ -f "flow1.yaml" ] && [ -f "flow2.yaml" ]; then
+    run_test run_flow_files --arg "device_id=$DEVICE_ID" --arg "flow_files=flow1.yaml,flow2.yaml" --expect-contains "success"
   else
     echo -e "\033[0;33mSKIP\033[0m: run_flow_files (test files not found)"
   fi

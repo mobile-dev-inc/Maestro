@@ -89,9 +89,8 @@ evals:
       pattern: "(valid|invalid|syntax|error)"
 
 - name: run_flow_files_tool_call
-  description: Test that the LLM can find the correct flow file when given a vague
-    description
-  prompt: Please run our flow1 flow file
+  description: Test that the LLM can find the correct flow file when given a vague description
+  prompt: Please run our launch-safari flow file in the evals folder
   expectedToolCalls:
     required:
     - run_flow_files
