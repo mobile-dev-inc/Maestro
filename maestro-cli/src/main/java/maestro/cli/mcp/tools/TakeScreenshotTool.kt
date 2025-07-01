@@ -37,7 +37,7 @@ object TakeScreenshotTool {
                     )
                 }
                 
-                val result = sessionManager.newSession(
+                val result = sessionManager.newMcpSession(
                     host = null,
                     port = null,
                     driverHostPort = null,

@@ -23,7 +23,14 @@ object LaunchAppTool {
                         }
                         putJsonObject("appId") {
                             put("type", "string")
-                            put("description", "Bundle ID or app ID to launch")
+                            put("description", "Bundle ID or app ID to launch (supports environment variable substitution like \${APP_ID})")
+                        }
+                        putJsonObject("env") {
+                            put("type", "object")
+                            put("description", "Optional environment variables for app ID substitution (e.g., {\"APP_ID\": \"com.example.app\"})")
+                            putJsonObject("additionalProperties") {
+                                put("type", "string")
+                            }
                         }
                     },
                     required = listOf("device_id", "appId")
@@ -33,6 +40,7 @@ object LaunchAppTool {
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val appId = request.arguments["appId"]?.jsonPrimitive?.content
+                val envParam = request.arguments["env"]?.jsonObject
                 
                 if (deviceId == null || appId == null) {
                     return@RegisteredTool CallToolResult(
@@ -41,7 +49,13 @@ object LaunchAppTool {
                     )
                 }
                 
-                val result = sessionManager.newSession(
+                // Parse environment variables and substitute in app ID
+                val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
+                val resolvedAppId = env.entries.fold(appId) { acc, (key, value) ->
+                    acc.replace("\${$key}", value)
+                }
+                
+                val result = sessionManager.newMcpSession(
                     host = null,
                     port = null,
                     driverHostPort = null,
@@ -49,7 +63,7 @@ object LaunchAppTool {
                     platform = null
                 ) { session ->
                     val command = LaunchAppCommand(
-                        appId = appId,
+                        appId = resolvedAppId,
                         clearState = null,
                         clearKeychain = null,
                         stopApp = null,
@@ -67,8 +81,15 @@ object LaunchAppTool {
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
-                        put("app_id", appId)
+                        put("app_id", resolvedAppId)
                         put("message", "App launched successfully")
+                        if (env.isNotEmpty()) {
+                            putJsonObject("env_vars") {
+                                env.forEach { (key, value) ->
+                                    put(key, value)
+                                }
+                            }
+                        }
                     }.toString()
                 }
                 

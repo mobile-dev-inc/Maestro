@@ -57,10 +57,19 @@ object MaestroSessionManager {
     private const val defaultHost = "localhost"
     private const val defaultXctestHost = "127.0.0.1"
     private const val defaultXcTestPort = 22087
+    private const val mcpPortStart = 7200 // MCP uses different port range
 
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
+    private var nextMcpPort = mcpPortStart
 
+    /**
+     * Set the base port for MCP sessions
+     */
+    fun setMcpBasePort(basePort: Int) {
+        nextMcpPort = basePort
+        logger.info("MCP base port set to: $basePort")
+    }
 
     fun <T> newSession(
         host: String?,
@@ -127,6 +136,82 @@ object MaestroSessionManager {
         })
 
         return block(session)
+    }
+
+    /**
+     * MCP session management using dedicated ports to avoid conflicts with terminal commands.
+     */
+    fun <T> newMcpSession(
+        host: String?,
+        port: Int?,
+        driverHostPort: Int?,
+        deviceId: String?,
+        teamId: String? = null,
+        platform: String? = null,
+        isStudio: Boolean = false,
+        isHeadless: Boolean = isStudio,
+        reinstallDriver: Boolean = true,
+        deviceIndex: Int? = null,
+        executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
+        block: (MaestroSession) -> T,
+    ): T {
+        // Use dedicated MCP port to avoid conflicts
+        val mcpPort = getNextMcpPort()
+        logger.info("Creating MCP session on port: $mcpPort")
+        
+        val selectedDevice = selectDevice(
+            host = host,
+            port = port,
+            driverHostPort = mcpPort,
+            deviceId = deviceId,
+            teamId = teamId,
+            platform = Platform.fromString(platform),
+            deviceIndex = deviceIndex,
+        )
+        val sessionId = UUID.randomUUID().toString()
+
+        val heartbeatFuture = executor.scheduleAtFixedRate(
+            {
+                try {
+                    Thread.sleep(1000) // Add a 1-second delay here for fixing race condition
+                    SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                } catch (e: Exception) {
+                    logger.error("Failed to record heartbeat for MCP session", e)
+                }
+            },
+            0L,
+            5L,
+            TimeUnit.SECONDS
+        )
+
+        val session = createMaestro(
+            selectedDevice = selectedDevice,
+            connectToExistingSession = false, // Always create new session for MCP
+            isStudio = isStudio,
+            isHeadless = isHeadless,
+            driverHostPort = mcpPort,
+            reinstallDriver = reinstallDriver,
+            platformConfiguration = executionPlan?.workspaceConfig?.platform
+        )
+        
+        try {
+            val result = block(session)
+            // Clean up MCP session after use
+            heartbeatFuture.cancel(true)
+            SessionStore.delete(sessionId, selectedDevice.platform)
+            logger.info("MCP session closed on port: $mcpPort")
+            return result
+        } catch (e: Exception) {
+            logger.warn("Error cleaning up MCP session", e)
+            throw e
+        }
+    }
+
+    /**
+     * Get next available MCP port
+     */
+    private fun getNextMcpPort(): Int {
+        return nextMcpPort++
     }
 
     private fun selectDevice(

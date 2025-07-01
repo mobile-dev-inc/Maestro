@@ -36,7 +36,7 @@ object BackTool {
                     )
                 }
                 
-                val result = sessionManager.newSession(
+                val result = sessionManager.newMcpSession(
                     host = null,
                     port = null,
                     driverHostPort = null,
