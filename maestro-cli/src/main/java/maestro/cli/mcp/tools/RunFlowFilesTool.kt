@@ -9,13 +9,14 @@ import maestro.orchestra.yaml.YamlCommandReader
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Paths
+import maestro.cli.util.WorkingDirectory
 
 object RunFlowFilesTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "run_flow_files",
-                description = "Run one or more full Maestro test files. If no device is running, you'll need to start a device first.",
+                description = "Run one or more full Maestro test files. If no device is running, you'll need to start a device first. If the command fails using a relative path, try using an absolute path.",
                 inputSchema = Tool.Input(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
@@ -51,11 +52,13 @@ object RunFlowFilesTool {
                     )
                 }
                 
+                // Resolve all flow files to File objects once
+                val resolvedFiles = flowFiles.map { WorkingDirectory.resolve(it) }
                 // Validate all files exist before executing
-                val missingFiles = flowFiles.filter { !File(it).exists() }
+                val missingFiles = resolvedFiles.filter { !it.exists() }
                 if (missingFiles.isNotEmpty()) {
                     return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("Files not found: ${missingFiles.joinToString(", ")}")),
+                        content = listOf(TextContent("Files not found: ${missingFiles.joinToString(", ") { it.path }}")),
                         isError = true
                     )
                 }
@@ -71,25 +74,22 @@ object RunFlowFilesTool {
                     val results = mutableListOf<Map<String, Any>>()
                     var totalCommands = 0
                     
-                    for (flowFile in flowFiles) {
+                    for (fileObj in resolvedFiles) {
                         try {
-                            val commands = YamlCommandReader.readCommands(Paths.get(flowFile))
-                            
+                            val commands = YamlCommandReader.readCommands(fileObj.toPath())
                             runBlocking {
                                 orchestra.executeCommands(commands)
                             }
-                            
                             results.add(mapOf(
-                                "file" to flowFile,
+                                "file" to fileObj.path,
                                 "success" to true,
                                 "commands_executed" to commands.size,
                                 "message" to "Flow executed successfully"
                             ))
                             totalCommands += commands.size
-                            
                         } catch (e: Exception) {
                             results.add(mapOf(
-                                "file" to flowFile,
+                                "file" to fileObj.path,
                                 "success" to false,
                                 "error" to (e.message ?: "Unknown error"),
                                 "message" to "Flow execution failed"

@@ -10,7 +10,7 @@ object ListDevicesTool {
         return RegisteredTool(
             Tool(
                 name = "list_devices",
-                description = "List all available devices that can be used for automation",
+                description = "List all available devices that can be launched for automation.",
                 inputSchema = Tool.Input(
                     properties = buildJsonObject { },
                     required = emptyList()
