@@ -23,6 +23,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
