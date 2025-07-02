@@ -6,17 +6,21 @@ set -e
 # These tests validate that LLMs can properly use MCP tools, including reasoning,
 # safety, and interaction patterns. They test client/server interaction and LLM capabilities.
 #
-# Usage: ./run_mcp_evals.sh [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]
+# Usage: ./run_mcp_evals.sh [--app mobilesafari|wikipedia|demo_app] <eval-file1.yaml> [eval-file2.yaml] [...]
 
 # Parse arguments
-with_apps=false
+app_setup="none"  # Default to clean home screen
 eval_files=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --with-apps)
-            with_apps=true
-            shift
+        --app)
+            app_setup="$2"
+            if [[ ! "$app_setup" =~ ^(none|mobilesafari|wikipedia|demo_app)$ ]]; then
+                echo "Error: --app must be one of: none, mobilesafari, wikipedia, demo_app"
+                exit 1
+            fi
+            shift 2
             ;;
         *.yaml)
             eval_files+=("$1")
@@ -24,7 +28,8 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown argument: $1"
-            echo "usage: $0 [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]"
+            echo "usage: $0 [--app mobilesafari|wikipedia|demo_app] <eval-file1.yaml> [eval-file2.yaml] [...]"
+            echo "       $0 [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]  # legacy, same as --app wikipedia"
             exit 1
             ;;
     esac
@@ -32,7 +37,9 @@ done
 
 if [ ${#eval_files[@]} -eq 0 ]; then
     echo "❌ Error: No eval files provided"
-    echo "usage: $0 [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]"
+    echo "usage: $0 [--app mobilesafari|wikipedia|demo_app] <eval-file1.yaml> [eval-file2.yaml] [...]"
+    echo "       $0 [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]  # legacy, same as --app wikipedia"
+    echo "       Default app setup: none (clean home screen)"
     echo ""
     echo "Available eval files:"
     find evals/ -name "*.yaml" 2>/dev/null | sed 's/^/  /' || echo "  (none found)"
@@ -41,7 +48,7 @@ fi
 
 echo "🧠 Running MCP LLM behavior evaluations"
 echo "📋 Eval files: ${eval_files[*]}"
-echo "📱 With app setup: $with_apps"
+echo "📱 App setup: $app_setup"
 
 # Get the script directory for relative paths
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -54,20 +61,41 @@ CONFIG="$SCRIPT_DIR/mcp-server-config.json"
 platform="ios"
 "$SCRIPT_DIR/setup/launch-simulator.sh" "$platform"
 
-# Optional app setup for complex evals
-if [ "$with_apps" = true ]; then
-    echo "📱 Setting up app environment for complex evaluations..."
-    
-    # Use setup utilities for app environment
-    "$SCRIPT_DIR/setup/download-and-install-apps.sh" ios
-    
-    # Setup Wikipedia in a good state for hierarchy testing
-    cd "$(dirname "$SCRIPT_DIR")/../../.."
-    maestro test "$SCRIPT_DIR/setup/flows/setup-wikipedia-search-ios.yaml"
-    maestro test "$SCRIPT_DIR/setup/flows/verify-ready-state.yaml"
-    
-    echo "✅ App environment ready for evaluations"
-fi
+# App setup based on chosen option
+case "$app_setup" in
+    "none")
+        echo "📱 No app setup - using clean simulator home screen"
+        ;;
+    "mobilesafari")
+        echo "📱 Launching Mobile Safari for evaluations..."
+        cd "$(dirname "$SCRIPT_DIR")/../../.."
+        maestro test "$SCRIPT_DIR/setup/flows/launch-safari-ios.yaml"
+        echo "✅ Mobile Safari ready for evaluations"
+        ;;
+    "wikipedia")
+        echo "📱 Setting up Wikipedia app environment for complex evaluations..."
+        
+        # Use setup utilities for app environment
+        "$SCRIPT_DIR/setup/download-and-install-apps.sh" ios
+        
+        # Setup Wikipedia in a good state for hierarchy testing
+        cd "$(dirname "$SCRIPT_DIR")/../../.."
+        maestro test "$SCRIPT_DIR/setup/flows/setup-wikipedia-search-ios.yaml"
+        maestro test "$SCRIPT_DIR/setup/flows/verify-ready-state.yaml"
+        
+        echo "✅ Wikipedia app environment ready for evaluations"
+        ;;
+    "demo_app")
+        echo "📱 Launching Demo App for evaluations..."
+
+                # Use setup utilities for app environment
+        "$SCRIPT_DIR/setup/download-and-install-apps.sh" ios
+
+        cd "$(dirname "$SCRIPT_DIR")/../../.."
+        maestro test "$SCRIPT_DIR/setup/flows/launch-demo-app-ios.yaml"
+        echo "✅ Demo App ready for evaluations"
+        ;;
+esac
 
 # Run each eval file (from mcp directory so paths work correctly)
 echo "🧪 Executing LLM behavior evaluations..."

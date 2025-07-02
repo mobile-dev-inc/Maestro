@@ -1,0 +1,147 @@
+---
+options:
+  models:
+  - claude-3-7-sonnet-latest
+  timeout: 30000
+  maxSteps: 10
+
+evals:
+- name: yaml_compact_format_comprehension
+  description: Test if LLM can understand and extract information from yaml compact view hierarchy format
+  prompt: >
+    Using the inspect_view_hierarchy tool with the "yaml" format, describe the number of clickable elements on the screen.
+  expectedToolCalls:
+    required:
+    - inspect_view_hierarchy
+    - tap_on
+    allowed:
+    - list_devices
+    - start_device
+    - launch_app
+  responseScorers:
+  - type: llm-judge
+    criteria: >
+      The assistant successfully uses the inspect_view_hierarchy tool with format=yaml.
+      The assistant correctly identifies 7 buttons in a column, and a final button in the bottom right corner.
+    threshold: 0.8
+
+# - name: yaml_compact_vs_full_efficiency
+#   description: Compare token usage between yaml compact and full formats
+#   prompt: >
+#     Please get the view hierarchy of the current screen using both the yaml compact format 
+#     and the yaml full format. Compare the outputs and tell me which one is more concise.
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#     prohibited:
+#     - tap_on
+#     - input_text
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant calls inspect_view_hierarchy at least twice with different format parameters
+#       (format=yaml with compact=true and compact=false), and provides a meaningful comparison
+#       of the two outputs, noting the differences in verbosity and structure.
+#     threshold: 0.8
+
+# - name: csv_format_understanding
+#   description: Test LLM ability to parse and understand CSV hierarchy format
+#   prompt: >
+#     Get the view hierarchy in CSV format and explain the structure. 
+#     What do the columns represent and how would you use this data to find interactive elements?
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#     prohibited:
+#     - tap_on
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant calls inspect_view_hierarchy with format=csv, correctly explains that the CSV
+#       contains element_num, depth, attributes, and parent_num columns, and demonstrates understanding
+#       of how to identify interactive elements from the attributes column.
+#     threshold: 0.8
+
+# - name: json_compact_parsing
+#   description: Test LLM understanding of JSON compact format with abbreviations
+#   prompt: >
+#     Inspect the current view hierarchy using JSON compact format. 
+#     Find any clickable elements and explain what the abbreviated property names mean.
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant uses inspect_view_hierarchy with format=json and compact=true,
+#       correctly identifies that properties like 'b', 'txt', 'a11y', 'rid' are abbreviations
+#       for bounds, text, accessibilityText, and resource-id respectively, and can identify
+#       clickable elements from the JSON structure.
+#     threshold: 0.8
+
+# - name: format_parameter_validation
+#   description: Test that the assistant understands the different format options available
+#   prompt: >
+#     What are all the different output formats available for the inspect_view_hierarchy tool?
+#     Show me an example of each format.
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#     allowed: []
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant demonstrates knowledge of the available formats (yaml, json, csv) and
+#       compact options (true/false), and shows examples by calling inspect_view_hierarchy
+#       with different format and compact parameter combinations. Should mention that CSV
+#       format doesn't use the compact parameter.
+#     threshold: 0.8
+
+# - name: schema_guided_navigation
+#   description: Test if LLM can use the YAML compact schema to understand abbreviations
+#   prompt: >
+#     Use the yaml compact format to get the view hierarchy. Using the schema provided in the output,
+#     find an element that has both text content and is clickable. Explain how you identified it.
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant uses inspect_view_hierarchy with yaml compact format, references the
+#       ui_schema section to understand abbreviations, correctly identifies that 'txt' means text
+#       and 'clickable: true' indicates an interactive element, and explains the process clearly.
+#     threshold: 0.8
+
+# - name: multi_format_comparison
+#   description: Test LLM ability to work with multiple formats and choose the best one for a task
+#   prompt: >
+#     I want to get a quick overview of all interactive elements on the screen for automated testing.
+#     Which format would be most suitable and why? Demonstrate by getting the hierarchy in that format.
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant analyzes the different format options, makes a reasoned choice 
+#       (likely yaml compact or json compact for efficiency, or CSV for structured processing),
+#       explains the reasoning, and demonstrates by calling inspect_view_hierarchy with
+#       the chosen format.
+#     threshold: 0.8
+
+# - name: error_handling_invalid_format
+#   description: Test how LLM handles invalid format parameters
+#   prompt: >
+#     Try to get the view hierarchy using an invalid format parameter like "xml".
+#     What happens and how would you handle this?
+#   expectedToolCalls:
+#     required:
+#     - inspect_view_hierarchy
+#   responseScorers:
+#   - type: llm-judge
+#     criteria: >
+#       The assistant attempts inspect_view_hierarchy with an invalid format,
+#       observes that it falls back to the default (yaml compact), and explains
+#       that the tool has built-in error handling with sensible defaults.
+#     threshold: 0.8

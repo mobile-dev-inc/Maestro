@@ -6,6 +6,10 @@ import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.TreeNode
 import kotlinx.coroutines.runBlocking
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 
 object InspectViewHierarchyTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
@@ -22,6 +26,15 @@ object InspectViewHierarchyTool {
                             put("type", "string")
                             put("description", "The ID of the device to get hierarchy from")
                         }
+                        putJsonObject("format") {
+                            put("type", "string")
+                            put("description", "Output format: yaml, json, or csv (default: yaml)")
+                            put("enum", buildJsonArray {
+                                add("yaml")
+                                add("json") 
+                                add("csv")
+                            })
+                        }
                     },
                     required = listOf("device_id")
                 )
@@ -29,6 +42,7 @@ object InspectViewHierarchyTool {
         ) { request ->
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
+                val format = request.arguments["format"]?.jsonPrimitive?.content ?: "yaml"
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -49,8 +63,23 @@ object InspectViewHierarchyTool {
                     val viewHierarchy = maestro.viewHierarchy()
                     val tree = viewHierarchy.root
                     
-                    // Always return YAML format
-                    extractYamlOutput(tree)
+                    // Return format based on parameters
+                    when (format.lowercase()) {
+                        "yaml" -> {
+                            buildYamlOutput(tree)
+                        }
+                        "json" -> {
+                            val compactData = createCompactWithSchema(tree)
+                            jacksonObjectMapper()
+                                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                                .writerWithDefaultPrettyPrinter()
+                                .writeValueAsString(compactData)
+                        }
+                        "csv" -> extractCsvOutput(tree)
+                        else -> {
+                            buildYamlOutput(tree)
+                        } // default fallback
+                    }
                 }
                 
                 CallToolResult(content = listOf(TextContent(result)))
@@ -63,137 +92,85 @@ object InspectViewHierarchyTool {
         }
     }
     
-    private fun extractYamlOutput(node: TreeNode?): String {
-        if (node == null) return ""
+    private fun createCompactWithSchema(node: TreeNode): Map<String, Any?> {
+        val result = mutableMapOf<String, Any?>()
         
-        val yaml = StringBuilder()
+        // Add schema section (same for both JSON and YAML)
+        result["ui_schema"] = mapOf(
+            "abbreviations" to mapOf(
+                "b" to "bounds",
+                "a11y" to "accessibilityText",
+                "val" to "value", 
+                "txt" to "text",
+                "rid" to "resource-id",
+                "cls" to "class",
+                "hint" to "hintText",
+                "title" to "title",
+                "pkg" to "package",
+                "scroll" to "scrollable",
+                "longClick" to "long-clickable",
+                "pwd" to "password",
+                "url" to "url",
+                "synth" to "synthetic",
+                "c" to "children"
+            ),
+            "defaults" to mapOf(
+                "enabled" to true,
+                "focused" to false,
+                "selected" to false,
+                "checked" to false,
+                "clickable" to false,
+                "scrollable" to false,
+                "long-clickable" to false,
+                "password" to false,
+                "synthetic" to false,
+                "txt" to "",
+                "hint" to "",
+                "rid" to "",
+                "title" to "",
+                "package" to "",
+                "url" to ""
+            )
+        )
         
-        // Add schema header
-        yaml.appendLine("# UI Schema - provides context for abbreviations and defaults")
-        yaml.appendLine("ui_schema:")
-        yaml.appendLine(" abbreviations:")
-        yaml.appendLine("  b: bounds")
-        yaml.appendLine("  a11y: accessibilityText")
-        yaml.appendLine("  val: value")
-        yaml.appendLine("  txt: text")
-        yaml.appendLine("  rid: resource-id")
-        yaml.appendLine("  cls: class                    # Android/Web")
-        yaml.appendLine("  hint: hintText")
-        yaml.appendLine("  title: title                 # iOS")
-        yaml.appendLine("  pkg: package                 # Android")
-        yaml.appendLine("  scroll: scrollable           # Android")
-        yaml.appendLine("  longClick: long-clickable    # Android")
-        yaml.appendLine("  pwd: password                # Android")
-        yaml.appendLine("  url: url                     # Web")
-        yaml.appendLine("  synth: synthetic             # Web")
-        yaml.appendLine("  c: children")
-        yaml.appendLine(" defaults:")
-        yaml.appendLine("  enabled: true")
-        yaml.appendLine("  focused: false")
-        yaml.appendLine("  selected: false")
-        yaml.appendLine("  checked: false")
-        yaml.appendLine("  clickable: false")
-        yaml.appendLine("  scrollable: false            # Android")
-        yaml.appendLine("  long-clickable: false        # Android")
-        yaml.appendLine("  password: false              # Android")
-        yaml.appendLine("  synthetic: false             # Web")
-        yaml.appendLine("  txt: \"\"")
-        yaml.appendLine("  hint: \"\"")
-        yaml.appendLine("  rid: \"\"")
-        yaml.appendLine("  title: \"\"                    # iOS")
-        yaml.appendLine("  package: \"\"                  # Android")
-        yaml.appendLine("  url: \"\"                      # Web")
-        yaml.appendLine("")
-        yaml.appendLine("# UI Elements")
-        yaml.appendLine("elements:")
+        // Convert the tree to compact structure using existing logic
+        result["elements"] = compactTreeData(node)
         
-        // Process the tree
-        val processedElements = processYamlNode(node)
-        if (processedElements.isNotEmpty()) {
-            processedElements.forEach { element ->
-                yaml.appendLine(element)
-            }
-        }
-        
-        return yaml.toString()
+        return result
     }
     
-    private fun processYamlNode(node: TreeNode, depth: Int = 0): List<String> {
-        val elements = mutableListOf<String>()
-        val indent = " ".repeat(depth + 1)
-        
-        // Filter out zero width/height elements
-        val bounds = node.attributes["bounds"]
-        val hasZeroSize = bounds?.let {
-            val boundsPattern = Regex("\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]")
-            val matchResult = boundsPattern.find(it)
-            if (matchResult != null) {
-                val (x1, y1, x2, y2) = matchResult.destructured
-                val width = x2.toInt() - x1.toInt()
-                val height = y2.toInt() - y1.toInt()
-                width == 0 || height == 0
-            } else false
-        } ?: false
-        
-        if (hasZeroSize) {
-            // Process children but skip this node
-            node.children.forEach { child ->
-                elements.addAll(processYamlNode(child, depth))
-            }
-            return elements
+    private fun compactTreeData(node: TreeNode): List<Map<String, Any?>> {
+        // Skip zero-size elements
+        if (hasZeroSize(node)) {
+            return node.children.flatMap { compactTreeData(it) }
         }
         
-        // Process children first to check for container deduplication
-        val childElements = mutableListOf<String>()
-        node.children.forEach { child ->
-            childElements.addAll(processYamlNode(child, depth + 1))
+        // Skip nodes with no meaningful content
+        if (!hasNonDefaultValues(node)) {
+            return node.children.flatMap { compactTreeData(it) }
         }
         
-        // Check if this is a container with exact same size as single child and no meaningful content
-        val shouldSkipContainer = shouldSkipAsContainer(node, childElements)
+        // Process this node normally
+        val element = convertToCompactNode(node).toMutableMap()
+        val children = node.children.flatMap { compactTreeData(it) }
         
-        if (shouldSkipContainer) {
-            // Skip this container and return children with reduced depth
-            node.children.forEach { child ->
-                elements.addAll(processYamlNode(child, depth))
-            }
-        } else {
-            // Include this element
-            val elementYaml = buildElementYaml(node, indent)
-            if (elementYaml.isNotEmpty()) {
-                elements.add(elementYaml)
-                // Add children with proper indentation
-                if (childElements.isNotEmpty()) {
-                    val childIndent = " ".repeat(depth + 2)
-                    elements.add("${indent}c:")
-                    childElements.forEach { child ->
-                        elements.add(child)
-                    }
-                }
-            } else if (childElements.isNotEmpty()) {
-                // Element has no content but has children - add children at current level
-                elements.addAll(childElements)
-            }
+        if (children.isNotEmpty()) {
+            element["c"] = children
         }
         
-        return elements
+        return listOf(element)
     }
     
-    private fun shouldSkipAsContainer(node: TreeNode, childElements: List<String>): Boolean {
-        // Skip if this node has exactly same bounds as a single child and no meaningful attributes
-        if (node.children.size != 1) return false
-        
-        val child = node.children.first()
-        val nodeBounds = node.attributes["bounds"]
-        val childBounds = child.attributes["bounds"]
-        
-        if (nodeBounds != childBounds) return false
-        
-        // Check if node has any meaningful attributes beyond defaults
-        val hasMeaningfulContent = hasNonDefaultValues(node)
-        
-        return !hasMeaningfulContent
+    private fun hasZeroSize(node: TreeNode): Boolean {
+        val bounds = node.attributes["bounds"] ?: return false
+        val boundsPattern = Regex("\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]")
+        val matchResult = boundsPattern.find(bounds) ?: return false
+        val (x1, y1, x2, y2) = matchResult.destructured
+        val width = x2.toInt() - x1.toInt()
+        val height = y2.toInt() - y1.toInt()
+        return width == 0 || height == 0
     }
+    
     
     private fun hasNonDefaultValues(node: TreeNode): Boolean {
         // Check for non-default text attributes
@@ -232,117 +209,123 @@ object InspectViewHierarchyTool {
         return false
     }
     
-    private fun buildElementYaml(node: TreeNode, indent: String): String {
-        val parts = mutableListOf<String>()
+    private fun buildYamlOutput(tree: TreeNode): String {
+        val yamlMapper = YAMLMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        val result = StringBuilder()
         
-        // Add accessibility text (most important)
-        val a11y = node.attributes["accessibilityText"]
-        if (!a11y.isNullOrBlank()) {
-            parts.add("a11y: \"$a11y\"")
-        }
+        // Get the full data structure
+        val compactData = createCompactWithSchema(tree)
         
-        // Add regular text if no accessibility text
-        if (a11y.isNullOrBlank()) {
-            val txt = node.attributes["text"]
-            if (!txt.isNullOrBlank()) {
-                parts.add("txt: \"$txt\"")
-            }
-        }
+        // Add document separator
+        result.appendLine("---")
         
-        // Add value
-        val valueAttr = node.attributes["value"]
-        if (!valueAttr.isNullOrBlank()) {
-            parts.add("val: \"$valueAttr\"")
-        }
+        // Serialize and add ui_schema section with comment
+        result.appendLine("# Schema definitions - explains abbreviations and default values used in elements")
+        val schemaYaml = yamlMapper.writeValueAsString(mapOf("ui_schema" to compactData["ui_schema"]))
+            .removePrefix("---\n") // Remove extra document separator
+        result.append(schemaYaml)
         
-        // Add resource ID
-        val resourceId = node.attributes["resource-id"]
-        if (!resourceId.isNullOrBlank()) {
-            parts.add("rid: \"$resourceId\"")
-        }
+        // Serialize and add elements section with comment  
+        result.appendLine("# UI Elements - the actual view hierarchy with abbreviated attribute names")
+        val elementsYaml = yamlMapper.writeValueAsString(mapOf("elements" to compactData["elements"]))
+            .removePrefix("---\n") // Remove extra document separator
+        result.append(elementsYaml)
         
-        // Add class
-        val className = node.attributes["class"]
-        if (!className.isNullOrBlank()) {
-            parts.add("cls: \"$className\"")
-        }
+        return result.toString()
+    }
+    
+    private fun convertToCompactNode(node: TreeNode): Map<String, Any?> {
+        val result = mutableMapOf<String, Any?>()
         
-        // Add hint text
-        val hint = node.attributes["hintText"]
-        if (!hint.isNullOrBlank()) {
-            parts.add("hint: \"$hint\"")
-        }
-        
-        // Add title (iOS)
-        val title = node.attributes["title"]
-        if (!title.isNullOrBlank()) {
-            parts.add("title: \"$title\"")
-        }
-        
-        // Add package (Android)
-        val pkg = node.attributes["package"]
-        if (!pkg.isNullOrBlank()) {
-            parts.add("pkg: \"$pkg\"")
-        }
-        
-        // Add URL (Web)
-        val url = node.attributes["url"]
-        if (!url.isNullOrBlank()) {
-            parts.add("url: \"$url\"")
-        }
-        
-        // Add Android-specific boolean attributes (only if non-default)
-        val scrollable = node.attributes["scrollable"]
-        if (scrollable == "true") {
-            parts.add("scroll: true")
-        }
-        
-        val longClickable = node.attributes["long-clickable"]
-        if (longClickable == "true") {
-            parts.add("longClick: true")
-        }
-        
-        val password = node.attributes["password"]
-        if (password == "true") {
-            parts.add("pwd: true")
-        }
-        
-        // Add Web-specific boolean attributes (only if non-default)
-        val synthetic = node.attributes["synthetic"]
-        if (synthetic == "true") {
-            parts.add("synth: true")
-        }
-        
-        // Add any other unknown attributes with full names (to ensure we don't lose data)
-        val knownAttributes = setOf(
-            "accessibilityText", "text", "value", "resource-id", "class", "hintText", 
-            "title", "package", "url", "scrollable", "long-clickable", "password", 
-            "synthetic", "bounds", "enabled", "focused", "selected", "checked"
-        )
-        
-        for ((key, value) in node.attributes) {
-            if (!knownAttributes.contains(key) && !value.isNullOrBlank()) {
-                parts.add("$key: \"$value\"")
-            }
-        }
-        
-        // Add bounds
+        // Add abbreviated attributes only if non-default
         val bounds = node.attributes["bounds"]
-        if (!bounds.isNullOrBlank()) {
-            parts.add("b: \"$bounds\"")
+        if (!bounds.isNullOrBlank()) result["b"] = bounds
+        
+        val accessibilityText = node.attributes["accessibilityText"]
+        if (!accessibilityText.isNullOrBlank()) result["a11y"] = accessibilityText
+        
+        val text = node.attributes["text"]
+        if (!text.isNullOrBlank()) result["txt"] = text
+        
+        val value = node.attributes["value"]
+        if (!value.isNullOrBlank()) result["val"] = value
+        
+        val resourceId = node.attributes["resource-id"]
+        if (!resourceId.isNullOrBlank()) result["rid"] = resourceId
+        
+        val className = node.attributes["class"]
+        if (!className.isNullOrBlank()) result["cls"] = className
+        
+        // Add non-default boolean states
+        if (node.clickable == true) result["clickable"] = true
+        if (node.checked == true) result["checked"] = true
+        if (node.enabled == false) result["enabled"] = false
+        if (node.focused == true) result["focused"] = true
+        if (node.selected == true) result["selected"] = true
+        
+        // Children are handled in compactTreeData() to respect filtering
+        
+        return result
+    }
+    
+    private fun extractCsvOutput(node: TreeNode?): String {
+        if (node == null) return "element_num,depth,attributes,parent_num\n"
+        
+        val csv = StringBuilder()
+        csv.appendLine("element_num,depth,attributes,parent_num")
+        
+        val nodeToId = mutableMapOf<TreeNode, Int>()
+        
+        // Assign IDs to each node
+        var counter = 0
+        node.aggregate().forEach { treeNode ->
+            nodeToId[treeNode] = counter++
         }
         
-        // Add non-default boolean states (from TreeNode properties, not attributes)
-        if (node.clickable == true) parts.add("clickable: true")
-        if (node.checked == true) parts.add("checked: true")
-        if (node.enabled == false) parts.add("enabled: false")
-        if (node.focused == true) parts.add("focused: true")
-        if (node.selected == true) parts.add("selected: true")
+        // Process tree recursively to generate CSV
+        processTreeToCSV(node, 0, null, nodeToId, csv)
         
-        return if (parts.isNotEmpty()) {
-            "${indent}- ${parts.joinToString(", ")}"
-        } else {
-            ""
+        return csv.toString()
+    }
+    
+    private fun processTreeToCSV(
+        node: TreeNode, 
+        depth: Int, 
+        parentId: Int?, 
+        nodeToId: Map<TreeNode, Int>,
+        csv: StringBuilder
+    ) {
+        val nodeId = nodeToId[node] ?: return
+        
+        // Build attributes string
+        val attributesList = mutableListOf<String>()
+        
+        // Add normal attributes
+        node.attributes.forEach { (key, value) ->
+            if (value.isNotEmpty() && value != "false") {
+                attributesList.add("$key=$value")
+            }
+        }
+        
+        // Add boolean properties if true
+        if (node.clickable == true) attributesList.add("clickable=true")
+        if (node.enabled == true) attributesList.add("enabled=true")
+        if (node.focused == true) attributesList.add("focused=true")
+        if (node.checked == true) attributesList.add("checked=true")
+        if (node.selected == true) attributesList.add("selected=true")
+        
+        // Join all attributes with "; "
+        val attributesString = attributesList.joinToString("; ")
+        
+        // Escape quotes in the attributes string if needed
+        val escapedAttributes = attributesString.replace("\"", "\"\"")
+        
+        // Add this node to CSV
+        csv.append("$nodeId,$depth,\"$escapedAttributes\",${parentId ?: ""}\n")
+        
+        // Process children
+        node.children.forEach { child ->
+            processTreeToCSV(child, depth + 1, nodeId, nodeToId, csv)
         }
     }
     
