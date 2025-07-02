@@ -869,7 +869,6 @@ data class RunScriptCommand(
 
 data class RunShellCommand(
     val command: String,
-    val args: List<String> = emptyList(),
     val env: Map<String, String> = emptyMap(),
     val workingDirectory: String? = null,
     val condition: Condition?,
@@ -881,10 +880,10 @@ data class RunShellCommand(
 
     override val originalDescription: String
         get() = if (condition == null) {
-            "Run shell command $command with args ${args.joinToString(", ")}" +
+            "Run shell command $command" +
                     if (workingDirectory != null) " in working directory $workingDirectory" else ""
         } else {
-            "Run shell command $command with args ${args.joinToString(", ")}" +
+            "Run shell command $command" +
                     " when ${condition.description()}"
         }
 
