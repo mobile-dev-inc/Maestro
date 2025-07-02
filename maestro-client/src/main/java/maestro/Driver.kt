@@ -77,6 +77,8 @@ interface Driver {
 
     fun setLocation(latitude: Double, longitude: Double)
 
+    fun setOrientation(orientation: DeviceOrientation)
+
     fun eraseText(charactersToErase: Int)
 
     fun setProxy(host: String, port: Int)

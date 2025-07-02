@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -3849,6 +3850,27 @@ class IntegrationTest {
         // No test failure
     }
 
+    fun `Case 126 - Set orientation`() {
+        // Given
+        val commands = readCommands("120_set_orientation")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.PORTRAIT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_LEFT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
+    }
+    
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

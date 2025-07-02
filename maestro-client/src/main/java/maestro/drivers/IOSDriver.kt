@@ -25,6 +25,7 @@ import hierarchy.AXElement
 import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceOrientation
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
@@ -440,6 +441,12 @@ class IOSDriver(
     override fun setLocation(latitude: Double, longitude: Double) {
         metrics.measured("operation", mapOf("command" to "setLocation")) {
             runDeviceCall("setLocation") { iosDevice.setLocation(latitude, longitude).expect {} }
+        }
+    }
+
+    override fun setOrientation(orientation: DeviceOrientation) {
+        metrics.measured("operation", mapOf("command" to "setOrientation")) {
+            runDeviceCall("setOrientation") { iosDevice.setOrientation(orientation.camelCaseName) }
         }
     }
 

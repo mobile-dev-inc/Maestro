@@ -129,6 +129,13 @@ interface IOSDevice : AutoCloseable {
     fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable>
 
     /**
+     * Sets the device's orientation.
+     *
+     * @param link - link to open
+     */
+    fun setOrientation(orientation: String)
+
+    /**
      * @return true if the connection to the device (not device itself) is shut down
      */
     fun isShutdown(): Boolean

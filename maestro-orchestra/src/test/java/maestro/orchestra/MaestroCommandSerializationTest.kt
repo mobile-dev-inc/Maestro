@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.google.common.truth.Truth.assertThat
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import org.intellij.lang.annotations.Language
@@ -580,6 +581,33 @@ internal class MaestroCommandSerializationTest {
             {
               "waitForAnimationToEndCommand" : {
                 "timeout" : 9,
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize SetOrientationCommand`() {
+        // given
+        val command = MaestroCommand(
+            SetOrientationCommand(DeviceOrientation.PORTRAIT)
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "setOrientationCommand" : {
+                "orientation" : "PORTRAIT",
                 "optional" : false
               }
             }

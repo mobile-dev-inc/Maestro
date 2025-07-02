@@ -3,3 +3,4 @@ https://storage.googleapis.com/mobile.dev/cli_e2e/wikipedia.zip
 https://storage.googleapis.com/mobile.dev/cli_e2e/nowinandroid.apk
 https://storage.googleapis.com/mobile.dev/cli_e2e/demo_app.apk
 https://storage.googleapis.com/mobile.dev/cli_e2e/demo_app.zip
+https://storage.googleapis.com/mobile.dev/cli_e2e/setOrientation.apk
