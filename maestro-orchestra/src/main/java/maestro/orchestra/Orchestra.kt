@@ -562,7 +562,7 @@ class Orchestra(
                     )
                 }
                 val output = process.inputStream.bufferedReader().readText()
-                jsEngine.putEnv(command.outputVariable ?: "SHELL_COMMAND_OUTPUT", CommandLine.escapeCommandLineOutput(output))
+                jsEngine.putEnv(command.outputVariable ?: "COMMAND_LINE_OUTPUT", CommandLine.escapeCommandLineOutput(output))
                 true
             } catch (e: Exception) {
                 if (command.optional) {
