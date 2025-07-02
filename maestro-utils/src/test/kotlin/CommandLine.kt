@@ -3,51 +3,68 @@ import maestro.utils.CommandLine.parseCommand
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class CommandLineEdgeCasesTest {
+class CommandLineTest {
 
     @Test
-    fun `parseCommand handles unclosed double quote`() {
-        assertEquals(listOf("foo", "bar baz"), parseCommand("foo \"bar baz"))
+    fun `parseCommand returns empty list for null or blank input`() {
+        assertEquals(emptyList<String>(), parseCommand(null))
+        assertEquals(emptyList<String>(), parseCommand(""))
+        assertEquals(emptyList<String>(), parseCommand("   "))
     }
 
     @Test
-    fun `parseCommand handles unclosed single quote`() {
-        assertEquals(listOf("foo", "bar baz"), parseCommand("foo 'bar baz"))
+    fun `parseCommand parses simple space-separated command`() {
+        assertEquals(listOf("echo", "hello", "world"), parseCommand("echo hello world"))
     }
 
     @Test
-    fun `parseCommand handles escaped backslash at end`() {
-        assertEquals(listOf("echo", "foo\\"), parseCommand("echo foo\\\\"))
+    fun `parseCommand handles double quotes`() {
+        assertEquals(listOf("echo", "hello world"), parseCommand("echo \"hello world\""))
     }
 
     @Test
-    fun `parseCommand handles multiple consecutive spaces`() {
-        assertEquals(listOf("foo", "bar", "baz"), parseCommand("foo   bar    baz"))
+    fun `parseCommand handles single quotes`() {
+        assertEquals(listOf("echo", "hello world"), parseCommand("echo 'hello world'"))
     }
 
     @Test
-    fun `parseCommand handles arguments with only quotes`() {
-        assertEquals(listOf("foo", ""), parseCommand("foo \"\""))
-        assertEquals(listOf("foo", ""), parseCommand("foo ''"))
+    fun `parseCommand handles escaped spaces and quotes`() {
+        assertEquals(listOf("echo", "hello world"), parseCommand("echo hello\\ world"))
+        assertEquals(listOf("echo", "hello\"world"), parseCommand("echo hello\\\"world"))
+        assertEquals(listOf("echo", "hello'world"), parseCommand("echo hello\\'world"))
     }
 
     @Test
-    fun `parseCommand handles escaped whitespace inside quotes`() {
-        assertEquals(listOf("foo", "bar\\ baz"), parseCommand("foo \"bar\\ baz\""))
+    fun `parseCommand handles mixed quotes and escapes`() {
+        assertEquals(listOf("cmd", "a b", "c"), parseCommand("cmd \"a b\" c"))
+        assertEquals(listOf("cmd", "a b", "c"), parseCommand("cmd 'a b' c"))
+        assertEquals(listOf("cmd", "a b", "c d"), parseCommand("cmd \"a b\" 'c d'"))
+        assertEquals(listOf("cmd", "a b", "c d"), parseCommand("cmd 'a b' \"c d\""))
     }
 
     @Test
-    fun `escapeCommandLineOutput handles only whitespace and newlines`() {
-        assertEquals("", escapeCommandLineOutput("   \n\r\n  "))
+    fun `escapeShellOutput escapes backslashes and double quotes`() {
+        assertEquals("foo\\\\bar", escapeCommandLineOutput("foo\\bar"))
+        assertEquals("\\\"quoted\\\"", escapeCommandLineOutput("\"quoted\""))
     }
 
     @Test
-    fun `escapeCommandLineOutput handles only backslashes and quotes`() {
-        assertEquals("\\\\\\\"\\\"", escapeCommandLineOutput("\\\"\""))
+    fun `escapeShellOutput converts newlines and removes carriage returns`() {
+        assertEquals("foo\\nbar", escapeCommandLineOutput("foo\nbar"))
+        assertEquals("foo\\nbar", escapeCommandLineOutput("foo\r\nbar"))
+        assertEquals("foo\\nbar", escapeCommandLineOutput("foo\rbar\n"))
     }
 
     @Test
-    fun `escapeCommandLineOutput handles mixed escaped and unescaped characters`() {
-        assertEquals("foo\\\\\\\"bar\\n", escapeCommandLineOutput("foo\\\"bar\n"))
+    fun `escapeShellOutput trims trailing whitespace`() {
+        assertEquals("foo", escapeCommandLineOutput("foo   "))
+        assertEquals("foo\\nbar", escapeCommandLineOutput("foo\nbar   "))
+    }
+
+    @Test
+    fun `escapeShellOutput handles combined cases`() {
+        val input = "  \"foo\\bar\"\r\nbaz  "
+        val expected = "\\\"foo\\\\bar\\\"\\nbaz"
+        assertEquals(expected, escapeCommandLineOutput(input))
     }
 }
