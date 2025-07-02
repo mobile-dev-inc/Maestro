@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlRunShellCommand(
     val command: String,
-    val args: List<String>? = null,
     val env: Map<String, String>? = null,
     val `when`: YamlCondition? = null,
     val workingDirectory: String? = null,

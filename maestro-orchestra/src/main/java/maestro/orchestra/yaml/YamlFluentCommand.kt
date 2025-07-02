@@ -416,7 +416,6 @@ data class YamlFluentCommand(
                 MaestroCommand(
                     RunShellCommand(
                         command = runShellCommand.command,
-                        args = runShellCommand.args ?: emptyList(),
                         env = runShellCommand.env ?: emptyMap(),
                         condition = runShellCommand.`when`?.toCondition(),
                         workingDirectory = runShellCommand.workingDirectory,
