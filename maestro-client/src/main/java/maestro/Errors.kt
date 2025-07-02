@@ -62,7 +62,7 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class IOSDeviceDriverSetupException(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
-    class ShellCommandException(message: String, cause: Throwable? = null) : MaestroException(message, cause)
+    class CommandLineException(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 }
 
 sealed class MaestroDriverStartupException(override val message: String, cause: Throwable? = null): RuntimeException(message, cause) {

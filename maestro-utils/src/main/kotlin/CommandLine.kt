@@ -114,13 +114,13 @@ object CommandLine {
     }
 
     /**
-     * Escapes shell output for safe use in JavaScript and trims trailing whitespace.
+     * Escapes command line output for safe use in JavaScript and trims trailing whitespace.
      * - Escapes backslashes and double quotes.
      * - Converts newlines to \n.
      * - Removes carriage returns.
      * - Trims trailing whitespace.
      */
-    fun escapeShellOutput(output: String): String {
+    fun escapeCommandLineOutput(output: String): String {
         return output.replace("\r\n", "\n") // Normalize Windows newlines
                 .replace("\r", "\n") // Normalize old Mac newlines
                 .replace("\\", "\\\\")

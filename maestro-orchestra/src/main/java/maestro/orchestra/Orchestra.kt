@@ -19,9 +19,7 @@
 
 package maestro.orchestra
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
@@ -31,11 +29,7 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.ViewHierarchy
-import maestro.ai.AI
-import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
-import maestro.ai.openai.OpenAI
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
@@ -63,7 +57,6 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.Long.max
 import kotlin.coroutines.coroutineContext
-import java.util.concurrent.TimeUnit
 
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
@@ -564,19 +557,19 @@ class Orchestra(
                 val exitCode = process.exitValue()
                 if (exitCode != 0 && !command.optional) {
                     val errorMessage = process.errorStream.bufferedReader().readText()
-                    throw MaestroException.ShellCommandException(
+                    throw MaestroException.CommandLineException(
                         "Shell command '${command.command}' failed with exit code $exitCode: $errorMessage"
                     )
                 }
                 val output = process.inputStream.bufferedReader().readText()
-                jsEngine.putEnv(command.outputVariable ?: "SHELL_COMMAND_OUTPUT", CommandLine.escapeShellOutput(output))
+                jsEngine.putEnv(command.outputVariable ?: "SHELL_COMMAND_OUTPUT", CommandLine.escapeCommandLineOutput(output))
                 true
             } catch (e: Exception) {
                 if (command.optional) {
                     logger.warn("Optional shell command '${command.command}' failed: ${e.message}")
                     false
                 } else {
-                    throw MaestroException.ShellCommandException(
+                    throw MaestroException.CommandLineException(
                         "Failed to execute shell command '${command.command}' with error: ${e.message}",
                         e
                     )
