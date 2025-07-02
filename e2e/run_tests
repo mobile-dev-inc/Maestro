@@ -59,11 +59,13 @@ for workspace_dir in ./workspaces/*; do
 	###
 	### Run failing tests
 	###
-	# edge case: the wikipedia workspace has no failing flows
-	if [ "$(basename "$workspace_dir")" = "wikipedia" ]; then
-		continue
-	fi
-
+	# edge case: some workspaces have no failing flows
+	case $(basename "$workspace_dir") in
+		wikipedia|setOrientation)
+			continue
+			;;
+	esac
+	
 	WORKSPACE_PASS=true # Reset for failing flows
 	_h2 "$app_name" "run failing tests"
 

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
@@ -88,6 +89,12 @@ class FakeDriver : Driver {
             widthGrid = 540,
             heightGrid = 960,
         )
+    }
+
+    override fun setOrientation(orientation: DeviceOrientation) {
+        ensureOpen()
+
+        events += Event.SetOrientation(orientation)
     }
 
     override fun launchApp(
@@ -486,6 +493,10 @@ class FakeDriver : Driver {
 
         data class PressKey(
             val code: KeyCode,
+        ) : Event()
+
+        data class SetOrientation(
+            val orientation: DeviceOrientation,
         ) : Event()
 
         object TakeScreenshot : Event()
