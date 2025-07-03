@@ -1072,6 +1072,14 @@ class AndroidDriver(
                 attributesBuilder["class"] = node.getAttribute("class")
             }
 
+            if (node.hasAttribute("important-for-accessibility")) {
+                attributesBuilder["important-for-accessibility"] = node.getAttribute("important-for-accessibility")
+            }
+
+            if (node.hasAttribute("error")) {
+                attributesBuilder["error"] = node.getAttribute("error")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
