@@ -12,15 +12,8 @@ import maestro.cli.mcp.runMaestroMcpServer
 )
 class McpCommand : Callable<Int> {
     
-    @CommandLine.Option(
-        names = ["--port"],
-        defaultValue = "7200",
-        description = ["Port for MCP server to use (default: 7200)"]
-    )
-    private var port: Int = 7200
-
     override fun call(): Int {
-        runMaestroMcpServer(port)
+        runMaestroMcpServer()
         return 0
     }
 } 

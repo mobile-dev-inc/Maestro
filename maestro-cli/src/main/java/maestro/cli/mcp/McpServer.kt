@@ -27,12 +27,9 @@ import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.QueryDocsTool
 
 // Main function to run the Maestro MCP server
-fun runMaestroMcpServer(basePort: Int = 7200) {
+fun runMaestroMcpServer() {
     // Disable all console logging to prevent interference with JSON-RPC communication
     LogConfig.configure(logFileName = null, printToConsole = false)
-    
-    // Set the MCP base port for session management
-    MaestroSessionManager.setMcpBasePort(basePort)
     
     val sessionManager = MaestroSessionManager
 
@@ -74,7 +71,7 @@ fun runMaestroMcpServer(basePort: Int = 7200) {
         System.out.asSink().buffered()
     )
 
-    System.err.println("MCP Server: Started on base port $basePort. Waiting for messages.")
+    System.err.println("MCP Server: Started. Waiting for messages.")
 
     runBlocking {
         server.connect(transport)

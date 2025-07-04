@@ -91,10 +91,10 @@ object RunFlowTool {
                 // Parse environment variables from JSON object
                 val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
                 
-                val result = sessionManager.newMcpSession(
+                val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = null,
+                    driverHostPort = 7200, // Fixed port for MCP to avoid conflicts
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
@@ -120,7 +120,6 @@ object RunFlowTool {
                             put("success", true)
                             put("device_id", deviceId)
                             put("commands_executed", commands.size)
-                            put("env_vars_count", finalEnv.size)
                             put("message", "Flow executed successfully")
                             if (finalEnv.isNotEmpty()) {
                                 putJsonObject("env_vars") {

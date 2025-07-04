@@ -76,10 +76,10 @@ object RunFlowFilesTool {
                     )
                 }
                 
-                val result = sessionManager.newMcpSession(
+                val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = null,
+                    driverHostPort = 7200, // Fixed port for MCP to avoid conflicts
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
@@ -103,7 +103,6 @@ object RunFlowFilesTool {
                                 "file" to fileObj.absolutePath,
                                 "success" to true,
                                 "commands_executed" to commands.size,
-                                "env_vars_count" to finalEnv.size,
                                 "message" to "Flow executed successfully"
                             ))
                             totalCommands += commands.size
@@ -126,7 +125,6 @@ object RunFlowFilesTool {
                         put("device_id", deviceId)
                         put("total_files", flowFiles.size)
                         put("total_commands_executed", totalCommands)
-                        put("env_vars_count", finalEnv.size)
                         putJsonArray("results") {
                             results.forEach { result ->
                                 addJsonObject {
