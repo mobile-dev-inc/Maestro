@@ -11,6 +11,7 @@ import maestro.cli.mcp.runMaestroMcpServer
     ],
 )
 class McpCommand : Callable<Int> {
+    
     override fun call(): Int {
         runMaestroMcpServer()
         return 0

@@ -61,7 +61,6 @@ object MaestroSessionManager {
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
 
-
     fun <T> newSession(
         host: String?,
         port: Int?,
@@ -105,11 +104,12 @@ object MaestroSessionManager {
             selectedDevice = selectedDevice,
             connectToExistingSession = if (isStudio) {
                 false
+            } else if (driverHostPort == 7200) {
+                // MCP sessions can reuse existing sessions for faster execution
+                SessionStore.hasActiveSessions(sessionId, selectedDevice.platform)
             } else {
-                SessionStore.hasActiveSessions(
-                    sessionId,
-                    selectedDevice.platform
-                )
+                // Terminal sessions should not reuse MCP sessions to avoid conflicts
+                false
             },
             isStudio = isStudio,
             isHeadless = isHeadless,
@@ -128,6 +128,8 @@ object MaestroSessionManager {
 
         return block(session)
     }
+
+
 
     private fun selectDevice(
         host: String?,

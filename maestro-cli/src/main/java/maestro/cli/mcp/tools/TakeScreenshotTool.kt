@@ -40,7 +40,7 @@ object TakeScreenshotTool {
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = null,
+                    driverHostPort = 7200, // Fixed port for MCP to avoid conflicts
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
