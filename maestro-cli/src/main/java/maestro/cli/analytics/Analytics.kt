@@ -2,12 +2,11 @@ package maestro.cli.analytics
 
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import maestro.cli.api.ApiClient
+import com.posthog.java.PostHog
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
@@ -17,9 +16,8 @@ import java.net.ConnectException
 import java.nio.file.Path
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlin.io.path.createDirectories
-import kotlin.io.path.deleteExisting
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -29,10 +27,14 @@ import kotlin.io.path.writeText
  *  - Sends data to /maestro/analytics endpoint.
  *  - Uses configuration from $XDG_CONFIG_HOME/maestro/analytics.json.
  */
-object Analytics {
+object Analytics : AutoCloseable {
+    private const val POSTHOG_API_KEY: String = "phc_XKhdIS7opUZiS58vpOqbjzgRLFpi0I6HU2g00hR7CVg"
+    private const val POSTHOG_HOST: String = "https://us.i.posthog.com"
+
+    private val posthog = PostHog.Builder(POSTHOG_API_KEY).host(POSTHOG_HOST).build();
+
     private val logger = LoggerFactory.getLogger(Analytics::class.java)
     private val analyticsStatePath: Path = EnvUtils.xdgStateHome().resolve("analytics.json")
-    private val legacyUuidPath: Path = EnvUtils.legacyMaestroHome().resolve("uuid")
 
     private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
     private val analyticsDisabledWithEnvVar: Boolean
@@ -44,7 +46,7 @@ object Analytics {
     }
 
     val hasRunBefore: Boolean
-        get() = legacyUuidPath.exists() || analyticsStatePath.exists()
+        get() = analyticsStatePath.exists()
 
     private val analyticsState: AnalyticsState
         get() {
@@ -85,64 +87,19 @@ object Analytics {
     val uuid: String
         get() = analyticsState.uuid
 
-    fun maybeMigrate() {
-        // Previous versions of Maestro (<1.36.0) used ~/.maestro/uuid to store uuid.
-        // If ~/.maestro/uuid already exists, assume permission was granted (for backward compatibility).
-        if (legacyUuidPath.exists()) {
-            val uuid = legacyUuidPath.readText()
-            saveAnalyticsState(granted = true, uuid = uuid)
-            legacyUuidPath.deleteExisting()
-        }
-    }
 
     fun maybeAskToEnableAnalytics() {
         if (hasRunBefore) return
 
-        // Fix for https://github.com/mobile-dev-inc/maestro/issues/1846
-        if (CiUtils.getCiProvider() != null) {
-            if (!analyticsDisabledWithEnvVar) {
-                println("CI detected, analytics was automatically enabled.")
-                println("To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.")
-                saveAnalyticsState(granted = true)
-            } else {
-                println("CI detected and $DISABLE_ANALYTICS_ENV_VAR environment variable set, analytics disabled.")
-                saveAnalyticsState(granted = false)
-            }
-            return
-        }
-
-        if (analyticsDisabledWithEnvVar) {
-            saveAnalyticsState(granted = false)
-            return
-        }
-
-        while (!Thread.interrupted()) {
-            println("Maestro CLI would like to collect anonymous usage data to improve the product.")
-            print("Enable analytics? [Y/n] ")
-
-            val str = readlnOrNull()?.lowercase()
-            val granted = str?.isBlank() == true || str == "y" || str == "yes"
-            println(
-                if (granted) "Usage data collection enabled. Thank you!"
-                else "Usage data collection disabled."
-            )
-            saveAnalyticsState(granted = granted)
-            return
-        }
-
-        error("Interrupted")
+        println("Anonymous analytics enabled. To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.\n")
+        saveAnalyticsState(granted = !analyticsDisabledWithEnvVar, uuid = uuid)
     }
 
     /**
      * Uploads analytics if there was a version update.
      */
-    fun maybeUploadAnalyticsAsync() {
+    fun maybeUploadAnalyticsAsync(commandName: String) {
         try {
-            if (!hasRunBefore) {
-                logger.trace("First run, not uploading")
-                return
-            }
-
             if (analyticsDisabledWithEnvVar) {
                 logger.trace("Analytics disabled with env var, not uploading")
                 return
@@ -157,26 +114,27 @@ object Analytics {
                 logger.trace("Upload conditions not met, not uploading")
                 return
             }
+            logger.trace("Will upload analytics report")
 
-            val report = AnalyticsReport(
-                uuid = analyticsState.uuid,
-                freshInstall = !hasRunBefore,
-                cliVersion = EnvUtils.CLI_VERSION?.toString() ?: "Unknown",
-                os = EnvUtils.OS_NAME,
-                osArch = EnvUtils.OS_ARCH,
-                osVersion = EnvUtils.OS_VERSION,
-                javaVersion = EnvUtils.getJavaVersion().toString(),
-                xcodeVersion = IOSEnvUtils.xcodeVersion,
-                flutterVersion = EnvUtils.getFlutterVersionAndChannel().first,
-                flutterChannel = EnvUtils.getFlutterVersionAndChannel().second,
-                androidVersions = AndroidEnvUtils.androidEmulatorSdkVersions,
-                iosVersions = IOSEnvUtils.simulatorRuntimes,
+            posthog.capture(
+                uuid,
+                "maestro_cli_run",
+                mapOf(
+                    "command" to commandName,
+                    "freshInstall" to !hasRunBefore,
+                    "cliVersion" to (EnvUtils.CLI_VERSION?.toString() ?: "Unknown"),
+                    "os" to EnvUtils.OS_NAME,
+                    "osArch" to EnvUtils.OS_ARCH,
+                    "osVersion" to EnvUtils.OS_VERSION,
+                    "javaVersion" to EnvUtils.getJavaVersion().toString(),
+                    "xcodeVersion" to IOSEnvUtils.xcodeVersion,
+                    "flutterVersion" to EnvUtils.getFlutterVersionAndChannel().first,
+                    "flutterChannel" to EnvUtils.getFlutterVersionAndChannel().second,
+                    "androidVersions" to AndroidEnvUtils.androidEmulatorSdkVersions,
+                    "iosVersions" to IOSEnvUtils.simulatorRuntimes,
+                )
             )
 
-            logger.trace("Will upload analytics report")
-            logger.trace(report.toString())
-
-            ApiClient(EnvUtils.BASE_API_URL).sendAnalyticsReport(report)
             updateAnalyticsState()
         } catch (e: ConnectException) {
             // This is fine. The user probably doesn't have internet connection.
@@ -221,6 +179,10 @@ object Analytics {
     private fun generateUUID(): String {
         return CiUtils.getCiProvider() ?: UUID.randomUUID().toString()
     }
+
+    override fun close() {
+        posthog.shutdown()
+    }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -229,22 +191,4 @@ data class AnalyticsState(
     val enabled: Boolean,
     val lastUploadedForCLI: String?,
     @JsonFormat(shape = JsonFormat.Shape.STRING, timezone = "UTC") val lastUploadedTime: Instant?,
-)
-
-// AnalyticsReport must match equivalent monorepo model in:
-// mobile.dev/api/models/src/main/java/models/maestro/AnalyticsReport.kt
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class AnalyticsReport(
-    @JsonProperty("deviceUuid") val uuid: String,
-    @JsonProperty("freshInstall") val freshInstall: Boolean,
-    @JsonProperty("version") val cliVersion: String,
-    @JsonProperty("os") val os: String,
-    @JsonProperty("osArch") val osArch: String,
-    @JsonProperty("osVersion") val osVersion: String,
-    @JsonProperty("javaVersion") val javaVersion: String?,
-    @JsonProperty("xcodeVersion") val xcodeVersion: String?,
-    @JsonProperty("flutterVersion") val flutterVersion: String?,
-    @JsonProperty("flutterChannel") val flutterChannel: String?,
-    @JsonProperty("androidVersions") val androidVersions: List<String>,
-    @JsonProperty("iosVersions") val iosVersions: List<String>,
 )
