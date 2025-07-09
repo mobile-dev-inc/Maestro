@@ -88,7 +88,7 @@ object TapOnTool {
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = 7200, // Fixed port for MCP to avoid conflicts
+                    driverHostPort = MaestroSessionManager.MCP_DRIVER_PORT,
                     deviceId = deviceId,
                     platform = null
                 ) { session ->

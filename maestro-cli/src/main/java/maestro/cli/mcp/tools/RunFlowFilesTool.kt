@@ -12,6 +12,7 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Paths
+import maestro.cli.util.WorkingDirectory
 
 object RunFlowFilesTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
@@ -66,7 +67,7 @@ object RunFlowFilesTool {
                 val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
                 
                 // Resolve all flow files to File objects once
-                val resolvedFiles = flowFiles.map { File(it) }
+                val resolvedFiles = flowFiles.map { WorkingDirectory.resolve(it) }
                 // Validate all files exist before executing
                 val missingFiles = resolvedFiles.filter { !it.exists() }
                 if (missingFiles.isNotEmpty()) {
@@ -79,7 +80,7 @@ object RunFlowFilesTool {
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = 7200, // Fixed port for MCP to avoid conflicts
+                    driverHostPort = MaestroSessionManager.MCP_DRIVER_PORT,
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
@@ -98,7 +99,6 @@ object RunFlowFilesTool {
                             runBlocking {
                                 orchestra.runFlow(commandsWithEnv)
                             }
-                            
                             results.add(mapOf(
                                 "file" to fileObj.absolutePath,
                                 "success" to true,

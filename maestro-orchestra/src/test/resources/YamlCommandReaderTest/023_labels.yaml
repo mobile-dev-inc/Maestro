@@ -81,6 +81,9 @@ appId: com.example.app
 - runScript:
     file: "023_runScript_test.js"
     label: "Run some special calculations"
+- setOrientation:
+    orientation: "LANDSCAPE_LEFT"
+    label: "Set the device orientation"
 - scroll:
     label: "Scroll down"
 - scrollUntilVisible:

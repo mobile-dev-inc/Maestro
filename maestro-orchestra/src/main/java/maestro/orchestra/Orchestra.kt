@@ -354,6 +354,7 @@ class Orchestra(
             is ClearKeychainCommand -> clearKeychainCommand()
             is RunFlowCommand -> runFlowCommand(command, config)
             is SetLocationCommand -> setLocationCommand(command)
+            is SetOrientationCommand -> setOrientationCommand(command)
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
             is DefineVariablesCommand -> defineVariablesCommand(command)
             is RunScriptCommand -> runScriptCommand(command)
@@ -562,6 +563,12 @@ class Orchestra(
 
     private fun setLocationCommand(command: SetLocationCommand): Boolean {
         maestro.setLocation(command.latitude, command.longitude)
+
+        return true
+    }
+
+    private fun setOrientationCommand(command: SetOrientationCommand): Boolean {
+        maestro.setOrientation(command.orientation)
 
         return true
     }
