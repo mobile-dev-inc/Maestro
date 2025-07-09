@@ -42,7 +42,7 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.named<CreateStartScripts>("startScripts") {
-    classpath = files("$buildDir/libs/*")
+    classpath = files("${layout.buildDirectory}/libs/*")
 }
 
 dependencies {
@@ -85,9 +85,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.2.0")
     implementation(libs.mcp.kotlin.sdk) {
-        version {
-            branch = "steviec/kotlin-1.8"
-        }
         exclude(group = "org.slf4j", module = "slf4j-simple")
     }
 
@@ -98,13 +95,13 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+        freeCompilerArgs.addAll("-Xjdk-release=17")
     }
 }
 
