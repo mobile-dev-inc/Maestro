@@ -29,7 +29,6 @@ while [[ $# -gt 0 ]]; do
         *)
             echo "Unknown argument: $1"
             echo "usage: $0 [--app mobilesafari|wikipedia|demo_app] <eval-file1.yaml> [eval-file2.yaml] [...]"
-            echo "       $0 [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]  # legacy, same as --app wikipedia"
             exit 1
             ;;
     esac
@@ -38,7 +37,6 @@ done
 if [ ${#eval_files[@]} -eq 0 ]; then
     echo "❌ Error: No eval files provided"
     echo "usage: $0 [--app mobilesafari|wikipedia|demo_app] <eval-file1.yaml> [eval-file2.yaml] [...]"
-    echo "       $0 [--with-apps] <eval-file1.yaml> [eval-file2.yaml] [...]  # legacy, same as --app wikipedia"
     echo "       Default app setup: none (clean home screen)"
     echo ""
     echo "Available eval files:"

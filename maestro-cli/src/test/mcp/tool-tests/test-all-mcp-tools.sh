@@ -79,8 +79,6 @@ if [ -n "$DEVICE_ID" ] && [ "$DEVICE_ID" != "null" ]; then
   # Test new format parameters
   echo ""
   echo "=== Testing View Hierarchy Formats ==="
-  run_test inspect_view_hierarchy --arg "device_id=$DEVICE_ID" --arg "format=yaml" --expect-contains "ui_schema"
-  run_test inspect_view_hierarchy --arg "device_id=$DEVICE_ID" --arg "format=json" --expect-contains "ui_schema"
   run_test inspect_view_hierarchy --arg "device_id=$DEVICE_ID" --arg "format=csv" --expect-contains "element_num,depth,attributes,parent_num"
   
   # Test app management

@@ -8,11 +8,11 @@ This directory contains testing infrastructure for Maestro's MCP (Model Context 
 # Test tool functionality (API validation)
 ./run_tool_tests.sh ios
 
-# Test LLM behavior (basic evals)  
-./run_mcp_evals.sh basic-evals.yaml
+# Test basic LLM behavior with the maestro MCP server (basic evals)  
+./run_mcp_evals.sh evals/basic-evals.yaml
 
-# Test LLM behavior with app setup (complex evals)
-./run_mcp_evals.sh --with-apps view-hierarchy-evals.yaml
+# Test LLM behavior with a specific app setup and more complex evals
+./run_mcp_evals.sh --app demo_app evals/view-hierarchy-evals.yaml
 ```
 
 ## Testing Types
@@ -36,7 +36,7 @@ maestro-cli/src/test/mcp/
 ├── run_tool_tests.sh              # Tool functionality testing
 ├── run_mcp_evals.sh              # LLM behavior testing  
 ├── mcp-server-config.json        # Shared MCP configuration
-├── modelcontextprotocol-inspector-*.tgz  # MCP inspector tool
+├── modelcontextprotocol-inspector-*.tgz  # MCP inspector tool -- bundling it since we're using a forked version
 │
 ├── tool-tests/                   # Tool functionality tests
 │   ├── test-single-mcp-tool.sh   # Test individual tools
