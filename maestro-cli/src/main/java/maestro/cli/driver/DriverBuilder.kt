@@ -9,7 +9,7 @@ import kotlin.io.path.pathString
 
 class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderFactory = XcodeBuildProcessBuilderFactory()) {
     private val XCODEBUILD_WAIT_TIME: Long by lazy {
-        System.getenv("XCODEBUILD_WAIT_TIME")?.toLongOrNull() ?: DEFAULT_XCODEBUILD_WAIT_TIME
+        System.getenv("MAESTRO_XCODEBUILD_WAIT_TIME")?.toLongOrNull() ?: DEFAULT_XCODEBUILD_WAIT_TIME
     }
 
     /**
