@@ -8,8 +8,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.pathString
 
 class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderFactory = XcodeBuildProcessBuilderFactory()) {
-    private const val DEFAULT_XCODEBUILD_WAIT_TIME: Int = 120
-    private val XCODEBUILD_WAIT_TIME: Int = System.getenv("XCODEBUILD_WAIT_TIME")?.toIntOrNull() ?: DEFAULT_XCODEBUILD_WAIT_TIME
+    private const val DEFAULT_XCODEBUILD_WAIT_TIME: Long = 120
+    private val XCODEBUILD_WAIT_TIME: Long by lazy {
+        System.getenv("XCODEBUILD_WAIT_TIME")?.toLongOrNull() ?: DEFAULT_XCODEBUILD_WAIT_TIME
+    }
 
     /**
      * Builds the iOS driver for real iOS devices by extracting the driver source, copying it to a temporary build
