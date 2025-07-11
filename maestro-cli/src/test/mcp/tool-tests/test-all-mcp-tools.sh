@@ -8,7 +8,7 @@ failures=0
 tests_run=0
 
 function inspector() {
-  npx -y @modelcontextprotocol/inspector --cli --config "./mcp-server-config.json" --server "$SERVER" "$@"
+  npx -y @modelcontextprotocol/inspector --cli --config "$CONFIG" --server "$SERVER" "$@"
 }
 
 # Helper function to run a test and track failures
