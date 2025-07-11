@@ -44,7 +44,7 @@ object InputTextTool {
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = null,
+                    driverHostPort = MaestroSessionManager.MCP_DRIVER_PORT,
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
