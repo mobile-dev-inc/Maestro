@@ -118,7 +118,7 @@ for eval_file in "${eval_files[@]}"; do
     echo "📋 Using evals: $eval_file"
     
     # Run the evals using MCP inspector
-    npx -y ./modelcontextprotocol-inspector-0.15.0.tgz --cli --evals "$eval_file" --config "$CONFIG" --server maestro-mcp
+    npx -y mcp-server-tester "$eval_file" --server-config "$CONFIG"
     
     echo "✅ Eval $eval_count completed: $eval_file"
 done

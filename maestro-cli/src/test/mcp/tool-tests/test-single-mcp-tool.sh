@@ -19,7 +19,7 @@ function debug() {
 }
 
 function inspector() {
-  npx -y "./modelcontextprotocol-inspector-0.15.0.tgz" --cli --config "./mcp-server-config.json" --server "$SERVER" "$@"
+  npx -y "@modelcontextprotocol/inspector" --cli --config "./mcp-server-config.json" --server "$SERVER" "$@"
 }
 
 function print_usage() {

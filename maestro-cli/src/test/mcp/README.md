@@ -36,7 +36,6 @@ maestro-cli/src/test/mcp/
 ├── run_tool_tests.sh              # Tool functionality testing
 ├── run_mcp_evals.sh              # LLM behavior testing  
 ├── mcp-server-config.json        # Shared MCP configuration
-├── modelcontextprotocol-inspector-*.tgz  # MCP inspector tool -- bundling it since we're using a forked version
 │
 ├── tool-tests/                   # Tool functionality tests
 │   ├── test-single-mcp-tool.sh   # Test individual tools
@@ -123,7 +122,6 @@ Add new flows to `setup/flows/` for custom app states or environments
 
 ## Prerequisites
 
-- MCP inspector tool (included as `.tgz` file)
 - iOS simulator or Android emulator running (for device-dependent tests)
 - `MAESTRO_API_KEY` environment variable (for API-dependent tools like `query_docs`)
 
