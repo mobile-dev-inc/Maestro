@@ -19,16 +19,24 @@ object FileUtils {
     fun File.isWebFlow(): Boolean {
         if (isDirectory) {
             return listFiles()
-                ?.any { 
-                    it.getName().matches(".+\\.y[a]?ml".toRegexSafe(RegexOption.IGNORE_CASE)) &&
-                    !it.getName().matches("config.y[a]?ml".toRegexSafe(RegexOption.IGNORE_CASE)) &&
-                    it.isWebFlow() 
-                }
+                ?.any { it.isWebFlow() }
                 ?: false
         }
 
+        val isYaml =
+            name.endsWith(".yaml", ignoreCase = true) ||
+            name.endsWith(".yml", ignoreCase = true)
+
+        if (
+            !isYaml ||
+            name.equals("config.yaml", ignoreCase = true) ||
+            name.equals("config.yml", ignoreCase = true)
+        ) {
+            return false
+        }
+
         val config = YamlCommandReader.readConfig(toPath())
-        return Regex("http(s?)://").containsMatchIn(config.appId)
+        return Regex("https?://").containsMatchIn(config.appId)
     }
 
 }
