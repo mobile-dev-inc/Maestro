@@ -1,0 +1,17 @@
+{
+  "name": "extractPoint",
+  "description": "Extracts center point from an image based on a given query",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "required": [
+      "text"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "text": {
+        "type": "string"
+      }
+    }
+  }
+}

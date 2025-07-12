@@ -12,14 +12,10 @@ import maestro.ai.AI
 import maestro.ai.openai.OpenAI
 import org.slf4j.LoggerFactory
 
-private val logger = LoggerFactory.getLogger(OpenAI::class.java)
+private val logger = LoggerFactory.getLogger(OpenAIClient::class.java)
 
 
 class OpenAIClient {
-    private val baseUrl by lazy {
-        System.getenv("MAESTRO_CLOUD_API_URL") ?: "https://api.copilot.mobile.dev"
-    }
-
 
     private val askForDefectsSchema by lazy {
         readSchema("askForDefects")
@@ -95,6 +91,51 @@ class OpenAIClient {
         )
 
         val response = json.decodeFromString<ExtractTextWithAiResponse>(aiResponse.response)
+        return response
+    }
+
+    suspend fun extractPointWithAi(
+        aiClient: AI,
+        query: String,
+        screen: ByteArray,
+    ): ExtractPointWithAiResponse {
+        val prompt = buildString {
+            append("What are the center coordinates (percentage based on image width and height) of the ui element described in this query: $query")
+
+            append(
+                """
+                |
+                |RULES:
+                |* Provide response as a valid JSON, with structure described below.
+                |* Each resulting coordinate should be smaller than 100
+                |* Resulting coordinates should be integers and have % at the beginning. eg: 10%,20%
+                """.trimMargin("|")
+            )
+
+            append(
+                """
+                |
+                |* You must provide result as a valid JSON object, matching this structure:
+                |
+                |  {
+                |      "text": "%x,%y"
+                |  }
+                |
+                |DO NOT output any other information in the JSON object.
+                """.trimMargin("|")
+            )
+        }
+
+        val aiResponse = aiClient.chatCompletion(
+            prompt,
+            model = aiClient.defaultModel,
+            maxTokens = 4096,
+            imageDetail = "high",
+            images = listOf(screen),
+            jsonSchema = json.parseToJsonElement(extractTextSchema).jsonObject,
+        )
+        logger.info("AI response: ${aiResponse.response}")
+        val response = json.decodeFromString<ExtractPointWithAiResponse>(aiResponse.response)
         return response
     }
 

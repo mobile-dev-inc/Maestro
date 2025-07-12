@@ -156,8 +156,8 @@ internal class MaestroCommandSerializationTest {
         // given
         val command = MaestroCommand(
             SwipeCommand(
-                startPoint = Point(10, 10),
-                endPoint = Point(100, 100),
+                start = "10, 10",
+                end = "100, 100",
             )
         )
 

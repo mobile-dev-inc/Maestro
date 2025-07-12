@@ -114,8 +114,8 @@ class Maestro(
 
     fun swipe(
         swipeDirection: SwipeDirection? = null,
-        startPoint: Point? = null,
-        endPoint: Point? = null,
+        start: String? = null,
+        end: String? = null,
         startRelative: String? = null,
         endRelative: String? = null,
         duration: Long,
@@ -125,7 +125,24 @@ class Maestro(
 
         when {
             swipeDirection != null -> driver.swipe(swipeDirection, duration)
-            startPoint != null && endPoint != null -> driver.swipe(startPoint, endPoint, duration)
+
+            start != null && end != null -> {
+                val startPoint: Point?
+                val endPoint: Point?
+
+                val startPoints = start.split(",")
+                    .map {
+                        it.trim().toInt()
+                    }
+                startPoint = Point(startPoints[0], startPoints[1])
+
+                val endPoints = end.split(",")
+                    .map {
+                        it.trim().toInt()
+                    }
+                endPoint = Point(endPoints[0], endPoints[1])
+                driver.swipe(startPoint, endPoint, duration)
+            }
             startRelative != null && endRelative != null -> {
                 val startPoints = startRelative.replace("%", "")
                     .split(",").map { it.trim().toInt() }

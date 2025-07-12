@@ -40,6 +40,7 @@ data class MaestroCommand(
     val assertNoDefectsWithAICommand: AssertNoDefectsWithAICommand? = null,
     val assertWithAICommand: AssertWithAICommand? = null,
     val extractTextWithAICommand: ExtractTextWithAICommand? = null,
+    val extractPointWithAICommand: ExtractPointWithAICommand? = null,
     val inputTextCommand: InputTextCommand? = null,
     val inputRandomTextCommand: InputRandomCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
@@ -84,6 +85,7 @@ data class MaestroCommand(
         assertNoDefectsWithAICommand = command as? AssertNoDefectsWithAICommand,
         assertWithAICommand = command as? AssertWithAICommand,
         extractTextWithAICommand = command as? ExtractTextWithAICommand,
+        extractPointWithAICommand = command as? ExtractPointWithAICommand,
         inputTextCommand = command as? InputTextCommand,
         inputRandomTextCommand = command as? InputRandomCommand,
         assertVisualCommand = command as? AssertVisualCommand,
@@ -129,6 +131,7 @@ data class MaestroCommand(
         assertNoDefectsWithAICommand != null -> assertNoDefectsWithAICommand
         assertWithAICommand != null -> assertWithAICommand
         extractTextWithAICommand != null -> extractTextWithAICommand
+        extractPointWithAICommand != null -> extractPointWithAICommand
         inputTextCommand != null -> inputTextCommand
         inputRandomTextCommand != null -> inputRandomTextCommand
         launchAppCommand != null -> launchAppCommand

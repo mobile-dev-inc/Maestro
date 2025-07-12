@@ -38,6 +38,7 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.EvalScriptCommand
+import maestro.orchestra.ExtractPointWithAICommand
 import maestro.orchestra.ExtractTextWithAICommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
@@ -94,6 +95,7 @@ data class YamlFluentCommand(
     val assertVisual: YamlAssertVisual? = null,
     val assertWithAI: YamlAssertWithAI? = null,
     val extractTextWithAI: YamlExtractTextWithAI? = null,
+    val extractPointWithAI: YamlExtractPointWithAI? = null,
     val back: YamlActionBack? = null,
     val clearKeychain: YamlActionClearKeychain? = null,
     val hideKeyboard: YamlActionHideKeyboard? = null,
@@ -221,6 +223,17 @@ data class YamlFluentCommand(
                         outputVariable = extractTextWithAI.outputVariable,
                         optional = extractTextWithAI.optional,
                         label = extractTextWithAI.label,
+                    )
+                )
+            )
+
+            extractPointWithAI != null -> listOf(
+                MaestroCommand(
+                    ExtractPointWithAICommand(
+                        query = extractPointWithAI.query,
+                        outputVariable = extractPointWithAI.outputVariable,
+                        optional = extractPointWithAI.optional,
+                        label = extractPointWithAI.label,
                     )
                 )
             )
@@ -815,27 +828,10 @@ data class YamlFluentCommand(
             )
 
             is YamlCoordinateSwipe -> {
-                val start = swipe.start
-                val end = swipe.end
-                val startPoint: Point?
-                val endPoint: Point?
-
-                val startPoints = start.split(",")
-                    .map {
-                        it.trim().toInt()
-                    }
-                startPoint = Point(startPoints[0], startPoints[1])
-
-                val endPoints = end.split(",")
-                    .map {
-                        it.trim().toInt()
-                    }
-                endPoint = Point(endPoints[0], endPoints[1])
-
                 return MaestroCommand(
                     SwipeCommand(
-                        startPoint = startPoint,
-                        endPoint = endPoint,
+                        start = swipe.start,
+                        end = swipe.end,
                         duration = swipe.duration,
                         label = swipe.label,
                         optional = swipe.optional,

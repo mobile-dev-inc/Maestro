@@ -40,4 +40,16 @@ object Prediction {
         }
         return ""
     }
+
+    suspend fun extractPoint(
+        aiClient: AI?,
+        query: String,
+        screen: ByteArray,
+    ): String {
+        if(aiClient !== null){
+            val response = openApi.extractPointWithAi(aiClient, query, screen)
+            return response.text
+        }
+        return ""
+    }
 }

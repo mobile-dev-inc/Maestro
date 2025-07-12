@@ -43,6 +43,11 @@ data class ExtractTextWithAiResponse(
     val text: String,
 )
 
+@Serializable
+data class ExtractPointWithAiResponse(
+    val text: String,
+)
+
 class ApiClient {
     private val baseUrl by lazy {
         System.getenv("MAESTRO_CLOUD_API_URL") ?: "https://api.copilot.mobile.dev"
@@ -96,6 +101,14 @@ class ApiClient {
         }
 
         return response
+    }
+
+    suspend fun extractPointWithAi(
+        apiKey: String,
+        query: String,
+        screen: ByteArray,
+    ): ExtractPointWithAiResponse {
+        return ExtractPointWithAiResponse("0%,0%")
     }
 
     suspend fun findDefects(

@@ -91,8 +91,8 @@ data class AssertVisualCommand(
 
 data class SwipeCommand(
     val direction: SwipeDirection? = null,
-    val startPoint: Point? = null,
-    val endPoint: Point? = null,
+    val start: String? = null,
+    val end: String? = null,
     val elementSelector: ElementSelector? = null,
     val startRelative: String? = null,
     val endRelative: String? = null,
@@ -101,7 +101,6 @@ data class SwipeCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
-
     override val originalDescription: String
         get() = when {
             elementSelector != null && direction != null -> {
@@ -110,8 +109,8 @@ data class SwipeCommand(
             direction != null -> {
                 "Swiping in $direction direction in $duration ms"
             }
-            startPoint != null && endPoint != null -> {
-                "Swipe from (${startPoint.x},${startPoint.y}) to (${endPoint.x},${endPoint.y}) in $duration ms"
+            start != null && end != null -> {
+                "Swipe from (${start}) to (${end}) in $duration ms"
             }
             startRelative != null && endRelative != null -> {
                 "Swipe from ($startRelative) to ($endRelative) in $duration ms"
@@ -122,6 +121,8 @@ data class SwipeCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SwipeCommand {
         return copy(
             elementSelector = elementSelector?.evaluateScripts(jsEngine),
+            start = start?.evaluateScripts(jsEngine),
+            end = end?.evaluateScripts(jsEngine),
             startRelative = startRelative?.evaluateScripts(jsEngine),
             endRelative = endRelative?.evaluateScripts(jsEngine)
         )
@@ -618,6 +619,32 @@ data class AssertWithAICommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             assertion = assertion.evaluateScripts(jsEngine),
+        )
+    }
+}
+
+data class ExtractPointWithAICommand(
+    val query: String,
+    val outputVariable: String,
+    override val optional: Boolean = true,
+    override val label: String? = null
+) : Command {
+    override val originalDescription: String
+        get() = "Extract point with AI: $query"
+    override fun yamlString(): String {
+        val yamlString = buildString {
+            appendLine(
+                """
+                |extractPointWithAi
+                """
+            )
+        }
+        return yamlString
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            query = query.evaluateScripts(jsEngine),
         )
     }
 }

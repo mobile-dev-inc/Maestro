@@ -32,6 +32,7 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.Point
 import maestro.ScreenRecording
 import maestro.ViewHierarchy
 import maestro.ai.AI
@@ -392,6 +393,7 @@ class Orchestra(
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
+            is ExtractPointWithAICommand -> extractPointWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -562,6 +564,31 @@ class Orchestra(
             )
         )
         jsEngine.putEnv(command.outputVariable, text)
+
+        return false
+    }
+
+    private suspend fun extractPointWithAICommand(
+        command: ExtractPointWithAICommand,
+        maestroCommand: MaestroCommand
+    ): Boolean {
+
+        val metadata = getMetadata(maestroCommand)
+
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+        val point = AIPredictionEngine.extractPoint(
+            screen = imageData.copy().readByteArray(),
+            aiClient = ai,
+            query = command.query,
+        )
+
+        updateMetadata(
+            maestroCommand, metadata.copy(
+                aiReasoning = "Query: \"${command.query}\"\nExtracted point: ${point}"
+            )
+        )
+        jsEngine.putEnv(command.outputVariable, point)
 
         return false
     }
@@ -1446,8 +1473,8 @@ class Orchestra(
         val direction = command.direction
         val startRelative = command.startRelative
         val endRelative = command.endRelative
-        val start = command.startPoint
-        val end = command.endPoint
+        val start = command.start
+        val end = command.end
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector, optional = command.optional)
@@ -1474,12 +1501,23 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
-            start != null && end != null -> maestro.swipe(
-                startPoint = start,
-                endPoint = end,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
+            start != null && end != null -> {
+                if(start.contains("%") || end.contains("%")){
+                    maestro.swipe(
+                        startRelative = start,
+                        endRelative = end,
+                        duration = command.duration,
+                        waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                    )
+                } else {
+                    maestro.swipe(
+                        start = start,
+                        end = end,
+                        duration = command.duration,
+                        waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                    )
+                }
+            }
 
             else -> error("Illegal arguments for swiping")
         }

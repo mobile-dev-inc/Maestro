@@ -15,4 +15,8 @@ class CloudAIPredictionEngine() : AIPredictionEngine {
     override suspend fun extractText(screen: ByteArray, aiClient: AI, query: String): String {
         return Prediction.extractText(aiClient, query, screen)
     }
+
+    override suspend fun extractPoint(screen: ByteArray, aiClient: AI, query: String): String {
+        return Prediction.extractPoint(aiClient, query, screen)
+    }
 }
