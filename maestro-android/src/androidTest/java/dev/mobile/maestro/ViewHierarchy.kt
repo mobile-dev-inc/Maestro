@@ -120,6 +120,7 @@ object ViewHierarchy {
         if (!nafExcludedClass(node) && !nafCheck(node)) {
             serializer.attribute("", "NAF", java.lang.Boolean.toString(true))
         }
+
         serializer.attribute("", "index", Integer.toString(index))
         serializer.attribute("", "hintText", safeCharSeqToString(node.getHintOrFallback()))
         serializer.attribute("", "text", safeCharSeqToString(node.text))
@@ -138,6 +139,8 @@ object ViewHierarchy {
         serializer.attribute("", "password", java.lang.Boolean.toString(node.isPassword))
         serializer.attribute("", "selected", java.lang.Boolean.toString(node.isSelected))
         serializer.attribute("", "visible-to-user", java.lang.Boolean.toString(node.isVisibleToUser))
+        serializer.attribute("", "important-for-accessibility", java.lang.Boolean.toString(node.isImportantForAccessibility))
+        serializer.attribute("", "error", safeCharSeqToString(node.error))
         serializer.attribute(
             "", "bounds", getVisibleBoundsInScreen(node, displayRect)?.toShortString()
         )
@@ -206,7 +209,7 @@ object ViewHierarchy {
     /**
      * This should be used when it's already determined that the node is NAF and
      * a further check of its children is in order. A node maybe a container
-     * such as LinerLayout and may be set to be clickable but have no text or
+     * such as LinearLayout and may be set to be clickable but have no text or
      * content description but it is counting on one of its children to fulfill
      * the requirement for being accessibility friendly by having one or more of
      * its children fill the text or content-description. Such a combination is
