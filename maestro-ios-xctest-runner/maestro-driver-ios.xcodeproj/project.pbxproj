@@ -60,6 +60,8 @@
 		52F0B1B32B3C26DF00C6471A /* KeyboardHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */; };
 		52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */; };
 		52F33A942AE6823100692902 /* StatusResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F33A932AE6823100692902 /* StatusResponse.swift */; };
+		5B8E0ABC2CD562D000E9D439 /* SetOrientationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */; };
+		5B8E0ABE2CD562F200E9D439 /* SetOrientationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */; };
 		610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */; };
 		610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */; };
 		6124329C2A4B368100F5F619 /* ViewHierarchyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */; };
@@ -256,6 +258,8 @@
 		52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHandlerRequest.swift; sourceTree = "<group>"; };
 		52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHandlerResponse.swift; sourceTree = "<group>"; };
 		52F33A932AE6823100692902 /* StatusResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusResponse.swift; sourceTree = "<group>"; };
+		5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetOrientationHandler.swift; sourceTree = "<group>"; };
+		5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetOrientationRequest.swift; sourceTree = "<group>"; };
 		610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandler.swift; sourceTree = "<group>"; };
 		610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AXClientSwizzler.swift; sourceTree = "<group>"; };
 		6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyRequest.swift; sourceTree = "<group>"; };
@@ -540,6 +544,7 @@
 				32097964297092A800340282 /* InputTextRequest.swift */,
 				32ECCB252980449200A1A0A0 /* TouchRequest.swift */,
 				61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */,
+				5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */,
 				61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */,
 				61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */,
 				61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */,
@@ -584,6 +589,7 @@
 				61C0AFEA29C863BB005D1FC5 /* PressButtonHandler.swift */,
 				61C0AFEC29C88926005D1FC5 /* EraseTextHandler.swift */,
 				61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */,
+				5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */,
 				945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */,
 				52047F772A7A638E00BF982D /* StatusHandler.swift */,
 				52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */,
@@ -781,11 +787,13 @@
 				32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */,
 				610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */,
 				F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */,
+				5B8E0ABC2CD562D000E9D439 /* SetOrientationHandler.swift in Sources */,
 				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
 				521C1F102D8051FC0024EE42 /* XCTestDaemonsProxy.m in Sources */,
 				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
 				52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */,
 				52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */,
+				5B8E0ABE2CD562F200E9D439 /* SetOrientationRequest.swift in Sources */,
 				945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */,
 				613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */,
 				521C1F122D86CE940024EE42 /* TerminateAppHandler.swift in Sources */,

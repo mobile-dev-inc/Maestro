@@ -57,6 +57,7 @@ dependencies {
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-ios-driver"))
     implementation(project(":maestro-studio:server"))
+    implementation(libs.posthog)
     implementation(libs.dadb)
     implementation(libs.picocli)
     implementation(libs.jackson.core.databind)

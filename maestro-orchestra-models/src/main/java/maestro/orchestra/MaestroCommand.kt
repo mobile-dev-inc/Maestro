@@ -56,6 +56,7 @@ data class MaestroCommand(
     val clearKeychainCommand: ClearKeychainCommand? = null,
     val runFlowCommand: RunFlowCommand? = null,
     val setLocationCommand: SetLocationCommand? = null,
+    var setOrientationCommand: SetOrientationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
     val copyTextCommand: CopyTextFromCommand? = null,
     val pasteTextCommand: PasteTextCommand? = null,
@@ -102,6 +103,7 @@ data class MaestroCommand(
         clearKeychainCommand = command as? ClearKeychainCommand,
         runFlowCommand = command as? RunFlowCommand,
         setLocationCommand = command as? SetLocationCommand,
+        setOrientationCommand = command as? SetOrientationCommand,
         repeatCommand = command as? RepeatCommand,
         copyTextCommand = command as? CopyTextFromCommand,
         pasteTextCommand = command as? PasteTextCommand,
@@ -148,6 +150,7 @@ data class MaestroCommand(
         clearKeychainCommand != null -> clearKeychainCommand
         runFlowCommand != null -> runFlowCommand
         setLocationCommand != null -> setLocationCommand
+        setOrientationCommand != null -> setOrientationCommand
         repeatCommand != null -> repeatCommand
         copyTextCommand != null -> copyTextCommand
         pasteTextCommand != null -> pasteTextCommand
