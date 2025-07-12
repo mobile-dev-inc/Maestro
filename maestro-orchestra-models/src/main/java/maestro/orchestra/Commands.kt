@@ -1176,6 +1176,10 @@ data class SetOrientationCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
         return this
     }
+
+    override fun yamlString(): String {
+        TODO("Not yet implemented")
+    }
 }
 
 data class RepeatCommand(
