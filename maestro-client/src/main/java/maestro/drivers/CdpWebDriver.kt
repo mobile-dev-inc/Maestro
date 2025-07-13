@@ -146,10 +146,10 @@ class CdpWebDriver(
                 // Convert from string to Map<String, Any> if needed
                 return@runBlocking jacksonObjectMapper().readValue(resultStr, Any::class.java)
             } catch (e: Exception) {
-                e.printStackTrace() // FIXME
-
                 if (e.message?.contains("getContentDescription") == true) {
                     return@runBlocking executeJS(js)
+                } else {
+                    LOGGER.error("Failed to execute JS", e)
                 }
                 return@runBlocking null
             }
@@ -218,15 +218,6 @@ class CdpWebDriver(
             val target = cdpClient.listTargets().first()
             cdpClient.openUrl(appId, target)
         }
-
-//        open()
-//        val driver = ensureOpen()
-//
-//        driver.manage().timeouts().implicitlyWait(Duration.ofMillis(5000))
-//        val wait = WebDriverWait(driver, Duration.ofSeconds(30L))
-//
-//        driver.get(appId)
-//        wait.until { (it as JavascriptExecutor).executeScript("return document.readyState") == "complete" }
     }
 
     override fun stopApp(appId: String) {
