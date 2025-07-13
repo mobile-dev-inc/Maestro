@@ -13,10 +13,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.putJsonObject
 import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -71,137 +69,128 @@ class CdpClient(
      */
     suspend fun evaluate(expression: String, target: CdpTarget): String {
         val wsUrl = target.webSocketDebuggerUrl
-        // Wrap expression to catch exceptions and JSON.stringify
+
+        // The idea here is that we return JSON object as a String. That makes it much easier to handle
+        // as passing objects between JS and outside world would require many round-trips to query the values
+        // from the browser.
         val wrapped = """
             JSON.stringify((() => {
                 try { return $expression }
                 catch(e) { return { __cdpError: e.toString() } }
             })())
         """.trimIndent()
+
         val exprJson = Json.encodeToString(JsonPrimitive(wrapped))
         val messageId = idCounter.getAndIncrement()
-        val payload = "{" +
-                "\"id\":$messageId," +
-                "\"method\":\"Runtime.evaluate\"," +
-                "\"params\":{\"expression\":$exprJson,\"awaitPromise\":true}" +
-                "}"
+        val payload = """
+            {
+                "id":$messageId,
+                "method":"Runtime.evaluate",
+                "params":{"expression":$exprJson,"awaitPromise":true}
+            }
+        """.trimIndent()
 
         return evalMutex.withLock {
-            val session = httpClient.webSocketSession {
+            httpClient.webSocketSession {
                 url(wsUrl)
-            }
-
-            try {
+            }.use { session ->
                 session.send(Frame.Text(payload))
-                for (frame in session.incoming) {
-                    if (frame is Frame.Text) {
-                        val text = frame.readText()
-                        // Wait for matching id
-                        if (!text.contains("\"id\":$messageId")) {
-                            continue
-                        }
 
-                        // Parse JSON
-                        val root = json.parseToJsonElement(text).jsonObject
-                        val resultObj = root["result"]?.jsonObject
-                            ?.get("result")?.jsonObject
-                            ?: error("Invalid CDP response: $text")
+                val text = session.waitForMessage(messageId)
 
-                        val raw: String = resultObj["value"]?.jsonPrimitive?.content
-                            ?: ""
+                // Parse JSON
+                val root = json.parseToJsonElement(text).jsonObject
+                val resultObj = root["result"]?.jsonObject
+                    ?.get("result")?.jsonObject
+                    ?: error("Invalid CDP response: $text")
 
-                        if (raw.isEmpty()) {
-                            return@withLock ""
-                        }
+                val raw: String = resultObj["value"]?.jsonPrimitive?.content
+                    ?: ""
 
-                        // Check for JS error
-                        val parsed = json.parseToJsonElement(raw)
-                        if (parsed is JsonObject && parsed.jsonObject.containsKey("__cdpError")) {
-                            val err = parsed.jsonObject["__cdpError"]?.jsonPrimitive?.content
-                            error("JS error: $err")
-                        }
-                        return@withLock raw
-                    }
+                if (raw.isEmpty()) {
+                    return@use ""
                 }
 
-                error("No CDP response for id=$messageId")
-            } finally {
-                session.close()
+                // Check for JS error
+                val parsed = json.parseToJsonElement(raw)
+                if (parsed is JsonObject && parsed.jsonObject.containsKey("__cdpError")) {
+                    val err = parsed.jsonObject["__cdpError"]?.jsonPrimitive?.content
+                    error("JS error: $err")
+                }
+                return@use raw
             }
         }
     }
 
     suspend fun captureScreenshot(target: CdpTarget): ByteArray {
-        // First, ensure the Page domain is enabled
-//        evaluate("undefined", target, method = "Page.enable", await = false)
-
         val messageId = idCounter.getAndIncrement()
 
-        // Then request the screenshot
-        val payload = buildJsonObject {
-            put("id", JsonPrimitive(messageId))
-            put("method", JsonPrimitive("Page.captureScreenshot"))
-            putJsonObject("params") {
-                put("format", JsonPrimitive("png"))
-                put("quality", JsonPrimitive(100))
+        // Request the screenshot
+        val payload = """
+            {
+                "id": $messageId,
+                "method": "Page.captureScreenshot",
+                "params": {
+                    "format": "png",
+                    "quality": 100
+                }
             }
-        }.toString()
+        """.trimIndent()
 
         // Open WS, send & await
         val wsUrl = target.webSocketDebuggerUrl
 
-        val session = httpClient.webSocketSession { url(wsUrl) }
+        return httpClient.webSocketSession { url(wsUrl) }
+            .use { session ->
+                session.send(Frame.Text(payload))
 
-        try {
-            session.send(Frame.Text(payload))
-            for (frame in session.incoming) {
-                if (frame is Frame.Text) {
-                    val text = frame.readText()
-                    if (!text.contains("\"method\":\"Page.captureScreenshot\"") &&
-                        !text.contains("\"id\":${messageId}")
-                    ) continue
+                val text = session.waitForMessage(messageId)
 
-                    // Pull out the base64 data
-                    val data = Json.parseToJsonElement(text)
-                        .jsonObject["result"]!!.jsonObject["data"]!!.jsonPrimitive.content
+                val data = Json.parseToJsonElement(text)
+                    .jsonObject["result"]!!.jsonObject["data"]!!.jsonPrimitive.content
 
-                    return Base64.getDecoder().decode(data)
-                }
+                return@use Base64.getDecoder().decode(data)
             }
-            error("No screenshot response")
-        } finally {
-            session.close()
-        }
     }
 
     suspend fun openUrl(url: String, target: CdpTarget) {
         // Send a CDP command to open a new tab with the specified URL
         val messageId = idCounter.getAndIncrement()
-        val payload = buildJsonObject {
-            put("id", JsonPrimitive(messageId))
-            put("method", JsonPrimitive("Page.navigate"))
-            putJsonObject("params") {
-                put("url", JsonPrimitive(url))
-            }
-        }.toString()
-
-        val session = httpClient.webSocketSession { url(target.webSocketDebuggerUrl) }
-        try {
-            session.send(Frame.Text(payload))
-            for (frame in session.incoming) {
-                if (frame is Frame.Text) {
-                    val text = frame.readText()
-                    // look for the matching response id
-                    if (text.contains("\"id\":$messageId")) {
-                        // we could parse title/url from result if needed,
-                        // but Page.navigate only returns a frameId normally.
-                        return
-                    }
+        val payload = """
+            {
+                "id": $messageId,
+                "method": "Page.navigate",
+                "params": {
+                    "url": "$url"
                 }
             }
-            error("No target created")
+        """.trimIndent()
+
+        httpClient.webSocketSession { url(target.webSocketDebuggerUrl) }
+            .use { session ->
+                session.send(Frame.Text(payload))
+
+                session.waitForMessage(messageId)
+            }
+    }
+
+    private suspend fun DefaultClientWebSocketSession.waitForMessage(messageId: Int): String {
+        for (frame in incoming) {
+            if (frame is Frame.Text) {
+                val text = frame.readText()
+                if (text.contains("\"id\":$messageId")) {
+                    return text
+                }
+            }
+        }
+        error("No message with id $messageId received")
+    }
+
+    private suspend fun <R> DefaultClientWebSocketSession.use(block: suspend (DefaultClientWebSocketSession) -> R): R {
+        return try {
+            block(this)
         } finally {
-            session.close()
+            close()
         }
     }
 
