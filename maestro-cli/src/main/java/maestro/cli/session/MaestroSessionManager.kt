@@ -70,7 +70,7 @@ object MaestroSessionManager {
         teamId: String? = null,
         platform: String? = null,
         isStudio: Boolean = false,
-        isHeadless: Boolean = isStudio,
+        isHeadless: Boolean = false,
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,

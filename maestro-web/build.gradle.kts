@@ -15,6 +15,12 @@ dependencies {
     api(libs.selenium.devtools)
     implementation(libs.jcodec)
     implementation(libs.jcodec.awt)
+
+    // Ktor
+    api(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.serial.json)
+    implementation(libs.ktor.client.content.negotiation)
 }
 
 java {
