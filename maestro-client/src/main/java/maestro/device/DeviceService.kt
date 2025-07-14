@@ -453,10 +453,7 @@ object DeviceService {
         }
 
         if (process.exitValue() != 0) {
-            val processOutput = process.errorStream
-                .source()
-                .buffer()
-                .readUtf8()
+            val processOutput = process.inputStream.source().buffer().readUtf8() + "\n" + process.errorStream.source().buffer().readUtf8()
 
             throw IllegalStateException("Failed to list avd devices emulator: $processOutput")
         }
