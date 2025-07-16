@@ -2,6 +2,9 @@ package maestro.debuglog
 
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.core.appender.ConsoleAppender
+import org.apache.logging.log4j.core.appender.FileAppender
+import org.apache.logging.log4j.core.config.Configurator
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory
 import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration
@@ -36,10 +39,7 @@ object LogConfig {
 
         val config = builder.build()
 
-        // Get context and update configuration
-        val context = LogManager.getContext(false) as LoggerContext
-        context.start(config)
-
+        Configurator.reconfigure(config)
     }
 
     private fun createConsoleAppender(builder: ConfigurationBuilder<BuiltConfiguration>): org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder {
@@ -47,15 +47,15 @@ object LogConfig {
 
         val consoleLayout = builder.newLayout("PatternLayout")
         consoleLayout.addAttribute("pattern", CONSOLE_LOG_PATTERN)
-
         consoleAppender.add(consoleLayout)
+
         builder.add(consoleAppender)
 
         return consoleAppender
     }
 
     private fun createFileAppender(builder: ConfigurationBuilder<BuiltConfiguration>, logFileName: String): org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder {
-        val fileAppender = builder.newAppender("File", "FILE")
+        val fileAppender = builder.newAppender("File", FileAppender.PLUGIN_NAME)
         fileAppender.addAttribute("fileName", logFileName)
 
         val fileLayout = builder.newLayout("PatternLayout")
