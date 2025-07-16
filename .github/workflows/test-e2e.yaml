@@ -72,7 +72,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 8
+          java-version: 17
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
