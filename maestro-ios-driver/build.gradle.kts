@@ -20,7 +20,12 @@ dependencies {
     api(libs.jackson.module.kotlin)
     api(libs.jarchivelib)
     api(libs.kotlin.result)
-    api(libs.slf4j)
+
+    api(libs.logging.sl4j)
+    api(libs.logging.api)
+    api(libs.logging.layout.template)
+    api(libs.log4j.core)
+
     api(libs.appdirs)
 
     testImplementation(libs.junit.jupiter.api)

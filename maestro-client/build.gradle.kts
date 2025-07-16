@@ -86,10 +86,11 @@ dependencies {
     implementation(libs.selenium)
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)
-    api(libs.slf4j)
-    api(libs.logback) {
-        exclude(group = "org.slf4j", module = "slf4j-api")
-    }
+
+    api(libs.logging.sl4j)
+    api(libs.logging.api)
+    api(libs.logging.layout.template)
+    api(libs.log4j.core)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)

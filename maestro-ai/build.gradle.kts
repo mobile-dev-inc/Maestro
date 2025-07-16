@@ -28,10 +28,11 @@ dependencies {
     api(libs.kotlin.result)
     api(libs.square.okio)
 
-    api(libs.slf4j)
-    api(libs.logback) {
-        exclude(group = "org.slf4j", module = "slf4j-api")
-    }
+    api(libs.logging.sl4j)
+    api(libs.logging.api)
+    api(libs.logging.layout.template)
+    api(libs.log4j.core)
+
 
     api(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)

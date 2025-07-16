@@ -23,7 +23,12 @@ dependencies {
     implementation(project(":maestro-ios-driver"))
 
     implementation(libs.kotlin.result)
-    implementation(libs.slf4j)
+
+    implementation(libs.logging.sl4j)
+    implementation(libs.logging.api)
+    implementation(libs.logging.layout.template)
+    implementation(libs.log4j.core)
+
     implementation(libs.square.okio)
     api(libs.google.gson)
     api(libs.square.okhttp)
