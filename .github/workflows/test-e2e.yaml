@@ -77,7 +77,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -217,7 +217,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -303,7 +303,7 @@ jobs:
       - name: Download Maestro artifact
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Download build/Products artifact
         uses: actions/download-artifact@v4
