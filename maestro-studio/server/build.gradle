@@ -14,7 +14,7 @@ application {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01)
+    publishToMavenCentral(true)
 }
 
 def copyWebFiles = tasks.register("copyWebFiles", Copy.class) {

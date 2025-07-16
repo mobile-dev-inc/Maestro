@@ -1,5 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
-import com.vanniktech.maven.publish.tasks.SourcesJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -110,12 +108,8 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     }
 }
 
-tasks.withType(SourcesJar::class).configureEach {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01)
+    publishToMavenCentral(true)
 }
 
 tasks.named<Test>("test") {

@@ -52,7 +52,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01)
+    publishToMavenCentral(true)
 }
 
 tasks.named<Test>("test") {
