@@ -100,15 +100,14 @@ class OpenAIClient {
         screen: ByteArray,
     ): ExtractPointWithAiResponse {
         val prompt = buildString {
-            append("What are the center coordinates (percentage based on image width and height) of the ui element described in this query: $query")
+            append("What are the center coordinates (x-pixels,y-pixels) of the ui element described in this query: $query")
 
             append(
                 """
                 |
                 |RULES:
                 |* Provide response as a valid JSON, with structure described below.
-                |* Each resulting coordinate should be smaller than 100
-                |* Resulting coordinates should be integers and have % character at the end. eg: 10%,20%
+                |* Resulting coordinates should be integers. eg: 680,20
                 """.trimMargin("|")
             )
 
@@ -118,7 +117,7 @@ class OpenAIClient {
                 |* You must provide result as a valid JSON object, matching this structure:
                 |
                 |  {
-                |      "text": "x%,y%"
+                |      "text": "x,y"
                 |  }
                 |
                 |DO NOT output any other information in the JSON object.
