@@ -18,14 +18,15 @@ object ScreenshotUtils {
         }
 
         val result = kotlin.runCatching {
+            val timestamp = System.currentTimeMillis()
             val out = File
-                .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
+                .createTempFile("screenshot-$timestamp", ".png")
                 .also { it.deleteOnExit() } // save to another dir before exiting
             maestro.takeScreenshot(out.sink(), false)
             debugOutput.screenshots.add(
                 FlowDebugOutput.Screenshot(
                     screenshot = out,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = timestamp,
                     status = status
                 )
             )
@@ -37,14 +38,15 @@ object ScreenshotUtils {
 
     fun takeDebugScreenshotByCommand(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? {
         val result = kotlin.runCatching {
+            val timestamp = System.currentTimeMillis()
             val out = File
-                .createTempFile("screenshot-${status}-${System.currentTimeMillis()}", ".png")
+                .createTempFile("screenshot-$status-$timestamp", ".png")
                 .also { it.deleteOnExit() } // save to another dir before exiting
             maestro.takeScreenshot(out.sink(), false)
             debugOutput.screenshots.add(
                 FlowDebugOutput.Screenshot(
                     screenshot = out,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = timestamp,
                     status = status
                 )
             )
