@@ -133,6 +133,12 @@ class TestCommand : Callable<Int> {
     private var debugOutput: String? = null
 
     @Option(
+        names = ["--test-output-dir"],
+        description = ["Configures the test output directory for screenshots and other test artifacts"],
+    )
+    private var testOutputDir: String? = null
+
+    @Option(
         names = ["--flatten-debug-output"],
         description = ["All file outputs from the test case are created in the folder without subfolders or timestamps for each run. It can be used with --debug-output. Useful for CI."]
     )
