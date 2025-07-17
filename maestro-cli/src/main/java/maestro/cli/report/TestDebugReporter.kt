@@ -175,7 +175,8 @@ object TestDebugReporter {
         val debugOutput =
             if (flattenDebugOutput) Paths.get(debugRootPath) else buildDefaultDebugOutputPath(debugRootPath)
 
-        if (!debugOutput.exists()) {
+        // Only create directories if they don't exist to avoid unnecessary I/O operations
+        if (!Files.exists(debugOutput)) {
             Files.createDirectories(debugOutput)
         }
         debugOutputPath = debugOutput
@@ -183,13 +184,14 @@ object TestDebugReporter {
     }
 
     private fun buildDefaultDebugOutputPath(debugRootPath: String): Path {
+        val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+        
         // If testOutputDir is configured, use it as the base path instead of ~/.maestro/tests
         return if (testOutputDir != null) {
-            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
             Paths.get(testOutputDir!!.absolutePath, foldername)
         } else {
+            // Use the original logic for optimal performance when testOutputDir is null
             val preamble = arrayOf(".maestro", "tests")
-            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
             Paths.get(debugRootPath, *preamble, foldername)
         }
     }
