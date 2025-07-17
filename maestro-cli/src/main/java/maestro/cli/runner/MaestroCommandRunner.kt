@@ -39,6 +39,7 @@ import java.io.File
 import java.util.IdentityHashMap
 import maestro.cli.util.ScreenshotUtils
 import maestro.utils.Insight
+import java.nio.file.Path
 
 /**
  * Knows how to run a list of Maestro commands and update the UI.
@@ -59,7 +60,7 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: File? = null
+        testOutputDir: Path? = null
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -99,7 +100,7 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
-            screenshotsDir = testOutputDir,
+            screenshotsDir = testOutputDir?.resolve("screenshots"),
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")

@@ -50,7 +50,7 @@ object TestRunner {
         debugOutputPath: Path,
         analyze: Boolean = false,
         apiKey: String? = null,
-        testOutputDir: File? = null,
+        testOutputDir: Path?,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -63,7 +63,7 @@ object TestRunner {
             .withDefaultEnvVars(flowFile)
 
         val result = runCatching(resultView, maestro) {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath())
+            val commands = YamlCommandReader.readCommands(flowFile.toPath(), testOutputDir)
                 .withEnv(updatedEnv)
 
             val flowName = YamlCommandReader.getConfig(commands)?.name
@@ -123,6 +123,7 @@ object TestRunner {
         env: Map<String, String>,
         analyze: Boolean = false,
         apiKey: String? = null,
+        testOutputDir: Path?
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
@@ -143,7 +144,7 @@ object TestRunner {
                     .withDefaultEnvVars(flowFile)
 
                 val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
+                    .readCommands(flowFile.toPath(), testOutputDir)
                     .withEnv(updatedEnv)
 
                 val flowName = YamlCommandReader.getConfig(commands)?.name

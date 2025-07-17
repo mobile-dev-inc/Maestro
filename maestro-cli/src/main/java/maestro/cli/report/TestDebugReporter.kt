@@ -42,7 +42,7 @@ object TestDebugReporter {
     private var debugOutputPath: Path? = null
     private var debugOutputPathAsString: String? = null
     private var flattenDebugOutput: Boolean = false
-    private var testOutputDir: File? = null
+    private var testOutputDir: Path? = null
 
     // AI outputs must be saved separately at the end of the flow.
     fun saveSuggestions(outputs: List<FlowAIOutput>, path: Path) {
@@ -161,10 +161,10 @@ object TestDebugReporter {
         DebugLogStore.logSystemInfo()
     }
 
-    fun updateTestOutputDir(testOutputDir: File?) {
+    fun updateTestOutputDir(testOutputDir: Path?) {
         this.testOutputDir = testOutputDir
-        // Reset debugOutputPath so it gets recalculated with the new testOutputDir
-        debugOutputPath = null
+        // set debug output path to match the test output directory
+        debugOutputPath = testOutputDir
     }
 
     fun getDebugOutputPath(): Path {
@@ -186,7 +186,7 @@ object TestDebugReporter {
         // If testOutputDir is configured, use it as the base path instead of ~/.maestro/tests
         return if (testOutputDir != null) {
             val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
-            Paths.get(testOutputDir!!.absolutePath, foldername)
+            testOutputDir!!.resolve(foldername)
         } else {
             val preamble = arrayOf(".maestro", "tests")
             val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())

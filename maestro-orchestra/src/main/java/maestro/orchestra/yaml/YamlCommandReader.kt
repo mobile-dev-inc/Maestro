@@ -35,13 +35,13 @@ import kotlin.io.path.readText
 object YamlCommandReader {
 
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
-    fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors(flowPath) {
+    fun readCommands(flowPath: Path, testOutputDir: Path?): List<MaestroCommand> = mapParsingErrors(flowPath) {
         val flow = flowPath.readText()
-        MaestroFlowParser.parseFlow(flowPath, flow)
+        MaestroFlowParser.parseFlow(flowPath, flow, testOutputDir)
     }
 
-    fun readSingleCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> = mapParsingErrors(flowPath) {
-        MaestroFlowParser.parseCommand(flowPath, appId, command)
+    fun readSingleCommand(flowPath: Path, appId: String, command: String, testOutputDir: Path?): List<MaestroCommand> = mapParsingErrors(flowPath) {
+        MaestroFlowParser.parseCommand(flowPath, appId, command, testOutputDir)
     }
 
     fun readConfig(flowPath: Path) = mapParsingErrors(flowPath) {

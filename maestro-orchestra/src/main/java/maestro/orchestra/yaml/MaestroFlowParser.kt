@@ -423,25 +423,25 @@ object MaestroFlowParser {
         })
     }
 
-    fun parseFlow(flowPath: Path, flow: String): List<MaestroCommand> {
+    fun parseFlow(flowPath: Path, flow: String, testOutputDir: Path?): List<MaestroCommand> {
         MAPPER.createParser(flow).use { parser ->
             try {
                 val config = parseConfig(parser)
                 val commands = parseCommands(parser)
                 val maestroCommands = commands
-                    .flatMap { it.toCommands(flowPath, config.appId) }
+                    .flatMap { it.toCommands(flowPath, config.appId, testOutputDir) }
                     .withEnv(config.env)
-                return listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
+                return listOfNotNull(config.toCommand(flowPath, testOutputDir), *maestroCommands.toTypedArray())
             } catch (e: Throwable) {
                 throw wrapException(e, parser, flowPath, flow)
             }
         }
     }
 
-    fun parseCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> {
+    fun parseCommand(flowPath: Path, appId: String, command: String, testOutputDir: Path?): List<MaestroCommand> {
         MAPPER.createParser(command).use { parser ->
             try {
-                return parser.readValueAs(YamlFluentCommand::class.java).toCommands(flowPath, appId)
+                return parser.readValueAs(YamlFluentCommand::class.java).toCommands(flowPath, appId, testOutputDir)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, flowPath, command)
             }

@@ -134,7 +134,7 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--test-output-dir"],
-        description = ["Configures the test output directory for screenshots and other test artifacts"],
+        description = ["Configures the test output directory for screenshots and all other test artifacts"],
     )
     private var testOutputDir: String? = null
 
@@ -232,6 +232,7 @@ class TestCommand : Callable<Int> {
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = configFile?.toPath()?.toAbsolutePath(),
+                testOutputDir = null
             )
         } catch (e: ValidationError) {
             throw CliError(e.message)
@@ -247,18 +248,18 @@ class TestCommand : Callable<Int> {
         return handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
     }
 
-    private fun resolveTestOutputDir(plan: ExecutionPlan): File? {
+    private fun resolveTestOutputDir(plan: ExecutionPlan): Path? {
         // Command line flag takes precedence
-        testOutputDir?.let { return File(it) }
+        testOutputDir?.let { return File(it).toPath() }
         
         // Then check workspace config
-        plan.workspaceConfig.testOutputDir?.let { return File(it) }
+        plan.workspaceConfig.testOutputDir?.let { return File(it).toPath() }
         
         // No test output directory configured
         return null
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: File?): Int = runBlocking(Dispatchers.IO) {
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -351,7 +352,7 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
-        testOutputDir: File?,
+        testOutputDir: Path?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
@@ -392,7 +393,7 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken)
+                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken, testOutputDir)
                 } else {
                     runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir)
                 }
@@ -411,7 +412,7 @@ class TestCommand : Callable<Int> {
         device: Device?,
         flowFile: File,
         debugOutputPath: Path,
-        testOutputDir: File?,
+        testOutputDir: Path?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -450,7 +451,7 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
-        testOutputDir: File?
+        testOutputDir: Path?
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,

@@ -53,7 +53,7 @@ class TestSuiteInteractor(
         reportOut: Sink?,
         env: Map<String, String>,
         debugOutputPath: Path,
-        testOutputDir: File? = null
+        testOutputDir: Path? = null
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
             throw CliError("${shardPrefix}No flows returned from the tag filter used")
@@ -154,7 +154,7 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: File? = null
+        testOutputDir: Path? = null
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -173,14 +173,14 @@ class TestSuiteInteractor(
         val flowTimeMillis = measureTimeMillis {
             try {
                 val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
+                    .readCommands(flowFile.toPath(), testOutputDir)
                     .withEnv(env)
 
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
 
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    screenshotsDir = testOutputDir,
+                    screenshotsDir = testOutputDir?.resolve("screenshots"),
                     onCommandStart = { _, command ->
                         logger.info("${shardPrefix}${command.description()} RUNNING")
                         debugOutput.commands[command] = CommandDebugMetadata(
