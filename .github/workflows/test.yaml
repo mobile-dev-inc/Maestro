@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java-version: [11, 17]
+        java-version: [17]
 
     steps:
       # This is needed to enable hardware acceleration

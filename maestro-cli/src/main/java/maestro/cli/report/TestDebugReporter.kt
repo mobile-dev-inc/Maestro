@@ -1,7 +1,5 @@
 package maestro.cli.report
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.LoggerContext
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonMappingException
@@ -16,6 +14,11 @@ import maestro.cli.util.IOSEnvUtils
 import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
 import maestro.orchestra.MaestroCommand
+import org.apache.logging.log4j.Level
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.core.config.Configurator
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -30,12 +33,13 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
+import kotlin.math.log
 
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff
 object TestDebugReporter {
 
-    private val logger = LoggerFactory.getLogger(TestDebugReporter::class.java)
+    private val logger = LogManager.getLogger(TestDebugReporter::class.java)
     private val mapper = jacksonObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY).writerWithDefaultPrettyPrinter()
 
@@ -128,13 +132,14 @@ object TestDebugReporter {
     }
 
     private fun logSystemInfo() {
-        val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
-        val rootLogger = loggerContext.getLogger("io.netty")
-        val grpcLogger = loggerContext.getLogger("io.grpc")
-        rootLogger.setLevel(Level.OFF)
-        grpcLogger.setLevel(Level.OFF)
+        logger.info("Debug output path: {}", getDebugOutputPath().absolutePathString())
 
-        val logger = LoggerFactory.getLogger("MAESTRO")
+        // Disable specific gRPC and Netty loggers
+        Configurator.setLevel("io.grpc.netty.NettyClientHandler", Level.OFF)
+        Configurator.setLevel("io.grpc.netty", Level.OFF)
+        Configurator.setLevel("io.netty", Level.OFF)
+
+        val logger = LogManager.getLogger("MAESTRO")
         logger.info("---- System Info ----")
         logger.info("Maestro Version: ${EnvUtils.CLI_VERSION ?: "Undefined"}")
         logger.info("CI: ${CiUtils.getCiProvider() ?: "Undefined"}")

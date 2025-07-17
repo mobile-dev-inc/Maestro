@@ -74,6 +74,9 @@ class AndroidDriver(
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .keepAliveTime(2, TimeUnit.MINUTES)
+        .keepAliveTimeout(20, TimeUnit.SECONDS)
+        .keepAliveWithoutCalls(true)
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)

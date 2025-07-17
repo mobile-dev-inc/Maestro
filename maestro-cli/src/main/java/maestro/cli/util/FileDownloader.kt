@@ -8,6 +8,7 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentLength
 import io.ktor.http.isSuccess
+import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.File
@@ -35,8 +36,11 @@ object FileDownloader {
 
                 var offset = 0
                 do {
-                    val currentRead = bodyChannel
-                        .readAvailable(data, offset, data.size)
+                    val currentRead = bodyChannel.readAvailable(
+                        buffer = data,
+                        offset = offset,
+                        length = data.size
+                    )
 
                     offset += currentRead
                     val progress = offset / data.size.toFloat()
