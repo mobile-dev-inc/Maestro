@@ -1096,21 +1096,22 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 037 - Throw exception when trying to input text with unicode characters`() {
+    fun `Case 037 - Unicode input should work when Unicode support is enabled`() {
         // Given
         val commands = readCommands("037_unicode_input")
 
         val driver = driver {
         }
 
-        // When & Then
-        assertThrows<UnicodeNotSupportedError> {
-            Maestro(driver).use {
-                runBlocking {
-                    orchestra(it).runFlow(commands)
-                }
+        // When & Then - Should not throw exception anymore
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
             }
         }
+
+        // Verify that Unicode text was successfully input (check for any text input event)
+        driver.assertAnyEvent { event -> event is Event.InputText }
     }
 
     @Test
