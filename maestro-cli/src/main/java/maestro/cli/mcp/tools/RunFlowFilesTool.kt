@@ -6,6 +6,9 @@ import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import maestro.orchestra.util.Env.withDefaultEnvVars
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Paths
@@ -27,6 +30,13 @@ object RunFlowFilesTool {
                             put("type", "string")
                             put("description", "Comma-separated file paths to YAML flow files to execute (e.g., 'flow1.yaml,flow2.yaml')")
                         }
+                        putJsonObject("env") {
+                            put("type", "object")
+                            put("description", "Optional environment variables to inject into the flows (e.g., {\"APP_ID\": \"com.example.app\", \"LANGUAGE\": \"tr\", \"COUNTRY\": \"TR\"})")
+                            putJsonObject("additionalProperties") {
+                                put("type", "string")
+                            }
+                        }
                     },
                     required = listOf("device_id", "flow_files")
                 )
@@ -35,6 +45,7 @@ object RunFlowFilesTool {
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val flowFilesString = request.arguments["flow_files"]?.jsonPrimitive?.content
+                val envParam = request.arguments["env"]?.jsonObject
                 
                 if (deviceId == null || flowFilesString == null) {
                     return@RegisteredTool CallToolResult(
@@ -52,13 +63,16 @@ object RunFlowFilesTool {
                     )
                 }
                 
+                // Parse environment variables from JSON object
+                val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
+                
                 // Resolve all flow files to File objects once
                 val resolvedFiles = flowFiles.map { WorkingDirectory.resolve(it) }
                 // Validate all files exist before executing
                 val missingFiles = resolvedFiles.filter { !it.exists() }
                 if (missingFiles.isNotEmpty()) {
                     return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("Files not found: ${missingFiles.joinToString(", ") { it.path }}")),
+                        content = listOf(TextContent("Files not found: ${missingFiles.joinToString(", ") { it.absolutePath }}")),
                         isError = true
                     )
                 }
@@ -66,7 +80,7 @@ object RunFlowFilesTool {
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = null,
+                    driverHostPort = MaestroSessionManager.MCP_DRIVER_PORT,
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
@@ -77,11 +91,16 @@ object RunFlowFilesTool {
                     for (fileObj in resolvedFiles) {
                         try {
                             val commands = YamlCommandReader.readCommands(fileObj.toPath())
+                            val finalEnv = env
+                                .withInjectedShellEnvVars()
+                                .withDefaultEnvVars(fileObj)
+                            val commandsWithEnv = commands.withEnv(finalEnv)
+                            
                             runBlocking {
-                                orchestra.executeCommands(commands)
+                                orchestra.runFlow(commandsWithEnv)
                             }
                             results.add(mapOf(
-                                "file" to fileObj.path,
+                                "file" to fileObj.absolutePath,
                                 "success" to true,
                                 "commands_executed" to commands.size,
                                 "message" to "Flow executed successfully"
@@ -89,13 +108,17 @@ object RunFlowFilesTool {
                             totalCommands += commands.size
                         } catch (e: Exception) {
                             results.add(mapOf(
-                                "file" to fileObj.path,
+                                "file" to fileObj.absolutePath,
                                 "success" to false,
                                 "error" to (e.message ?: "Unknown error"),
                                 "message" to "Flow execution failed"
                             ))
                         }
                     }
+                    
+                    val finalEnv = env
+                        .withInjectedShellEnvVars()
+                        .withDefaultEnvVars()
                     
                     buildJsonObject {
                         put("success", results.all { (it["success"] as Boolean) })
@@ -113,6 +136,13 @@ object RunFlowFilesTool {
                                             else -> put(key, value.toString())
                                         }
                                     }
+                                }
+                            }
+                        }
+                        if (finalEnv.isNotEmpty()) {
+                            putJsonObject("env_vars") {
+                                finalEnv.forEach { (key, value) ->
+                                    put(key, value)
                                 }
                             }
                         }
