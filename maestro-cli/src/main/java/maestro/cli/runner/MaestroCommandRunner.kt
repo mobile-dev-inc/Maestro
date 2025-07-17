@@ -57,7 +57,8 @@ object MaestroCommandRunner {
         debugOutput: FlowDebugOutput,
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
-        analyze: Boolean = false
+        analyze: Boolean = false,
+        testOutputDir: File? = null
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -97,6 +98,7 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
+            screenshotsDir = testOutputDir,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")

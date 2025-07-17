@@ -50,6 +50,7 @@ object TestRunner {
         debugOutputPath: Path,
         analyze: Boolean = false,
         apiKey: String? = null,
+        testOutputDir: File? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -81,6 +82,7 @@ object TestRunner {
                     aiOutput = aiOutput,
                     analyze = analyze,
                     apiKey = apiKey,
+                    testOutputDir = testOutputDir,
                 )
             }
         }

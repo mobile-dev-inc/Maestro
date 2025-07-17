@@ -237,12 +237,28 @@ class TestCommand : Callable<Int> {
             throw CliError(e.message)
         }
 
+        val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
+
+        // Update TestDebugReporter with the resolved test output directory
+        TestDebugReporter.updateTestOutputDir(resolvedTestOutputDir)
+
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
 
-        return handleSessions(debugOutputPath, executionPlan)
+        return handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan): Int = runBlocking(Dispatchers.IO) {
+    private fun resolveTestOutputDir(plan: ExecutionPlan): File? {
+        // Command line flag takes precedence
+        testOutputDir?.let { return File(it) }
+        
+        // Then check workspace config
+        plan.workspaceConfig.testOutputDir?.let { return File(it) }
+        
+        // No test output directory configured
+        return null
+    }
+
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: File?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -313,6 +329,7 @@ class TestCommand : Callable<Int> {
                     shardIndex = shardIndex,
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
+                    testOutputDir = testOutputDir,
                 )
             }
         }.awaitAll()
@@ -334,6 +351,7 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
+        testOutputDir: File?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
@@ -366,7 +384,7 @@ class TestCommand : Callable<Int> {
                     )
                 }
                 runBlocking {
-                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath)
+                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath, testOutputDir)
                 }
             } else {
                 val flowFile = flowFiles.first()
@@ -376,7 +394,7 @@ class TestCommand : Callable<Int> {
                     }
                     TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken)
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir)
                 }
             }
         }
@@ -393,6 +411,7 @@ class TestCommand : Callable<Int> {
         device: Device?,
         flowFile: File,
         debugOutputPath: Path,
+        testOutputDir: File?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -410,6 +429,7 @@ class TestCommand : Callable<Int> {
             debugOutputPath = debugOutputPath,
             analyze = analyze,
             apiKey = authToken,
+            testOutputDir = testOutputDir,
         )
 
         if (resultSingle == 1) {
@@ -429,7 +449,8 @@ class TestCommand : Callable<Int> {
         device: Device?,
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
-        debugOutputPath: Path
+        debugOutputPath: Path,
+        testOutputDir: File?
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
@@ -440,7 +461,8 @@ class TestCommand : Callable<Int> {
             executionPlan = chunkPlans[shardIndex],
             env = env,
             reportOut = null,
-            debugOutputPath = debugOutputPath
+            debugOutputPath = debugOutputPath,
+            testOutputDir = testOutputDir
         )
 
         if (!flattenDebugOutput) {
