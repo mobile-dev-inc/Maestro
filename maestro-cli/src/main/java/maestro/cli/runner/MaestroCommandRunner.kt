@@ -35,9 +35,11 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.IdentityHashMap
 import maestro.cli.util.ScreenshotUtils
 import maestro.utils.Insight
+import java.nio.file.Path
 
 /**
  * Knows how to run a list of Maestro commands and update the UI.
@@ -57,7 +59,8 @@ object MaestroCommandRunner {
         debugOutput: FlowDebugOutput,
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
-        analyze: Boolean = false
+        analyze: Boolean = false,
+        testOutputDir: Path?
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -97,6 +100,7 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
+            screenshotsDir = testOutputDir?.resolve("screenshots"),
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")

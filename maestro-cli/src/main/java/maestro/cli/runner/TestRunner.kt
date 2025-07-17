@@ -50,6 +50,7 @@ object TestRunner {
         debugOutputPath: Path,
         analyze: Boolean = false,
         apiKey: String? = null,
+        testOutputDir: Path?,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -81,6 +82,7 @@ object TestRunner {
                     aiOutput = aiOutput,
                     analyze = analyze,
                     apiKey = apiKey,
+                    testOutputDir = testOutputDir,
                 )
             }
         }
@@ -121,6 +123,7 @@ object TestRunner {
         env: Map<String, String>,
         analyze: Boolean = false,
         apiKey: String? = null,
+        testOutputDir: Path?
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
@@ -167,6 +170,7 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
+                                    testOutputDir = testOutputDir
                                 )
                             }
                         }.get()
