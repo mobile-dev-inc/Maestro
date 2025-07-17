@@ -175,11 +175,14 @@ object TestDebugReporter {
         val debugOutput =
             if (flattenDebugOutput) Paths.get(debugRootPath) else buildDefaultDebugOutputPath(debugRootPath)
 
+        // Cache the path first to avoid repeated calculations
+        debugOutputPath = debugOutput
+        
         // Only create directories if they don't exist to avoid unnecessary I/O operations
         if (!Files.exists(debugOutput)) {
             Files.createDirectories(debugOutput)
         }
-        debugOutputPath = debugOutput
+        
         return debugOutput
     }
 
