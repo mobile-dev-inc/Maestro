@@ -173,7 +173,7 @@ class TestSuiteInteractor(
         val flowTimeMillis = measureTimeMillis {
             try {
                 val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath(), testOutputDir)
+                    .readCommands(flowFile.toPath())
                     .withEnv(env)
 
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }

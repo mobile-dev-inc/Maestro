@@ -63,7 +63,7 @@ object TestRunner {
             .withDefaultEnvVars(flowFile)
 
         val result = runCatching(resultView, maestro) {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath(), testOutputDir)
+            val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(updatedEnv)
 
             val flowName = YamlCommandReader.getConfig(commands)?.name
@@ -144,7 +144,7 @@ object TestRunner {
                     .withDefaultEnvVars(flowFile)
 
                 val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath(), testOutputDir)
+                    .readCommands(flowFile.toPath())
                     .withEnv(updatedEnv)
 
                 val flowName = YamlCommandReader.getConfig(commands)?.name
@@ -170,6 +170,7 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
+                                    testOutputDir = testOutputDir
                                 )
                             }
                         }.get()

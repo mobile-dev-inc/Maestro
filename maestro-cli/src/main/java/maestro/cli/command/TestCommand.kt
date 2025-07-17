@@ -134,7 +134,7 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--test-output-dir"],
-        description = ["Configures the test output directory for screenshots and all other test artifacts"],
+        description = ["Configures the test output directory for screenshots and other test artifacts (note: this does NOT include debug output)"],
     )
     private var testOutputDir: String? = null
 
@@ -232,7 +232,6 @@ class TestCommand : Callable<Int> {
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = configFile?.toPath()?.toAbsolutePath(),
-                testOutputDir = null
             )
         } catch (e: ValidationError) {
             throw CliError(e.message)
