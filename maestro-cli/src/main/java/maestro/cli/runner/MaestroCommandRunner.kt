@@ -35,6 +35,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.IdentityHashMap
 import maestro.cli.util.ScreenshotUtils
 import maestro.utils.Insight
