@@ -74,17 +74,19 @@ class UnicodeInputHandler(
                     logger.warn("Configuration warning: $warning")
                 }
                 
-                // Initialize ADB Keyboard
+                // Initialize ADB Keyboard - try to ensure it's available for Unicode text
                 val keyboardReady = keyboardManager.ensureInstalled()
                 if (!keyboardReady) {
                     if (config.fallbackToCharInput) {
-                        logger.warn("ADB Keyboard not available, will use fallback methods")
+                        logger.warn("ADB Keyboard not available, will use fallback methods for Unicode text")
                         isInitialized.set(true)
                         return@withContext true
                     } else {
                         logger.error("ADB Keyboard not available and fallback is disabled")
                         return@withContext false
                     }
+                } else {
+                    logger.info("ADB Keyboard is ready for Unicode input")
                 }
                 
                 isInitialized.set(true)
@@ -209,7 +211,13 @@ class UnicodeInputHandler(
         return withContext(scope.coroutineContext) {
             val config = UnicodeConfig.getInstance()
             
-            // Switch to ADB Keyboard
+            // Ensure ADB Keyboard is available and switch to it
+            val keyboardReady = keyboardManager.ensureInstalled()
+            if (!keyboardReady) {
+                logger.warn("ADB Keyboard not available for Unicode input, trying fallback")
+                return@withContext attemptFallbackInput(text)
+            }
+            
             val switchSuccess = keyboardManager.switchToAdbKeyboard()
             if (!switchSuccess) {
                 logger.warn("Failed to switch to ADB Keyboard, trying fallback")
@@ -323,27 +331,31 @@ class UnicodeInputHandler(
                 return@withContext false
             }
             
-            logger.info("Attempting fallback input methods")
+            logger.info("Attempting fallback input methods for Unicode text")
             
             // Try clipboard method
             if (config.enableClipboardFallback) {
-                logger.debug("Trying clipboard fallback")
+                logger.info("Trying clipboard fallback method")
                 val clipboardSuccess = attemptClipboardInput(text)
                 if (clipboardSuccess) {
-                    logger.info("Clipboard fallback successful")
+                    logger.info("✓ Clipboard fallback successful")
                     return@withContext true
+                } else {
+                    logger.warn("✗ Clipboard fallback failed")
                 }
             }
             
             // Try character-by-character input
-            logger.debug("Trying character-by-character fallback")
+            logger.info("Trying character-by-character fallback method")
             val charSuccess = fallbackToCharacterInput(text)
             if (charSuccess) {
-                logger.info("Character-by-character fallback successful")
+                logger.info("✓ Character-by-character fallback successful")
                 return@withContext true
+            } else {
+                logger.warn("✗ Character-by-character fallback failed")
             }
             
-            logger.error("All fallback methods failed")
+            logger.error("✗ All fallback methods failed for Unicode text")
             return@withContext false
         }
     }
@@ -432,18 +444,27 @@ class UnicodeInputHandler(
     private suspend fun attemptClipboardInput(text: String): Boolean {
         return withContext(scope.coroutineContext) {
             try {
-                // Set clipboard content
-                dadb.shell("am broadcast -a clipper.set -e text '$text'")
+                // Escape text for shell command
+                val escapedText = text.replace("'", "'\"'\"'")
+                
+                // Try standard clipboard setting (API 23+)
+                val clipResult = dadb.shell("am broadcast -a android.intent.action.CLIPBOARD_SET -e text '$escapedText'")
+                if (clipResult.exitCode != 0) {
+                    logger.debug("Standard clipboard broadcast failed, trying alternative")
+                    // Alternative method - set clipboard directly
+                    dadb.shell("service call clipboard 2 s16 '$escapedText'")
+                }
+                
                 delay(100)
                 
-                // Send paste command
-                dadb.shell("input keyevent 279") // PASTE keycode
+                // Send paste command (Ctrl+V keycode)
+                val pasteResult = dadb.shell("input keyevent 279")
                 delay(100)
                 
-                return@withContext true
+                return@withContext pasteResult.exitCode == 0
                 
             } catch (e: Exception) {
-                logger.error("Clipboard input failed", e)
+                logger.debug("Clipboard input failed", e)
                 return@withContext false
             }
         }
@@ -482,13 +503,20 @@ class UnicodeInputHandler(
     }
     
     /**
-     * Sends a single character (placeholder for integration with existing system).
+     * Sends a single character using standard ADB input.
      */
-    private suspend fun sendSingleCharacter(@Suppress("UNUSED_PARAMETER") char: Char): Boolean {
+    private suspend fun sendSingleCharacter(char: Char): Boolean {
         return withContext(scope.coroutineContext) {
-            // This would integrate with the existing character input system
-            // For now, return true as a placeholder
-            return@withContext true
+            try {
+                // Use standard ADB input for single characters
+                // This works for ASCII and some Unicode characters
+                val result = dadb.shell("input text '${char.toString().replace("'", "\\'")}'")
+                delay(10) // Small delay between characters
+                return@withContext result.exitCode == 0
+            } catch (e: Exception) {
+                logger.debug("Failed to send character '$char' via ADB input", e)
+                return@withContext false
+            }
         }
     }
     

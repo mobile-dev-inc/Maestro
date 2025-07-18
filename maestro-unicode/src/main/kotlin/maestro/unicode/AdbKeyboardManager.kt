@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
+import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.Base64
@@ -31,7 +32,7 @@ class AdbKeyboardManager(
         const val BROADCAST_ACTION_CODE = "ADB_INPUT_CODE"
         const val BROADCAST_ACTION_CLEAR = "ADB_CLEAR_TEXT"
         
-        private const val APK_RESOURCE_PATH = "/ADBKeyboard.apk"
+        private const val APK_DOWNLOAD_URL = "https://github.com/senzhk/ADBKeyBoard/raw/master/ADBKeyboard.apk"
         private const val INSTALLATION_TIMEOUT_MS = 30000L
         private const val IME_SWITCH_TIMEOUT_MS = 1000L
         private const val MAX_BROADCAST_LENGTH = 1500 // Conservative limit for broadcast messages
@@ -73,18 +74,11 @@ class AdbKeyboardManager(
                 
                 logger.info("Installing ADB Keyboard for Unicode support...")
                 
-                // Install the APK
-                val apkStream = javaClass.getResourceAsStream(APK_RESOURCE_PATH)
-                    ?: throw IllegalStateException("ADB Keyboard APK not found in resources")
-                
-                val tempFile = Files.createTempFile("ADBKeyboard", ".apk")
+                // Download and install the APK
+                val apkFile = downloadAdbKeyboard()
                 try {
-                    apkStream.use { stream ->
-                        Files.copy(stream, tempFile, StandardCopyOption.REPLACE_EXISTING)
-                    }
-                    
                     // Install the APK
-                    dadb.install(tempFile.toFile())
+                    dadb.install(apkFile)
                     
                     // Wait for installation to complete
                     delay(1000)
@@ -103,7 +97,7 @@ class AdbKeyboardManager(
                     }
                     
                 } finally {
-                    tempFile.toFile().delete()
+                    apkFile.delete()
                 }
                 
             } catch (e: Exception) {
@@ -400,6 +394,38 @@ class AdbKeyboardManager(
             } catch (e: Exception) {
                 logger.error("Error sending long text", e)
                 return@withContext false
+            }
+        }
+    }
+    
+    /**
+     * Downloads the ADB Keyboard APK from GitHub.
+     */
+    private suspend fun downloadAdbKeyboard(): File {
+        return withContext(Dispatchers.IO) {
+            try {
+                logger.info("Downloading ADB Keyboard APK from GitHub...")
+                
+                val url = URL(APK_DOWNLOAD_URL)
+                val tempFile = Files.createTempFile("ADBKeyboard", ".apk")
+                
+                url.openStream().use { input ->
+                    Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING)
+                }
+                
+                val file = tempFile.toFile()
+                logger.info("ADB Keyboard APK downloaded successfully: ${file.absolutePath}")
+                
+                // Verify the file was downloaded and has content
+                if (!file.exists() || file.length() == 0L) {
+                    throw IOException("Downloaded APK file is empty or doesn't exist")
+                }
+                
+                return@withContext file
+                
+            } catch (e: Exception) {
+                logger.error("Failed to download ADB Keyboard APK from $APK_DOWNLOAD_URL", e)
+                throw IOException("Failed to download ADB Keyboard APK: ${e.message}", e)
             }
         }
     }
