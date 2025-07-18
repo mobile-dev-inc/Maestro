@@ -21,8 +21,11 @@ class UnicodeDetector {
         fun getCharacterSets(text: String): Set<CharacterSet> {
             val sets = mutableSetOf<CharacterSet>()
             
-            text.forEach { char ->
-                when (char.code) {
+            var i = 0
+            while (i < text.length) {
+                val codePoint = text.codePointAt(i)
+                
+                when (codePoint) {
                     // ASCII range
                     in 0x0000..0x007F -> sets.add(CharacterSet.ASCII)
                     
@@ -53,7 +56,7 @@ class UnicodeDetector {
                     // Thai
                     in 0x0E00..0x0E7F -> sets.add(CharacterSet.THAI)
                     
-                    // Emoji ranges
+                    // Emoji ranges (proper Unicode code points)
                     in 0x1F600..0x1F64F, // Emoticons
                     in 0x1F300..0x1F5FF, // Miscellaneous Symbols and Pictographs
                     in 0x1F680..0x1F6FF, // Transport and Map Symbols
@@ -70,6 +73,8 @@ class UnicodeDetector {
                     // Other characters
                     else -> sets.add(CharacterSet.OTHER)
                 }
+                
+                i += Character.charCount(codePoint)
             }
             
             return sets

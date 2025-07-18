@@ -26,12 +26,14 @@ data class UnicodeConfig(
 ) {
     
     companion object {
+        @Volatile
         private var instance: UnicodeConfig? = null
+        private val lock = Any()
         
         /**
          * Loads configuration from YAML or creates default configuration.
          */
-        fun load(yamlConfig: Map<String, Any>?): UnicodeConfig {
+        fun load(yamlConfig: Map<String, Any>?): UnicodeConfig = synchronized(lock) {
             @Suppress("UNCHECKED_CAST")
             val unicodeSection = yamlConfig?.get("unicode") as? Map<String, Any>
             return UnicodeConfig(
@@ -59,7 +61,7 @@ data class UnicodeConfig(
         /**
          * Creates a default configuration.
          */
-        fun createDefault(): UnicodeConfig {
+        fun createDefault(): UnicodeConfig = synchronized(lock) {
             return UnicodeConfig().also { instance = it }
         }
         
@@ -67,7 +69,9 @@ data class UnicodeConfig(
          * Gets the current configuration instance.
          */
         fun getInstance(): UnicodeConfig {
-            return instance ?: createDefault()
+            return instance ?: synchronized(lock) {
+                instance ?: createDefault()
+            }
         }
         
         /**

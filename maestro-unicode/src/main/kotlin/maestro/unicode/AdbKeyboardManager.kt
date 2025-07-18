@@ -79,7 +79,9 @@ class AdbKeyboardManager(
                 
                 val tempFile = Files.createTempFile("ADBKeyboard", ".apk")
                 try {
-                    Files.copy(apkStream, tempFile, StandardCopyOption.REPLACE_EXISTING)
+                    apkStream.use { stream ->
+                        Files.copy(stream, tempFile, StandardCopyOption.REPLACE_EXISTING)
+                    }
                     
                     // Install the APK
                     dadb.install(tempFile.toFile())

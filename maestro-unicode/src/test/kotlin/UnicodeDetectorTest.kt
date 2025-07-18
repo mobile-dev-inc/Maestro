@@ -62,12 +62,11 @@ class UnicodeDetectorTest {
     }
 
     @Test
-    fun `containsEmoji should return false for surrogate pairs that are not in emoji ranges`() {
-        // Since emoji are stored as surrogate pairs in UTF-16, they appear as OTHER characters
-        // This is expected behavior based on the current implementation
-        assertThat(UnicodeDetector.containsEmoji("😀")).isFalse() // Surrogate pair
-        assertThat(UnicodeDetector.containsEmoji("🌍")).isFalse() // Surrogate pair
-        assertThat(UnicodeDetector.containsEmoji("🚀")).isFalse() // Surrogate pair
+    fun `containsEmoji should return true for emoji characters`() {
+        // With proper Unicode code point handling, emoji should now be detected correctly
+        assertThat(UnicodeDetector.containsEmoji("😀")).isTrue() // Face with grinning eyes
+        assertThat(UnicodeDetector.containsEmoji("🌍")).isTrue() // Earth globe Europe-Africa
+        assertThat(UnicodeDetector.containsEmoji("🚀")).isTrue() // Rocket
     }
 
     @Test
@@ -84,10 +83,10 @@ class UnicodeDetectorTest {
     }
 
     @Test
-    fun `getRecommendedInputMethod should return UNICODE_STANDARD for surrogate pairs`() {
-        // Emoji appear as OTHER character sets, so they get UNICODE_STANDARD method
+    fun `getRecommendedInputMethod should return UNICODE_WITH_EMOJI_SUPPORT for emoji`() {
+        // Emoji should now be properly detected and get emoji support method
         val method = UnicodeDetector.getRecommendedInputMethod("😀")
-        assertThat(method).isEqualTo(UnicodeDetector.InputMethod.UNICODE_STANDARD)
+        assertThat(method).isEqualTo(UnicodeDetector.InputMethod.UNICODE_WITH_EMOJI_SUPPORT)
     }
 
     @Test
