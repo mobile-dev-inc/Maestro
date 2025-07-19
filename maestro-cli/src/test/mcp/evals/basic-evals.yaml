@@ -8,7 +8,7 @@ evals:
   max_steps: 3
   tests:
     - name: Lists all available tools
-      prompt: Please list all available tools and capabilities you have access to.
+      prompt: Please list all available maestro tools you have access to.
       expected_tool_calls:
         allowed: []
       response_scorers:
@@ -34,8 +34,7 @@ evals:
           - start_device
       response_scorers:
         - type: llm-judge
-          criteria: Did the assistant correctly start an iOS device and mention the device
-            ID or confirm successful startup?
+          criteria: Did the assistant correctly start an iOS device and mention the device ID or confirm successful startup?
 
     - name: Queries Maestro documentation
       prompt: How do I tap on an element with specific text in Maestro?
@@ -65,7 +64,7 @@ evals:
           pattern: '(valid|invalid|syntax|error)'
 
     - name: Runs flow file by description
-      prompt: Please run our launch-safari flow file in the evals folder
+      prompt: Please run our "launch-safari-ios" flow file in the setup/flows folder
       expected_tool_calls:
         required:
           - run_flow_files

@@ -118,7 +118,7 @@ for eval_file in "${eval_files[@]}"; do
     echo "📋 Using evals: $eval_file"
     
     # Run the evals using MCP inspector
-    npx -y mcp-server-tester "$eval_file" --server-config "$CONFIG"
+    npx -y mcp-server-tester@1.3.0 verify "$eval_file" --server-config "$CONFIG" --debug
     
     echo "✅ Eval $eval_count completed: $eval_file"
 done
