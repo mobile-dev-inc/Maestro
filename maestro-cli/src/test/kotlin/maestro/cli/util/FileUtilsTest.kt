@@ -88,7 +88,7 @@ class FileUtilsTest {
     fun `isWebFlow should return true for JavaScript expression evaluating to URL`() {
         // Given
         val yamlContent = """
-            appId: ${output.webUrl || "https://example.com"}
+            appId: ${'$'}{output.webUrl || "https://example.com"}
             ---
             - launchApp
         """.trimIndent()
@@ -106,7 +106,7 @@ class FileUtilsTest {
     fun `isWebFlow should return false for JavaScript expression evaluating to package name`() {
         // Given
         val yamlContent = """
-            appId: ${output.appId || "com.example.app"}
+            appId: ${'$'}{output.appId || "com.example.app"}
             ---
             - launchApp
         """.trimIndent()
@@ -124,7 +124,7 @@ class FileUtilsTest {
     fun `isWebFlow should handle JavaScript evaluation failure gracefully`() {
         // Given
         val yamlContent = """
-            appId: ${invalid.syntax.error}
+            appId: ${'$'}{invalid.syntax.error}
             ---
             - launchApp
         """.trimIndent()
@@ -201,7 +201,7 @@ class FileUtilsTest {
             System.setProperty("MAESTRO_TEST_URL", "https://test-env.com")
             
             val yamlContent = """
-                appId: ${process.env.MAESTRO_TEST_URL || "com.example.app"}
+                appId: ${'$'}{process.env.MAESTRO_TEST_URL || "com.example.app"}
                 ---
                 - launchApp
             """.trimIndent()
