@@ -106,7 +106,7 @@ class FileUtilsTest {
     fun `isWebFlow should return false for JavaScript expression evaluating to package name`() {
         // Given
         val yamlContent = """
-            appId: ${'$'}{output.appId || "com.example.app"}
+            appId: ${output.appId || "com.example.app"}
             ---
             - launchApp
         """.trimIndent()
