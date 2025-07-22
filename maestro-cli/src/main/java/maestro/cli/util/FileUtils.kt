@@ -21,6 +21,10 @@ object FileUtils {
     }
 
     fun File.isWebFlow(): Boolean {
+        if (!exists()) {
+            return false
+        }
+
         if (isDirectory) {
             return listFiles()
                 ?.any { it.isWebFlow() }
