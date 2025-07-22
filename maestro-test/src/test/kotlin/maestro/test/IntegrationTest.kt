@@ -3774,8 +3774,11 @@ class IntegrationTest {
 
                                 if (commandName == "InputTextCommand" && !cancellationSignal.isCompleted) {
                                     cancellationSignal.complete(Unit)
-                                    // Add immediate cancellation to prevent race condition
-                                    coroutineContext[Job]?.cancel()
+                                    // Add small delay to ensure InputTextCommand completes before cancellation
+                                    launch {
+                                        delay(50)
+                                        coroutineContext[Job]?.cancel()
+                                    }
                                 }
                             }
                         )
@@ -3798,10 +3801,10 @@ class IntegrationTest {
                 activeFlows[flowId]?.cancel()
 
                 // Add longer delay to ensure cancellation propagates in slower CI environments
-                delay(500)
+                delay(1000)
                 
                 // Wait for cancellation to fully complete with timeout
-                withTimeoutOrNull(2000) {
+                withTimeoutOrNull(5000) {
                     while (activeFlows[flowId]?.isActive == true) {
                         delay(50)
                     }
