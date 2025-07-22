@@ -24,7 +24,7 @@ googleGson = "2.11.0"
 googleProtobuf = "3.21.9"
 googleProtobufPlugin = "0.9.4"
 googleTruth = "1.4.2"
-graaljs = "22.0.0" # Latest version that supports Java 8
+graaljs = "24.1.2" # Latest version that supports Java 8
 grpc = "1.50.2"
 grpcKotlinStub = "1.4.1"
 imageComparison = "4.4.0"
@@ -80,6 +80,8 @@ google-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", versi
 google-protobuf-kotlin-lite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "googleProtobuf" }
 google-truth = { module = "com.google.truth:truth", version.ref = "googleTruth" }
 graaljs = { module = "org.graalvm.js:js", version.ref = "graaljs" }
+graaljsEngine = { module = "org.graalvm.js:js-scriptengine", version.ref = "graaljs" }
+graaljsLanguage = { module = "org.graalvm.js:js-language", version.ref = "graaljs" }
 grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpcKotlinStub" }
 grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }

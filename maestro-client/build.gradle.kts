@@ -58,6 +58,9 @@ dependencies {
     implementation(project(":maestro-ios-driver"))
 
     api(libs.graaljs)
+    api(libs.graaljsEngine)
+    api(libs.graaljsLanguage)
+
     api(libs.grpc.kotlin.stub)
     api(libs.grpc.stub)
     api(libs.grpc.netty)
