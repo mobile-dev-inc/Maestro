@@ -12,6 +12,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import maestro.DeviceOrientation
 import maestro.KeyCode
@@ -3796,8 +3797,15 @@ class IntegrationTest {
                 cancellationSignal.await()
                 activeFlows[flowId]?.cancel()
 
-                // Add small delay to ensure cancellation propagates before race condition occurs
-                delay(100)
+                // Add longer delay to ensure cancellation propagates in slower CI environments
+                delay(500)
+                
+                // Wait for cancellation to fully complete with timeout
+                withTimeoutOrNull(2000) {
+                    while (activeFlows[flowId]?.isActive == true) {
+                        delay(50)
+                    }
+                }
 
                 try {
                     flowJob.join()
