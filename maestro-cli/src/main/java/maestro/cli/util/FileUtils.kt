@@ -1,5 +1,9 @@
 package maestro.cli.util
 
+import maestro.js.RhinoJsEngine
+import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
@@ -36,7 +40,27 @@ object FileUtils {
         }
 
         val config = YamlCommandReader.readConfig(toPath())
-        return Regex("https?://").containsMatchIn(config.appId)
+        val jsEngine = RhinoJsEngine()
+        
+        try {
+            // Evaluate environment variables in the appId
+            val env = emptyMap<String, String>()
+                .withInjectedShellEnvVars()
+                .withDefaultEnvVars(this)
+            env.forEach { (key, value) ->
+                jsEngine.putEnv(key, value)
+            }
+            
+            val evaluatedAppId = try {
+                config.appId.evaluateScripts(jsEngine)
+            } catch (e: Exception) {
+                config.appId // Fall back to original if evaluation fails
+            }
+            
+            return Regex("https?://").containsMatchIn(evaluatedAppId)
+        } finally {
+            jsEngine.close()
+        }
     }
 
 }
