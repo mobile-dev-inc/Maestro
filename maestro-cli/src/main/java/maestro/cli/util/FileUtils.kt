@@ -40,6 +40,13 @@ object FileUtils {
         }
 
         val config = YamlCommandReader.readConfig(toPath())
+        
+        // Quick check: if no JavaScript expressions, use simple regex
+        if (!config.appId.contains("\${")) {
+            return Regex("https?://").containsMatchIn(config.appId)
+        }
+        
+        // Only create JS engine if JavaScript expressions are present
         val jsEngine = RhinoJsEngine()
         
         try {
