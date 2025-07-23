@@ -38,7 +38,6 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
-import kotlinx.html.PRE
 
 class CloudInteractor(
     private val client: ApiClient,
@@ -371,12 +370,6 @@ class CloudInteractor(
         testSuiteName: String?,
         uploadUrl: String,
     ): Int {
-
-        PrintUtils.message("✅ Upload completed!")
-        PrintUtils.message("View the results of your upload below:")
-        PrintUtils.message(uploadUrl)
-        PrintUtils.message("App id: $appId")
-        
         TestSuiteStatusView.showSuiteResult(
             upload.toViewModel(
                 TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
