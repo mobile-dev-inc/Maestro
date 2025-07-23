@@ -21,5 +21,3 @@ if [ ! -f "$MAESTRO_CLI_PATH" ]; then
     echo "   From the repository root: $MAESTRO_ROOT"
     exit 1
 fi
-
-echo "✅ Maestro CLI found at: $MAESTRO_CLI_PATH"

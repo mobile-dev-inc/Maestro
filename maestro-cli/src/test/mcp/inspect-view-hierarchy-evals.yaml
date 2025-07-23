@@ -1,4 +1,5 @@
 
+# yaml-language-server: $schema=https://raw.githubusercontent.com/steviec/mcp-server-tester/refs/heads/main/src/schemas/tests-schema.json
 evals:
   models:
   - claude-3-7-sonnet-latest
