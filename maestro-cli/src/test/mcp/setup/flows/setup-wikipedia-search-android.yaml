@@ -1,0 +1,25 @@
+appId: org.wikipedia
+---
+# Navigate Wikipedia to search screen for view hierarchy testing
+# Assumes onboarding is already completed
+
+# Dismiss any auth modals that might appear
+- tapOn:
+    text: "Continue without logging in"
+    optional: true
+
+# Navigate to search to get an interesting hierarchy
+- tapOn:
+    text: "Search Wikipedia"
+    optional: true
+
+# Enter a search term to populate results
+- inputText:
+    text: "Artificial Intelligence"
+    optional: true
+
+# Wait for search results to load
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# App should now show search results with rich hierarchy

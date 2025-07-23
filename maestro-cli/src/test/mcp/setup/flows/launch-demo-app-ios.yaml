@@ -1,0 +1,11 @@
+appId: com.example.example
+---
+# Launch Demo App with clear state for evaluations
+
+- launchApp:
+    appId: com.example.example
+    clearState: true
+
+# Wait for app to load
+- waitForAnimationToEnd:
+    timeout: 3000

@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/steviec/mcp-server-tester/refs/heads/main/src/schemas/tests-schema.json
+tools:
+  tests:
+    - name: "Test take_screenshot with valid device"
+      tool: "take_screenshot"
+      params:
+        device_id: "${DEVICE_ID}"
+      expect:
+        success: true
+
+    - name: "Test inspect_view_hierarchy with valid device"
+      tool: "inspect_view_hierarchy"
+      params:
+        device_id: "${DEVICE_ID}"
+      expect:
+        success: true
+
+    - name: "Test launch_app with valid device"
+      tool: "launch_app"
+      params:
+        device_id: "${DEVICE_ID}"
+        appId: "com.apple.mobilesafari"
+      expect:
+        success: true
+
+    - name: "Test tap_on with valid device"
+      tool: "tap_on"
+      params:
+        device_id: "${DEVICE_ID}"
+        text: "Search"
+      expect:
+        success: true
+
+    - name: "Test input_text with valid device"
+      tool: "input_text"
+      params:
+        device_id: "${DEVICE_ID}"
+        text: "hello"
+      expect:
+        success: true
+
+    - name: "Test stop_app with valid device"
+      tool: "stop_app"
+      params:
+        device_id: "${DEVICE_ID}"
+        appId: "com.apple.mobilesafari"
+      expect:
+        success: true
+
+    - name: "Test run_flow with valid device"
+      tool: "run_flow"
+      params:
+        device_id: "${DEVICE_ID}"
+        flow_yaml: |
+          appId: com.apple.mobilesafari
+          ---
+          - launchApp
+      expect:
+        success: true
+
+    - name: "Test run_flow_files with valid device (expect failure - nonexistent file)"
+      tool: "run_flow_files"
+      params:
+        device_id: "${DEVICE_ID}"
+        flow_files: "nonexistent.yaml"
+      expect:
+        success: false
+        error:
+          contains: "not found"

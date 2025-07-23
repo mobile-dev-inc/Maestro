@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "maestro-mcp": {
-      "command": "../../../../maestro-cli/build/install/maestro/bin/maestro",
+      "command": "../../../build/install/maestro/bin/maestro",
       "args": [
         "mcp",
         "--working-dir",

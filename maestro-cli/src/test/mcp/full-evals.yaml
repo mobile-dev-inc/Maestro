@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/steviec/mcp-server-tester/refs/heads/main/src/schemas/tests-schema.json
+# MCP LLM Evaluations (evals) Test Configuration
+# Updated to current YAML format syntax
+
+evals:
+  models:
+    - claude-3-5-haiku-latest
+  timeout: 30000
+  max_steps: 3
+  tests:
+    - name: Lists all available tools
+      prompt: Please list all available maestro tools you have access to.
+      expected_tool_calls:
+        allowed: []
+      response_scorers:
+        - type: llm-judge
+          criteria: >
+            The assistant makes no tool calls and instead provides a list of all
+            14 available tools: list_devices, start_device, launch_app, take_screenshot,
+            tap_on, input_text, back, stop_app, run_flow, run_flow_files, check_flow_syntax,
+            inspect_view_hierarchy, cheat_sheet, and query_docs. The response should be
+            comprehensive and not mention any other tool names.
+          threshold: 1.0
+
+    - name: Lists all devices
+      prompt: Please list all available devices for testing
+      expected_tool_calls:
+        required:
+          - list_devices
+
+    - name: Starts iOS device
+      prompt: Start an iOS device for testing
+      expected_tool_calls:
+        required:
+          - start_device
+      response_scorers:
+        - type: llm-judge
+          criteria: Did the assistant correctly start an iOS device and mention the device ID or confirm successful startup?
+
+    - name: Queries Maestro documentation
+      prompt: How do I tap on an element with specific text in Maestro?
+      expected_tool_calls:
+        required:
+          - query_docs
+        allowed:
+          - cheat_sheet
+      response_scorers:
+        - type: regex
+          pattern: '(tap|tapOn|text)'
+        - type: llm-judge
+          criteria: >
+            Did the assistant provide accurate information about tapping elements
+            with text in Maestro, including proper syntax or examples?
+          threshold: 0.8
+
+    - name: Validates flow syntax
+      prompt: 'Check if this Maestro flow syntax is valid: ''- tapOn: "Submit button"'''
+      expected_tool_calls:
+        required:
+          - check_flow_syntax
+        allowed:
+          - cheat_sheet
+      response_scorers:
+        - type: regex
+          pattern: '(valid|invalid|syntax|error)'
+
+    - name: Runs flow file by description
+      prompt: Please run our "launch-safari-ios" flow file in the setup/flows folder
+      expected_tool_calls:
+        required:
+          - run_flow_files
