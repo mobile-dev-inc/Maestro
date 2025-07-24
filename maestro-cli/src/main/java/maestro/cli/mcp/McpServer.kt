@@ -72,7 +72,7 @@ fun runMaestroMcpServer() {
         System.out.asSink().buffered()
     )
 
-    System.err.println("Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")
+    System.err.println("MCP Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")
 
     runBlocking {
         server.connect(transport)
