@@ -290,6 +290,12 @@ class CloudInteractor(
                     FlowStatus.PENDING -> { /* do nothing */
                     }
 
+                    FlowStatus.PREPARING -> { /* do nothing */
+                    }
+
+                    FlowStatus.INSTALLING -> { /* do nothing */
+                    }
+
                     FlowStatus.RUNNING -> {
                         if (runningFlow.startTime == null) {
                             runningFlow.startTime = System.currentTimeMillis()
