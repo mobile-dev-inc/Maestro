@@ -153,7 +153,12 @@ object RunFlowFilesTool {
                     }.toString()
                 }
                 
-                CallToolResult(content = listOf(TextContent(result)))
+                // Check if any flows failed and return isError accordingly
+                val anyFlowsFailed = result.contains("\"success\":false")                
+                CallToolResult(
+                    content = listOf(TextContent(result)),
+                    isError = anyFlowsFailed
+                )
             } catch (e: Exception) {
                 CallToolResult(
                     content = listOf(TextContent("Failed to run flow files: ${e.message}")),
