@@ -40,7 +40,7 @@ private const val SUCCESS_HTML = """
 
 private const val FAILURE_DEFAULT_DESCRIPTION = "Something went wrong. Please try again."
 
-private val FAILURE_HTML = """
+private const val FAILURE_HTML = """
     <!DOCTYPE html>
 <html>
 <head>
