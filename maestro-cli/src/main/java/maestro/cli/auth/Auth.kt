@@ -5,7 +5,6 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.response.*
-import io.ktor.server.routing.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import maestro.auth.ApiKey
@@ -38,7 +37,9 @@ private const val SUCCESS_HTML = """
 </html>
     """
 
-private const val FAILURE_HTML = """
+private const val FAILURE_DEFAULT_DESCRIPTION = "Something went wrong. Please try again."
+
+private val FAILURE_HTML = """
     <!DOCTYPE html>
 <html>
 <head>
@@ -52,7 +53,7 @@ private const val FAILURE_HTML = """
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
         <h1 class="text-2xl font-bold text-gray-800 mb-2">Authentication Failed</h1>
-        <p class="text-gray-600">Something went wrong. Please try again.</p>
+        <p class="text-gray-600">${FAILURE_DEFAULT_DESCRIPTION}</p>
     </div>
 </div>
 </body>
