@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.pathString
 
 class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderFactory = XcodeBuildProcessBuilderFactory()) {
-    private val XCODEBUILD_WAIT_TIME: Long by lazy {
+    private val waitTime: Long by lazy {
         System.getenv("MAESTRO_XCODEBUILD_WAIT_TIME")?.toLongOrNull() ?: DEFAULT_XCODEBUILD_WAIT_TIME
     }
 
@@ -78,7 +78,7 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                 ), workingDirectory = workingDirectory.toFile(), outputFile = outputFile
             )
 
-            process.waitFor(XCODEBUILD_WAIT_TIME, TimeUnit.SECONDS)
+            process.waitFor(waitTime, TimeUnit.SECONDS)
 
             if (process.exitValue() != 0) {
                 // copy the error log inside driver output
