@@ -39,7 +39,7 @@ object BackTool {
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = MaestroSessionManager.MCP_DRIVER_PORT,
+                    driverHostPort = null,
                     deviceId = deviceId,
                     platform = null
                 ) { session ->

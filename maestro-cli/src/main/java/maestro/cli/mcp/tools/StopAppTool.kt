@@ -23,14 +23,7 @@ object StopAppTool {
                         }
                         putJsonObject("appId") {
                             put("type", "string")
-                            put("description", "Bundle ID or app ID to stop (supports environment variable substitution like \${APP_ID})")
-                        }
-                        putJsonObject("env") {
-                            put("type", "object")
-                            put("description", "Optional environment variables for app ID substitution (e.g., {\"APP_ID\": \"com.example.app\"})")
-                            putJsonObject("additionalProperties") {
-                                put("type", "string")
-                            }
+                            put("description", "Bundle ID or app ID to stop")
                         }
                     },
                     required = listOf("device_id", "appId")
@@ -40,7 +33,6 @@ object StopAppTool {
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val appId = request.arguments["appId"]?.jsonPrimitive?.content
-                val envParam = request.arguments["env"]?.jsonObject
                 
                 if (deviceId == null || appId == null) {
                     return@RegisteredTool CallToolResult(
@@ -49,21 +41,15 @@ object StopAppTool {
                     )
                 }
                 
-                // Parse environment variables and substitute in app ID
-                val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
-                val resolvedAppId = env.entries.fold(appId) { acc, (key, value) ->
-                    acc.replace("\${$key}", value)
-                }
-                
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
-                    driverHostPort = MaestroSessionManager.MCP_DRIVER_PORT,
+                    driverHostPort = null,
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
                     val command = StopAppCommand(
-                        appId = resolvedAppId,
+                        appId = appId,
                         label = null,
                         optional = false
                     )
@@ -76,15 +62,8 @@ object StopAppTool {
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
-                        put("app_id", resolvedAppId)
+                        put("app_id", appId)
                         put("message", "App stopped successfully")
-                        if (env.isNotEmpty()) {
-                            putJsonObject("env_vars") {
-                                env.forEach { (key, value) ->
-                                    put(key, value)
-                                }
-                            }
-                        }
                     }.toString()
                 }
                 

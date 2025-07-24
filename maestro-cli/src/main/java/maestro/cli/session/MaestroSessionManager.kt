@@ -57,14 +57,10 @@ object MaestroSessionManager {
     private const val defaultHost = "localhost"
     private const val defaultXctestHost = "127.0.0.1"
     private const val defaultXcTestPort = 22087
-    
-    /**
-     * Fixed port for MCP (Model Context Protocol) sessions to avoid conflicts
-     */
-    const val MCP_DRIVER_PORT = 7200
 
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
+
 
     fun <T> newSession(
         host: String?,
@@ -74,7 +70,7 @@ object MaestroSessionManager {
         teamId: String? = null,
         platform: String? = null,
         isStudio: Boolean = false,
-        isHeadless: Boolean = isStudio,
+        isHeadless: Boolean = false,
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
@@ -109,12 +105,11 @@ object MaestroSessionManager {
             selectedDevice = selectedDevice,
             connectToExistingSession = if (isStudio) {
                 false
-            } else if (driverHostPort == MCP_DRIVER_PORT) {
-                // MCP sessions can reuse existing sessions for faster execution
-                SessionStore.hasActiveSessions(sessionId, selectedDevice.platform)
             } else {
-                // Terminal sessions should not reuse MCP sessions to avoid conflicts
-                false
+                SessionStore.hasActiveSessions(
+                    sessionId,
+                    selectedDevice.platform
+                )
             },
             isStudio = isStudio,
             isHeadless = isHeadless,
@@ -133,8 +128,6 @@ object MaestroSessionManager {
 
         return block(session)
     }
-
-
 
     private fun selectDevice(
         host: String?,
