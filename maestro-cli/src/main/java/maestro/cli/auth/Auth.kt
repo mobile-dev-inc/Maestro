@@ -113,10 +113,19 @@ class Auth(
             return
         }
 
-        val newApiKey = apiClient.exchangeToken(code)
-
-        call.respondText(SUCCESS_HTML, ContentType.Text.Html)
-        deferredToken.complete(newApiKey)
+        try {
+            val newApiKey = apiClient.exchangeToken(code)
+            call.respondText(SUCCESS_HTML, ContentType.Text.Html)
+            deferredToken.complete(newApiKey)
+        } catch (e: Exception) {
+            val errorMessage = "Failed to exchange token: ${e.message}"
+            call.respondText(
+                if (errorMessage.isNotBlank()) FAILURE_HTML.replace(FAILURE_DEFAULT_DESCRIPTION, errorMessage) else FAILURE_HTML,
+                ContentType.Text.Html,
+                status = HttpStatusCode.InternalServerError
+            )
+            deferredToken.completeExceptionally(e)
+        }
     }
 
 }
