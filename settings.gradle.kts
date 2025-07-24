@@ -16,13 +16,6 @@ dependencyResolutionManagement {
     }
 }
 
-// Configure Source Control for forked kotlin-sdk
-sourceControl {
-    gitRepository(uri("https://github.com/steviec/kotlin-sdk.git")) {
-        producesModule("io.modelcontextprotocol:kotlin-sdk")
-    }
-}
-
 include("maestro-utils")
 include("maestro-android")
 include("maestro-cli")

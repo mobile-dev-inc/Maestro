@@ -142,7 +142,7 @@ class RecordCommand : Callable<Int> {
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     maestro.startScreenRecording(out).use {
-                        TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
+                        TestRunner.runSingle(maestro, device, flowFile, env, resultView, path, testOutputDir = null)
                     }
                 }
 
