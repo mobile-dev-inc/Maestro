@@ -1,5 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
-import com.vanniktech.maven.publish.tasks.SourcesJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -60,6 +58,9 @@ dependencies {
     implementation(project(":maestro-ios-driver"))
 
     api(libs.graaljs)
+    api(libs.graaljsEngine)
+    api(libs.graaljsLanguage)
+
     api(libs.grpc.kotlin.stub)
     api(libs.grpc.stub)
     api(libs.grpc.netty)
@@ -86,10 +87,11 @@ dependencies {
     implementation(libs.selenium)
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)
-    api(libs.slf4j)
-    api(libs.logback) {
-        exclude(group = "org.slf4j", module = "slf4j-api")
-    }
+
+    api(libs.logging.sl4j)
+    api(libs.logging.api)
+    api(libs.logging.layout.template)
+    api(libs.log4j.core)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -99,22 +101,18 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+        freeCompilerArgs.addAll("-Xjdk-release=17")
     }
 }
 
-tasks.withType(SourcesJar::class).configureEach {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01)
+    publishToMavenCentral(true)
 }
 
 tasks.named<Test>("test") {
