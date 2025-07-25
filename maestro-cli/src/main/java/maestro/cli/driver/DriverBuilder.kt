@@ -8,6 +8,9 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.pathString
 
 class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderFactory = XcodeBuildProcessBuilderFactory()) {
+    private val waitTime: Long by lazy {
+        System.getenv("MAESTRO_XCODEBUILD_WAIT_TIME")?.toLongOrNull() ?: DEFAULT_XCODEBUILD_WAIT_TIME
+    }
 
     /**
      * Builds the iOS driver for real iOS devices by extracting the driver source, copying it to a temporary build
@@ -75,7 +78,7 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                 ), workingDirectory = workingDirectory.toFile(), outputFile = outputFile
             )
 
-            process.waitFor(120, TimeUnit.SECONDS)
+            process.waitFor(waitTime, TimeUnit.SECONDS)
 
             if (process.exitValue() != 0) {
                 // copy the error log inside driver output
@@ -121,5 +124,9 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
             Paths.get(uri)
         }
         return path
+    }
+
+    companion object {
+        private const val DEFAULT_XCODEBUILD_WAIT_TIME: Long = 120
     }
 }
