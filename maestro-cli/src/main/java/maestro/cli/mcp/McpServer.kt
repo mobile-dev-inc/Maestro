@@ -47,7 +47,7 @@ fun runMaestroMcpServer() {
         )
     )
 
-    // Register tools
+    // Register tools (using V2 schema-driven versions where available)
     server.addTools(listOf(
         ListDevicesTool.create(),
         StartDeviceTool.create(),

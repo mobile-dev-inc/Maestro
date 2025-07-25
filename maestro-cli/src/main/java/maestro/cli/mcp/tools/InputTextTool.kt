@@ -2,76 +2,60 @@ package maestro.cli.mcp.tools
 
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.MaestroTool
+import maestro.cli.mcp.schema.McpToolInput
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.InputTextCommand
-import maestro.orchestra.Orchestra
 import maestro.orchestra.MaestroCommand
-import kotlinx.coroutines.runBlocking
+import maestro.orchestra.Orchestra
+
+// Schema definitions for this tool
+@Serializable
+data class InputTextInput(
+    val deviceId: String,
+    val text: String
+) : McpToolInput
+
+@Serializable
+data class InputTextOutput(
+    val success: Boolean,
+    val deviceId: String,
+    val text: String,
+    val message: String
+)
 
 object InputTextTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
-        return RegisteredTool(
-            Tool(
-                name = "input_text",
-                description = "Input text into the currently focused text field",
-                inputSchema = Tool.Input(
-                    properties = buildJsonObject {
-                        putJsonObject("device_id") {
-                            put("type", "string")
-                            put("description", "The ID of the device to input text on")
-                        }
-                        putJsonObject("text") {
-                            put("type", "string")
-                            put("description", "The text to input")
-                        }
-                    },
-                    required = listOf("device_id", "text")
+        return MaestroTool.create<InputTextInput, InputTextOutput>(
+            name = "input_text",
+            description = "Input text into the currently focused text field"
+        ) { input ->
+            sessionManager.newSession(
+                host = null,
+                port = null,
+                driverHostPort = null,
+                deviceId = input.deviceId,
+                platform = null
+            ) { session ->
+                val command = InputTextCommand(
+                    text = input.text,
+                    label = null,
+                    optional = false
                 )
-            )
-        ) { request ->
-            try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val text = request.arguments["text"]?.jsonPrimitive?.content
                 
-                if (deviceId == null || text == null) {
-                    return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("Both device_id and text are required")),
-                        isError = true
-                    )
+                val orchestra = Orchestra(session.maestro)
+                runBlocking {
+                    orchestra.executeCommands(listOf(MaestroCommand(command = command)))
                 }
                 
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
-                ) { session ->
-                    val command = InputTextCommand(
-                        text = text,
-                        label = null,
-                        optional = false
-                    )
-                    
-                    val orchestra = Orchestra(session.maestro)
-                    runBlocking {
-                        orchestra.executeCommands(listOf(MaestroCommand(command = command)))
-                    }
-                    
-                    buildJsonObject {
-                        put("success", true)
-                        put("device_id", deviceId)
-                        put("text", text)
-                        put("message", "Text input successful")
-                    }.toString()
-                }
-                
-                CallToolResult(content = listOf(TextContent(result)))
-            } catch (e: Exception) {
-                CallToolResult(
-                    content = listOf(TextContent("Failed to input text: ${e.message}")),
-                    isError = true
+                InputTextOutput(
+                    success = true,
+                    deviceId = input.deviceId,
+                    text = input.text,
+                    message = "Text input successful"
                 )
             }
         }
