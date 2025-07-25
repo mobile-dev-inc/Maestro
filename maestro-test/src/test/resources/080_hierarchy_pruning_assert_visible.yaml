@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- assertVisible:
+    id: "visible_1"
+- assertVisible:
+      id: "visible_2"
+- assertVisible:
+    id: "visible_3"
+- assertVisible:
+    id: "visible_4"

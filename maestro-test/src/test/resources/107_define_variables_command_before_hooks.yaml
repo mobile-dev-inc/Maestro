@@ -1,0 +1,8 @@
+appId: ${MAESTRO_APP_ID}
+env:
+  MAESTRO_APP_ID: com.example.app
+onFlowStart:
+  - launchApp:
+      appId: ${MAESTRO_APP_ID}
+---
+- evalScript: ${ console.log(MAESTRO_APP_ID); }

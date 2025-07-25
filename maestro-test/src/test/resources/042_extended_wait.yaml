@@ -1,0 +1,12 @@
+appId: com.example.app
+env:
+    TIMEOUT: 1000
+---
+- extendedWaitUntil:
+    visible: Item
+    timeout: ${TIMEOUT}
+- extendedWaitUntil:
+    notVisible: Another item
+    timeout: 1000
+- extendedWaitUntil:
+    visible: Item

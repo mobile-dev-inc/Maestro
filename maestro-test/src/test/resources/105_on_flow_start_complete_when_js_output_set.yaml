@@ -1,0 +1,8 @@
+appId: com.example.app
+onFlowStart:
+  - runScript: "105_setup.js"
+onFlowComplete:
+  - runScript: "105_teardown.js"
+  - evalScript: ${ console.log(output.teardown_result); }
+---
+- evalScript: ${ console.log(output.setup_result); }

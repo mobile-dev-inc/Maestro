@@ -1,0 +1,7 @@
+appId: com.example
+---
+- addMedia:
+  - "./assets/invalid_android.png"
+- launchApp
+- tapOn: "Add to Cart"
+- assertVisible: "Added"

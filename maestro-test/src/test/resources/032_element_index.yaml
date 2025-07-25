@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- tapOn:
+    text: Item.*
+    index: 0
+    retryTapIfNoChange: false
+- tapOn:
+    text: Item.*
+    index: ${0 + 1}
+    retryTapIfNoChange: false

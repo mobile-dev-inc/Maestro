@@ -1,0 +1,9 @@
+appId: com.example.app
+---
+- travel:
+    points:
+      - 0.0,0.0
+      - 0.1,0.0
+      - 0.1,0.1
+      - 0.0,0.1
+    speed: 7900 # 7.9 km/s aka orbital velocity

@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- runFlow:
+    env:
+      INNER_ENV: Inner Parameter
+    commands:
+      - inputText: ${INNER_ENV}

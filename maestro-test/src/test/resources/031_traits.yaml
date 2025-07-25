@@ -1,0 +1,11 @@
+appId: com.example.app
+---
+- tapOn:
+    traits: text
+    retryTapIfNoChange: false
+- tapOn:
+    traits: square
+    retryTapIfNoChange: false
+- tapOn:
+    traits: long-text
+    retryTapIfNoChange: false

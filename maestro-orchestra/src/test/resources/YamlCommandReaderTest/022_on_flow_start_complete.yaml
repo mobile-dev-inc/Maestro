@@ -1,0 +1,7 @@
+appId: com.example.app
+onFlowStart:
+  - back
+onFlowComplete:
+  - scroll
+---
+- launchApp

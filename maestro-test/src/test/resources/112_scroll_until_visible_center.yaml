@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- scrollUntilVisible:
+    centerElement: true
+    element:
+      text: "Test"
+    speed: 100
+    visibilityPercentage: 100
+    direction: DOWN
+    timeout: 10

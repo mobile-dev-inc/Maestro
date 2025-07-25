@@ -1,0 +1,14 @@
+> Invalid Command: invalidCommand
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+╭───────────────────────────────────────────────────────╮
+│ 1 | appId: com.example                                │
+│ 2 | ---                                               │
+│ 3 | - invalidCommand                                  │
+│                     ^                                 │
+│ ╭───────────────────────────────────────────────────╮ │
+│ │ `invalidCommand` is not a valid command.          │ │
+│ │                                                   │ │
+│ │ > https://docs.maestro.dev/api-reference/commands │ │
+│ ╰───────────────────────────────────────────────────╯ │
+╰───────────────────────────────────────────────────────╯

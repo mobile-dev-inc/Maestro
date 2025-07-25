@@ -1,0 +1,217 @@
+<svg width="1108px" height="827px"
+ viewBox="0.00 0.00 797.75 595.75" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(0.9999928000575995 0.9999928000575995) rotate(0.0) translate(4.0 591.75)">
+<polygon fill="white" stroke="none" points="-4,4 -4,-591.75 793.75,-591.75 793.75,4 -4,4"/>
+<text text-anchor="middle" x="394.88" y="-550.5" font-family="Times,serif" font-size="35.00">maestro</text>
+<!-- :maestro&#45;android -->
+<g id="node1" class="node">
+<title>:maestro&#45;android</title>
+<polygon fill="#66bb6a" stroke="black" points="109,-540 0,-540 0,-504 109,-504 109,-540"/>
+<text text-anchor="middle" x="54.5" y="-516.95" font-family="Times,serif" font-size="14.00">:maestro&#45;android</text>
+</g>
+<!-- :maestro&#45;proto -->
+<g id="node2" class="node">
+<title>:maestro&#45;proto</title>
+<ellipse fill="#ff7043" stroke="black" cx="224.5" cy="-162" rx="65.68" ry="18"/>
+<text text-anchor="middle" x="224.5" y="-156.95" font-family="Times,serif" font-size="14.00">:maestro&#45;proto</text>
+</g>
+<!-- :maestro&#45;android&#45;&gt;:maestro&#45;proto -->
+<g id="edge1" class="edge">
+<title>:maestro&#45;android&#45;&gt;:maestro&#45;proto</title>
+<path fill="none" stroke="black" d="M54.5,-503.51C54.5,-476.71 54.5,-423.87 54.5,-379 54.5,-379 54.5,-379 54.5,-305 54.5,-242.17 123.74,-201.7 173.84,-180.64"/>
+<polygon fill="black" stroke="black" points="174.86,-184.01 182.81,-177.01 172.23,-177.52 174.86,-184.01"/>
+</g>
+<!-- :maestro&#45;cli -->
+<g id="node3" class="node">
+<title>:maestro&#45;cli</title>
+<polygon fill="#ff7043" stroke="black" points="270.12,-540 188.88,-540 188.88,-504 270.12,-504 270.12,-540"/>
+<text text-anchor="middle" x="229.5" y="-516.95" font-family="Times,serif" font-size="14.00">:maestro&#45;cli</text>
+</g>
+<!-- :maestro&#45;utils -->
+<g id="node4" class="node">
+<title>:maestro&#45;utils</title>
+<ellipse fill="#ff7043" stroke="black" cx="466.5" cy="-18" rx="62.1" ry="18"/>
+<text text-anchor="middle" x="466.5" y="-12.95" font-family="Times,serif" font-size="14.00">:maestro&#45;utils</text>
+</g>
+<!-- :maestro&#45;cli&#45;&gt;:maestro&#45;utils -->
+<g id="edge2" class="edge">
+<title>:maestro&#45;cli&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M190.38,-503.6C173.55,-494.72 154.56,-482.67 140.5,-468 109.4,-435.55 92.5,-423.94 92.5,-379 92.5,-379 92.5,-379 92.5,-161 92.5,-95.58 295.03,-49.55 402.01,-29.79"/>
+<polygon fill="black" stroke="black" points="402.61,-33.24 411.82,-28.01 401.36,-26.36 402.61,-33.24"/>
+</g>
+<!-- :maestro&#45;client -->
+<g id="node5" class="node">
+<title>:maestro&#45;client</title>
+<ellipse fill="#ff7043" stroke="black" cx="432.5" cy="-234" rx="66.71" ry="18"/>
+<text text-anchor="middle" x="432.5" y="-228.95" font-family="Times,serif" font-size="14.00">:maestro&#45;client</text>
+</g>
+<!-- :maestro&#45;cli&#45;&gt;:maestro&#45;client -->
+<g id="edge3" class="edge">
+<title>:maestro&#45;cli&#45;&gt;:maestro&#45;client</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M270.34,-519.31C308.08,-515.44 362.81,-503.56 393.5,-468 419.53,-437.84 428.52,-319.23 431.33,-263.82"/>
+<polygon fill="black" stroke="black" points="434.83,-264.06 431.8,-253.91 427.83,-263.73 434.83,-264.06"/>
+</g>
+<!-- :maestro&#45;ios&#45;driver -->
+<g id="node6" class="node">
+<title>:maestro&#45;ios&#45;driver</title>
+<ellipse fill="#ff7043" stroke="black" cx="466.5" cy="-90" rx="82.06" ry="18"/>
+<text text-anchor="middle" x="466.5" y="-84.95" font-family="Times,serif" font-size="14.00">:maestro&#45;ios&#45;driver</text>
+</g>
+<!-- :maestro&#45;cli&#45;&gt;:maestro&#45;ios&#45;driver -->
+<g id="edge6" class="edge">
+<title>:maestro&#45;cli&#45;&gt;:maestro&#45;ios&#45;driver</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M205.31,-503.66C193.36,-494.17 179.41,-481.59 169.5,-468 144.05,-433.11 130.5,-422.19 130.5,-379 130.5,-379 130.5,-379 130.5,-233 130.5,-192.55 120.27,-171.95 149.5,-144 181.13,-113.75 293.03,-100.67 374.95,-95.08"/>
+<polygon fill="black" stroke="black" points="375.03,-98.58 384.78,-94.44 374.58,-91.6 375.03,-98.58"/>
+</g>
+<!-- :maestro&#45;ios -->
+<g id="node7" class="node">
+<title>:maestro&#45;ios</title>
+<ellipse fill="#ff7043" stroke="black" cx="403.5" cy="-162" rx="56.98" ry="18"/>
+<text text-anchor="middle" x="403.5" y="-156.95" font-family="Times,serif" font-size="14.00">:maestro&#45;ios</text>
+</g>
+<!-- :maestro&#45;cli&#45;&gt;:maestro&#45;ios -->
+<g id="edge5" class="edge">
+<title>:maestro&#45;cli&#45;&gt;:maestro&#45;ios</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M212.46,-503.76C203.75,-494.02 193.7,-481.17 187.5,-468 170.26,-431.41 168.5,-419.45 168.5,-379 168.5,-379 168.5,-379 168.5,-305 168.5,-223.89 272.31,-187.87 341.94,-172.83"/>
+<polygon fill="black" stroke="black" points="342.23,-176.35 351.32,-170.9 340.81,-169.49 342.23,-176.35"/>
+</g>
+<!-- :maestro&#45;orchestra -->
+<g id="node8" class="node">
+<title>:maestro&#45;orchestra</title>
+<ellipse fill="#ff7043" stroke="black" cx="545.5" cy="-378" rx="80.01" ry="18"/>
+<text text-anchor="middle" x="545.5" y="-372.95" font-family="Times,serif" font-size="14.00">:maestro&#45;orchestra</text>
+</g>
+<!-- :maestro&#45;cli&#45;&gt;:maestro&#45;orchestra -->
+<g id="edge4" class="edge">
+<title>:maestro&#45;cli&#45;&gt;:maestro&#45;orchestra</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M270.33,-514.68C311.32,-507.28 375.53,-492.78 426.5,-468 461.32,-451.07 496.21,-423.4 519.13,-403.41"/>
+<polygon fill="black" stroke="black" points="521.3,-406.15 526.46,-396.9 516.66,-400.92 521.3,-406.15"/>
+</g>
+<!-- :maestro&#45;studio:server -->
+<g id="node10" class="node">
+<title>:maestro&#45;studio:server</title>
+<ellipse fill="#ff7043" stroke="black" cx="290.5" cy="-450" rx="93.83" ry="18"/>
+<text text-anchor="middle" x="290.5" y="-444.95" font-family="Times,serif" font-size="14.00">:maestro&#45;studio:server</text>
+</g>
+<!-- :maestro&#45;cli&#45;&gt;:maestro&#45;studio:server -->
+<g id="edge7" class="edge">
+<title>:maestro&#45;cli&#45;&gt;:maestro&#45;studio:server</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M244.58,-503.7C251.67,-495.56 260.27,-485.69 268.1,-476.7"/>
+<polygon fill="black" stroke="black" points="270.67,-479.08 274.6,-469.25 265.39,-474.49 270.67,-479.08"/>
+</g>
+<!-- :maestro&#45;client&#45;&gt;:maestro&#45;proto -->
+<g id="edge11" class="edge">
+<title>:maestro&#45;client&#45;&gt;:maestro&#45;proto</title>
+<path fill="none" stroke="black" d="M391.9,-219.34C358.69,-208.16 311.52,-192.29 275.72,-180.24"/>
+<polygon fill="black" stroke="black" points="277.02,-176.98 266.43,-177.11 274.79,-183.62 277.02,-176.98"/>
+</g>
+<!-- :maestro&#45;client&#45;&gt;:maestro&#45;utils -->
+<g id="edge8" class="edge">
+<title>:maestro&#45;client&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M457.78,-217.03C488.1,-196.2 537.36,-156.63 557.5,-108 563.62,-93.22 565.47,-85.87 557.5,-72 548.53,-56.4 533,-44.96 517.29,-36.79"/>
+<polygon fill="black" stroke="black" points="518.9,-33.68 508.37,-32.53 515.89,-39.99 518.9,-33.68"/>
+</g>
+<!-- :maestro&#45;client&#45;&gt;:maestro&#45;ios&#45;driver -->
+<g id="edge9" class="edge">
+<title>:maestro&#45;client&#45;&gt;:maestro&#45;ios&#45;driver</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M448.15,-216.31C456.23,-206.54 465.26,-193.49 469.5,-180 475.64,-160.47 474.63,-137.33 472.22,-119.54"/>
+<polygon fill="black" stroke="black" points="475.67,-119 470.63,-109.68 468.76,-120.11 475.67,-119"/>
+</g>
+<!-- :maestro&#45;client&#45;&gt;:maestro&#45;ios -->
+<g id="edge10" class="edge">
+<title>:maestro&#45;client&#45;&gt;:maestro&#45;ios</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M425.33,-215.7C422.21,-208.15 418.46,-199.12 414.97,-190.68"/>
+<polygon fill="black" stroke="black" points="418.23,-189.4 411.17,-181.5 411.76,-192.08 418.23,-189.4"/>
+</g>
+<!-- :maestro&#45;ios&#45;driver&#45;&gt;:maestro&#45;utils -->
+<g id="edge12" class="edge">
+<title>:maestro&#45;ios&#45;driver&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M466.5,-71.7C466.5,-64.41 466.5,-55.73 466.5,-47.54"/>
+<polygon fill="black" stroke="black" points="470,-47.62 466.5,-37.62 463,-47.62 470,-47.62"/>
+</g>
+<!-- :maestro&#45;ios&#45;&gt;:maestro&#45;utils -->
+<g id="edge13" class="edge">
+<title>:maestro&#45;ios&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M390.35,-144.04C377.66,-125.45 362.18,-95.17 375.5,-72 384.47,-56.4 400,-44.96 415.71,-36.79"/>
+<polygon fill="black" stroke="black" points="417.11,-39.99 424.63,-32.53 414.1,-33.68 417.11,-39.99"/>
+</g>
+<!-- :maestro&#45;ios&#45;&gt;:maestro&#45;ios&#45;driver -->
+<g id="edge14" class="edge">
+<title>:maestro&#45;ios&#45;&gt;:maestro&#45;ios&#45;driver</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M418.43,-144.41C425.93,-136.08 435.18,-125.8 443.56,-116.49"/>
+<polygon fill="black" stroke="black" points="446.14,-118.86 450.23,-109.08 440.94,-114.17 446.14,-118.86"/>
+</g>
+<!-- :maestro&#45;orchestra&#45;&gt;:maestro&#45;utils -->
+<g id="edge16" class="edge">
+<title>:maestro&#45;orchestra&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" d="M610.9,-367.35C638.88,-359.97 669.61,-346.95 689.5,-324 715.99,-293.44 708.5,-275.45 708.5,-235 708.5,-235 708.5,-235 708.5,-161 708.5,-79.27 604.56,-43.68 532.92,-28.85"/>
+<polygon fill="black" stroke="black" points="533.69,-25.44 523.2,-26.94 532.34,-32.3 533.69,-25.44"/>
+</g>
+<!-- :maestro&#45;orchestra&#45;&gt;:maestro&#45;client -->
+<g id="edge17" class="edge">
+<title>:maestro&#45;orchestra&#45;&gt;:maestro&#45;client</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M503.46,-362.5C484.88,-354.03 464.37,-341.51 451.5,-324 438.76,-306.66 434.2,-282.59 432.72,-263.85"/>
+<polygon fill="black" stroke="black" points="436.22,-263.75 432.21,-253.94 429.22,-264.11 436.22,-263.75"/>
+</g>
+<!-- :maestro&#45;orchestra&#45;models -->
+<g id="node9" class="node">
+<title>:maestro&#45;orchestra&#45;models</title>
+<ellipse fill="#ff7043" stroke="black" cx="570.5" cy="-306" rx="110.21" ry="18"/>
+<text text-anchor="middle" x="570.5" y="-300.95" font-family="Times,serif" font-size="14.00">:maestro&#45;orchestra&#45;models</text>
+</g>
+<!-- :maestro&#45;orchestra&#45;&gt;:maestro&#45;orchestra&#45;models -->
+<g id="edge15" class="edge">
+<title>:maestro&#45;orchestra&#45;&gt;:maestro&#45;orchestra&#45;models</title>
+<path fill="none" stroke="black" d="M551.68,-359.7C554.37,-352.15 557.6,-343.12 560.61,-334.68"/>
+<polygon fill="black" stroke="black" points="563.81,-336.12 563.88,-325.53 557.22,-333.77 563.81,-336.12"/>
+</g>
+<!-- :maestro&#45;orchestra&#45;models&#45;&gt;:maestro&#45;client -->
+<g id="edge18" class="edge">
+<title>:maestro&#45;orchestra&#45;models&#45;&gt;:maestro&#45;client</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M537.8,-288.41C518.3,-278.52 493.39,-265.88 472.69,-255.39"/>
+<polygon fill="black" stroke="black" points="474.46,-252.36 463.96,-250.96 471.3,-258.6 474.46,-252.36"/>
+</g>
+<!-- :maestro&#45;studio:server&#45;&gt;:maestro&#45;utils -->
+<g id="edge21" class="edge">
+<title>:maestro&#45;studio:server&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M296.17,-431.73C304.35,-405.21 318.5,-352.73 318.5,-307 318.5,-307 318.5,-307 318.5,-161 318.5,-116.27 333.83,-103.59 365.5,-72 380.27,-57.27 399.98,-45.69 418.07,-37.16"/>
+<polygon fill="black" stroke="black" points="419.41,-40.4 427.1,-33.11 416.55,-34.01 419.41,-40.4"/>
+</g>
+<!-- :maestro&#45;studio:server&#45;&gt;:maestro&#45;client -->
+<g id="edge20" class="edge">
+<title>:maestro&#45;studio:server&#45;&gt;:maestro&#45;client</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M305.67,-432.14C314.22,-422.11 324.72,-408.86 332.5,-396 359.69,-351.06 350.97,-331.44 380.5,-288 387.4,-277.85 396.37,-267.91 404.9,-259.44"/>
+<polygon fill="black" stroke="black" points="407.31,-261.98 412.11,-252.54 402.47,-256.93 407.31,-261.98"/>
+</g>
+<!-- :maestro&#45;studio:server&#45;&gt;:maestro&#45;orchestra -->
+<g id="edge19" class="edge">
+<title>:maestro&#45;studio:server&#45;&gt;:maestro&#45;orchestra</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M342.72,-434.67C384.14,-423.3 442.07,-407.39 485.41,-395.49"/>
+<polygon fill="black" stroke="black" points="486.2,-398.91 494.92,-392.88 484.35,-392.16 486.2,-398.91"/>
+</g>
+<!-- :maestro&#45;test -->
+<g id="node11" class="node">
+<title>:maestro&#45;test</title>
+<polygon fill="#ff7043" stroke="black" points="789.75,-540 703.25,-540 703.25,-504 789.75,-504 789.75,-540"/>
+<text text-anchor="middle" x="746.5" y="-516.95" font-family="Times,serif" font-size="14.00">:maestro&#45;test</text>
+</g>
+<!-- :maestro&#45;test&#45;&gt;:maestro&#45;utils -->
+<g id="edge24" class="edge">
+<title>:maestro&#45;test&#45;&gt;:maestro&#45;utils</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M754.19,-503.91C765.29,-477.62 784.5,-425.45 784.5,-379 784.5,-379 784.5,-379 784.5,-161 784.5,-54.49 633.93,-27.33 540.01,-20.74"/>
+<polygon fill="black" stroke="black" points="540.28,-17.25 530.08,-20.12 539.84,-24.24 540.28,-17.25"/>
+</g>
+<!-- :maestro&#45;test&#45;&gt;:maestro&#45;client -->
+<g id="edge23" class="edge">
+<title>:maestro&#45;test&#45;&gt;:maestro&#45;client</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M747.95,-503.68C750.54,-460.47 750.81,-347.11 689.5,-288 663.77,-263.19 573.02,-248.88 506.63,-241.52"/>
+<polygon fill="black" stroke="black" points="507.19,-238.06 496.87,-240.48 506.44,-245.02 507.19,-238.06"/>
+</g>
+<!-- :maestro&#45;test&#45;&gt;:maestro&#45;orchestra -->
+<g id="edge22" class="edge">
+<title>:maestro&#45;test&#45;&gt;:maestro&#45;orchestra</title>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M721.85,-503.59C685.83,-478.14 618.71,-430.72 578.47,-402.29"/>
+<polygon fill="black" stroke="black" points="580.52,-399.46 570.34,-396.55 576.48,-405.17 580.52,-399.46"/>
+</g>
+</g>
+</svg>

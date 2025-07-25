@@ -1,0 +1,17 @@
+appId: com.example.app
+---
+- assertVisible:
+    id: id1
+    containsDescendants:
+      - text: "Child 1"
+      - text: "Child 2"
+        enabled: false
+- assertVisible:
+    id: id2
+    containsDescendants:
+      - text: "Child 1"
+- assertNotVisible:
+    id: id1
+    containsDescendants:
+      - text: "Child 1"
+      - text: "Child 3"

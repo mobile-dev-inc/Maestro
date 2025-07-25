@@ -1,0 +1,4 @@
+name: Example Flow
+appId: com.example.app
+---
+- launchApp

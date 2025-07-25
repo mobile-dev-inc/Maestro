@@ -1,0 +1,157 @@
+# File should be sorted by alphabet for each section
+
+# How to sort with AS:
+# "Select all in block" -> "Edit" -> "Sort lines"
+
+# File should follow the naming convention:
+# https://blog.gradle.org/best-practices-naming-version-catalog-entries
+
+[versions]
+androidPlugin = "8.1.4"
+androidxEspresso = "3.6.1"
+androidxTestJunit = "1.2.1"
+androidxUiautomator = "2.3.0"
+apkParser = "2.6.10"
+appdirs = "1.2.1"
+axml = "2.1.2"
+commons-codec = "1.17.0"
+commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
+commons-io = "2.16.1"
+dadb = "1.2.10"
+detekt = "1.23.8"
+googleFindbugs = "3.0.2"
+googleGson = "2.11.0"
+googleProtobuf = "3.21.9"
+googleProtobufPlugin = "0.9.4"
+googleTruth = "1.4.2"
+graaljs = "24.1.2"
+grpc = "1.50.2"
+grpcKotlinStub = "1.4.1"
+imageComparison = "4.4.0"
+hiddenapibypass = "4.3"
+jackson = "2.17.1"
+jansi = "2.4.1"
+jarchivelib = "1.2.0"
+jcodec = "0.2.5"
+junit = "5.10.2"
+kotlin = "2.2.0"
+kotlinResult = "2.0.1"
+kotlinx-serialization-json = "1.5.0"
+ktor = "2.3.6"
+micrometerObservation = "1.13.4"
+micrometerCore = "1.13.4"
+mockk = "1.12.0"
+mozillaRhino = "1.7.14"
+picocli = "4.6.3"
+posthog = "1.2.0"
+selenium = "4.26.0"
+selenium-devtools = "4.26.0"
+skiko = "0.8.18"
+squareOkhttp = "4.12.0"
+squareOkio = "3.8.0"
+squareMockWebServer = "4.11.0"
+wiremock = "2.35.0"
+logback = "2.21.1"
+log4jCore = "2.24.3"
+
+coroutines = "1.8.0"
+kotlinx-html = "0.8.0"
+clikt = "4.2.2"
+gmsLocation = "21.3.0"
+mcpKotlinSdk = "0.5.0"  # Git branch name
+
+[libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }
+androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
+androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidxUiautomator" }
+apk-parser = { module = "net.dongliu:apk-parser", version.ref = "apkParser" }
+appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
+axml = { module = "de.upb.cs.swt:axml", version.ref = "axml" }
+commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
+commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
+dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
+google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }
+google-gson = { module = "com.google.code.gson:gson", version.ref = "googleGson" }
+google-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "googleProtobuf" }
+google-protobuf-kotlin-lite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "googleProtobuf" }
+google-truth = { module = "com.google.truth:truth", version.ref = "googleTruth" }
+graaljs = { module = "org.graalvm.js:js", version.ref = "graaljs" }
+graaljsEngine = { module = "org.graalvm.js:js-scriptengine", version.ref = "graaljs" }
+graaljsLanguage = { module = "org.graalvm.js:js-language", version.ref = "graaljs" }
+grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpcKotlinStub" }
+grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+grpc-okhttp = { module = "io.grpc:grpc-okhttp", version.ref = "grpc" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-protobuf-lite = { module = "io.grpc:grpc-protobuf-lite", version.ref = "grpc" }
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapibypass" }
+image-comparison = { module = "com.github.romankh3:image-comparison", version.ref = "imageComparison" }
+jackson-core-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml", version.ref = "jackson" }
+jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+jansi = { module = "org.fusesource.jansi:jansi", version.ref = "jansi" }
+jarchivelib = { module = "org.rauschig:jarchivelib", version.ref = "jarchivelib" }
+jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec" }
+jcodec-awt = { module = "org.jcodec:jcodec-javase", version.ref = "jcodec" }
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
+kotlin-result = { module = "com.michael-bull.kotlin-result:kotlin-result", version.ref = "kotlinResult" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-serial-gson = { module = "io.ktor:ktor-serialization-gson", version.ref = "ktor" }
+ktor-serial-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-cors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
+ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
+ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
+micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometerCore" }
+micrometer-observation = { module = "io.micrometer:micrometer-observation", version.ref = "micrometerObservation" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+mozilla-rhino = { module = "org.mozilla:rhino", version.ref = "mozillaRhino" }
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
+posthog = { module = "com.posthog.java:posthog", version.ref = "posthog" }
+selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
+selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v130", version.ref = "selenium-devtools" }
+skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
+skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
+skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64", version.ref = "skiko" }
+skiko-linux-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-x64", version.ref = "skiko" }
+skiko-windows-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-arm64", version.ref = "skiko" }
+skiko-windows-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-x64", version.ref = "skiko" }
+square-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "squareOkhttp" }
+square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "squareOkhttp" }
+square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
+square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
+wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
+logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "logback" }
+logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "logback" }
+logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "logback" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4jCore" }
+gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
+mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref="mcpKotlinSdk" }
+
+[bundles]
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "androidPlugin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" }
+jreleaser = { id = "org.jreleaser", version = "1.13.1" }
+shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }

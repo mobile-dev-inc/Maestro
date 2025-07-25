@@ -1,0 +1,26 @@
+appId: com.example.example
+tags:
+    - passing
+---
+- launchApp:
+    clearState: true
+- tapOn: Nesting Test
+- assertVisible:
+    id: level-0
+- assertVisible:
+    id: level-0
+    containsChild:
+      id: level-1
+      containsChild:
+        id: level-2
+      rightOf:
+        text: left side
+      leftOf:
+        text: right side
+      below: top side
+      above: bottom side
+- assertNotVisible:
+    id: level-0
+    containsChild:
+      id: level-1
+      below: bottom side

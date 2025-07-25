@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- inputText: ${INNER_ENV}
+- inputText: ${OUTER_ENV}
+- runFlow:
+    file: 057_subflow_override.yaml
+    env:
+      INNER_ENV: Overriden Parameter

@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700');
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono.ttf') format('truetype');
+  font-weight: 100 1000;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Italic.ttf') format('truetype');
+  font-weight: 100 1000;
+  font-style: italic;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply antialiased;
+}
+
+html,
+body,
+#root {
+  @apply m-0 h-full text-gray-900 dark:text-white bg-white dark:bg-slate-900;
+}
+
+input::placeholder {
+  @apply text-slate-400;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0; /* For vertical scrollbars */
+  height: 0; /* For horizontal scrollbars */
+}
+
+.ai-loader {
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-loader::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  display: block;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 100vw;
+  background: conic-gradient(rgba(115, 87, 255, 1), rgba(115, 87, 255, 0));
+  animation: angleAnimate 5s linear infinite;
+}
+
+@keyframes angleAnimate {
+  0% {
+    transform: translate(-50%, -50%)rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%)rotate(360deg);
+  }
+}

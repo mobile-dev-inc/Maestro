@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- launchApp:
+    permissions:
+      all: deny
+      notifications: allow

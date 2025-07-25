@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- launchApp:
+    appId: com.example.app
+- setLocation:
+    latitude: 12.5266
+    longitude: 78.2150

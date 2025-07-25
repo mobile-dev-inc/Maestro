@@ -1,0 +1,14 @@
+appId: com.example.example
+---
+- launchApp:
+    appId: com.example.example
+    clearState: true
+    clearKeychain: true
+    stopApp: true
+    permissions:
+      all: allow
+- assertVisible: 'Form Test'
+
+- stopApp
+- launchApp
+- assertVisible: 'Form Test'

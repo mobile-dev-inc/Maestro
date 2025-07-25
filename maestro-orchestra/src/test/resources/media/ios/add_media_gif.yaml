@@ -1,0 +1,6 @@
+appId: com.apple.mobileslideshow
+---
+- addMedia:
+    - "./maestro-orchestra/src/test/resources/media/assets/android.gif"
+- launchApp
+- assertVisible: All Photos

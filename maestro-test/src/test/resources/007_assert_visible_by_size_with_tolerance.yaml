@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- assertVisible:
+    width: 100
+    height: 100
+    tolerance: 1

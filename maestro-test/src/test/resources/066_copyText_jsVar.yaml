@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- copyTextFrom:
+    id: Field
+- inputText: ${'Hello, ' + maestro.copiedText}

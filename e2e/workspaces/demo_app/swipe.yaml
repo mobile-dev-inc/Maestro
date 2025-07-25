@@ -1,0 +1,22 @@
+appId: com.example.example
+tags:
+    - passing
+---
+- launchApp:
+    clearState: true
+- tapOn: Swipe Test
+- swipe:
+    start: 50%, 15%
+    end: 15%, 50%
+    duration: 1000
+- swipe:
+    start: 15%, 50%
+    end: 85%, 85%
+    duration: 1000
+- swipe:
+    start: 85%, 85%
+    end: 85%, 50%
+    duration: 1000
+- tapOn:
+    point: 85%, 50%
+- assertVisible: All green

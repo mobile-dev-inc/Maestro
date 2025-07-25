@@ -1,0 +1,341 @@
+name: Test E2E
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  build:
+    name: Build on Java ${{ matrix.java-version }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [17]
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java-version }}
+          cache: gradle
+
+      - name: Build xctest-runner
+        run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
+
+      - name: Build Maestro CLI
+        run: ./gradlew :maestro-cli:distZip
+
+      - name: Upload zipped Maestro CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
+          path: maestro-cli/build/distributions/maestro.zip
+          retention-days: 1
+
+      - name: Upload build/Products to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build__Products-jdk${{ matrix.java-version }}
+          path: build/Products
+          retention-days: 1
+
+  test-android:
+    name: Test on Android
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 60
+
+    env:
+      ANDROID_HOME: /home/runner/androidsdk
+      ANDROID_SDK_ROOT: /home/runner/androidsdk
+      ANDROID_OS_IMAGE: system-images;android-28;google_apis;x86_64
+      MAESTRO_EXAMPLE: test-value
+
+    steps:
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
+        run: |
+          git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
+          echo "$HOME/scripts/bin" >> $GITHUB_PATH
+
+      - name: Set up android-wait-for-emulator script
+        run: |
+          curl -fsSl -O https://raw.githubusercontent.com/travis-ci/travis-cookbooks/master/community-cookbooks/android-sdk/files/default/android-wait-for-emulator
+          chmod +x ./android-wait-for-emulator
+          mv ./android-wait-for-emulator $HOME/scripts/bin
+
+      - name: Set up Android Command-line Tools
+        run: |
+          # v8, latest working on Java 8. Source: https://stackoverflow.com/a/78890086/7009800
+          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
+
+      - name: Set up Android SDK components
+        run: |
+          yes | sdkmanager --install emulator
+          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
+          yes | sdkmanager --install "platform-tools"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          yes | sdkmanager --install "platforms;android-34"
+          yes | sdkmanager --install "$ANDROID_OS_IMAGE"
+
+      - name: Create AVD
+        run: |
+          avdmanager -s create avd \
+            --package "$ANDROID_OS_IMAGE" \
+            --name "MyAVD"
+
+          cat << EOF >> ~/.android/avd/MyAVD.avd/config.ini
+          hw.cpu.ncore=2
+          hw.gpu.enabled=yes
+          hw.gpu.mode=swiftshader_indirect
+          hw.ramSize=3072
+          disk.dataPartition.size=4G
+          vm.heapSize=576
+          hw.lcd.density=440
+          hw.lcd.height=2220
+          hw.lcd.width=1080
+          EOF
+
+      - name: Run AVD
+        run: |
+          emulator @MyAVD \
+            -verbose -no-snapshot-save -no-window -noaudio -no-boot-anim -accel on -camera-back none \
+            >~/emulator_stdout.log \
+            2>~/emulator_stderr.log &
+
+      - name: Wait for AVD to start up
+        run: |
+          android-wait-for-emulator
+
+          # This is also a prerequiste
+          while true; do
+            adb shell service list | grep 'package' && echo 'service "package" is active!' && break
+            echo 'waiting for service "package" to start'
+            sleep 1
+          done
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps android
+
+      - name: Start screen recording of AVD
+        run: |
+          adb shell screenrecord /sdcard/screenrecord.mp4 &
+          echo $! > ~/screenrecord.pid
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 20
+        run: ./run_tests android
+
+      - name: Stop screen recording of AVD
+        if: success() || failure()
+        run: |
+          kill -SIGINT "$(cat ~/screenrecord.pid)" || echo "failed to kill screenrecord: code $?" && exit 0
+          sleep 5 # prevent video file corruption
+          adb pull /sdcard/screenrecord.mp4 ~/screenrecord.mp4
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: maestro-root-dir-android
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload screen recording of AVD
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: maestro-screenrecord-android.mp4
+          path: ~/screenrecord.mp4
+          retention-days: 7
+
+  test-ios:
+    name: Test on iOS
+    runs-on: macos-latest
+    needs: build
+    timeout-minutes: 120
+    if: ${{ false }}
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
+      MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 8
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Run simulator
+        run: xcrun simctl boot iPhone\ 15
+
+      - name: Wait for simulator to boot
+        run: xcrun simctl bootstatus iPhone\ 15
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps ios
+
+      - name: Start screen recording
+        run: |
+          xcrun simctl io booted recordVideo --codec h264 ~/screenrecord.mp4 &
+          echo $! > ~/screenrecord.pid
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 120
+        run: ./run_tests ios
+
+      - name: Stop screen recording
+        if: success() || failure()
+        run: kill -SIGINT "$(cat ~/screenrecord.pid)"
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: maestro-root-dir-ios
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload xc test runner logs
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: xctest_runner_logs
+          path: ~/Library/Logs/maestro/xctest_runner_logs
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload screen recording of AVD
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: maestro-screenrecord-ios.mp4
+          path: ~/screenrecord.mp4
+          retention-days: 7
+
+  test-ios-xctest-runner:
+    name: Test on iOS (XCTest Runner only)
+    if: false  # Disabled: This needs be fixed, not working yet.
+    runs-on: macos-latest
+    needs: build
+    timeout-minutes: 30
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 8
+
+      - name: Download Maestro artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+
+      - name: Download build/Products artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build__Products-jdk11
+          path: build/Products
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Run simulator
+        run: xcrun simctl boot iPhone\ 15
+
+      - name: Wait for simulator to boot
+        run: xcrun simctl bootstatus iPhone\ 15
+
+      - name: Run tests
+        timeout-minutes: 15
+        run: ./maestro-ios-xctest-runner/test-maestro-ios-runner.sh
+
+      - name: Upload xc test runner logs
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: test-ios-xctest-runner__xctest_runner_logs
+          path: ~/Library/Logs/maestro/xctest_runner_logs
+          retention-days: 7
+          include-hidden-files: true

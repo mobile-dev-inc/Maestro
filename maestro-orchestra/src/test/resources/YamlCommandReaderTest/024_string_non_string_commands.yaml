@@ -1,0 +1,30 @@
+appId: com.example.app
+---
+- inputText: "correct horse battery staple"
+- inputText: correct horse battery staple
+- inputText: 4
+- inputText: false
+- inputText: 1683113805263
+- inputText: 4.12
+- assertTrue: true
+- assertTrue: 323
+- evalScript: true
+- evalScript: 2 + 1
+- evalScript: 2
+- evalScript: false == false
+- tapOn: "Hello"
+- doubleTapOn: "Hello"
+- longPressOn: "Hello"
+- assertVisible: "Hello"
+- copyTextFrom: "Hello"
+- back
+- action: back
+- hideKeyboard
+- action: hideKeyboard
+- scroll
+- action: scroll
+- clearKeychain
+- action: clearKeychain
+- pasteText
+- action: pasteText
+

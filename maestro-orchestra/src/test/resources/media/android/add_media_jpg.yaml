@@ -1,0 +1,16 @@
+appId: com.google.android.apps.photos
+---
+- addMedia:
+    - "../assets/android_jpg.jpg"
+- launchApp:
+    appId: com.google.android.apps.photos
+- runFlow:
+    when:
+      visible: Update Now
+    commands:
+      - tapOn:
+          text: Update Now
+          optional: true
+      - back
+# assert that photo is taken
+- tapOn: "Photo taken on.*"

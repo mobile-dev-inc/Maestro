@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- tapOn: Non existent text
+- repeat:
+    times: 2
+    commands:
+      - tapOn: Non existent text
+- tapOn: Button

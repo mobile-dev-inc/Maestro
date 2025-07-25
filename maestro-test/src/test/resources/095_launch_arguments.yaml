@@ -1,0 +1,11 @@
+appId: com.example.app
+env:
+  ARGUMENT_B: argumentB
+  BOOL_VALUE: true
+---
+- launchApp:
+    arguments:
+      argumentA: true
+      ${ARGUMENT_B}: 4
+      argumentC: 4.0
+      argumentD: "Hello String Value ${BOOL_VALUE}"

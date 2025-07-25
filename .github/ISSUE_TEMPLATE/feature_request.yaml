@@ -1,0 +1,72 @@
+name: Suggest a feature
+description: You want to share a new idea to improve Maestro.
+body:
+  - type: markdown
+    attributes:
+      value: >
+        ### Thank you for using Maestro!
+
+
+        We can't wait to hear your idea!
+
+
+        First though, please search the [existing issues] to see if an issue
+        already exists for the feature you need. Maybe someone already did the
+        job for you and you don't need to fill this template.
+
+
+        ---
+
+
+        If you are sure that the feature you want to suggest hasn't been
+        requested before, or if our documentation doesn't have an answer to what
+        you're looking for, then fill out the template below. Please bear in
+        mind that duplicates and unsufficiently described feature requests will
+        be closed.
+
+
+        [existing issues]: https://github.com/mobile-dev-inc/maestro/issues
+  - type: textarea
+    attributes:
+      label: Use case
+      description: >
+        Please tell us more about the use case you have that led to you wanting
+        this new feature.
+
+
+        Is your feature request related to a problem? Please give a clear and
+        concise description of what the problem is. This will help avoid the
+        [XY problem].
+
+
+        Describe the alternative solutions you've considered and the tradeoffs
+        they come with. The more context you can provide, the better.
+
+
+        [XY problem]: https://en.wikipedia.org/wiki/XY_problem
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposal
+      description: >
+        Briefly but precisely describe what the new feature should look like
+        from the user perspective.
+
+
+        Consider attaching something showing what you are imagining:
+         * code samples (maybe you already know )
+         * API design ideas (e.g. of new YAML commands)
+    validations:
+      required: true
+  - type: textarea
+    validations:
+      required: false
+    attributes:
+      label: Anything else?
+      description: >
+        Links? Other issues? StackOverflow threads? Anything that will give us
+        more context about this feature request will be helpful.
+
+         > [!TIP]
+        > You can attach images or other files by clicking this area to highlight it and then dragging files in.

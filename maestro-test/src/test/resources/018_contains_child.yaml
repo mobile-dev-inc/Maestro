@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- tapOn:
+    retryTapIfNoChange: false
+    containsChild:
+        text: "Child"

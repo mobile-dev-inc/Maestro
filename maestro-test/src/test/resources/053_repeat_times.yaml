@@ -1,0 +1,13 @@
+appId: com.other.app
+---
+- repeat:
+    times: 3
+    commands:
+      - tapOn: Button
+- assertVisible: "3"
+- evalScript: ${output.list = [1, 2, 3]}
+- repeat:
+    times: ${output.list.length}
+    commands:
+      - tapOn: Button
+- assertVisible: "6"

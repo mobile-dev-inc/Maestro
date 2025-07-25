@@ -1,0 +1,90 @@
+name: Publish Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/maestro'
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Retrieve version
+        run: |
+          echo "VERSION_NAME=$(cat gradle.properties | grep -w "VERSION_NAME" | cut -d'=' -f2)" >> $GITHUB_ENV
+
+      - name: Upload Maestro utils release
+        run: ./gradlew clean :maestro-utils:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro client release
+        run: ./gradlew clean :maestro-client:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro ios release
+        run: ./gradlew clean :maestro-ios:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro orchestra release
+        run: ./gradlew clean :maestro-orchestra:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro Orchestra Models release
+        run: ./gradlew clean :maestro-orchestra-models:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro Proto release
+        run: ./gradlew clean :maestro-proto:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro XCUiTest Driver
+        run: ./gradlew clean :maestro-ios-driver:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+            ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+            ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro AI
+        run: ./gradlew clean :maestro-ai:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Upload Maestro web
+        run: ./gradlew clean :maestro-web:publish --no-daemon --no-parallel
+        if: endsWith(env.VERSION_NAME, '-SNAPSHOT')
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}

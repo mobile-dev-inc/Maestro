@@ -1,0 +1,18 @@
+.DS_Store
+
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+# Ignore Gradle local properties
+local.properties
+
+bin
+
+# media assets
+maestro-orchestra/src/test/resources/media/assets/*
+
+# Local files
+local/

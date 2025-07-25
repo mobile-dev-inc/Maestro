@@ -1,0 +1,17 @@
+appId: com.example.example
+tags:
+    - passing
+---
+- launchApp:
+    clearState: true
+- tapOn: Form Test
+- tapOn: Email
+- inputText: correct@mobile.dev
+- tapOn: Password
+- inputText: maestro
+- tapOn:
+    text: Login
+    index: 1
+- assertVisible:
+    text: Credentials are correct
+    optional: true # Fix me this part is flaky on CI only not local, needs to be addressed why

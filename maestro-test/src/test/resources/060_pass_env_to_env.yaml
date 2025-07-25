@@ -1,0 +1,10 @@
+appId: com.example.app
+env:
+  PARAM_INLINE: ${PARAM}
+  PARAM: ${PARAM}
+---
+- runFlow:
+    file: 060_subflow.yaml
+    env:
+      PARAM_FLOW: ${PARAM_INLINE}
+      PARAM: ${PARAM}

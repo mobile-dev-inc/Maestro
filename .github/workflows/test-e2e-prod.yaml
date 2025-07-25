@@ -1,0 +1,85 @@
+name: Test E2E (prod)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+
+jobs:
+  test-cloud-production:
+    # This job is copied from "e2e-production" in mobile-dev-inc/monorepo.
+    # We want it here so open-source users can also have some visibility into it.
+
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/maestro'
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Install Maestro
+        run: |
+          curl -Ls --retry 3 --retry-all-errors "https://get.maestro.mobile.dev" | bash
+          echo "${HOME}/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Print Maestro version
+        run: maestro --version
+
+      - name: Download samples
+        run: maestro download-samples
+
+      - name: Run iOS test
+        run: |
+          maestro cloud \
+            --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
+            --timeout 180 \
+            --fail-on-cancellation \
+            --include-tags=advanced \
+            samples/sample.zip samples
+
+      - name: Run Android test
+        run: |
+          maestro cloud \
+            --apiKey ${{ secrets.E2E_MOBILE_DEV_API_KEY }} \
+            --fail-on-cancellation \
+            --include-tags advanced \
+            samples/sample.apk samples
+
+      - name: Send Slack message
+        if: failure()
+        run: |
+          curl --request POST \
+              --url "${{ secrets.E2E_SLACK_WEBHOOK_URL }}" \
+              --header 'Content-Type: application/json' \
+              --data '{
+            "text": "🚨 *Maestro E2E Test Failed*\nStatus: 'Failure'\nRun: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View details>"
+          }'
+
+      # - name: Trigger alert on failure
+      #   if: ${{ false }}
+      #   # if: failure()
+      #   run: |
+      #     curl --request POST \
+      #         --url "https://events.pagerduty.com/v2/enqueue" \
+      #         --header 'Content-Type: application/json' \
+      #         --data '{
+      #       "payload": {
+      #         "summary": "E2E test failed",
+      #         "source": "E2E test",
+      #         "severity": "critical"
+      #       },
+      #       "routing_key": "${{ secrets.E2E_PAGER_DUTY_INTEGRATION_KEY }}",
+      #       "event_action": "trigger",
+      #       "links": [
+      #           {
+      #             "href": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+      #             "text": "Failed E2E test - Github Action"
+      #           }
+      #       ]
+      #     }'

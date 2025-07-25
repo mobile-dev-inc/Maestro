@@ -1,0 +1,13 @@
+# Note that this flow expects that you already have a
+# Google account on your device
+
+appId: com.android.vending
+name: Install Twitter
+---
+- launchApp
+- tapOn: Search for apps & games
+- inputText: Twitter
+- tapOn:
+    text: twitter
+    index: 1
+- tapOn: Install

@@ -1,0 +1,1 @@
+const myNumber = 1 + 1;

@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- runScript: 064_script_alt.js
+- inputText: ${output.sharedResult}

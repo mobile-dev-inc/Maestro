@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- openLink:
+    link: https://example.com
+    autoVerify: true

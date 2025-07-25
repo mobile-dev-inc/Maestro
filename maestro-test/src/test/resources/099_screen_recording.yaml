@@ -1,0 +1,4 @@
+appId: com.other.app
+---
+- startRecording: ${MAESTRO_FILENAME}
+- stopRecording

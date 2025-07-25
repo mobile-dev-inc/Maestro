@@ -1,0 +1,23 @@
+appId: com.example.example
+---
+
+- launchApp # For idempotence of sections
+
+- evalScript: ${output.something = 'baz'}
+
+- runScript: runScript.js
+- assertTrue: ${output.something == 'bar'}
+
+- evalScript: ${output.something = 'baz'}
+
+- runScript:
+    file: runScript.js
+- assertTrue: ${output.something == 'bar'}
+
+- evalScript: ${output.something = 'baz'}
+
+- runScript:
+    env:
+      THIS_THING: "six"
+    file: runScript.js
+- assertTrue: ${output.something == 'foo'}

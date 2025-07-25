@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- assertNotVisible:
+    id: "not_visible_1"
+- assertNotVisible:
+      id: "not_visible_2"
+- assertNotVisible:
+      id: "not_visible_3"
+- assertNotVisible:
+      id: "not_visible_4"

@@ -1,0 +1,35 @@
+# Lock closed issues that have been inactive for a while.
+
+# This workflow is copied from Flutter
+# https://github.com/flutter/flutter/blob/3.22.0/.github/workflows/lock.yaml
+
+name: lock closed issues
+
+permissions:
+  issues: write
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  lock:
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/maestro'
+    steps:
+      - uses: dessant/lock-threads@v5
+        with:
+          process-only: issues
+          github-token: ${{ github.token }}
+          # Number of days of inactivity before a closed issue is locked.
+          issue-inactive-days: 7
+          issue-comment: >
+            This issue has been automatically locked since there has not been
+            any recent activity after it was closed. If you are still
+            experiencing a similar problem, please file a new issue. Make
+            sure to follow the template and provide all the information
+            necessary to reproduce the issue.
+
+            Thank you for helping keep us our issue tracker clean!

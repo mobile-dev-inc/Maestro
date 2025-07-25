@@ -1,0 +1,7 @@
+appId: com.other.app
+---
+- tapOn:
+    text: Button
+    repeat: 3
+    delay: 1
+    retryTapIfNoChange: false

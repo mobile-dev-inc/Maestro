@@ -1,0 +1,13 @@
+appId: com.apple.mobileslideshow
+---
+- addMedia:
+    - "./maestro-orchestra/src/test/resources/media/assets/android.gif"
+    - "./maestro-orchestra/src/test/resources/media/assets/android_jpeg.jpeg"
+    - "./maestro-orchestra/src/test/resources/media/assets/sample_video.mp4"
+    - "./maestro-orchestra/src/test/resources/media/assets/android.png"
+- launchApp
+- assertVisible: All Photos
+- tapOn:
+      point: "16%,19%"
+- tapOn:
+      point: "50%,19%"

@@ -1,0 +1,9 @@
+appId: com.example.app
+---
+- runScript: 117_scroll_until_visible_speed.js
+- scrollUntilVisible:
+    element:
+      id: ${output.element.id}
+    direction: DOWN
+    speed: ${output.speed.slow}
+    timeout: ${output.timeout.slow}

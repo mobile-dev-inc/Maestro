@@ -1,0 +1,6 @@
+tags:
+  - parameterInclude
+  - parameterExclude
+appId: com.example
+---
+- launchApp

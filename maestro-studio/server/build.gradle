@@ -1,0 +1,55 @@
+import com.vanniktech.maven.publish.SonatypeHost
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
+plugins {
+    id("maven-publish")
+    id("application")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.mavenPublish)
+}
+
+application {
+    applicationName = "maestro-studio"
+    mainClass = "maestro.studio.ServerKt"
+}
+
+mavenPublishing {
+    publishToMavenCentral(true)
+}
+
+def copyWebFiles = tasks.register("copyWebFiles", Copy.class) {
+    dependsOn(":maestro-studio:web:build")
+    from(new File(project(":maestro-studio:web").projectDir, "build"))
+    into(new File(projectDir, "src/main/resources/web"))
+}
+
+tasks.compileJava {
+    dependsOn(copyWebFiles)
+}
+
+tasks.processResources {
+    dependsOn(copyWebFiles)
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.named("compileKotlin", KotlinCompilationTask) {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjdk-release=17")
+    }
+}
+
+dependencies {
+    implementation(project(":maestro-orchestra"))
+    implementation(project(":maestro-client"))
+    implementation(project(":maestro-utils"))
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.jackson.module.kotlin)
+    implementation(libs.square.okhttp)
+}

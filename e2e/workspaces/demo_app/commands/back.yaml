@@ -1,0 +1,8 @@
+appId: com.example.example
+---
+- launchApp # For idempotence of sections
+
+- tapOn: 'Form Test'
+- assertVisible: 'Login'
+- back
+- assertVisible: 'Form Test'

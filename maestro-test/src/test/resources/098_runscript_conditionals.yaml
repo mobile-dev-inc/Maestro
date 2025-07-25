@@ -1,0 +1,13 @@
+appId: com.other.app
+---
+- runScript:
+    when:
+      visible: Click me
+    file: 098_runScript.js
+- tapOn: Click me
+- assertVisible: Clicked
+- assertNotVisible: Click me
+- runScript:
+    when:
+      visible: Not Clicked
+    file: 098_runScript.js

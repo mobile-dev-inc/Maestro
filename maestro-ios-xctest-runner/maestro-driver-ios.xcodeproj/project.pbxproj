@@ -1,0 +1,1141 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 55;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		320979632970925500340282 /* InputTextRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320979622970925500340282 /* InputTextRouteHandler.swift */; };
+		32097965297092A800340282 /* InputTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32097964297092A800340282 /* InputTextRequest.swift */; };
+		32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
+		32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF92966DC8300FB69BD /* SwipeRequest.swift */; };
+		32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */; };
+		32A9C73E2D7A631A00545435 /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */; };
+		32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB252980449200A1A0A0 /* TouchRequest.swift */; };
+		32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */; };
+		52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52047F772A7A638E00BF982D /* StatusHandler.swift */; };
+		52049BD72935039F00807AA3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD62935039F00807AA3 /* AppDelegate.swift */; };
+		52049BD92935039F00807AA3 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD82935039F00807AA3 /* SceneDelegate.swift */; };
+		52049BDB2935039F00807AA3 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BDA2935039F00807AA3 /* ViewController.swift */; };
+		52049BDE2935039F00807AA3 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52049BDC2935039F00807AA3 /* Main.storyboard */; };
+		52049BE0293503A200807AA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 52049BDF293503A200807AA3 /* Assets.xcassets */; };
+		52049BE3293503A200807AA3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52049BE1293503A200807AA3 /* LaunchScreen.storyboard */; };
+		52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */; };
+		521C1F032D8014410024EE42 /* AXClientProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F022D8014340024EE42 /* AXClientProxy.h */; };
+		521C1F052D8016950024EE42 /* XCAccessibilityElement.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F042D8016950024EE42 /* XCAccessibilityElement.h */; };
+		521C1F072D8017480024EE42 /* AXClientProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F062D8017460024EE42 /* AXClientProxy.m */; };
+		521C1F092D8018590024EE42 /* XCUIApplication+Helper.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F082D80184D0024EE42 /* XCUIApplication+Helper.h */; };
+		521C1F0B2D801A360024EE42 /* XCUIApplication+Helper.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */; };
+		521C1F0C2D8030A30024EE42 /* XCTestManager_ManagerInterface-Protocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA622D6DCC600015FAB3 /* XCTestManager_ManagerInterface-Protocol.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		521C1F0E2D80518A0024EE42 /* XCTestDaemonsProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */; };
+		521C1F102D8051FC0024EE42 /* XCTestDaemonsProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */; };
+		521C1F122D86CE940024EE42 /* TerminateAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */; };
+		521C1F142D86D3900024EE42 /* TerminateAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */; };
+		522785812A54410D008DBC0A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
+		526111782DE5E8DA007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */ = {isa = PBXBuildFile; fileRef = 526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */; };
+		5261117A2DE5E8E7007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
+		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
+		52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */; };
+		52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */; };
+		52D8FA9F2D6DD0B50015FAB3 /* XCUIApplicationProcess+FBQuiescence.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA9B2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.h */; };
+		52D8FAA02D6DD0E60015FAB3 /* XCAXClient_iOS.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA402D6DCC600015FAB3 /* XCAXClient_iOS.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA12D6DD13B0015FAB3 /* _XCTestImplementation.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA2D2D6DCC600015FAB3 /* _XCTestImplementation.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA22D6DD1580015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA922D6DCF2C0015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h */; };
+		52D8FAA32D6DD16F0015FAB3 /* CDStructures.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA332D6DCC600015FAB3 /* CDStructures.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA42D6DD1950015FAB3 /* XCUIApplication.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA7D2D6DCC600015FAB3 /* XCUIApplication.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA52D6DD1950015FAB3 /* XCUIApplicationImpl.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA7E2D6DCC600015FAB3 /* XCUIApplicationImpl.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA62D6DD1950015FAB3 /* XCUIApplicationProcess.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA7F2D6DCC600015FAB3 /* XCUIApplicationProcess.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA72D6DD1950015FAB3 /* XCUICoordinate.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA802D6DCC600015FAB3 /* XCUICoordinate.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAA82D6DD1950015FAB3 /* XCUIDevice.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA812D6DCC600015FAB3 /* XCUIDevice.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAAC2D6DD3A20015FAB3 /* FBLogger.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FAAB2D6DD3A20015FAB3 /* FBLogger.m */; };
+		52D8FAAD2D6DD3A20015FAB3 /* FBLogger.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FAAA2D6DD3A20015FAB3 /* FBLogger.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAB02D6DD4100015FAB3 /* FBConfiguration.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FAAF2D6DD4100015FAB3 /* FBConfiguration.m */; };
+		52D8FAB12D6DD4100015FAB3 /* FBConfiguration.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FAAE2D6DD4100015FAB3 /* FBConfiguration.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52D8FAB42D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FAB32D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.m */; };
+		52D8FAB52D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FAB22D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h */; };
+		52E35D432A654F67001D97A8 /* RunningApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E35D422A654F67001D97A8 /* RunningApp.swift */; };
+		52F0B1B12B3C25BC00C6471A /* KeyboardRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */; };
+		52F0B1B32B3C26DF00C6471A /* KeyboardHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */; };
+		52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */; };
+		52F33A942AE6823100692902 /* StatusResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F33A932AE6823100692902 /* StatusResponse.swift */; };
+		5B8E0ABC2CD562D000E9D439 /* SetOrientationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */; };
+		5B8E0ABE2CD562F200E9D439 /* SetOrientationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */; };
+		610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */; };
+		610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */; };
+		6124329C2A4B368100F5F619 /* ViewHierarchyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */; };
+		6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329D2A4DA5BB00F5F619 /* AXElement.swift */; };
+		612432A02A4DA72F00F5F619 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329F2A4DA72F00F5F619 /* Logger.swift */; };
+		612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 612DE40129801F71003C2BE0 /* XCTest.framework */; };
+		612DE4122984114B003C2BE0 /* RunnerDaemonProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */; };
+		612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE413298426EF003C2BE0 /* EventRecord.swift */; };
+		613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613E87D6299A64BD00FF8551 /* PointerEventPath.swift */; };
+		613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */; };
+		61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */; };
+		61C0AFE529C7AAB3005D1FC5 /* PressKeyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */; };
+		61C0AFE729C7AB0C005D1FC5 /* PressKeyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE629C7AB0C005D1FC5 /* PressKeyHandler.swift */; };
+		61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */; };
+		61C0AFEB29C863BB005D1FC5 /* PressButtonHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEA29C863BB005D1FC5 /* PressButtonHandler.swift */; };
+		61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEC29C88926005D1FC5 /* EraseTextHandler.swift */; };
+		61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */; };
+		61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */; };
+		61C0AFF329C8C040005D1FC5 /* DeviceInfoResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */; };
+		61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */; };
+		9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */; };
+		941AE8EF2A77D4B20097C02A /* TimeoutHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */; };
+		94256BAD298D39DE00CDB55D /* ScreenDiffHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */; };
+		943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */; };
+		943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */; };
+		945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */; };
+		945DD44D29D6F73B004D8ECF /* SetPermissionsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */; };
+		9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */; };
+		94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94826F4329DB082100795E9B /* SystemPermissionHelper.swift */; };
+		9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9494CBD02982F719009C987C /* ScreenshotHandler.swift */; };
+		949535FC299FD67E00FD0159 /* XCTestHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */; };
+		94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */; };
+		9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */; };
+		F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F328D3E52A2A98E7000546D3 /* StringExtensions.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		52049BF4293503A200807AA3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 52049BCB2935039F00807AA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 52049BD22935039F00807AA3;
+			remoteInfo = "maestro-driver-ios";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		320979622970925500340282 /* InputTextRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRouteHandler.swift; sourceTree = "<group>"; };
+		32097964297092A800340282 /* InputTextRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRequest.swift; sourceTree = "<group>"; };
+		32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandler.swift; sourceTree = "<group>"; };
+		32762AF92966DC8300FB69BD /* SwipeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRequest.swift; sourceTree = "<group>"; };
+		32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandler.swift; sourceTree = "<group>"; };
+		32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
+		32ECCB252980449200A1A0A0 /* TouchRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRequest.swift; sourceTree = "<group>"; };
+		32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRouteHandler.swift; sourceTree = "<group>"; };
+		52047F772A7A638E00BF982D /* StatusHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusHandler.swift; sourceTree = "<group>"; };
+		52049BD32935039F00807AA3 /* maestro-driver-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "maestro-driver-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		52049BD62935039F00807AA3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		52049BD82935039F00807AA3 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		52049BDA2935039F00807AA3 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		52049BDD2935039F00807AA3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		52049BDF293503A200807AA3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		52049BE2293503A200807AA3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		52049BE4293503A200807AA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITests.swift; sourceTree = "<group>"; };
+		521C1F022D8014340024EE42 /* AXClientProxy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AXClientProxy.h; sourceTree = "<group>"; };
+		521C1F042D8016950024EE42 /* XCAccessibilityElement.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCAccessibilityElement.h; sourceTree = "<group>"; };
+		521C1F062D8017460024EE42 /* AXClientProxy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AXClientProxy.m; sourceTree = "<group>"; };
+		521C1F082D80184D0024EE42 /* XCUIApplication+Helper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIApplication+Helper.h"; sourceTree = "<group>"; };
+		521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIApplication+Helper.m"; sourceTree = "<group>"; };
+		521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestDaemonsProxy.h; sourceTree = "<group>"; };
+		521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = XCTestDaemonsProxy.m; sourceTree = "<group>"; };
+		521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppHandler.swift; sourceTree = "<group>"; };
+		521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminateAppRequest.swift; sourceTree = "<group>"; };
+		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCAXClient_iOS+FBSnapshotReqParams.h"; sourceTree = "<group>"; };
+		526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCAXClient_iOS+FBSnapshotReqParams.m"; sourceTree = "<group>"; };
+		52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandleTests.swift; sourceTree = "<group>"; };
+		52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCInternalTestRun.h; sourceTree = "<group>"; };
+		52D8FA282D6DCC600015FAB3 /* _XCKVOExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCKVOExpectationImplementation.h; sourceTree = "<group>"; };
+		52D8FA292D6DCC600015FAB3 /* _XCTDarwinNotificationExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTDarwinNotificationExpectationImplementation.h; sourceTree = "<group>"; };
+		52D8FA2A2D6DCC600015FAB3 /* _XCTestCaseImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTestCaseImplementation.h; sourceTree = "<group>"; };
+		52D8FA2B2D6DCC600015FAB3 /* _XCTestCaseInterruptionException.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTestCaseInterruptionException.h; sourceTree = "<group>"; };
+		52D8FA2C2D6DCC600015FAB3 /* _XCTestExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTestExpectationImplementation.h; sourceTree = "<group>"; };
+		52D8FA2D2D6DCC600015FAB3 /* _XCTestImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTestImplementation.h; sourceTree = "<group>"; };
+		52D8FA2E2D6DCC600015FAB3 /* _XCTestObservationCenterImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTestObservationCenterImplementation.h; sourceTree = "<group>"; };
+		52D8FA2F2D6DCC600015FAB3 /* _XCTestSuiteImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTestSuiteImplementation.h; sourceTree = "<group>"; };
+		52D8FA302D6DCC600015FAB3 /* _XCTNSNotificationExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTNSNotificationExpectationImplementation.h; sourceTree = "<group>"; };
+		52D8FA312D6DCC600015FAB3 /* _XCTNSPredicateExpectationImplementation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTNSPredicateExpectationImplementation.h; sourceTree = "<group>"; };
+		52D8FA322D6DCC600015FAB3 /* _XCTWaiterImpl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCTWaiterImpl.h; sourceTree = "<group>"; };
+		52D8FA332D6DCC600015FAB3 /* CDStructures.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CDStructures.h; sourceTree = "<group>"; };
+		52D8FA342D6DCC600015FAB3 /* NSString-XCTAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSString-XCTAdditions.h"; sourceTree = "<group>"; };
+		52D8FA352D6DCC600015FAB3 /* NSValue-XCTestAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSValue-XCTestAdditions.h"; sourceTree = "<group>"; };
+		52D8FA362D6DCC600015FAB3 /* UIGestureRecognizer-RecordingAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIGestureRecognizer-RecordingAdditions.h"; sourceTree = "<group>"; };
+		52D8FA372D6DCC600015FAB3 /* UILongPressGestureRecognizer-RecordingAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UILongPressGestureRecognizer-RecordingAdditions.h"; sourceTree = "<group>"; };
+		52D8FA382D6DCC600015FAB3 /* UIPanGestureRecognizer-RecordingAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIPanGestureRecognizer-RecordingAdditions.h"; sourceTree = "<group>"; };
+		52D8FA392D6DCC600015FAB3 /* UIPinchGestureRecognizer-RecordingAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIPinchGestureRecognizer-RecordingAdditions.h"; sourceTree = "<group>"; };
+		52D8FA3A2D6DCC600015FAB3 /* UISwipeGestureRecognizer-RecordingAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UISwipeGestureRecognizer-RecordingAdditions.h"; sourceTree = "<group>"; };
+		52D8FA3B2D6DCC600015FAB3 /* UITapGestureRecognizer-RecordingAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UITapGestureRecognizer-RecordingAdditions.h"; sourceTree = "<group>"; };
+		52D8FA3C2D6DCC600015FAB3 /* XCActivityRecord.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCActivityRecord.h; sourceTree = "<group>"; };
+		52D8FA3D2D6DCC600015FAB3 /* XCApplicationMonitor_iOS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCApplicationMonitor_iOS.h; sourceTree = "<group>"; };
+		52D8FA3E2D6DCC600015FAB3 /* XCApplicationMonitor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCApplicationMonitor.h; sourceTree = "<group>"; };
+		52D8FA3F2D6DCC600015FAB3 /* XCApplicationQuery.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCApplicationQuery.h; sourceTree = "<group>"; };
+		52D8FA402D6DCC600015FAB3 /* XCAXClient_iOS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCAXClient_iOS.h; sourceTree = "<group>"; };
+		52D8FA412D6DCC600015FAB3 /* XCDebugLogDelegate-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCDebugLogDelegate-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA422D6DCC600015FAB3 /* XCEventGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCEventGenerator.h; sourceTree = "<group>"; };
+		52D8FA432D6DCC600015FAB3 /* XCKeyboardInputSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCKeyboardInputSolver.h; sourceTree = "<group>"; };
+		52D8FA442D6DCC600015FAB3 /* XCKeyboardKeyMap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCKeyboardKeyMap.h; sourceTree = "<group>"; };
+		52D8FA452D6DCC600015FAB3 /* XCKeyboardLayout.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCKeyboardLayout.h; sourceTree = "<group>"; };
+		52D8FA462D6DCC600015FAB3 /* XCKeyMappingPath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCKeyMappingPath.h; sourceTree = "<group>"; };
+		52D8FA472D6DCC600015FAB3 /* XCPointerEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCPointerEvent.h; sourceTree = "<group>"; };
+		52D8FA482D6DCC600015FAB3 /* XCPointerEventPath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCPointerEventPath.h; sourceTree = "<group>"; };
+		52D8FA492D6DCC600015FAB3 /* XCSourceCodeRecording.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCSourceCodeRecording.h; sourceTree = "<group>"; };
+		52D8FA4A2D6DCC600015FAB3 /* XCSourceCodeTreeNode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCSourceCodeTreeNode.h; sourceTree = "<group>"; };
+		52D8FA4B2D6DCC600015FAB3 /* XCSourceCodeTreeNodeEnumerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCSourceCodeTreeNodeEnumerator.h; sourceTree = "<group>"; };
+		52D8FA4C2D6DCC600015FAB3 /* XCSymbolicationRecord.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCSymbolicationRecord.h; sourceTree = "<group>"; };
+		52D8FA4D2D6DCC600015FAB3 /* XCSymbolicatorHolder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCSymbolicatorHolder.h; sourceTree = "<group>"; };
+		52D8FA4E2D6DCC600015FAB3 /* XCSynthesizedEventRecord.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCSynthesizedEventRecord.h; sourceTree = "<group>"; };
+		52D8FA4F2D6DCC600015FAB3 /* XCTAsyncActivity-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTAsyncActivity-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA502D6DCC600015FAB3 /* XCTAsyncActivity.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTAsyncActivity.h; sourceTree = "<group>"; };
+		52D8FA512D6DCC600015FAB3 /* XCTAutomationTarget-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTAutomationTarget-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA522D6DCC600015FAB3 /* XCTAXClient-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTAXClient-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA532D6DCC600015FAB3 /* XCTDarwinNotificationExpectation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTDarwinNotificationExpectation.h; sourceTree = "<group>"; };
+		52D8FA542D6DCC600015FAB3 /* XCTest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTest.h; sourceTree = "<group>"; };
+		52D8FA552D6DCC600015FAB3 /* XCTestCase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestCase.h; sourceTree = "<group>"; };
+		52D8FA562D6DCC600015FAB3 /* XCTestCaseRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestCaseRun.h; sourceTree = "<group>"; };
+		52D8FA572D6DCC600015FAB3 /* XCTestCaseSuite.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestCaseSuite.h; sourceTree = "<group>"; };
+		52D8FA582D6DCC600015FAB3 /* XCTestConfiguration.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestConfiguration.h; sourceTree = "<group>"; };
+		52D8FA592D6DCC600015FAB3 /* XCTestContext.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestContext.h; sourceTree = "<group>"; };
+		52D8FA5A2D6DCC600015FAB3 /* XCTestContextScope.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestContextScope.h; sourceTree = "<group>"; };
+		52D8FA5B2D6DCC600015FAB3 /* XCTestDriver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestDriver.h; sourceTree = "<group>"; };
+		52D8FA5C2D6DCC600015FAB3 /* XCTestDriverInterface-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTestDriverInterface-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA5D2D6DCC600015FAB3 /* XCTestExpectation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestExpectation.h; sourceTree = "<group>"; };
+		52D8FA5E2D6DCC600015FAB3 /* XCTestExpectationDelegate-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTestExpectationDelegate-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA5F2D6DCC600015FAB3 /* XCTestExpectationWaiter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestExpectationWaiter.h; sourceTree = "<group>"; };
+		52D8FA602D6DCC600015FAB3 /* XCTestLog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestLog.h; sourceTree = "<group>"; };
+		52D8FA612D6DCC600015FAB3 /* XCTestManager_IDEInterface-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTestManager_IDEInterface-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA622D6DCC600015FAB3 /* XCTestManager_ManagerInterface-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTestManager_ManagerInterface-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA632D6DCC600015FAB3 /* XCTestManager_TestsInterface-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTestManager_TestsInterface-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA642D6DCC600015FAB3 /* XCTestMisuseObserver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestMisuseObserver.h; sourceTree = "<group>"; };
+		52D8FA652D6DCC600015FAB3 /* XCTestObservation-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTestObservation-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA662D6DCC600015FAB3 /* XCTestObservationCenter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestObservationCenter.h; sourceTree = "<group>"; };
+		52D8FA672D6DCC600015FAB3 /* XCTestObserver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestObserver.h; sourceTree = "<group>"; };
+		52D8FA682D6DCC600015FAB3 /* XCTestProbe.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestProbe.h; sourceTree = "<group>"; };
+		52D8FA692D6DCC600015FAB3 /* XCTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestRun.h; sourceTree = "<group>"; };
+		52D8FA6A2D6DCC600015FAB3 /* XCTestSuite.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestSuite.h; sourceTree = "<group>"; };
+		52D8FA6B2D6DCC600015FAB3 /* XCTestSuiteRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestSuiteRun.h; sourceTree = "<group>"; };
+		52D8FA6C2D6DCC600015FAB3 /* XCTestWaiter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTestWaiter.h; sourceTree = "<group>"; };
+		52D8FA6D2D6DCC600015FAB3 /* XCTKVOExpectation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTKVOExpectation.h; sourceTree = "<group>"; };
+		52D8FA6E2D6DCC600015FAB3 /* XCTMetric.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTMetric.h; sourceTree = "<group>"; };
+		52D8FA6F2D6DCC600015FAB3 /* XCTNSNotificationExpectation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTNSNotificationExpectation.h; sourceTree = "<group>"; };
+		52D8FA702D6DCC600015FAB3 /* XCTNSPredicateExpectation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTNSPredicateExpectation.h; sourceTree = "<group>"; };
+		52D8FA712D6DCC600015FAB3 /* XCTNSPredicateExpectationObject-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTNSPredicateExpectationObject-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA722D6DCC600015FAB3 /* XCTRunnerAutomationSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTRunnerAutomationSession.h; sourceTree = "<group>"; };
+		52D8FA732D6DCC600015FAB3 /* XCTRunnerDaemonSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTRunnerDaemonSession.h; sourceTree = "<group>"; };
+		52D8FA742D6DCC600015FAB3 /* XCTRunnerIDESession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTRunnerIDESession.h; sourceTree = "<group>"; };
+		52D8FA752D6DCC600015FAB3 /* XCTTestRunSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTTestRunSession.h; sourceTree = "<group>"; };
+		52D8FA762D6DCC600015FAB3 /* XCTTestRunSessionDelegate-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTTestRunSessionDelegate-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA772D6DCC600015FAB3 /* XCTUIApplicationMonitor-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTUIApplicationMonitor-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA782D6DCC600015FAB3 /* XCTWaiter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTWaiter.h; sourceTree = "<group>"; };
+		52D8FA792D6DCC600015FAB3 /* XCTWaiterDelegate-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTWaiterDelegate-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA7A2D6DCC600015FAB3 /* XCTWaiterDelegatePrivate-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTWaiterDelegatePrivate-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA7B2D6DCC600015FAB3 /* XCTWaiterManagement-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTWaiterManagement-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA7C2D6DCC600015FAB3 /* XCTWaiterManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCTWaiterManager.h; sourceTree = "<group>"; };
+		52D8FA7D2D6DCC600015FAB3 /* XCUIApplication.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIApplication.h; sourceTree = "<group>"; };
+		52D8FA7E2D6DCC600015FAB3 /* XCUIApplicationImpl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIApplicationImpl.h; sourceTree = "<group>"; };
+		52D8FA7F2D6DCC600015FAB3 /* XCUIApplicationProcess.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIApplicationProcess.h; sourceTree = "<group>"; };
+		52D8FA802D6DCC600015FAB3 /* XCUICoordinate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUICoordinate.h; sourceTree = "<group>"; };
+		52D8FA812D6DCC600015FAB3 /* XCUIDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIDevice.h; sourceTree = "<group>"; };
+		52D8FA822D6DCC600015FAB3 /* XCUIElement.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIElement.h; sourceTree = "<group>"; };
+		52D8FA832D6DCC600015FAB3 /* XCUIElementAsynchronousHandlerWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIElementAsynchronousHandlerWrapper.h; sourceTree = "<group>"; };
+		52D8FA842D6DCC600015FAB3 /* XCUIElementHitPointCoordinate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIElementHitPointCoordinate.h; sourceTree = "<group>"; };
+		52D8FA852D6DCC600015FAB3 /* XCUIElementQuery.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIElementQuery.h; sourceTree = "<group>"; };
+		52D8FA862D6DCC600015FAB3 /* XCUIHitPointResult.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIHitPointResult.h; sourceTree = "<group>"; };
+		52D8FA872D6DCC600015FAB3 /* XCUIRecorderNodeFinder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIRecorderNodeFinder.h; sourceTree = "<group>"; };
+		52D8FA882D6DCC600015FAB3 /* XCUIRecorderNodeFinderMatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIRecorderNodeFinderMatch.h; sourceTree = "<group>"; };
+		52D8FA892D6DCC600015FAB3 /* XCUIRecorderTimingMessage.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIRecorderTimingMessage.h; sourceTree = "<group>"; };
+		52D8FA8A2D6DCC600015FAB3 /* XCUIRecorderUtilities.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIRecorderUtilities.h; sourceTree = "<group>"; };
+		52D8FA8B2D6DCC600015FAB3 /* XCTElementSetTransformer-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCTElementSetTransformer-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA8C2D6DCC600015FAB3 /* XCUIScreen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XCUIScreen.h; sourceTree = "<group>"; };
+		52D8FA8D2D6DCC600015FAB3 /* XCUIScreenDataSource-Protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIScreenDataSource-Protocol.h"; sourceTree = "<group>"; };
+		52D8FA922D6DCF2C0015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "maestro-driver-iosUITests-Bridging-Header.h"; sourceTree = "<group>"; };
+		52D8FA9B2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIApplicationProcess+FBQuiescence.h"; sourceTree = "<group>"; };
+		52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIApplicationProcess+FBQuiescence.m"; sourceTree = "<group>"; };
+		52D8FAAA2D6DD3A20015FAB3 /* FBLogger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FBLogger.h; sourceTree = "<group>"; };
+		52D8FAAB2D6DD3A20015FAB3 /* FBLogger.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FBLogger.m; sourceTree = "<group>"; };
+		52D8FAAE2D6DD4100015FAB3 /* FBConfiguration.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FBConfiguration.h; sourceTree = "<group>"; };
+		52D8FAAF2D6DD4100015FAB3 /* FBConfiguration.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FBConfiguration.m; sourceTree = "<group>"; };
+		52D8FAB22D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIApplication+FBQuiescence.h"; sourceTree = "<group>"; };
+		52D8FAB32D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIApplication+FBQuiescence.m"; sourceTree = "<group>"; };
+		52E35D422A654F67001D97A8 /* RunningApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningApp.swift; sourceTree = "<group>"; };
+		52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardRouteHandler.swift; sourceTree = "<group>"; };
+		52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHandlerRequest.swift; sourceTree = "<group>"; };
+		52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHandlerResponse.swift; sourceTree = "<group>"; };
+		52F33A932AE6823100692902 /* StatusResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusResponse.swift; sourceTree = "<group>"; };
+		5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetOrientationHandler.swift; sourceTree = "<group>"; };
+		5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetOrientationRequest.swift; sourceTree = "<group>"; };
+		610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandler.swift; sourceTree = "<group>"; };
+		610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AXClientSwizzler.swift; sourceTree = "<group>"; };
+		6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyRequest.swift; sourceTree = "<group>"; };
+		6124329D2A4DA5BB00F5F619 /* AXElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElement.swift; sourceTree = "<group>"; };
+		6124329F2A4DA72F00F5F619 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		612DE40129801F71003C2BE0 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerDaemonProxy.swift; sourceTree = "<group>"; };
+		612DE413298426EF003C2BE0 /* EventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRecord.swift; sourceTree = "<group>"; };
+		613E87D6299A64BD00FF8551 /* PointerEventPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointerEventPath.swift; sourceTree = "<group>"; };
+		613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyModifierFlags.swift; sourceTree = "<group>"; };
+		61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandlerV2.swift; sourceTree = "<group>"; };
+		61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressKeyRequest.swift; sourceTree = "<group>"; };
+		61C0AFE629C7AB0C005D1FC5 /* PressKeyHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressKeyHandler.swift; sourceTree = "<group>"; };
+		61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressButtonRequest.swift; sourceTree = "<group>"; };
+		61C0AFEA29C863BB005D1FC5 /* PressButtonHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PressButtonHandler.swift; sourceTree = "<group>"; };
+		61C0AFEC29C88926005D1FC5 /* EraseTextHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EraseTextHandler.swift; sourceTree = "<group>"; };
+		61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EraseTextRequest.swift; sourceTree = "<group>"; };
+		61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoHandler.swift; sourceTree = "<group>"; };
+		61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoResponse.swift; sourceTree = "<group>"; };
+		61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTarget.swift; sourceTree = "<group>"; };
+		9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetRunningAppRequest.swift; sourceTree = "<group>"; };
+		941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeoutHelper.swift; sourceTree = "<group>"; };
+		94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenDiffHandler.swift; sourceTree = "<group>"; };
+		943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteHandlerFactory.swift; sourceTree = "<group>"; };
+		943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningAppRouteHandler.swift; sourceTree = "<group>"; };
+		945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetPermissionsRequest.swift; sourceTree = "<group>"; };
+		945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetPermissionsHandler.swift; sourceTree = "<group>"; };
+		9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInputHelper.swift; sourceTree = "<group>"; };
+		94826F4329DB082100795E9B /* SystemPermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPermissionHelper.swift; sourceTree = "<group>"; };
+		9494CBD02982F719009C987C /* ScreenshotHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotHandler.swift; sourceTree = "<group>"; };
+		949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCTestHTTPServer.swift; sourceTree = "<group>"; };
+		94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Extensions.swift"; sourceTree = "<group>"; };
+		9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSizeHelper.swift; sourceTree = "<group>"; };
+		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		52049BD02935039F00807AA3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		52049BF0293503A200807AA3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */,
+				5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		52049BCA2935039F00807AA3 = {
+			isa = PBXGroup;
+			children = (
+				52049BD52935039F00807AA3 /* maestro-driver-ios */,
+				52049BF6293503A200807AA3 /* maestro-driver-iosUITests */,
+				52049BD42935039F00807AA3 /* Products */,
+				5279BFD42935ECE20056C609 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		52049BD42935039F00807AA3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				52049BD32935039F00807AA3 /* maestro-driver-ios.app */,
+				52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		52049BD52935039F00807AA3 /* maestro-driver-ios */ = {
+			isa = PBXGroup;
+			children = (
+				52049BD62935039F00807AA3 /* AppDelegate.swift */,
+				52049BD82935039F00807AA3 /* SceneDelegate.swift */,
+				52049BDA2935039F00807AA3 /* ViewController.swift */,
+				52049BDC2935039F00807AA3 /* Main.storyboard */,
+				52049BDF293503A200807AA3 /* Assets.xcassets */,
+				52049BE1293503A200807AA3 /* LaunchScreen.storyboard */,
+				52049BE4293503A200807AA3 /* Info.plist */,
+			);
+			path = "maestro-driver-ios";
+			sourceTree = "<group>";
+		};
+		52049BF6293503A200807AA3 /* maestro-driver-iosUITests */ = {
+			isa = PBXGroup;
+			children = (
+				52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */,
+				52D8FAA92D6DD3850015FAB3 /* Utilities */,
+				52D8FA8E2D6DCF010015FAB3 /* Categories */,
+				52D8F8F12D6DCC150015FAB3 /* PrivateHeaders */,
+				943A907A293F5AF400C85136 /* Routes */,
+				52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */,
+			);
+			path = "maestro-driver-iosUITests";
+			sourceTree = "<group>";
+		};
+		5279BFD42935ECE20056C609 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				612DE40129801F71003C2BE0 /* XCTest.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		52D8F8F12D6DCC150015FAB3 /* PrivateHeaders */ = {
+			isa = PBXGroup;
+			children = (
+				52D8FA262D6DCC580015FAB3 /* XCTest */,
+			);
+			path = PrivateHeaders;
+			sourceTree = "<group>";
+		};
+		52D8FA262D6DCC580015FAB3 /* XCTest */ = {
+			isa = PBXGroup;
+			children = (
+				52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */,
+				52D8FA282D6DCC600015FAB3 /* _XCKVOExpectationImplementation.h */,
+				52D8FA292D6DCC600015FAB3 /* _XCTDarwinNotificationExpectationImplementation.h */,
+				52D8FA2A2D6DCC600015FAB3 /* _XCTestCaseImplementation.h */,
+				52D8FA2B2D6DCC600015FAB3 /* _XCTestCaseInterruptionException.h */,
+				52D8FA2C2D6DCC600015FAB3 /* _XCTestExpectationImplementation.h */,
+				52D8FA2D2D6DCC600015FAB3 /* _XCTestImplementation.h */,
+				52D8FA2E2D6DCC600015FAB3 /* _XCTestObservationCenterImplementation.h */,
+				52D8FA2F2D6DCC600015FAB3 /* _XCTestSuiteImplementation.h */,
+				52D8FA302D6DCC600015FAB3 /* _XCTNSNotificationExpectationImplementation.h */,
+				52D8FA312D6DCC600015FAB3 /* _XCTNSPredicateExpectationImplementation.h */,
+				52D8FA322D6DCC600015FAB3 /* _XCTWaiterImpl.h */,
+				52D8FA332D6DCC600015FAB3 /* CDStructures.h */,
+				52D8FA342D6DCC600015FAB3 /* NSString-XCTAdditions.h */,
+				52D8FA352D6DCC600015FAB3 /* NSValue-XCTestAdditions.h */,
+				52D8FA362D6DCC600015FAB3 /* UIGestureRecognizer-RecordingAdditions.h */,
+				52D8FA372D6DCC600015FAB3 /* UILongPressGestureRecognizer-RecordingAdditions.h */,
+				52D8FA382D6DCC600015FAB3 /* UIPanGestureRecognizer-RecordingAdditions.h */,
+				52D8FA392D6DCC600015FAB3 /* UIPinchGestureRecognizer-RecordingAdditions.h */,
+				52D8FA3A2D6DCC600015FAB3 /* UISwipeGestureRecognizer-RecordingAdditions.h */,
+				52D8FA3B2D6DCC600015FAB3 /* UITapGestureRecognizer-RecordingAdditions.h */,
+				52D8FA3C2D6DCC600015FAB3 /* XCActivityRecord.h */,
+				52D8FA3D2D6DCC600015FAB3 /* XCApplicationMonitor_iOS.h */,
+				52D8FA3E2D6DCC600015FAB3 /* XCApplicationMonitor.h */,
+				52D8FA3F2D6DCC600015FAB3 /* XCApplicationQuery.h */,
+				52D8FA402D6DCC600015FAB3 /* XCAXClient_iOS.h */,
+				52D8FA412D6DCC600015FAB3 /* XCDebugLogDelegate-Protocol.h */,
+				52D8FA422D6DCC600015FAB3 /* XCEventGenerator.h */,
+				52D8FA432D6DCC600015FAB3 /* XCKeyboardInputSolver.h */,
+				52D8FA442D6DCC600015FAB3 /* XCKeyboardKeyMap.h */,
+				52D8FA452D6DCC600015FAB3 /* XCKeyboardLayout.h */,
+				52D8FA462D6DCC600015FAB3 /* XCKeyMappingPath.h */,
+				52D8FA472D6DCC600015FAB3 /* XCPointerEvent.h */,
+				52D8FA482D6DCC600015FAB3 /* XCPointerEventPath.h */,
+				52D8FA492D6DCC600015FAB3 /* XCSourceCodeRecording.h */,
+				52D8FA4A2D6DCC600015FAB3 /* XCSourceCodeTreeNode.h */,
+				52D8FA4B2D6DCC600015FAB3 /* XCSourceCodeTreeNodeEnumerator.h */,
+				52D8FA4C2D6DCC600015FAB3 /* XCSymbolicationRecord.h */,
+				52D8FA4D2D6DCC600015FAB3 /* XCSymbolicatorHolder.h */,
+				52D8FA4E2D6DCC600015FAB3 /* XCSynthesizedEventRecord.h */,
+				52D8FA4F2D6DCC600015FAB3 /* XCTAsyncActivity-Protocol.h */,
+				52D8FA502D6DCC600015FAB3 /* XCTAsyncActivity.h */,
+				52D8FA512D6DCC600015FAB3 /* XCTAutomationTarget-Protocol.h */,
+				52D8FA522D6DCC600015FAB3 /* XCTAXClient-Protocol.h */,
+				52D8FA532D6DCC600015FAB3 /* XCTDarwinNotificationExpectation.h */,
+				52D8FA542D6DCC600015FAB3 /* XCTest.h */,
+				52D8FA552D6DCC600015FAB3 /* XCTestCase.h */,
+				52D8FA562D6DCC600015FAB3 /* XCTestCaseRun.h */,
+				52D8FA572D6DCC600015FAB3 /* XCTestCaseSuite.h */,
+				52D8FA582D6DCC600015FAB3 /* XCTestConfiguration.h */,
+				52D8FA592D6DCC600015FAB3 /* XCTestContext.h */,
+				52D8FA5A2D6DCC600015FAB3 /* XCTestContextScope.h */,
+				52D8FA5B2D6DCC600015FAB3 /* XCTestDriver.h */,
+				52D8FA5C2D6DCC600015FAB3 /* XCTestDriverInterface-Protocol.h */,
+				52D8FA5D2D6DCC600015FAB3 /* XCTestExpectation.h */,
+				52D8FA5E2D6DCC600015FAB3 /* XCTestExpectationDelegate-Protocol.h */,
+				52D8FA5F2D6DCC600015FAB3 /* XCTestExpectationWaiter.h */,
+				52D8FA602D6DCC600015FAB3 /* XCTestLog.h */,
+				52D8FA612D6DCC600015FAB3 /* XCTestManager_IDEInterface-Protocol.h */,
+				52D8FA622D6DCC600015FAB3 /* XCTestManager_ManagerInterface-Protocol.h */,
+				52D8FA632D6DCC600015FAB3 /* XCTestManager_TestsInterface-Protocol.h */,
+				52D8FA642D6DCC600015FAB3 /* XCTestMisuseObserver.h */,
+				52D8FA652D6DCC600015FAB3 /* XCTestObservation-Protocol.h */,
+				52D8FA662D6DCC600015FAB3 /* XCTestObservationCenter.h */,
+				52D8FA672D6DCC600015FAB3 /* XCTestObserver.h */,
+				52D8FA682D6DCC600015FAB3 /* XCTestProbe.h */,
+				52D8FA692D6DCC600015FAB3 /* XCTestRun.h */,
+				52D8FA6A2D6DCC600015FAB3 /* XCTestSuite.h */,
+				52D8FA6B2D6DCC600015FAB3 /* XCTestSuiteRun.h */,
+				52D8FA6C2D6DCC600015FAB3 /* XCTestWaiter.h */,
+				52D8FA6D2D6DCC600015FAB3 /* XCTKVOExpectation.h */,
+				52D8FA6E2D6DCC600015FAB3 /* XCTMetric.h */,
+				52D8FA6F2D6DCC600015FAB3 /* XCTNSNotificationExpectation.h */,
+				52D8FA702D6DCC600015FAB3 /* XCTNSPredicateExpectation.h */,
+				52D8FA712D6DCC600015FAB3 /* XCTNSPredicateExpectationObject-Protocol.h */,
+				52D8FA722D6DCC600015FAB3 /* XCTRunnerAutomationSession.h */,
+				52D8FA732D6DCC600015FAB3 /* XCTRunnerDaemonSession.h */,
+				52D8FA742D6DCC600015FAB3 /* XCTRunnerIDESession.h */,
+				52D8FA752D6DCC600015FAB3 /* XCTTestRunSession.h */,
+				52D8FA762D6DCC600015FAB3 /* XCTTestRunSessionDelegate-Protocol.h */,
+				52D8FA772D6DCC600015FAB3 /* XCTUIApplicationMonitor-Protocol.h */,
+				52D8FA782D6DCC600015FAB3 /* XCTWaiter.h */,
+				52D8FA792D6DCC600015FAB3 /* XCTWaiterDelegate-Protocol.h */,
+				52D8FA7A2D6DCC600015FAB3 /* XCTWaiterDelegatePrivate-Protocol.h */,
+				52D8FA7B2D6DCC600015FAB3 /* XCTWaiterManagement-Protocol.h */,
+				52D8FA7C2D6DCC600015FAB3 /* XCTWaiterManager.h */,
+				52D8FA7D2D6DCC600015FAB3 /* XCUIApplication.h */,
+				52D8FA7E2D6DCC600015FAB3 /* XCUIApplicationImpl.h */,
+				52D8FA7F2D6DCC600015FAB3 /* XCUIApplicationProcess.h */,
+				52D8FA802D6DCC600015FAB3 /* XCUICoordinate.h */,
+				52D8FA812D6DCC600015FAB3 /* XCUIDevice.h */,
+				52D8FA822D6DCC600015FAB3 /* XCUIElement.h */,
+				52D8FA832D6DCC600015FAB3 /* XCUIElementAsynchronousHandlerWrapper.h */,
+				52D8FA842D6DCC600015FAB3 /* XCUIElementHitPointCoordinate.h */,
+				52D8FA852D6DCC600015FAB3 /* XCUIElementQuery.h */,
+				52D8FA862D6DCC600015FAB3 /* XCUIHitPointResult.h */,
+				52D8FA872D6DCC600015FAB3 /* XCUIRecorderNodeFinder.h */,
+				52D8FA882D6DCC600015FAB3 /* XCUIRecorderNodeFinderMatch.h */,
+				52D8FA892D6DCC600015FAB3 /* XCUIRecorderTimingMessage.h */,
+				52D8FA8A2D6DCC600015FAB3 /* XCUIRecorderUtilities.h */,
+				52D8FA8B2D6DCC600015FAB3 /* XCTElementSetTransformer-Protocol.h */,
+				52D8FA8C2D6DCC600015FAB3 /* XCUIScreen.h */,
+				52D8FA8D2D6DCC600015FAB3 /* XCUIScreenDataSource-Protocol.h */,
+			);
+			path = XCTest;
+			sourceTree = "<group>";
+		};
+		52D8FA8E2D6DCF010015FAB3 /* Categories */ = {
+			isa = PBXGroup;
+			children = (
+				526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */,
+				526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */,
+				521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */,
+				521C1F082D80184D0024EE42 /* XCUIApplication+Helper.h */,
+				52D8FAB22D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h */,
+				52D8FAB32D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.m */,
+				52D8FA9B2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.h */,
+				52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */,
+				52D8FA922D6DCF2C0015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h */,
+			);
+			path = Categories;
+			sourceTree = "<group>";
+		};
+		52D8FAA92D6DD3850015FAB3 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */,
+				521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */,
+				521C1F062D8017460024EE42 /* AXClientProxy.m */,
+				521C1F022D8014340024EE42 /* AXClientProxy.h */,
+				52D8FAAE2D6DD4100015FAB3 /* FBConfiguration.h */,
+				52D8FAAF2D6DD4100015FAB3 /* FBConfiguration.m */,
+				52D8FAAA2D6DD3A20015FAB3 /* FBLogger.h */,
+				52D8FAAB2D6DD3A20015FAB3 /* FBLogger.m */,
+				521C1F042D8016950024EE42 /* XCAccessibilityElement.h */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		612DE410298410F9003C2BE0 /* XCTest */ = {
+			isa = PBXGroup;
+			children = (
+				610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */,
+				612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */,
+				612DE413298426EF003C2BE0 /* EventRecord.swift */,
+				613E87D6299A64BD00FF8551 /* PointerEventPath.swift */,
+				613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */,
+				61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */,
+				52E35D422A654F67001D97A8 /* RunningApp.swift */,
+			);
+			path = XCTest;
+			sourceTree = "<group>";
+		};
+		9407362C2940C9F900A72E99 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */,
+				32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */,
+				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
+				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
+				32097964297092A800340282 /* InputTextRequest.swift */,
+				32ECCB252980449200A1A0A0 /* TouchRequest.swift */,
+				61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */,
+				5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */,
+				61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */,
+				61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */,
+				61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */,
+				945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */,
+				6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */,
+				6124329D2A4DA5BB00F5F619 /* AXElement.swift */,
+				52F33A932AE6823100692902 /* StatusResponse.swift */,
+				52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */,
+				52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		943A907A293F5AF400C85136 /* Routes */ = {
+			isa = PBXGroup;
+			children = (
+				94826F4229DB080E00795E9B /* Helpers */,
+				94A90DDC298AE70D006EB769 /* Extensions */,
+				612DE410298410F9003C2BE0 /* XCTest */,
+				9407362C2940C9F900A72E99 /* Models */,
+				943A9082293F5CA700C85136 /* Handlers */,
+				943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */,
+				949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */,
+			);
+			path = Routes;
+			sourceTree = "<group>";
+		};
+		943A9082293F5CA700C85136 /* Handlers */ = {
+			isa = PBXGroup;
+			children = (
+				521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */,
+				32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */,
+				610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */,
+				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
+				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
+				61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */,
+				320979622970925500340282 /* InputTextRouteHandler.swift */,
+				32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */,
+				9494CBD02982F719009C987C /* ScreenshotHandler.swift */,
+				94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */,
+				61C0AFE629C7AB0C005D1FC5 /* PressKeyHandler.swift */,
+				61C0AFEA29C863BB005D1FC5 /* PressButtonHandler.swift */,
+				61C0AFEC29C88926005D1FC5 /* EraseTextHandler.swift */,
+				61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */,
+				5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */,
+				945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */,
+				52047F772A7A638E00BF982D /* StatusHandler.swift */,
+				52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */,
+			);
+			path = Handlers;
+			sourceTree = "<group>";
+		};
+		94826F4229DB080E00795E9B /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				94826F4329DB082100795E9B /* SystemPermissionHelper.swift */,
+				522785802A54410D008DBC0A /* AppError.swift */,
+				941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */,
+				9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */,
+				9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		94A90DDC298AE70D006EB769 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */,
+				F328D3E52A2A98E7000546D3 /* StringExtensions.swift */,
+				6124329F2A4DA72F00F5F619 /* Logger.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		52D8FA9E2D6DD0970015FAB3 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52D8FAA72D6DD1950015FAB3 /* XCUICoordinate.h in Headers */,
+				52D8FAA52D6DD1950015FAB3 /* XCUIApplicationImpl.h in Headers */,
+				52D8FAB52D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h in Headers */,
+				52D8FAA62D6DD1950015FAB3 /* XCUIApplicationProcess.h in Headers */,
+				52D8FAA82D6DD1950015FAB3 /* XCUIDevice.h in Headers */,
+				52D8FAA42D6DD1950015FAB3 /* XCUIApplication.h in Headers */,
+				526111782DE5E8DA007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */,
+				521C1F092D8018590024EE42 /* XCUIApplication+Helper.h in Headers */,
+				52D8FAA12D6DD13B0015FAB3 /* _XCTestImplementation.h in Headers */,
+				52D8FAAD2D6DD3A20015FAB3 /* FBLogger.h in Headers */,
+				521C1F0C2D8030A30024EE42 /* XCTestManager_ManagerInterface-Protocol.h in Headers */,
+				52D8FAB12D6DD4100015FAB3 /* FBConfiguration.h in Headers */,
+				52D8FAA02D6DD0E60015FAB3 /* XCAXClient_iOS.h in Headers */,
+				521C1F0E2D80518A0024EE42 /* XCTestDaemonsProxy.h in Headers */,
+				521C1F052D8016950024EE42 /* XCAccessibilityElement.h in Headers */,
+				52D8FAA32D6DD16F0015FAB3 /* CDStructures.h in Headers */,
+				52D8FAA22D6DD1580015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h in Headers */,
+				52D8FA9F2D6DD0B50015FAB3 /* XCUIApplicationProcess+FBQuiescence.h in Headers */,
+				521C1F032D8014410024EE42 /* AXClientProxy.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		52049BD22935039F00807AA3 /* maestro-driver-ios */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 52049BFD293503A200807AA3 /* Build configuration list for PBXNativeTarget "maestro-driver-ios" */;
+			buildPhases = (
+				52049BCF2935039F00807AA3 /* Sources */,
+				52049BD02935039F00807AA3 /* Frameworks */,
+				52049BD12935039F00807AA3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "maestro-driver-ios";
+			packageProductDependencies = (
+			);
+			productName = "maestro-driver-ios";
+			productReference = 52049BD32935039F00807AA3 /* maestro-driver-ios.app */;
+			productType = "com.apple.product-type.application";
+		};
+		52049BF2293503A200807AA3 /* maestro-driver-iosUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 52049C03293503A200807AA3 /* Build configuration list for PBXNativeTarget "maestro-driver-iosUITests" */;
+			buildPhases = (
+				52D8FA9E2D6DD0970015FAB3 /* Headers */,
+				52049BEF293503A200807AA3 /* Sources */,
+				52049BF0293503A200807AA3 /* Frameworks */,
+				52049BF1293503A200807AA3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				52049BF5293503A200807AA3 /* PBXTargetDependency */,
+			);
+			name = "maestro-driver-iosUITests";
+			packageProductDependencies = (
+				5279BFD52935ECE20056C609 /* FlyingFox */,
+			);
+			productName = "maestro-driver-iosUITests";
+			productReference = 52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		52049BCB2935039F00807AA3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1340;
+				LastUpgradeCheck = 1340;
+				TargetAttributes = {
+					52049BD22935039F00807AA3 = {
+						CreatedOnToolsVersion = 13.4.1;
+					};
+					52049BF2293503A200807AA3 = {
+						CreatedOnToolsVersion = 13.4.1;
+						LastSwiftMigration = 1620;
+						TestTargetID = 52049BD22935039F00807AA3;
+					};
+				};
+			};
+			buildConfigurationList = 52049BCE2935039F00807AA3 /* Build configuration list for PBXProject "maestro-driver-ios" */;
+			compatibilityVersion = "Xcode 13.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 52049BCA2935039F00807AA3;
+			packageReferences = (
+				52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+			);
+			productRefGroup = 52049BD42935039F00807AA3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				52049BD22935039F00807AA3 /* maestro-driver-ios */,
+				52049BF2293503A200807AA3 /* maestro-driver-iosUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		52049BD12935039F00807AA3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52049BE3293503A200807AA3 /* LaunchScreen.storyboard in Resources */,
+				52049BE0293503A200807AA3 /* Assets.xcassets in Resources */,
+				52049BDE2935039F00807AA3 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		52049BF1293503A200807AA3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		52049BCF2935039F00807AA3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52049BDB2935039F00807AA3 /* ViewController.swift in Sources */,
+				52049BD72935039F00807AA3 /* AppDelegate.swift in Sources */,
+				52049BD92935039F00807AA3 /* SceneDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		52049BEF293503A200807AA3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				610D58F92A45B5DA00B4BBEB /* ViewHierarchyHandler.swift in Sources */,
+				52F0B1B32B3C26DF00C6471A /* KeyboardHandlerRequest.swift in Sources */,
+				612DE4122984114B003C2BE0 /* RunnerDaemonProxy.swift in Sources */,
+				61C0AFEB29C863BB005D1FC5 /* PressButtonHandler.swift in Sources */,
+				94826F4429DB082100795E9B /* SystemPermissionHelper.swift in Sources */,
+				52D8FAAC2D6DD3A20015FAB3 /* FBLogger.m in Sources */,
+				612432A02A4DA72F00F5F619 /* Logger.swift in Sources */,
+				521C1F142D86D3900024EE42 /* TerminateAppRequest.swift in Sources */,
+				9407362E2940CA1600A72E99 /* GetRunningAppRequest.swift in Sources */,
+				521C1F072D8017480024EE42 /* AXClientProxy.m in Sources */,
+				61C0AFED29C88926005D1FC5 /* EraseTextHandler.swift in Sources */,
+				32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */,
+				5261117A2DE5E8E7007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */,
+				52F33A942AE6823100692902 /* StatusResponse.swift in Sources */,
+				32A9C73E2D7A631A00545435 /* LaunchAppRequest.swift in Sources */,
+				32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */,
+				610D58FB2A49E3CA00B4BBEB /* AXClientSwizzler.swift in Sources */,
+				F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */,
+				5B8E0ABC2CD562D000E9D439 /* SetOrientationHandler.swift in Sources */,
+				61C0AFEF29C8961F005D1FC5 /* EraseTextRequest.swift in Sources */,
+				521C1F102D8051FC0024EE42 /* XCTestDaemonsProxy.m in Sources */,
+				61A79B9729DF0B8A00C38882 /* SwipeRouteHandlerV2.swift in Sources */,
+				52F0B1B52B3C27F700C6471A /* KeyboardHandlerResponse.swift in Sources */,
+				52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */,
+				5B8E0ABE2CD562F200E9D439 /* SetOrientationRequest.swift in Sources */,
+				945DD44B29D6F5D8004D8ECF /* SetPermissionsRequest.swift in Sources */,
+				613E87DF299BE78400FF8551 /* KeyModifierFlags.swift in Sources */,
+				521C1F122D86CE940024EE42 /* TerminateAppHandler.swift in Sources */,
+				94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */,
+				945DD44D29D6F73B004D8ECF /* SetPermissionsHandler.swift in Sources */,
+				61C0AFE729C7AB0C005D1FC5 /* PressKeyHandler.swift in Sources */,
+				61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */,
+				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
+				52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */,
+				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
+				9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */,
+				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,
+				61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */,
+				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
+				32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */,
+				943A9081293F5C2500C85136 /* RouteHandlerFactory.swift in Sources */,
+				941AE8EF2A77D4B20097C02A /* TimeoutHelper.swift in Sources */,
+				6124329C2A4B368100F5F619 /* ViewHierarchyRequest.swift in Sources */,
+				61C0AFE529C7AAB3005D1FC5 /* PressKeyRequest.swift in Sources */,
+				61C0AFF329C8C040005D1FC5 /* DeviceInfoResponse.swift in Sources */,
+				94256BAD298D39DE00CDB55D /* ScreenDiffHandler.swift in Sources */,
+				521C1F0B2D801A360024EE42 /* XCUIApplication+Helper.m in Sources */,
+				949535FC299FD67E00FD0159 /* XCTestHTTPServer.swift in Sources */,
+				52D8FA9D2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m in Sources */,
+				32097965297092A800340282 /* InputTextRequest.swift in Sources */,
+				52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */,
+				52D8FAB02D6DD4100015FAB3 /* FBConfiguration.m in Sources */,
+				61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */,
+				6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */,
+				32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */,
+				522785812A54410D008DBC0A /* AppError.swift in Sources */,
+				320979632970925500340282 /* InputTextRouteHandler.swift in Sources */,
+				52E35D432A654F67001D97A8 /* RunningApp.swift in Sources */,
+				9494CBD12982F719009C987C /* ScreenshotHandler.swift in Sources */,
+				32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */,
+				52F0B1B12B3C25BC00C6471A /* KeyboardRouteHandler.swift in Sources */,
+				52D8FAB42D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		52049BF5293503A200807AA3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 52049BD22935039F00807AA3 /* maestro-driver-ios */;
+			targetProxy = 52049BF4293503A200807AA3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		52049BDC2935039F00807AA3 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				52049BDD2935039F00807AA3 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		52049BE1293503A200807AA3 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				52049BE2293503A200807AA3 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		52049BFB293503A200807AA3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		52049BFC293503A200807AA3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CC_C_LANGUAGE_STANDARD = gnu11;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		52049BFE293503A200807AA3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		52049BFF293503A200807AA3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		52049C04293503A200807AA3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 25CQD4CKK3;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "maestro-driver-ios";
+			};
+			name = Debug;
+		};
+		52049C05293503A200807AA3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 25CQD4CKK3;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "maestro-driver-ios";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		52049BCE2935039F00807AA3 /* Build configuration list for PBXProject "maestro-driver-ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				52049BFB293503A200807AA3 /* Debug */,
+				52049BFC293503A200807AA3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		52049BFD293503A200807AA3 /* Build configuration list for PBXNativeTarget "maestro-driver-ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				52049BFE293503A200807AA3 /* Debug */,
+				52049BFF293503A200807AA3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		52049C03293503A200807AA3 /* Build configuration list for PBXNativeTarget "maestro-driver-iosUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				52049C04293503A200807AA3 /* Debug */,
+				52049C05293503A200807AA3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swhitty/FlyingFox";
+			requirement = {
+				kind = exactVersion;
+				version = 0.22.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5279BFD52935ECE20056C609 /* FlyingFox */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */;
+			productName = FlyingFox;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 52049BCB2935039F00807AA3 /* Project object */;
+}

@@ -1,0 +1,11 @@
+appId: com.example.app
+---
+- assertVisible:
+    text: Item
+    index: 0
+- assertVisible:
+    text: Item
+    index: 1
+- assertNotVisible:
+    text: Item
+    index: 2

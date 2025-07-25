@@ -1,0 +1,9 @@
+# Copied from https://youtrack.jetbrains.com/issue/FL-15599/No-way-of-disabling-Java-Kotlin-wildcard-imports
+
+[*.java]
+ij_java_class_count_to_use_import_on_demand = 1024
+ij_java_names_count_to_use_import_on_demand = 1024
+
+[*.kt]
+ij_kotlin_name_count_to_use_star_import = 1024
+ij_kotlin_name_count_to_use_star_import_for_members = 1024

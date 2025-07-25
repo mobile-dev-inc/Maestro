@@ -1,0 +1,20 @@
+> Commands Section Required
+
+/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
+╭───────────────────────────────────────────────────────────────────────────╮
+│ 1 | appId: com.example                                                    │
+│ 2 | ---                                                                   │
+│ 3 | launchApp                                                             │
+│              ^                                                            │
+│ ╭───────────────────────────────────────────────────────────────────────╮ │
+│ │ Flow files must have a list of commands after the config section. Eg: │ │
+│ │                                                                       │ │
+│ │ ```yaml                                                               │ │
+│ │ appId: com.example.app                                                │ │
+│ │ ---                                                                   │ │
+│ │ - launchApp                                                           │ │
+│ │ ```                                                                   │ │
+│ │                                                                       │ │
+│ │ > https://docs.maestro.dev/getting-started/writing-your-first-flow    │ │
+│ ╰───────────────────────────────────────────────────────────────────────╯ │
+╰───────────────────────────────────────────────────────────────────────────╯

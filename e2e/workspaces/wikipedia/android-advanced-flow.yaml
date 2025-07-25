@@ -1,0 +1,16 @@
+appId: org.wikipedia
+tags:
+  - android
+  - passing
+  - advanced
+---
+- runFlow: subflows/onboarding-android.yaml
+- tapOn:
+    id: "org.wikipedia:id/search_container"
+- tapOn:
+    text: "Non existent view"
+    optional: true
+- runScript: scripts/getSearchQuery.js
+- inputText: ${output.result}
+- assertVisible: ${output.result}
+- runFlow: subflows/launch-clearstate-android.yaml

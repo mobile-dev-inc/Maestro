@@ -1,0 +1,37 @@
+@layer components {
+    body {
+        @apply dark:bg-gray-dark dark:text-gray-1 text-gray-dark;
+    }
+
+    .screenshot-image {
+        @apply w-64 rounded-lg border-2 border-gray-medium dark:border-gray-1 pb-1;
+    }
+
+    .screen-card {
+        @apply flex items-start gap-4;
+    }
+
+    .defect-card {
+        @apply flex flex-col items-start gap-2 rounded-lg bg-[#f8f8f8] p-2 text-gray-dark dark:bg-gray-medium dark:text-gray-1;
+    }
+
+    .badge {
+        @apply dark:text-red-500 rounded-lg bg-[#ececec] dark:bg-gray-dark p-1 font-semibold text-gray-medium dark:text-gray-1;
+    }
+
+    .toggle-link {
+        @apply block border-2 border-gray-medium bg-[#ececec] px-3 py-4 text-gray-medium hover:bg-gray-medium hover:text-[#ececec];
+    }
+
+    .toggle-link-selected {
+        @apply border-orange-2;
+    }
+
+    .divider {
+        @apply h-0.5 rounded-sm bg-gray-medium dark:bg-gray-1 my-2;
+    }
+
+    .btn {
+        @apply hover:text-gray-medium dark:hover:text-gray-medium;
+    }
+}

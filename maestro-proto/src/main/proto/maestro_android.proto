@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package maestro_android;
+
+service MaestroDriver {
+
+  rpc deviceInfo(DeviceInfoRequest) returns (DeviceInfo) {}
+
+  rpc viewHierarchy(ViewHierarchyRequest) returns (ViewHierarchyResponse) {}
+
+  rpc screenshot(ScreenshotRequest) returns (ScreenshotResponse) {}
+
+  rpc tap(TapRequest) returns (TapResponse) {}
+
+  rpc inputText(InputTextRequest) returns (InputTextResponse) {}
+
+  rpc eraseAllText(EraseAllTextRequest) returns (EraseAllTextResponse) {}
+
+  rpc setLocation(SetLocationRequest) returns (SetLocationResponse) {}
+
+  rpc isWindowUpdating(CheckWindowUpdatingRequest) returns (CheckWindowUpdatingResponse) {}
+
+  rpc launchApp(LaunchAppRequest) returns (LaunchAppResponse) {}
+
+  rpc addMedia(stream AddMediaRequest) returns (AddMediaResponse) {}
+
+  rpc enableMockLocationProviders(EmptyRequest) returns (EmptyResponse) {}
+
+  rpc disableLocationUpdates(EmptyRequest) returns (EmptyResponse) {}
+}
+
+message EmptyRequest {}
+message EmptyResponse {}
+
+message LaunchAppRequest {
+
+  string packageName = 1;
+  repeated ArgumentValue arguments = 2;
+}
+
+message ArgumentValue {
+  string key = 1;
+  string value = 2;
+  string type = 3;
+}
+
+message LaunchAppResponse {}
+
+// Device info
+message DeviceInfoRequest {}
+
+message DeviceInfo {
+  uint32 widthPixels = 1;
+  uint32 heightPixels = 2;
+}
+
+message ScreenshotRequest {}
+
+message ScreenshotResponse {
+  bytes bytes = 1;
+}
+
+// View hierarchy
+message ViewHierarchyRequest {}
+
+message ViewHierarchyResponse {
+  string hierarchy = 1;
+}
+
+// Interactions
+
+message TapRequest {
+  uint32 x = 1;
+  uint32 y = 2;
+}
+
+message TapResponse {}
+
+message InputTextRequest {
+  string text = 1;
+}
+message InputTextResponse {}
+
+
+message EraseAllTextRequest {
+    uint32 charactersToErase = 1;
+}
+
+message EraseAllTextResponse {}
+
+message SetLocationRequest {
+    double latitude = 1;
+    double longitude = 2;
+}
+
+message SetLocationResponse {}
+
+message CheckWindowUpdatingRequest {
+  string appId = 1;
+}
+
+message CheckWindowUpdatingResponse {
+  bool isWindowUpdating = 1;
+}
+
+message AddMediaRequest {
+  Payload payload = 1;
+  string media_name = 2;
+  string media_ext = 3;
+}
+
+message AddMediaResponse { }
+
+message Payload {
+  bytes data = 1;
+}

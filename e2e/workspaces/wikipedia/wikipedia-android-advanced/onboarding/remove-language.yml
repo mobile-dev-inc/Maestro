@@ -1,0 +1,13 @@
+appId: org.wikipedia
+---
+- tapOn: "ADD OR EDIT.*"
+- tapOn: "More options"
+- tapOn: "Remove language"
+- tapOn:
+    id: ".*wiki_language_checkbox"
+    index: 1
+- tapOn:
+    id: ".*menu_delete_selected"
+- tapOn: "OK"
+- assertNotVisible: "Ελληνικά"
+- tapOn: "Navigate up"

@@ -1,0 +1,43 @@
+# Close issues that have had "waiting for customer response" label for too long.
+
+# This workflow is based on a very similar one from Flutter
+# https://github.com/flutter/flutter/blob/3.22.0/.github/workflows/no-response.yaml
+
+name: close inactive issues
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
+
+permissions:
+  issues: write
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/maestro'
+    steps:
+      - uses: godofredoc/no-response@0ce2dc0e63e1c7d2b87752ceed091f6d32c9df09
+        with:
+          token: ${{ github.token }}
+          closeComment: >
+            Without additional information, we can't resolve this issue. We're
+            therefore reluctantly going to close it.
+
+
+            Feel free to open a new issue with all the required information
+            provided, including a [minimal, reproducible sample]. When creating
+            a new issue, please make sure to diligently fill out the issue
+            template.
+
+
+            Thank you for your contribution to our open-source community!
+
+
+            [minimal, reproducible sample]: https://stackoverflow.com/help/minimal-reproducible-example
+          # Number of days of inactivity before an issue is closed.
+          daysUntilClose: 14
+          # Only issues with this label will be closed (if they are inactive).
+          responseRequiredLabel: waiting for customer response

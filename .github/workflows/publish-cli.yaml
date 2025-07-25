@@ -1,0 +1,29 @@
+name: Publish CLI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/maestro'
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Publish CLI
+        run: ./gradlew :maestro-cli:jreleaserFullRelease --no-daemon --no-parallel
+        env:
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
+
+      - name: Print jReleaser log
+        if: always()
+        run: cat maestro-cli/build/jreleaser/trace.log

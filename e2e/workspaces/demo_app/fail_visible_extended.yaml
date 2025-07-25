@@ -1,0 +1,10 @@
+appId: com.example.example
+tags:
+    - failing
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: non-existent-id
+    timeout: 100

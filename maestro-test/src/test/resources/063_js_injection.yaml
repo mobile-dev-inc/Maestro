@@ -1,0 +1,11 @@
+appId: com.example.app
+env:
+  A: 1
+  B: 2
+---
+- inputText: ${A}
+- inputText: ${B}
+- inputText: ${A + B}
+- inputText: ${parseInt(A) + parseInt(B)}
+- inputText: \${A} \${B} ${A} ${B}
+

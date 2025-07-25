@@ -1,0 +1,6 @@
+appId: com.example.app
+env:
+  INLINE_ENV: Inline Parameter
+---
+- inputText: ${INLINE_ENV}
+- runFlow: 058_subflow.yaml

@@ -1,0 +1,11 @@
+appId: org.wikipedia
+---
+- runFlow: "add-language.yml"
+- runFlow: "remove-language.yml"
+- tapOn: "Continue"
+- assertVisible: "New ways to explore"
+- tapOn: "Continue"
+- assertVisible: "Reading lists with sync"
+- tapOn: "Continue"
+- assertVisible: "Send anonymous data"
+- tapOn: "Get started"

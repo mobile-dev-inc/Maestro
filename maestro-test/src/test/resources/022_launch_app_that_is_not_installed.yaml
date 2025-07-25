@@ -1,0 +1,4 @@
+appId: com.example.nonexistent
+---
+- launchApp:
+    clearState: true

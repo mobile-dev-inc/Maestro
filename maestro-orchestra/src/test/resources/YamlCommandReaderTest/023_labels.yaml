@@ -1,0 +1,142 @@
+appId: com.example.app
+---
+# Taps
+- tapOn:
+    id: "foo"
+    label: "Tap on the important button"
+- doubleTapOn:
+    id: "foo"
+    label: "Tap on the important button twice"
+- longPressOn:
+    id: "foo"
+    label: "Press and hold the important button"
+- tapOn:
+    point: 50%,50%
+    label: "Tap on the middle of the screen"
+
+# Assertions
+- assertVisible:
+    id: "bar"
+    label: "Check that the important number is visible"
+- assertNotVisible:
+    id: "bar2"
+    label: "Check that the secret number is invisible"
+- assertTrue:
+    condition: ${5 == 5}
+    label: "Check that five is still what we think it is"
+
+# Inputs
+- inputText:
+      text: "correct horse battery staple"
+      label: "Enter my secret password"
+- inputRandomEmail:
+      label: "Enter a random email address"
+- inputRandomPersonName:
+      label: "Enter a random person's name"
+- inputRandomNumber:
+      length: 5
+      label: "Enter a random number"
+- inputRandomText:
+      length: 20
+      label: "Enter a random string"
+- pressKey:
+      key: "enter"
+      label: "Press the enter key"
+
+# Other
+- back:
+    label: "Go back to the previous screen"
+- clearKeychain:
+    label: "Clear the keychain"
+- clearState:
+    label: "Wipe the app state"
+- copyTextFrom:
+    id: "foo"
+    label: "Copy the important text"
+- eraseText:
+    charactersToErase: 5
+    label: "Erase the last 5 characters"
+- extendedWaitUntil:
+    visible: "Some important text"
+    timeout: 1000
+    label: "Wait until the important text is visible"
+- evalScript:
+    script: "return 5;"
+    label: "Get the number 5"
+- hideKeyboard:
+    label: "Hide the keyboard"
+- launchApp:
+    appId: "com.some.other"
+    clearState: true
+    label: "Launch some other app"
+- openLink:
+    link: "https://www.example.com"
+    label: "Open the example website"
+- pasteText:
+    label: "Paste the important text"
+- runFlow:
+      commands:
+          - assertTrue: ${5 == 5}
+      label: "Check that five is still what we think it is"
+- runScript:
+    file: "023_runScript_test.js"
+    label: "Run some special calculations"
+- setOrientation:
+    orientation: "LANDSCAPE_LEFT"
+    label: "Set the device orientation"
+- scroll:
+    label: "Scroll down"
+- scrollUntilVisible:
+    element: "Footer"
+    label: "Scroll to the bottom"
+- setLocation:
+    latitude: 12.5266
+    longitude: 78.2150
+    label: "Set Location to Test Laboratory"
+- startRecording:
+    path: "recording.mp4"
+    label: "Start recording a video"
+- stopApp:
+    appId: "com.some.other"
+    label: "Stop that other app from running"
+- stopRecording:
+    label: "Stop recording the video"
+- takeScreenshot:
+    path: "baz"
+    label: "Snap this for later evaluation"
+- travel:
+      points:
+          - 0.0,0.0
+          - 0.1,0.0
+          - 0.1,0.1
+          - 0.0,0.1
+      speed: 2000
+      label: "Run around the north pole"
+- waitForAnimationToEnd:
+    timeout: 4000
+    label: "Wait for the thing to stop spinning"
+- swipe:
+    direction: DOWN
+    label: "Swipe down a bit"
+- addMedia:
+      files:
+          - "023_image.png"
+      label: "Add a picture to the device"
+- setAirplaneMode:
+      value: enabled
+      label: "Turn on airplane mode for testing"
+- toggleAirplaneMode:
+      label: "Toggle airplane mode for testing"
+
+# Repeats
+- repeat:
+    while:
+      visible: "Some important text"
+    commands:
+        - tapOn:
+            id: "foo"
+            label: "Tap on the important button"
+        - tapOn:
+            id: "bar"
+            label: "Tap on the other important button"
+    label: "Tap the 2 buttons until the text goes away"

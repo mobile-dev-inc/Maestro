@@ -1,0 +1,3 @@
+appId: com.example.app
+---
+- takeScreenshot: ${MAESTRO_FILENAME}_with_filename

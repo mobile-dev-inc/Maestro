@@ -1,0 +1,15 @@
+appId: org.wikipedia
+---
+- launchApp:
+    clearState: true
+- tapOn:
+      text: "Non existent view"
+      optional: true
+- tapOn:
+    id: "org.wikipedia:id/fragment_onboarding_forward_button"
+- tapOn:
+    id: "org.wikipedia:id/fragment_onboarding_forward_button"
+- tapOn:
+    id: "org.wikipedia:id/fragment_onboarding_forward_button"
+- tapOn:
+    id: "org.wikipedia:id/fragment_onboarding_done_button"

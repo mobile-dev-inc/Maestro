@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ -t 0 ]; then
+  input=""
+else
+  input=$(cat -)
+fi
+
+./gradlew :maestro-cli:installDist -q && ./maestro-cli/build/install/maestro/bin/maestro "$@"
