@@ -4,21 +4,21 @@ tools:
     - name: "Test take_screenshot"
       tool: "take_screenshot"
       params:
-        device_id: "${DEVICE_ID}"
+        deviceId: "${DEVICE_ID}"
       expect:
         success: true
 
     - name: "Test inspect_view_hierarchy"
       tool: "inspect_view_hierarchy"
       params:
-        device_id: "${DEVICE_ID}"
+        deviceId: "${DEVICE_ID}"
       expect:
         success: true
 
     - name: "Test launch_app"
       tool: "launch_app"
       params:
-        device_id: "${DEVICE_ID}"
+        deviceId: "${DEVICE_ID}"
         appId: "com.apple.mobilesafari"
       expect:
         success: true
@@ -26,7 +26,7 @@ tools:
     - name: "Test tap_on"
       tool: "tap_on"
       params:
-        device_id: "${DEVICE_ID}"
+        deviceId: "${DEVICE_ID}"
         text: "Search"
       expect:
         success: true
@@ -34,7 +34,7 @@ tools:
     - name: "Test input_text"
       tool: "input_text"
       params:
-        device_id: "${DEVICE_ID}"
+        deviceId: "${DEVICE_ID}"
         text: "hello"
       expect:
         success: true
@@ -42,7 +42,7 @@ tools:
     - name: "Test stop_app"
       tool: "stop_app"
       params:
-        device_id: "${DEVICE_ID}"
+        deviceId: "${DEVICE_ID}"
         appId: "com.apple.mobilesafari"
       expect:
         success: true
@@ -50,8 +50,8 @@ tools:
     - name: "Test run_flow"
       tool: "run_flow"
       params:
-        device_id: "${DEVICE_ID}"
-        flow_yaml: |
+        deviceId: "${DEVICE_ID}"
+        flowYaml: |
           appId: com.apple.mobilesafari
           ---
           - launchApp
@@ -61,8 +61,8 @@ tools:
     - name: "Test run_flow_files (expect failure - nonexistent file)"
       tool: "run_flow_files"
       params:
-        device_id: "${DEVICE_ID}"
-        flow_files: "nonexistent.yaml"
+        deviceId: "${DEVICE_ID}"
+        flowFiles: "nonexistent.yaml"
       expect:
         success: false
         error:
@@ -71,8 +71,8 @@ tools:
     - name: "Test run_flow_files with env replacement"
       tool: "run_flow_files"
       params:
-        device_id: "${DEVICE_ID}"
-        flow_files: "launch_app_with_env_replacement.yaml"
+        deviceId: "${DEVICE_ID}"
+        flowFiles: "launch_app_with_env_replacement.yaml"
         env: 
           APP_ID: "com.apple.mobilesafari"
       expect:

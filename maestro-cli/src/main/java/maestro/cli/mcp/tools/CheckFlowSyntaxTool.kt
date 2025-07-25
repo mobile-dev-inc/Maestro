@@ -2,55 +2,43 @@ package maestro.cli.mcp.tools
 
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.MaestroTool
+import maestro.cli.mcp.schema.McpToolInput
 import maestro.orchestra.yaml.YamlCommandReader
+
+// Schema definitions for this tool
+@Serializable
+data class CheckFlowSyntaxInput(
+    val flowYaml: String
+) : McpToolInput
+
+@Serializable
+data class CheckFlowSyntaxOutput(
+    val valid: Boolean,
+    val message: String,
+    val error: String? = null
+)
 
 object CheckFlowSyntaxTool {
     fun create(): RegisteredTool {
-        return RegisteredTool(
-            Tool(
-                name = "check_flow_syntax",
-                description = "Validates the syntax of a block of Maestro code. Valid maestro code must be well-formatted YAML.",
-                inputSchema = Tool.Input(
-                    properties = buildJsonObject {
-                        putJsonObject("flow_yaml") {
-                            put("type", "string")
-                            put("description", "YAML-formatted Maestro flow content to validate")
-                        }
-                    },
-                    required = listOf("flow_yaml")
-                )
-            )
-        ) { request ->
+        return MaestroTool.create<CheckFlowSyntaxInput, CheckFlowSyntaxOutput>(
+            name = "check_flow_syntax",
+            description = "Validates the syntax of a block of Maestro code. Valid maestro code must be well-formatted YAML."
+        ) { input ->
             try {
-                val flowYaml = request.arguments["flow_yaml"]?.jsonPrimitive?.content
-                
-                if (flowYaml == null) {
-                    return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("flow_yaml is required")),
-                        isError = true
-                    )
-                }
-                
-                val result = try {
-                    YamlCommandReader.checkSyntax(flowYaml)
-                    buildJsonObject {
-                        put("valid", true)
-                        put("message", "Flow syntax is valid")
-                    }.toString()
-                } catch (e: Exception) {
-                    buildJsonObject {
-                        put("valid", false)
-                        put("error", e.message ?: "Unknown parsing error")
-                        put("message", "Syntax check failed")
-                    }.toString()
-                }
-                
-                CallToolResult(content = listOf(TextContent(result)))
+                YamlCommandReader.checkSyntax(input.flowYaml)
+                CheckFlowSyntaxOutput(
+                    valid = true,
+                    message = "Flow syntax is valid"
+                )
             } catch (e: Exception) {
-                CallToolResult(
-                    content = listOf(TextContent("Failed to check flow syntax: ${e.message}")),
-                    isError = true
+                CheckFlowSyntaxOutput(
+                    valid = false,
+                    message = "Syntax check failed",
+                    error = e.message ?: "Unknown parsing error"
                 )
             }
         }

@@ -1,82 +1,69 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
-import kotlinx.serialization.json.*
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
+import maestro.cli.mcp.MaestroTool
+import maestro.cli.mcp.schema.McpToolInput
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.LaunchAppCommand
-import maestro.orchestra.Orchestra
 import maestro.orchestra.MaestroCommand
-import kotlinx.coroutines.runBlocking
+import maestro.orchestra.Orchestra
+
+// Schema definitions for this tool
+@Serializable
+data class LaunchAppInput(
+    val deviceId: String,
+    val appId: String,
+    val clearState: Boolean? = null,
+    val clearKeychain: Boolean? = null,
+    val stopApp: Boolean? = null,
+    val permissions: Map<String, String>? = null,
+    val launchArguments: Map<String, String>? = null
+) : McpToolInput
+
+@Serializable
+data class LaunchAppOutput(
+    val success: Boolean,
+    val deviceId: String,
+    val appId: String,
+    val message: String
+)
 
 object LaunchAppTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
-        return RegisteredTool(
-            Tool(
-                name = "launch_app",
-                description = "Launch an application on the connected device",
-                inputSchema = Tool.Input(
-                    properties = buildJsonObject {
-                        putJsonObject("device_id") {
-                            put("type", "string")
-                            put("description", "The ID of the device to launch the app on")
-                        }
-                        putJsonObject("appId") {
-                            put("type", "string")
-                            put("description", "Bundle ID or app ID to launch")
-                        }
-                    },
-                    required = listOf("device_id", "appId")
+        return MaestroTool.create<LaunchAppInput, LaunchAppOutput>(
+            name = "launch_app",
+            description = "Launch an application on the connected device"
+        ) { input ->
+            sessionManager.newSession(
+                host = null,
+                port = null,
+                driverHostPort = null,
+                deviceId = input.deviceId,
+                platform = null
+            ) { session ->
+                val command = LaunchAppCommand(
+                    appId = input.appId,
+                    clearState = input.clearState,
+                    clearKeychain = input.clearKeychain,
+                    stopApp = input.stopApp,
+                    permissions = input.permissions,
+                    launchArguments = input.launchArguments,
+                    label = null,
+                    optional = false
                 )
-            )
-        ) { request ->
-            try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val appId = request.arguments["appId"]?.jsonPrimitive?.content
                 
-                if (deviceId == null || appId == null) {
-                    return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("Both device_id and appId are required")),
-                        isError = true
-                    )
+                val orchestra = Orchestra(session.maestro)
+                runBlocking {
+                    orchestra.executeCommands(listOf(MaestroCommand(command = command)))
                 }
                 
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
-                ) { session ->
-                    val command = LaunchAppCommand(
-                        appId = appId,
-                        clearState = null,
-                        clearKeychain = null,
-                        stopApp = null,
-                        permissions = null,
-                        launchArguments = null,
-                        label = null,
-                        optional = false
-                    )
-                    
-                    val orchestra = Orchestra(session.maestro)
-                    runBlocking {
-                        orchestra.executeCommands(listOf(MaestroCommand(command = command)))
-                    }
-                    
-                    buildJsonObject {
-                        put("success", true)
-                        put("device_id", deviceId)
-                        put("app_id", appId)
-                        put("message", "App launched successfully")
-                    }.toString()
-                }
-                
-                CallToolResult(content = listOf(TextContent(result)))
-            } catch (e: Exception) {
-                CallToolResult(
-                    content = listOf(TextContent("Failed to launch app: ${e.message}")),
-                    isError = true
+                LaunchAppOutput(
+                    success = true,
+                    deviceId = input.deviceId,
+                    appId = input.appId,
+                    message = "App launched successfully"
                 )
             }
         }
