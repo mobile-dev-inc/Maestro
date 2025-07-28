@@ -550,15 +550,6 @@ data class PressKeyCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    init {
-        if (code == null && codes == null) {
-            throw IllegalArgumentException("Either 'code' or 'codes' must be specified")
-        }
-        if (code != null && codes != null) {
-            throw IllegalArgumentException("Cannot specify both 'code' and 'codes' at the same time")
-        }
-    }
-
     override val originalDescription: String
         get() = when {
             code != null -> "Press ${code.description} key"
@@ -571,9 +562,13 @@ data class PressKeyCommand(
     }
     
     // Helper methods for backward compatibility
+    @JsonIgnore
     fun isSingleKey(): Boolean = code != null
+    @JsonIgnore
     fun isKeyCombination(): Boolean = codes != null
+    @JsonIgnore
     fun getSingleKey(): KeyCode = code ?: throw IllegalStateException("Not a single key command")
+    @JsonIgnore
     fun getKeyCombination(): List<KeyCode> = codes ?: throw IllegalStateException("Not a key combination command")
 }
 

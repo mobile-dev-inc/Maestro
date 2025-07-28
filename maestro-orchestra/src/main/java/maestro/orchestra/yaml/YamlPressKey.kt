@@ -21,13 +21,4 @@ data class YamlPressKey (
             keys = keys,
         )
     }
-    
-    init {
-        if (key == null && keys == null) {
-            throw IllegalArgumentException("Either 'key' or 'keys' must be specified")
-        }
-        if (key != null && keys != null) {
-            throw IllegalArgumentException("Cannot specify both 'key' and 'keys' at the same time")
-        }
-    }
 }
