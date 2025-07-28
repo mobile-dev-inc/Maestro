@@ -301,41 +301,70 @@ class AndroidDriver(
 
     override fun pressKey(code: KeyCode) {
         metrics.measured("operation", mapOf("command" to "pressKey")) {
-            val intCode: Int = when (code) {
-                KeyCode.ENTER -> 66
-                KeyCode.BACKSPACE -> 67
-                KeyCode.BACK -> 4
-                KeyCode.VOLUME_UP -> 24
-                KeyCode.VOLUME_DOWN -> 25
-                KeyCode.HOME -> 3
-                KeyCode.LOCK -> 276
-                KeyCode.REMOTE_UP -> 19
-                KeyCode.REMOTE_DOWN -> 20
-                KeyCode.REMOTE_LEFT -> 21
-                KeyCode.REMOTE_RIGHT -> 22
-                KeyCode.REMOTE_CENTER -> 23
-                KeyCode.REMOTE_PLAY_PAUSE -> 85
-                KeyCode.REMOTE_STOP -> 86
-                KeyCode.REMOTE_NEXT -> 87
-                KeyCode.REMOTE_PREVIOUS -> 88
-                KeyCode.REMOTE_REWIND -> 89
-                KeyCode.REMOTE_FAST_FORWARD -> 90
-                KeyCode.POWER -> 26
-                KeyCode.ESCAPE -> 111
-                KeyCode.TAB -> 62
-                KeyCode.REMOTE_SYSTEM_NAVIGATION_UP -> 280
-                KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN -> 281
-                KeyCode.REMOTE_BUTTON_A -> 96
-                KeyCode.REMOTE_BUTTON_B -> 97
-                KeyCode.REMOTE_MENU -> 82
-                KeyCode.TV_INPUT -> 178
-                KeyCode.TV_INPUT_HDMI_1 -> 243
-                KeyCode.TV_INPUT_HDMI_2 -> 244
-                KeyCode.TV_INPUT_HDMI_3 -> 245
-            }
-
+            val intCode: Int = mapKeyCodeToAndroidCode(code)
             dadb.shell("input keyevent $intCode")
             Thread.sleep(300)
+        }
+    }
+
+    override fun pressKeyCombination(codes: List<KeyCode>) {
+        metrics.measured("operation", mapOf("command" to "pressKeyCombination")) {
+            if (codes.isEmpty()) {
+                return@measured
+            }
+            
+            if (codes.size == 1) {
+                // Single key, use regular pressKey
+                pressKey(codes[0])
+                return@measured
+            }
+            
+            // For Android, we need to press keys simultaneously using input keyevent with multiple codes
+            val intCodes = codes.map { mapKeyCodeToAndroidCode(it) }
+            val keyEventCommand = intCodes.joinToString(" ") { "$it" }
+            
+            // Use a shell command that presses multiple keys simultaneously
+            // This approach sends all key events in rapid succession to simulate simultaneous press
+            val commands = intCodes.map { "input keyevent $it" }
+            val combinedCommand = commands.joinToString(" & ") + " & wait"
+            
+            dadb.shell(combinedCommand)
+            Thread.sleep(300)
+        }
+    }
+
+    private fun mapKeyCodeToAndroidCode(code: KeyCode): Int {
+        return when (code) {
+            KeyCode.ENTER -> 66
+            KeyCode.BACKSPACE -> 67
+            KeyCode.BACK -> 4
+            KeyCode.VOLUME_UP -> 24
+            KeyCode.VOLUME_DOWN -> 25
+            KeyCode.HOME -> 3
+            KeyCode.LOCK -> 276
+            KeyCode.REMOTE_UP -> 19
+            KeyCode.REMOTE_DOWN -> 20
+            KeyCode.REMOTE_LEFT -> 21
+            KeyCode.REMOTE_RIGHT -> 22
+            KeyCode.REMOTE_CENTER -> 23
+            KeyCode.REMOTE_PLAY_PAUSE -> 85
+            KeyCode.REMOTE_STOP -> 86
+            KeyCode.REMOTE_NEXT -> 87
+            KeyCode.REMOTE_PREVIOUS -> 88
+            KeyCode.REMOTE_REWIND -> 89
+            KeyCode.REMOTE_FAST_FORWARD -> 90
+            KeyCode.POWER -> 26
+            KeyCode.ESCAPE -> 111
+            KeyCode.TAB -> 62
+            KeyCode.REMOTE_SYSTEM_NAVIGATION_UP -> 280
+            KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN -> 281
+            KeyCode.REMOTE_BUTTON_A -> 96
+            KeyCode.REMOTE_BUTTON_B -> 97
+            KeyCode.REMOTE_MENU -> 82
+            KeyCode.TV_INPUT -> 178
+            KeyCode.TV_INPUT_HDMI_1 -> 243
+            KeyCode.TV_INPUT_HDMI_2 -> 244
+            KeyCode.TV_INPUT_HDMI_3 -> 245
         }
     }
 

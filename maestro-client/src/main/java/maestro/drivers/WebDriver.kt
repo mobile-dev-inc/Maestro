@@ -330,6 +330,28 @@ class WebDriver(
         element.sendKeys(key)
     }
 
+    override fun pressKeyCombination(codes: List<KeyCode>) {
+        val driver = ensureOpen()
+
+        if (codes.isEmpty()) {
+            return
+        }
+        
+        if (codes.size == 1) {
+            // Single key, use regular pressKey
+            pressKey(codes[0])
+            return
+        }
+
+        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
+        val element = driver.findElement(By.ByXPath(xPath))
+        
+        // For web, we can use Selenium's chord functionality to press multiple keys simultaneously
+        val keys = codes.map { mapToSeleniumKey(it) }
+        val chord = Keys.chord(*keys.toTypedArray())
+        element.sendKeys(chord)
+    }
+
     private fun mapToSeleniumKey(code: KeyCode): Keys {
         return when (code) {
             KeyCode.ENTER -> Keys.ENTER

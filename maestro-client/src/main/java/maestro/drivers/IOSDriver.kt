@@ -143,25 +143,52 @@ class IOSDriver(
 
     override fun pressKey(code: KeyCode) {
         metrics.measured("operation", mapOf("command" to "pressKey")) {
-            val keyCodeNameMap = mapOf(
-                KeyCode.BACKSPACE to "delete",
-                KeyCode.ENTER to "return",
-            )
-
-            val buttonNameMap = mapOf(
-                KeyCode.HOME to "home",
-                KeyCode.LOCK to "lock",
-            )
-
             runDeviceCall("pressKey") {
-                keyCodeNameMap[code]?.let { name ->
-                    iosDevice.pressKey(name)
-                }
+                pressKeyInternal(code)
+            }
+        }
+    }
 
-                buttonNameMap[code]?.let { name ->
-                    iosDevice.pressButton(name)
+    override fun pressKeyCombination(codes: List<KeyCode>) {
+        metrics.measured("operation", mapOf("command" to "pressKeyCombination")) {
+            if (codes.isEmpty()) {
+                return@measured
+            }
+            
+            if (codes.size == 1) {
+                // Single key, use regular pressKey
+                pressKey(codes[0])
+                return@measured
+            }
+            
+            runDeviceCall("pressKeyCombination") {
+                // For iOS, we need to coordinate multiple key presses
+                // Since iOS XCTest doesn't have native key combination support,
+                // we'll press keys in rapid succession to simulate simultaneous press
+                codes.forEach { code ->
+                    pressKeyInternal(code)
                 }
             }
+        }
+    }
+
+    private fun pressKeyInternal(code: KeyCode) {
+        val keyCodeNameMap = mapOf(
+            KeyCode.BACKSPACE to "delete",
+            KeyCode.ENTER to "return",
+        )
+
+        val buttonNameMap = mapOf(
+            KeyCode.HOME to "home",
+            KeyCode.LOCK to "lock",
+        )
+
+        keyCodeNameMap[code]?.let { name ->
+            iosDevice.pressKey(name)
+        }
+
+        buttonNameMap[code]?.let { name ->
+            iosDevice.pressButton(name)
         }
     }
 

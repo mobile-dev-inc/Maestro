@@ -1,0 +1,21 @@
+appId: com.example.app
+---
+# Test single key (backward compatibility)
+- pressKey: Enter
+- pressKey: Power
+
+# Test key combinations (new functionality)
+- pressKey: [Power, Volume Down]
+- pressKey: [Volume Up, Power]
+- pressKey: [Home, Power]
+
+# Test mixed case handling in combinations
+- pressKey: [power, VOLUME_DOWN]
+- pressKey: [Volume Up, home]
+
+# Test remote control key combinations
+- pressKey: [Remote Dpad Up, Remote Button A]
+- pressKey: [Remote Media Play Pause, Remote Menu]
+
+# Test TV input combinations
+- pressKey: [TV Input, Remote Button B]

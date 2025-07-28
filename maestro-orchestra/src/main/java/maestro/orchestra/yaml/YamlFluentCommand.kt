@@ -289,11 +289,31 @@ data class YamlFluentCommand(
 
             pressKey != null -> listOf(
                 MaestroCommand(
-                    PressKeyCommand(
-                        code = KeyCode.getByName(pressKey.key) ?: throw SyntaxError("Unknown key name: $pressKey"),
-                        label = pressKey.label,
-                        optional = pressKey.optional
-                    )
+                    when {
+                        pressKey.key != null -> {
+                            // Single key (backward compatibility)
+                            PressKeyCommand(
+                                code = KeyCode.getByName(pressKey.key) ?: throw SyntaxError("Unknown key name: ${pressKey.key}"),
+                                label = pressKey.label,
+                                optional = pressKey.optional
+                            )
+                        }
+                        pressKey.keys != null -> {
+                            // Key combination
+                            val keyCodes = pressKey.keys.map { keyName ->
+                                KeyCode.getByName(keyName) ?: throw SyntaxError("Unknown key name: $keyName")
+                            }
+                            if (keyCodes.isEmpty()) {
+                                throw SyntaxError("Key combination cannot be empty")
+                            }
+                            PressKeyCommand(
+                                codes = keyCodes,
+                                label = pressKey.label,
+                                optional = pressKey.optional
+                            )
+                        }
+                        else -> throw SyntaxError("Either 'key' or 'keys' must be specified in pressKey command")
+                    }
                 )
             )
 

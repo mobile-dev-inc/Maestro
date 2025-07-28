@@ -1,0 +1,24 @@
+appId: com.example.app
+---
+# Test the primary use case: taking screenshots with key combinations
+# This simulates pressing power + volume down simultaneously on Android
+
+# Standard screenshot combination
+- pressKey: [Power, Volume Down]
+
+# Alternative screenshot combinations for different devices
+- pressKey: [Power, Volume Up]
+
+# Test with different case variations
+- pressKey: [power, volume_down]
+- pressKey: [POWER, VOLUME_DOWN]
+
+# Test combined with other actions
+- pressKey: Home
+- pressKey: [Power, Volume Down]
+- takeScreenshot
+
+# Test multiple screenshot combinations in sequence
+- pressKey: [Power, Volume Down]
+- pressKey: [Power, Volume Down]
+- pressKey: [Power, Volume Down]

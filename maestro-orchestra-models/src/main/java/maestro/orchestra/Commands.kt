@@ -544,17 +544,37 @@ data class OpenLinkCommand(
 }
 
 data class PressKeyCommand(
-    val code: KeyCode,
+    val code: KeyCode? = null,
+    val codes: List<KeyCode>? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
+    init {
+        if (code == null && codes == null) {
+            throw IllegalArgumentException("Either 'code' or 'codes' must be specified")
+        }
+        if (code != null && codes != null) {
+            throw IllegalArgumentException("Cannot specify both 'code' and 'codes' at the same time")
+        }
+    }
+
     override val originalDescription: String
-        get() = "Press ${code.description} key"
+        get() = when {
+            code != null -> "Press ${code.description} key"
+            codes != null -> "Press key combination: ${codes.joinToString(" + ") { it.description }}"
+            else -> "Press key"
+        }
 
     override fun evaluateScripts(jsEngine: JsEngine): PressKeyCommand {
         return this
     }
+    
+    // Helper methods for backward compatibility
+    fun isSingleKey(): Boolean = code != null
+    fun isKeyCombination(): Boolean = codes != null
+    fun getSingleKey(): KeyCode = code ?: throw IllegalStateException("Not a single key command")
+    fun getKeyCombination(): List<KeyCode> = codes ?: throw IllegalStateException("Not a key combination command")
 }
 
 data class EraseTextCommand(

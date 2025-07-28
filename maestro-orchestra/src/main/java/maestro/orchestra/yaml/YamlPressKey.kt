@@ -3,7 +3,8 @@ package maestro.orchestra.yaml
 import com.fasterxml.jackson.annotation.JsonCreator
 
 data class YamlPressKey (
-    val key: String,
+    val key: String? = null,
+    val keys: List<String>? = null,
     val label: String? = null,
     val optional: Boolean = false,
 ){
@@ -13,5 +14,20 @@ data class YamlPressKey (
         fun parse(key: String) = YamlPressKey(
             key = key,
         )
+        
+        @JvmStatic
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        fun parse(keys: List<String>) = YamlPressKey(
+            keys = keys,
+        )
+    }
+    
+    init {
+        if (key == null && keys == null) {
+            throw IllegalArgumentException("Either 'key' or 'keys' must be specified")
+        }
+        if (key != null && keys != null) {
+            throw IllegalArgumentException("Cannot specify both 'key' and 'keys' at the same time")
+        }
     }
 }

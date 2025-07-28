@@ -3870,7 +3870,208 @@ class IntegrationTest {
         driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
         driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
     }
-    
+
+    @Test
+    fun `Case 127 - Press key combination`() {
+        // Given
+        val commands = readCommands("127_press_key_combination")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // Test backward compatibility - single keys
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.ENTER))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.POWER))
+        
+        // Test key combinations
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.VOLUME_DOWN)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.VOLUME_UP, KeyCode.POWER)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.HOME, KeyCode.POWER)))
+        
+        // Test mixed case handling
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.VOLUME_DOWN)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.VOLUME_UP, KeyCode.HOME)))
+        
+        // Test remote control combinations
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.REMOTE_UP, KeyCode.REMOTE_BUTTON_A)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.REMOTE_PLAY_PAUSE, KeyCode.REMOTE_MENU)))
+        
+        // Test TV input combinations
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.TV_INPUT, KeyCode.REMOTE_BUTTON_B)))
+    }
+
+    @Test
+    fun `Case 127 - Press key combination - backward compatibility with existing single key tests`() {
+        // Given - use the existing 034_press_key.yaml to ensure backward compatibility
+        val commands = readCommands("034_press_key")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - all existing single key tests should still work
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.ENTER))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.BACKSPACE))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.HOME))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.BACK))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.VOLUME_UP))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.VOLUME_DOWN))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.LOCK))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_UP))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_DOWN))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_LEFT))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_RIGHT))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_CENTER))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_PLAY_PAUSE))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_STOP))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_NEXT))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_PREVIOUS))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_REWIND))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_FAST_FORWARD))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.POWER))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.TAB))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_SYSTEM_NAVIGATION_UP))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_BUTTON_A))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_BUTTON_B))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.REMOTE_MENU))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.TV_INPUT))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.TV_INPUT_HDMI_1))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.TV_INPUT_HDMI_2))
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.TV_INPUT_HDMI_3))
+        
+        // Ensure no key combination events are generated for single key presses
+        driver.assertNoEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.ENTER)))
+        driver.assertNoEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER)))
+    }
+
+    @Test
+    fun `Case 128 - Press key combination edge cases`() {
+        // Given
+        val commands = readCommands("128_press_key_combination_edge_cases")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // Test single key in array format (should work like single key but use combination method)
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.ENTER)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER)))
+        
+        // Test duplicate keys in combination
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.POWER)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.VOLUME_UP, KeyCode.VOLUME_UP, KeyCode.VOLUME_DOWN)))
+        
+        // Test maximum reasonable combination
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.VOLUME_UP, KeyCode.VOLUME_DOWN, KeyCode.HOME)))
+        
+        // Test case variations
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.VOLUME_DOWN)))
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.HOME, KeyCode.BACK)))
+    }
+
+    @Test
+    fun `Case 128 - Press key combination error handling - empty array`() {
+        // Given - create a command with empty key array
+        val yamlContent = """
+            appId: com.example.app
+            ---
+            - pressKey: []
+        """.trimIndent()
+        
+        // When & Then - should throw an exception during parsing
+        assertThrows<Exception> {
+            val tempFile = kotlin.io.path.createTempFile(suffix = ".yaml").toFile()
+            tempFile.writeText(yamlContent)
+            try {
+                YamlCommandReader.readCommands(tempFile.toPath())
+            } finally {
+                tempFile.delete()
+            }
+        }
+    }
+
+    @Test
+    fun `Case 128 - Press key combination error handling - invalid key name`() {
+        // Given - create a command with invalid key name
+        val yamlContent = """
+            appId: com.example.app
+            ---
+            - pressKey: [Power, InvalidKeyName]
+        """.trimIndent()
+        
+        // When & Then - should throw an exception during parsing
+        assertThrows<Exception> {
+            val tempFile = kotlin.io.path.createTempFile(suffix = ".yaml").toFile()
+            tempFile.writeText(yamlContent)
+            try {
+                YamlCommandReader.readCommands(tempFile.toPath())
+            } finally {
+                tempFile.delete()
+            }
+        }
+    }
+
+    @Test
+    fun `Case 129 - Press key combination for screenshots`() {
+        // Given
+        val commands = readCommands("129_press_key_screenshot_combination")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // Test standard screenshot combination (Power + Volume Down)
+        driver.assertEventCount(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.VOLUME_DOWN)), 6)
+        
+        // Test alternative screenshot combination (Power + Volume Up)
+        driver.assertHasEvent(FakeDriver.Event.PressKeyCombination(listOf(KeyCode.POWER, KeyCode.VOLUME_UP)))
+        
+        // Test single key press mixed with combinations
+        driver.assertHasEvent(FakeDriver.Event.PressKey(KeyCode.HOME))
+        
+        // Test takeScreenshot command
+        driver.assertHasEvent(FakeDriver.Event.TakeScreenshot)
+        
+        // Verify the sequence: Home -> Key Combination -> Screenshot
+        val events = driver.getEvents()
+        val homeIndex = events.indexOfFirst { it is FakeDriver.Event.PressKey && it.code == KeyCode.HOME }
+        val combinationIndex = events.indexOfLast { it is FakeDriver.Event.PressKeyCombination &&
+            it.codes == listOf(KeyCode.POWER, KeyCode.VOLUME_DOWN) }
+        val screenshotIndex = events.indexOfFirst { it is FakeDriver.Event.TakeScreenshot }
+        
+        assertThat(homeIndex).isLessThan(combinationIndex)
+        assertThat(combinationIndex).isLessThan(screenshotIndex)
+    }
+     
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
