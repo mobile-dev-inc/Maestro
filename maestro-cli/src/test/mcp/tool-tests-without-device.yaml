@@ -45,7 +45,7 @@ tools:
     - name: "Check valid flow syntax"
       tool: "check_flow_syntax"
       params:
-        flowYaml: |
+        flow_yaml: |
           appId: com.apple.mobilesafari
           ---
           - tapOn: "Search"
@@ -58,7 +58,7 @@ tools:
     - name: "Check invalid flow syntax"
       tool: "check_flow_syntax"
       params:
-        flowYaml: "invalid[yaml"
+        flow_yaml: "invalid[yaml"
       expect:
         success: true
         result:
@@ -71,4 +71,4 @@ tools:
       expect:
         success: true
         result:
-          contains: "deviceId"
+          contains: "device_id"

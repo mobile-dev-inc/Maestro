@@ -87,7 +87,6 @@ dependencies {
     implementation(libs.mcp.kotlin.sdk) {
         exclude(group = "org.slf4j", module = "slf4j-simple")
     }
-    implementation(libs.xemantic.ai.tool.schema)
     implementation(libs.logging.sl4j)
     implementation(libs.logging.api)
     implementation(libs.logging.layout.template)
