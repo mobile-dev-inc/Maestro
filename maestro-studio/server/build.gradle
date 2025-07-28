@@ -52,3 +52,8 @@ dependencies {
     implementation(libs.jackson.module.kotlin)
     implementation(libs.square.okhttp)
 }
+
+
+kotlin {
+    jvmToolchain(17)
+}

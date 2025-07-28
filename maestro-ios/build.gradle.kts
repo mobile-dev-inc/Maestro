@@ -55,6 +55,10 @@ mavenPublishing {
     publishToMavenCentral(true)
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }

@@ -45,3 +45,7 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
     environment.put("PROJECT_DIR", projectDir.absolutePath)
 }
+
+kotlin {
+    jvmToolchain(17)
+}
