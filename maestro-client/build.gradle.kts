@@ -35,6 +35,17 @@ tasks.named("compileKotlin") {
     dependsOn("generateProto")
 }
 
+tasks.named("processResources") {
+    dependsOn(":maestro-android:copyMaestroAndroid")
+}
+
+tasks.whenTaskAdded {
+    if (name == "sourcesJar" && this is Jar) {
+        dependsOn(":maestro-android:copyMaestroAndroid")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+}
+
 kotlin.sourceSets.all {
     // Prevent build warnings for grpc's generated opt-in code
     languageSettings.optIn("kotlin.RequiresOptIn")
