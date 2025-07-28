@@ -86,7 +86,7 @@ class AndroidIntegrationTest {
             val screenshotFile = debugOutput.resolve(flowName + "_failure.png")
 
             maestro.takeScreenshot(screenshotFile.sink(), true)
-            dadb.shell("")
+            captureLogs(name = "${flowName}_device_logs")
 
             throw exception
         } finally {
@@ -94,10 +94,10 @@ class AndroidIntegrationTest {
         }
     }
 
-    private fun captureLogs(runId: String, vararg options: String): Result<File> {
-        return runCatching {
+    private fun captureLogs(name: String, vararg options: String){
+        runCatching {
             if (dadb.createTmpDirectoryIfDoesntExist("logs")) {
-                val logFileName = runId + SimpleDateFormat(
+                val logFileName = name + SimpleDateFormat(
                     "-yyyy-MM-dd_HH-mm-ss_SSS",
                     Locale.US
                 ).format(Date()) + ".txt"
@@ -108,11 +108,11 @@ class AndroidIntegrationTest {
                 dadb.shell("logcat -v time -f $logFilePath -d -b main -b system -T 1000 ${options.joinToString(" ")}")
 
                 // Pull the file from device to host
-                val localFile = File(System.getProperty("java.io.tmpdir"), logFileName)
-                dadb.pull(File(logFilePath), localFile.path)
-                localFile
+                val debugOutput = TestDebugReporter.getDebugOutputPath()
+                val deviceLogsFile = debugOutput.resolve(logFileName)
+                dadb.pull(File(logFilePath), deviceLogsFile.toFile().path)
             } else {
-                throw IOException("Failed to write logs for $runId, logs directory was not available")
+                throw IOException("Failed to write logs for $name, logs directory was not available")
             }
         }
     }
