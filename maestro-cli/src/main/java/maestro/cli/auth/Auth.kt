@@ -78,7 +78,15 @@ class Auth(
         val deferredToken = CompletableDeferred<String>()
 
         val port = getFreePort()
-        val server = embeddedServer(Netty, configure = { shutdownTimeout = 0; shutdownGracePeriod = 0 }, port = port) {
+
+        val server = embeddedServer(Netty, configure = {
+            connectors.add(EngineConnectorBuilder().apply {
+                host = "localhost"
+                this.port = port
+            })
+            shutdownGracePeriod = 0
+            shutdownTimeout = 0
+        }) {
             routing {
                 get("/callback") {
                     handleCallback(call, deferredToken)
