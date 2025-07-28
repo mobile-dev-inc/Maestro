@@ -16,9 +16,3 @@ appId: com.example.app
 # Test combined with other actions
 - pressKey: Home
 - pressKey: [Power, Volume Down]
-- takeScreenshot
-
-# Test multiple screenshot combinations in sequence
-- pressKey: [Power, Volume Down]
-- pressKey: [Power, Volume Down]
-- pressKey: [Power, Volume Down]
