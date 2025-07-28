@@ -969,7 +969,14 @@ class Orchestra(
     }
 
     private fun pressKeyCommand(command: PressKeyCommand): Boolean {
-        maestro.pressKey(command.code)
+        when {
+            command.isSingleKey() -> {
+                maestro.pressKey(command.getSingleKey())
+            }
+            command.isKeyCombination() -> {
+                maestro.pressKeyCombination(command.getKeyCombination())
+            }
+        }
 
         return true
     }

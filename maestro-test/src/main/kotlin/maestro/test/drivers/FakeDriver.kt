@@ -167,6 +167,18 @@ class FakeDriver : Driver {
         events += Event.PressKey(code)
     }
 
+    override fun pressKeyCombination(codes: List<KeyCode>) {
+        ensureOpen()
+
+        codes.forEach { code ->
+            if (code == KeyCode.BACKSPACE) {
+                currentText = currentText.dropLast(1)
+            }
+        }
+
+        events += Event.PressKeyCombination(codes)
+    }
+
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         ensureOpen()
 
@@ -368,6 +380,10 @@ class FakeDriver : Driver {
         assertThat(currentText).isEqualTo(expected)
     }
 
+    fun getEvents(): List<Event> {
+        return events.toList()
+    }
+
     private fun ensureOpen() {
         if (state != State.OPEN) {
             throw IllegalStateException("Driver is not opened yet")
@@ -493,6 +509,10 @@ class FakeDriver : Driver {
 
         data class PressKey(
             val code: KeyCode,
+        ) : Event()
+
+        data class PressKeyCombination(
+            val codes: List<KeyCode>,
         ) : Event()
 
         data class SetOrientation(

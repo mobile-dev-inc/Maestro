@@ -1,0 +1,19 @@
+appId: com.example.app
+---
+# Test empty combination (should be handled gracefully)
+# This will be tested separately as it should cause an error
+
+# Test single key in array format (should work like regular single key)
+- pressKey: [Enter]
+- pressKey: [Power]
+
+# Test duplicate keys in combination
+- pressKey: [Power, Power]
+- pressKey: [Volume Up, Volume Up, Volume Down]
+
+# Test maximum reasonable combination (3-4 keys)
+- pressKey: [Power, Volume Up, Volume Down, Home]
+
+# Test case variations
+- pressKey: [POWER, volume_down]
+- pressKey: [Home, BACK]

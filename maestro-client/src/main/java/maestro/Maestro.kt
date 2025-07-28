@@ -408,6 +408,16 @@ class Maestro(
         }
     }
 
+    fun pressKeyCombination(codes: List<KeyCode>, waitForAppToSettle: Boolean = true) {
+        LOGGER.info("Pressing key combination: ${codes.joinToString(" + ") { it.description }}")
+
+        driver.pressKeyCombination(codes)
+
+        if (waitForAppToSettle) {
+            waitForAppToSettle()
+        }
+    }
+
     fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy {
         return ViewHierarchy.from(driver, excludeKeyboardElements)
     }

@@ -375,7 +375,7 @@ internal class MaestroCommandSerializationTest {
     fun `serialize PressKeyCommand`() {
         // given
         val command = MaestroCommand(
-            PressKeyCommand(KeyCode.ENTER)
+            PressKeyCommand(code = KeyCode.ENTER)
         )
 
         // when
@@ -388,6 +388,33 @@ internal class MaestroCommandSerializationTest {
             {
               "pressKeyCommand" : {
                 "code" : "ENTER",
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize PressKeyCommand with key combination`() {
+        // given
+        val command = MaestroCommand(
+            PressKeyCommand(codes = listOf(KeyCode.ENTER, KeyCode.BACKSPACE))
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "pressKeyCommand" : {
+                "codes" : [ "ENTER", "BACKSPACE" ],
                 "optional" : false
               }
             }
