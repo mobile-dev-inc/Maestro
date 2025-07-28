@@ -37,8 +37,18 @@ enum class KeyCode(
 
     companion object {
         fun getByName(name: String): KeyCode? {
-            val lowercaseName = name.lowercase()
-            return values().find { it.description.lowercase() == lowercaseName }
+            val normalizedName = name.lowercase().replace("_", " ").replace("-", " ")
+            
+            // First try to match by description (e.g., "Volume Down")
+            values().find { it.description.lowercase() == normalizedName }?.let { return it }
+            
+            // Then try to match by enum name (e.g., "VOLUME_DOWN")
+            val enumName = name.uppercase().replace(" ", "_").replace("-", "_")
+            return try {
+                valueOf(enumName)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
         }
     }
 
