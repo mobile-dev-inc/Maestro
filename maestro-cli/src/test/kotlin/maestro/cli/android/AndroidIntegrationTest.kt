@@ -1,5 +1,6 @@
 package maestro.cli.android
 
+import dadb.Dadb
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.report.TestDebugReporter
@@ -15,12 +16,21 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlinx.coroutines.runBlocking
+import kotlinx.io.IOException
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Tag("IntegrationTest")
 class AndroidIntegrationTest {
 
     private lateinit var driver: AndroidDriver
     private lateinit var maestro: Maestro
+    private lateinit var dadb: Dadb
+
+    private val logsDir = "/data/local/tmp/logs"
+
 
     companion object {
 
@@ -36,7 +46,7 @@ class AndroidIntegrationTest {
 
     @BeforeEach
     fun setup() {
-        val dadb = AndroidDeviceProvider().local()
+        dadb = AndroidDeviceProvider().local()
         driver = AndroidDriver(dadb)
         maestro = Maestro.android(driver)
     }
@@ -74,12 +84,42 @@ class AndroidIntegrationTest {
         } catch (exception: MaestroException) {
             val debugOutput =  TestDebugReporter.getDebugOutputPath()
             val screenshotFile = debugOutput.resolve(flowName + "_failure.png")
+
             maestro.takeScreenshot(screenshotFile.sink(), true)
+            dadb.shell("")
 
             throw exception
         } finally {
             maestro.close()
         }
     }
+
+    private fun captureLogs(runId: String, vararg options: String): Result<File> {
+        return runCatching {
+            if (dadb.createTmpDirectoryIfDoesntExist("logs")) {
+                val logFileName = runId + SimpleDateFormat(
+                    "-yyyy-MM-dd_HH-mm-ss_SSS",
+                    Locale.US
+                ).format(Date()) + ".txt"
+                val logFilePath = "$logsDir/$logFileName"
+
+                // Limit the logcat output size by using -b with a size limit
+                // or add time constraints to reduce the log volume
+                dadb.shell("logcat -v time -f $logFilePath -d -b main -b system -T 1000 ${options.joinToString(" ")}")
+
+                // Pull the file from device to host
+                val localFile = File(System.getProperty("java.io.tmpdir"), logFileName)
+                dadb.pull(File(logFilePath), localFile.path)
+                localFile
+            } else {
+                throw IOException("Failed to write logs for $runId, logs directory was not available")
+            }
+        }
+    }
+
+    private fun Dadb.createTmpDirectoryIfDoesntExist(dirName: String): Boolean {
+        return shell("mkdir -p /data/local/tmp/$dirName").exitCode == 0
+    }
+
 
 }
