@@ -132,6 +132,10 @@ tasks.named("assembleAndroidTest") {
     finalizedBy("copyMaestroServer")
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 sourceSets {
     create("generated") {
         java {
