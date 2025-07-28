@@ -58,8 +58,7 @@ coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
 clikt = "4.2.2"
 gmsLocation = "21.3.0"
-mcpKotlinSdk = "0.6.0"  # Git branch name
-xemanticAiToolSchema = "1.1.2"
+mcpKotlinSdk = "steviec/kotlin-1.8"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -142,8 +141,7 @@ logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "lo
 logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "logback" }
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4jCore" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
-mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref="mcpKotlinSdk" }
-xemantic-ai-tool-schema = { module = "com.xemantic.ai:xemantic-ai-tool-schema", version.ref = "xemanticAiToolSchema" }
+mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
 
 [bundles]
 

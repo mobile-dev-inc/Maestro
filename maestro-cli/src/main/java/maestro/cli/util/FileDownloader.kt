@@ -36,11 +36,8 @@ object FileDownloader {
 
                 var offset = 0
                 do {
-                    val currentRead = bodyChannel.readAvailable(
-                        buffer = data,
-                        offset = offset,
-                        length = data.size
-                    )
+                    val currentRead = bodyChannel
+                        .readAvailable(data, offset, data.size)
 
                     offset += currentRead
                     val progress = offset / data.size.toFloat()
