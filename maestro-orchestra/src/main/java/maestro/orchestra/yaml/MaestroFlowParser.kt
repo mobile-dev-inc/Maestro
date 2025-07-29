@@ -201,6 +201,41 @@ private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Pat
             docs = e.docs
         )
     }
+    findException<ConfigParseError>(error)?.let { e ->
+        return when (e.errorType) {
+            "missing_app_target" -> FlowParseException(
+                location = e.location ?: parser.currentLocation(),
+                contentPath = contentPath,
+                content = content,
+                title = "Config Field Required",
+                errorMessage = """
+                    |Either 'url' or 'appId' must be specified in the config section.
+                    |
+                    |For mobile apps, use:
+                    |```yaml
+                    |appId: com.example.app
+                    |---
+                    |- launchApp
+                    |```
+                    |
+                    |For web apps, use:
+                    |```yaml
+                    |url: https://example.com
+                    |---
+                    |- launchApp
+                    |```
+                """.trimMargin("|"),
+                docs = DOCS_FIRST_FLOW,
+            )
+            else -> FlowParseException(
+                location = e.location ?: parser.currentLocation(),
+                contentPath = contentPath,
+                content = content,
+                title = "Config Parse Error",
+                errorMessage = "Unknown config validation error: ${e.errorType}",
+            )
+        }
+    }
     findException<MissingKotlinParameterException>(error)?.let { e ->
         return FlowParseException(
             location = e.location ?: parser.currentLocation(),
