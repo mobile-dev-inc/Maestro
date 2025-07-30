@@ -1,4 +1,4 @@
-> Config Field Required: appId
+> Config Field Required
 
 /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
 ╭────────────────────────────────────────────────────────────────────────╮
@@ -6,10 +6,18 @@
 │ 2 | ---                                                                │
 │     ^                                                                  │
 │ ╭────────────────────────────────────────────────────────────────────╮ │
-│ │ The config section is missing a required field: `appId`. Eg.       │ │
+│ │ Either 'url' or 'appId' must be specified in the config section.   │ │
 │ │                                                                    │ │
+│ │ For mobile apps, use:                                              │ │
 │ │ ```yaml                                                            │ │
 │ │ appId: com.example.app                                             │ │
+│ │ ---                                                                │ │
+│ │ - launchApp                                                        │ │
+│ │ ```                                                                │ │
+│ │                                                                    │ │
+│ │ For web apps, use:                                                 │ │
+│ │ ```yaml                                                            │ │
+│ │ url: https://example.com                                           │ │
 │ │ ---                                                                │ │
 │ │ - launchApp                                                        │ │
 │ │ ```                                                                │ │
