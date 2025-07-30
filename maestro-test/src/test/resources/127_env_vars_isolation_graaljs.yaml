@@ -1,19 +1,23 @@
 appId: com.example.app
-ext:
-  jsEngine: graaljs
+jsEngine: graaljs
 env:
-  GLOBAL_VAR: "available"
+  MY_VAR: 0
 ---
-# First flow sets a local variable
 - runFlow:
-    commands:
-      - assertTrue: ${GLOBAL_VAR == "available"}  # Should work - global var accessible
-      - assertTrue: ${FLOW1_VAR == "set"}         # Should work - local var accessible
     env:
-      FLOW1_VAR: "set"
+      MY_VAR: 1
+    commands:
+      - assertTrue: ${MY_VAR == 1} 
+      - evalScript: ${if(MY_VAR !== '1') { throw Error } } # tests scoping for evalScript
+      - runFlow: 
+          env:
+            MY_VAR: 2
+          commands:
+            - assertTrue: ${MY_VAR == 2}
+      - assertTrue: ${MY_VAR == 1} 
 
+  
 # Second flow should NOT see first flow's variable
 - runFlow:
     commands:
-      - assertTrue: ${GLOBAL_VAR == "available"}      # Should work - global var still accessible  
-      - assertTrue: ${typeof FLOW1_VAR === 'undefined'}  # Should work - proves isolation
+      - assertTrue: ${MY_VAR == 0}
