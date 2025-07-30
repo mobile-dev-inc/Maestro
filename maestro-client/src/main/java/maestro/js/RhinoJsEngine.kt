@@ -118,4 +118,16 @@ class RhinoJsEngine(
         )
     }
 
+    override fun enterEnvScope() {
+        // Create a new environment variable scope for flow isolation.
+        // For RhinoJS, we can use the existing JavaScript scope mechanism
+        // which automatically handles variable isolation and cleanup.
+        enterScope()
+    }
+
+    override fun leaveEnvScope() {
+        // For RhinoJS, we can use the existing scope mechanism
+        leaveScope()
+    }
+
 }

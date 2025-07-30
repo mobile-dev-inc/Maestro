@@ -37,6 +37,9 @@ class GraalJsEngine(
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
+    
+    // Stack to track environment variable scopes for proper isolation
+    private val envScopeStack = mutableListOf<HashMap<String, String>>()
 
     private var onLogMessage: (String) -> Unit = {}
 
@@ -120,5 +123,22 @@ class GraalJsEngine(
         )
 
         return context
+    }
+
+    override fun enterEnvScope() {
+        // Create a new environment variable scope for flow isolation.
+        // For GraalJS, we manually manage environment variable scoping by
+        // saving the current environment state to a stack before allowing
+        // new variables to be added or existing ones to be overridden.
+        envScopeStack.add(HashMap(envBinding))
+    }
+
+    override fun leaveEnvScope() {
+        // Restore previous environment state
+        if (envScopeStack.isNotEmpty()) {
+            val previousEnv = envScopeStack.removeAt(envScopeStack.size - 1)
+            envBinding.clear()
+            envBinding.putAll(previousEnv)
+        }
     }
 }
