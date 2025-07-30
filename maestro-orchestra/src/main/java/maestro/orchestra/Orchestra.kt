@@ -911,28 +911,34 @@ class Orchestra(
         config: MaestroConfig?,
         subflowConfig: MaestroConfig?,
     ): Boolean {
-        executeDefineVariablesCommands(commands, config)
-        // filter out DefineVariablesCommand to not execute it twice
-        val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
+        // Enter environment scope to isolate environment variables for this subflow
+        jsEngine.enterEnvScope()
+        return try {
+            executeDefineVariablesCommands(commands, config)
+            // filter out DefineVariablesCommand to not execute it twice
+            val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
-        var flowSuccess = false
-        val onCompleteSuccess: Boolean
-        try {
-            val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
-                executeSubflowCommands(it, config)
-            } ?: true
+            var flowSuccess = false
+            val onCompleteSuccess: Boolean
+            try {
+                val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
+                    executeSubflowCommands(it, config)
+                } ?: true
 
-            if (onStartSuccess) {
-                flowSuccess = executeSubflowCommands(filteredCommands, config)
+                if (onStartSuccess) {
+                    flowSuccess = executeSubflowCommands(filteredCommands, config)
+                }
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
+                    executeSubflowCommands(it, config)
+                } ?: true
             }
-        } catch (e: Throwable) {
-            throw e
+            onCompleteSuccess && flowSuccess
         } finally {
-            onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
-                executeSubflowCommands(it, config)
-            } ?: true
+            jsEngine.leaveEnvScope()
         }
-        return onCompleteSuccess && flowSuccess
     }
 
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {

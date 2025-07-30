@@ -1,0 +1,19 @@
+appId: com.example.app
+ext:
+  jsEngine: graaljs
+env:
+  GLOBAL_VAR: "available"
+---
+# First flow sets a local variable
+- runFlow:
+    commands:
+      - assertTrue: ${GLOBAL_VAR == "available"}  # Should work - global var accessible
+      - assertTrue: ${FLOW1_VAR == "set"}         # Should work - local var accessible
+    env:
+      FLOW1_VAR: "set"
+
+# Second flow should NOT see first flow's variable
+- runFlow:
+    commands:
+      - assertTrue: ${GLOBAL_VAR == "available"}      # Should work - global var still accessible  
+      - assertTrue: ${typeof FLOW1_VAR === 'undefined'}  # Should work - proves isolation
