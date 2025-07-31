@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":maestro-client"))
     api(project(":maestro-ai"))
     api(project(":maestro-utils"))
+    api(project(":maestro-plugins"))
 
     api(libs.square.okio)
     api(libs.jackson.core.databind)
