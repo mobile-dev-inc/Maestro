@@ -170,6 +170,9 @@ class TestCommand : Callable<Int> {
     @Option(names = ["--api-key"], description = ["[Beta] API key"])
     private var apiKey: String? = null
 
+    @Option(names = ["--driver-port"], description = ["Driver port"])
+    private var driverPort: String? = null
+
     private val client: ApiClient = ApiClient(baseUrl = apiUrl)
     private val auth: Auth = Auth(client)
     private val authToken: String? = auth.getAuthToken(apiKey, triggerSignIn = false)
@@ -232,11 +235,10 @@ class TestCommand : Callable<Int> {
         }
 
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
-
-        return handleSessions(debugOutputPath, executionPlan)
+        return handleSessions(debugOutputPath, executionPlan, driverPort?.toInt())
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan): Int = runBlocking(Dispatchers.IO) {
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, driverPort: Int?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -298,7 +300,6 @@ class TestCommand : Callable<Int> {
             else -> null
         }
         message?.let { PrintUtils.info(it) }
-
         val results = (0 until effectiveShards).map { shardIndex ->
             async(Dispatchers.IO + CoroutineName("shard-$shardIndex")) {
                 runShardSuite(
@@ -307,6 +308,7 @@ class TestCommand : Callable<Int> {
                     shardIndex = shardIndex,
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
+                    driverPort = driverPort,
                 )
             }
         }.awaitAll()
@@ -328,8 +330,9 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
+        driverPort: Int?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
-        val driverHostPort = selectPort(effectiveShards)
+        val driverHostPort = driverPort ?: selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
         val executionPlan = chunkPlans[shardIndex]
 
