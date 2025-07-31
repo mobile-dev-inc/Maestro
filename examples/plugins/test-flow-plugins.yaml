@@ -1,0 +1,69 @@
+appId: com.example.dummy
+---
+# Built-in commands still work
+- launchApp
+
+# Simple plugin commands
+- wait: 2.0
+- log: "Test started successfully"
+- wait:
+    seconds: 1.5
+    label: "Just another wait test"
+
+# Plugins below demonstrate reusing built-in Maestro commands
+
+# Test Multi-tap plugin with coordinates
+- tapOn: "Multi-tap"
+- multiTap:
+    x: 200
+    y: 300
+    count: 3
+    delayMs: 1000
+    longPress: false
+
+# Test Multi-tap plugin with element selector
+- multiTap:
+    selector:
+      text: "Submit"
+    count: 2
+    delayMs: 500
+- back
+
+# Test Multi-swipe plugin with directional swipes
+- tapOn: "Multi-swipe"
+- multiSwipe:
+    direction: "UP"
+    count: 3
+    delayMs: 800
+    duration: 400
+
+# Test Multi-swipe plugin with point-to-point swipes
+- multiSwipe:
+    startPoint: "100,400"
+    endPoint: "300,200"
+    count: 2
+    delayMs: 1000
+    duration: 600
+- back
+
+# Test Typewriter plugin
+- tapOn: "Typewriter"
+- typewriter:
+    text: "Hello World!"
+    selector:
+      id: "textInput"
+    characterDelayMs: 150
+    spaceDelayMs: 300
+    eraseFirst: true
+    hideKeyboardWhenDone: true
+
+# Test Typewriter plugin with a longer text
+- typewriter:
+    text: "This is a longer text that will be typed character by character with realistic delays."
+    selector:
+      text: "Type here"
+    characterDelayMs: 100
+    spaceDelayMs: 200
+    eraseFirst: false
+    hideKeyboardWhenDone: true
+- back
