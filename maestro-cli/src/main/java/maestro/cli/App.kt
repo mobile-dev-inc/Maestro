@@ -99,6 +99,12 @@ class App {
 
     @Option(names = ["--verbose"], description = ["Enable verbose logging"])
     var verbose: Boolean = false
+
+    @Option(
+        names = ["--plugins-dir"],
+        description = ["Custom directory for external plugins (default: ~/.maestro/plugins)"]
+    )
+    var pluginsDir: String? = null
 }
 
 private fun printVersion() {
