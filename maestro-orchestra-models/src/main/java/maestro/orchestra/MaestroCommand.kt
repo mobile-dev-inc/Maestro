@@ -116,7 +116,7 @@ data class MaestroCommand(
         setAirplaneModeCommand = command as? SetAirplaneModeCommand,
         toggleAirplaneModeCommand = command as? ToggleAirplaneModeCommand,
         retryCommand = command as? RetryCommand,
-        pluginCommand = if (isPluginCommand(command)) command else null
+        pluginCommand = command as? PluginCommand
     )
 
     fun asCommand(): Command? = when {

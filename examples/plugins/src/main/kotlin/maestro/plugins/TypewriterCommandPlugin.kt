@@ -58,9 +58,9 @@ class TypewriterCommandPlugin : CommandPlugin<TypewriterCommandData> {
                 val text = yamlContent["text"] as? String
                     ?: throw IllegalArgumentException("Typewriter command requires 'text' parameter")
                 
-                val elementSelector = yamlContent["elementSelector"] as? Map<String, Any>
-                val delayPerCharacterMs = (yamlContent["delayPerCharacterMs"] as? Number)?.toLong() ?: 100L
-                val delayAfterWordMs = (yamlContent["delayAfterWordMs"] as? Number)?.toLong() ?: 300L
+                val elementSelector = yamlContent["selector"] as? Map<String, Any>
+                val delayPerCharacterMs = (yamlContent["characterDelayMs"] as? Number)?.toLong() ?: 100L
+                val delayAfterWordMs = (yamlContent["spaceDelayMs"] as? Number)?.toLong() ?: 300L
                 val delayAfterSentenceMs = (yamlContent["delayAfterSentenceMs"] as? Number)?.toLong() ?: 800L
                 val clearBefore = yamlContent["clearBefore"] as? Boolean ?: true
                 val hideKeyboardAfter = yamlContent["hideKeyboardAfter"] as? Boolean ?: true

@@ -63,10 +63,7 @@ val pluginJar by tasks.registering(Jar::class) {
         attributes(
             "Plugin-Name" to (ext.get("pluginName") as String),
             "Plugin-Version" to (ext.get("pluginVersion") as String),
-            "Plugin-Description" to (ext.get("pluginDescription") as String),
-            "Implementation-Title" to (ext.get("pluginName") as String),
-            "Implementation-Version" to (ext.get("pluginVersion") as String),
-            "Implementation-Vendor" to "Maestro Plugin Developer"
+            "Plugin-Description" to (ext.get("pluginDescription") as String)
         )
     }
 }
