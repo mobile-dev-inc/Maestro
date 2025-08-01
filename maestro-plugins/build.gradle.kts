@@ -33,3 +33,7 @@ kotlin {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
+
+tasks.test {
+    useJUnitPlatform()
+}
