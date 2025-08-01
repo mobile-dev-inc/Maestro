@@ -148,13 +148,21 @@ object PluginRegistry {
             
             // Get the description from the plugin
             val description = typedPlugin.getDescription(commandData)
+
+            // Extract label and optional parameters from YAML content
+            @Suppress("UNCHECKED_CAST")
+            val yamlContent = yamlContent as? Map<String, Any> ?: emptyMap<String, Any>()
+            @Suppress("UNCHECKED_CAST")
+            val label = yamlContent["label"] as? String
+            @Suppress("UNCHECKED_CAST")
+            val optional = yamlContent["optional"] as? Boolean ?: false
             
             return PluginCommand(
                 pluginName = commandName,
                 commandData = commandData,
                 pluginDescription = description,
-                label = null, // Could be extracted from commandData if needed
-                optional = false // Could be extracted from commandData if needed
+                label = label, // Could be extracted from commandData if needed
+                optional = optional // Could be extracted from commandData if needed
             )
         } catch (e: Exception) {
             throw PluginValidationException(
