@@ -30,14 +30,6 @@ class XCTestDriverClient(
         this.client = client
     }
 
-    private var isShuttingDown = false
-
-    init {
-        Runtime.getRuntime().addShutdownHook(Thread {
-            isShuttingDown = true
-        })
-    }
-
     fun restartXCTestRunner() {
         if(reinstallDriver) {
             logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
