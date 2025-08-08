@@ -60,6 +60,16 @@ class RhinoJsEngineTest : JsEngineTest() {
     }
 
     @Test
+    fun `sandboxing works`() {
+        try {
+            engine.evaluateScript("require('fs')")
+            assert(false)
+        } catch (e: RhinoException) {
+            assertThat(e.message).contains("TypeError: require is not a function, it is object. (inline-script#1)")
+        }
+    }
+
+    @Test
     fun `Environment variables are isolated between env scopes`() {
         // Set a variable in the root scope
         engine.putEnv("ROOT_VAR", "root_value")
