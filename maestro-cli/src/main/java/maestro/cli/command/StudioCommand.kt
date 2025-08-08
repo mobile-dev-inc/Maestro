@@ -83,6 +83,9 @@ class StudioCommand : Callable<Int> {
             tryOpenUrl(studioUrl)
 
             println()
+            println("*** Download the new and improved Maestro Studio app now at https://maestro.dev??utm_source=cli&utm_campaign=download_studio#maestro-studio ***".bold())
+
+            println()
             println("Tip: Maestro Studio can now run simultaneously alongside other Maestro CLI commands!")
 
             println()
