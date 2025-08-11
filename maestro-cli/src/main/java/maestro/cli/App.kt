@@ -119,6 +119,7 @@ fun main(args: Array<String>) {
 
         Dependencies.install()
         Updates.fetchUpdatesAsync()
+        Updates.showJavaUpdateMessage()
 
         val commandLine = CommandLine(App())
             .setUsageHelpWidth(160)

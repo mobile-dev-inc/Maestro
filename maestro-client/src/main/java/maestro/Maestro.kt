@@ -636,7 +636,7 @@ class Maestro(
             val version = System.getProperty("java.version")
             if (version.startsWith("1.")) {
                 val majorVersion = version.substring(2, 3).toInt()
-                if (majorVersion < 11) {
+                if (majorVersion < 17) {
                     throw MaestroException.UnsupportedJavaVersion(
                         "Maestro Web requires Java 11 or later. Current version: $version"
                     )

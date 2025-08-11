@@ -1,5 +1,6 @@
 package maestro.cli.update
 
+import maestro.MaestroException
 import maestro.cli.api.ApiClient
 import maestro.cli.api.CliVersion
 import maestro.cli.util.EnvUtils
@@ -9,6 +10,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ChangeLog
+import maestro.cli.view.blue
+import maestro.cli.view.bold
 
 object Updates {
     private val DEFAULT_THREAD_FACTORY = Executors.defaultThreadFactory()
@@ -21,6 +24,24 @@ object Updates {
 
     fun fetchUpdatesAsync() {
         getFuture()
+    }
+
+    fun showJavaUpdateMessage() {
+        val currenJavaVersion = EnvUtils.getJavaVersion()
+
+        if (currenJavaVersion < 17) {
+            println(
+                """
+                    ${"Java Version Error".bold().blue()}:
+                    
+                    This application requires ${"Java 17 or greater".bold()}.
+                    Your current Java version is ${currenJavaVersion}.
+                    
+                    Please update your Java installation to continue.
+                    """.trimIndent()
+            )
+            throw MaestroException.UnsupportedJavaVersion("Maestro requires Java 17 or greater.")
+        }
     }
 
     fun fetchChangelogAsync() {
