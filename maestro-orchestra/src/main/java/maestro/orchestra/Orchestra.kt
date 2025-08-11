@@ -1053,12 +1053,19 @@ class Orchestra(
 
     private fun inputTextRandomFakerCommand(command: InputRandomFakerCommand): Boolean {
         val faker = Faker()
+
+        var expression = command.inputType
+        if(!expression.contains("#{")){ // Allow users to provide full faker expressions, but allow plain X.y
+            expression = "#{${expression}}"
+        }
+
         val randomValue: String
         try {
-            randomValue = faker.expression("#{${command.inputType}}")
+            randomValue = faker.expression(expression)
         } catch (e: Throwable) {
             throw MaestroException.InvalidCommand("Provided random input type cannot be resolved as a DataFaker expression")
         }
+
         inputTextCommand(InputTextCommand(text = randomValue))
         return true
     }
