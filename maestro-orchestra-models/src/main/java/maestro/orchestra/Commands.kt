@@ -705,7 +705,7 @@ data class InputRandomCommand(
 }
 
 data class InputRandomFakerCommand(
-    val inputType: String? = "text.text",
+    val inputType: String = "text.text",
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -714,7 +714,9 @@ data class InputRandomFakerCommand(
         get() = "Input text using faker type $inputType"
 
     override fun evaluateScripts(jsEngine: JsEngine): InputRandomFakerCommand {
-        return this
+        return copy(
+            inputType = inputType.evaluateScripts(jsEngine)
+        )
     }
 }
 
