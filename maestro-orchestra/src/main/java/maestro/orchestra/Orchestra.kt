@@ -290,13 +290,19 @@ class Orchestra(
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        val shouldUseGraalJs =
-            config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
+        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
+        
+        // Warn users about deprecated Rhino JS engine
+        if (isRhinoExplicitlyRequested) {
+            logger.warn("⚠️  The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility.")
+        }
+        
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        jsEngine = if (shouldUseGraalJs) {
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
-        } else {
+        jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
+        } else {
+            // Default to GraalJS for better performance and compatibility
+            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
         }
     }
 
