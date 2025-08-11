@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- launchApp
+- inputText: "Test after pause resume"
+- tapOn:
+    text: "Button"
+    retryTapIfNoChange: false

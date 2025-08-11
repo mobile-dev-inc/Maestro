@@ -45,9 +45,9 @@ To get started, take a look at [issues with the `good first issue` label][good f
 <br/>
 
 ```
-Built with ❤️ by Mobile.dev
+Built with ❤️ by Maestro.dev
 ```
 
 [good first issues]: https://github.com/mobile-dev-inc/maestro/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
-[blogpost]: https://blog.mobile.dev/introducing-maestro-painless-mobile-ui-automation-bee4992d13c1
+[blogpost]: https://maestro.dev/blog/introducing-maestro-painless-mobile-ui-automation
 

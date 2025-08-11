@@ -8,7 +8,7 @@ import maestro.cli.CliError
 import maestro.cli.util.*
 import maestro.device.util.AvdDevice
 
-internal object DeviceCreateUtil {
+object DeviceCreateUtil {
 
     fun getOrCreateDevice(
         platform: Platform,
@@ -23,7 +23,7 @@ internal object DeviceCreateUtil {
         else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
     }
 
-    private fun getOrCreateIosDevice(
+    fun getOrCreateIosDevice(
         version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
         @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
@@ -88,7 +88,7 @@ internal object DeviceCreateUtil {
 
     }
 
-    private fun getOrCreateAndroidDevice(
+    fun getOrCreateAndroidDevice(
         version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
         @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigAndroid.defaultVersion

@@ -12,4 +12,7 @@ interface JsEngine : AutoCloseable {
         sourceName: String = "inline-script",
         runInSubScope: Boolean = false,
     ): Any?
+    
+    fun enterEnvScope()
+    fun leaveEnvScope()
 }

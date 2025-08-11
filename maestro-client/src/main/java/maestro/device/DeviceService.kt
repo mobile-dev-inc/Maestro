@@ -146,7 +146,7 @@ object DeviceService {
                 }
     }
 
-    private fun listWebDevices(): List<Device> {
+    fun listWebDevices(): List<Device> {
         return listOf(
             Device.Connected(
                 platform = Platform.WEB,
@@ -165,7 +165,7 @@ object DeviceService {
         )
     }
 
-    private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
+    fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
         val host = host ?: "localhost"
         if (port != null) {
             val dadb = Dadb.create(host, port)
@@ -259,7 +259,7 @@ object DeviceService {
             } + listIOSConnectedDevices()
     }
 
-    private fun listIOSConnectedDevices(): List<Device.Connected> {
+    fun listIOSConnectedDevices(): List<Device.Connected> {
         val connectedIphoneList = util.LocalIOSDevice().listDeviceViaDeviceCtl()
 
         return connectedIphoneList.mapNotNull { device ->
@@ -453,10 +453,7 @@ object DeviceService {
         }
 
         if (process.exitValue() != 0) {
-            val processOutput = process.errorStream
-                .source()
-                .buffer()
-                .readUtf8()
+            val processOutput = process.inputStream.source().buffer().readUtf8() + "\n" + process.errorStream.source().buffer().readUtf8()
 
             throw IllegalStateException("Failed to list avd devices emulator: $processOutput")
         }

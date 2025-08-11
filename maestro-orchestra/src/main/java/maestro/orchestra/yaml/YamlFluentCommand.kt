@@ -19,8 +19,10 @@
 
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
@@ -57,6 +59,7 @@ import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -116,6 +119,7 @@ data class YamlFluentCommand(
     val clearState: YamlClearState? = null,
     val runFlow: YamlRunFlow? = null,
     val setLocation: YamlSetLocation? = null,
+    val setOrientation: YamlSetOrientation? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
     val runScript: YamlRunScript? = null,
@@ -387,6 +391,16 @@ data class YamlFluentCommand(
                 )
             )
 
+            setOrientation != null -> listOf(
+                MaestroCommand(
+                    SetOrientationCommand(
+                        orientation = DeviceOrientation.getByName(setOrientation.orientation) ?: throw SyntaxError("Unknown orientation: $setOrientation"),
+                        label = setOrientation.label,
+                        optional = setOrientation.optional,
+                    )
+                )
+            )
+            
             repeat != null -> listOf(
                 repeatCommand(repeat, flowPath, appId)
             )
@@ -737,7 +751,7 @@ data class YamlFluentCommand(
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null
     ): MaestroCommand {
-        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
+        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: false
         val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: false
         val point = (tapOn as? YamlElementSelector)?.point
         val label = (tapOn as? YamlElementSelector)?.label
@@ -903,7 +917,8 @@ data class YamlFluentCommand(
             selected = selector.selected,
             checked = selector.checked,
             focused = selector.focused,
-            childOf = selector.childOf?.let { toElementSelector(it) }
+            childOf = selector.childOf?.let { toElementSelector(it) },
+            css = selector.css,
         )
     }
 
@@ -940,6 +955,7 @@ data class YamlFluentCommand(
                 centerElement = yaml.centerElement,
                 label = yaml.label,
                 optional = yaml.optional,
+                originalSpeedValue = yaml.speed,
                 waitToSettleTimeoutMs = yaml.waitToSettleTimeoutMs
             )
         )

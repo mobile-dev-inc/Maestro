@@ -1,0 +1,23 @@
+appId: org.wikimedia.wikipedia
+---
+# Verify Wikipedia is in a good state for view hierarchy testing
+# Should be showing search results or main interface
+
+# Check that we can see some expected elements
+- assertVisible:
+    text: "Search"
+    optional: true
+
+# Or search results if we're on search page
+- assertVisible:
+    text: "Intelligence"
+    optional: true
+
+# Or main page elements
+- assertVisible:
+    text: "Wikipedia"
+    optional: true
+
+# Just ensure the app is responsive and loaded
+- waitForAnimationToEnd:
+    timeout: 2000

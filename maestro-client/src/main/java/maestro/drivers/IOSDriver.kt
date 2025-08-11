@@ -25,6 +25,7 @@ import hierarchy.AXElement
 import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceOrientation
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
@@ -166,7 +167,7 @@ class IOSDriver(
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         return metrics.measured("operation", mapOf("command" to "contentDescriptor")) {
-            runDeviceCall("contentDescriptor") { viewHierarchy(excludeKeyboardElements) }
+            runDeviceCall("snapshot") { viewHierarchy(excludeKeyboardElements) }
         }
     }
 
@@ -443,6 +444,12 @@ class IOSDriver(
         }
     }
 
+    override fun setOrientation(orientation: DeviceOrientation) {
+        metrics.measured("operation", mapOf("command" to "setOrientation")) {
+            runDeviceCall("setOrientation") { iosDevice.setOrientation(orientation.camelCaseName) }
+        }
+    }
+
     override fun eraseText(charactersToErase: Int) {
         metrics.measured("operation", mapOf("command" to "eraseText")) {
             runDeviceCall("eraseText") { iosDevice.eraseText(charactersToErase) }
@@ -544,6 +551,30 @@ class IOSDriver(
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
+        } catch (timeoutException: IOSDeviceErrors.OperationTimeout) {
+            val debugMessage = when {
+                timeoutException.errorMessage.contains("Timed out while evaluating UI query") -> {
+                    """
+                        Your app screen might be too complex.
+                                            
+                        * This usually happens when the screen has very large view hierarchies, such as table views loading with large amount of data.
+                        * Try loading fewer cells initially or implementing lazy loading to reduce the load during tests.
+                    """.trimIndent()
+                }
+                timeoutException.errorMessage.contains("Unable to perform work on main run loop, process main thread busy") -> {
+                    """
+                        Your app is doing heavy work on the main/UI thread.
+                        
+                        * Move any heavy computation or blocking work off the main thread.
+                        * This ensures the UI stays responsive and Maestro can take snapshot of the screen.
+                    """.trimIndent()
+                }
+                else -> null
+            }
+            throw MaestroException.DriverTimeout(
+                message = "Maestro driver timed out during $callName call with: ${timeoutException.errorMessage}",
+                debugMessage = debugMessage
+            )
         }
     }
 

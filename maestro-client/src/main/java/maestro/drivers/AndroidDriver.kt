@@ -74,6 +74,9 @@ class AndroidDriver(
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .keepAliveTime(2, TimeUnit.MINUTES)
+        .keepAliveTimeout(20, TimeUnit.SECONDS)
+        .keepAliveWithoutCalls(true)
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
@@ -86,6 +89,7 @@ class AndroidDriver(
     private var proxySet = false
     private var closed = false
 
+    private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
 
     override fun name(): String {
@@ -172,6 +176,10 @@ class AndroidDriver(
         if (closed) return
         if (proxySet) {
             resetProxy()
+        }
+        if (isLocationMocked) {
+            blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
+            isLocationMocked = false
         }
 
         LOGGER.info("[Start] close port forwarder")
@@ -674,7 +682,18 @@ class AndroidDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         metrics.measured("operation", mapOf("command" to "setLocation")) {
-            shell("appops set dev.mobile.maestro android:mock_location allow")
+            if (!isLocationMocked) {
+                LOGGER.info("[Start] Setting up for mocking location $latitude, $longitude")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
+                shell("appops set dev.mobile.maestro android:mock_location allow")
+                runDeviceCall {
+                    blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
+                }
+                LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
+
+                isLocationMocked = true
+            }
 
             runDeviceCall {
                 blockingStubWithTimeout.setLocation(
@@ -684,6 +703,18 @@ class AndroidDriver(
                     }
                 ) ?: error("Set Location Response can't be null")
             }
+        }
+    }
+
+    override fun setOrientation(orientation: DeviceOrientation) {
+        // Disable accelerometer based rotation before overriding orientation
+        dadb.shell("settings put system accelerometer_rotation 0")
+
+        when(orientation) {
+            DeviceOrientation.PORTRAIT -> dadb.shell("settings put system user_rotation 0")
+            DeviceOrientation.LANDSCAPE_LEFT -> dadb.shell("settings put system user_rotation 1")
+            DeviceOrientation.UPSIDE_DOWN -> dadb.shell("settings put system user_rotation 2")
+            DeviceOrientation.LANDSCAPE_RIGHT -> dadb.shell("settings put system user_rotation 3")
         }
     }
 

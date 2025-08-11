@@ -21,7 +21,6 @@ package maestro
 
 import okio.Sink
 import java.io.File
-import java.util.UUID
 
 interface Driver {
 
@@ -78,6 +77,8 @@ interface Driver {
 
     fun setLocation(latitude: Double, longitude: Double)
 
+    fun setOrientation(orientation: DeviceOrientation)
+
     fun eraseText(charactersToErase: Int)
 
     fun setProxy(host: String, port: Int)
@@ -103,4 +104,9 @@ interface Driver {
     fun setAirplaneMode(enabled: Boolean)
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
+
+    fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+        return listOf()
+    }
+
 }

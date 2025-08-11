@@ -13,6 +13,7 @@ enum Route: String, CaseIterable {
     case pressButton
     case eraseText
     case deviceInfo
+    case setOrientation
     case setPermissions
     case viewHierarchy
     case status

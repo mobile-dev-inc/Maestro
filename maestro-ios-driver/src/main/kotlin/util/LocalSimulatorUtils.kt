@@ -19,7 +19,7 @@ import kotlin.io.path.createTempDirectory
 
 object LocalSimulatorUtils {
 
-    data class SimctlError(override val message: String) : Throwable(message)
+    data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
     private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private val homedir = System.getProperty("user.home")
@@ -249,8 +249,12 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
+        val appBinaryPath = getAppBinaryDirectory(deviceId, bundleId)
+        if (appBinaryPath.isEmpty()) {
+            throw SimctlError("Could not find app binary for bundle $bundleId at $appBinaryPath")
+        }
 
+        val pathToBinary = Path(appBinaryPath)
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
             val tmpBundlePath = tmpDir.resolve("$bundleId-${System.currentTimeMillis()}.app")
@@ -291,7 +295,14 @@ object LocalSimulatorUtils {
             )
         ).start()
 
-        return String(process.inputStream.readBytes()).trimEnd()
+        val output = String(process.inputStream.readBytes()).trimEnd()
+        val errorOutput = String(process.errorStream.readBytes()).trimEnd()
+        val exitCode = process.waitFor() //avoiding race conditions
+
+        if (exitCode != 0) {
+            throw SimctlError("Failed to get app binary directory for bundle $bundleId on device $deviceId: $errorOutput")
+        }
+        return output
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
@@ -328,8 +339,13 @@ object LocalSimulatorUtils {
     fun launchUITestRunner(
         deviceId: String,
         port: Int,
+        snapshotKeyHonorModalViews: Boolean?,
     ) {
         val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+        val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
+        if (snapshotKeyHonorModalViews != null) {
+            params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
+        }
         runCommand(
             listOf(
                 "xcrun",
@@ -340,7 +356,7 @@ object LocalSimulatorUtils {
                 deviceId,
                 "dev.mobile.maestro-driver-iosUITests.xctrunner"
             ),
-            params = mapOf("SIMCTL_CHILD_PORT" to port.toString()),
+            params = params,
             outputFile = outputFile,
             waitForCompletion = false,
         )

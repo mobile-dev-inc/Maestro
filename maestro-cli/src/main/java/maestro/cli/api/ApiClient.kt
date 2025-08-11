@@ -9,7 +9,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
-import maestro.cli.analytics.AnalyticsReport
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
@@ -78,13 +77,6 @@ class ApiClient(
             body = mapOf(
                 "maxDepth" to maxDepth
             )
-        )
-    }
-
-    fun sendAnalyticsReport(analyticsReport: AnalyticsReport) {
-        post<Unit>(
-            path = "/maestro/analytics",
-            body = analyticsReport,
         )
     }
 

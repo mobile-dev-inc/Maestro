@@ -30,14 +30,6 @@ class XCTestDriverClient(
         this.client = client
     }
 
-    private var isShuttingDown = false
-
-    init {
-        Runtime.getRuntime().addShutdownHook(Thread {
-            isShuttingDown = true
-        })
-    }
-
     fun restartXCTestRunner() {
         if(reinstallDriver) {
             logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
@@ -155,6 +147,10 @@ class XCTestDriverClient(
         ))
     }
 
+    fun setOrientation(orientation: String) {
+        executeJsonRequest("setOrientation", SetOrientationRequest(orientation))
+    }
+
     fun pressKey(name: String) {
         executeJsonRequest("pressKey", PressKeyRequest(name))
     }
@@ -264,6 +260,10 @@ class XCTestDriverClient(
             Error("Unable to parse error", "unknown")
         }
         when {
+            code == 408 -> {
+                logger.error("Request for $pathString timeout, body: $responseBodyAsString")
+                throw XCUITestServerError.OperationTimeout(error.errorMessage, pathString)
+            }
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
                 throw XCUITestServerError.BadRequest(

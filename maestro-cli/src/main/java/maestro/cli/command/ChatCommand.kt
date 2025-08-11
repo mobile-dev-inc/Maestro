@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.EnvUtils.BASE_API_URL
@@ -35,7 +36,7 @@ class ChatCommand : Callable<Int> {
 
     override fun call(): Int {
         if (apiKey == null) {
-            apiKey = auth.getCachedAuthToken()
+            apiKey = ApiKey.getToken()
         }
 
         if (apiKey == null) {
