@@ -1,7 +1,7 @@
 package maestro.orchestra
 
 import com.google.common.truth.Truth.assertThat
-import maestro.js.RhinoJsEngine
+import maestro.js.GraalJsEngine
 import maestro.orchestra.yaml.junit.YamlFile
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import org.junit.jupiter.api.Test
@@ -14,7 +14,7 @@ internal class CommandDescriptionTest {
     fun `original description contains raw command details`(
         @YamlFile("028_command_descriptions.yaml") commands: List<Command>
     ) {
-        val jsEngine = RhinoJsEngine(platform = "ios")
+        val jsEngine = GraalJsEngine(platform = "ios")
         jsEngine.putEnv("username", "Alice")
 
         // Tap command with label
@@ -44,7 +44,7 @@ internal class CommandDescriptionTest {
     fun `description uses label when available`(
         @YamlFile("028_command_descriptions.yaml") commands: List<Command>
     ) {
-        val jsEngine = RhinoJsEngine(platform = "ios")
+        val jsEngine = GraalJsEngine(platform = "ios")
         jsEngine.putEnv("username", "Bob")
 
         // Tap command with label
@@ -67,7 +67,7 @@ internal class CommandDescriptionTest {
     fun `description evaluates script variables`(
         @YamlFile("028_command_descriptions.yaml") commands: List<Command>
     ) {
-        val jsEngine = RhinoJsEngine(platform = "ios")
+        val jsEngine = GraalJsEngine(platform = "ios")
         jsEngine.putEnv("username", "Charlie")
 
         // Tap command with label (should be unchanged by evaluation)

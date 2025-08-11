@@ -1830,7 +1830,7 @@ class IntegrationTest {
                 Event.InputText("1"),
                 Event.InputText("2"),
                 Event.InputText("12"),
-                Event.InputText("3.0"),
+                Event.InputText("3"),
                 Event.InputText("\${A} \${B} 1 2"),
             )
         )
@@ -2231,8 +2231,8 @@ class IntegrationTest {
         // Then
         driver.assertEvents(
             listOf(
-                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
-                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),
             )
         )
     }
