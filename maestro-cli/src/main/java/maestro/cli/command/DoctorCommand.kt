@@ -56,12 +56,19 @@ class DoctorCommand : Callable<Int> {
         )
 
         private fun detectInstallMethod(): Pair<String, String> {
-            val path = getMaestroCliPath()
+            val path = getMaestroCliPath().replace('\\', '/').lowercase()
             return when {
-                path.contains("/brew/") || path.contains("/Homebrew/") -> 
-                    InstallInfo("Homebrew", "installed with Homebrew")
+                path.contains("/brew/") || path.contains("/homebrew/") -> 
+                    InstallInfo("homebrew", "installed via Homebrew")
+                    
+                path.contains("/.maestro/bin") -> 
+                    InstallInfo("script", "installed via install script")
+                    
+                path.contains("maestro/bin") -> 
+                    InstallInfo("windows", "installed via zip archive")
+                    
                 else -> 
-                    InstallInfo("script", "installed via curl script")
+                    InstallInfo("custom", "custom installation")
             }.let { it.method to it.displayText }
         }
 
