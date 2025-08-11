@@ -27,15 +27,15 @@ object Updates {
     }
 
     fun showJavaUpdateMessage() {
-        val currenJavaVersion = EnvUtils.getJavaVersion()
+        val currentJavaVersion = EnvUtils.getJavaVersion()
 
-        if (currenJavaVersion < 17) {
+        if (currentJavaVersion < 17) {
             println(
                 """
                     ${"Java Version Error".bold().blue()}:
                     
                     This application requires ${"Java 17 or greater".bold()}.
-                    Your current Java version is ${currenJavaVersion}.
+                    Your current Java version is ${currentJavaVersion}.
                     
                     Please update your Java installation to continue.
                     """.trimIndent()
