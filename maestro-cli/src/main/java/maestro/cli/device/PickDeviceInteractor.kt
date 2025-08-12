@@ -1,7 +1,10 @@
 package maestro.cli.device
 
 import maestro.cli.CliError
-import maestro.cli.device.DeviceService.withPlatform
+import maestro.device.DeviceService
+import maestro.device.DeviceService.withPlatform
+import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 
@@ -11,6 +14,7 @@ object PickDeviceInteractor {
         deviceId: String? = null,
         driverHostPort: Int? = null,
         platform: Platform? = null,
+        deviceIndex: Int? = null,
     ): Device.Connected {
         if (deviceId != null) {
             return DeviceService.listConnectedDevices()
@@ -19,7 +23,7 @@ object PickDeviceInteractor {
                 } ?: throw CliError("Device with id $deviceId is not connected")
         }
 
-        return pickDeviceInternal(platform)
+        return pickDeviceInternal(platform, deviceIndex)
             .let { pickedDevice ->
                 var result: Device = pickedDevice
 
@@ -41,11 +45,19 @@ object PickDeviceInteractor {
             }
     }
 
-    private fun pickDeviceInternal(platform: Platform?): Device {
+    private fun pickDeviceInternal(platform: Platform?, selectedIndex: Int? = null): Device {
         val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platform)
 
-        if (connectedDevices.size == 1) {
-            val device = connectedDevices[0]
+        val selected = if(selectedIndex != null) {
+            selectedIndex
+        } else if (connectedDevices.size == 1) {
+            0
+        } else {
+            null
+        }
+
+        if (selected != null) {
+            val device = connectedDevices[selected]
 
             PickDeviceView.showRunOnDevice(device)
 
@@ -79,6 +91,7 @@ object PickDeviceInteractor {
                         modelId = "chromium",
                         language = null,
                         country = null,
+                        deviceType = Device.DeviceType.BROWSER
                     )
                 }
                 return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, null, null, options.forceCreate)

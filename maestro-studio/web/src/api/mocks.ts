@@ -90,7 +90,7 @@ const handlers = [
       })
     );
   }),
-  http.get("https://api.mobile.dev/mai/generate-command", () => {
+  http.get("https://api.copilot.mobile.dev/v2/maestro-studio/generate-command", () => {
     return new Response(
       JSON.stringify({
         command: '- tapOn: "Search"',

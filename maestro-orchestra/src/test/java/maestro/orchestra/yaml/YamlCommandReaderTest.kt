@@ -1,6 +1,7 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -36,6 +37,7 @@ import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
+import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
@@ -52,7 +54,6 @@ import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
-import maestro.orchestra.yaml.junit.YamlExceptionExtension
 import maestro.orchestra.yaml.junit.YamlFile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -60,15 +61,8 @@ import java.nio.file.FileSystems
 import java.nio.file.Paths
 
 @Suppress("JUnitMalformedDeclaration")
-@ExtendWith(YamlCommandsExtension::class, YamlExceptionExtension::class)
+@ExtendWith(YamlCommandsExtension::class)
 internal class YamlCommandReaderTest {
-
-    @Test
-    fun empty(
-        @YamlFile("001_empty.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Flow files must contain a config section and a commands section")
-    }
 
     @Test
     fun launchApp(
@@ -100,27 +94,6 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun config_empty(
-        @YamlFile("004_config_empty.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Flow files must contain a config section and a commands section")
-    }
-
-    @Test
-    fun config_noAppId(
-        @YamlFile("005_config_noAppId.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("appId due to missing (therefore NULL) value for creator parameter appId which is a non-nullable type")
-    }
-
-    @Test
-    fun emptyCommands(
-        @YamlFile("006_emptyCommands.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Flow files must contain a config section and a commands section")
-    }
-
-    @Test
     fun config_unknownKeys(
         @YamlFile("008_config_unknownKeys.yaml") commands: List<Command>,
     ) {
@@ -139,34 +112,6 @@ internal class YamlCommandReaderTest {
                 appId = "com.example.app",
             ),
         )
-    }
-
-    @Test
-    fun invalidCommand(
-        @YamlFile("009_invalidCommand.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Unrecognized field \"invalid\"")
-    }
-
-    @Test
-    fun invalidCommand_string(
-        @YamlFile("010_invalidCommand_string.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Invalid command: \"invalid\"")
-    }
-
-    @Test
-    fun onlyCommands(
-        @YamlFile("015_onlyCommands.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Flow files must contain a config section and a commands section")
-    }
-
-    @Test
-    fun launchApp_emptyString(
-        @YamlFile("016_launchApp_emptyString.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("No mapping provided for YamlFluentCommand")
     }
 
     @Test
@@ -246,13 +191,6 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun launchAppSyntaxError(
-        @YamlFile("021_launchApp_syntaxError.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Cannot deserialize value of type")
-    }
-
-    @Test
     fun onFlowStartCompleteHooks(
         @YamlFile("022_on_flow_start_complete.yaml") commands: List<Command>,
     ) {
@@ -292,14 +230,14 @@ internal class YamlCommandReaderTest {
             // Taps
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false,
                 label = "Tap on the important button"
             ),
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false,
                 repeat = TapRepeat(
@@ -310,14 +248,14 @@ internal class YamlCommandReaderTest {
             ),
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = true,
                 label = "Press and hold the important button"
             ),
             TapOnPointV2Command(
                 point = "50%,50%",
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 longPress = false,
                 label = "Tap on the middle of the screen"
             ),
@@ -428,6 +366,10 @@ internal class YamlCommandReaderTest {
                 sourceDescription = "023_runScript_test.js",
                 label = "Run some special calculations"
             ),
+            SetOrientationCommand(
+                orientation = DeviceOrientation.LANDSCAPE_LEFT,
+                label = "Set the device orientation"
+            ),
             ScrollCommand(
                 label = "Scroll down"
             ),
@@ -495,7 +437,7 @@ internal class YamlCommandReaderTest {
                     MaestroCommand(
                         command = TapOnElementCommand(
                             selector = ElementSelector(idRegex = "foo"),
-                            retryIfNoChange = true,
+                            retryIfNoChange = false,
                             waitUntilVisible = false,
                             longPress = false,
                             label = "Tap on the important button"
@@ -504,7 +446,7 @@ internal class YamlCommandReaderTest {
                     MaestroCommand(
                         command = TapOnElementCommand(
                             selector = ElementSelector(idRegex = "bar"),
-                            retryIfNoChange = true,
+                            retryIfNoChange = false,
                             waitUntilVisible = false,
                             longPress = false,
                             label = "Tap on the other important button"
@@ -554,21 +496,21 @@ internal class YamlCommandReaderTest {
                 ElementSelector(
                     textRegex = "Hello",
                 ),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false
             ),
             TapOnElementCommand(
                 selector = ElementSelector(textRegex = "Hello"),
                 repeat = TapRepeat(2, TapOnElementCommand.DEFAULT_REPEAT_DELAY),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false
             ),
             TapOnElementCommand(
                 selector = ElementSelector(textRegex = "Hello"),
                 longPress = true,
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false
             ),
             AssertConditionCommand(
@@ -646,11 +588,4 @@ internal class YamlCommandReaderTest {
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
-
-    @Test
-    fun setLocationSyntaxError(
-        @YamlFile("026_setLocation_syntaxError.yaml") e: SyntaxError,
-    ) {
-        assertThat(e.message).contains("Cannot deserialize value of type")
-    }
 }

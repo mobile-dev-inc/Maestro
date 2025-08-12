@@ -16,7 +16,13 @@ dependencyResolutionManagement {
     }
 }
 
-include("example")
+// Configure Source Control for forked kotlin-sdk
+sourceControl {
+    gitRepository(uri("https://github.com/steviec/kotlin-sdk.git")) {
+        producesModule("io.modelcontextprotocol:kotlin-sdk")
+    }
+}
+
 include("maestro-utils")
 include("maestro-android")
 include("maestro-cli")
@@ -32,3 +38,9 @@ include("maestro-studio:web")
 include("maestro-test")
 include("maestro-ai")
 include("maestro-web")
+include(":maestro-client")
+include(":maestro-driver-ios")
+include(":maestro-orchestra")
+include(":maestro-studio")
+include(":maestro-test")
+include(":maestro-xcuitest-driver")

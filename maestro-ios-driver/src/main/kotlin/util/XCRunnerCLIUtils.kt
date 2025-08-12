@@ -1,7 +1,6 @@
 package util
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.utils.MaestroTimer
 import net.harawata.appdirs.AppDirsFactory
 import java.io.File
 import java.nio.file.Files
@@ -18,7 +17,8 @@ object XCRunnerCLIUtils {
     private const val MAX_COUNT_XCTEST_LOGS = 5
 
     private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
-    private val logDirectory by lazy {
+
+    internal val logDirectory by lazy {
         val parentName = AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR)
         val logsDirectory = File(parentName, "xctest_runner_logs")
         File(parentName).apply {
@@ -32,6 +32,10 @@ object XCRunnerCLIUtils {
             if (count > MAX_COUNT_XCTEST_LOGS) toDelete.forEach { it.deleteRecursively() }
         }
         logsDirectory
+    }
+
+    fun clearLogs() {
+        logDirectory.listFiles()?.forEach { it.deleteRecursively() }
     }
 
     fun listApps(deviceId: String): Set<String> {
@@ -112,23 +116,18 @@ object XCRunnerCLIUtils {
             }
     }
 
-    fun isAppAlive(bundleId: String, deviceId: String): Boolean {
-        return runningApps(deviceId)
-            .containsKey(bundleId)
-    }
-
     fun pidForApp(bundleId: String, deviceId: String): Int? {
         return runningApps(deviceId)[bundleId]
     }
 
-    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int, enableXCTestOutputFileLogging: Boolean = false): Process {
+    fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int, snapshotKeyHonorModalViews: Boolean?): Process {
         val date = dateFormatter.format(LocalDateTime.now())
-        val outputFile = if (enableXCTestOutputFileLogging) {
-            File(logDirectory, "xctest_runner_$date.log")
-        } else {
-            null
-        }
+        val outputFile = File(logDirectory, "xctest_runner_$date.log")
         val logOutputDir = Files.createTempDirectory("maestro_xctestrunner_xcodebuild_output")
+        val params = mutableMapOf("TEST_RUNNER_PORT" to port.toString())
+        if (snapshotKeyHonorModalViews != null) {
+            params["TEST_RUNNER_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
+        }
         return CommandLineUtils.runCommand(
             listOf(
                 "xcodebuild",
@@ -142,7 +141,7 @@ object XCRunnerCLIUtils {
             ),
             waitForCompletion = false,
             outputFile = outputFile,
-            params = mapOf("TEST_RUNNER_PORT" to port.toString())
+            params = params,
         )
     }
 }

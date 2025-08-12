@@ -1,5 +1,0 @@
-appId: com.example.app
----
-- tapOn:
-    text: "Static Element"
-    waitToSettleTimeoutMs: 100

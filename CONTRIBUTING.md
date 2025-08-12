@@ -37,6 +37,9 @@ For development, you need to use Java 11 or newer.
 If you made changes to the CLI, rebuilt it with `./gradlew :maestro-cli:installDist`. This will generate a startup shell
 script in `./maestro-cli/build/install/maestro/bin/maestro`. Use it instead of globally installed `maestro`.
 
+If you made changes to the iOS XCTest runner app, make sure they are compatible with the version of Xcode used by the GitHub Actions build step. It is currently built using the default version of Xcode listed in the macos runner image [readme][macos_builder_readme].
+If you introduce changes that work locally but fail to build when you make a PR, check if you used a feature used in a newer version of Swift or some other new Xcode setting.
+
 ### Debugging
 
 Maestro stores logs for every test run in the following locations:
@@ -167,5 +170,6 @@ Follow these steps:
   - If this is a new functionality, you might need to add new methods to `Maestro` and `Driver` APIs.
 - Add a new test to `IntegrationTest`.
 
+[macos_builder_readme]: https://github.com/actions/runner-images/blob/main/images/macos/macos-14-Readme.md
 [graph_plugin]: https://github.com/vanniktech/gradle-dependency-graph-generator-plugin
 [pr_1834]: https://github.com/mobile-dev-inc/maestro/pull/1834

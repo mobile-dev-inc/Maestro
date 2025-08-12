@@ -16,7 +16,7 @@ struct RunningAppRouteHandler: HTTPHandler {
     #endif
 
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(RunningAppRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(RunningAppRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body for getting running app id request").httpResponse
         }
         

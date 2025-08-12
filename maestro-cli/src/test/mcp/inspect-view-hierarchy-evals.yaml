@@ -1,0 +1,130 @@
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/steviec/mcp-server-tester/refs/heads/main/src/schemas/tests-schema.json
+evals:
+  models:
+  - claude-3-7-sonnet-latest
+  - claude-3-5-haiku-latest
+  timeout: 40000
+  max_steps: 10
+  tests:
+    - name: LLM can understand csv-based view hierarchy format
+      prompt: >
+        Using the inspect_view_hierarchy tool, describe the number of clickable elements and their position on the screen. Do not take a screenshot.
+      expected_tool_calls:
+        required:
+        - inspect_view_hierarchy
+        allowed:
+        - list_devices
+        - start_device
+        - launch_app
+      response_scorers:
+      - type: llm-judge
+        criteria: >
+          The assistant successfully uses the inspect_view_hierarchy tool with format=csv.
+          The assistant correctly identifies two buttons: "allow", and "don't allow" in the middle of the screen.
+        threshold: 0.6
+
+  # NOTE: Below are old tests when we were doing evals on various format types. We might want to resuscitate these at some point
+  # to make the format even more optimal, but for now we'll 
+  # - name: yaml_compact_format_comprehension
+  #   description: Test if LLM can understand and extract information from yaml compact view hierarchy format
+  #   prompt: >
+  #      Using the inspect_view_hierarchy tool with the "yaml" format, describe the number of clickable elements on the screen, and their position on the screen. Do not take a screenshot.
+  #   expectedToolCalls:
+  #     required:
+  #     - inspect_view_hierarchy
+  #     allowed:
+  #     - list_devices
+  #     - start_device
+  #     - launch_app
+  #   responseScorers:
+  #   - type: llm-judge
+  #     criteria: >
+  #       The assistant successfully uses the inspect_view_hierarchy tool with format=yaml.
+  #       The assistant correctly identifies exactly 8 clickable elements: 7 buttons in a column, and a final button in the bottom right corner.
+  #     threshold: 1.0
+
+  # - name: csv_original_format_comprehension
+  #   description: Test if LLM can understand and extract information from csv compact view hierarchy format
+  #   prompt: >
+  #     Using the inspect_view_hierarchy tool with the "csv-original" format, describe the number of clickable elements and their position on the screen. Do not take a screenshot.
+  #   expectedToolCalls:
+  #     required:
+  #     - inspect_view_hierarchy
+  #     allowed:
+  #     - list_devices
+  #     - start_device
+  #     - launch_app
+  #   responseScorers:
+  #   - type: llm-judge
+  #     criteria: >
+  #       The assistant successfully uses the inspect_view_hierarchy tool.
+  #       The assistant correctly identifies exactly 8 clickable elements: 7 buttons in a column, and a final button in the bottom right corner.
+  #     threshold: 1.0
+      
+  # - name: json_compact_format_comprehension
+  #   description: Test if LLM can understand and extract information from json compact view hierarchy format
+  #   prompt: >
+  #     Using the inspect_view_hierarchy tool with the "json" format, describe the number of clickable elements and their position on the screen. Do not take a screenshot.
+  #   expectedToolCalls:
+  #     required:
+  #     - inspect_view_hierarchy
+  #     allowed:
+  #     - list_devices
+  #     - start_device
+  #     - launch_app
+  #   responseScorers:
+  #   - type: llm-judge
+  #     criteria: >
+  #       The assistant successfully uses the inspect_view_hierarchy tool with format=json.
+  #       The assistant correctly identifies exactly 8 clickable elements: 7 buttons in a column, and a final button in the bottom right corner.
+  #     threshold: 0.8    
+
+  # - name: schema_guided_navigation
+  #   description: Test if LLM can use the YAML compact schema to understand abbreviations
+  #   prompt: >
+  #     Use the yaml compact format to get the view hierarchy. Using the schema provided in the output,
+  #     find an element that has both text content and is clickable. Explain how you identified it.
+  #   expectedToolCalls:
+  #     required:
+  #     - inspect_view_hierarchy
+  #   responseScorers:
+  #   - type: llm-judge
+  #     criteria: >
+  #       The assistant uses inspect_view_hierarchy with yaml compact format, references the
+  #       ui_schema section to understand abbreviations, correctly identifies that 'txt' means text
+  #       and 'clickable: true' indicates an interactive element, and explains the process clearly.
+  #     threshold: 0.8
+
+  # - name: multi_format_comparison
+  #   description: Test LLM ability to work with multiple formats and choose the best one for a task
+  #   prompt: >
+  #     I want to get a quick overview of all interactive elements on the screen for automated testing.
+  #     Which format would be most suitable and why? Demonstrate by getting the hierarchy in that format.
+  #   expectedToolCalls:
+  #     required:
+  #     - inspect_view_hierarchy
+  #   responseScorers:
+  #   - type: llm-judge
+  #     criteria: >
+  #       The assistant analyzes the different format options, makes a reasoned choice 
+  #       (likely yaml compact or json compact for efficiency, or CSV for structured processing),
+  #       explains the reasoning, and demonstrates by calling inspect_view_hierarchy with
+  #       the chosen format.
+  #     threshold: 0.8
+
+  # - name: error_handling_invalid_format
+  #   description: Test how LLM handles invalid format parameters
+  #   prompt: >
+  #     Try to get the view hierarchy using an invalid format parameter like "xml".
+  #     What happens and how would you handle this?
+  #   expectedToolCalls:
+  #     required:
+  #     - inspect_view_hierarchy
+  #   responseScorers:
+  #   - type: llm-judge
+  #     criteria: >
+  #       The assistant attempts inspect_view_hierarchy with an invalid format,
+  #       observes that it falls back to the default (yaml compact), and explains
+  #       that the tool has built-in error handling with sensible defaults.
+  #     threshold: 0.8

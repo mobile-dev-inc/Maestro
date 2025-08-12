@@ -119,13 +119,6 @@ object TestSuiteStatusView {
     }
 
     fun uploadUrl(
-        uploadId: String,
-        teamId: String,
-        appId: String,
-        domain: String = "mobile.dev",
-    ) = "https://console.$domain/uploads/$uploadId?teamId=$teamId&appId=$appId"
-
-    fun robinUploadUrl(
         projectId: String,
         appId: String,
         uploadId: String,
@@ -134,7 +127,7 @@ object TestSuiteStatusView {
         return if (domain.contains("localhost")) {
             "http://localhost:3000/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         } else {
-            "https://app.robintest.com/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
+            "https://app.maestro.dev/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         }
     }
 

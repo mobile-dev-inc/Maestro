@@ -6,18 +6,23 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
+import kotlinx.coroutines.runBlocking
 import maestro.Maestro
-import maestro.cli.device.Device
+import maestro.MaestroException
+import maestro.device.Device
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -42,7 +47,10 @@ object TestRunner {
         flowFile: File,
         env: Map<String, String>,
         resultView: ResultView,
-        debugOutputPath: Path
+        debugOutputPath: Path,
+        analyze: Boolean = false,
+        apiKey: String? = null,
+        testOutputDir: Path?,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -50,24 +58,33 @@ object TestRunner {
             flowFile = flowFile,
         )
 
+        val updatedEnv = env
+            .withInjectedShellEnvVars()
+            .withDefaultEnvVars(flowFile)
+
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(env)
+                .withEnv(updatedEnv)
 
             val flowName = YamlCommandReader.getConfig(commands)?.name
             if (flowName != null) {
                 aiOutput = aiOutput.copy(flowName = flowName)
             }
 
-            MaestroCommandRunner.runCommands(
-                flowName = flowName ?: flowFile.nameWithoutExtension,
-                maestro = maestro,
-                device = device,
-                view = resultView,
-                commands = commands,
-                debugOutput = debugOutput,
-                aiOutput = aiOutput,
-            )
+            runBlocking {
+                MaestroCommandRunner.runCommands(
+                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                    maestro = maestro,
+                    device = device,
+                    view = resultView,
+                    commands = commands,
+                    debugOutput = debugOutput,
+                    aiOutput = aiOutput,
+                    analyze = analyze,
+                    apiKey = apiKey,
+                    testOutputDir = testOutputDir,
+                )
+            }
         }
 
         TestDebugReporter.saveFlow(
@@ -80,7 +97,18 @@ object TestRunner {
             path = debugOutputPath,
         )
 
-        if (debugOutput.exception != null) PrintUtils.err("${debugOutput.exception?.message}")
+        val exception = debugOutput.exception
+        if (exception != null) {
+            PrintUtils.err(exception.message)
+            if (exception is MaestroException.AssertionFailure) {
+                PrintUtils.err(exception.debugMessage)
+            } else {
+                val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
+                if (exception is MaestroException.DriverTimeout && debugMessage != null) {
+                    PrintUtils.err(debugMessage)
+                }
+            }
+        }
 
         return if (result.get() == true) 0 else 1
     }
@@ -93,8 +121,11 @@ object TestRunner {
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
+        analyze: Boolean = false,
+        apiKey: String? = null,
+        testOutputDir: Path?
     ): Nothing {
-        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
+        val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
         val fileWatcher = FileWatcher()
 
@@ -108,9 +139,13 @@ object TestRunner {
                     join()
                 }
 
+                val updatedEnv = env
+                    .withInjectedShellEnvVars()
+                    .withDefaultEnvVars(flowFile)
+
                 val commands = YamlCommandReader
                     .readCommands(flowFile.toPath())
-                    .withEnv(env)
+                    .withEnv(updatedEnv)
 
                 val flowName = YamlCommandReader.getConfig(commands)?.name
 
@@ -120,19 +155,24 @@ object TestRunner {
                         previousCommands = commands
 
                         runCatching(resultView, maestro) {
-                            MaestroCommandRunner.runCommands(
-                                flowName = flowName ?: flowFile.nameWithoutExtension,
-                                maestro = maestro,
-                                device = device,
-                                view = resultView,
-                                commands = commands,
-                                debugOutput = FlowDebugOutput(),
-                                // TODO(bartekpacia): make AI outputs work in continuous mode (see #1972)
-                                aiOutput = FlowAIOutput(
-                                    flowName = "TODO",
-                                    flowFile = flowFile,
-                                ),
-                            )
+                            runBlocking {
+                                MaestroCommandRunner.runCommands(
+                                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                                    maestro = maestro,
+                                    device = device,
+                                    view = resultView,
+                                    commands = commands,
+                                    debugOutput = FlowDebugOutput(),
+                                    // TODO(bartekpacia): make AI outputs work in continuous mode (see #1972)
+                                    aiOutput = FlowAIOutput(
+                                        flowName = "TODO",
+                                        flowFile = flowFile,
+                                    ),
+                                    analyze = analyze,
+                                    apiKey = apiKey,
+                                    testOutputDir = testOutputDir
+                                )
+                            }
                         }.get()
                     }
                 }

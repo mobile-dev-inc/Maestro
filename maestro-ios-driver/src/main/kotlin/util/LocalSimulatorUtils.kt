@@ -12,14 +12,19 @@ import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
 
 object LocalSimulatorUtils {
 
-    data class SimctlError(override val message: String) : Throwable(message)
+    data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
+    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private val homedir = System.getProperty("user.home")
+    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
+    private val date = dateFormatter.format(LocalDateTime.now())
 
     private val logger = LoggerFactory.getLogger(LocalSimulatorUtils::class.java)
 
@@ -164,17 +169,24 @@ object LocalSimulatorUtils {
 
     fun terminate(deviceId: String, bundleId: String) {
         // Ignore error return: terminate will fail if the app is not running
-        ProcessBuilder(
-            listOf(
-                "xcrun",
-                "simctl",
-                "terminate",
-                deviceId,
-                bundleId
+        logger.info("[Start] Terminating app $bundleId")
+        runCatching {
+            runCommand(
+                listOf(
+                    "xcrun",
+                    "simctl",
+                    "terminate",
+                    deviceId,
+                    bundleId
+                )
             )
-        )
-            .start()
-            .waitFor()
+        }.onFailure {
+            if (it.message?.contains("found nothing to terminate") == false) {
+                logger.info("The bundle $bundleId is already terminated")
+                throw it
+            }
+        }
+        logger.info("[Done] Terminating app $bundleId")
     }
 
     private fun isAppRunning(deviceId: String, bundleId: String): Boolean {
@@ -237,8 +249,12 @@ object LocalSimulatorUtils {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
-        val pathToBinary = Path(getAppBinaryDirectory(deviceId, bundleId))
+        val appBinaryPath = getAppBinaryDirectory(deviceId, bundleId)
+        if (appBinaryPath.isEmpty()) {
+            throw SimctlError("Could not find app binary for bundle $bundleId at $appBinaryPath")
+        }
 
+        val pathToBinary = Path(appBinaryPath)
         if (Files.isDirectory(pathToBinary)) {
             val tmpDir = createTempDirectory()
             val tmpBundlePath = tmpDir.resolve("$bundleId-${System.currentTimeMillis()}.app")
@@ -279,7 +295,14 @@ object LocalSimulatorUtils {
             )
         ).start()
 
-        return String(process.inputStream.readBytes()).trimEnd()
+        val output = String(process.inputStream.readBytes()).trimEnd()
+        val errorOutput = String(process.errorStream.readBytes()).trimEnd()
+        val exitCode = process.waitFor() //avoiding race conditions
+
+        if (exitCode != 0) {
+            throw SimctlError("Failed to get app binary directory for bundle $bundleId on device $deviceId: $errorOutput")
+        }
+        return output
     }
 
     private fun getApplicationDataDirectory(deviceId: String, bundleId: String): String {
@@ -301,23 +324,7 @@ object LocalSimulatorUtils {
         deviceId: String,
         bundleId: String,
         launchArguments: List<String> = emptyList(),
-        sessionId: String?,
     ) {
-        sessionId?.let {
-            runCommand(
-                listOf(
-                    "xcrun",
-                    "simctl",
-                    "spawn",
-                    deviceId,
-                    "launchctl",
-                    "setenv",
-                    "MAESTRO_SESSION_ID",
-                    sessionId,
-                )
-            )
-        }
-
         runCommand(
             listOf(
                 "xcrun",
@@ -326,6 +333,32 @@ object LocalSimulatorUtils {
                 deviceId,
                 bundleId,
             ) + launchArguments,
+        )
+    }
+
+    fun launchUITestRunner(
+        deviceId: String,
+        port: Int,
+        snapshotKeyHonorModalViews: Boolean?,
+    ) {
+        val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+        val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
+        if (snapshotKeyHonorModalViews != null) {
+            params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
+        }
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "launch",
+                "--console",
+                "--terminate-running-process",
+                deviceId,
+                "dev.mobile.maestro-driver-iosUITests.xctrunner"
+            ),
+            params = params,
+            outputFile = outputFile,
+            waitForCompletion = false,
         )
     }
 
@@ -380,43 +413,11 @@ object LocalSimulatorUtils {
 
     fun clearKeychain(deviceId: String) {
         runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "spawn",
-                deviceId,
-                "launchctl",
-                "stop",
-                "com.apple.securityd",
-            )
-        )
-
-        val keychainFolder = "$homedir/Library/Developer/CoreSimulator/Devices/$deviceId/data/Library/Keychains"
-        if (File(keychainFolder).exists()) {
-            runCommand(
-                listOf(
-                    "rm", "-rf",
-                    keychainFolder
-                )
-            )
-        } else {
-            logger.info("Keychain folder $keychainFolder does not exist, skipping rm")
-        }
-
-        runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "spawn",
-                deviceId,
-                "launchctl",
-                "start",
-                "com.apple.securityd",
-            )
+            listOf("xcrun", "simctl", "keychain", deviceId, "reset")
         )
     }
 
-    fun setPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+    fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
         if (permissionsMap.containsKey("all")) {
             val value = permissionsMap.remove("all")
@@ -437,6 +438,7 @@ object LocalSimulatorUtils {
 
         if (permissionsArgument.isNotEmpty()) {
             try {
+                logger.info("[Start] Setting permissions via pinned applesimutils")
                 runCommand(
                     listOf(
                         "$homedir/.maestro/deps/applesimutils",
@@ -448,7 +450,10 @@ object LocalSimulatorUtils {
                         permissionsArgument
                     )
                 )
+                logger.info("[Done] Setting permissions pinned applesimutils")
             } catch (e: Exception) {
+                logger.error("Exception while setting permissions through pinned applesimutils ${e.message}", e)
+                logger.info("[Start] Setting permissions via applesimutils as fallback")
                 runCommand(
                     listOf(
                         "applesimutils",
@@ -460,13 +465,12 @@ object LocalSimulatorUtils {
                         permissionsArgument
                     )
                 )
+                logger.info("[Done] Setting permissions via applesimutils as fallback")
             }
         }
-
-        setSimctlPermissions(deviceId, bundleId, permissions)
     }
 
-    private fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
+    fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
 
         permissionsMap.remove("all")?.let { value ->

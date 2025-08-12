@@ -20,8 +20,8 @@
 package maestro.cli.runner.resultview
 
 import io.ktor.util.encodeBase64
-import maestro.cli.device.Device
-import maestro.cli.device.Platform
+import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
 import maestro.orchestra.AssertWithAICommand
@@ -37,6 +37,7 @@ import org.fusesource.jansi.Ansi
 class AnsiResultView(
     private val prompt: String? = null,
     private val printCommandLogs: Boolean = true,
+    private val useEmojis: Boolean = true,
 ) : ResultView {
 
     private val startTimestamp = System.currentTimeMillis()
@@ -248,18 +249,29 @@ class AnsiResultView(
         return Frame(System.currentTimeMillis() - startTimestamp, content)
     }
 
-    data class Frame(val timestamp: Long, val content: String)
-}
-
-internal fun status(status: CommandStatus): String {
-    return when (status) {
-        CommandStatus.COMPLETED -> "✅ "
-        CommandStatus.FAILED -> "❌ "
-        CommandStatus.RUNNING -> "⏳ "
-        CommandStatus.PENDING -> "\uD83D\uDD32 " // 🔲
-        CommandStatus.WARNED -> "⚠️ "
-        CommandStatus.SKIPPED -> "⚪️ "
+    private fun status(status: CommandStatus): String {
+        if (useEmojis) {
+            return when (status) {
+                CommandStatus.COMPLETED -> "✅ "
+                CommandStatus.FAILED -> "❌ "
+                CommandStatus.RUNNING -> "⏳ "
+                CommandStatus.PENDING -> "\uD83D\uDD32 " // 🔲
+                CommandStatus.WARNED -> "⚠️ "
+                CommandStatus.SKIPPED -> "⚪️ "
+            }
+        } else {
+            return when (status) {
+                CommandStatus.COMPLETED -> "+ "
+                CommandStatus.FAILED -> "X "
+                CommandStatus.RUNNING -> "> "
+                CommandStatus.PENDING -> "  "
+                CommandStatus.WARNED -> "! "
+                CommandStatus.SKIPPED -> "- "
+            }
+        }
     }
+
+    data class Frame(val timestamp: Long, val content: String)
 }
 
 // Helper launcher to play around with presentation
@@ -269,7 +281,7 @@ fun main() {
     view.setState(
         UiState.Running(
             flowName = "Flow for playing around",
-            device = Device.Connected("device", "description", Platform.ANDROID),
+            device = Device.Connected("device", "description", Platform.ANDROID, Device.DeviceType.EMULATOR),
             onFlowStartCommands = listOf(),
             onFlowCompleteCommands = listOf(),
             commands = listOf(

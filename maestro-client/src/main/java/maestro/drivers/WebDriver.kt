@@ -2,9 +2,11 @@ package maestro.drivers
 
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
+import maestro.OnDeviceElementQuery
 import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
@@ -35,9 +37,12 @@ import java.time.Duration
 import java.util.*
 
 
+private const val SYNTHETHIC_COORDINATE_SPACE_OFFSET = 100000
+
 class WebDriver(
     val isStudio: Boolean,
-    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory()
+    isHeadless: Boolean = isStudio,
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless)
 ) : Driver {
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
@@ -60,7 +65,7 @@ class WebDriver(
     }
 
     override fun open() {
-        seleniumDriver = seleniumFactory.create(isStudio)
+        seleniumDriver = seleniumFactory.create()
 
         try {
             seleniumDriver
@@ -159,7 +164,6 @@ class WebDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         injectedArguments = injectedArguments + launchArguments
 
@@ -204,24 +208,36 @@ class WebDriver(
             }
         }
 
-        // parse into TreeNodes
-        fun parse(domRepresentation: Map<String, Any>): TreeNode {
-            val attrs = domRepresentation["attributes"] as Map<String, Any>
+        val root = parseDomAsTreeNodes(contentDesc as Map<String, Any>)
+        seleniumDriver?.currentUrl?.let { url ->
+            root.attributes["url"] = url
+        }
+        return root
+    }
 
-            val attributes = mutableMapOf(
-                "text" to attrs["text"] as String,
-                "bounds" to attrs["bounds"] as String,
-            )
-            if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
-                attributes["resource-id"] = attrs["resource-id"] as String
-            }
-            val children = domRepresentation["children"] as List<Map<String, Any>>
+    fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
+        val attrs = domRepresentation["attributes"] as Map<String, Any>
 
-            return TreeNode(attributes = attributes, children = children.map { parse(it) })
+        val attributes = mutableMapOf(
+            "text" to attrs["text"] as String,
+            "bounds" to attrs["bounds"] as String,
+        )
+        if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
+            attributes["resource-id"] = attrs["resource-id"] as String
+        }
+        if (attrs.containsKey("selected") && attrs["selected"] != null) {
+            attributes["selected"] = (attrs["selected"] as Boolean).toString()
+        }
+        if (attrs.containsKey("synthetic") && attrs["synthetic"] != null) {
+            attributes["synthetic"] = (attrs["synthetic"] as Boolean).toString()
+        }
+        if (attrs.containsKey("ignoreBoundsFiltering") && attrs["ignoreBoundsFiltering"] != null) {
+            attributes["ignoreBoundsFiltering"] = (attrs["ignoreBoundsFiltering"] as Boolean).toString()
         }
 
+        val children = domRepresentation["children"] as List<Map<String, Any>>
 
-        return parse(contentDesc as Map<String, Any>)
+        return TreeNode(attributes = attributes, children = children.map { parseDomAsTreeNodes(it) })
     }
 
     private fun detectWindowChange() {
@@ -253,6 +269,12 @@ class WebDriver(
 
     override fun tap(point: Point) {
         val driver = ensureOpen()
+
+        if (point.x >= SYNTHETHIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETHIC_COORDINATE_SPACE_OFFSET) {
+            tapOnSyntheticCoordinateSpace(point)
+            return
+        }
+
         val pixelsScrolled = scrollToPoint(point)
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
@@ -269,6 +291,23 @@ class WebDriver(
         (driver as RemoteWebDriver).perform(listOf(actions))
 
         Actions(driver).click().build().perform()
+    }
+
+    private fun tapOnSyntheticCoordinateSpace(point: Point) {
+        val elements = contentDescriptor()
+
+        val hit = ViewHierarchy.from(this, true)
+            .getElementAt(elements, point.x, point.y)
+
+        if (hit == null) {
+            return
+        }
+
+        if (hit.attributes["synthetic"] != "true") {
+            return
+        }
+
+        executeJS("window.maestro.tapOnSyntheticElement(${point.x}, ${point.y})")
     }
 
     override fun longPress(point: Point) {
@@ -366,7 +405,7 @@ class WebDriver(
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         val driver = ensureOpen()
 
-        driver.get(link)
+        driver.get(if (link.startsWith("http")) link else "https://$link")
     }
 
     override fun hideKeyboard() {
@@ -408,6 +447,10 @@ class WebDriver(
                 Optional.of(0.0)
             )
         )
+    }
+
+    override fun setOrientation(orientation: DeviceOrientation) {
+        // no-op for web
     }
 
     override fun eraseText(charactersToErase: Int) {
@@ -468,6 +511,32 @@ class WebDriver(
 
     override fun setAirplaneMode(enabled: Boolean) {
         // Do nothing
+    }
+
+    override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+        return when (query) {
+            is OnDeviceElementQuery.Css -> queryCss(query)
+            else -> super.queryOnDeviceElements(query)
+        }
+    }
+
+    private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
+        ensureOpen()
+
+        val jsResult: Any? = executeJS("return window.maestro.queryCss('${query.css}')")
+
+        if (jsResult == null) {
+            return emptyList()
+        }
+
+        if (jsResult is List<*>) {
+            return jsResult
+                .mapNotNull { it as? Map<*, *> }
+                .map { parseDomAsTreeNodes(it as Map<String, Any>) }
+        } else {
+            LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
+            return emptyList()
+        }
     }
 
     companion object {

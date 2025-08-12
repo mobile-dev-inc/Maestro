@@ -8,11 +8,11 @@ import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import java.util.logging.Level
 import java.util.logging.Logger
 
-class ChromeSeleniumFactory : SeleniumFactory {
+class ChromeSeleniumFactory(
+    private val isHeadless: Boolean
+) : SeleniumFactory {
 
-    override fun create(
-        isStudio: Boolean
-    ): WebDriver {
+    override fun create(): WebDriver {
         System.setProperty("webdriver.chrome.silentOutput", "true")
         System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true")
         Logger.getLogger("org.openqa.selenium").level = Level.OFF
@@ -28,7 +28,7 @@ class ChromeSeleniumFactory : SeleniumFactory {
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
-                if (isStudio) {
+                if (isHeadless) {
                     addArguments("--headless=new")
                     addArguments("--window-size=1024,768")
                     setExperimentalOption("detach", true)

@@ -34,6 +34,7 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
+import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -56,6 +57,8 @@ import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
+private val logger = LoggerFactory.getLogger(Maestro::class.java)
+
 private const val DefaultDriverHostPort = 7001
 
 class AndroidDriver(
@@ -71,15 +74,23 @@ class AndroidDriver(
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .keepAliveTime(2, TimeUnit.MINUTES)
+        .keepAliveTimeout(20, TimeUnit.SECONDS)
+        .keepAliveWithoutCalls(true)
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
     private val asyncStub = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
+    private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
+
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
+
+    private var isLocationMocked = false
+    private var chromeDevToolsEnabled = false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -166,14 +177,37 @@ class AndroidDriver(
         if (proxySet) {
             resetProxy()
         }
+        if (isLocationMocked) {
+            blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
+            isLocationMocked = false
+        }
 
+        LOGGER.info("[Start] close port forwarder")
         PORT_TO_FORWARDER[hostPort]?.close()
+        LOGGER.info("[Done] close port forwarder")
+
+        LOGGER.info("[Start] Remove host port from port forwarder map")
         PORT_TO_FORWARDER.remove(hostPort)
+        LOGGER.info("[Done] Remove host port from port forwarder map")
+
+        LOGGER.info("[Start] Remove host port from port to allocation map")
         PORT_TO_ALLOCATION_POINT.remove(hostPort)
+        LOGGER.info("[Done] Remove host port from port to allocation map")
+
+        LOGGER.info("[Start] Uninstall driver from device")
         uninstallMaestroApks()
+        LOGGER.info("[Done] Uninstall driver from device")
+
+        LOGGER.info("[Start] Close instrumentation session")
         instrumentationSession?.close()
         instrumentationSession = null
+        LOGGER.info("[Done] Close instrumentation session")
+
+        LOGGER.info("[Start] Shutdown GRPC channel")
         channel.shutdown()
+        LOGGER.info("[Done] Shutdown GRPC channel")
+
+        androidWebViewHierarchyClient.close()
 
         if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
             throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
@@ -197,7 +231,6 @@ class AndroidDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
             if(!open) // pick device flow, no open() invocation
@@ -208,8 +241,6 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            val sessionUUID = sessionId ?: UUID.randomUUID()
-            dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
             runDeviceCall {
                 blockingStubWithTimeout.launchApp(
                     launchAppRequest {
@@ -316,7 +347,10 @@ class AndroidDriver(
                 .newDocumentBuilder()
                 .parse(response.hierarchy.byteInputStream())
 
-            val treeNode = mapHierarchy(document)
+            val baseTree = mapHierarchy(document)
+
+            val treeNode = androidWebViewHierarchyClient.augmentHierarchy(baseTree, chromeDevToolsEnabled)
+
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode
             } else {
@@ -350,9 +384,23 @@ class AndroidDriver(
             blockingStubWithTimeout.viewHierarchy(viewHierarchyRequest {})
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
-            if (status.code == Status.Code.DEADLINE_EXCEEDED) {
-                LOGGER.error("Timeout while fetching view hierarchy")
-                throw MaestroException.DriverTimeout("Android driver unreachable")
+            when (status.code) {
+                Status.Code.DEADLINE_EXCEEDED -> {
+                    LOGGER.error("Timeout while fetching view hierarchy")
+                    closed = true
+                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                }
+                Status.Code.UNAVAILABLE -> {
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
+                        closed = true
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
+                    }
+                }
+                else -> {
+                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message}")
+                }
             }
 
             // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
@@ -634,7 +682,18 @@ class AndroidDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         metrics.measured("operation", mapOf("command" to "setLocation")) {
-            shell("appops set dev.mobile.maestro android:mock_location allow")
+            if (!isLocationMocked) {
+                LOGGER.info("[Start] Setting up for mocking location $latitude, $longitude")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
+                shell("appops set dev.mobile.maestro android:mock_location allow")
+                runDeviceCall {
+                    blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
+                }
+                LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
+
+                isLocationMocked = true
+            }
 
             runDeviceCall {
                 blockingStubWithTimeout.setLocation(
@@ -644,6 +703,18 @@ class AndroidDriver(
                     }
                 ) ?: error("Set Location Response can't be null")
             }
+        }
+    }
+
+    override fun setOrientation(orientation: DeviceOrientation) {
+        // Disable accelerometer based rotation before overriding orientation
+        dadb.shell("settings put system accelerometer_rotation 0")
+
+        when(orientation) {
+            DeviceOrientation.PORTRAIT -> dadb.shell("settings put system user_rotation 0")
+            DeviceOrientation.LANDSCAPE_LEFT -> dadb.shell("settings put system user_rotation 1")
+            DeviceOrientation.UPSIDE_DOWN -> dadb.shell("settings put system user_rotation 2")
+            DeviceOrientation.LANDSCAPE_RIGHT -> dadb.shell("settings put system user_rotation 3")
         }
     }
 
@@ -799,6 +870,10 @@ class AndroidDriver(
                 }
             }
         }
+    }
+
+    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
+        this.chromeDevToolsEnabled = enabled
     }
 
     fun setDeviceLocale(country: String, language: String): Int {
@@ -1073,15 +1148,37 @@ class AndroidDriver(
 
     fun uninstallMaestroDriverApp() {
         metrics.measured("operation", mapOf("command" to "uninstallMaestroDriverApp")) {
-            if (isPackageInstalled("dev.mobile.maestro")) {
-                uninstall("dev.mobile.maestro")
+            try {
+                if (isPackageInstalled("dev.mobile.maestro")) {
+                    uninstall("dev.mobile.maestro")
+                }
+            } catch (e: IOException) {
+                logger.warn("Failed to check or uninstall maestro driver app: ${e.message}")
+                // Continue with cleanup even if we can't check package status
+                try {
+                    uninstall("dev.mobile.maestro")
+                } catch (e2: IOException) {
+                    logger.warn("Failed to uninstall maestro driver app: ${e2.message}")
+                    // Just log and continue, don't throw
+                }
             }
         }
     }
 
     private fun uninstallMaestroServerApp() {
-        if (isPackageInstalled("dev.mobile.maestro.test")) {
-            uninstall("dev.mobile.maestro.test")
+        try {
+            if (isPackageInstalled("dev.mobile.maestro.test")) {
+                uninstall("dev.mobile.maestro.test")
+            }
+        } catch (e: IOException) {
+            logger.warn("Failed to check or uninstall maestro server app: ${e.message}")
+            // Continue with cleanup even if we can't check package status
+            try {
+                uninstall("dev.mobile.maestro.test")
+            } catch (e2: IOException) {
+                logger.warn("Failed to uninstall maestro server app: ${e2.message}")
+                // Just log and continue, don't throw
+            }
         }
     }
 
@@ -1107,12 +1204,18 @@ class AndroidDriver(
     }
 
     private fun isPackageInstalled(packageName: String): Boolean {
-        val output: String = shell("pm list packages --user 0 $packageName")
-        return output.split("\n".toRegex())
-            .map { line -> line.split(":".toRegex()) }
-            .filter { parts -> parts.size == 2 }
-            .map { parts -> parts[1] }
-            .any { linePackageName -> linePackageName == packageName }
+        try {
+            val output: String = shell("pm list packages --user 0 $packageName")
+            return output.split("\n".toRegex())
+                .map { line -> line.split(":".toRegex()) }
+                .filter { parts -> parts.size == 2 }
+                .map { parts -> parts[1] }
+                .any { linePackageName -> linePackageName == packageName }
+        } catch (e: IOException) {
+            logger.warn("Failed to check if package $packageName is installed: ${e.message}")
+            // If we can't check, we'll assume it's not installed
+            throw e
+        }
     }
 
     private fun shell(command: String): String {
@@ -1147,11 +1250,27 @@ class AndroidDriver(
             call()
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
-            if (status.code == Status.Code.DEADLINE_EXCEEDED) {
-                closed = true
-                throw MaestroException.DriverTimeout("Android driver unreachable")
+            when (status.code) {
+                Status.Code.DEADLINE_EXCEEDED -> {
+                    LOGGER.error("Device call failed on android with $status", throwable)
+                    closed = true
+                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                }
+                Status.Code.UNAVAILABLE -> {
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server while doing android device call")
+                        closed = true
+                        throw throwable
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
+                        throw throwable
+                    }
+                }
+                else -> {
+                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} and cause ${throwable.cause} while doing android device call", throwable)
+                    throw throwable
+                }
             }
-            throw throwable
         }
     }
 

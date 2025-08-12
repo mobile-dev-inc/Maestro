@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.auth.ApiKey
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
@@ -7,6 +8,10 @@ import maestro.cli.auth.Auth
 import maestro.cli.util.PrintUtils.message
 import picocli.CommandLine
 import java.util.concurrent.Callable
+import kotlin.io.path.absolutePathString
+import maestro.cli.report.TestDebugReporter
+import maestro.debuglog.LogConfig
+import picocli.CommandLine.Option
 
 @CommandLine.Command(
     name = "login",
@@ -22,22 +27,25 @@ class LoginCommand : Callable<Int> {
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
 
-    @CommandLine.Option(names = ["--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = "https://api.mobile.dev"
+    @Option(names = ["--api-url", "--apiUrl"], description = ["API base URL"])
+    private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     private val auth by lazy {
-        Auth(ApiClient(apiUrl))
+        Auth(ApiClient("$apiUrl/v2"))
     }
 
     override fun call(): Int {
-        val existingToken = auth.getCachedAuthToken()
+        LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
+
+        val existingToken = ApiKey.getToken()
 
         if (existingToken != null) {
             message("Already logged in. Run \"maestro logout\" to logout.")
             return 0
         }
 
-        auth.triggerSignInFlow()
+        val token = auth.triggerSignInFlow()
+        println(token)
 
         return 0
     }

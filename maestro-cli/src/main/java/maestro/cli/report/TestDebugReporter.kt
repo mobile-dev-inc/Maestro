@@ -1,14 +1,12 @@
 package maestro.cli.report
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.LoggerContext
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.MaestroException
 import maestro.TreeNode
-import maestro.ai.Defect
+import maestro.ai.cloud.Defect
 import maestro.cli.runner.CommandStatus
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
@@ -16,6 +14,11 @@ import maestro.cli.util.IOSEnvUtils
 import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
 import maestro.orchestra.MaestroCommand
+import org.apache.logging.log4j.Level
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.core.config.Configurator
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -27,21 +30,23 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util.IdentityHashMap
+import java.util.*
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
+import kotlin.math.log
 
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff
 object TestDebugReporter {
 
-    private val logger = LoggerFactory.getLogger(TestDebugReporter::class.java)
+    private val logger = LogManager.getLogger(TestDebugReporter::class.java)
     private val mapper = jacksonObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY).writerWithDefaultPrettyPrinter()
 
     private var debugOutputPath: Path? = null
     private var debugOutputPathAsString: String? = null
     private var flattenDebugOutput: Boolean = false
+    private var testOutputDir: Path? = null
 
     // AI outputs must be saved separately at the end of the flow.
     fun saveSuggestions(outputs: List<FlowAIOutput>, path: Path) {
@@ -127,13 +132,14 @@ object TestDebugReporter {
     }
 
     private fun logSystemInfo() {
-        val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
-        val rootLogger = loggerContext.getLogger("io.netty")
-        val grpcLogger = loggerContext.getLogger("io.grpc")
-        rootLogger.setLevel(Level.OFF)
-        grpcLogger.setLevel(Level.OFF)
+        logger.info("Debug output path: {}", getDebugOutputPath().absolutePathString())
 
-        val logger = LoggerFactory.getLogger("MAESTRO")
+        // Disable specific gRPC and Netty loggers
+        Configurator.setLevel("io.grpc.netty.NettyClientHandler", Level.OFF)
+        Configurator.setLevel("io.grpc.netty", Level.OFF)
+        Configurator.setLevel("io.netty", Level.OFF)
+
+        val logger = LogManager.getLogger("MAESTRO")
         logger.info("---- System Info ----")
         logger.info("Maestro Version: ${EnvUtils.CLI_VERSION ?: "Undefined"}")
         logger.info("CI: ${CiUtils.getCiProvider() ?: "Undefined"}")
@@ -151,13 +157,19 @@ object TestDebugReporter {
      * Calls to this method should be done as soon as possible, to make all
      * loggers use our custom configuration rather than the defaults.
      */
-    fun install(debugOutputPathAsString: String?, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
+    fun install(debugOutputPathAsString: String? = null, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
         this.debugOutputPathAsString = debugOutputPathAsString
         this.flattenDebugOutput = flattenDebugOutput
         val path = getDebugOutputPath()
         LogConfig.configure(logFileName = path.absolutePathString() + "/maestro.log", printToConsole = printToConsole)
         logSystemInfo()
         DebugLogStore.logSystemInfo()
+    }
+
+    fun updateTestOutputDir(testOutputDir: Path?) {
+        this.testOutputDir = testOutputDir
+        // set debug output path to match the test output directory
+        debugOutputPath = testOutputDir
     }
 
     fun getDebugOutputPath(): Path {
@@ -176,9 +188,15 @@ object TestDebugReporter {
     }
 
     private fun buildDefaultDebugOutputPath(debugRootPath: String): Path {
-        val preamble = arrayOf(".maestro", "tests")
-        val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
-        return Paths.get(debugRootPath, *preamble, foldername)
+        // If testOutputDir is configured, use it as the base path instead of ~/.maestro/tests
+        return if (testOutputDir != null) {
+            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+            testOutputDir!!.resolve(foldername)
+        } else {
+            val preamble = arrayOf(".maestro", "tests")
+            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+            Paths.get(debugRootPath, *preamble, foldername)
+        }
     }
 }
 

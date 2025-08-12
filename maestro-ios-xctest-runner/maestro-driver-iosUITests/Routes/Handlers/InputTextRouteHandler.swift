@@ -10,15 +10,14 @@ struct InputTextRouteHandler : HTTPHandler {
     )
 
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(InputTextRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(InputTextRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for input text").httpResponse
         }
 
         do {
             let start = Date()
             
-            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
-            await waitUntilKeyboardIsPresented(appId: appId)
+            await waitUntilKeyboardIsPresented()
             
             try await TextInputHelper.inputText(requestBody.text)
 
@@ -30,11 +29,11 @@ struct InputTextRouteHandler : HTTPHandler {
         }
     }
     
-    private func waitUntilKeyboardIsPresented(appId: String?) async {
+    private func waitUntilKeyboardIsPresented() async {
         try? await TimeoutHelper.repeatUntil(timeout: 1, delta: 0.2) {
-            guard let appId = appId else { return true }
+            let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
 
-            return XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch.exists
+            return app.keyboards.firstMatch.exists
         }
     }
 }

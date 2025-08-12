@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.jreleaser)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 group = "dev.mobile"
@@ -24,6 +25,15 @@ tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = "maestro.cli.AppKt"
     }
+    // Include the driver source directly
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**",
+        )
+    }
 }
 
 tasks.named<JavaExec>("run") {
@@ -31,15 +41,20 @@ tasks.named<JavaExec>("run") {
     workingDir = rootDir
 }
 
+tasks.named<CreateStartScripts>("startScripts") {
+    classpath = files("${layout.buildDirectory}/libs/*")
+}
+
 dependencies {
     implementation(project(path = ":maestro-utils"))
     annotationProcessor(libs.picocli.codegen)
 
-    implementation(project(":maestro-client"))
     implementation(project(":maestro-orchestra"))
+    implementation(project(":maestro-client"))
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-ios-driver"))
     implementation(project(":maestro-studio:server"))
+    implementation(libs.posthog)
     implementation(libs.dadb)
     implementation(libs.picocli)
     implementation(libs.jackson.core.databind)
@@ -53,6 +68,10 @@ dependencies {
     implementation(libs.square.okhttp)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.status.pages)
     implementation(libs.jarchivelib)
     implementation(libs.commons.codec)
     implementation(libs.kotlinx.coroutines.core)
@@ -63,20 +82,33 @@ dependencies {
     implementation(libs.skiko.linux.x64)
     implementation(libs.skiko.windows.arm64)
     implementation(libs.skiko.windows.x64)
+    implementation(libs.kotlinx.serialization.json)
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.2.0")
+    implementation(libs.mcp.kotlin.sdk) {
+        version {
+            branch = "steviec/kotlin-1.8"
+        }
+        exclude(group = "org.slf4j", module = "slf4j-simple")
+    }
+    implementation(libs.logging.sl4j)
+    implementation(libs.logging.api)
+    implementation(libs.logging.layout.template)
+    implementation(libs.log4j.core)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+        freeCompilerArgs.addAll("-Xjdk-release=17")
     }
 }
 
@@ -92,7 +124,20 @@ tasks.create("createProperties") {
     }
 }
 
+tasks.register<Copy>("createTestResources") {
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**"
+        )
+    }
+    into(layout.buildDirectory.dir("resources/test"))
+}
+
 tasks.named("classes") {
+    dependsOn("createTestResources")
     dependsOn("createProperties")
 }
 
@@ -178,6 +223,14 @@ jreleaser {
     }
 }
 
+tasks.register<Test>("integrationTest") {
+    useJUnitPlatform {
+        includeTags("IntegrationTest")
+    }
+}
+
 tasks.named<Test>("test") {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("IntegrationTest")
+    }
 }

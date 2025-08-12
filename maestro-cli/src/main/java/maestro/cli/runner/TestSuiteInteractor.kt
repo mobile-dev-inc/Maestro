@@ -3,7 +3,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.CliError
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
@@ -48,11 +48,12 @@ class TestSuiteInteractor(
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
     private val shardPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
 
-    fun runTestSuite(
+    suspend fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
         reportOut: Sink?,
         env: Map<String, String>,
-        debugOutputPath: Path
+        debugOutputPath: Path,
+        testOutputDir: Path? = null
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
             throw CliError("${shardPrefix}No flows returned from the tag filter used")
@@ -72,7 +73,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -92,7 +93,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -148,11 +149,12 @@ class TestSuiteInteractor(
         return summary
     }
 
-    private fun runFlow(
+    private suspend fun runFlow(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,
-        debugOutputPath: Path
+        debugOutputPath: Path,
+        testOutputDir: Path? = null
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -178,6 +180,7 @@ class TestSuiteInteractor(
 
                 val orchestra = Orchestra(
                     maestro = maestro,
+                    screenshotsDir = testOutputDir?.resolve("screenshots"),
                     onCommandStart = { _, command ->
                         logger.info("${shardPrefix}${command.description()} RUNNING")
                         debugOutput.commands[command] = CommandDebugMetadata(

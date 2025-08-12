@@ -2,6 +2,104 @@
 
 ## Unreleased
 
+## 1.41.0
+Fix:
+- Resolved an issue where view hierarchy was incorrectly returned on full-screen apps or larger devices (e.g., iPhone Pro models, iOS 18). This affected selector matching for taps and assertions.
+- Maestro now properly handles timeouts from the XCTest framework when the app UI is slow or too large. These are surfaced as actionable exceptions with helpful messages.
+- setLocation now mocks all major location providers (GPS, network, fused). Also ensures proper cleanup when the driver shuts down.
+- Errors when .maestro config file is misinterpreted as a test flow file.
+
+Features:
+- Platform configs are now supported via workspace configuration [(Docs)](https://docs.maestro.dev/api-reference/configuration/workspace-configuration#platform-configuration):
+  * `disableAnimations` for both android and iOS.
+  * `snapshotKeyHonorModalViews`: On iOS, includes elements behind modals that are still visible on modal to user but gets missing in hierarchy.
+- Added support for selecting `select` tags dropdown elements in web flows.
+- Debug messages are now attached to Maestro exceptions to help users understand failures faster.
+- Added support for selecting elements using CSS/DOM query
+- Added Maestro MCP server implementation to cli by [[Stevie Clifton](https://github.com/steviec)]
+
+Breaking Change:
+- `retryTapIfNoChange` is now disabled by default. It was causing side effects in some apps. If needed, it can still be manually enabled.
+
+
+## 1.40.3
+Fix
+- MissingKotlinParameterException during using maestro commands.
+
+## 1.40.2
+Fix
+- Sharding on iOS, throwing FileSystemAlreadyExistsException exception 
+
+## 1.40.1
+Fix
+- iOS apps going on background while using maestro commands
+
+Feature
+- Flag to skip interactive device selection by picking a --device-index
+
+## 1.40.0
+
+Fix:
+- JavaScript fails when running maestro test in continuos mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
+- Ignore notifications in analyse command for CI ([#2306](https://github.com/mobile-dev-inc/Maestro/pull/2306))
+- `config.yaml` not resolving on Windows ([#2327](https://github.com/mobile-dev-inc/Maestro/pull/2327))
+- Fix swipe command failure on iOS after upgrading to Xcode 16.2 [issue #2422](https://github.com/mobile-dev-inc/maestro/issues/2422) ([#2332](https://github.com/mobile-dev-inc/maestro/pull/2332))
+- Fix `app-binary-id` option on maestro cloud upload ([#2361](https://github.com/mobile-dev-inc/Maestro/pull/2361))
+- Ensure commands with missing elements fail as expected in Studio ([#2140](https://github.com/mobile-dev-inc/Maestro/pull/2140))
+- Prevent flows from getting stuck on the cloud by properly setting driver closing state ([#2364](https://github.com/mobile-dev-inc/Maestro/pull/2364))
+- Fix `maestro cloud` & `maestro start-device` on windows ([#2371](https://github.com/mobile-dev-inc/Maestro/pull/2371))
+- Improved `maestro cloud` to only process valid flow `.yaml`/`.yml` files and skip unrelated files like `config.yaml`, preventing parsing errors when uploading folders with mixed content ([#2359](https://github.com/mobile-dev-inc/Maestro/pull/2359))
+- Improved `maestro cloud` to skip validating non-flow files (e.g., .js, README, config.yaml) in folders, preventing parsing errors and upload failures
+- Fix setting up iOS Driver when not on bash environment ([#2412](https://github.com/mobile-dev-inc/Maestro/pull/2412))
+- Speed up view hierarchy generation by reducing SpringBoard queries and avoiding redundant app list calls on iOS. ([#2419](https://github.com/mobile-dev-inc/Maestro/pull/2419))
+
+Features:
+- Added support for `androidWebViewHierarchy: devtools` option to build Android WebView hierarchy using Chrome DevTools ([#2350](https://github.com/mobile-dev-inc/Maestro/pull/2350))
+- Added Chrome to available devices for web automation ([#2360](https://github.com/mobile-dev-inc/Maestro/pull/2360))
+- Introduced pre-built mode for setting up iOS driver on simulators without relying on `xcodebuild` ([#2325](https://github.com/mobile-dev-inc/Maestro/pull/2325))
+- Added command-line chat mode to Maestro CLI accessable by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
+- Introduced `maestro check-syntax` command for validating flow syntax ([#2387](https://github.com/mobile-dev-inc/Maestro/pull/2387))
+- Added `--reinstall-driver` flag that reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added `--compact` flag that remove empty values to make the output hierarchy json smaller ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added `--device-os` and `--device-model` options to target specific iOS minor versions and devices ([Docs](https://docs.maestro.dev/cloud/reference/configuring-os-version#using-a-specific-ios-minor-version-and-device-recommended)) ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added support for ios 18 on cloud and local
+- Bumped default iOS version to 16 for `maestro start-device`
+- Enabled AI command usage on `mobile.dev` ([#2425](https://github.com/mobile-dev-inc/Maestro/pull/2425))
+
+Chore: 
+- Update Flying Fox HTTP server on iOS driver ([#2415](https://github.com/mobile-dev-inc/Maestro/pull/2415))
+- Migrated app termination from `simctl` to `xctest` for improved stability` ([#2418](https://github.com/mobile-dev-inc/Maestro/pull/2418))
+
+## 1.39.13
+
+- Fix : Adding upload route back again
+- Feature: Removing Analyze logs from CI uploads
+
+## 1.39.12
+
+- Fix: Upload route on Robin was not working on maestro cloud command
+
+## 1.39.11
+
+- Feature: Starting trial from CLI
+- Feature: Better logs to improve visibility
+- Feature: Prebuilt iOS driver without xcodebuild
+- Feature: Analyze option to test command
+
+## 1.39.10
+
+- Update install script to tidy up old installation binaries
+
+## 1.39.9
+
+- Revert: Error in showing keyboard during input and erase commands on iOS
+- Fix: applesimutils affecting granting location permission
+- Fix: Setting host and port from the optional arguments
+- Feature: New `maestro login` command for logging in Robin.
+- Feature: Improved `maestro record` video to scroll and follow the currently executing commands
+- Fix: Enable running Maestro on Windows without WSL
+- Feature: Add console.log messages directly to the maestro log file.
+
 ## 1.39.8
 
 - Fix: Debug message not showing up when we execute commands on maestro cli anymore

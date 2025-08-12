@@ -1,13 +1,16 @@
 package maestro.studio
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import maestro.Platform
 import java.util.UUID
 
 data class DeviceScreen(
+    val platform: Platform,
     val screenshot: String,
     val width: Int,
     val height: Int,
     val elements: List<UIElement>,
+    val url: String?,
 )
 
 data class UIElementBounds(

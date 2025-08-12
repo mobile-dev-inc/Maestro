@@ -8,6 +8,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.Callable
 import kotlin.io.path.deleteIfExists
+import maestro.cli.util.PrintUtils
+import maestro.cli.util.PrintUtils.message
 
 @CommandLine.Command(
     name = "logout",
@@ -28,18 +30,9 @@ class LogoutCommand : Callable<Int> {
     override fun call(): Int {
         cachedAuthTokenFile.deleteIfExists()
 
-        message("Logged out")
+        message("Logged out.")
 
         return 0
-    }
-
-    companion object {
-
-        // TODO reuse
-        private fun message(message: String) {
-            println(Ansi.ansi().render("@|cyan \n$message|@"))
-        }
-
     }
 
 }

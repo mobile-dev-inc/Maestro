@@ -21,7 +21,7 @@ package maestro.cli.runner
 
 import maestro.Maestro
 import maestro.MaestroException
-import maestro.cli.device.Device
+import maestro.device.Device
 import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.CommandDebugMetadata
 import maestro.cli.report.FlowAIOutput
@@ -35,9 +35,11 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.IdentityHashMap
 import maestro.cli.util.ScreenshotUtils
 import maestro.utils.Insight
+import java.nio.file.Path
 
 /**
  * Knows how to run a list of Maestro commands and update the UI.
@@ -48,7 +50,7 @@ object MaestroCommandRunner {
 
     private val logger = LoggerFactory.getLogger(MaestroCommandRunner::class.java)
 
-    fun runCommands(
+    suspend fun runCommands(
         flowName: String,
         maestro: Maestro,
         device: Device?,
@@ -56,6 +58,9 @@ object MaestroCommandRunner {
         commands: List<MaestroCommand>,
         debugOutput: FlowDebugOutput,
         aiOutput: FlowAIOutput,
+        apiKey: String? = null,
+        analyze: Boolean = false,
+        testOutputDir: Path?
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -89,9 +94,13 @@ object MaestroCommandRunner {
         }
 
         refreshUi()
+        if (analyze) {
+            ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
+        }
 
         val orchestra = Orchestra(
             maestro = maestro,
+            screenshotsDir = testOutputDir?.resolve("screenshots"),
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
@@ -106,6 +115,10 @@ object MaestroCommandRunner {
             onCommandComplete = { _, command ->
                 logger.info("${command.description()} COMPLETED")
                 commandStatuses[command] = CommandStatus.COMPLETED
+                if (analyze) {
+                    ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.COMPLETED)
+                }
+
                 debugOutput.commands[command]?.apply {
                     status = CommandStatus.COMPLETED
                     calculateDuration()
@@ -173,7 +186,8 @@ object MaestroCommandRunner {
                         defects = defects,
                     )
                 )
-            }
+            },
+            apiKey = apiKey,    
         )
 
         val flowSuccess = orchestra.runFlow(commands)

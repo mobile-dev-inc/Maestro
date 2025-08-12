@@ -8,6 +8,7 @@ import io.ktor.server.http.content.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.runBlocking
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Maestro
@@ -23,6 +24,8 @@ import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.yaml.FlowParseException
+import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.yaml.YamlFluentCommand
 
@@ -54,22 +57,23 @@ object DeviceService {
         routing.post("/api/run-command") {
             val request = call.parseBody<RunCommandRequest>()
             try {
-                val commands = YamlCommandReader.MAPPER.readValue(request.yaml, YamlFluentCommand::class.java)
-                    .toCommands(Paths.get(""), "")
+                val commands = MaestroFlowParser.parseCommand(Paths.get(""), "", request.yaml)
                 if (request.dryRun != true) {
                     executeCommands(maestro, commands)
                 }
                 val response = jacksonObjectMapper().writeValueAsString(commands)
                 call.respond(response)
+            } catch (e: FlowParseException) {
+                call.respond(HttpStatusCode.BadRequest, listOfNotNull(e.errorMessage, e.docs).joinToString("\n"))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.BadRequest, e.message ?: "Failed to run command")
             }
         }
         routing.post("/api/format-flow") {
             val request = call.parseBody<FormatCommandsRequest>()
-            val commands = request.commands.map { YamlCommandReader.MAPPER.readValue(it, YamlFluentCommand::class.java).toCommands(Paths.get(""), "") }
+            val commands = request.commands.map { YamlCommandReader.readSingleCommand(Paths.get(""), "", it) }
             val inferredAppId = commands.flatten().firstNotNullOfOrNull { it.launchAppCommand?.appId }
-            val commandsString = YamlCommandReader.MAPPER.writeValueAsString(request.commands.map { YamlCommandReader.MAPPER.readTree(it) })
+            val commandsString = YamlCommandReader.formatCommands(request.commands)
             val formattedFlow = FormattedFlow("appId: $inferredAppId", commandsString)
             val response = jacksonObjectMapper().writeValueAsString(formattedFlow)
             call.respondText(response)
@@ -83,9 +87,9 @@ object DeviceService {
                         val deviceScreen = getDeviceScreen(maestro)
                         writeStringUtf8("data: $deviceScreen\n\n")
                         flush()
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Ignoring the exception to prevent SSE stream from dying
-                        e.printStackTrace()
+                        // Don't log since this floods the terminal after killing studio
                     }
                 }
             }
@@ -104,13 +108,17 @@ object DeviceService {
         }
     }
 
-    private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>): Throwable? {
-        var failure: Throwable? = null
-        val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
-            failure = throwable
-            Orchestra.ErrorResolution.FAIL
-        }).executeCommands(commands)
-        return if (result) null else (failure ?: RuntimeException("Command execution failed"))
+    private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>) {
+        runBlocking {
+            var failure: Throwable? = null
+            val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
+                failure = throwable
+                Orchestra.ErrorResolution.FAIL
+            }).executeCommands(commands)
+            if (failure != null) {
+                throw RuntimeException("Command execution failed")
+            }
+        }
     }
 
     private fun treeToElements(tree: TreeNode): List<UIElement> {
@@ -187,8 +195,9 @@ object DeviceService {
         val deviceWidth = deviceInfo.widthGrid
         val deviceHeight = deviceInfo.heightGrid
 
+        val url = tree.attributes["url"]
         val elements = treeToElements(tree)
-        val deviceScreen = DeviceScreen("/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements)
+        val deviceScreen = DeviceScreen(deviceInfo.platform, "/screenshot/${screenshotFile.name}", deviceWidth, deviceHeight, elements, url)
         return jacksonObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .writeValueAsString(deviceScreen)

@@ -23,7 +23,14 @@ service MaestroDriver {
   rpc launchApp(LaunchAppRequest) returns (LaunchAppResponse) {}
 
   rpc addMedia(stream AddMediaRequest) returns (AddMediaResponse) {}
+
+  rpc enableMockLocationProviders(EmptyRequest) returns (EmptyResponse) {}
+
+  rpc disableLocationUpdates(EmptyRequest) returns (EmptyResponse) {}
 }
+
+message EmptyRequest {}
+message EmptyResponse {}
 
 message LaunchAppRequest {
 

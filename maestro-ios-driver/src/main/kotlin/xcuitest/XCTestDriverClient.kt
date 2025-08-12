@@ -1,5 +1,6 @@
 package xcuitest
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import hierarchy.ViewHierarchy
 import maestro.utils.HttpClient
@@ -10,7 +11,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
-import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -19,33 +19,26 @@ class XCTestDriverClient(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
         connectTimeout = 1.seconds
-    )
+    ),
+    private val reinstallDriver: Boolean = true,
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
 
     private lateinit var client: XCTestClient
 
-    constructor(installer: XCTestInstaller, client: XCTestClient): this(installer) {
+    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = true): this(installer, reinstallDriver = reinstallDriver) {
         this.client = client
     }
 
-    private var isShuttingDown = false
-
-    init {
-        Runtime.getRuntime().addShutdownHook(Thread {
-            isShuttingDown = true
-        })
-    }
-
     fun restartXCTestRunner() {
-        logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
-        installer.uninstall()
+        if(reinstallDriver) {
+            logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
+            installer.uninstall()
+            logger.trace("XCTest Runner uninstalled, will install and start it")
+        }
 
-        logger.trace("XCTest Runner uninstalled, will install and start it")
-        client = installer.start() ?: throw XCTestDriverUnreachable("Failed to start XCTest Driver")
+        client = installer.start()
     }
-
-    class XCTestDriverUnreachable(message: String) : IOException(message)
 
     private val mapper = jacksonObjectMapper()
 
@@ -63,6 +56,14 @@ class XCTestDriverClient(
             .build()
 
         return executeJsonRequest(url)
+    }
+
+    fun terminateApp(appId: String) {
+        executeJsonRequest("terminateApp", TerminateAppRequest(appId))
+    }
+
+    fun launchApp(appId: String) {
+        executeJsonRequest("launchApp", LaunchAppRequest(appId))
     }
 
     fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
@@ -86,6 +87,7 @@ class XCTestDriverClient(
         return mapper.readValue(response, GetRunningAppIdResponse::class.java)
     }
 
+    @Deprecated("swipeV2 is the latest one getting used everywhere because it requires one http call")
     fun swipe(
         appId: String,
         startX: Double,
@@ -143,6 +145,10 @@ class XCTestDriverClient(
             y = y,
             duration = duration
         ))
+    }
+
+    fun setOrientation(orientation: String) {
+        executeJsonRequest("setOrientation", SetOrientationRequest(orientation))
     }
 
     fun pressKey(name: String) {
@@ -247,9 +253,17 @@ class XCTestDriverClient(
         pathString: String,
         responseBodyAsString: String,
     ): String {
-        logger.warn("Status code: $code, body: $responseBodyAsString");
-        val error = mapper.readValue(responseBodyAsString, Error::class.java)
+        logger.warn("XCTestDriver request failed. Status code: $code, path: $pathString, body: $responseBodyAsString");
+        val error = try {
+            mapper.readValue(responseBodyAsString, Error::class.java)
+        } catch (_: JsonProcessingException) {
+            Error("Unable to parse error", "unknown")
+        }
         when {
+            code == 408 -> {
+                logger.error("Request for $pathString timeout, body: $responseBodyAsString")
+                throw XCUITestServerError.OperationTimeout(error.errorMessage, pathString)
+            }
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
                 throw XCUITestServerError.BadRequest(

@@ -1,1 +1,1 @@
-Flow directories do not contain any Flow files: {PROJECT_DIR}/src/test/resources/workspaces/e001_directory_does_not_contain_flow_files/workspace
+Flow directories do not contain any Flow files: /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace

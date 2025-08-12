@@ -1,11 +1,11 @@
 package util
 
-import okio.buffer
-import okio.source
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import okio.buffer
+import okio.source
+import org.slf4j.LoggerFactory
 
 object CommandLineUtils {
 
@@ -14,18 +14,24 @@ object CommandLineUtils {
     private val logger = LoggerFactory.getLogger(CommandLineUtils::class.java)
 
     @Suppress("SpreadOperator")
-    fun runCommand(parts: List<String>, waitForCompletion: Boolean = true, outputFile: File? = null, params: Map<String, String> = emptyMap()): Process {
-        logger.info("Running command line operation: $parts")
+    fun runCommand(
+            parts: List<String>,
+            waitForCompletion: Boolean = true,
+            outputFile: File? = null,
+            params: Map<String, String> = emptyMap()
+    ): Process {
+        logger.info("Running command line operation: $parts with $params")
 
-        val processBuilder = if (outputFile != null) {
-            ProcessBuilder(*parts.toTypedArray())
-                .redirectOutput(outputFile)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-        } else {
-            ProcessBuilder(*parts.toTypedArray())
-                .redirectOutput(nullFile)
-                .redirectError(nullFile)
-        }
+        val processBuilder =
+                if (outputFile != null) {
+                    ProcessBuilder(*parts.toTypedArray())
+                            .redirectOutput(outputFile)
+                            .redirectError(outputFile)
+                } else {
+                    ProcessBuilder(*parts.toTypedArray())
+                            .redirectOutput(nullFile)
+                            .redirectError(ProcessBuilder.Redirect.PIPE)
+                }
 
         processBuilder.environment().putAll(params)
         val process = processBuilder.start()
@@ -36,13 +42,10 @@ object CommandLineUtils {
             }
 
             if (process.exitValue() != 0) {
-                val processOutput = process.errorStream
-                    .source()
-                    .buffer()
-                    .readUtf8()
+                val processOutput = process.errorStream.source().buffer().readUtf8()
 
                 logger.error("Process failed with exit code ${process.exitValue()}")
-                logger.error(processOutput)
+                logger.error("Error output $processOutput")
 
                 throw IllegalStateException(processOutput)
             }

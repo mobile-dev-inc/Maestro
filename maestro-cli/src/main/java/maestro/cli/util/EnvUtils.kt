@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 object EnvUtils {
-    private const val PROD_API_URL = "https://api.mobile.dev"
+    private const val PROD_API_URL = "https://api.copilot.mobile.dev"
 
     val OS_NAME: String = System.getProperty("os.name")
     val OS_ARCH: String = System.getProperty("os.arch")
@@ -48,10 +48,6 @@ object EnvUtils {
         return Paths.get(System.getProperty("user.home"), ".maestro")
     }
 
-    fun maestroCloudApiKey(): String? {
-        return System.getenv("MAESTRO_CLOUD_API_KEY")
-    }
-
     /**
      * @return true, if we're executing from Windows Linux shell (WSL)
      */
@@ -73,6 +69,10 @@ object EnvUtils {
         }
 
         return false
+    }
+
+    fun isWindows(): Boolean {
+        return OS_NAME.lowercase().startsWith("windows")
     }
 
     /**
@@ -113,19 +113,21 @@ object EnvUtils {
         return Pair(first = version.getOrNull(), second = channel.getOrNull())
     }
 
-    fun getMacOSArchitecture(): MACOS_ARCHITECTURE {
+    fun getMacOSArchitecture(): CPU_ARCHITECTURE {
         return determineArchitectureDetectionStrategy().detectArchitecture()
     }
 
     private fun determineArchitectureDetectionStrategy(): ArchitectureDetectionStrategy {
-        return if (runProcess("uname").contains("Linux")) {
+        return if (isWindows()) {
+            ArchitectureDetectionStrategy.WindowsArchitectureDetection
+        } else if (runProcess("uname").contains("Linux")) {
             ArchitectureDetectionStrategy.LinuxArchitectureDetection
         } else {
             ArchitectureDetectionStrategy.MacOsArchitectureDetection
         }
     }
 
-    private fun getCLIVersion(): CliVersion? {
+    fun getCLIVersion(): CliVersion? {
         val props = try {
             Updates::class.java.classLoader.getResourceAsStream("version.properties").use {
                 Properties().apply { load(it) }
@@ -142,36 +144,42 @@ object EnvUtils {
 
 sealed interface ArchitectureDetectionStrategy {
 
-    fun detectArchitecture(): MACOS_ARCHITECTURE
+    fun detectArchitecture(): CPU_ARCHITECTURE
 
     object MacOsArchitectureDetection : ArchitectureDetectionStrategy {
-        override fun detectArchitecture(): MACOS_ARCHITECTURE {
+        override fun detectArchitecture(): CPU_ARCHITECTURE {
             fun runSysctl(property: String) = runProcess("sysctl", property).any { it.endsWith(": 1") }
 
             // Prefer sysctl over 'uname -m' due to Rosetta making it unreliable
             val isArm64 = runSysctl("hw.optional.arm64")
             val isX86_64 = runSysctl("hw.optional.x86_64")
             return when {
-                isArm64 -> MACOS_ARCHITECTURE.ARM64
-                isX86_64 -> MACOS_ARCHITECTURE.x86_64
-                else -> MACOS_ARCHITECTURE.UNKNOWN
+                isArm64 -> CPU_ARCHITECTURE.ARM64
+                isX86_64 -> CPU_ARCHITECTURE.x86_64
+                else -> CPU_ARCHITECTURE.UNKNOWN
             }
         }
     }
 
     object LinuxArchitectureDetection : ArchitectureDetectionStrategy {
-        override fun detectArchitecture(): MACOS_ARCHITECTURE {
+        override fun detectArchitecture(): CPU_ARCHITECTURE {
             return when (runProcess("uname", "-m").first()) {
-                "x86_64" -> MACOS_ARCHITECTURE.x86_64
-                "arm64" -> MACOS_ARCHITECTURE.ARM64
-                else -> MACOS_ARCHITECTURE.UNKNOWN
+                "x86_64" -> CPU_ARCHITECTURE.x86_64
+                "arm64" -> CPU_ARCHITECTURE.ARM64
+                else -> CPU_ARCHITECTURE.UNKNOWN
             }
         }
 
     }
+
+    object WindowsArchitectureDetection: ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): CPU_ARCHITECTURE {
+            return CPU_ARCHITECTURE.x86_64
+        }
+    }
 }
 
-enum class MACOS_ARCHITECTURE {
+enum class CPU_ARCHITECTURE {
     x86_64,
     ARM64,
     UNKNOWN

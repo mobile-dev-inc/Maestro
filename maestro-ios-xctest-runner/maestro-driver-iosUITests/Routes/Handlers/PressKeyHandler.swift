@@ -13,7 +13,7 @@ struct PressKeyHandler: HTTPHandler {
     )
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(PressKeyRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(PressKeyRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "Incorrect request body for press key handler").httpResponse
         }
 
