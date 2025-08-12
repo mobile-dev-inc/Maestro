@@ -15,18 +15,19 @@ struct ScreenSizeHelper {
     
     private static var cachedSize: (Float, Float)?
     private static var lastAppBundleId: String?
-    private static var lastOrientation: UIDeviceOrientation?
+    private static var lastOrientation: DeviceOrientation?
     
     static func physicalScreenSize() -> (Float, Float) {
         #if os(tvOS)
         let homescreenBundleId = "com.apple.PineBoard"
+        let currentOrientation = Optional(DeviceOrientation.unknown)
         #else
         let homescreenBundleId = "com.apple.springboard"
+        let currentOrientation = DeviceOrientation(rawValue: XCUIDevice.shared.orientation.rawValue)
         #endif
 
         let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: homescreenBundleId)
         let currentAppBundleId = app.bundleID
-        let currentOrientation = XCUIDevice.shared.orientation
 
         if let cached = cachedSize,
            currentAppBundleId == lastAppBundleId,
@@ -56,7 +57,6 @@ struct ScreenSizeHelper {
     
     private static func actualOrientation() -> DeviceOrientation {
         #if os(tvOS)
-        // Please don't rotate your AppleTV...
         let orientation = Optional(DeviceOrientation.unknown)
         #else
         let orientation = DeviceOrientation(rawValue: XCUIDevice.shared.orientation.rawValue)

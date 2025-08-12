@@ -5,9 +5,9 @@ import os
 struct RunningApp {
     
     #if os(tvOS)
-    private static let homescreenBundleId = "com.apple.HeadBoard"
+    static let homescreenBundleId = "com.apple.HeadBoard"
     #else
-    private static let homescreenBundleId = "com.apple.springboard"
+    static let homescreenBundleId = "com.apple.springboard"
     #endif
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,

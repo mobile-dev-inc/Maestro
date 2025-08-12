@@ -14,8 +14,10 @@ struct SetOrientationHandler: HTTPHandler {
         guard let requestBody = try? await JSONDecoder().decode(SetOrientationRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for set orientation").httpResponse
         }
-
+        
+        #if !os(tvOS)
         XCUIDevice.shared.orientation = requestBody.orientation.uiDeviceOrientation
+        #endif
         return HTTPResponse(statusCode: .ok)
     }
 }

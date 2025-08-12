@@ -7,7 +7,7 @@ struct EventTarget {
     let eventTarget: NSObject
     
     init() {
-        let application = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
+        let application = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.homescreenBundleId)
         
         eventTarget = application.children(matching: .any).firstMatch
             .perform(NSSelectorFromString("eventTarget"))
