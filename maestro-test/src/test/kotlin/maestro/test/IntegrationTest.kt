@@ -3057,7 +3057,7 @@ class IntegrationTest {
 
         val driver = driver {
         }
-               val receivedLogs = mutableListOf<String>()
+                     val receivedLogs = mutableListOf<String>()
 
         // when
         Maestro(driver).use {
@@ -3989,13 +3989,8 @@ class IntegrationTest {
     @Test
     fun `Case 131 - Evaluate label with JavaScript`() {
         // Given
-        val commands = listOf(
-            EvalScriptCommand(
-                scriptString = "2 + 2",
-                label = "Result: \\${2 + 2}"
-            )
-        )
-
+        val commands = readCommands("128_evaluate_label_with_javascript")
+        val receivedLogs = mutableListOf<String>()
         val driver = driver {
             // No specific driver setup needed for this test
         }
@@ -4003,12 +3998,19 @@ class IntegrationTest {
         // When
         Maestro(driver).use {
             runBlocking {
-                val result = orchestra(it).runFlow(commands)
-
-                // Then
-                assertThat(result.label).isEqualTo("Result: 4")
+                orchestra(
+                    it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
             }
         }
+
+        // Then
+        assertThat(receivedLogs).containsExactly(
+            "1+1 is 2",
+        ).inOrder()
     }
 
     private fun orchestra(
