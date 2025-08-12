@@ -722,6 +722,7 @@ data class YamlFluentCommand(
             val appRoot = flowPath.toString().split("/app/")[0]
             val packageName = fileParts[1]
             val scriptOrFlow = fileParts[2]
+
             val sharedFlow = fileParts.toTypedArray().sliceArray(3 until fileParts.size).joinToString()
             flowPath.fileSystem.getPath("$appRoot/app/packages/$packageName/maestro/shared/$scriptOrFlow/$sharedFlow")
         } else if (path.isAbsolute) {
