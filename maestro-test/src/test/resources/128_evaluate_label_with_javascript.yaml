@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- assertTrue:
+    condition: ${1===1}
+    label: "1+1 is ${1+1}"
+- evalScript: ${console.log("1+1 is " + (2+2))}
