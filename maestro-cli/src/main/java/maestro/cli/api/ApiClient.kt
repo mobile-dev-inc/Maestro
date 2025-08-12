@@ -116,9 +116,17 @@ class ApiClient(
             .post(requestBody)
             .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Unexpected code $response")
-            return response.body?.string() ?: throw IOException("Empty response body")
+        try {
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                println(responseBody ?: "No response body received")
+                if (!response.isSuccessful) {
+                    throw IOException("HTTP ${response.code}: ${response.message}\nBody: $responseBody")
+                }
+                return responseBody ?: throw IOException("Empty response body")
+            }
+        } catch (e: Exception) {
+            throw IOException("${e.message}", e)
         }
     }
 

@@ -38,6 +38,8 @@ private const val SUCCESS_HTML = """
 </html>
     """
 
+private const val FAILURE_DEFAULT_DESCRIPTION = "Something went wrong. Please try again."
+
 private const val FAILURE_HTML = """
     <!DOCTYPE html>
 <html>
@@ -52,7 +54,7 @@ private const val FAILURE_HTML = """
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
         <h1 class="text-2xl font-bold text-gray-800 mb-2">Authentication Failed</h1>
-        <p class="text-gray-600">Something went wrong. Please try again.</p>
+        <p class="text-gray-600">${FAILURE_DEFAULT_DESCRIPTION}</p>
     </div>
 </div>
 </body>
@@ -113,10 +115,19 @@ class Auth(
             return
         }
 
-        val newApiKey = apiClient.exchangeToken(code)
-
-        call.respondText(SUCCESS_HTML, ContentType.Text.Html)
-        deferredToken.complete(newApiKey)
+        try {
+            val newApiKey = apiClient.exchangeToken(code)
+            call.respondText(SUCCESS_HTML, ContentType.Text.Html)
+            deferredToken.complete(newApiKey)
+        } catch (e: Exception) {
+            val errorMessage = "Failed to exchange token: ${e.message}"
+            call.respondText(
+                if (errorMessage.isNotBlank()) FAILURE_HTML.replace(FAILURE_DEFAULT_DESCRIPTION, errorMessage) else FAILURE_HTML,
+                ContentType.Text.Html,
+                status = HttpStatusCode.InternalServerError
+            )
+            deferredToken.completeExceptionally(e)
+        }
     }
 
 }
