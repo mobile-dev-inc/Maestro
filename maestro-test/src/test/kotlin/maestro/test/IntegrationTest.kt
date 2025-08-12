@@ -3057,7 +3057,7 @@ class IntegrationTest {
 
         val driver = driver {
         }
-        val receivedLogs = mutableListOf<String>()
+               val receivedLogs = mutableListOf<String>()
 
         // when
         Maestro(driver).use {
@@ -3985,6 +3985,32 @@ class IntegrationTest {
         // No test failure - if we reach this point, the test passed successfully
     }
     
+
+    @Test
+    fun `Case 131 - Evaluate label with JavaScript`() {
+        // Given
+        val commands = listOf(
+            EvalScriptCommand(
+                scriptString = "2 + 2",
+                label = "Result: \\${2 + 2}"
+            )
+        )
+
+        val driver = driver {
+            // No specific driver setup needed for this test
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                val result = orchestra(it).runFlow(commands)
+
+                // Then
+                assertThat(result.label).isEqualTo("Result: 4")
+            }
+        }
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
