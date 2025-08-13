@@ -2849,6 +2849,7 @@ class IntegrationTest {
                     it,
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
+                        metadata.labeledCommand?.let { receivedLogs.add(it) }
                     }
                 ).runFlow(commands)
             }
@@ -3915,6 +3916,7 @@ class IntegrationTest {
                     it,
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
+                        metadata.labeledCommand?.let { receivedLogs.add(it) }
                     }
                 ).runFlow(commands)
             }
