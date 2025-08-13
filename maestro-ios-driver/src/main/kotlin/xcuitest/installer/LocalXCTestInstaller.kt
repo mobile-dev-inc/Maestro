@@ -186,22 +186,6 @@ class LocalXCTestInstaller(
         return checkSuccessful
     }
 
-    private fun isTV(deviceId: String): Boolean {
-        val list = LocalSimulatorUtils.list()
-        for (entry in list.devices.entries) {
-            for (device in entry.value) {
-                if (device.udid != deviceId) continue
-                if (device.deviceTypeIdentifier == null) continue
-                if (device.deviceTypeIdentifier.contains("Apple-TV") == true) {
-                    logger.trace("Device is an AppleTV")
-                    return true
-                }
-            }
-        }
-
-        return false
-    }
-
     private fun startXCTestRunner(deviceId: String, preBuiltRunner: Boolean) {
         if (isChannelAlive()) {
             logger.info("UI Test runner already running, returning")

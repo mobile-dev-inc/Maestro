@@ -40,6 +40,7 @@ import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
+import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
@@ -366,12 +367,21 @@ object MaestroSessionManager {
                 )
             }
             Device.DeviceType.SIMULATOR -> {
-                IOSDriverConfig(
-                    prebuiltRunner = false,
-                    sourceDirectory =  "driver-iPhoneSimulator",
-                    context = Context.CLI,
-                    snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
-                )
+                if (LocalSimulatorUtils.isTV(deviceId)) {
+                    IOSDriverConfig(
+                        prebuiltRunner = false,
+                        sourceDirectory = "driver-appletvSimulator",
+                        context = Context.CLI,
+                        snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
+                    )
+                } else {
+                    IOSDriverConfig(
+                        prebuiltRunner = false,
+                        sourceDirectory =  "driver-iPhoneSimulator",
+                        context = Context.CLI,
+                        snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
+                    )
+                }
             }
             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
