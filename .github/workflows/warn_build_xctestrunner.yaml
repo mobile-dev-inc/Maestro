@@ -8,7 +8,9 @@ on:
 jobs:
   warn:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: mshick/add-pr-comment@v2
         with:
-          message: "Make sure to run ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh with every swift change"
+          message: "Make sure to run ./maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh with every swift change"
