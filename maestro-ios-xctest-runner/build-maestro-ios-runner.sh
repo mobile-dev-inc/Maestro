@@ -13,11 +13,15 @@ ARCHS="${ARCHS:-arm64}"
 # Determine build output directory
 if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
 	BUILD_OUTPUT_DIR="Debug-iphonesimulator"
+elif [[ "$DESTINATION" == *"tvOS Simulator"* ]]; then
+	BUILD_OUTPUT_DIR="Debug-appletvsimulator"
 else
 	BUILD_OUTPUT_DIR="Debug-iphoneos"
 fi
 
 if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
+  DEVELOPMENT_TEAM_OPT=""
+elif [[ "$DESTINATION" == *"tvOS Simulator"* ]]; then
   DEVELOPMENT_TEAM_OPT=""
 else
   echo "Building iphoneos drivers for team: ${DEVELOPMENT_TEAM}..."
