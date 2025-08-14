@@ -4,12 +4,10 @@
 
 ## 2.0.0
 Breaking Change:
-
 - Updated java version to 17 better performance, security, and modern features. **If you’re still on an older version, update before using 2.0.0.**
 - We’ve switched from Rhino to **GraalJS** as the default JavaScript engine. Expect **faster execution** and **modern JS support** for your scripts. [GraalJS Behaviour Differences](https://docs.maestro.dev/advanced/javascript/graaljs-support#graaljs-behavior-differences)
 
 Features:
-
 - Added `setOrientation` command — adjust device orientation in tests (`PORTRAIT`, `UPSIDE_DOWN`, `LANDSCAPE_LEFT`, `LANDSCAPE_RIGHT`). ([Docs](https://docs.maestro.dev/api-reference/commands/setorientation))
 - Enhanced MCP Integration:
   - More accurate flow path resolution
@@ -22,7 +20,6 @@ Features:
 - Environment variables are now isolated between peer `runFlow` commands.
 
 Fixes:
-
 - Fixed CLI Cloud upload output
 - Fixed broken `maestro studio` command for web version of Studio.
 - Fixing **memory leak** for ios test runs that could cause out of memory issues on testing environments.
