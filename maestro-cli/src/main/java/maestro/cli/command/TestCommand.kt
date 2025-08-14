@@ -291,9 +291,7 @@ class TestCommand : Callable<Int> {
             }
             .ifEmpty { availableDevices }
             .toList()
-
-      println(availableDevices)
-
+      
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
             PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
