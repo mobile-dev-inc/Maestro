@@ -1195,7 +1195,9 @@ class Orchestra(
     }
 
     private suspend fun inputTextRandomCommand(command: InputRandomCommand): Boolean {
-        inputTextCommand(InputTextCommand(text = command.genRandomString()))
+        val randomString = command.genRandomString()
+        inputTextCommand(InputTextCommand(text = randomString))
+        jsEngine.setRandomText(randomString)
 
         return true
     }
