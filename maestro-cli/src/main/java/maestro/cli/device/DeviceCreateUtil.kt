@@ -68,6 +68,14 @@ object DeviceCreateUtil {
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
                 throw CliError(msg)
+            } else if (error.contains("xcrun: error: unable to find utility \"simctl\"")) {
+                val msg = """
+                    The xcode-select CLI tools are not installed, install with xcode-select --install
+                    
+                    If the xcode-select CLI tools are already installed, the path may be broken. Try
+                    running sudo xcode-select -r to repair the path and re-run this command
+                """.trimIndent()
+                throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
                 throw CliError("Device type $device is either not supported or not found.")
             } else {
