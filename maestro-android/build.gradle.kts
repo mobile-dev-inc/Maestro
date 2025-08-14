@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.config.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -130,6 +129,10 @@ tasks.named("assembleAndroidTest") {
     // lint.enabled = false
     // lintVitalRelease.enabled = false
     finalizedBy("copyMaestroServer")
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 sourceSets {
