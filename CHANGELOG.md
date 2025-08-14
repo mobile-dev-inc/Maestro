@@ -40,7 +40,7 @@ Feature
 ## 1.40.0
 
 Fix:
-- JavaScript fails when running maestro test in continuos mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
+- JavaScript fails when running maestro test in continuous mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
 - Ignore notifications in analyse command for CI ([#2306](https://github.com/mobile-dev-inc/Maestro/pull/2306))
 - `config.yaml` not resolving on Windows ([#2327](https://github.com/mobile-dev-inc/Maestro/pull/2327))
 - Fix swipe command failure on iOS after upgrading to Xcode 16.2 [issue #2422](https://github.com/mobile-dev-inc/maestro/issues/2422) ([#2332](https://github.com/mobile-dev-inc/maestro/pull/2332))
