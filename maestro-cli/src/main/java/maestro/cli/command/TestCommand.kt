@@ -488,16 +488,20 @@ class TestCommand : Callable<Int> {
     }
 
     private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
-        if (executionPlanIncludesWebFlow(plan)) {
-            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-        }
-        
-        val deviceIds = parent?.deviceId
+        val userDeviceIds = parent?.deviceId
             .orEmpty()
             .split(",")
             .map { it.trim() }
             .filter { it.isNotBlank() }
-        return deviceIds
+        
+        return if (executionPlanIncludesWebFlow(plan)) {
+            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
+            // Always include chromium for web flows, plus any user-specified devices
+            val devicesWithChromium = (userDeviceIds + "chromium").distinct()
+            devicesWithChromium
+        } else {
+            userDeviceIds
+        }
     }
 
     private fun printExitDebugMessage() {
