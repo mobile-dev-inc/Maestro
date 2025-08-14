@@ -3898,6 +3898,52 @@ class IntegrationTest {
             }
         }
     }
+
+    @Test
+    fun `Case 128 - Random text into JS variable - Graal`() {
+        // Given
+        val commands = readCommands("128_randomText_jsVar_graaljs")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertAllEvent(condition = {
+            ((it as? Event.InputText?)?.text?.length ?: -1) >= 5
+        })
+
+        driver.assertCurrentTextInputMatches(Regex("(.+)\\1(.+)\\2(.+)\\3(.+)\\4(.+)\\5(.+)\\6")) // 6 pairs of repeated strings
+    }
+
+    @Test
+    fun `Case 128 - Random text into JS variable - Rhino`() {
+        // Given
+        val commands = readCommands("128_randomText_jsVar_rhinojs")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertAllEvent(condition = {
+            ((it as? Event.InputText?)?.text?.length ?: -1) >= 5
+        })
+
+        driver.assertCurrentTextInputMatches(Regex("(.+)\\1(.+)\\2(.+)\\3(.+)\\4(.+)\\5(.+)\\6")) // 6 pairs of repeated strings
+    }
     
     private fun orchestra(
         maestro: Maestro,
