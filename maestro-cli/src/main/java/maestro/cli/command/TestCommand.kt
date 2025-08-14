@@ -204,6 +204,10 @@ class TestCommand : Callable<Int> {
         return plan.flowsToRun.any { it.toFile().isWebFlow() } || 
                plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
+
+    private fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
+      return plan.flowsToRun.all { it.toFile().isWebFlow() }
+    }
   
     override fun call(): Int {
         TestDebugReporter.install(
@@ -265,9 +269,14 @@ class TestCommand : Callable<Int> {
         }
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
+        val includeWeb = executionPlanIncludesWebFlow(plan);
+
+        if (includeWeb) {
+          PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
+        }
 
         val connectedDevices = DeviceService.listConnectedDevices(
-            includeWeb = executionPlanIncludesWebFlow(plan),
+            includeWeb = includeWeb,
             host = parent?.host,
             port = parent?.port,
         )
@@ -282,6 +291,8 @@ class TestCommand : Callable<Int> {
             }
             .ifEmpty { availableDevices }
             .toList()
+
+      println(availableDevices)
 
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
@@ -487,21 +498,16 @@ class TestCommand : Callable<Int> {
             }
     }
 
-    private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
-        val userDeviceIds = parent?.deviceId
-            .orEmpty()
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-        
-        return if (executionPlanIncludesWebFlow(plan)) {
-            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-            // Always include chromium for web flows, plus any user-specified devices
-            val devicesWithChromium = (userDeviceIds + "chromium").distinct()
-            devicesWithChromium
-        } else {
-            userDeviceIds
-        }
+  private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
+      val arguments = if (allFlowsAreWebFlow(plan)) {
+        "chromium"
+      } else parent?.deviceId
+      val deviceIds = arguments
+        .orEmpty()
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+      return deviceIds
     }
 
     private fun printExitDebugMessage() {
