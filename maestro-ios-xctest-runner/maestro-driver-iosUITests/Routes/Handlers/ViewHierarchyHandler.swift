@@ -5,7 +5,12 @@ import os
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
 
-    private let springboardApplication = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    #if os(tvOS)
+    private static let homescreenBundleId = "com.apple.HeadBoard"
+    #else
+    private static let homescreenBundleId = "com.apple.springboard"
+    #endif
+    private let springboardApplication = XCUIApplication(bundleIdentifier: Self.homescreenBundleId)
     private let snapshotMaxDepth = 60
 
     private let logger = Logger(
