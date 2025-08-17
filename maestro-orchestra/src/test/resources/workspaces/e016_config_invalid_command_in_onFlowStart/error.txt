@@ -11,7 +11,7 @@
 │ │                                                                            │ │
 │ │ Did you mean one of: inputRandomText, inputRandomNumber, inputRandomEmail, │ │
 │ │ inputRandomPersonName, inputText, inputRandomCityName,                     │ │
-│ │ inputRandomCountryName, inputRandomColorName, inputRandom                  │ │
+│ │ inputRandomCountryName, inputRandomColorName                               │ │
 │ │                                                                            │ │
 │ │ > https://docs.maestro.dev/api-reference/commands                          │ │
 │ ╰────────────────────────────────────────────────────────────────────────────╯ │

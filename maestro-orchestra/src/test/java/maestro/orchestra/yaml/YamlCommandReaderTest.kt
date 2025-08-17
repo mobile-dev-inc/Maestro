@@ -23,7 +23,6 @@ import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
-import maestro.orchestra.InputRandomFakerCommand
 import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.KillAppCommand
@@ -583,21 +582,6 @@ internal class YamlCommandReaderTest {
                 endPoint = Point(x = 300, y = 400),
                 waitToSettleTimeoutMs = 50,
                 duration = 400L
-            )
-        )
-    }
-
-    @Test
-    fun inputRandomWithFaker(
-        @YamlFile("028_inputRandomAnimal.yaml") commands: List<Command>
-    ) {
-        assertThat(commands).containsExactly(
-            ApplyConfigurationCommand(MaestroConfig(
-                appId = "com.example.app"
-            )),
-            InputRandomFakerCommand(
-                inputType = "animal.name",
-                label = "Input a random animal name"
             )
         )
     }

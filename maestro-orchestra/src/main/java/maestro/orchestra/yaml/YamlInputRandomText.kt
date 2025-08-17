@@ -55,9 +55,3 @@ data class YamlInputRandomColorName(
     val label: String? = null,
     val optional: Boolean = false,
 )
-
-data class YamlInputRandom(
-    val type: String,
-    val label: String? = null,
-    val optional: Boolean = false,
-)
