@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo
 import com.google.common.net.HttpHeaders
 import com.google.common.truth.Truth.assertThat
 import maestro.js.GraalJsEngine
+import org.graalvm.polyglot.PolyglotException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -42,6 +43,16 @@ class GraalJsEngineTest : JsEngineTest() {
     fun `parseInt returns an int representation`() {
         val result = engine.evaluateScript("parseInt('1')").toString()
         assertThat(result).isEqualTo("1")
+    }
+
+    @Test
+    fun `sandboxing works`() {
+        try {
+            engine.evaluateScript("require('fs')")
+            assert(false)
+        } catch (e: PolyglotException) {
+            assertThat(e.message).contains("undefined is not a function")
+        }
     }
 
     @Test
