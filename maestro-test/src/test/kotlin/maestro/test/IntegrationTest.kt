@@ -3898,6 +3898,20 @@ class IntegrationTest {
             }
         }
     }
+
+    @Test
+    fun `Case 128 - Random Data Generation`() {
+        // Test that environment variables are isolated between flows using GraalJS engine
+        val commands = readCommands("128_datafaker_graaljs")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                // Should succeed - uses positive assertions to verify engine runs and validates data
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
     
     private fun orchestra(
         maestro: Maestro,

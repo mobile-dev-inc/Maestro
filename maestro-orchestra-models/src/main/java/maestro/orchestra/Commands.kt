@@ -685,7 +685,7 @@ data class InputRandomCommand(
         val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
 
         return when (inputType) {
-            InputRandomType.NUMBER -> faker.number().randomNumber(finalLength, false).toString()
+            InputRandomType.NUMBER -> faker.number().randomNumber(finalLength).toString()
             InputRandomType.TEXT -> faker.text().text(finalLength)
             InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
             InputRandomType.TEXT_PERSON_NAME -> faker.name().name()

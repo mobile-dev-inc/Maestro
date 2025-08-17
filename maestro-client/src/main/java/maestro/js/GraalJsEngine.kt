@@ -8,7 +8,6 @@ import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
 import org.graalvm.polyglot.proxy.ProxyObject
 import java.io.ByteArrayOutputStream
-import java.util.concurrent.TimeUnit
 import java.util.logging.Handler
 import java.util.logging.LogRecord
 import kotlin.time.Duration.Companion.minutes
@@ -34,6 +33,7 @@ class GraalJsEngine(
     private val openContexts = HashSet<Context>()
 
     private val httpBinding = GraalJsHttp(httpClient)
+    private val fakerBinding = GraalFaker()
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
@@ -97,6 +97,7 @@ class GraalJsEngine(
         envBinding.forEach { (key, value) -> context.getBindings("js").putMember(key, value) }
 
         context.getBindings("js").putMember("http", httpBinding)
+        context.getBindings("js").putMember("datafaker", fakerBinding)
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 

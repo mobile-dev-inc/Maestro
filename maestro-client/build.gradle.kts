@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.selenium)
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)
+    implementation(libs.datafaker)
 
     api(libs.logging.sl4j)
     api(libs.logging.api)
