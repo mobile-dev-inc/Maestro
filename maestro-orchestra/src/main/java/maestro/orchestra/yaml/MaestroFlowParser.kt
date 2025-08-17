@@ -418,9 +418,9 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
 
     private fun suggestCommandMessage(invalidCommand: String): String {
         val prefixCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.startsWith(invalidCommand) || invalidCommand.startsWith(it) }
-        val substringCommmands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
+        val substringCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
         val similarCommands = invalidCommand.findSimilar(allCommands, threshold = 3)
-        val suggestions = (prefixCommands + similarCommands + substringCommmands).distinct()
+        val suggestions = (prefixCommands + similarCommands + substringCommands).distinct()
         return when {
             suggestions.isEmpty() -> ""
             suggestions.size == 1 -> "Did you mean `${suggestions.first()}`?"

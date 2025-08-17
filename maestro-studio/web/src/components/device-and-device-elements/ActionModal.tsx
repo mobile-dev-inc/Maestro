@@ -401,7 +401,7 @@ export default function ActionModal({
               ) : (
                 <div className="pb-4">
                   <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md text-center font-semibold text-sm">
-                    Coundn't find any command for the element
+                    Couldn't find any command for the element
                   </div>
                 </div>
               )}

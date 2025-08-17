@@ -57,7 +57,7 @@ Features:
 - Added support for `androidWebViewHierarchy: devtools` option to build Android WebView hierarchy using Chrome DevTools ([#2350](https://github.com/mobile-dev-inc/Maestro/pull/2350))
 - Added Chrome to available devices for web automation ([#2360](https://github.com/mobile-dev-inc/Maestro/pull/2360))
 - Introduced pre-built mode for setting up iOS driver on simulators without relying on `xcodebuild` ([#2325](https://github.com/mobile-dev-inc/Maestro/pull/2325))
-- Added command-line chat mode to Maestro CLI accessable by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
+- Added command-line chat mode to Maestro CLI accessible by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
 - Introduced `maestro check-syntax` command for validating flow syntax ([#2387](https://github.com/mobile-dev-inc/Maestro/pull/2387))
 - Added `--reinstall-driver` flag that reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
 - Added `--compact` flag that remove empty values to make the output hierarchy json smaller ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
@@ -168,7 +168,7 @@ Features:
 - Feature: allow for passing multiple flow files to `maestro test` ([#1995](https://github.com/mobile-dev-inc/maestro/pull/1995) by [Tarek Belkahia](https://github.com/tokou))
 - Feature: add the `optional` argument to all commands ([#1946](https://github.com/mobile-dev-inc/maestro/pull/1946) by [Tarek Belkahia](https://github.com/tokou))
 
-  This new command-level `optional` argument supersededs the (now removed) selector-level `optional` argument. No behavior changes are expected.
+  This new command-level `optional` argument supersedes the (now removed) selector-level `optional` argument. No behavior changes are expected.
 
   When command with `optional: true` fails, its status is now "warned ⚠️" instead of "skipped ⚪️"
 
@@ -434,7 +434,7 @@ CLI
 - Update: Maestro Studio revamp improvements
   - wrapped element names in sidebar
   - sidebar text always visible
-  - add "hintText" and "accesbilityText" in sidebar
+  - add "hintText" and "accessibilityText" in sidebar
   - improve sidebar search
   - fixed highlight issues in search
   - various other small improvements
@@ -445,7 +445,7 @@ CLI
 
 ## 1.30.1 - 2023-07-14
 
-- Fix: Allow running `maestro studio` and `maestro test` simultaneusly
+- Fix: Allow running `maestro studio` and `maestro test` simultaneously
 - Fix: Connection improvements
 
 ## 1.30.0 - 2023-07-13
@@ -713,7 +713,7 @@ CLI
 
 ## 1.17.2 - 2022-12-13
 
-- Tweak: Deprecate hierachy and query CLI commands
+- Tweak: Deprecate hierarchy and query CLI commands
 
 ## 1.17.1 - 2022-12-12
 
@@ -775,7 +775,7 @@ CLI
 - **Breaking change**: Removed `clipboardPaste` command in favour of new `pasteText` command
 - Fix: Java 8 compatibility issue for M1 users
 - Fix: `_` character was mapped incorrectly on iOS
-- Fix: first `tapOn` command was failing unless it was preceeded by `launchApp` or `openLink`
+- Fix: first `tapOn` command was failing unless it was preceded by `launchApp` or `openLink`
 - Tweak: Maestro no longer kills running `idb_companion` processes
 - Tweak: updated gRPC version to 1.52.0
 
@@ -820,7 +820,7 @@ CLI
 
 ## 1.11.2 - 2022-10-29
 
-- Fix: updating to dadb 1.2.3 to fix an occassional device connection issue
+- Fix: updating to dadb 1.2.3 to fix an occasional device connection issue
 - Fix: injecting `env` parameters into conditions (i.e. in `runFlow`)
 
 ## 1.11.1 - 2022-10-27
