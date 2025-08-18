@@ -8,6 +8,7 @@ plugins {
 
 mavenPublishing {
     publishToMavenCentral(true)
+    signAllPublications()
 }
 
 java {
