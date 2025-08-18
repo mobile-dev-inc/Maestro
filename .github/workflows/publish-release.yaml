@@ -110,3 +110,12 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
+
+      - name: Upload Maestro CLI release
+        run: ./gradlew clean :maestro-cli:publishToMavenCentral --no-daemon --no-parallel
+        if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}

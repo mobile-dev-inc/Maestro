@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.jreleaser)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.mavenPublish)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -208,6 +209,11 @@ tasks.named<Zip>("distZip") {
 
 tasks.named<Tar>("distTar") {
     archiveFileName.set("maestro.tar")
+}
+
+mavenPublishing {
+    publishToMavenCentral(true)
+    signAllPublications()
 }
 
 jreleaser {
