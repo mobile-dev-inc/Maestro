@@ -52,7 +52,12 @@ class JUnitTestSuiteReporter(
                                             time = flow.duration?.inWholeSeconds?.toString(),
                                             status = flow.status
                                         )
-                                    }
+                                    },
+                                passingPercentage =
+                                    if(suite.flows.isEmpty())
+                                        0.0
+                                    else
+                                        (suite.flows.count { it.status == FlowStatus.SUCCESS || it.status == FlowStatus.WARNING }.toDouble()) / suite.flows.size.toDouble() * 100.0
                             )
                         }
                 )
@@ -73,6 +78,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val tests: Int,
         @JacksonXmlProperty(isAttribute = true) val failures: Int,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
+        @JacksonXmlProperty(isAttribute = true) val passingPercentage: Double,
         @JacksonXmlElementWrapper(useWrapping = false)
         @JsonProperty("testcase")
         val testCases: List<TestCase>,
