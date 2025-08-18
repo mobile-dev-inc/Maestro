@@ -34,6 +34,8 @@ jobs:
         run: ./gradlew clean :maestro-utils:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -41,6 +43,8 @@ jobs:
         run: ./gradlew clean :maestro-client:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -48,6 +52,8 @@ jobs:
         run: ./gradlew clean :maestro-ios:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -55,6 +61,8 @@ jobs:
         run: ./gradlew clean :maestro-orchestra:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -62,6 +70,8 @@ jobs:
         run: ./gradlew clean :maestro-orchestra-models:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -69,6 +79,8 @@ jobs:
         run: ./gradlew clean :maestro-proto:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -76,6 +88,8 @@ jobs:
         run: ./gradlew clean :maestro-ios-driver:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -83,6 +97,8 @@ jobs:
         run: ./gradlew clean :maestro-ai:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
 
@@ -90,5 +106,7 @@ jobs:
         run: ./gradlew clean :maestro-web:publishToMavenCentral --no-daemon --no-parallel
         if: ${{ !endsWith(env.VERSION_NAME, '-SNAPSHOT') }}
         env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ env.ORG_GRADLE_PROJECT_mavenCentralUsername }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ env.ORG_GRADLE_PROJECT_mavenCentralPassword }}
