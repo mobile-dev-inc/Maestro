@@ -16,6 +16,7 @@ application {
 
 mavenPublishing {
     publishToMavenCentral(true)
+    signAllPublications()
 }
 
 tasks.named<Jar>("jar") {
