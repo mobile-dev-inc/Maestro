@@ -54,7 +54,7 @@ object DependencyResolver {
                     // Check for addMedia commands
                     maestroCommand.addMediaCommand?.let { addMedia ->
                         addMedia.mediaPaths.forEach { mediaPath ->
-                            val mediaFile = currentFile.fileSystem.getPath(mediaPath)
+                            val mediaFile = resolvePath(currentFile, mediaPath)
                             if (mediaFile.exists()) {
                                 commandDependencies.add(mediaFile)
                             }
