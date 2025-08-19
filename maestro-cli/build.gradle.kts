@@ -49,7 +49,7 @@ fun windowsMinimumJavaText(minimumJavaVersion: String): String = """
 rem Parses x out of 1.x; for example 8 out of java version 1.8.0_xx
 rem Otherwise, parses the major version; 9 out of java version 9-ea
 set JAVA_VERSION=0
-for /f "tokens=3" %%g in ('%JAVA_EXE% -Xms32M -Xmx32M -version 2^>^&1 ^| findstr /i "version"') do (
+for /f "tokens=3" %%g in ('"%JAVA_EXE%" -Xms32M -Xmx32M -version 2^>^&1 ^| findstr /i version') do (
   set JAVA_VERSION=%%g
 )
 set JAVA_VERSION=%JAVA_VERSION:"=%
