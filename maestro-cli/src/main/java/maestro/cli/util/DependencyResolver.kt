@@ -24,7 +24,7 @@ object DependencyResolver {
             
             try {
                 // Only process YAML files for dependency discovery
-                if (!currentFile.fileName.toString().endsWith(".yaml") && !currentFile.fileName.toString().endsWith(".yml")) {
+                if (!isYamlFile(currentFile)) {
                     continue
                 }
                 
@@ -68,7 +68,7 @@ object DependencyResolver {
                 filesToProcess.addAll(newDependencies)
                 
             } catch (e: Exception) {
-                println("Warning: Could not parse dependencies for ${currentFile.fileName}: ${e.message}")
+                // Ignore
             }
         }
         
@@ -85,12 +85,22 @@ object DependencyResolver {
         }
     }
 
+    private fun isYamlFile(path: Path): Boolean {
+        val filename = path.fileName.toString().lowercase()
+        return filename.endsWith(".yaml") || filename.endsWith(".yml")
+    }
+
+    private fun isJsFile(path: Path): Boolean {
+        val filename = path.fileName.toString().lowercase()
+        return filename.endsWith(".js")
+    }
+
     fun getDependencySummary(flowFile: Path): String {
         val dependencies = discoverAllDependencies(flowFile)
         val mainFile = dependencies.firstOrNull { it == flowFile }
-        val subflows = dependencies.filter { it != flowFile && it.fileName.toString().substringAfterLast('.', "") in listOf("yaml", "yml") }
-        val scripts = dependencies.filter { it != flowFile && it.fileName.toString().substringAfterLast('.', "") == "js" }
-        val otherFiles = dependencies.filter { it != flowFile && it.fileName.toString().substringAfterLast('.', "") !in listOf("yaml", "yml", "js") }
+        val subflows = dependencies.filter { it != flowFile && isYamlFile(it) }
+        val scripts = dependencies.filter { it != flowFile && isJsFile(it) }
+        val otherFiles = dependencies.filter { it != flowFile && !isYamlFile(it) && !isJsFile(it) }
         
         return buildString {
             appendLine("Dependency discovery for: ${flowFile.fileName}")
