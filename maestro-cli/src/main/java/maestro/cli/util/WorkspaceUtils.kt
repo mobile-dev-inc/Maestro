@@ -16,9 +16,19 @@ object WorkspaceUtils {
     fun createWorkspaceZip(file: Path, out: Path) {
         if (!file.exists()) throw FileNotFoundException(file.absolutePathString())
         if (out.exists()) throw FileAlreadyExistsException(out.toFile())
-        val files = Files.walk(file).filter { !it.isDirectory() }.toList()
+        
+        val filesToInclude = if (!file.isDirectory()) {
+            DependencyResolver.discoverAllDependencies(file)
+        } else {
+            Files.walk(file).filter { !it.isDirectory() }.toList()
+        }
         val relativeTo = if (file.isDirectory()) file else file.parent
-
+        createWorkspaceZipFromFiles(filesToInclude, relativeTo, out)
+    }
+    
+    fun createWorkspaceZipFromFiles(files: List<Path>, relativeTo: Path, out: Path) {
+        if (out.exists()) throw FileAlreadyExistsException(out.toFile())
+        
         val outUri = URI.create("jar:${out.toUri()}")
         FileSystems.newFileSystem(outUri, mapOf("create" to "true")).use { fs ->
             files.forEach {
