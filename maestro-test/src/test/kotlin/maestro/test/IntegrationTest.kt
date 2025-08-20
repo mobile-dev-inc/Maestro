@@ -1699,7 +1699,7 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.InputText("Inner Parameter"))
         driver.assertHasEvent(Event.InputText("Outer Parameter"))
-        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+        driver.assertHasEvent(Event.InputText("Overridden Parameter"))
     }
 
     @Test
@@ -1720,7 +1720,7 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.InputText("Inline Parameter"))
-        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+        driver.assertHasEvent(Event.InputText("Overridden Parameter"))
     }
 
     @Test

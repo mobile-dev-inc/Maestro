@@ -48,7 +48,7 @@ ANTHROPIC_API_KEY=<your_key> ./maestro-cli/src/test/mcp/run-mcp-server-evals.sh
 
 ### Using forked version of official kotlin MCP SDK
 
-The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) can't be used directly because it requires Java 21 and Kotlin 2.x, while Maestro is built on Java 8 and Kotlin 1.8.x for broad compatibility. However, we want to be able to benefit from features added to the SDK since the MCP spec is changing rapiadly. So we created a fork that "downgrades" the reference SDK to Java 8 and Kotlin 1.8.22.
+The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) can't be used directly because it requires Java 21 and Kotlin 2.x, while Maestro is built on Java 8 and Kotlin 1.8.x for broad compatibility. However, we want to be able to benefit from features added to the SDK since the MCP spec is changing rapidly. So we created a fork that "downgrades" the reference SDK to Java 8 and Kotlin 1.8.22.
 
 
 ### Why Integrate MCP Server Directly Into `maestro-cli`?

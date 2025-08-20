@@ -42,7 +42,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 
-private const val SYNTHETHIC_COORDINATE_SPACE_OFFSET = 100000
+private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 
 class CdpWebDriver(
     val isStudio: Boolean,
@@ -314,7 +314,7 @@ class CdpWebDriver(
     override fun tap(point: Point) {
         val driver = ensureOpen()
 
-        if (point.x >= SYNTHETHIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETHIC_COORDINATE_SPACE_OFFSET) {
+        if (point.x >= SYNTHETIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETIC_COORDINATE_SPACE_OFFSET) {
             tapOnSyntheticCoordinateSpace(point)
             return
         }
