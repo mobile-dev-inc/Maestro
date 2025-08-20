@@ -52,7 +52,7 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Test Suite" device="iPhone 15" tests="2" failures="0" time="1915">
+                  <testsuite name="Test Suite" device="iPhone 15" tests="2" failures="0" time="1915" passingPercentage="100.0">
                     <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
                     <testcase id="Flow B" name="Flow B" classname="Flow B" time="1494" status="WARNING"/>
                   </testsuite>
@@ -105,7 +105,7 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Test Suite" tests="2" failures="1" time="552">
+                  <testsuite name="Test Suite" tests="2" failures="1" time="552" passingPercentage="50.0">
                     <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
                     <testcase id="Flow B" name="Flow B" classname="Flow B" time="131" status="ERROR">
                       <failure>Error message</failure>
@@ -159,7 +159,7 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0" time="421">
+                  <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0" time="421" passingPercentage="100.0">
                     <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
                     <testcase id="Flow B" name="Flow B" classname="Flow B" status="WARNING"/>
                   </testsuite>
