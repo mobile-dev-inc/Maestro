@@ -14,17 +14,7 @@ class GraalJsHttp(
 ) : GraalHostAccessible {
 
     override fun configureHostAccess(builder: HostAccess.Builder) {
-        builder
-            .allowAccess(GraalJsHttp::class.java.getMethod("get", String::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("get", String::class.java, Map::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("post", String::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("post", String::class.java, Map::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("put", String::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("put", String::class.java, Map::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("delete", String::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("delete", String::class.java, Map::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("request", String::class.java))
-            .allowAccess(GraalJsHttp::class.java.getMethod("request", String::class.java, Map::class.java))
+        builder.allowAccessAnnotatedBy(HostAccess.Export::class.java)
     }
 
     @JvmOverloads
