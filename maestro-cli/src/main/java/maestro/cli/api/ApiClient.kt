@@ -611,13 +611,15 @@ data class UploadStatus(
     val uploadId: String,
     val status: Status,
     val completed: Boolean,
-    val flows: List<FlowResult>,
+    val totalTime: Long?,
+    val flows: List<FlowResult>
 ) {
 
     data class FlowResult(
         val name: String,
         val status: FlowStatus,
         val errors: List<String>,
+        val totalTime: Long? = null,
         val cancellationReason: CancellationReason? = null
     )
 
