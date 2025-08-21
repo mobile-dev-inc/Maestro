@@ -1,5 +1,6 @@
 package maestro.cli.util
 
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.yaml.MaestroFlowParser
@@ -69,6 +70,16 @@ object DependencyResolver {
         maestroCommand.addMediaCommand?.let { addMedia ->
             addMedia.mediaPaths.forEach { mediaPath ->
                 resolveDependencyFile(currentFile, mediaPath)?.let { commandDependencies.add(it) }
+            }
+        }
+        
+        // Handle configuration commands (onFlowStart, onFlowComplete)
+        maestroCommand.applyConfigurationCommand?.let { config ->
+            config.config.onFlowStart?.commands?.forEach { startCommand ->
+                commandDependencies.addAll(extractDependenciesFromCommand(startCommand, currentFile))
+            }
+            config.config.onFlowComplete?.commands?.forEach { completeCommand ->
+                commandDependencies.addAll(extractDependenciesFromCommand(completeCommand, currentFile))
             }
         }
         

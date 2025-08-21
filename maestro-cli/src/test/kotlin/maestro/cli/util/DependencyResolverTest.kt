@@ -438,4 +438,127 @@ class DependencyResolverTest {
         assertThat(summary).contains("Scripts: 1")  // repeat_script.js
         assertThat(summary).contains("Other files: 1") // main_logo.png
     }
+    
+    @Test
+    fun `test configuration commands - onFlowStart and onFlowComplete with dependencies`(@TempDir tempDir: Path) {
+        // Create main flow with onFlowStart and onFlowComplete containing file dependencies
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            onFlowStart:
+              - runFlow: startup_flow.yaml
+              - runScript: startup_script.js
+              - addMedia:
+                - "images/startup_logo.png"
+            onFlowComplete:
+              - runFlow: cleanup_flow.yaml  
+              - runScript: cleanup_script.js
+              - addMedia:
+                - "images/completion_badge.png"
+            ---
+            - tapOn: "Main Button"
+        """.trimIndent())
+        
+        // Create startup dependencies
+        val startupFlow = tempDir.resolve("startup_flow.yaml")
+        startupFlow.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Startup Button"
+            - runFlow: nested_startup.yaml
+        """.trimIndent())
+        
+        val nestedStartup = tempDir.resolve("nested_startup.yaml")
+        nestedStartup.writeText("""
+            appId: com.example.app
+            ---
+            - assertVisible: "Startup Complete"
+        """.trimIndent())
+        
+        val startupScript = tempDir.resolve("startup_script.js")
+        startupScript.writeText("console.log('startup initialization');")
+        
+        val imagesDir = tempDir.resolve("images")
+        imagesDir.toFile().mkdirs()
+        val startupLogo = imagesDir.resolve("startup_logo.png")
+        startupLogo.writeText("startup logo content")
+        
+        // Create cleanup dependencies
+        val cleanupFlow = tempDir.resolve("cleanup_flow.yaml")
+        cleanupFlow.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Cleanup Button"
+        """.trimIndent())
+        
+        val cleanupScript = tempDir.resolve("cleanup_script.js")
+        cleanupScript.writeText("console.log('cleanup finalization');")
+        
+        val completionBadge = imagesDir.resolve("completion_badge.png")
+        completionBadge.writeText("completion badge content")
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find all dependencies from onFlowStart and onFlowComplete
+        assertThat(dependencies).hasSize(8) // main + 2 startup flows + 2 scripts + 2 images + 1 cleanup flow
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(startupFlow)
+        assertThat(dependencies).contains(nestedStartup)
+        assertThat(dependencies).contains(startupScript)
+        assertThat(dependencies).contains(startupLogo)
+        assertThat(dependencies).contains(cleanupFlow)
+        assertThat(dependencies).contains(cleanupScript)
+        assertThat(dependencies).contains(completionBadge)
+    }
+    
+    @Test
+    fun `test mixed configuration and composite commands`(@TempDir tempDir: Path) {
+        // Create complex flow with both configuration commands and composite commands
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            onFlowStart:
+              - repeat:
+                  times: 2
+                  commands:
+                    - runFlow: repeated_startup.yaml
+            onFlowComplete:
+              - retry:
+                  maxRetries: 3
+                  commands:
+                    - runScript: retry_cleanup.js
+            ---
+            - tapOn: "Main Action"
+            - runFlow: main_subflow.yaml
+        """.trimIndent())
+        
+        // Create all dependencies
+        val repeatedStartup = tempDir.resolve("repeated_startup.yaml")
+        repeatedStartup.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Repeated Action"
+        """.trimIndent())
+        
+        val retryCleanup = tempDir.resolve("retry_cleanup.js")
+        retryCleanup.writeText("console.log('retry cleanup');")
+        
+        val mainSubflow = tempDir.resolve("main_subflow.yaml")
+        mainSubflow.writeText("""
+            appId: com.example.app
+            ---
+            - assertVisible: "Main Complete"
+        """.trimIndent())
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find dependencies from configuration commands AND main flow
+        assertThat(dependencies).hasSize(4)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(repeatedStartup) // From onFlowStart -> repeat -> runFlow
+        assertThat(dependencies).contains(retryCleanup)    // From onFlowComplete -> retry -> runScript  
+        assertThat(dependencies).contains(mainSubflow)     // From main flow -> runFlow
+    }
 }
