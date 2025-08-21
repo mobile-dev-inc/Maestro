@@ -1,56 +1,30 @@
 package maestro.js
 
 import net.datafaker.Faker
-import org.graalvm.polyglot.HostAccess.Export
+import net.datafaker.providers.base.AbstractProvider
+import org.graalvm.polyglot.HostAccess
 
-class GraalFaker() {
-    val faker = Faker()
+class GraalFaker : GraalHostAccessible {
+    private val publicClasses = mutableSetOf<Class<*>>()
 
-    @Export
-    fun generate(
-        expression: String
-    ): String {
-        var thisExpression = expression
-        if(!expression.contains("#{")){ // Allow users to provide full faker expressions, but allow plain X.y
-            thisExpression = "#{${thisExpression}}"
+    fun getFaker(): Faker = Faker()
+
+    override fun configureHostAccess(builder: HostAccess.Builder) {
+        builder.apply { allowAllPublicOf(Faker::class.java) }
+    }
+
+    private fun HostAccess.Builder.allowAllPublicOf(clazz: Class<*>) {
+        if (clazz in publicClasses) return
+        publicClasses.add(clazz)
+        clazz.methods.filter {
+            it.declaringClass != Object::class.java &&
+            it.declaringClass != AbstractProvider::class.java &&
+            java.lang.reflect.Modifier.isPublic(it.modifiers)
+        }.forEach { method ->
+            allowAccess(method)
+            if (AbstractProvider::class.java.isAssignableFrom(method.returnType) && !publicClasses.contains(method.returnType)) {
+                allowAllPublicOf(method.returnType)
+            }
         }
-        return faker.expression(thisExpression)
-    }
-
-    @JvmOverloads
-    @Export
-    fun number(length : Int = 8): String {
-        return faker.number().randomNumber(length).toString()
-    }
-
-    @JvmOverloads
-    @Export
-    fun text(length: Int = 8): String {
-        return faker.text().text(length)
-    }
-
-    @Export
-    fun email(): String {
-        return faker.internet().emailAddress()
-    }
-
-    @Export
-    fun personName(): String {
-        return faker.name().name()
-    }
-
-    @Export
-    fun city(): String {
-        return faker.address().cityName()
-    }
-
-    @Export
-    fun country(): String {
-        return faker.address().country()
-    }
-
-    @Export
-    fun color(): String {
-        return faker.color().name()
     }
 }

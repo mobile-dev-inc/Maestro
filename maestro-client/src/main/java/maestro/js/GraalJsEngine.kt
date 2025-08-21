@@ -41,6 +41,8 @@ class GraalJsEngine(
     // Stack to track environment variable scopes for proper isolation
     private val envScopeStack = mutableListOf<HashMap<String, String>>()
 
+    private val hostAccess = GraalHostAccessBuilder(listOf(fakerBinding, httpBinding)).build()
+
     private var onLogMessage: (String) -> Unit = {}
 
     private var platform = platform
@@ -90,6 +92,7 @@ class GraalJsEngine(
             .option("js.strict", "true")
             .logHandler(NULL_HANDLER)
             .out(outputStream)
+            .allowHostAccess(hostAccess)
             .build()
 
         openContexts.add(context)
@@ -97,7 +100,7 @@ class GraalJsEngine(
         envBinding.forEach { (key, value) -> context.getBindings("js").putMember(key, value) }
 
         context.getBindings("js").putMember("http", httpBinding)
-        context.getBindings("js").putMember("datafaker", fakerBinding)
+        context.getBindings("js").putMember("faker", fakerBinding.getFaker())
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 

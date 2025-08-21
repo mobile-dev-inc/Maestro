@@ -76,98 +76,15 @@ class GraalJsEngineTest : JsEngineTest() {
     }
 
     @Test
-    fun `Can execute faker`() {
-        val result = engine.evaluateScript("datafaker.generate('#{} potato')").toString()
-        assertThat(result).isEqualTo(" potato")
+    fun `Can user faker providers`() {
+        val result = engine.evaluateScript("faker.name().firstName()").toString()
+        assertThat(result).matches("^[A-Za-z]+$")
     }
 
     @Test
     fun `Can evaluate faker expressions`() {
-        val result = engine.evaluateScript("datafaker.generate('#{name.firstName}')").toString()
-        assertThat(result).matches("^[A-Za-z]+$")
-    }
-
-    @Test
-    fun `Can evaluate multiple faker expressions`() {
-        val result = engine.evaluateScript("datafaker.generate('#{name.firstName} #{name.lastName}')").toString()
+        val result = engine.evaluateScript("faker.expression('#{name.firstName} #{name.lastName}')").toString()
         assertThat(result).matches("^[A-Za-z]+ [A-Za-z']+$")
     }
 
-    @Test
-    fun `Can evaluate faker expressions with parameters`() {
-        val result = engine.evaluateScript("datafaker.generate(\"#{internet.emailaddress 'potato'}\")").toString()
-        assertThat(result).matches("^potato@[a-z]+\\.[a-z]+$")
-    }
-
-    @Test
-    fun `Can evaluate faker expressions that return structured JSON`() {
-        val result = engine.evaluateScript("datafaker.generate(\"#{json 'person','#{json ''first_name'',''#{Name.first_name}'',''last_name'',''#{Name.last_name}''}'}\")").toString()
-        assertThat(result).matches("^\\{\"person\": \\{\"first_name\": \"[A-Za-z]+\", \"last_name\": \"[A-Za-z']+\"}}$")
-    }
-
-    @Test
-    fun `Will automatically wrap strings without expressions as faker expressions`() {
-        val result = engine.evaluateScript("datafaker.generate('name.firstName')").toString()
-        assertThat(result).matches("^[A-Za-z]+$")
-    }
-
-    @Test
-    fun `Will not wrap strings with expressions as faker expressions`() {
-        val result = engine.evaluateScript("datafaker.generate('name.firstName #{name.lastName}')").toString()
-        assertThat(result).matches("^name.firstName [A-Za-z']+$")
-    }
-
-    @Test
-    fun `Has a convenience wrapper for numbers`() {
-        val result = engine.evaluateScript("datafaker.number()").toString()
-        assertThat(result).matches("^[0-9]{8}$")
-    }
-
-    @Test
-    fun `Has a convenience wrapper for numbers that accepts a length argument`() {
-        val result = engine.evaluateScript("datafaker.number(16)").toString()
-        assertThat(result).matches("^[0-9]{16}$")
-    }
-
-    @Test
-    fun `Has a convenience wrapper for text`() {
-        val result = engine.evaluateScript("datafaker.text()").toString()
-        assertThat(result).matches("^[a-z]{8}$")
-    }
-
-    @Test
-    fun `Has a convenience wrapper for text that accepts a length argument`() {
-        val result = engine.evaluateScript("datafaker.text(5)").toString()
-        assertThat(result).matches("^[a-z]{5}$")
-    }
-
-    @Test
-    fun `Has a convenience wrapper for email`() {
-        val result = engine.evaluateScript("datafaker.email()").toString()
-        assertThat(result).matches("^[a-z]+\\.[a-z]+@[a-z]+\\.[a-z]+$")
-    }
-
-    @Test
-    fun `Has a convenience wrapper for names`() {
-        val result = engine.evaluateScript("datafaker.personName()").toString()
-        assertThat(result).matches("^([A-Za-z.]+ )?[A-Za-z]+ [A-Za-z']+( [A-Za-z.]+)?$") // Matches optional title, first name, and last name, and optional suffix
-    }
-
-    @Test
-    fun `Has a convenience wrapper for cities`() {
-        val result = engine.evaluateScript("datafaker.city()").toString()
-        assertThat(result).matches("^[A-Z][a-z]+( [A-Z][a-z]+)*$") // Matches city names with optional multiple words
-    }
-
-    @Test
-    fun `Has a convenience wrapper for countries`() {
-        val result = engine.evaluateScript("datafaker.country()").toString()
-        assertThat(result).matches("^[A-Z][a-z,]+( [A-Za-z,()]+)*$") // Matches country names with optional multiple words
-    }
-
-    @Test
-    fun `Has a convenience wrapper for colours`() {
-        val result = engine.evaluateScript("datafaker.color()").toString()
-        assertThat(result).matches("^[a-z]+( [a-z]+)*$") // Matches single or multiple word color names
-    }
 }

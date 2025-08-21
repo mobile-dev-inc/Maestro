@@ -5,12 +5,27 @@ import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.graalvm.polyglot.HostAccess
 import org.graalvm.polyglot.HostAccess.Export
 import org.graalvm.polyglot.proxy.ProxyObject
 
 class GraalJsHttp(
     private val httpClient: OkHttpClient
-) {
+) : GraalHostAccessible {
+
+    override fun configureHostAccess(builder: HostAccess.Builder) {
+        builder
+            .allowAccess(GraalJsHttp::class.java.getMethod("get", String::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("get", String::class.java, Map::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("post", String::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("post", String::class.java, Map::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("put", String::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("put", String::class.java, Map::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("delete", String::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("delete", String::class.java, Map::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("request", String::class.java))
+            .allowAccess(GraalJsHttp::class.java.getMethod("request", String::class.java, Map::class.java))
+    }
 
     @JvmOverloads
     @Export

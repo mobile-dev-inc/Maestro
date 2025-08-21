@@ -1,5 +1,5 @@
 appId: com.example.app
 jsEngine: graaljs
 ---
-- evalScript: ${output.thisNumber = datafaker.generate("#{number.numberBetween '1' '10'}")}
+- evalScript: ${output.thisNumber = faker.expression("#{number.numberBetween '1' '10'}")}
 - assertTrue: ${output.thisNumber >= 1 && output.thisNumber <= 10}
