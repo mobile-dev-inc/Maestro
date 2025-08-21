@@ -14,11 +14,36 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
     private val mapper: ObjectMapper,
     private val testSuiteName: String?
 ) : TestSuiteReporter {
+
+    private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
+        name = testSuiteName ?: "Test Suite",
+        device = suite.deviceName,
+        failures = suite.flows.count { it.status == FlowStatus.ERROR },
+        time = suite.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
+        tests = suite.flows.size,
+        testCases = suite.flows
+            .map { flow ->
+                TestCase(
+                    id = flow.name,
+                    name = flow.name,
+                    classname = flow.name,
+                    failure = flow.failure?.let { failure ->
+                        Failure(
+                            message = failure.message,
+                        )
+                    },
+                    time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
+                    status = flow.status
+                )
+            }
+    )
+
 
     override fun report(
         summary: TestExecutionSummary,
@@ -31,30 +56,7 @@ class JUnitTestSuiteReporter(
                 TestSuites(
                     suites = summary
                         .suites
-                        .map { suite ->
-                            TestSuite(
-                                name = testSuiteName ?: "Test Suite",
-                                device = suite.deviceName,
-                                failures = suite.flows.count { it.status == FlowStatus.ERROR },
-                                time = suite.duration?.inWholeSeconds?.toString(),
-                                tests = suite.flows.size,
-                                testCases = suite.flows
-                                    .map { flow ->
-                                        TestCase(
-                                            id = flow.name,
-                                            name = flow.name,
-                                            classname = flow.name,
-                                            failure = flow.failure?.let { failure ->
-                                                Failure(
-                                                    message = failure.message,
-                                                )
-                                            },
-                                            time = flow.duration?.inWholeSeconds?.toString(),
-                                            status = flow.status
-                                        )
-                                    }
-                            )
-                        }
+                        .map { suiteResultToTestSuite(it) }
                 )
             )
     }
