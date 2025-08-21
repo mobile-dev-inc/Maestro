@@ -1,5 +1,7 @@
 package maestro.cli.util
 
+import maestro.orchestra.CompositeCommand
+import maestro.orchestra.MaestroCommand
 import maestro.orchestra.yaml.MaestroFlowParser
 import java.nio.file.Files
 import java.nio.file.Path
@@ -31,26 +33,7 @@ object DependencyResolver {
                 
                 // Discover dependencies from each command
                 val dependencies = commands.flatMap { maestroCommand ->
-                    val commandDependencies = mutableListOf<Path>()
-
-                    // Check for runFlow commands and add the dependency if it exists (sourceDescription is not null)
-                    maestroCommand.runFlowCommand?.let { runFlow ->
-                        resolveDependencyFile(currentFile, runFlow.sourceDescription)?.let { commandDependencies.add(it) }
-                    }
-                    
-                    // Check for runScript commands and add the dependency if it exists (sourceDescription is not null)
-                    maestroCommand.runScriptCommand?.let { runScript ->
-                        resolveDependencyFile(currentFile, runScript.sourceDescription)?.let { commandDependencies.add(it) }
-                    }
-                    
-                    // Check for addMedia commands and add the dependency if it exists (mediaPaths is not null)
-                    maestroCommand.addMediaCommand?.let { addMedia ->
-                        addMedia.mediaPaths.forEach { mediaPath ->
-                            resolveDependencyFile(currentFile, mediaPath)?.let { commandDependencies.add(it) }
-                        }
-                    }
-                    
-                    commandDependencies
+                    extractDependenciesFromCommand(maestroCommand, currentFile)
                 }
                 
                 val newDependencies = dependencies.filter { it.exists() && !discoveredFiles.contains(it) }
@@ -64,6 +47,42 @@ object DependencyResolver {
         return discoveredFiles.toList()
     }
     
+    private fun extractDependenciesFromCommand(maestroCommand: MaestroCommand, currentFile: Path): List<Path> {
+        val commandDependencies = mutableListOf<Path>()
+
+        // Check for runFlow commands and add the dependency if it exists (sourceDescription is not null)
+        maestroCommand.runFlowCommand?.let { runFlow ->
+            resolveDependencyFile(currentFile, runFlow.sourceDescription)?.let { commandDependencies.add(it) }
+        }
+        
+        // Check for runScript commands and add the dependency if it exists (sourceDescription is not null)
+        maestroCommand.runScriptCommand?.let { runScript ->
+            resolveDependencyFile(currentFile, runScript.sourceDescription)?.let { commandDependencies.add(it) }
+        }
+        
+        // Check for retry commands and add the dependency if it exists (sourceDescription is not null)
+        maestroCommand.retryCommand?.let { retry ->
+            resolveDependencyFile(currentFile, retry.sourceDescription)?.let { commandDependencies.add(it) }
+        }
+        
+        // Check for addMedia commands and add the dependency if it exists (mediaPaths is not null)
+        maestroCommand.addMediaCommand?.let { addMedia ->
+            addMedia.mediaPaths.forEach { mediaPath ->
+                resolveDependencyFile(currentFile, mediaPath)?.let { commandDependencies.add(it) }
+            }
+        }
+        
+        // Handle ALL composite commands to extract dependencies from nested commands (RunFlow, Repeat, Retry)
+        val command = maestroCommand.asCommand()
+        if (command is CompositeCommand) {
+            command.subCommands().forEach { nestedCommand ->
+                commandDependencies.addAll(extractDependenciesFromCommand(nestedCommand, currentFile))
+            }
+        }
+        
+        return commandDependencies
+    }
+    
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
         val path = flowPath.fileSystem.getPath(requestedPath)
         
@@ -72,6 +91,13 @@ object DependencyResolver {
         } else {
             flowPath.resolveSibling(path).toAbsolutePath()
         }
+    }
+    
+    private fun resolveDependencyFile(currentFile: Path, requestedPath: String?): Path? {
+        val trimmed = requestedPath?.trim()
+        if (trimmed.isNullOrEmpty()) return null
+        val resolved = resolvePath(currentFile, trimmed)
+        return if (resolved.exists() && !Files.isDirectory(resolved)) resolved else null
     }
 
     private fun isYamlFile(path: Path): Boolean {
@@ -82,13 +108,6 @@ object DependencyResolver {
     private fun isJsFile(path: Path): Boolean {
         val filename = path.fileName.toString().lowercase()
         return filename.endsWith(".js")
-    }
-
-    private fun resolveDependencyFile(currentFile: Path, requestedPath: String?): Path? {
-        val trimmed = requestedPath?.trim()
-        if (trimmed.isNullOrEmpty()) return null
-        val resolved = resolvePath(currentFile, trimmed)
-        return if (resolved.exists() && !Files.isDirectory(resolved)) resolved else null
     }
 
     fun getDependencySummary(flowFile: Path): String {

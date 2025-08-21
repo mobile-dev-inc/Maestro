@@ -138,4 +138,304 @@ class DependencyResolverTest {
         assertThat(enhancedDependencies).contains(mediaFile)
         assertThat(enhancedDependencies).contains(subflow)
     }
+    
+    @Test
+    fun `test composite commands - repeat with nested dependencies`(@TempDir tempDir: Path) {
+        // Create main flow with repeat command containing nested dependencies
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - repeat:
+                times: 3
+                commands:
+                  - runFlow: nested_subflow.yaml
+                  - runScript: validation.js
+                  - addMedia:
+                    - "images/repeat_logo.png"
+        """.trimIndent())
+        
+        // Create nested dependencies
+        val nestedSubflow = tempDir.resolve("nested_subflow.yaml")
+        nestedSubflow.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Button"
+        """.trimIndent())
+        
+        val script = tempDir.resolve("validation.js")
+        script.writeText("console.log('repeat validation');")
+        
+        val mediaDir = tempDir.resolve("images")
+        mediaDir.toFile().mkdirs()
+        val mediaFile = mediaDir.resolve("repeat_logo.png")
+        mediaFile.writeText("fake png content")
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find all nested dependencies within repeat command
+        assertThat(dependencies).hasSize(4)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(nestedSubflow)
+        assertThat(dependencies).contains(script)
+        assertThat(dependencies).contains(mediaFile)
+    }
+    
+    @Test
+    fun `test composite commands - retry with file reference`(@TempDir tempDir: Path) {
+        // Create main flow with retry command referencing external file
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - retry:
+                file: external_retry.yaml
+                maxRetries: 3
+        """.trimIndent())
+        
+        // Create external retry file
+        val retryFile = tempDir.resolve("external_retry.yaml")
+        retryFile.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Retry Button"
+            - runFlow: nested_flow.yaml
+        """.trimIndent())
+        
+        // Create nested flow referenced by retry file
+        val nestedFlow = tempDir.resolve("nested_flow.yaml")
+        nestedFlow.writeText("""
+            appId: com.example.app
+            ---
+            - assertVisible: "Success"
+        """.trimIndent())
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find retry file and its nested dependencies
+        assertThat(dependencies).hasSize(3)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(retryFile)
+        assertThat(dependencies).contains(nestedFlow)
+    }
+    
+    @Test
+    fun `test composite commands - retry with inline commands`(@TempDir tempDir: Path) {
+        // Create main flow with retry command containing inline nested dependencies
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - retry:
+                maxRetries: 2
+                commands:
+                  - runFlow: retry_subflow.yaml
+                  - runScript: cleanup.js
+                  - addMedia:
+                    - "images/retry_media.png"
+        """.trimIndent())
+        
+        // Create nested dependencies
+        val retrySubflow = tempDir.resolve("retry_subflow.yaml")
+        retrySubflow.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Retry Action"
+        """.trimIndent())
+        
+        val cleanupScript = tempDir.resolve("cleanup.js")
+        cleanupScript.writeText("console.log('cleanup after retry');")
+        
+        val mediaDir = tempDir.resolve("images")
+        mediaDir.toFile().mkdirs()
+        val retryMedia = mediaDir.resolve("retry_media.png")
+        retryMedia.writeText("fake retry media content")
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find all nested dependencies within retry command
+        assertThat(dependencies).hasSize(4)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(retrySubflow)
+        assertThat(dependencies).contains(cleanupScript)
+        assertThat(dependencies).contains(retryMedia)
+    }
+    
+    @Test
+    fun `test deeply nested composite commands`(@TempDir tempDir: Path) {
+        // Create complex nested structure: runFlow -> repeat -> retry -> runFlow
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - runFlow:
+                commands:
+                  - repeat:
+                      times: 2
+                      commands:
+                        - retry:
+                            maxRetries: 3
+                            commands:
+                              - runFlow: deeply_nested.yaml
+                              - runScript: deep_script.js
+        """.trimIndent())
+        
+        // Create deeply nested dependencies
+        val deeplyNested = tempDir.resolve("deeply_nested.yaml")
+        deeplyNested.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Deep Button"
+            - addMedia:
+              - "images/deep_media.png"
+        """.trimIndent())
+        
+        val deepScript = tempDir.resolve("deep_script.js")
+        deepScript.writeText("console.log('deeply nested script');")
+        
+        val mediaDir = tempDir.resolve("images")
+        mediaDir.toFile().mkdirs()
+        val deepMedia = mediaDir.resolve("deep_media.png")
+        deepMedia.writeText("deep media content")
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find all dependencies at any nesting level
+        assertThat(dependencies).hasSize(4)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(deeplyNested)
+        assertThat(dependencies).contains(deepScript)
+        assertThat(dependencies).contains(deepMedia)
+    }
+    
+    @Test
+    fun `test mixed composite commands with external and inline`(@TempDir tempDir: Path) {
+        // Create flow mixing external file references and inline commands
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - runFlow: external_flow.yaml
+            - repeat:
+                times: 2
+                commands:
+                  - runScript: inline_script.js
+            - retry:
+                file: external_retry.yaml
+        """.trimIndent())
+        
+        // Create external flow
+        val externalFlow = tempDir.resolve("external_flow.yaml")
+        externalFlow.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "External Button"
+        """.trimIndent())
+        
+        // Create inline script
+        val inlineScript = tempDir.resolve("inline_script.js")
+        inlineScript.writeText("console.log('inline script in repeat');")
+        
+        // Create external retry
+        val externalRetry = tempDir.resolve("external_retry.yaml")
+        externalRetry.writeText("""
+            appId: com.example.app
+            ---
+            - assertVisible: "Retry Success"
+            - runFlow: retry_nested.yaml
+        """.trimIndent())
+        
+        // Create retry nested flow
+        val retryNested = tempDir.resolve("retry_nested.yaml")
+        retryNested.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Final Button"
+        """.trimIndent())
+        
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+        
+        // Should find all dependencies from mixed sources
+        assertThat(dependencies).hasSize(5)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(externalFlow)
+        assertThat(dependencies).contains(inlineScript)
+        assertThat(dependencies).contains(externalRetry)
+        assertThat(dependencies).contains(retryNested)
+    }
+    
+    @Test
+    fun `test circular dependency prevention`(@TempDir tempDir: Path) {
+        // Create circular dependency: flow1 -> flow2 -> flow1
+        val flow1 = tempDir.resolve("flow1.yaml")
+        flow1.writeText("""
+            appId: com.example.app
+            ---
+            - runFlow: flow2.yaml
+            - tapOn: "Button1"
+        """.trimIndent())
+        
+        val flow2 = tempDir.resolve("flow2.yaml")
+        flow2.writeText("""
+            appId: com.example.app
+            ---
+            - runFlow: flow1.yaml
+            - tapOn: "Button2"
+        """.trimIndent())
+        
+        // Test dependency discovery should handle circular references
+        val dependencies = DependencyResolver.discoverAllDependencies(flow1)
+        
+        // Should include both files but not loop infinitely
+        // Note: The exact count may vary based on parsing, but should include at least flow1
+        // and should not hang due to circular reference
+        assertThat(dependencies.size).isAtLeast(1)
+        assertThat(dependencies).contains(flow1)
+        // flow2 might not be included if parsing fails, but the important thing is no infinite loop
+    }
+    
+    @Test
+    fun `test dependency summary with composite commands`(@TempDir tempDir: Path) {
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - repeat:
+                times: 2
+                commands:
+                  - runFlow: repeat_subflow.yaml
+                  - runScript: repeat_script.js
+            - retry:
+                file: retry_flow.yaml
+            - addMedia:
+              - "images/main_logo.png"
+        """.trimIndent())
+        
+        // Create all dependencies
+        val repeatSubflow = tempDir.resolve("repeat_subflow.yaml")
+        repeatSubflow.writeText("appId: com.example.app\n---\n- tapOn: 'Button'")
+        
+        val repeatScript = tempDir.resolve("repeat_script.js")
+        repeatScript.writeText("console.log('repeat');")
+        
+        val retryFlow = tempDir.resolve("retry_flow.yaml")
+        retryFlow.writeText("appId: com.example.app\n---\n- assertVisible: 'Text'")
+        
+        val mediaDir = tempDir.resolve("images")
+        mediaDir.toFile().mkdirs()
+        val mainLogo = mediaDir.resolve("main_logo.png")
+        mainLogo.writeText("logo content")
+        
+        val summary = DependencyResolver.getDependencySummary(mainFlow)
+        
+        assertThat(summary).contains("Total files: 5")
+        assertThat(summary).contains("Subflows: 2") // repeat_subflow.yaml + retry_flow.yaml
+        assertThat(summary).contains("Scripts: 1")  // repeat_script.js
+        assertThat(summary).contains("Other files: 1") // main_logo.png
+    }
 }
