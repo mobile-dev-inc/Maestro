@@ -8,17 +8,17 @@ struct ScreenSizeHelper {
     
     static func physicalScreenSize() -> (Float, Float) {
         let springboardBundleId = "com.apple.springboard"
-        let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
-        let currentAppBundleId = app.bundleID
-        let currentOrientation = XCUIDevice.shared.orientation
-        
-        if let cached = cachedSize,
-           currentAppBundleId == lastAppBundleId,
-           currentOrientation == lastOrientation {
-            return cached
-        }
         
         do {
+            let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
+            let currentAppBundleId = app.bundleID
+            let currentOrientation = XCUIDevice.shared.orientation
+            
+            if let cached = cachedSize,
+               currentAppBundleId == lastAppBundleId,
+               currentOrientation == lastOrientation {
+                return cached
+            }
             let _ = try app.snapshot()
             
             let screenSize = app.firstMatch.frame.size
