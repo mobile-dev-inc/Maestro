@@ -581,6 +581,7 @@ data class YamlFluentCommand(
             RetryCommand(
                 maxRetries = maxRetries,
                 commands = commands,
+                sourceDescription = retry.file,
                 label = retry.label,
                 optional = retry.optional,
                 config = config

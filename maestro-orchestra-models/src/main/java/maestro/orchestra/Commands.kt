@@ -814,6 +814,7 @@ data class RetryCommand(
     val maxRetries: String? = null,
     val commands: List<MaestroCommand>,
     val config: MaestroConfig?,
+    val sourceDescription: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
@@ -829,7 +830,12 @@ data class RetryCommand(
     override val originalDescription: String
         get() {
             val maxAttempts = maxRetries?.toIntOrNull() ?: 1
-            return "Retry $maxAttempts times"
+            val baseDescription = if (sourceDescription != null) {
+                "Retry $sourceDescription"
+            } else {
+                "Retry"
+            }
+            return "$baseDescription $maxAttempts times"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
