@@ -277,14 +277,16 @@ class CloudInteractor(
 
             if (upload.completed) {
                 val runningFlows = RunningFlows(
-                    upload.flows.map { flowResult ->
+                    flows = upload.flows.map { flowResult ->
                         RunningFlow(
                             flowResult.name,
                             flowResult.status,
-                            flowResult.totalTime?.milliseconds
+                            duration = flowResult.totalTime?.milliseconds,
+                            startTime = flowResult.startTime
                         )
                     },
-                    upload.totalTime?.milliseconds
+                    duration = upload.totalTime?.milliseconds,
+                    startTime = upload.startTime
                 )
                 return handleSyncUploadCompletion(
                     upload = upload,
@@ -409,15 +411,18 @@ class CloudInteractor(
             passed = passed,
             flows = upload.flows.map { uploadFlowResult ->
                 val failure = uploadFlowResult.errors.firstOrNull()
+                val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
                     status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
-                    duration = runningFlows.flows.find { it.name == uploadFlowResult.name }?.duration
+                    duration = currentRunningFlow?.duration,
+                    startTime = currentRunningFlow?.startTime
                 )
             },
-            duration = runningFlows.duration
+            duration = runningFlows.duration,
+            startTime = runningFlows.startTime
         )
     }
 

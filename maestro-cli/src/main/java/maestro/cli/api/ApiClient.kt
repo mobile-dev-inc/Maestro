@@ -612,6 +612,7 @@ data class UploadStatus(
     val status: Status,
     val completed: Boolean,
     val totalTime: Long?,
+    val startTime: Long?,
     val flows: List<FlowResult>
 ) {
 
@@ -619,6 +620,7 @@ data class UploadStatus(
         val name: String,
         val status: FlowStatus,
         val errors: List<String>,
+        val startTime: Long,
         val totalTime: Long? = null,
         val cancellationReason: CancellationReason? = null
     )
