@@ -45,6 +45,8 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                 br{}
                 +"Duration: ${suite.duration}"
                 br{}
+                +"Start Time: ${suite.startTime?.let { millisToCurrentLocalDateTime(it) } }"
+                br{}
                 br{}
                 div(classes = "card-group mb-4") {
                   div(classes = "card") {
@@ -102,6 +104,8 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                           +"Status: ${flow.status}"
                           br{}
                           +"Duration: ${flow.duration}"
+                          br{}
+                          +"Start Time: ${flow.startTime?.let{ millisToCurrentLocalDateTime(it) } }"
                           br{}
                           +"File Name: ${flow.fileName}"
                         }
