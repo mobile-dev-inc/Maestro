@@ -101,12 +101,6 @@ object MaestroSessionManager {
             TimeUnit.SECONDS
         )
 
-        val reinstallDriver = if (executionPlan?.flowsToRun?.size != null && executionPlan.flowsToRun.size > 1) {
-            false
-        } else {
-            reinstallDriver
-        }
-
         val session = createMaestro(
             selectedDevice = selectedDevice,
             connectToExistingSession = if (isStudio) {
