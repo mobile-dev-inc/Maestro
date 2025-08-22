@@ -14,6 +14,9 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
@@ -21,11 +24,25 @@ class JUnitTestSuiteReporter(
     private val testSuiteName: String?
 ) : TestSuiteReporter {
 
+    /**
+     * Judging from https://github.com/testmoapp/junitxml?tab=readme-ov-file#complete-junit-xml-example,
+     * the output of timestamp needs to be an ISO 8601 local date time instead of an ISO 8601 offset date
+     * time (it would be ideal to use ISO 8601 offset date time it needs to be confirmed if it's valid)
+     *
+     * Due to having to use LocalDateTime, we need to get the offset from the client (i.e. the machine running
+     * maestro-cli) using ZoneId.systemDefault() so we can display the time relative to the client machine
+     */
+    private fun millisToCurrentLocalDateTime(milliseconds: Long): String {
+        val localDateTime = Instant.ofEpochMilli(milliseconds).atZone(ZoneId.systemDefault()).toLocalDateTime()
+        return localDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }
+
     private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
         name = testSuiteName ?: "Test Suite",
         device = suite.deviceName,
         failures = suite.flows.count { it.status == FlowStatus.ERROR },
         time = suite.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
+        timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it) },
         tests = suite.flows.size,
         testCases = suite.flows
             .map { flow ->
@@ -39,6 +56,7 @@ class JUnitTestSuiteReporter(
                         )
                     },
                     time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
+                    timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it) },
                     status = flow.status
                 )
             }
@@ -75,6 +93,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val tests: Int,
         @JacksonXmlProperty(isAttribute = true) val failures: Int,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
+        @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
         @JacksonXmlElementWrapper(useWrapping = false)
         @JsonProperty("testcase")
         val testCases: List<TestCase>,
@@ -85,6 +104,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val name: String,
         @JacksonXmlProperty(isAttribute = true) val classname: String,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
+        @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
         @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,
         val failure: Failure? = null,
     )
