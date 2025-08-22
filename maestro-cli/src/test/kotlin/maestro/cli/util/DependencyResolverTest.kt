@@ -561,4 +561,37 @@ class DependencyResolverTest {
         assertThat(dependencies).contains(retryCleanup)    // From onFlowComplete -> retry -> runScript  
         assertThat(dependencies).contains(mainSubflow)     // From main flow -> runFlow
     }
+
+    @Test
+    fun `test dependency discovery for repeated flow references`(@TempDir tempDir: Path) {
+        // Create a main flow file
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - runFlow: subflow.yaml
+            - runFlow: subflow.yaml
+            - runFlow:
+                commands:
+                  - runFlow: subflow.yaml
+        """.trimIndent())
+
+        // Create subflow files
+        val subflow1 = tempDir.resolve("subflow.yaml")
+        subflow1.writeText("""
+            appId: com.example.app
+            ---
+            - tapOn: "Button"
+        """.trimIndent())
+
+        // Test dependency discovery
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+
+        // Should include all files
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(subflow1)
+
+    }
+
 }
