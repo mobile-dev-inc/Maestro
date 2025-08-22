@@ -175,8 +175,8 @@ object TestDebugReporter {
 
     fun updateTestOutputDir(testOutputDir: Path?) {
         this.testOutputDir = testOutputDir
-        // set debug output path to match the test output directory
-        debugOutputPath = testOutputDir
+        // Reset debugOutputPath so getDebugOutputPath() will properly handle directory creation
+        debugOutputPath = null
     }
 
     fun getDebugOutputPath(): Path {
