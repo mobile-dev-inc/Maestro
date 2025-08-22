@@ -142,10 +142,10 @@ class XCTestIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: Map<String, Any>,
+        launchArguments: Map<String, Any>
     ) {
         execute {
-            client.launchApp(id)
+            client.launchApp(appId = id, launchArguments = launchArguments)
         }
     }
 
