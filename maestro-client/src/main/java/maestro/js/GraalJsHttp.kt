@@ -5,17 +5,12 @@ import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.graalvm.polyglot.HostAccess
 import org.graalvm.polyglot.HostAccess.Export
 import org.graalvm.polyglot.proxy.ProxyObject
 
 class GraalJsHttp(
     private val httpClient: OkHttpClient
-) : GraalHostAccessible {
-
-    override fun configureHostAccess(builder: HostAccess.Builder) {
-        builder.allowAccessAnnotatedBy(HostAccess.Export::class.java)
-    }
+) {
 
     @JvmOverloads
     @Export

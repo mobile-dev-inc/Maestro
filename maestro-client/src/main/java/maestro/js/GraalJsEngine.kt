@@ -1,9 +1,12 @@
 package maestro.js
 
 import maestro.utils.HttpClient
+import net.datafaker.Faker
+import net.datafaker.providers.base.AbstractProvider
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import org.graalvm.polyglot.Context
+import org.graalvm.polyglot.HostAccess
 import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
 import org.graalvm.polyglot.proxy.ProxyObject
@@ -33,7 +36,6 @@ class GraalJsEngine(
     private val openContexts = HashSet<Context>()
 
     private val httpBinding = GraalJsHttp(httpClient)
-    private val fakerBinding = GraalFaker()
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
@@ -41,7 +43,8 @@ class GraalJsEngine(
     // Stack to track environment variable scopes for proper isolation
     private val envScopeStack = mutableListOf<HashMap<String, String>>()
 
-    private val hostAccess = GraalHostAccessBuilder(listOf(fakerBinding, httpBinding)).build()
+    private val faker = Faker()
+    private val fakerPublicClasses = mutableSetOf<Class<*>>() // To avoid re-processing the same class multiple times
 
     private var onLogMessage: (String) -> Unit = {}
 
@@ -78,6 +81,11 @@ class GraalJsEngine(
         return createContext().eval(source)
     }
 
+    val hostAccess = HostAccess.newBuilder()
+        .allowAccessAnnotatedBy(HostAccess.Export::class.java)
+        .allowAllPublicOf(Faker::class.java)
+        .build()
+
     private fun createContext(): Context {
         val outputStream = object : ByteArrayOutputStream() {
             override fun flush() {
@@ -100,7 +108,7 @@ class GraalJsEngine(
         envBinding.forEach { (key, value) -> context.getBindings("js").putMember(key, value) }
 
         context.getBindings("js").putMember("http", httpBinding)
-        context.getBindings("js").putMember("faker", fakerBinding.getFaker())
+        context.getBindings("js").putMember("faker", faker)
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 
@@ -144,5 +152,21 @@ class GraalJsEngine(
             envBinding.clear()
             envBinding.putAll(previousEnv)
         }
+    }
+
+    private fun HostAccess.Builder.allowAllPublicOf(clazz: Class<*>): HostAccess.Builder {
+        if (clazz in fakerPublicClasses) return this
+        fakerPublicClasses.add(clazz)
+        clazz.methods.filter {
+            it.declaringClass != Object::class.java &&
+                    it.declaringClass != AbstractProvider::class.java &&
+                    java.lang.reflect.Modifier.isPublic(it.modifiers)
+        }.forEach { method ->
+            allowAccess(method)
+            if (AbstractProvider::class.java.isAssignableFrom(method.returnType) && !fakerPublicClasses.contains(method.returnType)) {
+                allowAllPublicOf(method.returnType)
+            }
+        }
+        return this
     }
 }
