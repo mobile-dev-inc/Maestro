@@ -150,6 +150,10 @@ tasks.named<Tar>("distTar") {
     archiveFileName.set("maestro.tar")
 }
 
+tasks.shadowJar {
+    setProperty("zip64", true)
+}
+
 mavenPublishing {
     publishToMavenCentral(true)
     signAllPublications()

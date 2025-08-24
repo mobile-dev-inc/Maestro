@@ -30,6 +30,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 
 dependencies {
     implementation(project(":maestro-client"))
+    implementation(libs.datafaker)
 
     api(libs.jackson.core.databind)
     api(libs.jackson.module.kotlin)

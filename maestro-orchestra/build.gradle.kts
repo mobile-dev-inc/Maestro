@@ -18,6 +18,7 @@ dependencies {
     api(libs.jackson.module.kotlin)
     api(libs.jackson.dataformat.yaml)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.datafaker)
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)
