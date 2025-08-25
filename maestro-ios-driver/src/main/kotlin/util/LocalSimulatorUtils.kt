@@ -693,4 +693,19 @@ object LocalSimulatorUtils {
         screenRecording.process.waitFor()
         return screenRecording.file
     }
+
+   fun isTV(deviceId: String): Boolean {
+        for (entry in list().devices.entries) {
+            for (device in entry.value) {
+                if (device.udid != deviceId) continue
+                if (device.deviceTypeIdentifier == null) continue
+                if (device.deviceTypeIdentifier.contains("Apple-TV")) {
+                    logger.trace("Device is an AppleTV")
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
 }

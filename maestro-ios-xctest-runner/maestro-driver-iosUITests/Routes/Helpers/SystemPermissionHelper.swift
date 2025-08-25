@@ -24,12 +24,17 @@ final class SystemPermissionHelper {
             case .allow:
                 let allowButton = alert.buttons.element(boundBy: 1)
                 if allowButton.exists {
+                    // TODO: Add a proper shim for tvOS
+                    #if !os(tvOS)
                     allowButton.tap()
+                    #endif
                 }
             case .deny:
                 let dontAllowButton = alert.buttons.element(boundBy: 0)
                 if dontAllowButton.exists {
+                    #if !os(tvOS)
                     dontAllowButton.tap()
+                    #endif
                 }
             case .unset, .unknown:
                 // do nothing
