@@ -43,3 +43,7 @@ mavenPublishing {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+kotlin {
+    jvmToolchain(17)
+}

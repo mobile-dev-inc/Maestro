@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -59,4 +58,9 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.square.okhttp)
+}
+
+
+kotlin {
+    jvmToolchain(17)
 }

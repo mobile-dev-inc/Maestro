@@ -54,3 +54,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+kotlin {
+    jvmToolchain(17)
+}

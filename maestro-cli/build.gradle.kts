@@ -244,3 +244,7 @@ tasks.named<Test>("test") {
         excludeTags("IntegrationTest")
     }
 }
+
+kotlin {
+    jvmToolchain(17)
+}
