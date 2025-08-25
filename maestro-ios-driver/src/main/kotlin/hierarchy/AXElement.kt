@@ -3,10 +3,10 @@ package hierarchy
 import com.fasterxml.jackson.annotation.JsonProperty
 
 data class AXFrame(
-    @JsonProperty("X") val x: Float,
-    @JsonProperty("Y") val y: Float,
-    @JsonProperty("Width") val width: Float,
-    @JsonProperty("Height") val height: Float,
+    @JsonProperty("X") val x: Double,
+    @JsonProperty("Y") val y: Double,
+    @JsonProperty("Width") val width: Double,
+    @JsonProperty("Height") val height: Double,
 ) {
     val left = x
     val right = x + width

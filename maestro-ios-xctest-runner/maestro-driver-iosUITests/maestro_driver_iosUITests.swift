@@ -28,6 +28,13 @@ final class maestro_driver_iosUITests: XCTestCase {
         maestro_driver_iosUITests.logger.info("Will start HTTP server")
         try await server.start()
     }
+    
+    func testLandscape() async throws {
+        let app = await XCUIApplication(bundleIdentifier: "org.wikimedia.wikipedia")
+        
+//        let elementDepth = AXElement(try! await app.snapshot().dictionaryRepresentation).depth()
+        print(AXElement(try! await RunningApp.getForegroundApp()!.snapshot().dictionaryRepresentation))
+    }
 
     override class func tearDown() {
         logger.trace("tearDown")

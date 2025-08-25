@@ -34,7 +34,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
             
             NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
+            NSLog("Before encoding: \(viewHierarchy.axElement.depth())")
             let body = try JSONEncoder().encode(viewHierarchy)
+            NSLog("After encoding: \(body)")
+
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
             NSLog("AppError in handleRequest, Error:\(error)");
@@ -47,6 +50,7 @@ struct ViewHierarchyHandler: HTTPHandler {
 
     func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
         SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(foregroundApp: foregroundApp)
+        NSLog("The hhhh \(AXElement(try foregroundApp.snapshot().dictionaryRepresentation))")
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
                 
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
@@ -63,7 +67,11 @@ struct ViewHierarchyHandler: HTTPHandler {
         ]
         let appFrame = appHierarchy.frame
         
-        if deviceAxFrame != appFrame {
+        NSLog("The frames \(deviceAxFrame) and \(appFrame)")
+        
+        
+        
+        if (deviceAxFrame != appFrame && foregroundApp.interfaceOrientation == UIInterfaceOrientation.portrait) {
             guard
                 let deviceWidth = deviceAxFrame["Width"], deviceWidth > 0,
                 let deviceHeight = deviceAxFrame["Height"], deviceHeight > 0,
@@ -120,9 +128,11 @@ struct ViewHierarchyHandler: HTTPHandler {
 
         do {
             var hierarchy = try elementHierarchy(xcuiElement: element)
-            logger.info("Successfully retrieved element hierarchy.")
+            NSLog("Successfully retrieved element hierarchy.")
 
-            if hierarchy.depth() < snapshotMaxDepth {
+            let depth = hierarchy.depth()
+            if depth < snapshotMaxDepth {
+                NSLog("The hierarchy \(hierarchy.depth())")
                 return hierarchy
             }
             let count = try element.snapshot().children.count

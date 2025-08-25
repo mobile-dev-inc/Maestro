@@ -47,6 +47,7 @@ class XCTestDriverClient(
             "viewHierarchy",
             ViewHierarchyRequest(installedApps, excludeKeyboardElements)
         )
+        logger.trace("View hierarchy response: $responseString")
         return mapper.readValue(responseString, ViewHierarchy::class.java)
     }
 

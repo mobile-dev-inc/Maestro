@@ -125,8 +125,10 @@ struct AXElement: Codable {
         else { return 1 }
         
         let max = children
-            .map { child in child.depth() + 1 }
-            .max()
+            .map { child in
+                NSLog("The child \(child)")
+                return child.depth() + 1
+            }.max()
         
         return max ?? 1
     }
