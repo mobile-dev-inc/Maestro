@@ -204,6 +204,7 @@ object MaestroSessionManager {
                         selectedDevice.device.instanceId,
                         !connectToExistingSession,
                         driverHostPort,
+                        reinstallDriver,
                     )
 
                     Platform.IOS -> createIOS(
@@ -226,6 +227,7 @@ object MaestroSessionManager {
                     selectedDevice.port,
                     driverHostPort,
                     !connectToExistingSession,
+                    reinstallDriver,
                 ),
                 device = null,
             )
@@ -274,6 +276,7 @@ object MaestroSessionManager {
         port: Int?,
         driverHostPort: Int?,
         openDriver: Boolean,
+        reinstallDriver: Boolean,
     ): Maestro {
         val dadb = if (port != null) {
             Dadb.create(host ?: defaultHost, port)
@@ -284,7 +287,7 @@ object MaestroSessionManager {
         }
 
         return Maestro.android(
-            driver = AndroidDriver(dadb, driverHostPort),
+            driver = AndroidDriver(dadb, driverHostPort, "", reinstallDriver),
             openDriver = openDriver,
         )
     }
@@ -320,6 +323,7 @@ object MaestroSessionManager {
         instanceId: String,
         openDriver: Boolean,
         driverHostPort: Int?,
+        reinstallDriver: Boolean,
     ): Maestro {
         val driver = AndroidDriver(
             dadb = Dadb
@@ -329,6 +333,7 @@ object MaestroSessionManager {
                 ?: error("Unable to find device with id $instanceId"),
             hostPort = driverHostPort,
             emulatorName = instanceId,
+            reinstallDriver = reinstallDriver,
         )
 
         return Maestro.android(
@@ -373,7 +378,7 @@ object MaestroSessionManager {
                     snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
                 )
             }
-            else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
+             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
         val deviceController = when (deviceType) {
