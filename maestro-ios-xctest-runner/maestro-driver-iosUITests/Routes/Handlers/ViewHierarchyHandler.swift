@@ -69,6 +69,8 @@ struct ViewHierarchyHandler: HTTPHandler {
         
         NSLog("The frames \(deviceAxFrame) and \(appFrame)")
         
+        return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+        
         
         
         if (deviceAxFrame != appFrame && foregroundApp.interfaceOrientation == UIInterfaceOrientation.portrait) {
@@ -89,7 +91,7 @@ struct ViewHierarchyHandler: HTTPHandler {
             
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
             
-            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
         } else {
             return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
         }
