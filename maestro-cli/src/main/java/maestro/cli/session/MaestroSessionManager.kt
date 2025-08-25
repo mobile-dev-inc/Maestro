@@ -71,6 +71,7 @@ object MaestroSessionManager {
         platform: String? = null,
         isStudio: Boolean = false,
         isHeadless: Boolean = false,
+        screenSize: String? = null,
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
@@ -113,6 +114,7 @@ object MaestroSessionManager {
             },
             isStudio = isStudio,
             isHeadless = isHeadless,
+            screenSize = screenSize,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
             platformConfiguration = executionPlan?.workspaceConfig?.platform
@@ -193,6 +195,7 @@ object MaestroSessionManager {
         connectToExistingSession: Boolean,
         isStudio: Boolean,
         isHeadless: Boolean,
+        screenSize: String?,
         reinstallDriver: Boolean,
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
@@ -215,7 +218,7 @@ object MaestroSessionManager {
                         platformConfiguration = platformConfiguration
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio, isHeadless)
+                    Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize)
                 },
                 device = selectedDevice.device,
             )
@@ -243,7 +246,7 @@ object MaestroSessionManager {
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
-                maestro = pickWebDevice(isStudio, isHeadless),
+                maestro = pickWebDevice(isStudio, isHeadless, screenSize),
                 device = null
             )
 
@@ -429,8 +432,8 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean): Maestro {
-        return Maestro.web(isStudio, isHeadless)
+    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean, screenSize: String?): Maestro {
+        return Maestro.web(isStudio, isHeadless, screenSize)
     }
 
     private data class SelectedDevice(
