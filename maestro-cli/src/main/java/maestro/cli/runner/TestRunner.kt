@@ -66,14 +66,14 @@ object TestRunner {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(updatedEnv)
 
-            val flowName = YamlCommandReader.getConfig(commands)?.name
-            if (flowName != null) {
-                aiOutput = aiOutput.copy(flowName = flowName)
-            }
+            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+            aiOutput = aiOutput.copy(flowName = flowName)
+
+            logger.info("Running flow ${flowFile.name}...")
 
             runBlocking {
                 MaestroCommandRunner.runCommands(
-                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                    flowName = flowName,
                     maestro = maestro,
                     device = device,
                     view = resultView,
