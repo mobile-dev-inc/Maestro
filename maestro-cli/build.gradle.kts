@@ -55,7 +55,7 @@ if %JAVA_VERSION% LSS $minimumJavaVersion (
   echo Please update Java, then try again.
   echo To check your Java version, run: java -version
   echo.
-  echo See https://maestro.dev/blog/what-s-new-inmaestro-2-0-0 for more details.
+  echo See https://maestro.dev/blog/introducing-maestro-2-0-0 for more details.
   goto fail
 )
 """.trimIndent().replace("\n", "\r\n")
