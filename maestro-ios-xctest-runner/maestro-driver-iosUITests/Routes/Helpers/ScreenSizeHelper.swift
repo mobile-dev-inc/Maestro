@@ -53,11 +53,15 @@ struct ScreenSizeHelper {
     static func actualScreenSize() throws -> (Float, Float, UIDeviceOrientation) {
         let orientation = actualOrientation()
         
-        let (width, height) = physicalScreenSize()
+        let (rawWidth, rawHeight) = physicalScreenSize()
+        
+        let portraitWidth = min(rawWidth, rawHeight)
+        let portraitHeight = max(rawWidth, rawHeight)
+        
         let (actualWidth, actualHeight) = switch (orientation) {
-        case .portrait, .portraitUpsideDown: (width, height)
-        case .landscapeLeft, .landscapeRight: (height, width)
-        case .faceDown, .faceUp: (width, height)
+        case .portrait, .portraitUpsideDown: (portraitWidth, portraitHeight)
+        case .landscapeLeft, .landscapeRight: (portraitHeight, portraitWidth)
+        case .faceDown, .faceUp: (portraitWidth, portraitHeight)
         case .unknown: throw AppError(message: "Unsupported orientation: \(orientation)")
         @unknown default: throw AppError(message: "Unsupported orientation: \(orientation)")
         }

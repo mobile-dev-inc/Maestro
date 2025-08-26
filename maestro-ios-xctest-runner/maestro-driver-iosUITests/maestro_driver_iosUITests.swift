@@ -39,4 +39,24 @@ final class maestro_driver_iosUITests: XCTestCase {
     override class func tearDown() {
         logger.trace("tearDown")
     }
+    
+//    func testDeviceInfo() {
+//        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+//        let wikipedia = XCUIApplication(bundleIdentifier: "org.wikimedia.wikipedia")
+//        let springboardSize = springboard.frame.size
+//        let wikipediaSize = wikipedia.frame.size
+//        let frame = (Float(springboardSize.width), Float(springboardSize.height))
+//        
+//        print("Springboard: \(frame)")
+//        print("Wikipedia: \(wikipediaSize)")
+//        
+//        // Potrait:
+//        // Springboard: (393.0, 852.0)
+//        // Wikipedia: (393.0, 852.0)
+//        
+//        // Landscape:
+//        // Springboard: (393.0, 852.0)
+//        // Wikipedia: (852.0, 393.0)
+//        
+//    }
 }
