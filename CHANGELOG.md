@@ -18,11 +18,14 @@ Features:
 - URLs in the `appId` field are no longer supported. Flows must now use the `url` field in the YAML config for URLs.
 - Allowed Keep-Alive from Server to support for persistent connections.
 - Environment variables are now isolated between peer `runFlow` commands.
+- Added timestamp to generated HTML test report
+- DataFaker is now available in JavaScript to generate all kinds of random data for use in tests. ([Docs](https://docs.maestro.dev/advanced/javascript/generating-random-with-faker.md))
 
 Fixes:
-- Fixed CLI Cloud upload output
-- Fixed broken `maestro studio` command for web version of Studio.
-- Fixing **memory leak** for ios test runs that could cause out of memory issues on testing environments.
+- Fix CLI Cloud upload output
+- Fix broken `maestro studio` command for web version of Studio.
+- Fix **memory leak** for ios test runs that could cause out of memory issues on testing environments.
+- Fix `maestro cloud` command when uploading files that have external dependencias (subflows, scripts and media)
 
 ## 1.41.0
 Fix:
