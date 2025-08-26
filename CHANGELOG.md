@@ -19,7 +19,7 @@ Features:
 - Allowed Keep-Alive from Server to support for persistent connections.
 - Environment variables are now isolated between peer `runFlow` commands.
 - Added timestamp to generated HTML test report
-- DataFaker is now available in JavaScript to generate all kinds of random data for use in tests. ([Docs](https://docs.maestro.dev/advanced/javascript/generating-random-with-faker.md))
+- DataFaker is now available in JavaScript to generate random data for use in tests ([Docs](https://docs.maestro.dev/advanced/javascript/generating-random-with-faker.md))
 
 Fixes:
 - Fix CLI Cloud upload output
