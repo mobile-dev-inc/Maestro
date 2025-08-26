@@ -16,6 +16,8 @@
     "@types/node": "^16.18.4",
     "@types/react": "^18.0.26",
     "@types/react-dom": "^18.0.9",
+    "ajv": "^6.12.6",
+    "ajv-keywords": "^3.5.2",
     "class-variance-authority": "^0.6.0",
     "clsx": "^1.2.1",
     "copy-to-clipboard": "^3.3.3",
@@ -23,6 +25,7 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^7.10.3",
     "fuse.js": "^6.6.2",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-contenteditable": "^3.3.6",
@@ -76,30 +79,15 @@
     ]
   },
   "devDependencies": {
-    "@storybook/addon-actions": "^6.5.14",
-    "@storybook/addon-essentials": "^6.5.14",
-    "@storybook/addon-interactions": "^6.5.14",
-    "@storybook/addon-links": "^6.5.14",
-    "@storybook/addon-postcss": "^2.0.0",
-    "@storybook/builder-webpack5": "^6.5.14",
-    "@storybook/manager-webpack5": "^6.5.14",
-    "@storybook/node-logger": "^6.5.14",
-    "@storybook/preset-create-react-app": "^4.1.2",
-    "@storybook/react": "^6.5.14",
-    "@storybook/testing-library": "^0.0.13",
     "@types/file-saver": "^2.0.5",
+    "@types/lodash": "^4.17.20",
     "@types/react-beautiful-dnd": "^13.1.4",
     "@types/uuid": "^9.0.3",
+    "ajv": "^6.12.6",
+    "ajv-keywords": "^3.5.2",
     "autoprefixer": "^10.4.13",
-    "babel-plugin-named-exports-order": "^0.0.2",
-    "msw": "^0.0.0-fetch.rc-16",
     "postcss": "^8.4.19",
-    "prop-types": "^15.8.1",
-    "storybook-addon-react-router-v6": "^0.2.1",
     "tailwindcss": "^3.2.4",
     "webpack": "^5.75.0"
-  },
-  "msw": {
-    "workerDirectory": "storybook-assets"
   }
 }
