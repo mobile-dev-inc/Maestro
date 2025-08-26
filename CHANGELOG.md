@@ -6,6 +6,7 @@
 Breaking Change:
 - Updated java version to 17 better performance, security, and modern features. **If you’re still on an older version, update before using 2.0.0.**
 - We’ve switched from Rhino to **GraalJS** as the default JavaScript engine. Expect **faster execution** and **modern JS support** for your scripts. [GraalJS Behaviour Differences](https://docs.maestro.dev/advanced/javascript/graaljs-support#graaljs-behavior-differences)
+- URLs in the `appId` field are no longer supported. Flows must now use the `url` field in the YAML config for URLs.
 
 Features:
 - Added `setOrientation` command — adjust device orientation in tests (`PORTRAIT`, `UPSIDE_DOWN`, `LANDSCAPE_LEFT`, `LANDSCAPE_RIGHT`). ([Docs](https://docs.maestro.dev/api-reference/commands/setorientation))
@@ -15,7 +16,6 @@ Features:
   - `run_flow` / `run_flow_files` now support env variables & hooks
 - Added  `--test-output-dir`  to specify where test artifacts should be saved. ([Docs](https://docs.maestro.dev/cli/test-output-directory))
 - Added support for running entire workspace of **web flows** in a single `test` command.
-- URLs in the `appId` field are no longer supported. Flows must now use the `url` field in the YAML config for URLs.
 - Allowed Keep-Alive from Server to support for persistent connections.
 - Environment variables are now isolated between peer `runFlow` commands.
 - Added timestamp to generated HTML test report
