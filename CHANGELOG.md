@@ -18,7 +18,7 @@ Features:
 - Added support for running entire workspace of **web flows** in a single `test` command.
 - Allowed Keep-Alive from Server to support for persistent connections.
 - Environment variables are now isolated between peer `runFlow` commands.
-- Added timestamp to generated HTML test report
+- Added timestamp to JUnit and HTML test report
 - DataFaker is now available in JavaScript to generate random data for use in tests ([Docs](https://docs.maestro.dev/advanced/javascript/generating-random-with-faker.md))
 
 Fixes:
