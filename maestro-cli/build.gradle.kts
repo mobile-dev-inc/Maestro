@@ -68,7 +68,7 @@ if [ "${'$'}JAVA_VERSION" -lt $minimumJavaVersion ]; then
 Please update Java, then try again.
 To check your Java version, run: java -version
 
-See https://maestro.dev/blog/what-s-new-inmaestro-2-0-0 for more details."
+See https://maestro.dev/blog/introducing-maestro-2-0-0 for more details."
 fi
 """.trimIndent()
 
