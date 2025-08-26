@@ -42,8 +42,60 @@ tasks.named<JavaExec>("run") {
     workingDir = rootDir
 }
 
+fun windowsMinimumJavaText(minimumJavaVersion: String): String = """
+set JAVA_VERSION=0
+for /f "tokens=*" %%g in ('%JAVA_EXE% -classpath %APP_HOME%\bin\ JvmVersion') do (
+  set JAVA_VERSION=%%g
+)
+
+if %JAVA_VERSION% LSS $minimumJavaVersion (
+  echo.
+  echo ERROR: Java $minimumJavaVersion or higher is required.
+  echo.
+  echo Please update Java, then try again.
+  echo To check your Java version, run: java -version
+  echo.
+  echo See https://maestro.dev/blog/what-s-new-inmaestro-2-0-0 for more details.
+  goto fail
+)
+""".trimIndent().replace("\n", "\r\n")
+
+fun unixMinimumJavaText(minimumJavaVersion: String): String = """
+JAVA_VERSION=$( "${'$'}JAVACMD" -classpath "${'$'}APP_HOME"/bin/ JvmVersion )
+if [ "${'$'}JAVA_VERSION" -lt $minimumJavaVersion ]; then
+  die "ERROR: Java $minimumJavaVersion or higher is required.
+
+Please update Java, then try again.
+To check your Java version, run: java -version
+
+See https://maestro.dev/blog/what-s-new-inmaestro-2-0-0 for more details."
+fi
+""".trimIndent()
+
 tasks.named<CreateStartScripts>("startScripts") {
     classpath = files("${layout.buildDirectory}/libs/*")
+    doLast {
+        val minimumJavaVersion = "17"
+        val unixExec = "exec \"\$JAVACMD\" \"$@\""
+
+        val currentUnix = unixScript.readText()
+        val replacedUnix = currentUnix.replaceFirst(unixExec,
+            unixMinimumJavaText(minimumJavaVersion) + "\n\n" + unixExec)
+        unixScript.writeText(replacedUnix)
+
+        val currentWindows = windowsScript.readText()
+        val windowsExec = "@rem Execute maestro"
+        val replacedWindows = currentWindows.replaceFirst(windowsExec,
+            windowsMinimumJavaText(minimumJavaVersion) + "\r\n\r\n" + windowsExec)
+        windowsScript.writeText(replacedWindows)
+
+        val path = project.projectDir.toPath().resolve("JvmVersion.class")
+
+        copy {
+            from(path)
+            into(outputDir)
+        }
+    }
 }
 
 dependencies {
