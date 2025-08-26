@@ -26,6 +26,7 @@ Fixes:
 - Fix broken `maestro studio` command for web version of Studio.
 - Fix **memory leak** for ios test runs that could cause out of memory issues on testing environments.
 - Fix `maestro cloud` command when uploading files that have external dependencias (subflows, scripts and media)
+- Fix disconnect in local iOS test executions when flow contains a large element tree
 
 ## 1.41.0
 Fix:
