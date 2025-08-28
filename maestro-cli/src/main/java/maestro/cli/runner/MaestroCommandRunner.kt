@@ -198,7 +198,7 @@ object MaestroCommandRunner {
         // Warn users about deprecated Rhino JS engine
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
         if (isRhinoExplicitlyRequested) {
-          PrintUtils.warn("⚠️ The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility. This warning will be removed in a future version.")
+          PrintUtils.warn("⚠️  The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility. This warning will be removed in a future version.")
         }        
 
         return flowSuccess
