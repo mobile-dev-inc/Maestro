@@ -285,12 +285,7 @@ class Orchestra(
             jsEngine.close()
         }
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
-        
-        // Warn users about deprecated Rhino JS engine
-        if (isRhinoExplicitlyRequested) {
-            logger.warn("⚠️  The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility.")
-        }
-        
+                
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
