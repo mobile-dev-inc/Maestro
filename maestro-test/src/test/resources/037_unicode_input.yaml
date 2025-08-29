@@ -1,3 +1,10 @@
 appId: com.example.app
 ---
-- inputText: Tést inpüt
+# Test Unicode input support
+- inputText: "Tést inpüt"              # Latin extended
+- inputText: "مرحبا بالعالم"             # Arabic (RTL)
+- inputText: "你好世界"                 # Chinese
+- inputText: "こんにちは世界"            # Japanese
+- inputText: "안녕하세요"               # Korean
+- inputText: "Hello 👋 World 🌍"        # Emoji
+- inputText: "Mixed مرحبا 你好"          # Mixed languages
