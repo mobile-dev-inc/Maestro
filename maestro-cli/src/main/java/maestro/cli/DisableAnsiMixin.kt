@@ -19,6 +19,7 @@ class DisableAnsiMixin {
 
         fun executionStrategy(parseResult: CommandLine.ParseResult): Int {
             applyCLIMixin(parseResult)
+            PluginsMixin.applyPluginsDir(parseResult)
             return CommandLine.RunLast().execute(parseResult)
         }
 
