@@ -356,11 +356,12 @@ class Orchestra(
             is RunFlowCommand -> runFlowCommand(command, config)
             is SetLocationCommand -> setLocationCommand(command)
             is SetOrientationCommand -> setOrientationCommand(command)
+            is ResizeBrowserCommand -> resizeBrowserCommand(command)
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
             is DefineVariablesCommand -> defineVariablesCommand(command)
             is RunScriptCommand -> runScriptCommand(command)
             is EvalScriptCommand -> evalScriptCommand(command)
-            is ApplyConfigurationCommand -> false
+            is ApplyConfigurationCommand -> applyConfigurationCommand(command)
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
             is TravelCommand -> travelCommand(command)
             is StartRecordingCommand -> startRecordingCommand(command)
@@ -572,6 +573,37 @@ class Orchestra(
         maestro.setOrientation(command.orientation)
 
         return true
+    }
+
+    private fun resizeBrowserCommand(command: ResizeBrowserCommand): Boolean {
+        val driver = maestro.driver
+        
+        if (driver is maestro.drivers.CdpWebDriver) {
+            driver.resizeBrowser(command.width, command.height)
+        } else if (driver is maestro.drivers.WebDriver) {
+            driver.resizeBrowser(command.width, command.height)
+        }
+        
+        return true
+    }
+
+    private fun applyConfigurationCommand(command: ApplyConfigurationCommand): Boolean {
+        // Check if browserConfig is specified in the configuration
+        val browserConfig = command.config.ext["browserConfig"] as? Map<String, Any>
+        if (browserConfig != null) {
+            val width = browserConfig["width"] as? Int ?: 1024
+            val height = browserConfig["height"] as? Int ?: 768
+            
+            
+            val driver = maestro.driver
+            if (driver is maestro.drivers.CdpWebDriver) {
+                driver.resizeBrowser(width, height)
+            } else if (driver is maestro.drivers.WebDriver) {
+                driver.resizeBrowser(width, height)
+            }
+        }
+        
+        return false  // Return false to maintain existing behavior
     }
 
     private fun clearAppStateCommand(command: ClearStateCommand): Boolean {

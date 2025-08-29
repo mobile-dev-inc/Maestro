@@ -52,6 +52,7 @@ import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
+import maestro.orchestra.ResizeBrowserCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
@@ -123,6 +124,7 @@ data class YamlFluentCommand(
     val runFlow: YamlRunFlow? = null,
     val setLocation: YamlSetLocation? = null,
     val setOrientation: YamlSetOrientation? = null,
+    val resizeBrowser: YamlResizeBrowser? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
     val runScript: YamlRunScript? = null,
@@ -356,6 +358,17 @@ data class YamlFluentCommand(
                         orientation = DeviceOrientation.getByName(setOrientation.orientation) ?: throw SyntaxError("Unknown orientation: $setOrientation"),
                         label = setOrientation.label,
                         optional = setOrientation.optional,
+                    )
+                )
+            )
+
+            resizeBrowser != null -> listOf(
+                MaestroCommand(
+                    ResizeBrowserCommand(
+                        width = resizeBrowser.width,
+                        height = resizeBrowser.height,
+                        label = resizeBrowser.label,
+                        optional = resizeBrowser.optional,
                     )
                 )
             )
