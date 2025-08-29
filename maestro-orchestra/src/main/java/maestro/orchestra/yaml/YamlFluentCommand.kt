@@ -55,6 +55,7 @@ import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
+import maestro.orchestra.RunShellCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
@@ -126,6 +127,7 @@ data class YamlFluentCommand(
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
     val runScript: YamlRunScript? = null,
+    val runShellCommand: YamlRunShellCommand? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: YamlEvalScript? = null,
     val scrollUntilVisible: YamlScrollUntilVisible? = null,
@@ -379,6 +381,21 @@ data class YamlFluentCommand(
                         condition = runScript.`when`?.toCondition(),
                         label = runScript.label,
                         optional = runScript.optional,
+                    )
+                )
+            )
+
+            runShellCommand != null -> listOf(
+                MaestroCommand(
+                    RunShellCommand(
+                        command = runShellCommand.command,
+                        env = runShellCommand.env ?: emptyMap(),
+                        condition = runShellCommand.`when`?.toCondition(),
+                        workingDirectory = runShellCommand.workingDirectory,
+                        label = runShellCommand.label,
+                        optional = runShellCommand.optional,
+                        outputVariable = runShellCommand.outputVariable,
+                        timeout = runShellCommand.timeout,
                     )
                 )
             )
