@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.0.1
+Fixes:
+- Fix issues with launching CLI on Windows systems
+
 ## 2.0.0
 Breaking Change:
 - Updated java version to 17 better performance, security, and modern features. **If you’re still on an older version, update before using 2.0.0.**
