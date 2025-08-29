@@ -4,7 +4,11 @@ import os
 
 struct RunningApp {
     
-    static let springboardBundleId = "com.apple.springboard"
+    #if os(tvOS)
+    static let homescreenBundleId = "com.apple.HeadBoard"
+    #else
+    static let homescreenBundleId = "com.apple.springboard"
+    #endif
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: Self.self)
@@ -21,7 +25,7 @@ struct RunningApp {
             let app = XCUIApplication(bundleIdentifier: appId)
             
             return app.state == .runningForeground
-        } ?? RunningApp.springboardBundleId
+        } ?? RunningApp.homescreenBundleId
     }
     
     static func getForegroundApp() -> XCUIApplication? {

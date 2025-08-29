@@ -12,7 +12,7 @@ if [ -z "$DEVICE" ]; then
 	echo "No device passed, will default to $DEVICE"
 fi
 
-xctestrun_file="$(find ./build/Products -maxdepth 1 -name '*.xctestrun' -print)"
+xctestrun_file="$(find ./build/Products -maxdepth 1 -name '*iphone*.xctestrun' -print)"
 file_count="$(echo "$xctestrun_file" | wc -l | tr -d '[:blank:]')"
 if [ "$file_count" = 1 ]; then
 	echo "xctestrun file found: $xctestrun_file"

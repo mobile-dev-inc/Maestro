@@ -7,11 +7,11 @@ final class EventRecord: NSObject {
     static let defaultTapDuration = 0.1
 
     enum Style: String {
-        case singeFinger = "Single-Finger Touch Action"
+        case singleFinger = "Single-Finger Touch Action"
         case multiFinger = "Multi-Finger Touch Action"
     }
 
-    init(orientation: UIInterfaceOrientation, style: Style = .singeFinger) {
+    init(orientation: DeviceOrientation, style: Style = .singleFinger) {
         eventRecord = objc_lookUpClass("XCSynthesizedEventRecord")?.alloc()
             .perform(
                 NSSelectorFromString("initWithName:interfaceOrientation:"),
