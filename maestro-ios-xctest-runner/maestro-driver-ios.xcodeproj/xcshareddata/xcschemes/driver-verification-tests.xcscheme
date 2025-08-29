@@ -48,7 +48,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "52049BD22935039F00807AA3"
+            BlueprintIdentifier = "44F995232C9D6F8800D15B50"
             BuildableName = "maestro-driver-ios.app"
             BlueprintName = "maestro-driver-ios"
             ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
@@ -64,7 +64,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "52049BD22935039F00807AA3"
+            BlueprintIdentifier = "44F995232C9D6F8800D15B50"
             BuildableName = "maestro-driver-ios.app"
             BlueprintName = "maestro-driver-ios"
             ReferencedContainer = "container:maestro-driver-ios.xcodeproj">

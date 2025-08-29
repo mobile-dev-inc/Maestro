@@ -27,8 +27,8 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
-import maestro.orchestra.util.InputRandomTextHelper
 import com.fasterxml.jackson.annotation.JsonIgnore
+import net.datafaker.Faker
 
 sealed interface Command {
 
@@ -663,7 +663,13 @@ class ClearKeychainCommand(
 }
 
 enum class InputRandomType {
-    NUMBER, TEXT, TEXT_EMAIL_ADDRESS, TEXT_PERSON_NAME,
+    NUMBER,
+    TEXT,
+    TEXT_EMAIL_ADDRESS,
+    TEXT_PERSON_NAME,
+    TEXT_CITY_NAME,
+    TEXT_COUNTRY_NAME,
+    TEXT_COLOR,
 }
 
 data class InputRandomCommand(
@@ -674,15 +680,19 @@ data class InputRandomCommand(
 ) : Command {
 
     fun genRandomString(): String {
+        val faker = Faker()
         val lengthNonNull = length ?: 8
         val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
 
         return when (inputType) {
-            InputRandomType.NUMBER -> InputRandomTextHelper.getRandomNumber(finalLength)
-            InputRandomType.TEXT -> InputRandomTextHelper.getRandomText(finalLength)
-            InputRandomType.TEXT_EMAIL_ADDRESS -> InputRandomTextHelper.randomEmail()
-            InputRandomType.TEXT_PERSON_NAME -> InputRandomTextHelper.randomPersonName()
-            else -> InputRandomTextHelper.getRandomText(finalLength)
+            InputRandomType.NUMBER -> faker.number().randomNumber(finalLength).toString()
+            InputRandomType.TEXT -> faker.text().text(finalLength)
+            InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
+            InputRandomType.TEXT_PERSON_NAME -> faker.name().name()
+            InputRandomType.TEXT_CITY_NAME -> faker.address().cityName()
+            InputRandomType.TEXT_COUNTRY_NAME -> faker.address().country()
+            InputRandomType.TEXT_COLOR -> faker.color().name()
+            else -> faker.text().text(finalLength)
         }
     }
 
@@ -814,6 +824,7 @@ data class RetryCommand(
     val maxRetries: String? = null,
     val commands: List<MaestroCommand>,
     val config: MaestroConfig?,
+    val sourceDescription: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
@@ -829,7 +840,12 @@ data class RetryCommand(
     override val originalDescription: String
         get() {
             val maxAttempts = maxRetries?.toIntOrNull() ?: 1
-            return "Retry $maxAttempts times"
+            val baseDescription = if (sourceDescription != null) {
+                "Retry $sourceDescription"
+            } else {
+                "Retry"
+            }
+            return "$baseDescription $maxAttempts times"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {

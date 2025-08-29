@@ -160,7 +160,6 @@ class TestSuiteInteractor(
         //  (i.e. consider them also part of the test output)
         //  See #1973
 
-        var flowName: String = flowFile.nameWithoutExtension
         var flowStatus: FlowStatus
         var errorMessage: String? = null
 
@@ -169,13 +168,16 @@ class TestSuiteInteractor(
             flowName = flowFile.nameWithoutExtension,
             flowFile = flowFile,
         )
+        val commands = YamlCommandReader
+            .readCommands(flowFile.toPath())
+            .withEnv(env)
+
+        var flowName: String = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+
+        logger.info("$shardPrefix Running flow $flowName")
 
         val flowTimeMillis = measureTimeMillis {
             try {
-                val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
-                    .withEnv(env)
-
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
 
                 val orchestra = Orchestra(

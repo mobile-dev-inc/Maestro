@@ -237,7 +237,6 @@ object MaestroSessionManager {
                     openDriver = !connectToExistingSession,
                     driverHostPort = driverHostPort ?: defaultXcTestPort,
                     reinstallDriver = reinstallDriver,
-                    isStudio = isStudio,
                     platformConfiguration = platformConfiguration,
                 ),
                 device = null,
@@ -303,7 +302,6 @@ object MaestroSessionManager {
         openDriver: Boolean,
         driverHostPort: Int,
         reinstallDriver: Boolean,
-        isStudio: Boolean,
         platformConfiguration: PlatformConfiguration?,
     ): Maestro {
         val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort)

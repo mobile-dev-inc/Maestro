@@ -69,7 +69,7 @@
 				<string>WebSocket/WSMessage.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/max.phillips/dev/maestro-tvos/driver-appletvSimulator/SourcePackages/checkouts/FlyingFox/FlyingFox/Sources/</string>
+			<string>/Users/max.phillips/dev/maestro/driver-appletvSimulator/SourcePackages/checkouts/FlyingFox/FlyingFox/Sources/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.XcodeDefault</string>
@@ -98,7 +98,7 @@
 				<string>maestro_driverApp.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/max.phillips/dev/maestro-tvos/maestro-ios-xctest-runner/maestro-driver-ios/</string>
+			<string>/Users/max.phillips/dev/maestro/maestro-ios-xctest-runner/maestro-driver-ios/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.XcodeDefault</string>
@@ -206,7 +206,7 @@
 				<string>maestro_driver_iosUITests.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/max.phillips/dev/maestro-tvos/maestro-ios-xctest-runner/maestro-driver-iosUITests/</string>
+			<string>/Users/max.phillips/dev/maestro/maestro-ios-xctest-runner/maestro-driver-iosUITests/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.XcodeDefault</string>

@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.jreleaser)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.mavenPublish)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -41,23 +42,10 @@ tasks.named<JavaExec>("run") {
     workingDir = rootDir
 }
 
-/**
- * Logic adapted from https://stackoverflow.com/a/49688919
- */
 fun windowsMinimumJavaText(minimumJavaVersion: String): String = """
-rem Parses x out of 1.x; for example 8 out of java version 1.8.0_xx
-rem Otherwise, parses the major version; 9 out of java version 9-ea
 set JAVA_VERSION=0
-for /f "tokens=3" %%g in ('%JAVA_EXE% -Xms32M -Xmx32M -version 2^>^&1 ^| findstr /i "version"') do (
+for /f "tokens=*" %%g in ('%JAVA_EXE% -classpath %APP_HOME%\bin\ JvmVersion') do (
   set JAVA_VERSION=%%g
-)
-set JAVA_VERSION=%JAVA_VERSION:"=%
-for /f "delims=.-_ tokens=1-2" %%v in ("%JAVA_VERSION%") do (
-  if /I "%%v" EQU "1" (
-    set JAVA_VERSION=%%w
-  ) else (
-    set JAVA_VERSION=%%v
-  )
 )
 
 if %JAVA_VERSION% LSS $minimumJavaVersion (
@@ -67,23 +55,20 @@ if %JAVA_VERSION% LSS $minimumJavaVersion (
   echo Please update Java, then try again.
   echo To check your Java version, run: java -version
   echo.
-  echo See https://maestro.dev/blog/what-s-new-inmaestro-2-0-0 for more details.
+  echo See https://maestro.dev/blog/introducing-maestro-2-0-0 for more details.
   goto fail
 )
 """.trimIndent().replace("\n", "\r\n")
 
-/**
- * Logic adapted from https://stackoverflow.com/a/56243046
- */
 fun unixMinimumJavaText(minimumJavaVersion: String): String = """
-JAVA_VERSION=$( "${'$'}JAVACMD" -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 )
+JAVA_VERSION=$( "${'$'}JAVACMD" -classpath "${'$'}APP_HOME"/bin/ JvmVersion )
 if [ "${'$'}JAVA_VERSION" -lt $minimumJavaVersion ]; then
   die "ERROR: Java $minimumJavaVersion or higher is required.
 
 Please update Java, then try again.
 To check your Java version, run: java -version
 
-See https://maestro.dev/blog/what-s-new-inmaestro-2-0-0 for more details."
+See https://maestro.dev/blog/introducing-maestro-2-0-0 for more details."
 fi
 """.trimIndent()
 
@@ -91,7 +76,7 @@ tasks.named<CreateStartScripts>("startScripts") {
     classpath = files("${layout.buildDirectory}/libs/*")
     doLast {
         val minimumJavaVersion = "17"
-        val unixExec = "exec \"\$JAVACMD\" \"\$@\""
+        val unixExec = "exec \"\$JAVACMD\" \"$@\""
 
         val currentUnix = unixScript.readText()
         val replacedUnix = currentUnix.replaceFirst(unixExec,
@@ -103,6 +88,13 @@ tasks.named<CreateStartScripts>("startScripts") {
         val replacedWindows = currentWindows.replaceFirst(windowsExec,
             windowsMinimumJavaText(minimumJavaVersion) + "\r\n\r\n" + windowsExec)
         windowsScript.writeText(replacedWindows)
+
+        val path = project.projectDir.toPath().resolve("JvmVersion.class")
+
+        copy {
+            from(path)
+            into(outputDir)
+        }
     }
 }
 
@@ -208,6 +200,15 @@ tasks.named<Zip>("distZip") {
 
 tasks.named<Tar>("distTar") {
     archiveFileName.set("maestro.tar")
+}
+
+tasks.shadowJar {
+    setProperty("zip64", true)
+}
+
+mavenPublishing {
+    publishToMavenCentral(true)
+    signAllPublications()
 }
 
 jreleaser {

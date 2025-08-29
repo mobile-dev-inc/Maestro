@@ -119,10 +119,17 @@ object TestDebugReporter {
             val currentTime = Instant.now()
             val daysLimit = currentTime.minus(Duration.of(days, ChronoUnit.DAYS))
 
-            Files.walk(getDebugOutputPath()).filter {
+            val logParentDirectory = getDebugOutputPath().parent
+            logger.info("Performing purge of logs older than $days days from ${logParentDirectory.absolutePathString()}")
+
+            Files.walk(logParentDirectory).filter {
                 val fileTime = Files.getAttribute(it, "basic:lastModifiedTime") as FileTime
                 val isOlderThanLimit = fileTime.toInstant().isBefore(daysLimit)
-                Files.isDirectory(it) && isOlderThanLimit
+                val shouldBeDeleted = Files.isDirectory(it) && isOlderThanLimit
+                if (shouldBeDeleted) {
+                    logger.info("Deleting old directory: ${it.absolutePathString()}")
+                }
+                shouldBeDeleted
             }.sorted(Comparator.reverseOrder()).forEach { dir ->
                 Files.walk(dir).sorted(Comparator.reverseOrder()).forEach { file -> Files.delete(file) }
             }
@@ -168,8 +175,8 @@ object TestDebugReporter {
 
     fun updateTestOutputDir(testOutputDir: Path?) {
         this.testOutputDir = testOutputDir
-        // set debug output path to match the test output directory
-        debugOutputPath = testOutputDir
+        // Reset debugOutputPath so getDebugOutputPath() will properly handle directory creation
+        debugOutputPath = null
     }
 
     fun getDebugOutputPath(): Path {

@@ -418,7 +418,7 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
+        val jsonBody = """{ "companyName": "$companyName", "referralSource": "maestro-cli" }""".toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
@@ -611,13 +611,17 @@ data class UploadStatus(
     val uploadId: String,
     val status: Status,
     val completed: Boolean,
-    val flows: List<FlowResult>,
+    val totalTime: Long?,
+    val startTime: Long?,
+    val flows: List<FlowResult>
 ) {
 
     data class FlowResult(
         val name: String,
         val status: FlowStatus,
         val errors: List<String>,
+        val startTime: Long,
+        val totalTime: Long? = null,
         val cancellationReason: CancellationReason? = null
     )
 

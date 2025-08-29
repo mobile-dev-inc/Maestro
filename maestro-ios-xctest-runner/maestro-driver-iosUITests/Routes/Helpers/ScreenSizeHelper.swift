@@ -12,7 +12,7 @@ public enum DeviceOrientation: Int, @unchecked Sendable {
 }
 
 struct ScreenSizeHelper {
-    
+
     private static var cachedSize: (Float, Float)?
     private static var lastAppBundleId: String?
     private static var lastOrientation: DeviceOrientation?
@@ -20,32 +20,47 @@ struct ScreenSizeHelper {
     static func physicalScreenSize() -> (Float, Float) {
         #if os(tvOS)
         let homescreenBundleId = "com.apple.PineBoard"
-        let currentOrientation = Optional(DeviceOrientation.unknown)
         #else
         let homescreenBundleId = "com.apple.springboard"
-        let currentOrientation = DeviceOrientation(rawValue: XCUIDevice.shared.orientation.rawValue)
         #endif
 
         let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: homescreenBundleId)
-        let currentAppBundleId = app.bundleID
-
-        if let cached = cachedSize,
-           currentAppBundleId == lastAppBundleId,
-           currentOrientation == lastOrientation {
-            return cached
-        }
         
         do {
-            let _ = try app.snapshot()
-            
-            let screenSize = app.firstMatch.frame.size
+            let currentAppBundleId = app.bundleID
+            #if os(tvOS)
+            let currentOrientation = Optional(DeviceOrientation.unknown)
+            #else
+            let currentOrientation = DeviceOrientation(rawValue: XCUIDevice.shared.orientation.rawValue)
+            #endif
+
+            if let cached = cachedSize,
+                currentAppBundleId == lastAppBundleId,
+                currentOrientation == lastOrientation
+            {
+                NSLog("Returning cached screen size")
+                return cached
+            }
+
+            let dict = try app.snapshot().dictionaryRepresentation
+            let axFrame = AXElement(dict).frame
+
+            // Safely unwrap width/height
+            guard let width = axFrame["Width"], let height = axFrame["Height"] else {
+                NSLog("Frame keys missing, falling back to SpringBoard.")
+                let homescreen = XCUIApplication(bundleIdentifier: homescreenBundleId)
+                let size = homescreen.frame.size
+                return (Float(size.width), Float(size.height))
+            }
+
+            let screenSize = CGSize(width: width, height: height)
             let size = (Float(screenSize.width), Float(screenSize.height))
-            
+
             // Cache results
             cachedSize = size
             lastAppBundleId = currentAppBundleId
             lastOrientation = currentOrientation
-            
+
             return size
         } catch let error {
             NSLog("Failure while getting screen size: \(error), falling back to get springboard size.")
@@ -70,30 +85,39 @@ struct ScreenSizeHelper {
         
         return unwrappedOrientation
     }
-    
+
     /// Takes device orientation into account.
     static func actualScreenSize() throws -> (Float, Float, DeviceOrientation) {
         let orientation = actualOrientation()
-        
+
         let (width, height) = physicalScreenSize()
-        let (actualWidth, actualHeight) = switch (orientation) {
-        case .portrait, .portraitUpsideDown: (width, height)
-        case .landscapeLeft, .landscapeRight: (height, width)
-        case .faceDown, .faceUp: (width, height)
-        case .unknown: throw AppError(message: "Unsupported orientation: \(orientation)")
-        @unknown default: throw AppError(message: "Unsupported orientation: \(orientation)")
-        }
-        
+        let (actualWidth, actualHeight) =
+            switch orientation {
+            case .portrait, .portraitUpsideDown: (width, height)
+            case .landscapeLeft, .landscapeRight: (height, width)
+            case .faceDown, .faceUp: (width, height)
+            case .unknown:
+                throw AppError(
+                    message: "Unsupported orientation: \(orientation)")
+            @unknown default:
+                throw AppError(
+                    message: "Unsupported orientation: \(orientation)")
+            }
+
         return (actualWidth, actualHeight, orientation)
     }
-    
-    static func orientationAwarePoint(width: Float, height: Float, point: CGPoint) -> CGPoint {
+
+    static func orientationAwarePoint(
+        width: Float, height: Float, point: CGPoint
+    ) -> CGPoint {
         let orientation = actualOrientation()
-        
-        return switch (orientation) {
+
+        return switch orientation {
         case .portrait: point
-        case .landscapeLeft: CGPoint(x: CGFloat(width) - point.y, y: CGFloat(point.x))
-        case .landscapeRight: CGPoint(x: CGFloat(point.y), y: CGFloat(height) - point.x)
+        case .landscapeLeft:
+            CGPoint(x: CGFloat(width) - point.y, y: CGFloat(point.x))
+        case .landscapeRight:
+            CGPoint(x: CGFloat(point.y), y: CGFloat(height) - point.x)
         default: fatalError("Not implemented yet")
         }
     }
