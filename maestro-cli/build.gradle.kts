@@ -328,7 +328,7 @@ jreleaser {
             }
 
             dependencies {
-                dependency("openjdk")
+                dependency("openjdk", "17+")
             }
         }
     }
