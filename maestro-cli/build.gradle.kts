@@ -42,9 +42,58 @@ tasks.named<JavaExec>("run") {
     workingDir = rootDir
 }
 
+/** The source that was used to create JvmVersion is here. It was compiled with JDK 1.1
+ * on a Windows 32 bit machine using https://www.oracle.com/java/technologies/java-archive-downloads-javase11-downloads.html
+ * with a META-INF/MANIFEST.MF of Main-Class: JvmVersion for the jvm-version.jar
+ *
+ * import java.util.StringTokenizer;
+ *
+ * class JvmVersion {
+ *     public static void main(String[] args) {
+ *         try {
+ *             String javaVersion = System.getProperty("java.version");
+ * 			StringTokenizer tokenizer = new StringTokenizer(javaVersion, ".");
+ * 			String[] split = new String[tokenizer.countTokens()];
+ * 			int count = 0;
+ * 			while (tokenizer.hasMoreTokens()) {
+ * 				split[count] = tokenizer.nextToken();
+ * 				count++;
+ * 			}
+ *             if (javaVersion.startsWith("1.")) {
+ *                 String version = split[1];
+ *                 if (Integer.parseInt(version) >= 1 && Integer.parseInt(version) <= 8) {
+ *                     System.out.println(version);
+ *                     System.exit(0);
+ *                 } else {
+ * 					String base = "Expected a JVM version of 1.0 through to 1.8 for legacy JVM versioning. Instead got ";
+ *                     String output = base.concat(version);
+ *                     System.out.println(output);
+ *                     System.exit(1);
+ *                 }
+ *             } else {
+ *                 String version = split[0];
+ *                 if (Integer.parseInt(version) >= 9) {
+ *                     System.out.println(version);
+ *                     System.exit(0);
+ *                 } else {
+ * 					String base = "Expected a JVM version of 9 or greater for new JVM versioning. Instead got ";
+ * 					String output = base.concat(version);
+ * 					System.out.println(output);
+ *                     System.exit(1);
+ *                 }
+ *             }
+ *         } catch (Exception e) {
+ *             System.err.println(e.getMessage());
+ *             System.exit(1);
+ *         }
+ *     }
+ * }
+ *
+ */
+
 fun windowsMinimumJavaText(minimumJavaVersion: String): String = """
 set JAVA_VERSION=0
-for /f "tokens=*" %%g in ('%JAVA_EXE% -classpath %APP_HOME%\bin\ JvmVersion') do (
+for /f "tokens=*" %%g in ('cmd /c ""%JAVA_EXE%" -classpath "%APP_HOME%\bin\*" JvmVersion"') do (
   set JAVA_VERSION=%%g
 )
 
@@ -61,7 +110,7 @@ if %JAVA_VERSION% LSS $minimumJavaVersion (
 """.trimIndent().replace("\n", "\r\n")
 
 fun unixMinimumJavaText(minimumJavaVersion: String): String = """
-JAVA_VERSION=$( "${'$'}JAVACMD" -classpath "${'$'}APP_HOME"/bin/ JvmVersion )
+JAVA_VERSION=$( "${'$'}JAVACMD" -classpath "${'$'}APP_HOME"/bin/*.jar JvmVersion )
 if [ "${'$'}JAVA_VERSION" -lt $minimumJavaVersion ]; then
   die "ERROR: Java $minimumJavaVersion or higher is required.
 
@@ -89,7 +138,7 @@ tasks.named<CreateStartScripts>("startScripts") {
             windowsMinimumJavaText(minimumJavaVersion) + "\r\n\r\n" + windowsExec)
         windowsScript.writeText(replacedWindows)
 
-        val path = project.projectDir.toPath().resolve("JvmVersion.class")
+        val path = project.projectDir.toPath().resolve("jvm-version.jar")
 
         copy {
             from(path)
