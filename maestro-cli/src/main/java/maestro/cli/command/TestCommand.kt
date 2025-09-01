@@ -201,14 +201,13 @@ class TestCommand : Callable<Int> {
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
     private fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
-        if(plan.flowsToRun.isEmpty()) return false
         return plan.flowsToRun.any { it.toFile().isWebFlow() } ||
                plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
 
     private fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
-        if(plan.flowsToRun.isEmpty()) return false
-        return plan.flowsToRun.all { it.toFile().isWebFlow() }
+        if(plan.flowsToRun.isEmpty() && plan.sequence.flows.isEmpty()) return false
+        return (plan.flowsToRun.all { it.toFile().isWebFlow() } && plan.sequence.flows.all { it.toFile().isWebFlow() })
     }
   
     override fun call(): Int {
