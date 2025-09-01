@@ -255,7 +255,7 @@ class CloudInteractor(
 
         var pollingInterval = minPollIntervalMs
         var retryCounter = 0
-        val printedFlow = mutableSetOf<UploadStatus.FlowResult>()
+        val printedFlows = mutableSetOf<UploadStatus.FlowResult>()
 
         do {
             val upload = try {
@@ -280,10 +280,10 @@ class CloudInteractor(
             }
 
             for (uploadFlowResult in upload.flows) {
-                if(printedFlow.contains(uploadFlowResult)) { continue }
+                if(printedFlows.contains(uploadFlowResult)) { continue }
                 if(!terminalStatuses.contains(uploadFlowResult.status)) { continue }
 
-                printedFlow.add(uploadFlowResult);
+                printedFlows.add(uploadFlowResult);
                 TestSuiteStatusView.showFlowCompletion(
                   uploadFlowResult.toViewModel()
                 )
