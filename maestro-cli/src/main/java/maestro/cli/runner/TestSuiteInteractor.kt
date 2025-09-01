@@ -87,6 +87,8 @@ class TestSuiteInteractor(
             }
         }
 
+      PrintUtils.message(executionPlan.sequence.toString())
+
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
             val flowFile = flow.toFile()

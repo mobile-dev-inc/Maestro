@@ -201,12 +201,14 @@ class TestCommand : Callable<Int> {
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
     private fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
-        return plan.flowsToRun.any { it.toFile().isWebFlow() } || 
+        if(plan.flowsToRun.isEmpty()) return false
+        return plan.flowsToRun.any { it.toFile().isWebFlow() } ||
                plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
 
     private fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
-      return plan.flowsToRun.all { it.toFile().isWebFlow() }
+        if(plan.flowsToRun.isEmpty()) return false
+        return plan.flowsToRun.all { it.toFile().isWebFlow() }
     }
   
     override fun call(): Int {
@@ -291,7 +293,7 @@ class TestCommand : Callable<Int> {
             }
             .ifEmpty { availableDevices }
             .toList()
-      
+
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
             PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
