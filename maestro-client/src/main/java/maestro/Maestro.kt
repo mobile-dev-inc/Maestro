@@ -62,6 +62,7 @@ class Maestro(
         LOGGER.info("Launching app $appId")
 
         if (stopIfRunning) {
+            LOGGER.info("Stopping $appId app during launch")
             driver.stopApp(appId)
         }
         driver.launchApp(appId, launchArguments)
