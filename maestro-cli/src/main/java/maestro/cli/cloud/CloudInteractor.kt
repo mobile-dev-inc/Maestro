@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 import kotlin.time.Duration.Companion.milliseconds
 
+val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
+
 class CloudInteractor(
     private val client: ApiClient,
     private val auth: Auth = Auth(client),
@@ -253,6 +255,8 @@ class CloudInteractor(
 
         var pollingInterval = minPollIntervalMs
         var retryCounter = 0
+        val printedFlow = mutableSetOf<UploadStatus.FlowResult>()
+
         do {
             val upload = try {
                 client.uploadStatus(authToken, uploadId, projectId)
@@ -273,6 +277,16 @@ class CloudInteractor(
                 }
 
                 throw CliError("Failed to fetch the status of an upload $uploadId. Status code = ${e.statusCode}")
+            }
+
+            for (uploadFlowResult in upload.flows) {
+                if(printedFlow.contains(uploadFlowResult)) { continue }
+                if(!terminalStatuses.contains(uploadFlowResult.status)) { continue }
+
+                printedFlow.add(uploadFlowResult);
+                TestSuiteStatusView.showFlowCompletion(
+                  uploadFlowResult.toViewModel()
+                )
             }
 
             if (upload.completed) {
