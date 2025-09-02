@@ -1,7 +1,7 @@
 appId: com.example.dummy
 ---
 # Built-in commands still work
-- openLink: "uma://expo-development-client/?url=http://127.0.0.1:8081&disableOnboarding=1"
+- launchApp
 
 # Simple plugin commands
 - wait: 2.0
@@ -30,7 +30,7 @@ appId: com.example.dummy
       delayMs: 1000
       longPress: false
 
-- back
+- tapOn: .*back
 
 # Test Multi-swipe plugin with directional swipes
 - tapOn: "Multi-swipe"
@@ -48,7 +48,8 @@ appId: com.example.dummy
       count: 2
       delayMs: 1000
       duration: 600
-- back
+
+- tapOn: .*back
 
 # Test Typewriter plugin
 - tapOn: "Typewriter"
@@ -62,4 +63,4 @@ appId: com.example.dummy
       clearBefore: true
       hideKeyboardAfter: true
 
-- back
+- tapOn: .*back

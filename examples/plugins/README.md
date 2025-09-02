@@ -69,10 +69,6 @@ cp examples/plugins/build/libs/maestro-example-plugins-plugin.jar /path/to/custo
 maestro test --plugins-dir /path/to/custom/plugins your-flow.yaml
 ```
 
-## Plugin Structure
-
-This example includes two plugins:
-
 ## Available Plugins
 
 This plugin package includes several example plugins that demonstrate different aspects of the Maestro plugin system:
