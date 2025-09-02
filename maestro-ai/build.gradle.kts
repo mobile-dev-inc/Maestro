@@ -16,6 +16,7 @@ application {
 
 mavenPublishing {
     publishToMavenCentral(true)
+    signAllPublications()
 }
 
 tasks.named<Jar>("jar") {
@@ -51,6 +52,12 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {

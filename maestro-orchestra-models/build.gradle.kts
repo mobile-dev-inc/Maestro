@@ -8,11 +8,18 @@ plugins {
 
 mavenPublishing {
     publishToMavenCentral(true)
+    signAllPublications()
 }
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
@@ -23,6 +30,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 
 dependencies {
     implementation(project(":maestro-client"))
+    implementation(libs.datafaker)
 
     api(libs.jackson.core.databind)
     api(libs.jackson.module.kotlin)

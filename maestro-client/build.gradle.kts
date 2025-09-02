@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.selenium)
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)
+    implementation(libs.datafaker)
 
     api(libs.logging.sl4j)
     api(libs.logging.api)
@@ -116,6 +117,12 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjdk-release=17")
@@ -124,6 +131,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 
 mavenPublishing {
     publishToMavenCentral(true)
+    signAllPublications()
 }
 
 tasks.named<Test>("test") {

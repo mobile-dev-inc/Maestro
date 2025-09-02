@@ -204,11 +204,15 @@ class TestCommand : Callable<Int> {
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
-    private fun includesWebFlow(): Boolean {
-        return flowFiles.any { it.isWebFlow() }
+    private fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
+        return plan.flowsToRun.any { it.toFile().isWebFlow() } || 
+               plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
 
-
+    private fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
+      return plan.flowsToRun.all { it.toFile().isWebFlow() }
+    }
+  
     override fun call(): Int {
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
@@ -269,14 +273,19 @@ class TestCommand : Callable<Int> {
         }
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
+        val includeWeb = executionPlanIncludesWebFlow(plan);
+
+        if (includeWeb) {
+          PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
+        }
 
         val connectedDevices = DeviceService.listConnectedDevices(
-            includeWeb = includesWebFlow(),
+            includeWeb = includeWeb,
             host = parent?.host,
             port = parent?.port,
         )
         val availableDevices = connectedDevices.map { it.instanceId }.toSet()
-        val deviceIds = getPassedOptionsDeviceIds()
+        val deviceIds = getPassedOptionsDeviceIds(plan)
             .filter { device ->
                 if (device !in availableDevices) {
                     throw CliError("Device $device was requested, but it is not connected.")
@@ -286,7 +295,7 @@ class TestCommand : Callable<Int> {
             }
             .ifEmpty { availableDevices }
             .toList()
-
+      
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
             PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
@@ -491,17 +500,16 @@ class TestCommand : Callable<Int> {
             }
     }
 
-    private fun getPassedOptionsDeviceIds(): List<String> {
-        val arguments = if (includesWebFlow()) {
-            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-            "chromium"
-        } else parent?.deviceId
-        val deviceIds = arguments
-            .orEmpty()
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-        return deviceIds
+  private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
+      val arguments = if (allFlowsAreWebFlow(plan)) {
+        "chromium"
+      } else parent?.deviceId
+      val deviceIds = arguments
+        .orEmpty()
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+      return deviceIds
     }
 
     private fun printExitDebugMessage() {

@@ -116,9 +116,17 @@ class ApiClient(
             .post(requestBody)
             .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Unexpected code $response")
-            return response.body?.string() ?: throw IOException("Empty response body")
+        try {
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                println(responseBody ?: "No response body received")
+                if (!response.isSuccessful) {
+                    throw IOException("HTTP ${response.code}: ${response.message}\nBody: $responseBody")
+                }
+                return responseBody ?: throw IOException("Empty response body")
+            }
+        } catch (e: Exception) {
+            throw IOException("${e.message}", e)
         }
     }
 
@@ -410,7 +418,7 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
+        val jsonBody = """{ "companyName": "$companyName", "referralSource": "maestro-cli" }""".toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
@@ -603,13 +611,17 @@ data class UploadStatus(
     val uploadId: String,
     val status: Status,
     val completed: Boolean,
-    val flows: List<FlowResult>,
+    val totalTime: Long?,
+    val startTime: Long?,
+    val flows: List<FlowResult>
 ) {
 
     data class FlowResult(
         val name: String,
         val status: FlowStatus,
         val errors: List<String>,
+        val startTime: Long,
+        val totalTime: Long? = null,
         val cancellationReason: CancellationReason? = null
     )
 

@@ -1,10 +1,8 @@
 package maestro.test
 
-import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo
-import com.google.common.net.HttpHeaders
 import com.google.common.truth.Truth.assertThat
 import maestro.js.GraalJsEngine
+import org.graalvm.polyglot.PolyglotException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -45,6 +43,16 @@ class GraalJsEngineTest : JsEngineTest() {
     }
 
     @Test
+    fun `sandboxing works`() {
+        try {
+            engine.evaluateScript("require('fs')")
+            assert(false)
+        } catch (e: PolyglotException) {
+            assertThat(e.message).contains("undefined is not a function")
+        }
+    }
+
+    @Test
     fun `Environment variables are isolated between env scopes`() {
         // Set a variable in the root scope
         engine.putEnv("ROOT_VAR", "root_value")
@@ -66,4 +74,17 @@ class GraalJsEngineTest : JsEngineTest() {
         // Scoped variable should no longer be accessible (undefined)
         assertThat(engine.evaluateScript("SCOPED_VAR").toString()).contains("undefined")
     }
+
+    @Test
+    fun `Can user faker providers`() {
+        val result = engine.evaluateScript("faker.name().firstName()").toString()
+        assertThat(result).matches("^[A-Za-z]+$")
+    }
+
+    @Test
+    fun `Can evaluate faker expressions`() {
+        val result = engine.evaluateScript("faker.expression('#{name.firstName} #{name.lastName}')").toString()
+        assertThat(result).matches("^[A-Za-z]+ [A-Za-z']+$")
+    }
+
 }

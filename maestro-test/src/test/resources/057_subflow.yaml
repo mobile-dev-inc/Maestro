@@ -5,4 +5,4 @@ appId: com.example.app
 - runFlow:
     file: 057_subflow_override.yaml
     env:
-      INNER_ENV: Overriden Parameter
+      INNER_ENV: Overridden Parameter

@@ -19,9 +19,7 @@
 
 package maestro.orchestra
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
@@ -31,11 +29,7 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.ViewHierarchy
-import maestro.ai.AI
-import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
-import maestro.ai.openai.OpenAI
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
@@ -295,13 +289,14 @@ class Orchestra(
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        val shouldUseGraalJs =
-            config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
+        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
+                
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        jsEngine = if (shouldUseGraalJs) {
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
-        } else {
+        jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
+        } else {
+            // Default to GraalJS for better performance and compatibility
+            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
         }
     }
 
@@ -723,7 +718,7 @@ class Orchestra(
             numberOfRuns = 0,
         )
 
-        var mutatiing = false
+        var mutating = false
 
         val checkCondition: () -> Boolean = {
             command.condition
@@ -737,7 +732,7 @@ class Orchestra(
             }
 
             val mutated = runSubFlow(command.commands, config, null)
-            mutatiing = mutatiing || mutated
+            mutating = mutating || mutated
             counter++
 
             metadata = metadata.copy(
@@ -750,7 +745,7 @@ class Orchestra(
             throw CommandSkipped
         }
 
-        return mutatiing
+        return mutating
     }
 
     private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {

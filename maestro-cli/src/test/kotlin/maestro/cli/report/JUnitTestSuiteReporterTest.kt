@@ -5,9 +5,23 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Buffer
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.seconds
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import kotlin.time.Duration.Companion.milliseconds
 
 class JUnitTestSuiteReporterTest {
+
+    // Since timestamps we get from the server have milliseconds precision (specifically epoch millis)
+    // we need to truncate off nanoseconds (and any higher) precision.
+    val now = OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS)
+
+    val nowPlus1 = now.plusSeconds(1)
+    val nowPlus2 = now.plusSeconds(2)
+
+    val nowAsIso = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    val nowPlus1AsIso = nowPlus1.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    val nowPlus2AsIso = nowPlus2.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
 
     @Test
     fun `XML - Test passed`() {
@@ -25,16 +39,19 @@ class JUnitTestSuiteReporterTest {
                             name = "Flow A",
                             fileName = "flow_a",
                             status = FlowStatus.SUCCESS,
-                            duration = 421.seconds
+                            duration = 421573.milliseconds,
+                            startTime = nowPlus1.toInstant().toEpochMilli()
                         ),
                         TestExecutionSummary.FlowResult(
                             name = "Flow B",
                             fileName = "flow_b",
                             status = FlowStatus.WARNING,
-                            duration = 1494.seconds
+                            duration = 1494749.milliseconds,
+                            startTime = nowPlus2.toInstant().toEpochMilli()
                         ),
                     ),
-                    duration = 1915.seconds,
+                    duration = 1915947.milliseconds,
+                    startTime = now.toInstant().toEpochMilli()
                 )
             )
         )
@@ -52,9 +69,9 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Test Suite" device="iPhone 15" tests="2" failures="0" time="1915">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="1494" status="WARNING"/>
+                  <testsuite name="Test Suite" device="iPhone 15" tests="2" failures="0" time="1915.947" timestamp="$nowAsIso">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421.573" timestamp="$nowPlus1AsIso" status="SUCCESS"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="1494.749" timestamp="$nowPlus2AsIso" status="WARNING"/>
                   </testsuite>
                 </testsuites>
                 
@@ -77,17 +94,20 @@ class JUnitTestSuiteReporterTest {
                             name = "Flow A",
                             fileName = "flow_a",
                             status = FlowStatus.SUCCESS,
-                            duration = 421.seconds
+                            duration = 421573.milliseconds,
+                            startTime = nowPlus1.toInstant().toEpochMilli()
                         ),
                         TestExecutionSummary.FlowResult(
                             name = "Flow B",
                             fileName = "flow_b",
                             status = FlowStatus.ERROR,
                             failure = TestExecutionSummary.Failure("Error message"),
-                            duration = 131.seconds
+                            duration = 131846.milliseconds,
+                            startTime = nowPlus2.toInstant().toEpochMilli()
                         ),
                     ),
-                    duration = 552.seconds,
+                    duration = 552743.milliseconds,
+                    startTime = now.toInstant().toEpochMilli()
                 )
             )
         )
@@ -105,9 +125,9 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Test Suite" tests="2" failures="1" time="552">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="131" status="ERROR">
+                  <testsuite name="Test Suite" tests="2" failures="1" time="552.743" timestamp="$nowAsIso">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421.573" timestamp="$nowPlus1AsIso" status="SUCCESS"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" time="131.846" timestamp="$nowPlus2AsIso" status="ERROR">
                       <failure>Error message</failure>
                     </testcase>
                   </testsuite>
@@ -132,16 +152,19 @@ class JUnitTestSuiteReporterTest {
                             name = "Flow A",
                             fileName = "flow_a",
                             status = FlowStatus.SUCCESS,
-                            duration = 421.seconds
+                            duration = 421573.milliseconds,
+                            startTime = nowPlus1.toInstant().toEpochMilli()
                         ),
                         TestExecutionSummary.FlowResult(
                             name = "Flow B",
                             fileName = "flow_b",
                             status = FlowStatus.WARNING,
+                            startTime = nowPlus2.toInstant().toEpochMilli()
                         ),
                     ),
-                    duration = 421.seconds,
+                    duration = 421573.milliseconds,
                     deviceName = "iPhone 14",
+                    startTime = now.toInstant().toEpochMilli()
                 )
             )
         )
@@ -159,9 +182,9 @@ class JUnitTestSuiteReporterTest {
             """
                 <?xml version='1.0' encoding='UTF-8'?>
                 <testsuites>
-                  <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0" time="421">
-                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421" status="SUCCESS"/>
-                    <testcase id="Flow B" name="Flow B" classname="Flow B" status="WARNING"/>
+                  <testsuite name="Custom test suite name" device="iPhone 14" tests="2" failures="0" time="421.573" timestamp="$nowAsIso">
+                    <testcase id="Flow A" name="Flow A" classname="Flow A" time="421.573" timestamp="$nowPlus1AsIso" status="SUCCESS"/>
+                    <testcase id="Flow B" name="Flow B" classname="Flow B" timestamp="$nowPlus2AsIso" status="WARNING"/>
                   </testsuite>
                 </testsuites>
                 

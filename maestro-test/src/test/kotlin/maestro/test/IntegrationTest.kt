@@ -1699,7 +1699,7 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.InputText("Inner Parameter"))
         driver.assertHasEvent(Event.InputText("Outer Parameter"))
-        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+        driver.assertHasEvent(Event.InputText("Overridden Parameter"))
     }
 
     @Test
@@ -1720,7 +1720,7 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.InputText("Inline Parameter"))
-        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+        driver.assertHasEvent(Event.InputText("Overridden Parameter"))
     }
 
     @Test
@@ -1830,7 +1830,7 @@ class IntegrationTest {
                 Event.InputText("1"),
                 Event.InputText("2"),
                 Event.InputText("12"),
-                Event.InputText("3.0"),
+                Event.InputText("3"),
                 Event.InputText("\${A} \${B} 1 2"),
             )
         )
@@ -2231,8 +2231,8 @@ class IntegrationTest {
         // Then
         driver.assertEvents(
             listOf(
-                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
-                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),
             )
         )
     }
@@ -3894,6 +3894,20 @@ class IntegrationTest {
         Maestro(driver).use {
             runBlocking {
                 // Should succeed - uses positive assertions to verify isolation works
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 128 - Random Data Generation`() {
+        // Test that environment variables are isolated between flows using GraalJS engine
+        val commands = readCommands("128_datafaker_graaljs")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                // Should succeed - uses positive assertions to verify engine runs and validates data
                 orchestra(it).runFlow(commands)
             }
         }
