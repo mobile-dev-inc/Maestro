@@ -25,4 +25,3 @@ env:
 - runFlow:
     commands:
       - assertTrue: ${MY_VAR === '0'}
-      - assertTrue: ${MY_VAR === '0'} # MY_VAR from runScript should not leak
