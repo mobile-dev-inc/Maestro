@@ -1,0 +1,7 @@
+url: https://example2.com
+name: webflow2
+tags:
+  - tagNameToExclude
+---
+- launchApp
+- tapOn: 'Button'

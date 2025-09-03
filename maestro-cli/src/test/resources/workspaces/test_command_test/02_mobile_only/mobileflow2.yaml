@@ -1,0 +1,4 @@
+appId: com.example.mobileapp2
+---
+- launchApp
+- tapOn: 'Submit'

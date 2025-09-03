@@ -200,12 +200,12 @@ class TestCommand : Callable<Int> {
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
-    private fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
+    internal fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
         return plan.flowsToRun.any { it.toFile().isWebFlow() } ||
                plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
 
-    private fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
+    internal fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
         if(plan.flowsToRun.isEmpty() && plan.sequence.flows.isEmpty()) return false
         return (plan.flowsToRun.all { it.toFile().isWebFlow() } && plan.sequence.flows.all { it.toFile().isWebFlow() })
     }
