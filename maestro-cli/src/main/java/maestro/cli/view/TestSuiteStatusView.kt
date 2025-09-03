@@ -8,6 +8,7 @@ import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import org.fusesource.jansi.Ansi
 import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 object TestSuiteStatusView {
@@ -168,16 +169,13 @@ object TestSuiteStatusView {
                 }
             )
 
-            fun UploadStatus.FlowResult.toViewModel(
-                duration: Duration? = null
-            ) = FlowResult(
+            fun UploadStatus.FlowResult.toViewModel() = FlowResult(
                 name = name,
                 status = status,
                 error = errors.firstOrNull(),
                 cancellationReason = cancellationReason,
-                duration = duration
+                duration = totalTime?.milliseconds
             )
-
         }
 
     }
