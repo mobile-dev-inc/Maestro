@@ -1,10 +1,10 @@
 package maestro.cli.report
 
+import kotlinx.html.*
+import kotlinx.html.stream.appendHTML
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
-import kotlinx.html.*
-import kotlinx.html.stream.appendHTML
 
 class HtmlTestSuiteReporter : TestSuiteReporter {
     override fun report(summary: TestExecutionSummary, out: Sink) {
@@ -14,20 +14,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
         bufferedOut.close()
     }
 
-    private fun getFailedTest(summary: TestExecutionSummary): Array<String> {
-        var failedTest = emptyArray<String>()
-        for (suite in summary.suites) {
-            for (flow in suite.flows) {
-                if (flow.status.toString() == "ERROR") {
-                    failedTest += flow.name
-                }
-            }
-        }
-        return failedTest
-    }
-
     private fun buildHtmlReport(summary: TestExecutionSummary): String {
-        val failedTest = getFailedTest(summary)
 
         return buildString {
             appendHTML().html {
@@ -40,6 +27,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                 }
                 body {
                     summary.suites.forEach { suite ->
+                        val failedTests = suite.failures()
                         div(classes = "card mb-4") {
                             div(classes = "card-body") {
                                 h1(classes = "mt-5 text-center") { +"Flow Execution Summary" }
@@ -61,24 +49,24 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                     div(classes = "card text-white bg-danger") {
                                         div(classes = "card-body") {
                                             h5(classes = "card-title text-center") { +"Failed Flows" }
-                                            h3(classes = "card-text text-center") { +"${failedTest.size}" }
+                                            h3(classes = "card-text text-center") { +"${failedTests.size}" }
                                         }
                                     }
                                     div(classes = "card text-white bg-success") {
                                         div(classes = "card-body") {
                                             h5(classes = "card-title text-center") { +"Successful Flows" }
-                                            h3(classes = "card-text text-center") { +"${suite.flows.size - failedTest.size}" }
+                                            h3(classes = "card-text text-center") { +"${suite.flows.size - failedTests.size}" }
                                         }
                                     }
                                 }
-                                if (failedTest.isNotEmpty()) {
+                                if (failedTests.isNotEmpty()) {
                                     div(classes = "card border-danger mb-3") {
                                         div(classes = "card-body text-danger") {
                                             b { +"Failed Flow" }
                                             br {}
                                             p(classes = "card-text") {
-                                                failedTest.forEach { test ->
-                                                    +test
+                                                failedTests.forEach { test ->
+                                                    +test.name
                                                     br {}
                                                 }
                                             }
