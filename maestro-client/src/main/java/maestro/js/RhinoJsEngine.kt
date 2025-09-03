@@ -90,11 +90,10 @@ class RhinoJsEngine(
         script: String,
         env: Map<String, String>,
         sourceName: String,
-        runInSubScope: Boolean,
     ): Any? {
-        val scope = if (runInSubScope) {
-            // We create a new scope for each evaluation to prevent local variables
-            // from clashing with each other across multiple scripts.
+        val scope = if (env.isNotEmpty()) {
+            // Automatically create new scope when env vars are provided
+            // to prevent local variables from clashing with each other across multiple scripts.
             // Only 'output' is shared across scopes.
             JsScope(root = false)
                 .apply { parentScope = currentScope }

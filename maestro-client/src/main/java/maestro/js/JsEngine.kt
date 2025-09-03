@@ -10,7 +10,6 @@ interface JsEngine : AutoCloseable {
         script: String,
         env: Map<String, String> = emptyMap(),
         sourceName: String = "inline-script",
-        runInSubScope: Boolean = false,
     ): Any?
     
     fun enterEnvScope()
