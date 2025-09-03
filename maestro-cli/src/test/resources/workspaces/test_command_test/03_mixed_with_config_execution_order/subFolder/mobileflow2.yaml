@@ -1,0 +1,7 @@
+appId: com.example.mobileapp2
+name: mobileflow2
+tags:
+  - tagNameToInclude
+---
+- launchApp
+- tapOn: 'Submit'

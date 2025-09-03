@@ -1,0 +1,4 @@
+url: https://example2.com
+---
+- launchApp
+- tapOn: 'Button'
