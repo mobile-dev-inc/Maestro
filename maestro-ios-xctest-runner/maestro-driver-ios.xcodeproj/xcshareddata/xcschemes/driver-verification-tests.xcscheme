@@ -32,6 +32,17 @@
                </Test>
             </SkippedTests>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "52C14D7C2E670BAE00A5BF12"
+               BuildableName = "maestro-driver-libTests.xctest"
+               BlueprintName = "maestro-driver-libTests"
+               ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
@@ -61,15 +72,6 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "52049BD22935039F00807AA3"
-            BuildableName = "maestro-driver-ios.app"
-            BlueprintName = "maestro-driver-ios"
-            ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
