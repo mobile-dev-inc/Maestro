@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.0.2
+Fixes:
+- Added Rhino deprecation warning in CLI
+- Fix conditions for checking if web flows exist in workspace
+- Added back Run details to cloud upload logs (regression in Maestro 2.0.0)
+
 ## 2.0.1
 Fixes:
 - Fix issues with launching CLI on Windows systems
