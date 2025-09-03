@@ -240,7 +240,7 @@ class CloudInteractor(
     }
 
 
-    private fun waitForCompletion(
+    internal fun waitForCompletion(
         authToken: String,
         uploadId: String,
         appId: String,
