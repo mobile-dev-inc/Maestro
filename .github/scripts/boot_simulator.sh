@@ -2,10 +2,11 @@
 
 echo "Looking for the first available and installed iOS simulator..."
 
-# Fetch the first available simulator from the list, regardless of device type or runtime
+# Fetch the first available iPhone simulator's ID and name
 SIMULATOR_INFO=$(xcrun simctl list --json devices | jq -r '
     .devices | to_entries[] | .value[] |
-    select(.isAvailable == true and .state != "Booted") | "\(.udid) \(.name)"' | head -n 1)
+    select(.isAvailable == true and .state != "Booted" and (.name | type == "string" and test("iPhone"))) |
+    "\(.udid) \(.name)"' | head -n 1)
 
 # Extract the simulator's ID and name
 SIMULATOR_ID=$(echo "$SIMULATOR_INFO" | awk '{print $1}')
