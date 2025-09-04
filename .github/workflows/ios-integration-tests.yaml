@@ -38,7 +38,7 @@ jobs:
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
         run: |
-          unzip apps/wikipedia.zip
+          unzip apps/wikipedia_new.zip
           xcrun simctl install $SIMULATOR_ID ./Wikipedia.app
 
       - name: Build for Testing
