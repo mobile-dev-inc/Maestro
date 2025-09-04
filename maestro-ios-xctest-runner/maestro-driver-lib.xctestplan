@@ -9,10 +9,20 @@
     }
   ],
   "defaultOptions" : {
-
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:maestro-driver-ios.xcodeproj",
+      "identifier" : "52C14D732E670BAE00A5BF12",
+      "name" : "maestro-driver-lib"
+    }
   },
   "testTargets" : [
-
+    {
+      "target" : {
+        "containerPath" : "container:maestro-driver-ios.xcodeproj",
+        "identifier" : "52C14D7C2E670BAE00A5BF12",
+        "name" : "maestro-driver-libTests"
+      }
+    }
   ],
   "version" : 1
 }
