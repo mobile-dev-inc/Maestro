@@ -48,7 +48,16 @@ struct ScreenSizeHelper {
             let application = XCUIApplication(
                 bundleIdentifier: springboardBundleId)
             let screenSize = application.frame.size
-            return (Float(screenSize.width), Float(screenSize.height))
+            let orientation = actualOrientation()
+            let (actualWidth, actualHeight) =
+                switch orientation {
+                case .portrait, .portraitUpsideDown: (screenSize.width, screenSize.height)
+                case .landscapeLeft, .landscapeRight: (screenSize.height, screenSize.width)
+                case .faceDown, .faceUp: (screenSize.width, screenSize.height)
+                case .unknown: (screenSize.width, screenSize.height)
+                @unknown default: (screenSize.width, screenSize.height)
+                }
+            return (Float(actualWidth), Float(actualHeight))
         }
     }
 
@@ -69,20 +78,8 @@ struct ScreenSizeHelper {
         let orientation = actualOrientation()
 
         let (width, height) = physicalScreenSize()
-        let (actualWidth, actualHeight) =
-            switch orientation {
-            case .portrait, .portraitUpsideDown: (width, height)
-            case .landscapeLeft, .landscapeRight: (height, width)
-            case .faceDown, .faceUp: (width, height)
-            case .unknown:
-                throw AppError(
-                    message: "Unsupported orientation: \(orientation)")
-            @unknown default:
-                throw AppError(
-                    message: "Unsupported orientation: \(orientation)")
-            }
 
-        return (actualWidth, actualHeight, orientation)
+        return (width, height, orientation)
     }
 
     static func orientationAwarePoint(
