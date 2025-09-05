@@ -7,7 +7,7 @@ struct ScreenSizeProvider {
     private static var lastAppBundleId: String?
     private static var lastOrientation: UIDeviceOrientation?
         
-    static func physicalScreenSize() -> (Float, Float) {
+    private static func physicalScreenSize() -> (Float, Float) {
         let springboardBundleId = "com.apple.springboard"
 
         let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
@@ -45,14 +45,23 @@ struct ScreenSizeProvider {
             return size
         } catch let error {
             NSLog("Failure while getting screen size: \(error), falling back to get springboard size.")
-            let application = XCUIApplication(
-                bundleIdentifier: springboardBundleId)
+            let application = XCUIApplication(bundleIdentifier: springboardBundleId)
             let screenSize = application.frame.size
             return (Float(screenSize.width), Float(screenSize.height))
         }
     }
+    
+    static func provideScreenSize() -> (Float, Float) {
+        let (width, height) = physicalScreenSize()
+        let orientation = actualOrientation()
+        let frame = ScreenFrame(width: width, height: height)
+        
+        return ScreenSizePreProcessor.orientScreenSize(
+            screnFrame: frame, orientation: orientation
+        )
+    }
 
-    private static func actualOrientation() -> UIDeviceOrientation {
+    static func actualOrientation() -> UIDeviceOrientation {
         let orientation = XCUIDevice.shared.orientation
         if orientation == .unknown {
             // If orientation is "unknown", we assume it is "portrait" to

@@ -27,7 +27,7 @@ struct SwipeRouteHandlerV2: HTTPHandler {
     }
 
     func swipePrivateAPI(_ request: SwipeRequest) async throws {
-        let (width, height) = ScreenSizeProvider.physicalScreenSize()
+        let (width, height) = ScreenSizeProvider.provideScreenSize()
         let startPoint = ScreenSizeProvider.orientationAwarePoint(
             width: width,
             height: height,
