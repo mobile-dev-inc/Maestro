@@ -56,6 +56,17 @@
                </Test>
             </SkippedTests>
          </TestableReference>
+         <TestableReference
+            skipped = "YES"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "52C14D7C2E670BAE00A5BF12"
+               BuildableName = "maestro-driver-libTests.xctest"
+               BlueprintName = "maestro-driver-libTests"
+               ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
