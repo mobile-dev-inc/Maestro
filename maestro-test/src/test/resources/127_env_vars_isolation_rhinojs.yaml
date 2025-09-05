@@ -13,6 +13,8 @@ env:
           file: 127_script.js
           env:
             MY_VAR: 3
+      - runScript:
+          file: 127_script_mutate_env_var.js
       - runFlow:
           env:
             MY_VAR: 2
