@@ -156,19 +156,17 @@ abstract class JsEngineTest {
     }
 
     @Test
-    fun `Environment variables should be automatically scoped when provided`() {
-        // Set a base environment variable
-        engine.putEnv("MY_VAR", "original")
-        
-        // Verify original value is accessible
-        assertThat(engine.evaluateScript("MY_VAR").toString()).isEqualTo("original")
-        
-        // Execute script with env vars - should automatically scope
-        val envVars = mapOf("MY_VAR" to "scoped")
-        engine.evaluateScript("console.log('Log from script')", envVars, "test.js")
-        
-        // MY_VAR should still be original - the scoped value should not leak
-        assertThat(engine.evaluateScript("MY_VAR").toString()).isEqualTo("original")
+    fun `Inline environment variables are accessible across scopes`() {
+        var result = engine.evaluateScript("FOO", env = mapOf("FOO" to "foo")).toString()
+        assertThat(result).isEqualTo("foo")
+
+        result = engine.evaluateScript("FOO").toString()
+        assertThat(result).isEqualTo("foo")
+
+        engine.enterScope()
+
+        result = engine.evaluateScript("FOO").toString()
+        assertThat(result).isEqualTo("foo")
     }
 
     @Test

@@ -74,9 +74,10 @@ class GraalJsEngine(
         script: String,
         env: Map<String, String>,
         sourceName: String,
+        runInSubScope: Boolean,
     ): Value {
-        if (env.isNotEmpty()) {
-            // Automatically scope when env vars are provided
+        if (runInSubScope) {
+            // Save current environment state
             enterEnvScope()
             try {
                 // Add the new env vars on top of the current scope
@@ -88,7 +89,8 @@ class GraalJsEngine(
                 leaveEnvScope()
             }
         } else {
-            // No env vars - no scoping needed
+            // Original behavior - directly add to envBinding
+            envBinding.putAll(env)
             val source = Source.newBuilder("js", script, sourceName).build()
             return createContext().eval(source)
         }
