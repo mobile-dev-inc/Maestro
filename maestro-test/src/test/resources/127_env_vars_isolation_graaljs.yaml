@@ -9,6 +9,12 @@ env:
     commands:
       - assertTrue: ${MY_VAR === '1'} 
       - evalScript: ${if(MY_VAR !== '1') { throw Error } } # tests scoping for evalScript
+      - runScript:
+          file: 127_script.js
+          env:
+            MY_VAR: 3
+      - runScript:
+          file: 127_script_mutate_env_var.js            
       - runFlow: 
           env:
             MY_VAR: 2
@@ -17,7 +23,7 @@ env:
       - assertTrue: ${MY_VAR === '1'} 
 
   
-# Second flow should NOT see first flow's variable
+# Second flow should NOT see first flow's variable or script variable
 - runFlow:
     commands:
       - assertTrue: ${MY_VAR === '0'}
