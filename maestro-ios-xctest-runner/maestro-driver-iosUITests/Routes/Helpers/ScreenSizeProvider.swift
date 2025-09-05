@@ -1,11 +1,12 @@
 import XCTest
+import maestro_driver_lib
 
-struct ScreenSizeHelper {
+struct ScreenSizeProvider {
 
     private static var cachedSize: (Float, Float)?
     private static var lastAppBundleId: String?
     private static var lastOrientation: UIDeviceOrientation?
-
+        
     static func physicalScreenSize() -> (Float, Float) {
         let springboardBundleId = "com.apple.springboard"
 
@@ -15,11 +16,8 @@ struct ScreenSizeHelper {
             let currentAppBundleId = app.bundleID
             let currentOrientation = XCUIDevice.shared.orientation
 
-            if let cached = cachedSize,
-                currentAppBundleId == lastAppBundleId,
-                currentOrientation == lastOrientation
-            {
-                NSLog("Returning cached screen size")
+            if let cached = ScreenSizeCache.getIfValid(bundleId: currentAppBundleId, orientation: currentOrientation) {
+                NSLog("Returning cached screen size from screen size provider")
                 return cached
             }
 
@@ -37,27 +35,20 @@ struct ScreenSizeHelper {
             let screenSize = CGSize(width: width, height: height)
             let size = (Float(screenSize.width), Float(screenSize.height))
 
-            // Cache results
-            cachedSize = size
-            lastAppBundleId = currentAppBundleId
-            lastOrientation = currentOrientation
-
+            // cache the foreground results 
+            ScreenSizeCache.set(
+                bundleId: currentAppBundleId,
+                orientation: currentOrientation,
+                size: size
+            )
+            
             return size
         } catch let error {
             NSLog("Failure while getting screen size: \(error), falling back to get springboard size.")
             let application = XCUIApplication(
                 bundleIdentifier: springboardBundleId)
             let screenSize = application.frame.size
-            let orientation = actualOrientation()
-            let (actualWidth, actualHeight) =
-                switch orientation {
-                case .portrait, .portraitUpsideDown: (screenSize.width, screenSize.height)
-                case .landscapeLeft, .landscapeRight: (screenSize.height, screenSize.width)
-                case .faceDown, .faceUp: (screenSize.width, screenSize.height)
-                case .unknown: (screenSize.width, screenSize.height)
-                @unknown default: (screenSize.width, screenSize.height)
-                }
-            return (Float(actualWidth), Float(actualHeight))
+            return (Float(screenSize.width), Float(screenSize.height))
         }
     }
 
@@ -78,8 +69,20 @@ struct ScreenSizeHelper {
         let orientation = actualOrientation()
 
         let (width, height) = physicalScreenSize()
+        let (actualWidth, actualHeight) =
+            switch orientation {
+            case .portrait, .portraitUpsideDown: (width, height)
+            case .landscapeLeft, .landscapeRight: (height, width)
+            case .faceDown, .faceUp: (width, height)
+            case .unknown:
+                throw AppError(
+                    message: "Unsupported orientation: \(orientation)")
+            @unknown default:
+                throw AppError(
+                    message: "Unsupported orientation: \(orientation)")
+            }
 
-        return (width, height, orientation)
+        return (actualWidth, actualHeight, orientation)
     }
 
     static func orientationAwarePoint(
