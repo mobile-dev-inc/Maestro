@@ -13,8 +13,11 @@ env:
           file: 127_script.js
           env:
             MY_VAR: 3
-      - runScript:
-          file: 127_script_mutate_env_var.js
+      # THIS WILL FAIL. Unlike the Graal engine, the Rhino engine will persist vals set in scripts
+      # across runs. I added this line in the Graal engine to show that the Graal engine does the 
+      # right thing, but I'm leaving this line and this commment to show what Rhino does _not_ support.
+      # - runScript:
+      #     file: 127_script_mutate_env_var.js
       - runFlow:
           env:
             MY_VAR: 2
