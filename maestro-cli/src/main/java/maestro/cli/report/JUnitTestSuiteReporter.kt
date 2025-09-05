@@ -24,7 +24,7 @@ class JUnitTestSuiteReporter(
     private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
         name = testSuiteName ?: "Test Suite",
         device = suite.deviceName,
-        failures = suite.flows.count { it.status == FlowStatus.ERROR },
+        failures = suite.failures().size,
         time = suite.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
         timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it) },
         tests = suite.flows.size,
