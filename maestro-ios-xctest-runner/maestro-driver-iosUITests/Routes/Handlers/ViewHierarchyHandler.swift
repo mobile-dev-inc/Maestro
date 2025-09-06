@@ -53,14 +53,6 @@ struct ViewHierarchyHandler: HTTPHandler {
             fullStatusBars(springboardApplication)
         } ?? []
 
-
-        let deviceFrame = springboardApplication.frame
-        let deviceAxFrame = [
-            "X": Double(deviceFrame.minX),
-            "Y": Double(deviceFrame.minY),
-            "Width": Double(deviceFrame.width),
-            "Height": Double(deviceFrame.height)
-        ]        
         return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
     }
     

@@ -72,28 +72,6 @@ struct ScreenSizeProvider {
         return orientation
     }
 
-    /// Takes device orientation into account.
-    static func actualScreenSize() throws -> (Float, Float, UIDeviceOrientation)
-    {
-        let orientation = actualOrientation()
-
-        let (width, height) = physicalScreenSize()
-        let (actualWidth, actualHeight) =
-            switch orientation {
-            case .portrait, .portraitUpsideDown: (width, height)
-            case .landscapeLeft, .landscapeRight: (height, width)
-            case .faceDown, .faceUp: (width, height)
-            case .unknown:
-                throw AppError(
-                    message: "Unsupported orientation: \(orientation)")
-            @unknown default:
-                throw AppError(
-                    message: "Unsupported orientation: \(orientation)")
-            }
-
-        return (actualWidth, actualHeight, orientation)
-    }
-
     static func orientationAwarePoint(
         width: Float, height: Float, point: CGPoint
     ) -> CGPoint {
