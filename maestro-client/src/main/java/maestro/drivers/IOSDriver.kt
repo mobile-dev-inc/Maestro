@@ -143,25 +143,7 @@ class IOSDriver(
 
     override fun pressKey(code: KeyCode) {
         metrics.measured("operation", mapOf("command" to "pressKey")) {
-            val keyCodeNameMap = mapOf(
-                KeyCode.BACKSPACE to "delete",
-                KeyCode.ENTER to "return",
-            )
-
-            val buttonNameMap = mapOf(
-                KeyCode.HOME to "home",
-                KeyCode.LOCK to "lock",
-            )
-
-            runDeviceCall("pressKey") {
-                keyCodeNameMap[code]?.let { name ->
-                    iosDevice.pressKey(name)
-                }
-
-                buttonNameMap[code]?.let { name ->
-                    iosDevice.pressButton(name)
-                }
-            }
+            iosDevice.pressButton(code.description)
         }
     }
 
