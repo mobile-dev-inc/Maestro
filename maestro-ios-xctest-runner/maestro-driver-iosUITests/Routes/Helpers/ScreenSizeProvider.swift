@@ -56,9 +56,7 @@ struct ScreenSizeProvider {
         let orientation = actualOrientation()
         let frame = ScreenFrame(width: width, height: height)
         
-        return ScreenSizePreProcessor.orientScreenSize(
-            screnFrame: frame, orientation: orientation
-        )
+        return (width, height)
     }
 
     static func actualOrientation() -> UIDeviceOrientation {
