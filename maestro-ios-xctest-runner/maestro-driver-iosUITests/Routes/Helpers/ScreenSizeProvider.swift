@@ -75,13 +75,6 @@ struct ScreenSizeProvider {
     ) -> CGPoint {
         let orientation = actualOrientation()
 
-        return switch orientation {
-        case .portrait: point
-        case .landscapeLeft:
-            CGPoint(x: CGFloat(width) - point.y, y: CGFloat(point.x))
-        case .landscapeRight:
-            CGPoint(x: CGFloat(point.y), y: CGFloat(height) - point.x)
-        default: fatalError("Not implemented yet")
-        }
+        return point
     }
 }

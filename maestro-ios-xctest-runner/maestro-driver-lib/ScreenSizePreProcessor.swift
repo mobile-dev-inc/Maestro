@@ -19,7 +19,12 @@ public final class ScreenSizePreProcessor {
         switch orientation {
         case .landscapeLeft, .landscapeRight:
             // landscape have width >= height
-            return (height, width)
+            let (width, height) = if height > width {
+                (height, width)
+            } else {
+                (width, height)
+            }
+            return (width, height)
             
         case .portrait, .portraitUpsideDown, .faceUp, .faceDown:
             // Portrait mode expects height >= width

@@ -28,6 +28,10 @@ data class UiElement(
         return bounds.center().distance(other.bounds.center())
     }
 
+    // [118,1136][213,1209]
+    // "[${left.toInt()},${top.toInt()}][${right.toInt()},${bottom.toInt()}]"
+    // x 118, y 1136, width-> 95 , 73
+    // screen (w 1366.0, h 1024.0)
     fun getVisiblePercentage(screenWidth: Int, screenHeight: Int): Double {
         if (bounds.width == 0 && bounds.height == 0) {
             return 0.0
