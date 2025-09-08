@@ -110,11 +110,11 @@ fun TreeNode.filterOutOfBounds(width: Int, height: Int): TreeNode? {
 
     // parent can have missing bounds
     val element = kotlin.runCatching { toUiElement() }.getOrNull()
-//    val visiblePercentage = element?.getVisiblePercentage(width, height) ?: 0.0
-//
-//    if (visiblePercentage < 0.1 && filtered.isEmpty()) {
-//        return null
-//    }
+    val visiblePercentage = element?.getVisiblePercentage(width, height) ?: 0.0
+
+    if (visiblePercentage < 0.1 && filtered.isEmpty()) {
+        return null
+    }
 
     return TreeNode(
         attributes = attributes,
