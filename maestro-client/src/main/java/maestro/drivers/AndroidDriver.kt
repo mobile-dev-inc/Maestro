@@ -545,7 +545,7 @@ class AndroidDriver(
             val future = CompletableFuture.runAsync({
                 val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
                 try {
-                    shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
+                    shell("screenrecord $timeLimit --bit-rate '10000000' $deviceScreenRecordingPath")
                 } catch (e: IOException) {
                     throw IOException(
                         "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +

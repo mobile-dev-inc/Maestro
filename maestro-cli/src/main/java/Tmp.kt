@@ -229,7 +229,7 @@ fun main() {
                 TestRunner.runSingle(
                     maestro = maestro,
                     device = null,
-                    flowFile = File("/Users/leland/test-workspace/Apple Maps.yaml"),
+                    flowFile = File("/Users/leland/test-workspace/Perplexity.yaml"),
                     env = emptyMap(),
                     resultView = object : ResultView {
                         override fun setState(state: UiState) {
@@ -252,8 +252,8 @@ fun main() {
             }
         }
     }
-//    useMaestroAndroid(interactionListener, runFlow)
-    useMaestroIos(interactionListener, runFlow)
+    useMaestroAndroid(interactionListener, runFlow)
+//    useMaestroIos(interactionListener, runFlow)
     jacksonObjectMapper().writeValue(framesFile, frames)
     jacksonObjectMapper().writeValue(interactionsFile, interactions)
 }
