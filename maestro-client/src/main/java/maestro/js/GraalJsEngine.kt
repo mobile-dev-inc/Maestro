@@ -76,9 +76,24 @@ class GraalJsEngine(
         sourceName: String,
         runInSubScope: Boolean,
     ): Value {
-        envBinding.putAll(env)
-        val source = Source.newBuilder("js", script, sourceName).build()
-        return createContext().eval(source)
+        if (runInSubScope) {
+            // Save current environment state
+            enterEnvScope()
+            try {
+                // Add the new env vars on top of the current scope
+                envBinding.putAll(env)
+                val source = Source.newBuilder("js", script, sourceName).build()
+                return createContext().eval(source)
+            } finally {
+                // Restore previous environment state
+                leaveEnvScope()
+            }
+        } else {
+            // Original behavior - directly add to envBinding
+            envBinding.putAll(env)
+            val source = Source.newBuilder("js", script, sourceName).build()
+            return createContext().eval(source)
+        }
     }
 
     val hostAccess = HostAccess.newBuilder()

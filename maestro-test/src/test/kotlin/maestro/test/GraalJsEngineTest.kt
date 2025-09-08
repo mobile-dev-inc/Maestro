@@ -87,4 +87,20 @@ class GraalJsEngineTest : JsEngineTest() {
         assertThat(result).matches("^[A-Za-z]+ [A-Za-z']+$")
     }
 
+    @Test
+    fun `runInSubScope should isolate environment variables`() {
+        // Set a base environment variable
+        engine.putEnv("MY_VAR", "original")
+        
+        // Verify original value is accessible
+        assertThat(engine.evaluateScript("MY_VAR").toString()).isEqualTo("original")
+        
+        // Execute script with runInSubScope=true and different env var
+        val envVars = mapOf("MY_VAR" to "scoped")
+        engine.evaluateScript("console.log('Log from runScript')", envVars, "test.js", runInSubScope = true)
+        
+        // MY_VAR should still be original - the scoped value should not leak
+        assertThat(engine.evaluateScript("MY_VAR").toString()).isEqualTo("original")
+    }
+
 }
