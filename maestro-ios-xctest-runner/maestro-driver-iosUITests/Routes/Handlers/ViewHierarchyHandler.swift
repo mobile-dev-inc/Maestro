@@ -1,6 +1,7 @@
 import FlyingFox
 import XCTest
 import os
+import maestro_driver_lib
 
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {

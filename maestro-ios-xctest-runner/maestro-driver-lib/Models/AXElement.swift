@@ -7,11 +7,6 @@ struct ViewHierarchy : Codable {
     let depth: Int
 }
 
-struct WindowOffset: Codable {
-    let offsetX: Double
-    let offsetY: Double
-}
-
 typealias AXFrame = [String: Double]
 extension AXFrame {
     static var zero: Self {
