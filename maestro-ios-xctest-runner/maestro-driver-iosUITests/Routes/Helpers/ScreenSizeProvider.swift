@@ -1,4 +1,5 @@
 import XCTest
+import maestro_driver_lib
 
 struct ScreenSizeProvider {
 
@@ -15,10 +16,7 @@ struct ScreenSizeProvider {
             let currentAppBundleId = app.bundleID
             let currentOrientation = XCUIDevice.shared.orientation
 
-            if let cached = cachedSize,
-                currentAppBundleId == lastAppBundleId,
-                currentOrientation == lastOrientation
-            {
+            if let cached = ScreenSizeCache.getIfValid(bundleId: currentAppBundleId,orientation: currentOrientation) {
                 NSLog("Returning cached screen size")
                 return cached
             }
@@ -36,15 +34,19 @@ struct ScreenSizeProvider {
 
             let screenSize = CGSize(width: width, height: height)
             let size = (Float(screenSize.width), Float(screenSize.height))
-
-            // Cache results
-            cachedSize = size
-            lastAppBundleId = currentAppBundleId
-            lastOrientation = currentOrientation
+            
+            // cache the foreground results
+            ScreenSizeCache.set(
+                bundleId: currentAppBundleId,
+                orientation: currentOrientation,
+                size: size
+            )
 
             return size
         } catch let error {
-            NSLog("Failure while getting screen size: \(error), falling back to get springboard size.")
+            NSLog(
+                "Failure while getting screen size: \(error), falling back to get springboard size."
+            )
             let application = XCUIApplication(
                 bundleIdentifier: springboardBundleId)
             let screenSize = application.frame.size
