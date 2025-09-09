@@ -33,6 +33,7 @@ import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.WebDriverWait
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Path
 import java.time.Duration
 import java.util.*
 
@@ -513,7 +514,11 @@ class WebDriver(
         // Do nothing
     }
 
-    override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
+  override fun installApp(path: Path) {
+    TODO("Not yet implemented")
+  }
+
+  override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return when (query) {
             is OnDeviceElementQuery.Css -> queryCss(query)
             else -> super.queryOnDeviceElements(query)

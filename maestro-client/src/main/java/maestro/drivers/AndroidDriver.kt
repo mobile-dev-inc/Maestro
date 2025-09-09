@@ -28,34 +28,68 @@ import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import maestro.*
+import maestro.Capability
+import maestro.DeviceInfo
+import maestro.DeviceOrientation
+import maestro.Driver
+import maestro.Filters
+import maestro.KeyCode
+import maestro.Maestro
 import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
 import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
+import maestro.MaestroException
+import maestro.MediaExt
+import maestro.NamedSource
+import maestro.Platform
+import maestro.Point
+import maestro.ScreenRecording
+import maestro.SwipeDirection
+import maestro.TreeNode
+import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.ViewHierarchy
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.filterOutOfBounds
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.ScreenshotUtils
 import maestro.utils.StringUtils.toRegexSafe
-import maestro_android.*
+import maestro_android.MaestroAndroid
+import maestro_android.MaestroDriverGrpc
+import maestro_android.addMediaRequest
+import maestro_android.checkWindowUpdatingRequest
+import maestro_android.deviceInfoRequest
+import maestro_android.emptyRequest
+import maestro_android.eraseAllTextRequest
+import maestro_android.inputTextRequest
+import maestro_android.launchAppRequest
+import maestro_android.payload
+import maestro_android.screenshotRequest
+import maestro_android.setLocationRequest
+import maestro_android.tapRequest
+import maestro_android.viewHierarchyRequest
 import net.dongliu.apk.parser.ApkFile
-import okio.*
+import okio.Buffer
+import okio.Sink
+import okio.buffer
+import okio.sink
+import okio.source
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.util.UUID
+import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
-import kotlin.io.use
+import kotlin.io.path.extension
 
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
@@ -856,6 +890,11 @@ class AndroidDriver(
             shell("cmd connectivity airplane-mode $value")
         }
     }
+
+  override fun installApp(path: Path) {
+    if (path.extension != "apk") throw IllegalArgumentException("Specified file is not an apk.")
+    install(path.toFile())
+  }
 
     private fun broadcastAirplaneMode(enabled: Boolean) {
         val command = "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $enabled"

@@ -2,16 +2,16 @@ package ios.xctest
 
 import com.github.michaelbull.result.Result
 import device.IOSDevice
+import device.IOSScreenRecording
 import hierarchy.ViewHierarchy
 import ios.IOSDeviceErrors
-import device.IOSScreenRecording
-import xcuitest.api.DeviceInfo
 import maestro.utils.DepthTracker
 import maestro.utils.network.XCUITestServerError
 import okio.Sink
 import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
+import xcuitest.api.DeviceInfo
 import java.io.InputStream
 
 class XCTestIOSDevice(
@@ -75,7 +75,11 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun scroll(
+  override fun installApp(path: String) {
+    TODO("Not yet implemented")
+  }
+
+  override fun scroll(
         xStart: Double,
         yStart: Double,
         xEnd: Double,
