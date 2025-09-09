@@ -1,6 +1,6 @@
 import XCTest
 
-struct ScreenSizeHelper {
+struct ScreenSizeProvider {
 
     private static var cachedSize: (Float, Float)?
     private static var lastAppBundleId: String?
