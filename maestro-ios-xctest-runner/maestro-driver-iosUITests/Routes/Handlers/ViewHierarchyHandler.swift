@@ -55,34 +55,6 @@ struct ViewHierarchyHandler: HTTPHandler {
 
         return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
     }
-    
-    func expandElementSizes(_ element: AXElement, offset: WindowOffset) -> AXElement {
-        let adjustedFrame: AXFrame = [
-            "X": (element.frame["X"] ?? 0) + offset.offsetX,
-            "Y": (element.frame["Y"] ?? 0) + offset.offsetY,
-            "Width": element.frame["Width"] ?? 0,
-            "Height": element.frame["Height"] ?? 0
-        ]
-        let adjustedChildren = element.children?.map { expandElementSizes($0, offset: offset) } ?? []
-        
-        return AXElement(
-            identifier: element.identifier,
-            frame: adjustedFrame,
-            value: element.value,
-            title: element.title,
-            label: element.label,
-            elementType: element.elementType,
-            enabled: element.enabled,
-            horizontalSizeClass: element.horizontalSizeClass,
-            verticalSizeClass: element.verticalSizeClass,
-            placeholderValue: element.placeholderValue,
-            selected: element.selected,
-            hasFocus: element.hasFocus,
-            displayID: element.displayID,
-            windowContextID: element.windowContextID,
-            children: adjustedChildren
-        )
-    }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
         logger.info("Starting getHierarchyWithFallback for element.")
