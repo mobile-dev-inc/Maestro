@@ -151,11 +151,15 @@ class AndroidDriver(
             LOGGER.warn("Port $hostPort was already allocated. Allocation point: $it")
         }
 
-        PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
-            hostPort,
-            hostPort
-        )
-        PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
+        try {
+            PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
+                hostPort,
+                hostPort
+            )
+            PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
+        } catch (e: Throwable) {
+            LOGGER.warn("Unable to forward $hostPort, assume another instance of maestro is active")
+        }
     }
 
     private fun awaitLaunch() {
