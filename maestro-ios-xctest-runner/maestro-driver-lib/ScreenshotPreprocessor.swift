@@ -70,7 +70,7 @@ public final class DefaultScreenshotPreprocessor: ScreenshotPreprocessor {
             // Fallback to normalize if CGImage missing
             return image
         }
-        
+        NSLog("Preprocessing screenshot by rotating the image")
         // Use CI to apply EXIF orientation, then render to real pixels
         let ci = CIImage(cgImage: cg)
         let oriented = ci.oriented(forExifOrientation: exifValue(orientation))
