@@ -6,10 +6,10 @@ struct ScreenSizeProvider {
     private static var cachedSize: (Float, Float)?
     private static var lastAppBundleId: String?
     private static var lastOrientation: UIDeviceOrientation?
+    
+    private static let springboardBundleId = "com.apple.springboard"
 
     static func physicalScreenSize() -> (Float, Float) {
-        let springboardBundleId = "com.apple.springboard"
-
         let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
 
         do {
@@ -70,7 +70,9 @@ struct ScreenSizeProvider {
     {
         let orientation = actualOrientation()
 
-        let (width, height) = physicalScreenSize()
+        let frame = XCUIApplication(bundleIdentifier: springboardBundleId).frame
+        let width = frame.width
+        let height = frame.height
         let (actualWidth, actualHeight) =
             switch orientation {
             case .portrait, .portraitUpsideDown: (width, height)
@@ -84,7 +86,7 @@ struct ScreenSizeProvider {
                     message: "Unsupported orientation: \(orientation)")
             }
 
-        return (actualWidth, actualHeight, orientation)
+        return (Float(actualWidth), Float(actualHeight), orientation)
     }
 
     static func orientationAwarePoint(
