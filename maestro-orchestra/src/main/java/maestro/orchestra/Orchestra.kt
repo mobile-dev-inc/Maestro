@@ -1220,18 +1220,21 @@ class Orchestra(
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                filters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                filters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
+
+        // Apply deepest matching element to text/id filters before adding other filters
+        val basicFilters = filters.toList()
+        if (basicFilters.isNotEmpty()) {
+            filters.clear()
+            filters.add(Filters.deepestMatchingElement(Filters.intersect(basicFilters)))
+        }
 
         selector.size
             ?.let {
