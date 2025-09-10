@@ -280,6 +280,10 @@ class AndroidDriver(
         // No op
     }
 
+    override fun setBiometry(result: Boolean) {
+        // Not supported on Android
+    }
+
     override fun tap(point: Point) {
         metrics.measured("operation", mapOf("command" to "tap")) {
             runDeviceCall {

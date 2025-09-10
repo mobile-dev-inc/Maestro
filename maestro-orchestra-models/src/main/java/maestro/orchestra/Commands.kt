@@ -46,6 +46,25 @@ sealed interface Command {
     val optional: Boolean
 }
 
+enum class BiometryResult {
+    Match,
+    NoMatch,
+}
+
+data class BiometryCommand(
+    val result: BiometryResult,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Biometry: $result"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
 sealed interface CompositeCommand : Command {
 
     fun subCommands(): List<MaestroCommand>
@@ -466,6 +485,7 @@ data class LaunchAppCommand(
     val stopApp: Boolean? = null,
     var permissions: Map<String, String>? = null,
     val launchArguments: Map<String, Any>? = null,
+    val enrollBiometry: Boolean? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {

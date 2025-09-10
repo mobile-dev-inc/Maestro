@@ -1334,6 +1334,32 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 130 - Biometry command emits match and noMatch`() {
+        // Given
+        val commands = readCommands("130_biometry")
+
+        val driver = driver {
+        }
+
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                maestro.test.drivers.FakeDriver.Event.Biometry(true),
+                maestro.test.drivers.FakeDriver.Event.Biometry(false),
+            )
+        )
+    }
+
+    @Test
     fun `Case 046 - Run flow`() {
         // Given
         val commands = readCommands("046_run_flow")
