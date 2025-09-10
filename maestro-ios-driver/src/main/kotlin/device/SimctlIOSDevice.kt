@@ -81,6 +81,12 @@ class SimctlIOSDevice(
         }
     }
 
+    override fun setBiometry(result: Boolean): Result<Unit, Throwable> {
+        return runCatching {
+            LocalSimulatorUtils.setBiometry(deviceId, result)
+        }
+    }
+
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,

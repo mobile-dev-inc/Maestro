@@ -391,23 +391,10 @@ class Orchestra(
 
     private fun biometryCommand(command: BiometryCommand): Boolean {
         return if (maestro.cachedDeviceInfo.platform == Platform.IOS) {
-            val notifyKeys = when (command.result) {
-                BiometryResult.Match -> listOf(
-                    "com.apple.BiometricKit_Sim.fingerTouch.match",
-                    "com.apple.BiometricKit_Sim.pearl.match",
-                )
-                BiometryResult.NoMatch -> listOf(
-                    "com.apple.BiometricKit_Sim.fingerTouch.noMatch",
-                    "com.apple.BiometricKit_Sim.pearl.noMatch",
-                )
-            }
-            notifyKeys.forEach { key ->
-                CommandLineUtils.runCommand(listOf("xcrun", "simctl", "spawn", "booted", "notifyutil", "-p", key))
-            }
+            maestro.setBiometry(command.result == BiometryResult.Match)
             false
         } else {
-            // Placeholder for Android: currently no-op
-            logger.info("Biometry command is not supported on Android. Skipping.")
+            logger.info("Biometry command is not supported on Android/Web. Skipping.")
             false
         }
     }

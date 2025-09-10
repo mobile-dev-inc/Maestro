@@ -100,6 +100,10 @@ class LocalIOSDevice(
         return deviceController.clearKeychain()
     }
 
+    override fun setBiometry(result: Boolean): Result<Unit, Throwable> {
+        return deviceController.setBiometry(result)
+    }
+
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,

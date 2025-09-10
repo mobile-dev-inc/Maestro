@@ -129,6 +129,12 @@ class IOSDriver(
         }
     }
 
+    override fun setBiometry(result: Boolean) {
+        metrics.measured("operation", mapOf("command" to "setBiometry", "result" to result.toString())) {
+            runDeviceCall("setBiometry") { iosDevice.setBiometry(result).expect {} }
+        }
+    }
+
     override fun tap(point: Point) {
         metrics.measured("operation", mapOf("command" to "tap")) {
             runDeviceCall("tap") { iosDevice.tap(point.x, point.y) }

@@ -45,6 +45,8 @@ interface Driver {
 
     fun clearKeychain()
 
+    fun setBiometry(result: Boolean)
+
     fun tap(point: Point)
 
     fun longPress(point: Point)

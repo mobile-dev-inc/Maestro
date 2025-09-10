@@ -63,6 +63,10 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
+    override fun setBiometry(result: Boolean): Result<Unit, Throwable> {
+        return com.github.michaelbull.result.Err(UnsupportedOperationException("Not supported on real iOS devices"))
+    }
+
     override fun launch(id: String, launchArguments: Map<String, Any>) {
         TODO("Not yet implemented")
     }

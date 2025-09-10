@@ -143,6 +143,11 @@ class FakeDriver : Driver {
         events.add(Event.ClearKeychain)
     }
 
+    override fun setBiometry(result: Boolean) {
+        ensureOpen()
+        // record event for testing if needed in the future
+    }
+
     override fun tap(point: Point) {
         ensureOpen()
 

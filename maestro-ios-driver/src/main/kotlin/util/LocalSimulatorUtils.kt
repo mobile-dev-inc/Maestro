@@ -417,6 +417,21 @@ object LocalSimulatorUtils {
         )
     }
 
+    fun setBiometry(deviceId: String, result: Boolean) {
+        val keys = if (result) listOf(
+            "com.apple.BiometricKit_Sim.fingerTouch.match",
+            "com.apple.BiometricKit_Sim.pearl.match"
+        ) else listOf(
+            "com.apple.BiometricKit_Sim.fingerTouch.noMatch",
+            "com.apple.BiometricKit_Sim.pearl.noMatch"
+        )
+        keys.forEach { key ->
+            runCommand(
+                listOf("xcrun", "simctl", "spawn", deviceId, "notifyutil", "-p", key)
+            )
+        }
+    }
+
     fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
         if (permissionsMap.containsKey("all")) {
