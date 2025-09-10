@@ -130,6 +130,10 @@ private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
         _location = location,
         waitForAnimationToEnd = YamlWaitForAnimationToEndCommand(timeout = null)
     )},
+    "sleep" to { location -> YamlFluentCommand(
+        _location = location,
+        sleep = YamlSleepCommand(timeout = null)
+    )},
     "stopRecording" to { location -> YamlFluentCommand(
         _location = location,
         stopRecording = YamlStopRecording()

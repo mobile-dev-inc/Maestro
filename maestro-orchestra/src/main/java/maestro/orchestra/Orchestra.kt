@@ -357,6 +357,7 @@ class Orchestra(
             is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
+            is SleepCommand -> sleepCommand(command)
             is TravelCommand -> travelCommand(command)
             is StartRecordingCommand -> startRecordingCommand(command)
             is StopRecordingCommand -> stopRecordingCommand()
@@ -547,6 +548,11 @@ class Orchestra(
         maestro.waitForAnimationToEnd(command.timeout)
 
         return true
+    }
+
+    private fun sleepCommand(command: SleepCommand): Boolean {
+        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, command.timeout ?: 0)
+        return false
     }
 
     private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
