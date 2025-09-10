@@ -35,6 +35,8 @@ import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.BiometryCommand
+import maestro.orchestra.BiometryResult
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -135,6 +137,7 @@ data class YamlFluentCommand(
     val addMedia: YamlAddMedia? = null,
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
+    val biometry: YamlBiometry? = null,
     val retry: YamlRetryCommand? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
@@ -399,6 +402,16 @@ data class YamlFluentCommand(
                         scriptString = evalScript.script,
                         label = evalScript.label,
                         optional = evalScript.optional,
+                    )
+                )
+            )
+
+            biometry != null -> listOf(
+                MaestroCommand(
+                    BiometryCommand(
+                        result = biometry.result,
+                        label = biometry.label,
+                        optional = biometry.optional,
                     )
                 )
             )
@@ -700,6 +713,7 @@ data class YamlFluentCommand(
                 stopApp = command.stopApp,
                 permissions = command.permissions,
                 launchArguments = command.arguments,
+                enrollBiometry = command.enrollBiometry,
                 label = command.label,
                 optional = command.optional,
             )

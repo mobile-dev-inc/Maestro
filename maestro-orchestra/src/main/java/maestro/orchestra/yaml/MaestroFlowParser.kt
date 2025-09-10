@@ -142,6 +142,10 @@ private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
         _location = location,
         assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()
     )},
+    "biometry" to { location -> YamlFluentCommand(
+        _location = location,
+        biometry = YamlBiometry.parse("match")
+    )},
 )
 
 private val allCommands = (stringCommands.keys + objectCommands).distinct()

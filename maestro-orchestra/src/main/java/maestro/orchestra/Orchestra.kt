@@ -22,6 +22,7 @@ package maestro.orchestra
 import kotlinx.coroutines.isActive
 import maestro.Driver
 import maestro.ElementFilter
+import maestro.Platform
 import maestro.Filters
 import maestro.Filters.asFilter
 import maestro.FindElementResult
@@ -48,6 +49,7 @@ import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
+import maestro.device.util.CommandLineUtils
 import okio.Buffer
 import okio.Sink
 import okio.buffer
@@ -364,6 +366,7 @@ class Orchestra(
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is RetryCommand -> retryCommand(command, config)
+            is BiometryCommand -> biometryCommand(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -384,6 +387,29 @@ class Orchestra(
     private fun toggleAirplaneMode(): Boolean {
         maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
         return true
+    }
+
+    private fun biometryCommand(command: BiometryCommand): Boolean {
+        return if (maestro.cachedDeviceInfo.platform == Platform.IOS) {
+            val notifyKeys = when (command.result) {
+                BiometryResult.Match -> listOf(
+                    "com.apple.BiometricKit_Sim.fingerTouch.match",
+                    "com.apple.BiometricKit_Sim.pearl.match",
+                )
+                BiometryResult.NoMatch -> listOf(
+                    "com.apple.BiometricKit_Sim.fingerTouch.noMatch",
+                    "com.apple.BiometricKit_Sim.pearl.noMatch",
+                )
+            }
+            notifyKeys.forEach { key ->
+                CommandLineUtils.runCommand(listOf("xcrun", "simctl", "spawn", "booted", "notifyutil", "-p", key))
+            }
+            false
+        } else {
+            // Placeholder for Android: currently no-op
+            logger.info("Biometry command is not supported on Android. Skipping.")
+            false
+        }
     }
 
     private fun travelCommand(command: TravelCommand): Boolean {
@@ -1006,6 +1032,18 @@ class Orchestra(
             )
         } catch (e: Exception) {
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}", e)
+        }
+
+        // If requested, enroll biometry on iOS simulators by sending enrollment changed notifications.
+        if (command.enrollBiometry == true && maestro.cachedDeviceInfo.platform == Platform.IOS) {
+            try {
+                val parts1 = listOf("xcrun", "simctl", "spawn", "booted", "notifyutil", "-s", "com.apple.BiometricKit.enrollmentChanged", "1")
+                val parts2 = listOf("xcrun", "simctl", "spawn", "booted", "notifyutil", "-p", "com.apple.BiometricKit.enrollmentChanged")
+                CommandLineUtils.runCommand(parts1)
+                CommandLineUtils.runCommand(parts2)
+            } catch (ignored: Exception) {
+                logger.warn("Failed to enroll biometry via notifyutil. Proceeding without it: ${ignored.message}")
+            }
         }
 
         return true
