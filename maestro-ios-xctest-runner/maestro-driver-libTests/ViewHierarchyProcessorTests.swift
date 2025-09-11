@@ -16,11 +16,12 @@ final class ViewHierarchyProcessorTests: XCTestCase {
 
     // Portrait → no change
     func testPortrait_NoTransform() {
+        // given
         let screen = ScreenContext(deviceOrientation: .portrait, deviceWidth: 390, deviceHeight: 844)
-        let p = ViewHierarchyProcessor(screenContext: screen)
-
         let root = ax(10, 20, 100, 50)
-        let out = p.process(root) // auto-decide: false for portrait
+        
+        // when
+        let out = ViewHierarchyProcessor.process(root, screen: screen) // auto-decide: false for portrait
 
         XCTAssertEqual(out.frame["X"], 10)
         XCTAssertEqual(out.frame["Y"], 20)
@@ -32,11 +33,11 @@ final class ViewHierarchyProcessorTests: XCTestCase {
     func testLandscapeLeft_Rotate() {
         // given
         let screen = ScreenContext(deviceOrientation: .landscapeLeft, deviceWidth: 1024, deviceHeight: 768)
-        let p = ViewHierarchyProcessor(screenContext: screen)
-        
         // Portrait-space rect (l=10,t=20,w=100,h=50) => r=110,b=70
         let root = ax(0, 0, 768, 1024)
-        let out  = p.process(root) // auto-detect
+        
+        // when
+        let out  = ViewHierarchyProcessor.process(root, screen: screen) // auto-detect
         
         // then
         XCTAssertEqual(out.frame["X"], 0)
@@ -49,7 +50,6 @@ final class ViewHierarchyProcessorTests: XCTestCase {
         // given
         // Device is landscape 1024×768
         let screen = ScreenContext(deviceOrientation: .landscapeRight, deviceWidth: 1024, deviceHeight: 768)
-        let p = ViewHierarchyProcessor(screenContext: screen)
 
         // Child rects in PORTRAIT space:
         // child1: l=10,t=20,w=100,h=50 => r=110,b=70  → LR: (x=1024-70=954, y=l=10, w=50, h=100)
@@ -62,11 +62,10 @@ final class ViewHierarchyProcessorTests: XCTestCase {
 
         
         // when
-        let out = p.process(root)
+        let out = ViewHierarchyProcessor.process(root, screen: screen)
 
         
         // then
-        
         // Root becomes landscape app window
         XCTAssertEqual(out.frame["X"], 0)
         XCTAssertEqual(out.frame["Y"], 0)
@@ -90,14 +89,14 @@ final class ViewHierarchyProcessorTests: XCTestCase {
 
     // UpsideDown rotation (180°)
     func testPortraitUpsideDown_Rotate() {
+        // given
         let screen = ScreenContext(deviceOrientation: .portraitUpsideDown, deviceWidth: 390, deviceHeight: 844)
-        let p = ViewHierarchyProcessor(screenContext: screen)
-
         let root = ax(10, 20, 100, 50) // r=110,b=70
-        let out = p.process(root)
+        
+        // when
+        let out = ViewHierarchyProcessor.process(root, screen: screen)
 
         // Expected: x=W-r=390-110=280, y=H-b=844-70=774, w=100, h=50
-
         XCTAssertEqual(out.frame["X"], 280)
         XCTAssertEqual(out.frame["Y"], 774)
         XCTAssertEqual(out.frame["Width"], 100)

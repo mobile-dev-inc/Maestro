@@ -17,23 +17,17 @@ public struct UIElementBounds { public let x, y, width, height: CGFloat }
 
 
 public struct ViewHierarchyProcessor {
-    
-    private let screen: ScreenContext
-
-    public init(screenContext: ScreenContext) {
-        self.screen = screenContext
-    }
 
     /// Returns a copy of `root` with frames oriented for `screen.deviceOrientation
-    public func process(_ root: AXElement) -> AXElement {
+    public static func process(_ root: AXElement, screen: ScreenContext) -> AXElement {
         let respectsDeviceRotation = appRespectsOrientation(root: root, orientation: screen.deviceOrientation)
 
         let transform = !respectsDeviceRotation
-        return mapTree(root, transform: transform)
+        return mapTree(root, screen: screen, transform: transform)
     }
 
     // MARK: (2) Decide whether we need to rotate portrait-space frames
-    private func appRespectsOrientation(root: AXElement, orientation: UIDeviceOrientation) -> Bool {
+    private static func appRespectsOrientation(root: AXElement, orientation: UIDeviceOrientation) -> Bool {
         // AXFrame is [String: Double]
         let w = root.frame["Width"]
         let h = root.frame["Height"]
@@ -59,7 +53,7 @@ public struct ViewHierarchyProcessor {
         }
     }
     
-    private func orientFrame(_ frame: AXFrame) -> AXFrame {
+    private static func orientFrame(_ frame: AXFrame, screen: ScreenContext) -> AXFrame {
         let l = CGFloat(frame["X"] ?? 0)
         let t = CGFloat(frame["Y"] ?? 0)
         let w = CGFloat(frame["Width"] ?? 0)
@@ -82,9 +76,9 @@ public struct ViewHierarchyProcessor {
         ]
     }
 
-    private func mapTree(_ node: AXElement, transform: Bool) -> AXElement {
-        let newFrame = transform ? orientFrame(node.frame) : node.frame
-        let newChildren = node.children?.map { mapTree($0, transform: transform) }
+    private static func mapTree(_ node: AXElement, screen: ScreenContext, transform: Bool) -> AXElement {
+        let newFrame = transform ? orientFrame(node.frame, screen: screen) : node.frame
+        let newChildren = node.children?.map { mapTree($0, screen: screen, transform: transform) }
 
         return AXElement(
             identifier: node.identifier,
@@ -107,7 +101,7 @@ public struct ViewHierarchyProcessor {
 
     // Rotation math (portrait-space -> current orientation)
     @inline(__always)
-    private func rotateFromPortrait(
+    private static func rotateFromPortrait(
         _ p: PortraitBounds,
         to orientation: UIDeviceOrientation,
         currentWidth: CGFloat,

@@ -2,13 +2,33 @@
 import Foundation
 import XCTest
 
-public struct ViewHierarchy : Codable {
-    public let axElement: AXElement
-    public let depth: Int
-    
+public struct ViewHierarchy: Codable {
+    // Existing fields: keep JSON stable for current consumers
+    public let axElement: AXElement          // driver sees
+    public let depth: Int                    // depth for axElement
+
+    // New fields: same type, optional
+    public let visualElement: AXElement?      // user-visible/rendered hierarchy
+
+    // Back-compat init (existing call sites continue to work)
     public init(axElement: AXElement, depth: Int) {
         self.axElement = axElement
         self.depth = depth
+        self.visualElement = nil
+    }
+
+    // Convenience init when you have both trees; depths auto-computed
+    public init(axElement: AXElement, depth: Int, visualElement: AXElement?) {
+        self.axElement = axElement
+        self.depth = depth
+        self.visualElement = visualElement
+    }
+
+    // Keep JSON keys for the old fields, add new keys for the new fields
+    enum CodingKeys: String, CodingKey {
+        case axElement   // driver tree (old key)
+        case depth       // driver depth (old key)
+        case visualElement // user tree (new key)
     }
 }
 

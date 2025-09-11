@@ -76,8 +76,15 @@ struct ViewHierarchyHandler: HTTPHandler {
             let foregroundApp = RunningApp.getForegroundApp()
             guard let foregroundApp = foregroundApp else {
                 NSLog("No foreground app found returning springboard app hierarchy")
+                let (width, height, orientation) = try ScreenSizeProvider.actualScreenSize()
+                let screenContext = ScreenContext(
+                    deviceOrientation: orientation,
+                    deviceWidth: CGFloat(width),
+                    deviceHeight: CGFloat(height)
+                )
                 let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
-                let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
+                let visualElement = ViewHierarchyProcessor.process(springboardHierarchy, screen: screenContext)
+                let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth(), visualElement: visualElement)
                 let body = try JSONEncoder().encode(springBoardViewHierarchy)
                 return HTTPResponse(statusCode: .ok, body: body)
             }
@@ -93,8 +100,12 @@ struct ViewHierarchyHandler: HTTPHandler {
                 deviceHeight: CGFloat(height)
             )
             let root = appViewHierarchy.children?.first ?? appViewHierarchy
-            let orientedHierarchy = ViewHierarchyProcessor(screenContext: screenContext).process(root)
-            let viewHierarchy = ViewHierarchy.init(axElement: orientedHierarchy, depth: orientedHierarchy.depth())
+            let orientedHierarchy = ViewHierarchyProcessor.process(root, screen: screenContext)
+            let viewHierarchy = ViewHierarchy.init(
+                axElement: appViewHierarchy,
+                depth: orientedHierarchy.depth(),
+                visualElement: orientedHierarchy
+            )
             
             NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
             let body = try JSONEncoder().encode(viewHierarchy)

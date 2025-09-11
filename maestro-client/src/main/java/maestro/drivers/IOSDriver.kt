@@ -55,6 +55,11 @@ import java.io.File
 import java.net.SocketTimeoutException
 import kotlin.collections.set
 
+enum class HierarchyMode {
+    AX,
+    VISUAL
+}
+
 class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
@@ -171,22 +176,37 @@ class IOSDriver(
         }
     }
 
-    private fun viewHierarchy(excludeKeyboardElements: Boolean): TreeNode {
-        LOGGER.info("Requesting view hierarchy of the screen")
-        val hierarchyResult = iosDevice.viewHierarchy(excludeKeyboardElements)
-        LOGGER.info("Depth of the screen is ${hierarchyResult.depth}")
-        if (hierarchyResult.depth > WARNING_MAX_DEPTH) {
+    fun contentDescriptor(hierarchyMode: HierarchyMode): TreeNode {
+        return metrics.measured("operation", mapOf("command" to "contentDescriptor")) {
+            runDeviceCall("snapshot") { viewHierarchy(excludeKeyboardElements = false, hierarchyMode) }
+        }
+    }
+
+    private fun viewHierarchy(
+        excludeKeyboardElements: Boolean,
+        mode: HierarchyMode = HierarchyMode.AX
+    ): TreeNode {
+        LOGGER.info("Requesting view hierarchy of the screen (mode=$mode)")
+        val result = iosDevice.viewHierarchy(excludeKeyboardElements)
+
+        LOGGER.info("Depth of the screen is ${result.depth}")
+        if (result.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +
-                    "is ${hierarchyResult.depth}. This might affect the execution time of your test. " +
-                    "If you are using React native, consider migrating to the new " +
-                    "architecture where view flattening is available. For more information on the " +
-                    "migration process, please visit: https://reactnative.dev/docs/new-architecture-intro"
+                    "is ${result.depth}. This might affect the execution time of your test. " +
+                    "If you are using React Native, consider migrating to the new " +
+                    "architecture where view flattening is available. " +
+                    "More: https://reactnative.dev/docs/new-architecture-intro"
             insights.report(Insight(message, Insight.Level.INFO))
         } else {
             insights.report(Insight("", Insight.Level.NONE))
         }
-        val hierarchy = hierarchyResult.axElement
-        return mapViewHierarchy(hierarchy)
+
+        val element: AXElement = when (mode) {
+            HierarchyMode.AX     -> result.axElement
+            HierarchyMode.VISUAL -> result.visualElement
+        }
+
+        return mapViewHierarchy(element)
     }
 
     private fun mapViewHierarchy(element: AXElement): TreeNode {
