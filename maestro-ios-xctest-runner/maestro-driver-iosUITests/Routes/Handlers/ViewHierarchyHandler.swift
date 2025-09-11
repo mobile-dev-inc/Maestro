@@ -3,6 +3,59 @@ import XCTest
 import os
 import maestro_driver_lib
 
+extension AXElement {
+    
+    init(_ dict: [XCUIElement.AttributeName: Any])
+    {
+        func v(_ key: String) -> Any? { dict[XCUIElement.AttributeName(rawValue: key)] }
+
+        // --- read raw fields ---
+        let identifier          = v("identifier") as? String ?? ""
+        let rawFrame            = (v("frame") as? AXFrame) ?? .zero
+        let value               = v("value") as? String
+        let title               = v("title") as? String
+        let label               = v("label") as? String ?? ""
+        let elementType         = v("elementType") as? Int ?? 0
+        let enabled             = v("enabled") as? Bool ?? false
+        let horizontalSizeClass = v("horizontalSizeClass") as? Int ?? 0
+        let verticalSizeClass   = v("verticalSizeClass") as? Int ?? 0
+        let placeholderValue    = v("placeholderValue") as? String
+        let selected            = v("selected") as? Bool ?? false
+        let hasFocus            = v("hasFocus") as? Bool ?? false
+        let displayID           = v("displayID") as? Int ?? 0
+        let windowContextID     = v("windowContextID") as? Double ?? 0
+
+        // --- children ---
+        let children: [AXElement]
+        if let kids = v("children") as? [[XCUIElement.AttributeName: Any]] {
+            children = kids.map {
+                AXElement($0)
+            }
+        } else {
+            children = []
+        }
+
+        // --- build ---
+        self.init(
+            identifier: identifier,
+            frame: rawFrame,
+            value: value,
+            title: title,
+            label: label,
+            elementType: elementType,
+            enabled: enabled,
+            horizontalSizeClass: horizontalSizeClass,
+            verticalSizeClass: verticalSizeClass,
+            placeholderValue: placeholderValue,
+            selected: selected,
+            hasFocus: hasFocus,
+            displayID: displayID,
+            windowContextID: windowContextID,
+            children: children
+        )
+    }
+}
+
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
 
@@ -32,7 +85,16 @@ struct ViewHierarchyHandler: HTTPHandler {
             let appViewHierarchy = try logger.measure(message: "View hierarchy snapshot for \(foregroundApp)") {
                 try getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
             }
-            let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
+            
+            let (width, height, orientation) = try ScreenSizeProvider.actualScreenSize()
+            let screenContext = ScreenContext(
+                deviceOrientation: orientation,
+                deviceWidth: CGFloat(width),
+                deviceHeight: CGFloat(height)
+            )
+            let root = appViewHierarchy.children?.first ?? appViewHierarchy
+            let orientedHierarchy = ViewHierarchyProcessor(screenContext: screenContext).process(root)
+            let viewHierarchy = ViewHierarchy.init(axElement: orientedHierarchy, depth: orientedHierarchy.depth())
             
             NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
             let body = try JSONEncoder().encode(viewHierarchy)
@@ -183,7 +245,7 @@ struct ViewHierarchyHandler: HTTPHandler {
             return element
         }
     }
-
+    
     private func elementHierarchy(xcuiElement: XCUIElement) throws -> AXElement {
         let snapshotDictionary = try xcuiElement.snapshot().dictionaryRepresentation
         return AXElement(snapshotDictionary)

@@ -2,21 +2,26 @@
 import Foundation
 import XCTest
 
-struct ViewHierarchy : Codable {
-    let axElement: AXElement
-    let depth: Int
+public struct ViewHierarchy : Codable {
+    public let axElement: AXElement
+    public let depth: Int
+    
+    public init(axElement: AXElement, depth: Int) {
+        self.axElement = axElement
+        self.depth = depth
+    }
 }
 
-typealias AXFrame = [String: Double]
-extension AXFrame {
+public typealias AXFrame = [String: Double]
+public extension AXFrame {
     static var zero: Self {
         ["X": 0, "Y": 0, "Width": 0, "Height": 0]
     }
 }
 
-struct AXElement: Codable {
+public struct AXElement: Codable {
     let identifier: String
-    let frame: AXFrame
+    public let frame: AXFrame
     let value: String?
     let title: String?
     let label: String
@@ -27,11 +32,11 @@ struct AXElement: Codable {
     let placeholderValue: String?
     let selected: Bool
     let hasFocus: Bool
-    var children: [AXElement]?
+    public var children: [AXElement]?
     let windowContextID: Double
     let displayID: Int
     
-    init(children: [AXElement]) {
+    public init(children: [AXElement]) {
         self.children = children
         
         self.label = ""
@@ -50,7 +55,7 @@ struct AXElement: Codable {
         self.title = nil
     }
     
-    init(
+    public init(
         identifier: String, frame: AXFrame, value: String?, title: String?, label: String,
         elementType: Int, enabled: Bool, horizontalSizeClass: Int,
         verticalSizeClass: Int, placeholderValue: String?, selected: Bool,
@@ -73,30 +78,7 @@ struct AXElement: Codable {
         self.children = children
     }
     
-    init(_ dict: [XCUIElement.AttributeName: Any]) {
-        func valueFor(_ name: String) -> Any {
-            dict[XCUIElement.AttributeName(rawValue: name)] as Any
-        }
-        
-        self.label = valueFor("label") as? String ?? ""
-        self.elementType = valueFor("elementType") as? Int ?? 0
-        self.identifier = valueFor("identifier") as? String ?? ""
-        self.horizontalSizeClass = valueFor("horizontalSizeClass") as? Int ?? 0
-        self.windowContextID = valueFor("windowContextID") as? Double ?? 0
-        self.verticalSizeClass = valueFor("verticalSizeClass") as? Int ?? 0
-        self.selected = valueFor("selected") as? Bool ?? false
-        self.displayID = valueFor("displayID") as? Int ?? 0
-        self.hasFocus = valueFor("hasFocus") as? Bool ?? false
-        self.placeholderValue = valueFor("placeholderValue") as? String
-        self.value = valueFor("value") as? String
-        self.frame = valueFor("frame") as? AXFrame ?? .zero
-        self.enabled = valueFor("enabled") as? Bool ?? false
-        self.title = valueFor("title") as? String
-        let childrenDictionaries = valueFor("children") as? [[XCUIElement.AttributeName: Any]]
-        self.children = childrenDictionaries?.map { AXElement($0) } ?? []
-    }
-    
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.identifier, forKey: .identifier)
         try container.encode(self.frame, forKey: .frame)
@@ -115,7 +97,7 @@ struct AXElement: Codable {
         try container.encode(self.displayID, forKey: .displayID)
     }
     
-    func depth() -> Int {
+    public func depth() -> Int {
         guard let children = children
         else { return 1 }
         

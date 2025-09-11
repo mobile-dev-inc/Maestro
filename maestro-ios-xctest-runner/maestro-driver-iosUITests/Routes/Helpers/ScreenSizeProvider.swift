@@ -54,7 +54,7 @@ struct ScreenSizeProvider {
         }
     }
 
-    private static func actualOrientation() -> UIDeviceOrientation {
+    static func actualOrientation() -> UIDeviceOrientation {
         let orientation = XCUIDevice.shared.orientation
         if orientation == .unknown {
             // If orientation is "unknown", we assume it is "portrait" to

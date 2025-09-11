@@ -39,7 +39,6 @@
 		52669D922E683C8E00E1685D /* maestro_driver_lib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 52C14D742E670BAE00A5BF12 /* maestro_driver_lib.framework */; };
 		52669D932E683C8E00E1685D /* maestro_driver_lib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 52C14D742E670BAE00A5BF12 /* maestro_driver_lib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 5279BFD52935ECE20056C609 /* FlyingFox */; };
-		52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */; };
 		52C14D7E2E670BAE00A5BF12 /* maestro_driver_lib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 52C14D742E670BAE00A5BF12 /* maestro_driver_lib.framework */; };
 		52C14D892E670BAE00A5BF12 /* maestro_driver_lib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 52C14D742E670BAE00A5BF12 /* maestro_driver_lib.framework */; };
 		52C14D8A2E670BAE00A5BF12 /* maestro_driver_lib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 52C14D742E670BAE00A5BF12 /* maestro_driver_lib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -198,7 +197,6 @@
 		522785802A54410D008DBC0A /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCAXClient_iOS+FBSnapshotReqParams.h"; sourceTree = "<group>"; };
 		526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCAXClient_iOS+FBSnapshotReqParams.m"; sourceTree = "<group>"; };
-		52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHierarchyHandleTests.swift; sourceTree = "<group>"; };
 		52C14D742E670BAE00A5BF12 /* maestro_driver_lib.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = maestro_driver_lib.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		52C14D7D2E670BAE00A5BF12 /* maestro-driver-libTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-libTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52D8FA272D6DCC600015FAB3 /* _XCInternalTestRun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = _XCInternalTestRun.h; sourceTree = "<group>"; };
@@ -355,25 +353,8 @@
 		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		523DAFED2E70443300A13CEE /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Models/AXElement.swift,
-			);
-			target = 52049BF2293503A200807AA3 /* maestro-driver-iosUITests */;
-		};
-		523DAFEE2E70443300A13CEE /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Models/AXElement.swift,
-			);
-			target = 52C14D732E670BAE00A5BF12 /* maestro-driver-lib */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		52C14D752E670BAE00A5BF12 /* maestro-driver-lib */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (523DAFED2E70443300A13CEE /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 523DAFEE2E70443300A13CEE /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = "maestro-driver-lib"; sourceTree = "<group>"; };
+		52C14D752E670BAE00A5BF12 /* maestro-driver-lib */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "maestro-driver-lib"; sourceTree = "<group>"; };
 		52C14D832E670BAE00A5BF12 /* maestro-driver-libTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "maestro-driver-libTests"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -455,7 +436,6 @@
 		52049BF6293503A200807AA3 /* maestro-driver-iosUITests */ = {
 			isa = PBXGroup;
 			children = (
-				52B6C9992DD1FAAB00E3EFB1 /* ViewHierarchyHandleTests.swift */,
 				52D8FAA92D6DD3850015FAB3 /* Utilities */,
 				52D8FA8E2D6DCF010015FAB3 /* Categories */,
 				52D8F8F12D6DCC150015FAB3 /* PrivateHeaders */,
@@ -985,7 +965,6 @@
 				61C0AFE729C7AB0C005D1FC5 /* PressKeyHandler.swift in Sources */,
 				61C0AFF129C8C01F005D1FC5 /* DeviceInfoHandler.swift in Sources */,
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
-				52B6C99A2DD1FAF500E3EFB1 /* ViewHierarchyHandleTests.swift in Sources */,
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
 				9811C9092C49751D00DDACA0 /* ScreenSizeProvider.swift in Sources */,
 				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,
