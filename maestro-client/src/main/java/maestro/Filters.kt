@@ -269,13 +269,16 @@ object Filters {
 
     fun deepestMatchingElement(filter: ElementFilter): ElementFilter {
         return { nodes ->
-            filter(nodes)
-                .map {
-                    val matchingChildren = deepestMatchingElement(filter)(it.children)
-
-                    matchingChildren.lastOrNull()
-                        ?: it
+            nodes.flatMap { node ->
+                val matchingChildren = deepestMatchingElement(filter)(node.children)
+                if (matchingChildren.isNotEmpty()) {
+                    matchingChildren
+                } else if (filter(listOf(node)).isNotEmpty()) {
+                    listOf(node)
+                } else {
+                    emptyList()
                 }
+            }.distinct()
         }
     }
 
