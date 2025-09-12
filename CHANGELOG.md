@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.0.3
+Fixes:
+- Fix filter logic that was causing incorrect element selection when using multiple selectors together
+- Graal JS will now isolate environment variables between different JS runs
+- Fix incorrect reporting of failures in `HtmlTestSuiteReporter`
+
 ## 2.0.2
 Fixes:
 - Added Rhino deprecation warning in CLI
