@@ -1,32 +1,42 @@
 #!/bin/bash
 
-# Specify the device type and runtime as per your requirements
-DEVICE_TYPE="iPhone 15 Pro"
-RUNTIME="iOS17.5"
+echo "Looking for the first available and installed iOS simulator..."
 
-# Create a unique identifier for the new simulator to avoid naming conflicts
-SIMULATOR_NAME="Simulator_$(uuidgen)"
+# Fetch the first available iPhone simulator's ID and name
+SIMULATOR_INFO=$(xcrun simctl list --json devices | jq -r '
+    .devices | to_entries[] | .value[] |
+    select(.isAvailable == true and .state != "Booted" and (.name | type == "string" and test("iPhone"))) |
+    "\(.udid) \(.name)"' | head -n 1)
 
-echo "Creating a new iOS simulator: $SIMULATOR_NAME"
+# Extract the simulator's ID and name
+SIMULATOR_ID=$(echo "$SIMULATOR_INFO" | awk '{print $1}')
+SIMULATOR_NAME=$(echo "$SIMULATOR_INFO" | cut -d' ' -f2-)
 
-# Create the simulator
-simulator_id=$(xcrun simctl create "$SIMULATOR_NAME" "$DEVICE_TYPE" $RUNTIME)
-echo "Simulator ID: $simulator_id created."
+# Check if a simulator is found
+if [ -z "$SIMULATOR_ID" ]; then
+    echo "Error: No available simulator found."
+    exit 1
+fi
+
+echo "Found simulator: $SIMULATOR_NAME (ID: $SIMULATOR_ID)"
 
 # Boot the simulator
-echo "Booting the simulator..."
-xcrun simctl boot "$simulator_id"
+echo "Booting simulator..."
+xcrun simctl boot "$SIMULATOR_ID"
 
-# Wait for the simulator to be fully booted
+# Wait for the simulator to fully boot
+echo "Waiting for the simulator to boot..."
 while true; do
     # Check the current state of the simulator
-    state=$(xcrun simctl list | grep "$simulator_id" | grep -o "Booted" || true)
+    state=$(xcrun simctl list --json devices | jq -r --arg SIMULATOR_ID "$SIMULATOR_ID" '
+        .devices | to_entries[] | .value[] |
+        select(.udid == $SIMULATOR_ID) | .state')
 
     if [ "$state" == "Booted" ]; then
-        echo "Simulator $SIMULATOR_NAME is now ready."
+        echo "Simulator with ID $SIMULATOR_ID is now ready."
         break
     else
-        echo "Waiting for the simulator to be ready..."
-        sleep 5 # sleep for 5 seconds before checking again to avoid spamming
+        echo "Current state: $state. Waiting..."
+        sleep 5
     fi
 done

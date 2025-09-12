@@ -26,6 +26,8 @@
 		<array>
 			<string>dev.mobile.maestro-driver-ios</string>
 			<string>dev.mobile.maestro-driver-iosUITests</string>
+			<string>dev.mobile.maestro-driver-lib</string>
+			<string>dev.mobile.maestro-driver-libTests</string>
 		</array>
 		<key>CommandLineArguments</key>
 		<array/>
@@ -34,8 +36,10 @@
 		<key>DependentProductPaths</key>
 		<array>
 			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-ios.app</string>
+			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-ios.app/PlugIns/maestro-driver-libTests.xctest</string>
 			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-iosUITests-Runner.app</string>
 			<string>__TESTROOT__/Debug-iphoneos/maestro-driver-iosUITests-Runner.app/PlugIns/maestro-driver-iosUITests.xctest</string>
+			<string>__TESTROOT__/Debug-iphoneos/maestro_driver_lib.framework</string>
 		</array>
 		<key>DiagnosticCollectionPolicy</key>
 		<integer>1</integer>
