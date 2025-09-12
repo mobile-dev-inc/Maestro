@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Path
+import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
@@ -1209,29 +1210,25 @@ class Orchestra(
     private fun buildFilter(
         selector: ElementSelector,
     ): FilterWithDescription {
-        val filters = mutableListOf<ElementFilter>()
+        val basicFilters = mutableListOf<ElementFilter>()
+        val relativeFilters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
 
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                basicFilters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
-
         selector.size
             ?.let {
                 descriptions += "Size: $it"
-                filters += Filters.sizeMatches(
+                basicFilters += Filters.sizeMatches(
                     width = it.width,
                     height = it.height,
                     tolerance = it.tolerance,
@@ -1241,38 +1238,38 @@ class Orchestra(
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                filters += Filters.below(buildFilter(it).filterFunc)
+                relativeFilters += Filters.below(buildFilter(it).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                filters += Filters.above(buildFilter(it).filterFunc)
+                relativeFilters += Filters.above(buildFilter(it).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                filters += Filters.leftOf(buildFilter(it).filterFunc)
+                relativeFilters += Filters.leftOf(buildFilter(it).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                filters += Filters.rightOf(buildFilter(it).filterFunc)
+                relativeFilters += Filters.rightOf(buildFilter(it).filterFunc)
             }
 
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                filters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
+                relativeFilters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
             }
 
         selector.containsDescendants
             ?.let { descendantSelectors ->
                 val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
                 descriptions += "Contains descendants: $descendantDescriptions"
-                filters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
+                relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
         selector.traits
@@ -1281,7 +1278,7 @@ class Orchestra(
             }
             ?.forEach { (description, filter) ->
                 descriptions += description
-                filters += filter
+                basicFilters += filter
             }
 
         selector.enabled
@@ -1291,7 +1288,7 @@ class Orchestra(
                 } else {
                     "Disabled"
                 }
-                filters += Filters.enabled(it)
+                basicFilters += Filters.enabled(it)
             }
 
         selector.selected
@@ -1301,7 +1298,7 @@ class Orchestra(
                 } else {
                     "Not selected"
                 }
-                filters += Filters.selected(it)
+                basicFilters += Filters.selected(it)
             }
 
         selector.checked
@@ -1311,7 +1308,7 @@ class Orchestra(
                 } else {
                     "Not checked"
                 }
-                filters += Filters.checked(it)
+                basicFilters += Filters.checked(it)
             }
 
         selector.focused
@@ -1321,16 +1318,25 @@ class Orchestra(
                 } else {
                     "Not focused"
                 }
-                filters += Filters.focused(it)
+                basicFilters += Filters.focused(it)
             }
 
         selector.css
             ?.let {
                 descriptions += "CSS: $it"
-                filters += Filters.css(maestro, it)
+                basicFilters += Filters.css(maestro, it)
             }
 
-        var resultFilter = Filters.intersect(filters)
+        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
+        val basicFilter = if (basicFilters.isNotEmpty()) {
+            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
+        } else {
+            { nodes -> nodes } // Identity filter if no basic filters
+        }
+        
+        val allFilters = listOf(basicFilter) + relativeFilters
+        var resultFilter = Filters.intersect(allFilters)
+
         resultFilter = selector.index
             ?.toDouble()
             ?.toInt()

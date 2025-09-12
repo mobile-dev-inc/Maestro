@@ -3912,6 +3912,78 @@ class IntegrationTest {
             }
         }
     }
+
+    @Test
+    fun `Case 129 - Text and ID with child elements`() {
+        // Given
+        // We're looking for an element with the given text and id, but it has a child element that is only a partial match
+        val commands = readCommands("129_text_and_id")
+        val driver = driver {
+            element {
+                id = "some_id"
+                text = "some_text"
+                bounds = Bounds(0, 0, 200, 200)
+
+                element {
+                    id = ""
+                    text = "some_text"
+                    bounds = Bounds(50, 50, 150, 150)
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
+    @Test
+    fun `Case 130 - Duplicate elements case for checking deepestHierarchy is working`() {
+        // Given
+        // We're looking for an element with the given text and id, but it has a child element that is only a partial match
+        val commands = readCommands("130_text_and_index")
+        val driver = driver {
+            id = "0"
+            element {
+                id = "1"
+                text = "some_text"
+                bounds = Bounds(0, 0, 200, 200)
+            }
+            element {
+                id = "2"
+                text = "some_text"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    id = "3"
+                    text = "some_text"
+                    bounds = Bounds(0, 0, 200, 200)
+
+                    element {
+                        id = "4"
+                        text = "some_text"
+                        bounds = Bounds(50, 50, 150, 150)
+                    }
+                }
+            }
+
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
     
     private fun orchestra(
         maestro: Maestro,
