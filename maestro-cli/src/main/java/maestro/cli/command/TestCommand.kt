@@ -28,6 +28,7 @@ import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.PluginsMixin
 import maestro.cli.ShowHelpMixin
 import maestro.device.Device
 import maestro.device.DeviceService
@@ -73,6 +74,9 @@ class TestCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
+
+    @CommandLine.Mixin
+    var pluginsMixin: PluginsMixin? = null
 
     @CommandLine.ParentCommand
     private val parent: App? = null
