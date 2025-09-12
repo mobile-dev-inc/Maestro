@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- runShellCommand:
+    command: "echo Hello, world!"
+    outputVariable: "SHELL_OUTPUT"
+    timeout: 1000
+    label: "Run echo command"
