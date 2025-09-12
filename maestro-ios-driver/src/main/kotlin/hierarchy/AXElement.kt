@@ -17,6 +17,7 @@ data class AXFrame(
 
 data class ViewHierarchy(
     val axElement: AXElement,
+    val visualElement: AXElement,
     val depth: Int
 )
 
