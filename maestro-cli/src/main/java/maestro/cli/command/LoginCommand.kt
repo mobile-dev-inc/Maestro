@@ -36,14 +36,6 @@ class LoginCommand : Callable<Int> {
 
     override fun call(): Int {
         LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
-
-        val existingToken = ApiKey.getToken()
-
-        if (existingToken != null) {
-            message("Already logged in. Run \"maestro logout\" to logout.")
-            return 0
-        }
-
         val token = auth.triggerSignInFlow()
         println(token)
 
