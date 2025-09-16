@@ -624,7 +624,7 @@ class Orchestra(
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
-                logger.error("Error: $ignored")
+                logger.warn("Error: $ignored")
             }
             maestro.swipeFromCenter(
                 direction,
@@ -792,7 +792,7 @@ class Orchestra(
                     timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
                     optional = commandOptional,
                 )
-            } catch (ignored: MaestroException.ElementNotFound) {
+            } catch (_: MaestroException.ElementNotFound) {
                 return false
             }
         }
