@@ -66,6 +66,8 @@ object DeviceService {
                     "full"
                 ).start().waitFor(10,TimeUnit.SECONDS)
 
+                var lastException: Exception? = null
+
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
                         Dadb.list().lastOrNull{ dadb ->
@@ -73,9 +75,10 @@ object DeviceService {
                         }
                     } catch (ignored: Exception) {
                         Thread.sleep(100)
+                        lastException = ignored
                         null
                     }
-                } ?: throw DeviceError("Unable to start device: ${device.modelId}")
+                } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
 
                 PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
                 while (!bootComplete(dadb)) {
