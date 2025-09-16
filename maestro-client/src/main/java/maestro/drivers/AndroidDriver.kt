@@ -49,7 +49,6 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -87,7 +86,8 @@ class AndroidDriver(
 
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
-    private var closed = false
+
+    var abruptClose = false
 
     private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
@@ -173,7 +173,7 @@ class AndroidDriver(
     }
 
     override fun close() {
-        if (closed) return
+        if (abruptClose) return
         if (proxySet) {
             resetProxy()
         }
@@ -387,13 +387,13 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
-                    closed = true
+                    abruptClose = true
                     throw MaestroException.DriverTimeout("Android driver unreachable")
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                        closed = true
+                        abruptClose = true
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
                     }
@@ -1253,13 +1253,13 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Device call failed on android with $status", throwable)
-                    closed = true
+                    abruptClose = true
                     throw MaestroException.DriverTimeout("Android driver unreachable")
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while doing android device call")
-                        closed = true
+                        abruptClose = true
                         throw throwable
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
