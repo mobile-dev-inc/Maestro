@@ -388,7 +388,7 @@ class AndroidDriver(
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
                     abruptClose = true
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    throw MaestroException.DriverTimeout("Android driver unreachable", cause = throwable)
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
