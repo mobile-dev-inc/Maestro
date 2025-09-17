@@ -66,6 +66,7 @@ class AndroidDriver(
     private var emulatorName: String = "",
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
+    private var postForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -146,12 +147,12 @@ class AndroidDriver(
 
 
     private fun allocateForwarder() {
-        PORT_TO_FORWARDER[hostPort]?.close()
+        postForwarder?.close()
         PORT_TO_ALLOCATION_POINT[hostPort]?.let {
             LOGGER.warn("Port $hostPort was already allocated. Allocation point: $it")
         }
 
-        PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
+        postForwarder = dadb.tcpForward(
             hostPort,
             hostPort
         )
@@ -183,12 +184,8 @@ class AndroidDriver(
         }
 
         LOGGER.info("[Start] close port forwarder")
-        PORT_TO_FORWARDER[hostPort]?.close()
+        postForwarder?.close()
         LOGGER.info("[Done] close port forwarder")
-
-        LOGGER.info("[Start] Remove host port from port forwarder map")
-        PORT_TO_FORWARDER.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port forwarder map")
 
         LOGGER.info("[Start] Remove host port from port to allocation map")
         PORT_TO_ALLOCATION_POINT.remove(hostPort)
@@ -1286,7 +1283,6 @@ class AndroidDriver(
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
-        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
         private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
