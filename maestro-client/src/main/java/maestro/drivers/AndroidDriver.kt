@@ -148,15 +148,11 @@ class AndroidDriver(
 
     private fun allocateForwarder() {
         postForwarder?.close()
-        PORT_TO_ALLOCATION_POINT[hostPort]?.let {
-            LOGGER.warn("Port $hostPort was already allocated. Allocation point: $it")
-        }
 
         postForwarder = dadb.tcpForward(
             hostPort,
             hostPort
         )
-        PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
     }
 
     private fun awaitLaunch() {
@@ -186,10 +182,6 @@ class AndroidDriver(
         LOGGER.info("[Start] close port forwarder")
         postForwarder?.close()
         LOGGER.info("[Done] close port forwarder")
-
-        LOGGER.info("[Start] Remove host port from port to allocation map")
-        PORT_TO_ALLOCATION_POINT.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port to allocation map")
 
         LOGGER.info("[Start] Uninstall driver from device")
         uninstallMaestroApks()
@@ -1283,7 +1275,6 @@ class AndroidDriver(
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
-        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }
