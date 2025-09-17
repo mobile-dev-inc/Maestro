@@ -66,7 +66,7 @@ class AndroidDriver(
     private var emulatorName: String = "",
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
-    private var postForwarder: AutoCloseable? = null
+    private var portForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -147,9 +147,9 @@ class AndroidDriver(
 
 
     private fun allocateForwarder() {
-        postForwarder?.close()
+        portForwarder?.close()
 
-        postForwarder = dadb.tcpForward(
+        portForwarder = dadb.tcpForward(
             hostPort,
             hostPort
         )
@@ -180,7 +180,7 @@ class AndroidDriver(
         }
 
         LOGGER.info("[Start] close port forwarder")
-        postForwarder?.close()
+        portForwarder?.close()
         LOGGER.info("[Done] close port forwarder")
 
         LOGGER.info("[Start] Uninstall driver from device")
