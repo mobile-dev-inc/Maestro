@@ -88,8 +88,6 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
 
-    var abruptClose = false
-
     private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
 
@@ -170,7 +168,6 @@ class AndroidDriver(
     }
 
     override fun close() {
-        if (abruptClose) return
         if (proxySet) {
             resetProxy()
         }
@@ -376,13 +373,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
-                    abruptClose = true
-                    throw MaestroException.DriverTimeout("Android driver unreachable", cause = throwable)
+                    throw MaestroException.DriverTimeout("Android driver unreachable")
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                        abruptClose = true
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
                     }
@@ -1242,13 +1237,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Device call failed on android with $status", throwable)
-                    abruptClose = true
                     throw MaestroException.DriverTimeout("Android driver unreachable")
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while doing android device call")
-                        abruptClose = true
                         throw throwable
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
