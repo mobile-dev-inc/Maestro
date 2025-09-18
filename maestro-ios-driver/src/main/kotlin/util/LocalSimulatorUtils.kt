@@ -419,19 +419,28 @@ object LocalSimulatorUtils {
 
     fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
+        val effectivePermissionsMap = mutableMapOf<String, String>()
+
         if (permissionsMap.containsKey("all")) {
             val value = permissionsMap.remove("all")
             allPermissions.forEach {
                 when (value) {
-                    "allow" -> permissionsMap.putIfAbsent(it, allowValueForPermission(it))
-                    "deny" -> permissionsMap.putIfAbsent(it, denyValueForPermission(it))
-                    "unset" -> permissionsMap.putIfAbsent(it, "unset")
+                    "allow" -> effectivePermissionsMap.putIfAbsent(it, allowValueForPermission(it))
+                    "deny" -> effectivePermissionsMap.putIfAbsent(it, denyValueForPermission(it))
+                    "unset" -> effectivePermissionsMap.putIfAbsent(it, "unset")
                     else -> throw IllegalArgumentException("Permission 'all' can be set to 'allow', 'deny' or 'unset', not '$value'")
                 }
             }
         }
 
-        val permissionsArgument = permissionsMap
+        // Write the explicit permissions, potentially overriding the 'all' permissions
+        permissionsMap.forEach {
+            if (allPermissions.contains(it.key)) {
+                effectivePermissionsMap[it.key] = it.value
+            }
+        }
+
+        val permissionsArgument = effectivePermissionsMap
             .filter { allPermissions.contains(it.key) }
             .map { "${it.key}=${translatePermissionValue(it.value)}" }
             .joinToString(",")
@@ -472,6 +481,7 @@ object LocalSimulatorUtils {
 
     fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
+        val effectivePermissionsMap = mutableMapOf<String, String>()
 
         permissionsMap.remove("all")?.let { value ->
             val transformedPermissions = simctlPermissions.associateWith { permission ->
@@ -484,11 +494,17 @@ object LocalSimulatorUtils {
                 newValue
             }
 
-            permissionsMap.putAll(transformedPermissions)
+            effectivePermissionsMap.putAll(transformedPermissions)
         }
 
+        // Write the explicit permissions, potentially overriding the 'all' permissions
+        permissionsMap.forEach {
+            if (simctlPermissions.contains(it.key)) {
+                effectivePermissionsMap[it.key] = it.value
+            }
+        }
 
-        permissionsMap
+        effectivePermissionsMap
             .forEach {
                 if (simctlPermissions.contains(it.key)) {
                     when (it.key) {
