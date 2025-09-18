@@ -785,6 +785,30 @@ class Orchestra(
             }
         }
 
+        condition.scriptCondition?.let { value ->
+            // Note that script should have been already evaluated by this point
+
+            if (value.isBlank()) {
+                return false
+            }
+
+            if (value.equals("false", ignoreCase = true)) {
+                return false
+            }
+
+            if (value == "undefined") {
+                return false
+            }
+
+            if (value == "null") {
+                return false
+            }
+
+            if (value.toDoubleOrNull() == 0.0) {
+                return false
+            }
+        }
+
         condition.visible?.let {
             try {
                 findElement(
@@ -817,30 +841,6 @@ class Orchestra(
 
             // Element was actually visible
             if (result != true) {
-                return false
-            }
-        }
-
-        condition.scriptCondition?.let { value ->
-            // Note that script should have been already evaluated by this point
-
-            if (value.isBlank()) {
-                return false
-            }
-
-            if (value.equals("false", ignoreCase = true)) {
-                return false
-            }
-
-            if (value == "undefined") {
-                return false
-            }
-
-            if (value == "null") {
-                return false
-            }
-
-            if (value.toDoubleOrNull() == 0.0) {
                 return false
             }
         }
