@@ -172,7 +172,8 @@ class TestSuiteInteractor(
             .readCommands(flowFile.toPath())
             .withEnv(env)
 
-        var flowName: String = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+        val yaml = YamlCommandReader.getConfig(commands)
+        var flowName: String = yaml?.name ?: flowFile.nameWithoutExtension
 
         logger.info("$shardPrefix Running flow $flowName")
 
@@ -278,6 +279,7 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                properties = yaml?.properties,
             ),
             second = aiOutput,
         )
