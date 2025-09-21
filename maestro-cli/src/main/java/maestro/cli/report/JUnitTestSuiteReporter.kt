@@ -90,7 +90,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val classname: String,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
-        @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,,
+        @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,
         @JacksonXmlElementWrapper(localName = "properties")
         @JacksonXmlProperty(localName = "property")
         val properties: List<TestCaseProperty>? = null,
