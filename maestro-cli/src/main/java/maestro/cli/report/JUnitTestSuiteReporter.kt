@@ -41,7 +41,8 @@ class JUnitTestSuiteReporter(
                     },
                     time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
                     timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it) },
-                    status = flow.status
+                    status = flow.status,
+                    properties = flow.properties?.map { TestCaseProperty(it.key, it.value) }
                 )
             }
     )
@@ -89,12 +90,20 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val classname: String,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
-        @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,
+        @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,,
+        @JacksonXmlElementWrapper(localName = "properties")
+        @JacksonXmlProperty(localName = "property")
+        val properties: List<TestCaseProperty>? = null,
         val failure: Failure? = null,
     )
 
     private data class Failure(
         @JacksonXmlText val message: String,
+    )
+
+    private data class TestCaseProperty(
+        @JacksonXmlProperty(isAttribute = true) val name: String,
+        @JacksonXmlProperty(isAttribute = true) val value: String,
     )
 
     companion object {
