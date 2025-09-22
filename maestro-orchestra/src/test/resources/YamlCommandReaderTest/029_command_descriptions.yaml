@@ -8,4 +8,8 @@ appId: com.example.app
     text: ${username}
 
 - assertVisible:
-    text: "Hello ${username}" 
+    text: "Hello ${username}"
+
+- assertTrue:
+    condition: ${true}
+    label: ${"Check that".concat(" ", "true is still true")}
