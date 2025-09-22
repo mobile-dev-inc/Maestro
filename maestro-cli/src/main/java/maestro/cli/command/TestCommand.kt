@@ -61,6 +61,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
+import maestro.device.Platform
 
 @CommandLine.Command(
     name = "test",
@@ -281,16 +282,21 @@ class TestCommand : Callable<Int> {
             host = parent?.host,
             port = parent?.port,
         )
-        val availableDevices = connectedDevices.map { it.instanceId }.toSet()
+        val availableDevicesIds = connectedDevices.map { it.instanceId }.toSet()
         val deviceIds = getPassedOptionsDeviceIds(plan)
             .filter { device ->
-                if (device !in availableDevices) {
+                if (device !in availableDevicesIds) {
                     throw CliError("Device $device was requested, but it is not connected.")
                 } else {
                     true
                 }
             }
-            .ifEmpty { availableDevices }
+            .ifEmpty {
+                connectedDevices
+                    .filter { device ->
+                        parent?.platform?.let { Platform.fromString(it) == device.platform } ?: true }
+                    .map { it.instanceId }.toSet()
+            }
             .toList()
 
         val missingDevices = requestedShards - deviceIds.size
