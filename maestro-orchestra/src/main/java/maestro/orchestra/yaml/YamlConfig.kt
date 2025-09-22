@@ -21,6 +21,7 @@ data class YamlConfig(
     @JsonAlias("appId") private val _appId: String?,
     
     val url: String?, // Raw url from YAML - preserved to distinguish web vs app configs
+    val browserConfig: YamlBrowserConfig? = null,
     val tags: List<String>? = emptyList(),
     val env: Map<String, String> = emptyMap(),
     val onFlowStart: YamlOnFlowStart?,
@@ -45,11 +46,19 @@ data class YamlConfig(
     }
 
     fun toCommand(flowPath: Path): MaestroCommand {
+        val extWithBrowser = ext.toMutableMap()
+        if (browserConfig != null) {
+            extWithBrowser["browserConfig"] = mapOf(
+                "width" to browserConfig.width,
+                "height" to browserConfig.height
+            )
+        }
+        
         val config = MaestroConfig(
             appId = appId,  // maestro-cli uses url as appId for web flows
             name = name,
             tags = tags,
-            ext = ext.toMap(),
+            ext = extWithBrowser.toMap(),
             onFlowStart = onFlowStart(flowPath),
             onFlowComplete = onFlowComplete(flowPath)
         )
