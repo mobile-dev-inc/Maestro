@@ -12,7 +12,7 @@ internal class CommandDescriptionTest {
 
     @Test
     fun `original description contains raw command details`(
-        @YamlFile("028_command_descriptions.yaml") commands: List<Command>
+        @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
         val jsEngine = GraalJsEngine(platform = "ios")
         jsEngine.putEnv("username", "Alice")
@@ -42,7 +42,7 @@ internal class CommandDescriptionTest {
 
     @Test
     fun `description uses label when available`(
-        @YamlFile("028_command_descriptions.yaml") commands: List<Command>
+        @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
         val jsEngine = GraalJsEngine(platform = "ios")
         jsEngine.putEnv("username", "Bob")
@@ -65,7 +65,7 @@ internal class CommandDescriptionTest {
 
     @Test
     fun `description evaluates script variables`(
-        @YamlFile("028_command_descriptions.yaml") commands: List<Command>
+        @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
         val jsEngine = GraalJsEngine(platform = "ios")
         jsEngine.putEnv("username", "Charlie")
@@ -99,7 +99,7 @@ internal class CommandDescriptionTest {
 
     @Test
     fun `description evaluates scripts in labels`(
-        @YamlFile("028_command_descriptions.yaml") commands: List<Command>
+        @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
         val jsEngine = GraalJsEngine(platform = "ios")
 
