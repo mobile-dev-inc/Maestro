@@ -293,7 +293,8 @@ class TestCommand : Callable<Int> {
             }
             .ifEmpty {
                 connectedDevices
-                    .filter { it.platform == Platform.fromString(parent?.platform) }
+                    .filter { device ->
+                        parent?.platform?.let { Platform.fromString(it) == device.platform } ?: true }
                     .map { it.instanceId }.toSet()
             }
             .toList()
