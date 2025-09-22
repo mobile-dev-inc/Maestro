@@ -2,6 +2,7 @@ package maestro.orchestra
 
 import com.google.common.truth.Truth.assertThat
 import maestro.js.GraalJsEngine
+import maestro.js.RhinoJsEngine
 import maestro.orchestra.yaml.junit.YamlFile
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import org.junit.jupiter.api.Test
@@ -98,10 +99,28 @@ internal class CommandDescriptionTest {
     }
 
     @Test
-    fun `description evaluates scripts in labels`(
+    fun `description evaluates scripts in labels - GraalJS`(
         @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
         val jsEngine = GraalJsEngine(platform = "ios")
+
+        // Assert command with variable
+        val assertCommand = commands[4] as AssertConditionCommand
+        assertThat(assertCommand.originalDescription).isEqualTo("Assert that \${true} is true")
+        assertThat(assertCommand.label).isEqualTo("\${\"Check that\".concat(\" \", \"true is still true\")}")
+        val evaluatedAssert = assertCommand.evaluateScripts(jsEngine)
+        assertThat(evaluatedAssert.label).isEqualTo("Check that true is still true")
+        assertThat(evaluatedAssert.description()).isEqualTo("Check that true is still true")
+        assertThat(evaluatedAssert.originalDescription).isEqualTo("Assert that true is true")
+
+        jsEngine.close()
+    }
+
+    @Test
+    fun `description evaluates scripts in labels - RhinoJS`(
+        @YamlFile("029_command_descriptions.yaml") commands: List<Command>
+    ) {
+        val jsEngine = RhinoJsEngine(platform = "ios")
 
         // Assert command with variable
         val assertCommand = commands[4] as AssertConditionCommand
