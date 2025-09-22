@@ -27,10 +27,10 @@ const getFlowText = (selected: ReplCommand[]): string => {
     
     // Process the parameter lines
     for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line) {
-        // Parameters should have 4-space indentation
-        combinedYaml += '    ' + line + '\n';
+      if (lines[i].trim()) {
+        // Parameters should have appropriate indentation.
+        // Given we're adding 2 characters for '- ', we add 2 spaces to subsequent lines.
+        combinedYaml += '  ' + lines[i] + '\n';
       }
     }
   });
