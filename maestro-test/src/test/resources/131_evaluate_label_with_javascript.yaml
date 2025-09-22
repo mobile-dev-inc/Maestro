@@ -1,5 +1,0 @@
-appId: com.example.app
----
-- assertTrue:
-    label: "1+1 is ${1+1}"
-    condition: "true"

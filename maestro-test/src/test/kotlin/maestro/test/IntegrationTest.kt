@@ -3985,35 +3985,6 @@ class IntegrationTest {
         // Then
         // No test failure - if we reach this point, the test passed successfully
     }
-    
-
-    @Test
-    fun `Case 131 - Evaluate label with JavaScript`() {
-        // Given
-        val commands = readCommands("131_evaluate_label_with_javascript")
-        val receivedLogs = mutableListOf<String>()
-        val driver = driver {
-            // No specific driver setup needed for this test
-        }
-
-        // When
-        Maestro(driver).use {
-            runBlocking {
-                orchestra(
-                    it,
-                    onCommandMetadataUpdate = { _, metadata ->
-                        receivedLogs += metadata.logMessages
-                        metadata.labeledCommand?.let { receivedLogs.add(it) }
-                    }
-                ).runFlow(commands)
-            }
-        }
-
-        // Then
-        assertThat(receivedLogs).containsExactly(
-            "1+1 is 2",
-        ).inOrder()
-    }
 
     private fun orchestra(
         maestro: Maestro,

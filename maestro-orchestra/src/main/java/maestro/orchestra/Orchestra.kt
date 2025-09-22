@@ -744,11 +744,8 @@ class Orchestra(
     }
 
     private fun updateMetadata(rawCommand: MaestroCommand, metadata: CommandMetadata) {
-        val updatedMetadata = metadata.copy(
-            labeledCommand = metadata.evaluatedCommand?.asCommand()?.label
-        )
-        rawCommandToMetadata[rawCommand] = updatedMetadata
-        onCommandMetadataUpdate(rawCommand, updatedMetadata)
+        rawCommandToMetadata[rawCommand] = metadata
+        onCommandMetadataUpdate(rawCommand, metadata)
     }
 
     private fun getMetadata(rawCommand: MaestroCommand) = rawCommandToMetadata.getOrPut(rawCommand) {
