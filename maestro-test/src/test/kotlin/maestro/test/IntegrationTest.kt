@@ -2865,6 +2865,33 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 098 - Execute conditions eagerly`() {
+        // Given
+        val commands = readCommands("098_runscript_conditionals_eager")
+
+        // 'Click me' is not present in the view hierarchy
+        val driver = driver {}
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            orchestra(
+                maestro = it,
+                onCommandMetadataUpdate = { _, metadata ->
+                    receivedLogs += metadata.logMessages
+                }
+            ).runFlow(commands)
+        }
+
+        // Then
+        // test completes
+        driver.assertEvents(emptyList())
+        // and script did not run
+        assertThat(receivedLogs).isEmpty()
+    }
+
+    @Test
     fun `Case 099 - Screen recording`() {
         // Given
         val commands = readCommands("099_screen_recording")
