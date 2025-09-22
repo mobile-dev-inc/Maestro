@@ -1,26 +1,45 @@
-import FlyingFox
+import Foundation
 import XCTest
+import FlyingFox
 import os
 
 @MainActor
 struct LaunchAppHandler: HTTPHandler {
     
     private let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier!,
-        category: String(describing: Self.self)
+           subsystem: Bundle.main.bundleIdentifier!,
+           category: String(describing: Self.self)
     )
- 
-    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> HTTPResponse {
+    
+    func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
+        // Decode request body to extract appId and optional launch arguments
         guard let requestBody = try? await JSONDecoder().decode(LaunchAppRequest.self, from: request.bodyData) else {
-            return AppError(type: .precondition, message: "incorrect request body provided").httpResponse
+            return AppError(type: .precondition, message: "Incorrect request body for launching app").httpResponse
         }
         
-        NSLog("[Start] Launching app with bundle ID: \(requestBody.bundleId)")
-        XCUIApplication(bundleIdentifier: requestBody.bundleId).activate()
-        NSLog("[Done] Launching app with bundle ID: \(requestBody.bundleId)")
+        let app = XCUIApplication(bundleIdentifier: requestBody.appId)
 
-        
-        return HTTPResponse(statusCode: .ok)
+        // Set launch arguments if available
+        let arguments = requestBody.launchArguments
+        let flattenedArgs = arguments.flatMap { key, value -> [String] in
+            return ["--\(key)", "\(value)"]
+        }
+        app.launchArguments.append(contentsOf: flattenedArgs)
+
+
+        NSLog("[Start] Launching app \(requestBody.appId) with arguments: \(app.launchArguments) and environment: \(app.launchEnvironment)")
+
+        do {
+            app.launch()
+
+            NSLog("[End] Successfully launched app \(requestBody.appId)")
+            return HTTPResponse(statusCode: .ok)
+        } catch {
+            NSLog("[Error] Failed to launch app \(requestBody.appId): \(error.localizedDescription)")
+            return AppError(
+                type: .internal,
+                message: "Failed to launch app. Error: \(error.localizedDescription)"
+            ).httpResponse
+        }
     }
-    
 }
