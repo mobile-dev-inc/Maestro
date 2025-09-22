@@ -10,9 +10,32 @@ import { useDeviceContext } from "../../context/DeviceContext";
 import { useRepl } from '../../context/ReplContext';
 
 const getFlowText = (selected: ReplCommand[]): string => {
-  return selected
-    .map((c) => (c.yaml.endsWith("\n") ? c.yaml : `${c.yaml}\n`))
-    .join("");
+  let combinedYaml = '';
+  
+  // Process each command independently
+  selected.forEach(command => {
+    // Get the first line of the command YAML
+    const lines = command.yaml.split('\n');
+    if (lines.length === 0) return;
+    
+    // Process the first line (command line)
+    let firstLine = lines[0].trim();
+    if (!firstLine.startsWith('-')) {
+      firstLine = `- ${firstLine}`;
+    }
+    combinedYaml += firstLine + '\n';
+    
+    // Process the parameter lines
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim()) {
+        // Parameters should have appropriate indentation.
+        // Given we're adding 2 characters for '- ', we add 2 spaces to subsequent lines.
+        combinedYaml += '  ' + lines[i] + '\n';
+      }
+    }
+  });
+  
+  return combinedYaml;
 };
 
 const ReplView = () => {
