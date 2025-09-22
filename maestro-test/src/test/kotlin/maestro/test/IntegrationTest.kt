@@ -2849,6 +2849,7 @@ class IntegrationTest {
                     it,
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
+                        metadata.labeledCommand?.let { receivedLogs.add(it) }
                     }
                 ).runFlow(commands)
             }
@@ -3984,7 +3985,7 @@ class IntegrationTest {
         // Then
         // No test failure - if we reach this point, the test passed successfully
     }
-    
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

@@ -86,7 +86,8 @@ data class SwipeCommand(
         return copy(
             elementSelector = elementSelector?.evaluateScripts(jsEngine),
             startRelative = startRelative?.evaluateScripts(jsEngine),
-            endRelative = endRelative?.evaluateScripts(jsEngine)
+            endRelative = endRelative?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -150,6 +151,7 @@ data class ScrollUntilVisibleCommand(
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -161,7 +163,7 @@ data class ScrollUntilVisibleCommand(
     }
 }
 
-class ScrollCommand(
+data class ScrollCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -184,11 +186,13 @@ class ScrollCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
-class BackPressCommand(
+data class BackPressCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -211,11 +215,13 @@ class BackPressCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): BackPressCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
-class HideKeyboardCommand(
+data class HideKeyboardCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -238,7 +244,9 @@ class HideKeyboardCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): HideKeyboardCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
@@ -253,7 +261,8 @@ data class CopyTextFromCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): CopyTextFromCommand {
         return copy(
-            selector = selector.evaluateScripts(jsEngine)
+            selector = selector.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -291,6 +300,7 @@ data class TapOnElementCommand(
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
         return copy(
             selector = selector.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -336,6 +346,7 @@ data class TapOnPointV2Command(
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
         return copy(
             point = point.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -363,6 +374,7 @@ data class AssertCommand(
         return copy(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -397,7 +409,8 @@ data class AssertConditionCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             condition = condition.evaluateScripts(jsEngine),
-            timeout = timeout?.evaluateScripts(jsEngine)
+            timeout = timeout?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -499,7 +512,8 @@ data class LaunchAppCommand(
             launchArguments = launchArguments?.entries?.associate {
                 val value = it.value
                 it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -516,6 +530,7 @@ data class ApplyConfigurationCommand(
     override fun evaluateScripts(jsEngine: JsEngine): ApplyConfigurationCommand {
         return copy(
             config = config.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -539,6 +554,7 @@ data class OpenLinkCommand(
     override fun evaluateScripts(jsEngine: JsEngine): OpenLinkCommand {
         return copy(
             link = link.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -603,6 +619,7 @@ data class StopAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -619,6 +636,7 @@ data class KillAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -635,6 +653,7 @@ data class ClearStateCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -740,6 +759,7 @@ data class RunFlowCommand(
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -758,6 +778,7 @@ data class SetLocationCommand(
         return copy(
             latitude = latitude.evaluateScripts(jsEngine),
             longitude = longitude.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -815,6 +836,7 @@ data class RepeatCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             times = times?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -851,6 +873,7 @@ data class RetryCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             maxRetries = maxRetries?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -869,7 +892,8 @@ data class DefineVariablesCommand(
         return copy(
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -898,6 +922,7 @@ data class RunScriptCommand(
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -976,7 +1001,8 @@ data class TravelCommand(
                     latitude = it.latitude.evaluateScripts(jsEngine),
                     longitude = it.longitude.evaluateScripts(jsEngine)
                 )
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -994,6 +1020,7 @@ data class StartRecordingCommand(
     override fun evaluateScripts(jsEngine: JsEngine): StartRecordingCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -1009,7 +1036,8 @@ data class AddMediaCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) }
+            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
