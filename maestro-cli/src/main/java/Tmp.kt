@@ -8,6 +8,8 @@ import maestro.Driver
 import maestro.Maestro
 import maestro.Point
 import maestro.SwipeDirection
+import maestro.TreeNode
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
 import maestro.cli.runner.TestRunner
@@ -42,6 +44,19 @@ data class Frame(
     val commands: List<FrameCommands>,
 )
 
+data class HierarchyElement(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+    val attributes: Map<String, String>,
+)
+
+data class HierarchyEvent(
+    val timestampMs: Long,
+    val hierarchy: List<HierarchyElement>,
+)
+
 sealed interface Interaction {
     val type: String
     val timestampMs: Long
@@ -69,6 +84,7 @@ sealed interface Interaction {
 interface InteractionListener {
     fun onTap(x: Float, y: Float)
     fun onSwipe(startX: Float, startY: Float, endX: Float, endY: Float, durationMs: Long)
+    fun onHierarchy(hierarchy: List<HierarchyElement>)
 }
 
 class InteractionDriver(
@@ -78,6 +94,21 @@ class InteractionDriver(
 
     private val deviceInfo: DeviceInfo by lazy {
         delegate.deviceInfo()
+    }
+
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
+        return delegate.contentDescriptor(excludeKeyboardElements).also { hierarchy ->
+            val hierarchyElements = hierarchy.aggregate().mapNotNull { it.toUiElementOrNull() }.map {
+                HierarchyElement(
+                    x = it.bounds.x / deviceInfo.widthGrid.toFloat(),
+                    y = it.bounds.y / deviceInfo.heightGrid.toFloat(),
+                    width = it.bounds.width / deviceInfo.widthGrid.toFloat(),
+                    height = it.bounds.height / deviceInfo.heightGrid.toFloat(),
+                    attributes = it.treeNode.attributes,
+                )
+            }
+            listener.onHierarchy(hierarchyElements)
+        }
     }
 
     override fun tap(point: Point) {
@@ -188,10 +219,21 @@ fun main() {
     val screenRecordingFile = File(outputDir, "screen.mp4")
     val framesFile = File(outputDir, "frames.json")
     val interactionsFile = File(outputDir, "interactions.json")
+    val hierarchyFile = File(outputDir, "hierarchies.json")
     val frames = mutableListOf<Frame>()
     val interactions = mutableListOf<Interaction>()
+    val hierarchies = mutableListOf<HierarchyEvent>()
     val startTime = AtomicLong()
     val interactionListener = object : InteractionListener {
+
+        override fun onHierarchy(hierarchy: List<HierarchyElement>) {
+            hierarchies.add(
+                HierarchyEvent(
+                    timestampMs = System.currentTimeMillis() - startTime.get(),
+                    hierarchy = hierarchy,
+                )
+            )
+        }
 
         override fun onTap(x: Float, y: Float) {
             interactions.add(
@@ -229,7 +271,7 @@ fun main() {
                 TestRunner.runSingle(
                     maestro = maestro,
                     device = null,
-                    flowFile = File("/Users/leland/test-workspace/Perplexity.yaml"),
+                    flowFile = File("/Users/leland/test-workspace/Waymo.yaml"),
                     env = emptyMap(),
                     resultView = object : ResultView {
                         override fun setState(state: UiState) {
@@ -256,6 +298,7 @@ fun main() {
 //    useMaestroIos(interactionListener, runFlow)
     jacksonObjectMapper().writeValue(framesFile, frames)
     jacksonObjectMapper().writeValue(interactionsFile, interactions)
+    jacksonObjectMapper().writeValue(hierarchyFile, hierarchies)
 }
 
 fun useMaestroAndroid(interactionListener: InteractionListener, block: (Maestro) -> Unit) {
