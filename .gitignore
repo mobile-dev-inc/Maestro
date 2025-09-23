@@ -14,5 +14,12 @@ bin
 # media assets
 maestro-orchestra/src/test/resources/media/assets/*
 
+# Generated artifacts required for CLI operation, but not checked in git
+maestro-ios-driver/src/main/resources/maestro-driver-ios.zip
+maestro-ios-driver/src/main/resources/maestro-driver-iosUITests-Runner.zip
+
+maestro-client/src/main/resources/maestro-app.apk
+maestro-client/src/main/resources/maestro-server.apk
+
 # Local files
 local/
