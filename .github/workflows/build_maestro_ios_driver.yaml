@@ -1,0 +1,36 @@
+name: Build Maestro iOS driver
+
+on:
+  workflow_dispatch:
+    inputs:
+      development_team_id:
+        description: "Development team id for your Apple account (required for real iOS device)"
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - 'maestro-ios-xctest-runner/**'
+
+permissions:
+  contents: write  # allow committing back to the repo
+
+jobs:
+  build_ios_driver:
+    name: Build & Commit iOS Driver
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build iOS driver
+        run: |
+          DEVELOPMENT_TEAM="${{ github.event.inputs.development_team_id || '' }}" sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh
+
+      - name: Commit updated driver
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore(ios-driver): update built Maestro iOS runner"
+          file_pattern: |
+            maestro-ios-xctest-runner/**
