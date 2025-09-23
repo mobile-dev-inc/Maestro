@@ -2826,7 +2826,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 098 - Execute Javascript conditionally`() {
+    fun `Case 098a - Execute Javascript conditionally`() {
         // Given
         val commands = readCommands("098_runscript_conditionals")
 
@@ -2865,7 +2865,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 098 - Execute conditions eagerly`() {
+    fun `Case 098b - Execute conditions eagerly`() {
         // Given
         val commands = readCommands("098_runscript_conditionals_eager")
 
@@ -2876,12 +2876,14 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(
-                maestro = it,
-                onCommandMetadataUpdate = { _, metadata ->
-                    receivedLogs += metadata.logMessages
-                }
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    maestro = it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
         }
 
         // Then
