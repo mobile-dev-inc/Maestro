@@ -1,8 +1,11 @@
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dadb.Dadb
 import device.SimctlIOSDevice
+import io.ktor.utils.io.printStack
 import ios.LocalIOSDevice
 import ios.xctest.XCTestIOSDevice
+import kotlinx.coroutines.runBlocking
+import kotlinx.html.emptyMap
 import maestro.DeviceInfo
 import maestro.Driver
 import maestro.Maestro
@@ -10,8 +13,11 @@ import maestro.Point
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.cli.report.FlowAIOutput
+import maestro.cli.report.FlowDebugOutput
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
+import maestro.cli.runner.MaestroCommandRunner
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
@@ -21,6 +27,9 @@ import maestro.device.Platform
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.orchestra.SourceLocation
+import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
 import okio.sink
 import util.IOSDeviceType
@@ -211,11 +220,9 @@ class InteractionDriver(
     }
 }
 
-fun main() {
-    val outputDir = File("/Users/leland/Downloads/out").apply {
-        if (exists()) deleteRecursively()
-        mkdirs()
-    }
+suspend fun recordFlow(outputDir: File, flowFile: File, env: Map<String, String>) {
+    if (outputDir.exists()) outputDir.deleteRecursively()
+    outputDir.mkdirs()
     val screenRecordingFile = File(outputDir, "screen.mp4")
     val framesFile = File(outputDir, "frames.json")
     val interactionsFile = File(outputDir, "interactions.json")
@@ -264,16 +271,16 @@ fun main() {
             )
         }
     }
-    val runFlow: (Maestro) -> Unit = { maestro ->
+    val runFlow: suspend (Maestro) -> Unit = { maestro ->
         screenRecordingFile.sink().use { sink ->
             maestro.startScreenRecording(sink).use {
                 startTime.set(System.currentTimeMillis())
-                TestRunner.runSingle(
+                val debugOutput = FlowDebugOutput()
+                MaestroCommandRunner.runCommands(
+                    flowName = flowFile.nameWithoutExtension,
                     maestro = maestro,
                     device = null,
-                    flowFile = File("/Users/leland/test-workspace/Waymo.yaml"),
-                    env = emptyMap(),
-                    resultView = object : ResultView {
+                    view = object : ResultView {
                         override fun setState(state: UiState) {
                             when (state) {
                                 is UiState.Error -> throw IllegalStateException(state.message)
@@ -288,9 +295,17 @@ fun main() {
                             }
                         }
                     },
-                    debugOutputPath = Paths.get("/Users/leland/Downloads/maestro-debug"),
-                    testOutputDir = null,
+                    commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(env.withDefaultEnvVars(flowFile)),
+                    debugOutput = debugOutput,
+                    aiOutput = FlowAIOutput(
+                        flowName = flowFile.nameWithoutExtension,
+                        flowFile = flowFile,
+                    ),
+                    analyze = false,
+                    apiKey = null,
+                    testOutputDir = outputDir.toPath(),
                 )
+                debugOutput.exception?.let { e -> throw e }
             }
         }
     }
@@ -301,7 +316,17 @@ fun main() {
     jacksonObjectMapper().writeValue(hierarchyFile, hierarchies)
 }
 
-fun useMaestroAndroid(interactionListener: InteractionListener, block: (Maestro) -> Unit) {
+fun main() {
+    runBlocking {
+        recordFlow(
+            outputDir = File("/Users/leland/.maestro/test1"),
+            flowFile = File("/Users/leland/test-workspace/ChatGPT.yaml"),
+            env = emptyMap(),
+        )
+    }
+}
+
+suspend fun useMaestroAndroid(interactionListener: InteractionListener, block: suspend (Maestro) -> Unit) {
     Dadb.discover()!!.use { dadb ->
         Maestro.android(InteractionDriver(AndroidDriver(dadb), interactionListener)).use { maestro ->
             block(maestro)
@@ -309,7 +334,7 @@ fun useMaestroAndroid(interactionListener: InteractionListener, block: (Maestro)
     }
 }
 
-fun useMaestroIos(interactionListener: InteractionListener, block: (Maestro) -> Unit) {
+suspend fun useMaestroIos(interactionListener: InteractionListener, block: suspend (Maestro) -> Unit) {
     val defaultXctestHost = "127.0.0.1"
     val defaultXcTestPort = 22087
     val reinstallDriver = true
