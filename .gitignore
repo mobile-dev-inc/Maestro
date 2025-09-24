@@ -16,6 +16,3 @@ maestro-orchestra/src/test/resources/media/assets/*
 
 # Local files
 local/
-
-# IntelliJ IDEA files
-.idea
