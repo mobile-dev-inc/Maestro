@@ -1,0 +1,2 @@
+# External plugins should be loaded dynamically from JAR files
+# This file is kept for potential future built-in plugins
