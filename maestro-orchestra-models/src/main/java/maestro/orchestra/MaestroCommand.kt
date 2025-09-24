@@ -60,6 +60,7 @@ data class MaestroCommand(
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
     val runScriptCommand: RunScriptCommand? = null,
+    val runShellCommand: RunShellCommand? = null,
     val waitForAnimationToEndCommand: WaitForAnimationToEndCommand? = null,
     val evalScriptCommand: EvalScriptCommand? = null,
     val scrollUntilVisible: ScrollUntilVisibleCommand? = null,
@@ -105,6 +106,7 @@ data class MaestroCommand(
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
         runScriptCommand = command as? RunScriptCommand,
+        runShellCommand = command as? RunShellCommand,
         waitForAnimationToEndCommand = command as? WaitForAnimationToEndCommand,
         evalScriptCommand = command as? EvalScriptCommand,
         scrollUntilVisible = command as? ScrollUntilVisibleCommand,
@@ -150,6 +152,7 @@ data class MaestroCommand(
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
         runScriptCommand != null -> runScriptCommand
+        runShellCommand != null -> runShellCommand
         waitForAnimationToEndCommand != null -> waitForAnimationToEndCommand
         evalScriptCommand != null -> evalScriptCommand
         scrollUntilVisible != null -> scrollUntilVisible

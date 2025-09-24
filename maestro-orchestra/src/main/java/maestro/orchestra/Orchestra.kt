@@ -47,6 +47,7 @@ import maestro.utils.Insights
 import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
+import maestro.utils.CommandLine
 import okhttp3.OkHttpClient
 import okio.Buffer
 import okio.Sink
@@ -58,6 +59,7 @@ import java.lang.Long.max
 import java.nio.file.Path
 import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
+
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -355,6 +357,7 @@ class Orchestra(
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
             is DefineVariablesCommand -> defineVariablesCommand(command)
             is RunScriptCommand -> runScriptCommand(command)
+            is RunShellCommand -> runShellCommand(command)
             is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
             is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
@@ -539,6 +542,43 @@ class Orchestra(
 
             // We do not actually know if there were any mutations, but we assume there were
             true
+        } else {
+            throw CommandSkipped
+        }
+    }
+
+    fun runShellCommand(command: RunShellCommand): Boolean {
+        return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
+            try {
+
+                val process = CommandLine.runCommand(
+                    command = command.command,
+                    workingDirectory = command.workingDirectory,
+                    environment = command.env,
+                    timeout = command.timeout
+                )
+
+                val exitCode = process.exitValue()
+                if (exitCode != 0 && !command.optional) {
+                    val errorMessage = process.errorStream.bufferedReader().readText()
+                    throw MaestroException.CommandLineException(
+                        "Shell command '${command.command}' failed with exit code $exitCode: $errorMessage"
+                    )
+                }
+                val output = process.inputStream.bufferedReader().readText()
+                jsEngine.putEnv(command.outputVariable ?: "COMMAND_LINE_OUTPUT", CommandLine.escapeCommandLineOutput(output))
+                true
+            } catch (e: Exception) {
+                if (command.optional) {
+                    logger.warn("Optional shell command '${command.command}' failed: ${e.message}")
+                    false
+                } else {
+                    throw MaestroException.CommandLineException(
+                        "Failed to execute shell command '${command.command}' with error: ${e.message}",
+                        e
+                    )
+                }
+            }
         } else {
             throw CommandSkipped
         }
