@@ -17,8 +17,10 @@ fi
 
 rm -rf samples/ samples.zip
 mkdir -p samples/
+mkdir -p samples/wikipedia_es_ES
 cp -r apps/wikipedia.apk apps/wikipedia.zip samples/
 cp -r workspaces/wikipedia/* samples/
+cp -r workspaces/wikipedia_es_ES/* samples/wikipedia_es_ES
 cp samples/wikipedia.apk samples/sample.apk # The name is being depended upon.
 cp samples/wikipedia.zip samples/sample.zip # The name is being depended upon.
 cd samples/
