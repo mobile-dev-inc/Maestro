@@ -143,6 +143,11 @@ class FakeDriver : Driver {
         events.add(Event.ClearKeychain)
     }
 
+    override fun setBiometry(result: Boolean) {
+        ensureOpen()
+        events.add(Event.Biometry(result))
+    }
+
     override fun tap(point: Point) {
         ensureOpen()
 
@@ -502,6 +507,10 @@ class FakeDriver : Driver {
         object TakeScreenshot : Event()
 
         object ClearKeychain : Event()
+
+        data class Biometry(
+            val result: Boolean
+        ) : Event()
 
         data class SetLocation(
             val latitude: Double,
