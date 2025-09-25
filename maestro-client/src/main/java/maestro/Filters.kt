@@ -229,11 +229,14 @@ object Filters {
 
     fun index(idx: Int): ElementFilter {
         return { nodes ->
-            listOfNotNull(
-                nodes
-                    .sortedWith(INDEX_COMPARATOR)
-                    .getOrNull(idx)
-            )
+            val sortedNodes = nodes.sortedWith(INDEX_COMPARATOR)
+            val resolvedIndex = if (idx >= 0) idx else sortedNodes.size + idx
+
+            if (resolvedIndex < 0) {
+                emptyList()
+            } else {
+                listOfNotNull(sortedNodes.getOrNull(resolvedIndex))
+            }
         }
     }
 
