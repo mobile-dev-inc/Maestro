@@ -31,6 +31,7 @@ import maestro.cli.view.yellow
 import maestro.utils.CliInsights
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
+import maestro.cli.analytics.AnalyticsEvents
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.lang.StringBuilder
@@ -94,6 +95,12 @@ class PrintHierarchyCommand : Runnable {
             flattenDebugOutput = false,
             printToConsole = parent?.verbose == true,
         )
+        
+        // Track print hierarchy start
+        val platform = parent?.platform ?: "unknown"
+        val startTime = System.currentTimeMillis()
+        AnalyticsEvents.trackPrintHierarchyStart(platform)
+        
 
         MaestroSessionManager.newSession(
             host = parent?.host,
@@ -149,6 +156,14 @@ class PrintHierarchyCommand : Runnable {
                 println(hierarchy)
             }
         }
+        
+        // Track successful completion
+        val duration = System.currentTimeMillis() - startTime
+        AnalyticsEvents.trackPrintHierarchyFinished(
+            platform = platform,
+            success = true,
+            durationMs = duration
+        )
     }
     
     private fun processTreeToCSV(
