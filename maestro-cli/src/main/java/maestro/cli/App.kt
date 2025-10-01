@@ -21,6 +21,7 @@ package maestro.cli
 
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.AnalyticsEvents
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
@@ -114,8 +115,7 @@ fun main(args: Array<String>) {
     // https://stackoverflow.com/a/17544259
     try {
         System.setProperty("apple.awt.UIElement", "true")
-
-        Analytics.maybeAskToEnableAnalytics()
+        Analytics.warnAndEnableAnalyticsIfNotDisable()
 
         Dependencies.install()
         Updates.fetchUpdatesAsync()
@@ -149,7 +149,8 @@ fun main(args: Array<String>) {
                 1
             }
 
-        Analytics.maybeUploadAnalyticsAsync(args[0])
+        // Track CLI run
+        AnalyticsEvents.trackCliCommandRun(args[0])
 
         val generateCompletionCommand = commandLine.subcommands["generate-completion"]
         generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)

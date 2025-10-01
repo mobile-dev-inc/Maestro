@@ -570,6 +570,39 @@ class ApiClient(
     }
 
 
+    fun getUser(authToken: String): User {
+        val baseUrl = "$baseUrl/v2/maestro-studio/user"
+
+        println("baseUrl: $baseUrl")
+
+        val request = Request.Builder()
+          .header("Authorization", "Bearer $authToken")
+          .url(baseUrl)
+          .get()
+          .build()
+
+        val response = try {
+          client.newCall(request).execute()
+        } catch (e: IOException) {
+          throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                  statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val user = JSON.readValue(responseBody, User::class.java)
+                return user
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -660,6 +693,21 @@ data class RenderState(
     val error: String?,
     val downloadUrl: String?,
 )
+
+
+data class User(
+  val id: String,
+  val email: String,
+  val firstName: String,
+  val lastName: String,
+  val status: String,
+  val role: String,
+  val workOSOrgId: String,
+  val profilePictureUrl: String? = null,
+) {
+  val name: String
+    get() = "$firstName $lastName"
+}
 
 data class CliVersion(
     val major: Int,
