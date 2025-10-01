@@ -23,6 +23,7 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.AnalyticsEvents
 import maestro.cli.graphics.LocalVideoRenderer
 import maestro.cli.graphics.RemoteVideoRenderer
 import maestro.cli.graphics.SkiaFrameRenderer
@@ -86,6 +87,11 @@ class RecordCommand : Callable<Int> {
     private var debugOutput: String? = null
 
     override fun call(): Int {
+        // Track record start
+        val startTime = System.currentTimeMillis()
+        val platform = parent?.platform ?: "unknown"
+        AnalyticsEvents.trackRecordStart(platform)
+
         if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
@@ -159,6 +165,10 @@ class RecordCommand : Callable<Int> {
                 videoRenderer.render(screenRecording, frames)
 
                 TestDebugReporter.deleteOldFiles()
+
+                // Track record completion
+                val duration = System.currentTimeMillis() - startTime
+                AnalyticsEvents.trackRecordFinished(platform = platform, durationMs = duration)
 
                 exitCode
             },
