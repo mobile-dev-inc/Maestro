@@ -24,6 +24,7 @@ import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewM
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.web.WebInteractor
+import maestro.cli.analytics.AnalyticsEvents
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -85,9 +86,27 @@ class CloudInteractor(
         val authToken = auth.getAuthToken(apiKey)
         if (authToken == null) throw CliError("Failed to get authentication token")
 
+        // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
+        val triggeredPlatform = when {
+            androidApiLevel != null -> "android"
+            iOSVersion != null || deviceOs != null -> "ios"
+            flowFile.isWebFlow() -> "web"
+            else -> "unknown"
+        }
+        AnalyticsEvents.trackCloudUploadTriggered(
+            projectId = projectId,
+            platform = triggeredPlatform,
+            isBinaryUpload = appBinaryId != null,
+            usesEnvironment = env.isNotEmpty(),
+            deviceModel = deviceModel,
+            deviceOs = deviceOs
+        )
+
+        val uploadStartTime = System.currentTimeMillis()
+
         PrintUtils.message("Uploading Flow(s)...")
 
-        TemporaryDirectory.use { tmpDir ->
+        val uploadResponse = TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
             WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
             val progressBar = ProgressBar(20)
@@ -122,12 +141,24 @@ class CloudInteractor(
                 deviceOs = deviceOs
             )
 
+            // Track cloud upload start after we have the response with actual platform
+            val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
+            AnalyticsEvents.trackCloudUploadStart(
+                projectId = projectId,
+                platform = platform,
+                isBinaryUpload = appBinaryId != null,
+                usesEnvironment = env.isNotEmpty(),
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
+            )
+
             val project = requireNotNull(projectId)
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
                 if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
-            return printMaestroCloudResponse(
+
+            printMaestroCloudResponse(
                 async,
                 authToken,
                 failOnCancellation,
@@ -142,6 +173,16 @@ class CloudInteractor(
                 projectId,
             )
         }
+
+        // Track finish
+        val uploadDuration = System.currentTimeMillis() - uploadStartTime
+        AnalyticsEvents.trackCloudUploadFinished(
+            projectId = projectId,
+            success = uploadResponse == 0,
+            durationMs = uploadDuration
+        )
+
+        return uploadResponse
     }
 
     private fun getAppFile(
@@ -193,7 +234,6 @@ class CloudInteractor(
             PrintUtils.message(uploadUrl)
 
             if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
-
             return 0
         } else {
 
@@ -323,7 +363,6 @@ class CloudInteractor(
         PrintUtils.warn("* To extend the timeout, run maestro with this option `maestro cloud --timeout=<timeout in minutes>`")
 
         PrintUtils.warn("* Follow the results of your upload here:\n$uploadUrl")
-
 
         return if (failOnTimeout) {
             PrintUtils.message("Process will exit with code 1 (FAIL)")
