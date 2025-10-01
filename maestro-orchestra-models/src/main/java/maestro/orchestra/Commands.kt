@@ -278,6 +278,7 @@ data class TapOnElementCommand(
     val longPress: Boolean? = null,
     val repeat: TapRepeat? = null,
     val waitToSettleTimeoutMs: Int? = null,
+    val elementRelativePoint: String? = null, // New parameter for element-relative coordinates
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -285,7 +286,8 @@ data class TapOnElementCommand(
     override val originalDescription: String
         get() {
             val optional = if (optional || selector.optional) "(Optional) " else ""
-            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
+            val pointInfo = elementRelativePoint?.let { " at $it" } ?: ""
+            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}$pointInfo"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {

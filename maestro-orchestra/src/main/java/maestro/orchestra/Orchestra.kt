@@ -27,7 +27,9 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.Point
 import maestro.ScreenRecording
+import maestro.UiElement
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -1053,16 +1055,34 @@ class Orchestra(
     ): Boolean {
         val result = findElement(command.selector, optional = command.optional)
 
-        maestro.tap(
-            element = result.element,
-            initialHierarchy = result.hierarchy,
-            retryIfNoChange = retryIfNoChange,
-            waitUntilVisible = waitUntilVisible,
-            longPress = command.longPress ?: false,
-            appId = config?.appId,
-            tapRepeat = command.repeat,
-            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-        )
+
+        // Handle element-relative tap if specified
+        val elementRelativePoint = command.elementRelativePoint
+        if (elementRelativePoint != null) {
+            val tapPoint = calculateElementRelativePoint(result.element, elementRelativePoint)
+            println("Element-relative tap: calculated point $tapPoint within element bounds ${result.element.bounds}")
+            
+            maestro.tap(
+                x = tapPoint.x,
+                y = tapPoint.y,
+                retryIfNoChange = retryIfNoChange,
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        } else {
+            // Default behavior: tap at element center
+            maestro.tap(
+                element = result.element,
+                initialHierarchy = result.hierarchy,
+                retryIfNoChange = retryIfNoChange,
+                waitUntilVisible = waitUntilVisible,
+                longPress = command.longPress ?: false,
+                appId = config?.appId,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        }
 
         return true
     }
@@ -1122,6 +1142,10 @@ class Orchestra(
         }
 
         return true
+    }
+
+    private fun calculateElementRelativePoint(element: UiElement, point: String): Point {
+        return CoordinateUtils.calculateElementRelativePoint(element, point)
     }
 
     private fun findElement(
