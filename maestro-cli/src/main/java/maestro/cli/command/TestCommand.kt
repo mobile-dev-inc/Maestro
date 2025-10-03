@@ -29,7 +29,9 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.analytics.AnalyticsEvents
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.TestRunFinishedEvent
+import maestro.cli.analytics.TestRunStartedEvent
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
@@ -256,24 +258,24 @@ class TestCommand : Callable<Int> {
         val platform = parent?.platform ?: "unknown"
         val deviceCount = getDeviceCount(executionPlan)
 
-        AnalyticsEvents.trackTestRunStart(
+        Analytics.trackEvent(TestRunStartedEvent(
             flowCount = flowCount,
             deviceCount = deviceCount,
             platform = platform
-        )
+        ))
 
         val result = handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
         
         // Track test execution finish
         val allSuccess = result == 0
         val duration = System.currentTimeMillis() - startTime
-        AnalyticsEvents.trackTestRunFinished(
+        Analytics.trackEvent(TestRunFinishedEvent(
             flowCount = flowCount,
             deviceCount = deviceCount,
             platform = platform,
             allSuccess = allSuccess,
-            duration = duration
-        )
+            durationMs = duration
+        ))
 
         return result
     }

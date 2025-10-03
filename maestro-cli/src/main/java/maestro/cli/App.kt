@@ -21,7 +21,7 @@ package maestro.cli
 
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
-import maestro.cli.analytics.AnalyticsEvents
+import maestro.cli.analytics.CliCommandRunEvent
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
@@ -150,7 +150,7 @@ fun main(args: Array<String>) {
             }
 
         // Track CLI run
-        AnalyticsEvents.trackCliCommandRun(args[0])
+        Analytics.trackEvent(CliCommandRunEvent(command = args[0]))
 
         val generateCompletionCommand = commandLine.subcommands["generate-completion"]
         generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)

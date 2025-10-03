@@ -23,7 +23,9 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.analytics.AnalyticsEvents
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.RecordFinishedEvent
+import maestro.cli.analytics.RecordStartedEvent
 import maestro.cli.graphics.LocalVideoRenderer
 import maestro.cli.graphics.RemoteVideoRenderer
 import maestro.cli.graphics.SkiaFrameRenderer
@@ -90,7 +92,7 @@ class RecordCommand : Callable<Int> {
         // Track record start
         val startTime = System.currentTimeMillis()
         val platform = parent?.platform ?: "unknown"
-        AnalyticsEvents.trackRecordStart(platform)
+        Analytics.trackEvent(RecordStartedEvent(platform = platform))
 
         if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
@@ -168,7 +170,7 @@ class RecordCommand : Callable<Int> {
 
                 // Track record completion
                 val duration = System.currentTimeMillis() - startTime
-                AnalyticsEvents.trackRecordFinished(platform = platform, durationMs = duration)
+                Analytics.trackEvent(RecordFinishedEvent(platform = platform, durationMs = duration))
 
                 exitCode
             },

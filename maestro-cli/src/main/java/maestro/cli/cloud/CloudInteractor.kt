@@ -1,6 +1,10 @@
 package maestro.cli.cloud
 
 import maestro.cli.CliError
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.CloudUploadFinishedEvent
+import maestro.cli.analytics.CloudUploadStartedEvent
+import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.UploadStatus
@@ -24,7 +28,6 @@ import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewM
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.web.WebInteractor
-import maestro.cli.analytics.AnalyticsEvents
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -93,14 +96,14 @@ class CloudInteractor(
             flowFile.isWebFlow() -> "web"
             else -> "unknown"
         }
-        AnalyticsEvents.trackCloudUploadTriggered(
+        Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = projectId,
             platform = triggeredPlatform,
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
             deviceOs = deviceOs
-        )
+        ))
 
         val uploadStartTime = System.currentTimeMillis()
 
@@ -143,14 +146,14 @@ class CloudInteractor(
 
             // Track cloud upload start after we have the response with actual platform
             val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
-            AnalyticsEvents.trackCloudUploadStart(
+            Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = projectId,
                 platform = platform,
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
                 deviceOs = deviceOs
-            )
+            ))
 
             val project = requireNotNull(projectId)
             val appId = response.appId
@@ -176,11 +179,11 @@ class CloudInteractor(
 
         // Track finish
         val uploadDuration = System.currentTimeMillis() - uploadStartTime
-        AnalyticsEvents.trackCloudUploadFinished(
+        Analytics.trackEvent(CloudUploadFinishedEvent(
             projectId = projectId,
             success = uploadResponse == 0,
             durationMs = uploadDuration
-        )
+        ))
 
         return uploadResponse
     }
