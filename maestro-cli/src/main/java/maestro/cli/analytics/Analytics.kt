@@ -16,12 +16,17 @@ object Analytics : AutoCloseable {
     private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
     private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     private val apiClient = ApiClient(EnvUtils.BASE_API_URL)
-
     private val posthog = PostHog.Builder(POSTHOG_API_KEY).host(POSTHOG_HOST).build();
+
 
     private val logger = LoggerFactory.getLogger(Analytics::class.java)
     private val analyticsStatePath: Path = EnvUtils.xdgStateHome().resolve("analytics.json")
     private val analyticsStateManager = AnalyticsStateManager(analyticsStatePath)
+    
+    // Simple executor for analytics events - following ErrorReporter pattern
+    private val executor = Executors.newCachedThreadPool {
+        Executors.defaultThreadFactory().newThread(it).apply { isDaemon = true }
+    }
 
     private val analyticsDisabledWithEnvVar: Boolean
         get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
@@ -82,30 +87,35 @@ object Analytics : AutoCloseable {
     }
 
     /**
-     * Track events with optional PostHog-level deduplication
+     * Track events asynchronously to prevent blocking CLI operations
      * Use this for important events like authentication, errors, test results, etc.
-     * For CLI runs and other repeatable events, set enableDeduplication = true
+     * This method is "fire and forget" - it will never block the calling thread
      */
     fun trackEvent(event: PostHogEvent) {
-        try {
-            if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return
-            identifyUserIfNeeded()
+        executor.submit {
+            try {
+                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) {
+                    return@submit
+                }
+                identifyUserIfNeeded()
 
-            // Include super properties in each event since PostHog Java client doesn't have register
-            val eventData = convertEventToEventData(event)
-            val userState = analyticsStateManager.getState()
-            val properties = eventData.properties + superProperties.toMap() + UserProperties.fromAnalyticsState(userState).toMap()
+                // Include super properties in each event since PostHog Java client doesn't have register
+                val eventData = convertEventToEventData(event)
+                val userState = analyticsStateManager.getState()
+                val properties = eventData.properties + superProperties.toMap() + UserProperties.fromAnalyticsState(userState).toMap()
 
-            // Send Event
-            println("Sending event: ${eventData.eventName}, Properties: $properties")
-            posthog.capture(
-                uuid,
-                eventData.eventName,
-                properties
-            )
-        } catch (e: Exception) {
-            // Analytics failures should never break CLI functionality
-            logger.trace("Failed to track event ${event.name}: ${e.message}")
+                // Send Event
+                posthog.capture(
+                    uuid,
+                    eventData.eventName,
+                    properties
+                )
+
+            } catch (e: Exception) {
+                // Analytics failures should never break CLI functionality
+                println("Failed to track event ${event.name}: ${e.message}")
+                logger.trace("Failed to track event ${event.name}: ${e.message}")
+            }
         }
     }
 
@@ -131,10 +141,23 @@ object Analytics : AutoCloseable {
     }
 
     /**
-     * Close
+     * Close and cleanup resources
+     * Ensures pending analytics events are sent before shutdown
      */
     override fun close() {
-        posthog.shutdown()
+        try {
+            // Shutdown executor gracefully to allow pending events to complete
+            executor.shutdown()
+            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                executor.shutdownNow()
+            }
+        } catch (e: InterruptedException) {
+            executor.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
+        
+        // Now shutdown PostHog to flush any remaining events
+        posthog.close()
     }
 }
 
