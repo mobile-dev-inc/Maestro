@@ -177,6 +177,6 @@ object Analytics : AutoCloseable {
  * Data class to hold event name and properties for destructuring
  */
 data class EventData(
-  val eventName: String,
-  val properties: Map<String, Any>
+    val eventName: String,
+    val properties: Map<String, Any>
 )
