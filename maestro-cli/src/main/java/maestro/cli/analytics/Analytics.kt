@@ -57,22 +57,28 @@ object Analytics : AutoCloseable {
      *
      * Should only be called when user identity changes (login/logout).
      */
-    fun identifyAndUpdateState(userId: String, email: String, name: String, workOSOrgId: String? = null,) {
-        // Send identification to PostHog
-        posthog.identify(analyticsStateManager.getState().uuid, mapOf<String, String?>(
-            "user_id" to userId,
-            "email" to email,
-            "name" to name,
-            "workOsOrgId" to workOSOrgId
-        ))
+    fun identifyAndUpdateState(token: String) {
+        val user = apiClient.getUser(token)
+        val org =  apiClient.getOrg(token)
 
         // Update local state with user info
-         analyticsStateManager.updateState(
-            userId = userId,
-            email = email,
-            name = name,
-            workOSOrgId = workOSOrgId,
-         )
+        val updatedAnalyticsState = analyticsStateManager.updateState(token, user, org);
+        val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
+
+        // Send identification to PostHog
+        posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
+    }
+
+    /**
+     * Conditionally identify user based on current and cashed token
+     */
+    fun identifyUserIfNeeded() {
+        // No identification needed if token is null
+        val token = ApiKey.getToken() ?: return
+        // No identification needed if token is same as cachedToken
+        if (token == analyticsStateManager.getState().cachedToken) return
+        // Else Update identification
+        identifyAndUpdateState(token)
     }
 
     /**
@@ -83,24 +89,20 @@ object Analytics : AutoCloseable {
     fun trackEvent(event: PostHogEvent) {
         try {
             if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return
-
-            // If user is not set & token exist -> Identify the user
-            if (analyticsStateManager.getState().email == null) {
-                val token = ApiKey.getToken()
-                if (token != null) {
-                    val user = apiClient.getUser(token)
-                    identifyAndUpdateState(userId = user.id, email = user.email, name = user.name, workOSOrgId = user.workOSOrgId)
-                }
-            }
+            identifyUserIfNeeded()
 
             // Include super properties in each event since PostHog Java client doesn't have register
             val eventData = convertEventToEventData(event)
-            val eventWithSuperPropertiesAndUserData = addSuperPropertiesAndUserData(
-                eventData.properties
-            )
-            
+            val userState = analyticsStateManager.getState()
+            val properties = eventData.properties + superProperties.toMap() + UserProperties.fromAnalyticsState(userState).toMap()
+
             // Send Event
-            posthog.capture(uuid, eventData.eventName, eventWithSuperPropertiesAndUserData)
+            println("Sending event: ${eventData.eventName}, Properties: $properties")
+            posthog.capture(
+                uuid,
+                eventData.eventName,
+                properties
+            )
         } catch (e: Exception) {
             // Analytics failures should never break CLI functionality
             logger.trace("Failed to track event ${event.name}: ${e.message}")
@@ -128,18 +130,9 @@ object Analytics : AutoCloseable {
         }
     }
 
-     /**
-      * Add super properties and user data to event properties
-      */
-     private fun addSuperPropertiesAndUserData(eventProperties: Map<String, Any>): Map<String, Any> {
-         val userData = analyticsStateManager.getState()
-         val userProperties = UserProperties.fromAnalyticsState(userData)
-
-         return eventProperties + superProperties.toMap() + userProperties.toMap()
-     }
-
-    // Get user from API
-
+    /**
+     * Close
+     */
     override fun close() {
         posthog.shutdown()
     }

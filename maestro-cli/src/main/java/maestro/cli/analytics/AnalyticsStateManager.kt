@@ -6,12 +6,15 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import maestro.cli.api.OrgResponse
+import maestro.cli.api.UserResponse
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.time.Instant
 import java.util.*
+import kotlin.String
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -21,12 +24,17 @@ import kotlin.io.path.writeText
 data class AnalyticsState(
   val uuid: String,
   val enabled: Boolean,
-  val lastUploadedForCLI: String?,
+  val cachedToken: String? = null,
+  val lastUploadedForCLI: String? = null,
   @JsonFormat(shape = JsonFormat.Shape.STRING, timezone = "UTC") val lastUploadedTime: Instant?,
   val email: String? = null,
   val user_id: String? = null,
   val name: String? = null,
-  val workOSOrgId: String? = null
+  val workOSOrgId: String? = null,
+  val orgId: String? = null,
+  val orgName: String? = null,
+  val orgPlan: String? = null,
+  val orgTrialExpiresOn: String? = null,
 )
 
 /**
@@ -57,22 +65,26 @@ class AnalyticsStateManager(
     }
 
     fun updateState(
-        userId: String,
-        email: String,
-        name: String,
-        workOSOrgId: String? = null
-    ) {
+        token: String,
+        user: UserResponse,
+        org: OrgResponse,
+    ): AnalyticsState {
         val currentState = getState()
         val updatedState = currentState.copy(
+            cachedToken = token,
             lastUploadedForCLI = EnvUtils.CLI_VERSION?.toString(),
             lastUploadedTime = Instant.now(),
-            user_id = userId,
-            email = email,
-            name = name,
-            workOSOrgId = workOSOrgId,
+            user_id = user.id,
+            email = user.email,
+            name = user.name,
+            workOSOrgId = user.workOSOrgId,
+            orgId = org.id,
+            orgName = org.name,
+            orgPlan = org.metadata["pricing_plan"],
+            orgTrialExpiresOn = org.metadata["trial_expires_on"]
         )
-        
         saveState(updatedState)
+        return updatedState
     }
 
     fun saveInitialState(
@@ -80,13 +92,9 @@ class AnalyticsStateManager(
         uuid: String? = null,
     ): AnalyticsState {
         val state = AnalyticsState(
-            uuid = uuid ?: generateUUID(),
-            enabled = granted,
-            lastUploadedForCLI = null,
-            lastUploadedTime = null,
-            email = null,
-            workOSOrgId = null,
-            user_id = null,
+          uuid = uuid ?: generateUUID(),
+          enabled = granted,
+          lastUploadedTime = null
         )
         saveState(state)
         return state
@@ -117,13 +125,9 @@ class AnalyticsStateManager(
 
     private fun createDefaultState(): AnalyticsState {
         return AnalyticsState(
-            uuid = generateUUID(),
-            enabled = false,
-            lastUploadedForCLI = null,
-            lastUploadedTime = null,
-            email = null,
-            workOSOrgId = null,
-            user_id = null,
+          uuid = generateUUID(),
+          enabled = false,
+          lastUploadedTime = null,
         )
     }
 

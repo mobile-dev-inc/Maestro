@@ -3,7 +3,6 @@ package maestro.cli.analytics
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
 import maestro.device.util.AndroidEnvUtils
-import kotlin.time.Duration
 
 /**
  * Strongly-typed PostHog events for Maestro CLI using discriminated unions
@@ -16,6 +15,7 @@ import kotlin.time.Duration
 data class SuperProperties(
     val app_version: String,
     val platform: String,
+    val env: String,
     val app: String = "cli",
     val java_version: String,
     val os_arch: String,
@@ -33,6 +33,7 @@ data class SuperProperties(
         return mapOf(
           "app_version" to app_version,
           "platform" to platform,
+          "env" to env,
           "app" to app,
           "java_version" to java_version,
           "os_arch" to os_arch,
@@ -53,6 +54,7 @@ data class SuperProperties(
             return SuperProperties(
                 app_version = EnvUtils.getVersion().toString(),
                 platform = EnvUtils.OS_NAME,
+                env = if (System.getenv("MAESTRO_API_URL") != null) "dev" else "prod",
                 app = "cli",
                 java_version = EnvUtils.getJavaVersion().toString(),
                 os_arch = EnvUtils.OS_ARCH,
@@ -74,7 +76,12 @@ data class UserProperties(
     val user_id: String?,
     val email: String?,
     val name: String?,
-    val workos_org_id: String? = null,
+    val organizationId: String? = null,
+    val org_id: String?,
+    val org_name: String?,
+    val plan: String?,
+    val orgPlan: String?,
+    val orgTrialExpiresOn: String?,
 ) {
     /**
      * Convert to Map for analytics tracking
@@ -84,7 +91,12 @@ data class UserProperties(
             "user_id" to user_id,
             "email" to email,
             "name" to name,
-            "workos_org_id" to workos_org_id
+            "organizationId" to organizationId,
+            "org_id" to org_id,
+            "org_name" to org_name,
+            "plan" to plan,
+            "orgPlan" to orgPlan,
+            "orgTrialExpiresOn" to orgTrialExpiresOn
         ) as Map<String, Any>
     }
     
@@ -96,8 +108,13 @@ data class UserProperties(
             return UserProperties(
                 user_id = state.user_id,
                 email = state.email,
-                workos_org_id = state.workOSOrgId,
-                name = state.name
+                name = state.name,
+                organizationId = state.orgId,
+                org_id = state.orgId,
+                org_name = state.orgName,
+                plan = state.orgPlan,
+                orgPlan = state.orgPlan,
+                orgTrialExpiresOn = state.orgTrialExpiresOn,
             )
         }
     }

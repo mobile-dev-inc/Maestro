@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import io.ktor.util.internal.RemoveFirstDesc
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.insights.AnalysisDebugFiles
@@ -570,7 +571,7 @@ class ApiClient(
     }
 
 
-    fun getUser(authToken: String): User {
+    fun getUser(authToken: String): UserResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/user"
 
         println("baseUrl: $baseUrl")
@@ -595,7 +596,40 @@ class ApiClient(
             }
             val responseBody = response.body?.string()
             try {
-                val user = JSON.readValue(responseBody, User::class.java)
+                val user = JSON.readValue(responseBody, UserResponse::class.java)
+                return user
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
+    fun getOrg(authToken: String): OrgResponse {
+        val baseUrl = "$baseUrl/v2/maestro-studio/org"
+
+        println("baseUrl: $baseUrl")
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(baseUrl)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val user = JSON.readValue(responseBody, OrgResponse::class.java)
                 return user
             } catch (e: Exception) {
                 throw e
@@ -695,7 +729,7 @@ data class RenderState(
 )
 
 
-data class User(
+data class UserResponse(
   val id: String,
   val email: String,
   val firstName: String,
@@ -703,11 +737,18 @@ data class User(
   val status: String,
   val role: String,
   val workOSOrgId: String,
-  val profilePictureUrl: String? = null,
 ) {
   val name: String
     get() = "$firstName $lastName"
 }
+
+data class OrgResponse(
+  val id: String,
+  val name: String,
+  val quota: Map<String, Map<String, Number>>,
+  val metadata: Map<String, String>,
+  val workOSOrgId: String,
+)
 
 data class CliVersion(
     val major: Int,
