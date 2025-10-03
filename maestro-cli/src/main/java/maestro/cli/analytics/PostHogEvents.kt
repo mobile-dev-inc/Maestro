@@ -227,3 +227,21 @@ data class PrintHierarchyFinishedEvent(
     val errorMessage: String? = null
 ) : PrintHierarchyEvent
 
+/**
+ * Trial Events
+ */
+sealed interface TrialEvent : PostHogEvent
+
+data class TrialStartedEvent(
+    override val name: String = "maestro_cli_trial_started",
+    val companyName: String,
+    val referralSource: String = "maestro-cli"
+) : TrialEvent
+
+data class TrialStartFailedEvent(
+    override val name: String = "maestro_cli_trial_start_failed",
+    val companyName: String,
+    val failureReason: String,
+    val referralSource: String = "maestro-cli"
+) : TrialEvent
+

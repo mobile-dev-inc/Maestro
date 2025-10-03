@@ -10,6 +10,8 @@ import com.github.michaelbull.result.Result
 import io.ktor.util.internal.RemoveFirstDesc
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.TrialStartedEvent
+import maestro.cli.analytics.TrialStartFailedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
@@ -399,6 +401,11 @@ class ApiClient(
                         }
                     } else {
                         println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
+                        // Track trial start failed event for empty company name
+                        Analytics.trackEvent(TrialStartFailedEvent(
+                            companyName = "",
+                            failureReason = "EMPTY_COMPANY_NAME"
+                        ))
                     }
                 }
 
@@ -428,11 +435,25 @@ class ApiClient(
 
         try {
             val response = client.newCall(trialRequest).execute()
-            if (response.isSuccessful) return true;
-            println("\u001B[31m${response.body?.string()}\u001B[0m");
+            if (response.isSuccessful) {
+                Analytics.trackEvent(TrialStartedEvent(companyName = companyName))
+                return true
+            }
+            val errorMessage = response.body?.string() ?: "Unknown error"
+            println("\u001B[31m$errorMessage\u001B[0m");
+            // Track trial start failed event
+            Analytics.trackEvent(TrialStartFailedEvent(
+                companyName = companyName,
+                failureReason = "API_ERROR: $errorMessage"
+            ))
             return false
         } catch (e: IOException) {
             println("\u001B[31;1m[ERROR]\u001B[0m We're experiencing connectivity issues, please try again in sometime, reach out to the slack channel in case if this doesn't work.")
+            // Track trial start failed event
+            Analytics.trackEvent(TrialStartFailedEvent(
+                companyName = companyName,
+                failureReason = "CONNECTIVITY_ERROR: ${e.message}"
+            ))
             return false
         }
     }
