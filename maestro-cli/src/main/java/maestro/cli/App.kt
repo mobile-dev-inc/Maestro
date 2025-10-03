@@ -181,11 +181,14 @@ fun main(args: Array<String>) {
 
         if (commandLine.isVersionHelpRequested) {
             printVersion()
+            Analytics.close()
             exitProcess(0)
         }
 
-        exitProcess(exitCode)
-    } finally {
         Analytics.close()
+        exitProcess(exitCode)
+    } catch (e: Throwable) {
+        Analytics.close()
+        throw e
     }
 }

@@ -2,12 +2,16 @@ package maestro.cli.analytics
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.posthog.java.PostHog
+import com.posthog.server.PostHog
+import com.posthog.server.PostHogConfig
+import com.posthog.server.PostHogInterface
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.util.EnvUtils
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.String
 
 object Analytics : AutoCloseable {
@@ -16,20 +20,23 @@ object Analytics : AutoCloseable {
     private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
     private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     private val apiClient = ApiClient(EnvUtils.BASE_API_URL)
-    private val posthog = PostHog.Builder(POSTHOG_API_KEY).host(POSTHOG_HOST).build();
-
+    private val posthog: PostHogInterface = PostHog.with(
+        PostHogConfig.builder(POSTHOG_API_KEY)
+            .host(POSTHOG_HOST)
+            .build()
+    )
 
     private val logger = LoggerFactory.getLogger(Analytics::class.java)
     private val analyticsStatePath: Path = EnvUtils.xdgStateHome().resolve("analytics.json")
     private val analyticsStateManager = AnalyticsStateManager(analyticsStatePath)
-    
+
     // Simple executor for analytics events - following ErrorReporter pattern
     private val executor = Executors.newCachedThreadPool {
         Executors.defaultThreadFactory().newThread(it).apply { isDaemon = true }
     }
 
     private val analyticsDisabledWithEnvVar: Boolean
-        get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
+      get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
 
     val hasRunBefore: Boolean
         get() = analyticsStateManager.hasRunBefore()
@@ -94,9 +101,8 @@ object Analytics : AutoCloseable {
     fun trackEvent(event: PostHogEvent) {
         executor.submit {
             try {
-                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) {
-                    return@submit
-                }
+                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return@submit
+
                 identifyUserIfNeeded()
 
                 // Include super properties in each event since PostHog Java client doesn't have register
@@ -110,10 +116,8 @@ object Analytics : AutoCloseable {
                     eventData.eventName,
                     properties
                 )
-
             } catch (e: Exception) {
                 // Analytics failures should never break CLI functionality
-                println("Failed to track event ${event.name}: ${e.message}")
                 logger.trace("Failed to track event ${event.name}: ${e.message}")
             }
         }
@@ -140,24 +144,32 @@ object Analytics : AutoCloseable {
         }
     }
 
-    /**
-     * Close and cleanup resources
-     * Ensures pending analytics events are sent before shutdown
-     */
+   /**
+    * Close and cleanup resources
+    * Ensures pending analytics events are sent before shutdown
+    */
     override fun close() {
+        // First, flush any pending PostHog events before shutting down threads
         try {
-            // Shutdown executor gracefully to allow pending events to complete
+            posthog.flush()
+            Thread.sleep(500) // No sync flush is available in the PostHog Java client
+        } catch (e: Exception) {
+            println("Failed to flush PostHog on close: ${e.message}")
+        }
+
+        // Now shutdown PostHog to cleanup resources
+        posthog.close()
+
+        try {
             executor.shutdown()
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                logger.warn("Analytics executor did not shutdown gracefully, forcing shutdown")
                 executor.shutdownNow()
             }
         } catch (e: InterruptedException) {
             executor.shutdownNow()
             Thread.currentThread().interrupt()
         }
-        
-        // Now shutdown PostHog to flush any remaining events
-        posthog.close()
     }
 }
 

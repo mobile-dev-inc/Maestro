@@ -109,7 +109,7 @@ class CloudInteractor(
 
         PrintUtils.message("Uploading Flow(s)...")
 
-        val uploadResponse = TemporaryDirectory.use { tmpDir ->
+        TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
             WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
             val progressBar = ProgressBar(20)
@@ -161,7 +161,7 @@ class CloudInteractor(
             val deviceMessage =
                 if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
 
-            printMaestroCloudResponse(
+            val uploadResponse = printMaestroCloudResponse(
                 async,
                 authToken,
                 failOnCancellation,
@@ -175,17 +175,17 @@ class CloudInteractor(
                 response.uploadId,
                 projectId,
             )
+            
+            // Track finish after upload completion
+            val uploadDuration = System.currentTimeMillis() - uploadStartTime
+            Analytics.trackEvent(CloudUploadFinishedEvent(
+                projectId = projectId,
+                success = uploadResponse == 0,
+                durationMs = uploadDuration
+            ))
+            
+            return uploadResponse
         }
-
-        // Track finish
-        val uploadDuration = System.currentTimeMillis() - uploadStartTime
-        Analytics.trackEvent(CloudUploadFinishedEvent(
-            projectId = projectId,
-            success = uploadResponse == 0,
-            durationMs = uploadDuration
-        ))
-
-        return uploadResponse
     }
 
     private fun getAppFile(
