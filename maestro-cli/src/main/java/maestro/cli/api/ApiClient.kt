@@ -658,6 +658,37 @@ class ApiClient(
         }
     }
 
+    fun getProjects(authToken: String): List<ProjectResponse> {
+        val url = "$baseUrl/v2/maestro-studio/projects"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val projects = JSON.readValue(responseBody, object : TypeReference<List<ProjectResponse>>() {})
+                return projects
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -769,6 +800,11 @@ data class OrgResponse(
   val quota: Map<String, Map<String, Number>>,
   val metadata: Map<String, String>,
   val workOSOrgId: String,
+)
+
+data class ProjectResponse(
+  val id: String,
+  val name: String,
 )
 
 data class CliVersion(
