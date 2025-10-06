@@ -738,6 +738,28 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.originalDescription).isEqualTo("Tap x3 on \"Submit\" at 50%, 90%")
     }
 
+    @Test
+    fun `doubleTapOn with element-relative coordinates - should support both doubleTap and relativePoint`(
+        @YamlFile("029_double_tap_element_relative.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.repeat).isNotNull()
+        assertThat(tapCommand.repeat?.repeat).isEqualTo(2) // doubleTapOn creates repeat=2
+        assertThat(tapCommand.repeat?.delay).isEqualTo(TapOnElementCommand.DEFAULT_REPEAT_DELAY)
+        assertThat(tapCommand.retryIfNoChange).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.waitUntilVisible).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.longPress).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.optional).isFalse()
+
+        // Verify the original description includes both the point and double-tap info
+        assertThat(tapCommand.originalDescription).isEqualTo("Double tap on \"Submit\" at 50%, 90%")
+    }
+
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
