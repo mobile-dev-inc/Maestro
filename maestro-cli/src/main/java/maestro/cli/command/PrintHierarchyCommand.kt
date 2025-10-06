@@ -166,6 +166,7 @@ class PrintHierarchyCommand : Runnable {
             success = true,
             durationMs = duration
         ))
+        Analytics.flush()
     }
     
     private fun processTreeToCSV(
