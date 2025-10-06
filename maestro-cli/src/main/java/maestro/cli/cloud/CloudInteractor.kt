@@ -184,6 +184,9 @@ class CloudInteractor(
                 durationMs = uploadDuration
             ))
             
+            // Flush analytics events immediately after tracking the upload finished event
+            Analytics.flush()
+            
             return uploadResponse
         }
     }

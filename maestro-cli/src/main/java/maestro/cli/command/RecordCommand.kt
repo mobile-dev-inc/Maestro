@@ -171,6 +171,7 @@ class RecordCommand : Callable<Int> {
                 // Track record completion
                 val duration = System.currentTimeMillis() - startTime
                 Analytics.trackEvent(RecordFinishedEvent(platform = platform, durationMs = duration))
+                Analytics.flush()
 
                 exitCode
             },
