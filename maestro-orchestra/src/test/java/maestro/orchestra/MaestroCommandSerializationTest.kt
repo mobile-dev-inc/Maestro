@@ -53,7 +53,7 @@ internal class MaestroCommandSerializationTest {
     }
 
     @Test
-    fun `serialize TapOnElementCommand with elementRelativePoint`() {
+    fun `serialize TapOnElementCommand with relativePoint`() {
         // given
         val command = MaestroCommand(
             command = TapOnElementCommand(
@@ -61,7 +61,7 @@ internal class MaestroCommandSerializationTest {
                 retryIfNoChange = false,
                 waitUntilVisible = true,
                 longPress = false,
-                elementRelativePoint = "50%, 90%",
+                relativePoint = "50%, 90%",
                 label = "Tap Submit Button"
             )
         )
@@ -82,7 +82,7 @@ internal class MaestroCommandSerializationTest {
                 "retryIfNoChange" : false,
                 "waitUntilVisible" : true,
                 "longPress" : false,
-                "elementRelativePoint" : "50%, 90%",
+                "relativePoint" : "50%, 90%",
                 "label" : "Tap Submit Button",
                 "optional" : false
               }

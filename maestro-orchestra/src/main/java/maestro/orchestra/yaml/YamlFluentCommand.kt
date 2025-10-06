@@ -744,7 +744,7 @@ data class YamlFluentCommand(
                         waitToSettleTimeoutMs = waitToSettleTimeoutMs,
                         label = label,
                         optional = optional,
-                        elementRelativePoint = point, // Parameter for element-relative coordinates
+                        relativePoint = point, // Parameter for element-relative coordinates
                     )
                 )
             } else {

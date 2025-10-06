@@ -14,15 +14,15 @@ internal class CoordinateUtilsTest {
 
     @Test
     fun `test coordinate calculation with percentage coordinates`() {
-        // Given: Real TapOnElementCommand with elementRelativePoint
+        // Given: Real TapOnElementCommand with relativePoint
         val command = TapOnElementCommand(
             selector = ElementSelector(textRegex = "Test"),
-            elementRelativePoint = "50%, 90%"
+            relativePoint = "50%, 90%"
         )
 
         // When: We test the real coordinate calculation (same logic as in Orchestra.kt)
         val testElement = createTestUiElement()
-        val calculatedPoint = CoordinateUtils.calculateElementRelativePoint(testElement, command.elementRelativePoint!!)
+        val calculatedPoint = CoordinateUtils.calculateElementRelativePoint(testElement, command.relativePoint!!)
 
         // Then: Verify the real calculation works correctly
         assertThat(calculatedPoint.x).isEqualTo(150) // 100 + (100 * 50 / 100) = 150
@@ -34,12 +34,12 @@ internal class CoordinateUtilsTest {
         // Given: Real TapOnElementCommand with absolute coordinates
         val command = TapOnElementCommand(
             selector = ElementSelector(textRegex = "Test"),
-            elementRelativePoint = "25, 75"
+            relativePoint = "25, 75"
         )
 
         // When: We test the real coordinate calculation
         val testElement = createTestUiElement()
-        val calculatedPoint = CoordinateUtils.calculateElementRelativePoint(testElement, command.elementRelativePoint!!)
+        val calculatedPoint = CoordinateUtils.calculateElementRelativePoint(testElement, command.relativePoint!!)
 
         // Then: Verify the real calculation works correctly
         assertThat(calculatedPoint.x).isEqualTo(125) // 100 + 25 = 125

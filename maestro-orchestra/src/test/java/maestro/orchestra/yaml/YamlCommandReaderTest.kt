@@ -596,7 +596,7 @@ internal class YamlCommandReaderTest {
 
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
         assertThat(tapCommand.retryIfNoChange).isFalse() // YAML parsing sets default values
         assertThat(tapCommand.waitUntilVisible).isFalse() // YAML parsing sets default values
         assertThat(tapCommand.longPress).isFalse() // YAML parsing sets default values
@@ -615,7 +615,7 @@ internal class YamlCommandReaderTest {
 
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.idRegex).isEqualTo("submit-btn")
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("25, 75")
+        assertThat(tapCommand.relativePoint).isEqualTo("25, 75")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on id: submit-btn at 25, 75")
     }
 
@@ -628,7 +628,7 @@ internal class YamlCommandReaderTest {
 
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.css).isEqualTo(".submit-button")
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("75%, 25%")
+        assertThat(tapCommand.relativePoint).isEqualTo("75%, 25%")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on CSS: .submit-button at 75%, 25%")
     }
 
@@ -642,7 +642,7 @@ internal class YamlCommandReaderTest {
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.size?.width).isEqualTo(200)
         assertThat(tapCommand.selector.size?.height).isEqualTo(50)
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("50%, 50%")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 50%")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on Size: 200x50 at 50%, 50%")
     }
 
@@ -656,7 +656,7 @@ internal class YamlCommandReaderTest {
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
         assertThat(tapCommand.selector.enabled).isTrue()
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("25%, 75%")
+        assertThat(tapCommand.relativePoint).isEqualTo("25%, 75%")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\" at 25%, 75%")
     }
 
@@ -670,7 +670,7 @@ internal class YamlCommandReaderTest {
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.textRegex).isEqualTo("Button")
         assertThat(tapCommand.selector.index).isEqualTo("2")
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Button\", Index: 2 at 50%, 90%")
     }
 
@@ -683,7 +683,7 @@ internal class YamlCommandReaderTest {
 
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.textRegex).isEqualTo("Login")
-        assertThat(tapCommand.elementRelativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
         assertThat(tapCommand.label).isEqualTo("Tap Login Button at Bottom")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Login\" at 50%, 90%")
         assertThat(tapCommand.description()).isEqualTo("Tap Login Button at Bottom")
@@ -704,7 +704,7 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun `regular element tap (no point) - should create TapOnElementCommand without elementRelativePoint`(
+    fun `regular element tap (no point) - should create TapOnElementCommand without relativePoint`(
         @YamlFile("029_regular_element_tap.yaml") commands: List<Command>
     ) {
         // Given: YAML command parsed by real YamlCommandReader
@@ -712,7 +712,7 @@ internal class YamlCommandReaderTest {
 
         // Then: Verify the real command structure
         assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
-        assertThat(tapCommand.elementRelativePoint).isNull()
+        assertThat(tapCommand.relativePoint).isNull()
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\"")
     }
 

@@ -98,11 +98,11 @@ internal class CommandDescriptionTest {
     }
 
     @Test
-    fun `TapOnElementCommand description includes elementRelativePoint when provided`() {
+    fun `TapOnElementCommand description includes relativePoint when provided`() {
         // given
         val command = TapOnElementCommand(
             selector = ElementSelector(textRegex = "Submit"),
-            elementRelativePoint = "50%, 90%",
+            relativePoint = "50%, 90%",
             label = "Tap Submit Button"
         )
 
@@ -112,7 +112,7 @@ internal class CommandDescriptionTest {
     }
 
     @Test
-    fun `TapOnElementCommand description without elementRelativePoint`() {
+    fun `TapOnElementCommand description without relativePoint`() {
         // given
         val command = TapOnElementCommand(
             selector = ElementSelector(textRegex = "Cancel"),
@@ -129,7 +129,7 @@ internal class CommandDescriptionTest {
         // given
         val command = TapOnElementCommand(
             selector = ElementSelector(idRegex = "submit-btn"),
-            elementRelativePoint = "10, 5",
+            relativePoint = "10, 5",
             label = "Tap Submit at specific position"
         )
 
@@ -143,7 +143,7 @@ internal class CommandDescriptionTest {
         // given
         val command = TapOnElementCommand(
             selector = ElementSelector(css = ".submit-button"),
-            elementRelativePoint = "50%, 90%",
+            relativePoint = "50%, 90%",
             label = "Tap CSS element at specific position"
         )
 
@@ -157,7 +157,7 @@ internal class CommandDescriptionTest {
         // given
         val command = TapOnElementCommand(
             selector = ElementSelector(size = ElementSelector.SizeSelector(width = 100, height = 50)),
-            elementRelativePoint = "25%, 75%",
+            relativePoint = "25%, 75%",
             label = "Tap sized element at specific position"
         )
 

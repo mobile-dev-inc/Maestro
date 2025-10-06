@@ -1057,9 +1057,9 @@ class Orchestra(
 
 
         // Handle element-relative tap if specified
-        val elementRelativePoint = command.elementRelativePoint
-        if (elementRelativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, elementRelativePoint)      
+        val relativePoint = command.relativePoint
+        if (relativePoint != null) {
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
                   
             maestro.tap(
                 x = tapPoint.x,
