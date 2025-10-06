@@ -23,6 +23,8 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
+import maestro.cli.view.cyan
+import maestro.cli.view.render
 import maestro.cli.web.WebInteractor
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
@@ -189,24 +191,23 @@ class CloudInteractor(
             PrintUtils.message("✅ Upload successful!")
 
             println(deviceInfoMessage)
-            PrintUtils.message("View the results of your upload below:")
-            PrintUtils.message(uploadUrl)
+            PrintUtils.info("View the results of your upload below:")
+            PrintUtils.info(uploadUrl.cyan())
 
-            if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
+            if (appBinaryIdResponse != null) PrintUtils.info("App binary id: ${appBinaryIdResponse.cyan()}\n")
 
             return 0
         } else {
-
             println(deviceInfoMessage)
-
-            PrintUtils.message(
-                "Visit the web console for more details about the upload: $uploadUrl"
-            )
-
-            if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
-
-            PrintUtils.message("Waiting for analyses to complete...")
+            
+            // Print the upload URL
+            PrintUtils.info("Visit Maestro Cloud for more details about the upload:")
+            PrintUtils.info(uploadUrl.cyan())
             println()
+
+            if (appBinaryIdResponse != null) PrintUtils.info("App binary id: ${appBinaryIdResponse.cyan()}\n")
+
+            PrintUtils.info("Waiting for runs to be completed...")
 
             return waitForCompletion(
                 authToken = authToken,
@@ -224,19 +225,20 @@ class CloudInteractor(
 
     private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
+        PrintUtils.info("\n")
 
         val version = deviceConfiguration.osVersion
         val lines = listOf(
-            "Maestro cloud device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}",
-            "To change OS version use this option: ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}",
-            "To change devices use this option: --device-model=<device_model>",
-            "To change device locale use this option: --device-locale=<device_locale>",
-            "To create a similar device locally, run: `maestro start-device --platform=${
+            "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
+            "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
+            "To change devices use this option: @|magenta --device-model=<device_model>|@",
+            "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
+            "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
+            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
-        return lines.joinToString("\n\n").box()
+        return lines.joinToString("\n").render().box()
     }
 
 

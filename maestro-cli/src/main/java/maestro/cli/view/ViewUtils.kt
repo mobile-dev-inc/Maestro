@@ -26,6 +26,10 @@ fun String.yellow(): String {
     return "@|yellow $this|@".render()
 }
 
+fun String.cyan(): String {
+    return "@|cyan $this|@".render()
+}
+
 fun String.faint(): String {
     return "@|faint $this|@".render()
 }
@@ -67,5 +71,8 @@ fun String.render(): String {
 }
 
 private fun padRight(s: String, width: Int): String {
-    return String.format("%-${width}s", s)
+    // Strip ANSI escape sequences to compute the visible width
+    val visible = s.replace(Regex("\u001B\\[[\\d;]*[^\\d;]"), "")
+    val pad = (width - visible.length).coerceAtLeast(0)
+    return s + " ".repeat(pad)
 }

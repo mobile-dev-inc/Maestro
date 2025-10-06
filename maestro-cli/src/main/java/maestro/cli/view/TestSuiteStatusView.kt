@@ -78,8 +78,8 @@ object TestSuiteStatusView {
         println()
 
         if (suite.uploadDetails != null) {
-            println("==== View details in the console ====")
-            PrintUtils.message(uploadUrl)
+            PrintUtils.info("==== View Details on Maestro Cloud ====")
+            PrintUtils.info(uploadUrl.cyan())
             println()
         }
     }
