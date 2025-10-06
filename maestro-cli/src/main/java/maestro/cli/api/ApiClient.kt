@@ -86,7 +86,7 @@ class ApiClient(
     fun getLatestCliVersion(): CliVersion {
         val request = Request.Builder()
             .header("X-FRESH-INSTALL", if (!Analytics.hasRunBefore) "true" else "false")
-            .url("$baseUrl/maestro/version")
+            .url("$baseUrl/v2/maestro/version")
             .get()
             .build()
 
@@ -108,14 +108,14 @@ class ApiClient(
     }
 
     fun getAuthUrl(port: String): String {
-        return "$baseUrl/maestroLogin/authUrl?port=$port"
+        return "$baseUrl/v2/maestroLogin/authUrl?port=$port"
     }
 
     fun exchangeToken(code: String): String {
         val requestBody = code.toRequestBody("text/plain".toMediaType())
 
         val request = Request.Builder()
-            .url("$baseUrl/maestroLogin/exchange")
+            .url("$baseUrl/v2/maestroLogin/exchange")
             .post(requestBody)
             .build()
 
@@ -135,7 +135,7 @@ class ApiClient(
 
     fun isAuthTokenValid(authToken: String): Boolean {
         val request = Request.Builder()
-            .url("$baseUrl/maestroLogin/valid")
+            .url("$baseUrl/v2/maestroLogin/valid")
             .header("Authorization", "Bearer $authToken")
             .get()
             .build()
@@ -210,7 +210,7 @@ class ApiClient(
     fun getRenderState(id: String): RenderState {
         val baseUrl = "https://maestro-record.ngrok.io"
         val request = Request.Builder()
-            .url("$baseUrl/render/$id")
+            .url("$baseUrl/v2/render/$id")
             .get()
             .build()
         val response = client.newCall(request).execute().use { response ->
