@@ -150,7 +150,8 @@ fun main(args: Array<String>) {
             }
 
         // Track CLI run
-        Analytics.trackEvent(CliCommandRunEvent(command = args[0]))
+        if (args.isNotEmpty())
+            Analytics.trackEvent(CliCommandRunEvent(command = args[0]))
 
         val generateCompletionCommand = commandLine.subcommands["generate-completion"]
         generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)
