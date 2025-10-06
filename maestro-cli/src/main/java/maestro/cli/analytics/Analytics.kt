@@ -154,11 +154,15 @@ object Analytics : AutoCloseable {
             posthog.flush()
             Thread.sleep(500) // No sync flush is available in the PostHog Java client
         } catch (e: Exception) {
-            println("Failed to flush PostHog on close: ${e.message}")
+            logger.warn("Failed to flush PostHog on close: ${e.message}")
         }
 
         // Now shutdown PostHog to cleanup resources
-        posthog.close()
+        try {
+            posthog.close()
+        } catch (e: Exception) {
+            logger.warn("Failed to close PostHog: ${e.message}")
+        }
 
         try {
             executor.shutdown()
