@@ -2826,7 +2826,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 098 - Execute Javascript conditionally`() {
+    fun `Case 098a - Execute Javascript conditionally`() {
         // Given
         val commands = readCommands("098_runscript_conditionals")
 
@@ -2849,6 +2849,7 @@ class IntegrationTest {
                     it,
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
+                        metadata.labeledCommand?.let { receivedLogs.add(it) }
                     }
                 ).runFlow(commands)
             }
@@ -2861,6 +2862,35 @@ class IntegrationTest {
         assertThat(receivedLogs).containsExactly(
             "Log from runScript",
         ).inOrder()
+    }
+
+    @Test
+    fun `Case 098b - Execute conditions eagerly`() {
+        // Given
+        val commands = readCommands("098_runscript_conditionals_eager")
+
+        // 'Click me' is not present in the view hierarchy
+        val driver = driver {}
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(
+                    maestro = it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
+        }
+
+        // Then
+        // test completes
+        driver.assertEvents(emptyList())
+        // and script did not run
+        assertThat(receivedLogs).isEmpty()
     }
 
     @Test
@@ -3984,7 +4014,7 @@ class IntegrationTest {
         // Then
         // No test failure - if we reach this point, the test passed successfully
     }
-    
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
