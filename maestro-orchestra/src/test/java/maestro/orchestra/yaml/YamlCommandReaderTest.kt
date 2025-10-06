@@ -729,9 +729,9 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.repeat).isNotNull()
         assertThat(tapCommand.repeat?.repeat).isEqualTo(3)
         assertThat(tapCommand.repeat?.delay).isEqualTo(100L)
-        assertThat(tapCommand.retryIfNoChange).isFalse() // YAML parsing sets default values
-        assertThat(tapCommand.waitUntilVisible).isFalse() // YAML parsing sets default values
-        assertThat(tapCommand.longPress).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.retryIfNoChange).isFalse()
+        assertThat(tapCommand.waitUntilVisible).isFalse()
+        assertThat(tapCommand.longPress).isFalse()
         assertThat(tapCommand.optional).isFalse()
 
         // Verify the original description includes both the point and repeat info
@@ -749,11 +749,11 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
         assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
         assertThat(tapCommand.repeat).isNotNull()
-        assertThat(tapCommand.repeat?.repeat).isEqualTo(2) // doubleTapOn creates repeat=2
+        assertThat(tapCommand.repeat?.repeat).isEqualTo(2)
         assertThat(tapCommand.repeat?.delay).isEqualTo(TapOnElementCommand.DEFAULT_REPEAT_DELAY)
-        assertThat(tapCommand.retryIfNoChange).isFalse() // YAML parsing sets default values
-        assertThat(tapCommand.waitUntilVisible).isFalse() // YAML parsing sets default values
-        assertThat(tapCommand.longPress).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.retryIfNoChange).isFalse()
+        assertThat(tapCommand.waitUntilVisible).isFalse()
+        assertThat(tapCommand.longPress).isFalse()
         assertThat(tapCommand.optional).isFalse()
 
         // Verify the original description includes both the point and double-tap info
