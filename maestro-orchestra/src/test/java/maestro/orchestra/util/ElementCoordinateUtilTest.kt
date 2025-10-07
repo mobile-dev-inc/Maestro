@@ -1,16 +1,18 @@
-package maestro.orchestra
+package maestro.orchestra.util
 
 import com.google.common.truth.Truth.assertThat
 import maestro.Bounds
 import maestro.TreeNode
 import maestro.UiElement
+import maestro.orchestra.ElementSelector
+import maestro.orchestra.TapOnElementCommand
 import org.junit.jupiter.api.Test
 
 /**
- * Unit tests for coordinate calculation logic in CoordinateUtils.
+ * Unit tests for element coordinate calculation utility functions.
  * Tests the business logic for calculating element-relative points.
  */
-internal class CoordinateUtilsTest {
+internal class ElementCoordinateUtilTest {
 
     @Test
     fun `test coordinate calculation with percentage coordinates`() {
@@ -20,9 +22,9 @@ internal class CoordinateUtilsTest {
             relativePoint = "50%, 90%"
         )
 
-        // When: We test the real coordinate calculation (same logic as in Orchestra.kt)
+        // When: We test the real coordinate calculation
         val testElement = createTestUiElement()
-        val calculatedPoint = CoordinateUtils.calculateElementRelativePoint(testElement, command.relativePoint!!)
+        val calculatedPoint = calculateElementRelativePoint(testElement, command.relativePoint!!)
 
         // Then: Verify the real calculation works correctly
         assertThat(calculatedPoint.x).isEqualTo(150) // 100 + (100 * 50 / 100) = 150
@@ -39,7 +41,7 @@ internal class CoordinateUtilsTest {
 
         // When: We test the real coordinate calculation
         val testElement = createTestUiElement()
-        val calculatedPoint = CoordinateUtils.calculateElementRelativePoint(testElement, command.relativePoint!!)
+        val calculatedPoint = calculateElementRelativePoint(testElement, command.relativePoint!!)
 
         // Then: Verify the real calculation works correctly
         assertThat(calculatedPoint.x).isEqualTo(125) // 100 + 25 = 125
@@ -48,18 +50,20 @@ internal class CoordinateUtilsTest {
 
     @Test
     fun `test coordinate calculation edge cases`() {
+        val testElement = createTestUiElement()
+        
         // Test 0%, 0% (top-left)
-        val topLeft = CoordinateUtils.calculateElementRelativePoint(createTestUiElement(), "0%, 0%")
+        val topLeft = calculateElementRelativePoint(testElement, "0%, 0%")
         assertThat(topLeft.x).isEqualTo(100) // 100 + (100 * 0 / 100) = 100
         assertThat(topLeft.y).isEqualTo(100) // 100 + (100 * 0 / 100) = 100
 
         // Test 100%, 100% (bottom-right)
-        val bottomRight = CoordinateUtils.calculateElementRelativePoint(createTestUiElement(), "100%, 100%")
+        val bottomRight = calculateElementRelativePoint(testElement, "100%, 100%")
         assertThat(bottomRight.x).isEqualTo(200) // 100 + (100 * 100 / 100) = 200
         assertThat(bottomRight.y).isEqualTo(200) // 100 + (100 * 100 / 100) = 200
 
         // Test 25%, 75% (quarter from left, three-quarters from top)
-        val quarterPoint = CoordinateUtils.calculateElementRelativePoint(createTestUiElement(), "25%, 75%")
+        val quarterPoint = calculateElementRelativePoint(testElement, "25%, 75%")
         assertThat(quarterPoint.x).isEqualTo(125) // 100 + (100 * 25 / 100) = 125
         assertThat(quarterPoint.y).isEqualTo(175) // 100 + (100 * 75 / 100) = 175
     }

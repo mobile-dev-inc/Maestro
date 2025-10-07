@@ -41,6 +41,7 @@ import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
+import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -1143,9 +1144,6 @@ class Orchestra(
         return true
     }
 
-    private fun calculateElementRelativePoint(element: UiElement, point: String): Point {
-        return CoordinateUtils.calculateElementRelativePoint(element, point)
-    }
 
     private fun findElement(
         selector: ElementSelector,
