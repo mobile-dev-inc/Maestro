@@ -13,7 +13,6 @@ class ChromeSeleniumFactory(
 ) : SeleniumFactory {
 
     override fun create(): WebDriver {
-        System.setProperty("webdriver.chrome.silentOutput", "true")
         System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true")
         Logger.getLogger("org.openqa.selenium").level = Level.OFF
         Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder").level = Level.OFF
@@ -28,6 +27,10 @@ class ChromeSeleniumFactory(
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
+                addArguments("--no-sandbox")
+                addArguments("--disable-dev-shm-usage")
+                addArguments("--disable-gpu")
+                addArguments("--user-data-dir=/tmp/chromium-maestro")
                 if (isHeadless) {
                     addArguments("--headless=new")
                     addArguments("--window-size=1024,768")
