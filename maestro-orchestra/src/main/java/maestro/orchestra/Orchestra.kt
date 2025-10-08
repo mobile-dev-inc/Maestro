@@ -27,7 +27,9 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.Point
 import maestro.ScreenRecording
+import maestro.UiElement
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -39,6 +41,7 @@ import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
+import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -1053,16 +1056,33 @@ class Orchestra(
     ): Boolean {
         val result = findElement(command.selector, optional = command.optional)
 
-        maestro.tap(
-            element = result.element,
-            initialHierarchy = result.hierarchy,
-            retryIfNoChange = retryIfNoChange,
-            waitUntilVisible = waitUntilVisible,
-            longPress = command.longPress ?: false,
-            appId = config?.appId,
-            tapRepeat = command.repeat,
-            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-        )
+
+        // Handle element-relative tap if specified
+        val relativePoint = command.relativePoint
+        if (relativePoint != null) {
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
+                  
+            maestro.tap(
+                x = tapPoint.x,
+                y = tapPoint.y,
+                retryIfNoChange = retryIfNoChange,
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        } else {
+            // Default behavior: tap at element center
+            maestro.tap(
+                element = result.element,
+                initialHierarchy = result.hierarchy,
+                retryIfNoChange = retryIfNoChange,
+                waitUntilVisible = waitUntilVisible,
+                longPress = command.longPress ?: false,
+                appId = config?.appId,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        }
 
         return true
     }
@@ -1123,6 +1143,7 @@ class Orchestra(
 
         return true
     }
+
 
     private fun findElement(
         selector: ElementSelector,

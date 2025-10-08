@@ -730,17 +730,37 @@ data class YamlFluentCommand(
         }
 
         return if (point != null) {
-            MaestroCommand(
-                TapOnPointV2Command(
-                    point = point,
-                    retryIfNoChange = retryIfNoChange,
-                    longPress = longPress,
-                    repeat = repeat,
-                    waitToSettleTimeoutMs = waitToSettleTimeoutMs,
-                    label = label,
-                    optional = optional,
+            val elementSelector = toElementSelector(tapOn)
+            
+            // Check if we have both element selector and point - this means element-relative tap
+            if (hasAnySelector(elementSelector)) {
+                MaestroCommand(
+                    command = TapOnElementCommand(
+                        selector = elementSelector,
+                        retryIfNoChange = retryIfNoChange,
+                        waitUntilVisible = waitUntilVisible,
+                        longPress = longPress,
+                        repeat = repeat,
+                        waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+                        label = label,
+                        optional = optional,
+                        relativePoint = point, // Parameter for element-relative coordinates
+                    )
                 )
-            )
+            } else {
+                // Pure point-based tap (screen coordinates)
+                MaestroCommand(
+                    TapOnPointV2Command(
+                        point = point,
+                        retryIfNoChange = retryIfNoChange,
+                        longPress = longPress,
+                        repeat = repeat,
+                        waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+                        label = label,
+                        optional = optional,
+                    )
+                )
+            }
         } else {
             MaestroCommand(
                 command = TapOnElementCommand(
@@ -845,6 +865,26 @@ data class YamlFluentCommand(
         } else {
             throw IllegalStateException("Unknown selector type: $selectorUnion")
         }
+    }
+
+    private fun hasAnySelector(selector: ElementSelector): Boolean {
+        return selector.textRegex != null ||
+                selector.idRegex != null ||
+                selector.size != null ||
+                selector.below != null ||
+                selector.above != null ||
+                selector.leftOf != null ||
+                selector.rightOf != null ||
+                selector.containsChild != null ||
+                selector.containsDescendants != null ||
+                selector.traits != null ||
+                selector.index != null ||
+                selector.enabled != null ||
+                selector.selected != null ||
+                selector.checked != null ||
+                selector.focused != null ||
+                selector.childOf != null ||
+                selector.css != null
     }
 
     private fun toElementSelector(selector: YamlElementSelector): ElementSelector {
