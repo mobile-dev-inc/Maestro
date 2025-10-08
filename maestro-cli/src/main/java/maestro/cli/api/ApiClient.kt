@@ -595,8 +595,6 @@ class ApiClient(
     fun getUser(authToken: String): UserResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/user"
 
-        println("baseUrl: $baseUrl")
-
         val request = Request.Builder()
           .header("Authorization", "Bearer $authToken")
           .url(baseUrl)
@@ -627,8 +625,6 @@ class ApiClient(
 
     fun getOrg(authToken: String): OrgResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/org"
-
-        println("baseUrl: $baseUrl")
 
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
