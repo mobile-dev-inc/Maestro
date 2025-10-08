@@ -39,7 +39,7 @@ ________________________________________________________________________________
 
 ## Publish CLI
 
-1. Trigger the [Publish CLI Github action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-cli.yml)
+1. Trigger the [Publish CLI Github action](https://github.com/mobile-dev-inc/Maestro/actions/workflows/publish-cli.yaml)
 2. Test installing the cli by running `curl -Ls "https://get.maestro.mobile.dev" | bash`
 3. Check the version number `maestro --version`
 
