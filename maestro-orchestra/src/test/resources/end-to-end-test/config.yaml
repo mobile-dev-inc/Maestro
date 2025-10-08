@@ -1,0 +1,8 @@
+paths:
+  "@screens": "flows/screens"
+  "!components": "flows/components"
+  "~utils": "flows/utils"
+
+flows:
+  - "**/*.yaml"
+  - "**/*.yml"

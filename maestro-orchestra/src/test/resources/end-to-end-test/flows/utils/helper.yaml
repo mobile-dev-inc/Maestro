@@ -1,0 +1,8 @@
+appId: com.example.app
+
+- launchApp
+- runFlow:
+    file: "@screens/login.yaml"
+- runFlow:
+    file: "!components/button.yaml"
+- assertVisible: "All Tests Complete"
