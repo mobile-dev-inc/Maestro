@@ -1,0 +1,6 @@
+appId: com.example.test
+---
+- tapOn:
+    text: Button
+    index: 2
+    point: 50%, 90%

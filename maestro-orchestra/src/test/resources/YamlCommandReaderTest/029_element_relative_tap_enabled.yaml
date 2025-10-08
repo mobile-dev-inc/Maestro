@@ -1,0 +1,6 @@
+appId: com.example.test
+---
+- tapOn:
+    text: Submit
+    enabled: true
+    point: 25%, 75%

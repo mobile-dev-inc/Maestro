@@ -1,0 +1,5 @@
+appId: com.example.test
+---
+- doubleTapOn:
+    text: Submit
+    point: 50%, 90%

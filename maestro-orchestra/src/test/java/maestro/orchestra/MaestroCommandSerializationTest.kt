@@ -53,6 +53,49 @@ internal class MaestroCommandSerializationTest {
     }
 
     @Test
+    fun `serialize TapOnElementCommand with relativePoint`() {
+        // given
+        val command = MaestroCommand(
+            command = TapOnElementCommand(
+                selector = ElementSelector(textRegex = "Submit"),
+                retryIfNoChange = false,
+                waitUntilVisible = true,
+                longPress = false,
+                relativePoint = "50%, 90%",
+                label = "Tap Submit Button"
+            )
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "tapOnElement" : {
+                "selector" : {
+                  "textRegex" : "Submit",
+                  "optional" : false
+                },
+                "retryIfNoChange" : false,
+                "waitUntilVisible" : true,
+                "longPress" : false,
+                "relativePoint" : "50%, 90%",
+                "label" : "Tap Submit Button",
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
     fun `serialize TapOnPointCommand`() {
         // given
         val command = MaestroCommand(

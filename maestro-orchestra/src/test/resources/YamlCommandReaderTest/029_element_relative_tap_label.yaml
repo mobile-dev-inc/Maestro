@@ -1,0 +1,6 @@
+appId: com.example.test
+---
+- tapOn:
+    text: Login
+    point: 50%, 90%
+    label: 'Tap Login Button at Bottom'

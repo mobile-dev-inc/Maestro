@@ -1,0 +1,7 @@
+appId: com.example.test
+---
+- tapOn:
+    text: Submit
+    point: 50%, 90%
+    repeat: 3
+    delay: 100

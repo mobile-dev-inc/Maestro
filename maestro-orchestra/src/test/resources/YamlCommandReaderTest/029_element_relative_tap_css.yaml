@@ -1,0 +1,5 @@
+appId: com.example.test
+---
+- tapOn:
+    css: .submit-button
+    point: 75%, 25%

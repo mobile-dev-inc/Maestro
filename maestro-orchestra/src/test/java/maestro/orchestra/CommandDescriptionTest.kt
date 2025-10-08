@@ -99,6 +99,74 @@ internal class CommandDescriptionTest {
     }
 
     @Test
+    fun `TapOnElementCommand description includes relativePoint when provided`() {
+        // given
+        val command = TapOnElementCommand(
+            selector = ElementSelector(textRegex = "Submit"),
+            relativePoint = "50%, 90%",
+            label = "Tap Submit Button"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo("Tap on \"Submit\" at 50%, 90%")
+        assertThat(command.description()).isEqualTo("Tap Submit Button")
+    }
+
+    @Test
+    fun `TapOnElementCommand description without relativePoint`() {
+        // given
+        val command = TapOnElementCommand(
+            selector = ElementSelector(textRegex = "Cancel"),
+            label = "Tap Cancel Button"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo("Tap on \"Cancel\"")
+        assertThat(command.description()).isEqualTo("Tap Cancel Button")
+    }
+
+    @Test
+    fun `TapOnElementCommand description with absolute coordinates`() {
+        // given
+        val command = TapOnElementCommand(
+            selector = ElementSelector(idRegex = "submit-btn"),
+            relativePoint = "10, 5",
+            label = "Tap Submit at specific position"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo("Tap on id: submit-btn at 10, 5")
+        assertThat(command.description()).isEqualTo("Tap Submit at specific position")
+    }
+
+    @Test
+    fun `TapOnElementCommand description with CSS selector`() {
+        // given
+        val command = TapOnElementCommand(
+            selector = ElementSelector(css = ".submit-button"),
+            relativePoint = "50%, 90%",
+            label = "Tap CSS element at specific position"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo("Tap on CSS: .submit-button at 50%, 90%")
+        assertThat(command.description()).isEqualTo("Tap CSS element at specific position")
+    }
+
+    @Test
+    fun `TapOnElementCommand description with size selector`() {
+        // given
+        val command = TapOnElementCommand(
+            selector = ElementSelector(size = ElementSelector.SizeSelector(width = 100, height = 50)),
+            relativePoint = "25%, 75%",
+            label = "Tap sized element at specific position"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo("Tap on Size: 100x50 at 25%, 75%")
+        assertThat(command.description()).isEqualTo("Tap sized element at specific position")
+    }
+
     fun `description evaluates scripts in labels - GraalJS`(
         @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
