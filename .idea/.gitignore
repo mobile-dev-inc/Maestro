@@ -27,5 +27,4 @@ gradle.xml
 kotlinc.xml
 vcs.xml
 
-copilot.data.migration.agent.xml
-copilot.data.migration.edit.xml
+copilot.data.migration.*
