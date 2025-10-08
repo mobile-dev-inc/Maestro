@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.0.5
+
+### Fixes
+- Removed debugging logs
+
 ## 2.0.4
 
 ### Features
