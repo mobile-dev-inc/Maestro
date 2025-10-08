@@ -21,7 +21,7 @@ class WorkspaceConfigProviderTest {
     @Test
     fun `WorkspaceConfigProvider should store and retrieve workspace config`() {
         val workspaceConfig = WorkspaceConfig(
-            paths = mapOf(
+            pathAliases = mapOf(
                 "@proj" to "libs/screens",
                 "!components" to "src/components"
             )
@@ -39,8 +39,8 @@ class WorkspaceConfigProviderTest {
 
     @Test
     fun `WorkspaceConfigProvider should allow updating workspace config`() {
-        val initialConfig = WorkspaceConfig(paths = mapOf("@proj" to "libs/screens"))
-        val updatedConfig = WorkspaceConfig(paths = mapOf("!components" to "src/components"))
+        val initialConfig = WorkspaceConfig(pathAliases = mapOf("@proj" to "libs/screens"))
+        val updatedConfig = WorkspaceConfig(pathAliases = mapOf("!components" to "src/components"))
 
         WorkspaceConfigProvider.workspaceConfig = initialConfig
         assertThat(WorkspaceConfigProvider.workspaceConfig).isEqualTo(initialConfig)
@@ -52,11 +52,11 @@ class WorkspaceConfigProviderTest {
     @Test
     fun `PathResolver should use WorkspaceConfigProvider when available`() {
         val workspaceConfig = WorkspaceConfig(
-            paths = mapOf("@proj" to "libs/screens")
+            pathAliases = mapOf("@proj" to "libs/screens")
         )
         WorkspaceConfigProvider.workspaceConfig = workspaceConfig
 
-        val result = PathResolver.resolveAliases("@proj/login.yaml", workspaceConfig)
+        val result = PathResolver.resolve("@proj/login.yaml", workspaceConfig)
         assertThat(result).isEqualTo("libs/screens/login.yaml")
     }
 }

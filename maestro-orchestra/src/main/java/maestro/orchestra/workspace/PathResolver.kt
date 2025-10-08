@@ -5,13 +5,13 @@ import java.io.File
 
 object PathResolver {
     
-    fun resolveAliases(path: String, workspaceConfig: WorkspaceConfig?): String {
-        val paths = workspaceConfig?.paths ?: return path
+        fun resolve(path: String, workspaceConfig: WorkspaceConfig?): String {
+            val pathAliases = workspaceConfig?.pathAliases ?: return path
         
-        // Find the first matching alias and replace it
-        for ((alias, aliasPath) in paths) {
-            if (path.startsWith(alias)) {
-                val remainingPath = path.substring(alias.length)
+        // Find the first matching pathAlias and replace it
+        for ((pathAlias, aliasPath) in pathAliases) {
+            if (path.startsWith(pathAlias)) {
+                val remainingPath = path.substring(pathAlias.length)
                 return "$aliasPath$remainingPath"
             }
         }
@@ -19,20 +19,20 @@ object PathResolver {
         return path
     }
     
-    fun validateAliasPaths(workspaceConfig: WorkspaceConfig?, baseDir: File): List<String> {
-        val errors = mutableListOf<String>()
-        
-        val aliasMap = workspaceConfig?.paths ?: return errors
+        fun validate(workspaceConfig: WorkspaceConfig?, baseDir: File): List<String> {
+            val errors = mutableListOf<String>()
+            
+            val pathAliasMap = workspaceConfig?.pathAliases ?: return errors
         
         // Check for circular references
-        for ((alias, aliasPath) in aliasMap) {
+        for ((pathAlias, aliasPath) in pathAliasMap) {
             if (aliasPath.startsWith("@") || aliasPath.startsWith("!") || aliasPath.startsWith("~")) {
-                errors.add("Alias '$alias' references another alias '$aliasPath'. Circular references are not supported.")
+                errors.add("PathAlias '$pathAlias' references another pathAlias '$aliasPath'. Circular references are not supported.")
             }
         }
         
-        // Check that alias paths exist
-        for ((alias, aliasPath) in aliasMap) {
+        // Check that pathAlias paths exist
+        for ((pathAlias, aliasPath) in pathAliasMap) {
             val resolvedPath = if (aliasPath.startsWith("/") || aliasPath.matches(Regex("^[A-Za-z]:.*"))) {
                 // Absolute path
                 File(aliasPath)
@@ -42,7 +42,7 @@ object PathResolver {
             }
             
             if (!resolvedPath.exists()) {
-                errors.add("Alias '$alias' points to non-existent path: $resolvedPath")
+                errors.add("PathAlias '$pathAlias' points to non-existent path: $resolvedPath")
             }
         }
         

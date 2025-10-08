@@ -1,4 +1,4 @@
-paths:
+pathAliases:
   "@screens": "flows/screens"
   "!components": "flows/components"
   "~utils": "flows/utils"

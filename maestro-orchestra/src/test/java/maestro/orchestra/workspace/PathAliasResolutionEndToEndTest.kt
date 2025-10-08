@@ -12,7 +12,7 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 
-class AliasResolutionEndToEndTest {
+class PathAliasResolutionEndToEndTest {
 
     @TempDir
     lateinit var tempDir: File
@@ -48,23 +48,23 @@ class AliasResolutionEndToEndTest {
         // Load workspace config
         val workspaceConfig = YamlCommandReader.readWorkspaceConfig(configFile)
         
-        // Verify paths are loaded correctly
-        assertThat(workspaceConfig.paths).isNotNull()
-        assertThat(workspaceConfig.paths).containsEntry("@screens", "flows/screens")
-        assertThat(workspaceConfig.paths).containsEntry("!components", "flows/components")
-        assertThat(workspaceConfig.paths).containsEntry("~utils", "flows/utils")
+        // Verify pathAliases are loaded correctly
+        assertThat(workspaceConfig.pathAliases).isNotNull()
+        assertThat(workspaceConfig.pathAliases).containsEntry("@screens", "flows/screens")
+        assertThat(workspaceConfig.pathAliases).containsEntry("!components", "flows/components")
+        assertThat(workspaceConfig.pathAliases).containsEntry("~utils", "flows/utils")
         
         // Set global workspace config
         WorkspaceConfigProvider.workspaceConfig = workspaceConfig
         
-        // Test alias resolution in PathResolver
-        val resolvedLogin = PathResolver.resolveAliases("@screens/login.yaml", workspaceConfig)
+        // Test pathAlias resolution in PathResolver
+        val resolvedLogin = PathResolver.resolve("@screens/login.yaml", workspaceConfig)
         assertThat(resolvedLogin).isEqualTo("flows/screens/login.yaml")
         
-        val resolvedButton = PathResolver.resolveAliases("!components/button.yaml", workspaceConfig)
+        val resolvedButton = PathResolver.resolve("!components/button.yaml", workspaceConfig)
         assertThat(resolvedButton).isEqualTo("flows/components/button.yaml")
         
-        val resolvedHelper = PathResolver.resolveAliases("~utils/helper.yaml", workspaceConfig)
+        val resolvedHelper = PathResolver.resolve("~utils/helper.yaml", workspaceConfig)
         assertThat(resolvedHelper).isEqualTo("flows/utils/helper.yaml")
     }
 
@@ -74,16 +74,16 @@ class AliasResolutionEndToEndTest {
         val workspaceConfig = YamlCommandReader.readWorkspaceConfig(configFile)
         WorkspaceConfigProvider.workspaceConfig = workspaceConfig
         
-        // Test that alias resolution works in PathResolver
-        val loginAlias = PathResolver.resolveAliases("@screens/login.yaml", workspaceConfig)
+        // Test that pathAlias resolution works in PathResolver
+        val loginAlias = PathResolver.resolve("@screens/login.yaml", workspaceConfig)
         assertThat(loginAlias).isEqualTo("flows/screens/login.yaml")
         
-        val buttonAlias = PathResolver.resolveAliases("!components/button.yaml", workspaceConfig)
+        val buttonAlias = PathResolver.resolve("!components/button.yaml", workspaceConfig)
         assertThat(buttonAlias).isEqualTo("flows/components/button.yaml")
         
         // Test that the global WorkspaceConfigProvider is working
         assertThat(WorkspaceConfigProvider.workspaceConfig).isNotNull()
-        assertThat(WorkspaceConfigProvider.workspaceConfig?.paths).isNotNull()
+        assertThat(WorkspaceConfigProvider.workspaceConfig?.pathAliases).isNotNull()
     }
 
     @Test
@@ -93,11 +93,11 @@ class AliasResolutionEndToEndTest {
         WorkspaceConfigProvider.workspaceConfig = workspaceConfig
         
         // Test unknown alias - should remain unchanged
-        val unknownAlias = PathResolver.resolveAliases("@unknown/path.yaml", workspaceConfig)
+        val unknownAlias = PathResolver.resolve("@unknown/path.yaml", workspaceConfig)
         assertThat(unknownAlias).isEqualTo("@unknown/path.yaml")
         
         // Test regular path - should remain unchanged
-        val regularPath = PathResolver.resolveAliases("regular/path.yaml", workspaceConfig)
+        val regularPath = PathResolver.resolve("regular/path.yaml", workspaceConfig)
         assertThat(regularPath).isEqualTo("regular/path.yaml")
     }
 
@@ -106,8 +106,8 @@ class AliasResolutionEndToEndTest {
         // Load workspace config
         val workspaceConfig = YamlCommandReader.readWorkspaceConfig(configFile)
         
-        // Validate alias paths - should pass since our test files exist
-        val errors = PathResolver.validateAliasPaths(workspaceConfig, testDir.toFile())
+        // Validate pathAlias paths - should pass since our test files exist
+        val errors = PathResolver.validate(workspaceConfig, testDir.toFile())
         assertThat(errors).isEmpty()
     }
 
@@ -115,14 +115,14 @@ class AliasResolutionEndToEndTest {
     fun `end-to-end test should detect non-existent alias paths`() {
         // Create a config with non-existent alias paths
         val invalidConfig = WorkspaceConfig(
-            paths = mapOf(
+            pathAliases = mapOf(
                 "@invalid" to "non-existent/path",
                 "@screens" to "flows/screens" // This one exists
             )
         )
         
         // Validate should detect the non-existent path
-        val errors = PathResolver.validateAliasPaths(invalidConfig, testDir.toFile())
+        val errors = PathResolver.validate(invalidConfig, testDir.toFile())
         assertThat(errors).isNotEmpty()
         assertThat(errors.any { it.contains("non-existent path") }).isTrue()
     }
@@ -131,14 +131,14 @@ class AliasResolutionEndToEndTest {
     fun `end-to-end test should handle circular references`() {
         // Create a config with circular references
         val circularConfig = WorkspaceConfig(
-            paths = mapOf(
+            pathAliases = mapOf(
                 "@a" to "@b/path",
                 "@b" to "@a/path"
             )
         )
         
         // Validate should detect circular references
-        val errors = PathResolver.validateAliasPaths(circularConfig, testDir.toFile())
+        val errors = PathResolver.validate(circularConfig, testDir.toFile())
         assertThat(errors).isNotEmpty()
         assertThat(errors.any { it.contains("Circular references are not supported") }).isTrue()
     }

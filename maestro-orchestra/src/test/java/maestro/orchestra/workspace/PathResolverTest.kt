@@ -23,19 +23,19 @@ class PathResolverTest {
 
     @ParameterizedTest
     @MethodSource("aliasTestCases")
-    fun `resolveAliases should resolve $path`(testCase: AliasTestCase) {
-        val result = PathResolver.resolveAliases(testCase.path, testAliasesConfig)
-        assertThat(result).isEqualTo(testCase.expected)
-    }
+        fun `resolve should resolve $path`(testCase: AliasTestCase) {
+            val result = PathResolver.resolve(testCase.path, testPathAliasesConfig)
+            assertThat(result).isEqualTo(testCase.expected)
+        }
 
     companion object {
-        private val testAliases = mapOf(
+        private val testPathAliases = mapOf(
             "@proj" to "libs/screens",
             "!proj" to "src/components",
             "~proj/my-package" to "src/components"
         )
         
-        private val testAliasesConfig = WorkspaceConfig(paths = testAliases)
+        private val testPathAliasesConfig = WorkspaceConfig(pathAliases = testPathAliases)
 
         @JvmStatic
         fun aliasTestCases() = listOf(
@@ -57,31 +57,31 @@ class PathResolverTest {
             )
         )
 
-        @JvmStatic
-        fun validationTestCases() = listOf(
-            ValidationTestCase(
-                workspaceConfig = WorkspaceConfig(paths = null),
-                expectedErrors = emptyList(),
-                description = "should return empty list when no paths configured"
+            @JvmStatic
+            fun validationTestCases() = listOf(
+                ValidationTestCase(
+                    workspaceConfig = WorkspaceConfig(pathAliases = null),
+                    expectedErrors = emptyList(),
+                    description = "should return empty list when no pathAliases configured"
+                )
             )
-        )
     }
 
     @Test
-    fun `resolveAliases should return original path when no aliases configured`() {
-        val path = "@proj/my-screen"
-        val workspaceConfig = WorkspaceConfig(paths = null)
-        val result = PathResolver.resolveAliases(path, workspaceConfig)
-        assertThat(result).isEqualTo(path)
-    }
+        fun `resolve should return original path when no pathAliases configured`() {
+            val path = "@proj/my-screen"
+            val workspaceConfig = WorkspaceConfig(pathAliases = null)
+            val result = PathResolver.resolve(path, workspaceConfig)
+            assertThat(result).isEqualTo(path)
+        }
 
-    @Test
-    fun `resolveAliases should return original path when no aliases match`() {
-        val path = "regular/path"
-        val workspaceConfig = WorkspaceConfig(paths = mapOf("proj" to "libs/screens"))
-        val result = PathResolver.resolveAliases(path, workspaceConfig)
-        assertThat(result).isEqualTo(path)
-    }
+        @Test
+        fun `resolve should return original path when no pathAliases match`() {
+            val path = "regular/path"
+            val workspaceConfig = WorkspaceConfig(pathAliases = mapOf("proj" to "libs/screens"))
+            val result = PathResolver.resolve(path, workspaceConfig)
+            assertThat(result).isEqualTo(path)
+        }
 
     data class ValidationTestCase(
         val workspaceConfig: WorkspaceConfig,
@@ -91,33 +91,33 @@ class PathResolverTest {
 
     @ParameterizedTest
     @MethodSource("validationTestCases")
-    fun `validateAliasPaths should handle various validation scenarios`(testCase: ValidationTestCase) {
-        val errors = PathResolver.validateAliasPaths(testCase.workspaceConfig, tempDir)
-        assertThat(errors).containsExactlyElementsIn(testCase.expectedErrors)
-    }
+        fun `validate should handle various validation scenarios`(testCase: ValidationTestCase) {
+            val errors = PathResolver.validate(testCase.workspaceConfig, tempDir)
+            assertThat(errors).containsExactlyElementsIn(testCase.expectedErrors)
+        }
 
     @Test
-    fun `validateAliasPaths should detect circular references`() {
-        val workspaceConfig = WorkspaceConfig(paths = mapOf("@a" to "@b/path", "@b" to "@a/path"))
-        val errors = PathResolver.validateAliasPaths(workspaceConfig, tempDir)
-        assertThat(errors).isNotEmpty()
-        assertThat(errors.any { it.contains("Circular references are not supported") }).isTrue()
-    }
+        fun `validate should detect circular references`() {
+            val workspaceConfig = WorkspaceConfig(pathAliases = mapOf("@a" to "@b/path", "@b" to "@a/path"))
+            val errors = PathResolver.validate(workspaceConfig, tempDir)
+            assertThat(errors).isNotEmpty()
+            assertThat(errors.any { it.contains("Circular references are not supported") }).isTrue()
+        }
 
-    @Test
-    fun `validateAliasPaths should detect non-existent paths`() {
-        val workspaceConfig = WorkspaceConfig(paths = mapOf("proj" to "non-existent/path"))
-        val errors = PathResolver.validateAliasPaths(workspaceConfig, tempDir)
-        assertThat(errors).isNotEmpty()
-        assertThat(errors.any { it.contains("non-existent path") }).isTrue()
-    }
+        @Test
+        fun `validate should detect non-existent paths`() {
+            val workspaceConfig = WorkspaceConfig(pathAliases = mapOf("proj" to "non-existent/path"))
+            val errors = PathResolver.validate(workspaceConfig, tempDir)
+            assertThat(errors).isNotEmpty()
+            assertThat(errors.any { it.contains("non-existent path") }).isTrue()
+        }
 
-    @Test
-    fun `validateAliasPaths should pass for valid paths`() {
-        val existingDir = File(tempDir, "existing-dir")
-        existingDir.mkdirs()
-        val workspaceConfig = WorkspaceConfig(paths = mapOf("proj" to "existing-dir"))
-        val errors = PathResolver.validateAliasPaths(workspaceConfig, tempDir)
-        assertThat(errors).isEmpty()
-    }
+        @Test
+        fun `validate should pass for valid paths`() {
+            val existingDir = File(tempDir, "existing-dir")
+            existingDir.mkdirs()
+            val workspaceConfig = WorkspaceConfig(pathAliases = mapOf("proj" to "existing-dir"))
+            val errors = PathResolver.validate(workspaceConfig, tempDir)
+            assertThat(errors).isEmpty()
+        }
 }

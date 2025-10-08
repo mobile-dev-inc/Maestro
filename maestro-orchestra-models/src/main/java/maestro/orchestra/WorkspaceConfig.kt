@@ -17,7 +17,7 @@ data class WorkspaceConfig(
         ios = PlatformConfiguration.IOSConfiguration(disableAnimations = false)
     ),
     val testOutputDir: String? = null,
-    val paths: Map<String, String>? = null, // alias -> path mapping
+        val pathAliases: Map<String, String>? = null, // pathAlias -> path mapping
 ) {
 
     data class MaestroNotificationConfiguration(

@@ -9,8 +9,8 @@ object WorkingDirectory {
     var workspaceConfig: WorkspaceConfig? = null
 
     fun resolve(path: String): File {
-        val resolvedPath = workspaceConfig?.let { 
-            PathResolver.resolveAliases(path, it) 
+        val resolvedPath = workspaceConfig?.let {
+            PathResolver.resolve(path, it)
         } ?: path
         return File(baseDir, resolvedPath)
     }

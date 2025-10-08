@@ -26,12 +26,12 @@ class WorkingDirectoryTest {
     )
 
     companion object {
-        private val testAliases = mapOf(
+        private val testPathAliases = mapOf(
             "@proj" to "libs/screens",
             "@libs" to "src/components"
         )
         
-        private val testWorkspaceConfig = WorkspaceConfig(paths = testAliases)
+        private val testWorkspaceConfig = WorkspaceConfig(pathAliases = testPathAliases)
 
         @JvmStatic
         fun resolveTestCases() = listOf(
@@ -76,12 +76,12 @@ class WorkingDirectoryTest {
     }
 
     @Test
-    fun `resolve should work with workspace config but no aliases`() {
-        val path = "some/path/file.yaml"
-        WorkingDirectory.workspaceConfig = WorkspaceConfig(paths = null)
-        val result = WorkingDirectory.resolve(path)
-        assertThat(result).isEqualTo(File(tempDir, path))
-    }
+        fun `resolve should work with workspace config but no pathAliases`() {
+            val path = "some/path/file.yaml"
+            WorkingDirectory.workspaceConfig = WorkspaceConfig(pathAliases = null)
+            val result = WorkingDirectory.resolve(path)
+            assertThat(result).isEqualTo(File(tempDir, path))
+        }
 
     @Test
     fun `resolve should handle absolute paths`() {
