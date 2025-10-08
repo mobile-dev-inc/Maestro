@@ -649,7 +649,11 @@ data class YamlFluentCommand(
     }
 
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
-        val path = flowPath.fileSystem.getPath(requestedPath)
+        val resolvedAliasPath = maestro.orchestra.workspace.WorkspaceConfigProvider.workspaceConfig?.let { 
+            maestro.orchestra.workspace.PathResolver.resolveAliases(requestedPath, it) 
+        } ?: requestedPath
+        
+        val path = flowPath.fileSystem.getPath(resolvedAliasPath)
 
         val resolvedPath = if (path.isAbsolute) {
             path
