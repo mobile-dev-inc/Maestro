@@ -186,6 +186,7 @@ class CloudInteractor(
                 success = uploadResponse == 0,
                 durationMs = uploadDuration
             ))
+            Analytics.flush()
             
             return uploadResponse
         }

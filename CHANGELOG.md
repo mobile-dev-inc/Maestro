@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 2.0.5
+
+### Fixes
+- Removed debugging logs
+
+## 2.0.4
+
+### Features
+- Added support for tapping at specific coordinates relative to an element using the `relativePoint` parameter in `tapOn` and `doubleTapOn` commands [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/2059)
+- Labels in commands can now be dynamically evaluated using JavaScript expressions (thanks @jerriais!)
+
+### Fixes
+- Fixed issue where `maestro login` would fail if user was already logged in 
+- Fixed iOS permission setting when using 'all' with specific permission overrides
+- Fixed issue where platform argument would be ignored
+- Fixed issue where blank platform argument would incorrectly filter out all tests
+- Fixed off-by-one error when specifying count with `eraseText` command on Android
+- Improved performance by evaluating script conditions eagerly, ahead of visibility conditions (thanks @tokou!)
+- Fixed crash when running Maestro with empty arguments
+- Updated iOS test runner to support Xcode 26
+- Improved logging on Android driver timeouts
+- Improved copy/paste experience in legacy Maestro Studio (thanks @tylerqr!)
+
+
 ## 2.0.3
 Fixes:
 - Fix filter logic that was causing incorrect element selection when using multiple selectors together for some applications

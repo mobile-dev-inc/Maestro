@@ -124,6 +124,18 @@ object Analytics : AutoCloseable {
     }
 
     /**
+     * Flush pending PostHog events immediately
+     * Use this when you need to ensure events are sent before continuing
+     */
+    fun flush() {
+        try {
+            posthog.flush()
+        } catch (e: Exception) {
+            logger.warn("Failed to flush PostHog: ${e.message}")
+        }
+    }
+
+    /**
      * Convert a PostHogEvent to EventData with eventName and properties separated
      * This allows for clean destructuring in the calling code
      */
@@ -150,12 +162,7 @@ object Analytics : AutoCloseable {
     */
     override fun close() {
         // First, flush any pending PostHog events before shutting down threads
-        try {
-            posthog.flush()
-            Thread.sleep(500) // No sync flush is available in the PostHog Java client
-        } catch (e: Exception) {
-            logger.warn("Failed to flush PostHog on close: ${e.message}")
-        }
+        flush()
 
         // Now shutdown PostHog to cleanup resources
         try {
@@ -164,6 +171,7 @@ object Analytics : AutoCloseable {
             logger.warn("Failed to close PostHog: ${e.message}")
         }
 
+        // Now shutdown the executor
         try {
             executor.shutdown()
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {

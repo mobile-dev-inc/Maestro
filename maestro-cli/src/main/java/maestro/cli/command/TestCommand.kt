@@ -277,6 +277,9 @@ class TestCommand : Callable<Int> {
             durationMs = duration
         ))
 
+        // Flush analytics events immediately after tracking the upload finished event
+        Analytics.flush()
+
         return result
     }
 
