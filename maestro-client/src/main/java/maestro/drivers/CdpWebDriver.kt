@@ -90,12 +90,13 @@ class CdpWebDriver(
     }
 
     private fun createSeleniumDriver(): WebDriver {
-        System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true")
-        Logger.getLogger("org.openqa.selenium").level = Level.OFF
-        Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder").level = Level.OFF
+        System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "false")
+        System.setProperty(ChromeDriverService.CHROME_DRIVER_VERBOSE_LOG_PROPERTY, "true")
+        Logger.getLogger("org.openqa.selenium").level = Level.ALL
+        Logger.getLogger("org.openqa.selenium.devtools.CdpVersionFinder").level = Level.ALL
 
         val driverService = ChromeDriverService.Builder()
-            .withLogLevel(ChromiumDriverLogLevel.OFF)
+            .withLogLevel(ChromiumDriverLogLevel.ALL)
             .build()
 
         val driver = ChromeDriver(
