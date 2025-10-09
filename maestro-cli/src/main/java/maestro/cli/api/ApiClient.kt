@@ -357,9 +357,10 @@ class ApiClient(
                         ignoreCase = true
                     )
                 ) {
-                    println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
-                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
-
+                    println("\n\u001B[31;1m[ERROR] Your trial has not started yet.\u001B[0m")
+                    println("\u001B[32;1m[INFO] Start your 7-day free trial with no credit card required!\u001B[0m")
+                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the free trial: ")
+                    
                     val scanner = Scanner(System.`in`)
                     val companyName = scanner.nextLine().trim()
 
@@ -368,7 +369,7 @@ class ApiClient(
 
                         val isTrialStarted = startTrial(authToken, companyName);
                         if (isTrialStarted) {
-                            println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
+                            println("\u001B[32;1m[SUCCESS]\u001B[0m Free trial successfully started! Enjoy your 7-day free trial!\n")
                             return upload(
                                 authToken = authToken,
                                 appFile = appFile,
@@ -397,7 +398,7 @@ class ApiClient(
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
                         }
                     } else {
-                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
+                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required to start your free trial.")
                     }
                 }
 
