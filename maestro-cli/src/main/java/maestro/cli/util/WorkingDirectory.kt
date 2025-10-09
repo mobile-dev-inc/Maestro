@@ -12,7 +12,8 @@ object WorkingDirectory {
         val resolvedPath = workspaceConfig?.let {
             PathResolver.resolve(path, it)
         } ?: path
-        return File(baseDir, resolvedPath)
+        val resolvedFile = File(resolvedPath)
+        return if (resolvedFile.isAbsolute) resolvedFile else File(baseDir, resolvedPath)
     }
     
     fun resolve(file: File): File = if (file.isAbsolute) file else File(baseDir, file.path)
