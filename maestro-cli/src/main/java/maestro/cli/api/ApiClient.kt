@@ -427,7 +427,7 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val jsonBody = """{ "companyName": "$companyName", "referralSource": "maestro-cli" }""".toRequestBody("application/json".toMediaType())
+        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
@@ -654,7 +654,6 @@ class ApiClient(
             }
         }
     }
-
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -763,9 +762,9 @@ data class UserResponse(
 data class OrgResponse(
   val id: String,
   val name: String,
-  val quota: Map<String, Map<String, Number>>,
-  val metadata: Map<String, String>,
-  val workOSOrgId: String,
+  val quota: Map<String, Map<String, Number>>?,
+  val metadata: Map<String, String>?,
+  val workOSOrgId: String?,
 )
 
 data class CliVersion(
