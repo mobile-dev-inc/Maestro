@@ -1,0 +1,13 @@
+{
+  "name": "maestro",
+  "owner": {
+    "name": "Maestro"
+  },
+  "plugins": [
+    {
+      "name": "maestro",
+      "source": "./claude-plugin",
+      "description": "A Claude Code plugin to help build and maintain Maestro flows"
+    }
+  ]
+}
