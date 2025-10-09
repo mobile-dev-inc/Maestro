@@ -761,7 +761,8 @@ data class RunFlowCommand(
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine)
+            label = label?.evaluateScripts(jsEngine),
+            sourceDescription = sourceDescription?.evaluateScripts(jsEngine)
         )
     }
 }

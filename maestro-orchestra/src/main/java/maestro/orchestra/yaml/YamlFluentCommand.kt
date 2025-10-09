@@ -461,7 +461,11 @@ data class YamlFluentCommand(
         }
 
         val mediaPaths = addMedia.files.filterNotNull().map {
-            val path = flowPath.fileSystem.getPath(it)
+            val resolvedAliasPath = maestro.orchestra.workspace.WorkspaceConfigProvider.workspaceConfig?.let { config -> 
+                maestro.orchestra.workspace.PathResolver.resolve(it, config) 
+            } ?: it
+            
+            val path = flowPath.fileSystem.getPath(resolvedAliasPath)
 
             val resolvedPath = if (path.isAbsolute) {
                 path
