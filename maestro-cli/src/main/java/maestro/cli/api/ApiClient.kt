@@ -7,11 +7,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import io.ktor.util.internal.RemoveFirstDesc
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.TrialStartedEvent
 import maestro.cli.analytics.TrialStartFailedEvent
+import maestro.cli.analytics.TrialStartPromptedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
@@ -360,6 +360,7 @@ class ApiClient(
                         ignoreCase = true
                     )
                 ) {
+                    Analytics.trackEvent(TrialStartPromptedEvent())
                     println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
                     print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
 
