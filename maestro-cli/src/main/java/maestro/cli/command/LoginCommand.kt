@@ -31,7 +31,7 @@ class LoginCommand : Callable<Int> {
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     private val auth by lazy {
-        Auth(ApiClient("$apiUrl/v2"))
+        Auth(ApiClient(apiUrl))
     }
 
     override fun call(): Int {
