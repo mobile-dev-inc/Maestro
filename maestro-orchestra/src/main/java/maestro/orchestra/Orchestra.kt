@@ -35,9 +35,13 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
 import maestro.ViewHierarchy
+import maestro.ai.AI
+import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
+import maestro.ai.anthropic.Claude
+import maestro.ai.openai.OpenAI
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
