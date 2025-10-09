@@ -30,9 +30,9 @@ class PathResolverTest {
 
     companion object {
         private val testPathAliases = mapOf(
-            "@proj" to "libs/screens",
-            "!proj" to "src/components",
-            "~proj/my-package" to "src/components"
+            "@proj" to "apps/my-project",
+            "!components" to "libs/components",
+            "@monorepo/design-system" to "src/packages/design-system"
         )
         
         private val testPathAliasesConfig = WorkspaceConfig(pathAliases = testPathAliases)
@@ -41,15 +41,15 @@ class PathResolverTest {
         fun aliasTestCases() = listOf(
             AliasTestCase(
                 path = "@proj/my-screen",
-                expected = "libs/screens/my-screen"
+                expected = "apps/my-project/my-screen"
             ),
             AliasTestCase(
-                path = "!proj/my-package/my-screen.fil",
-                expected = "src/components/my-package/my-screen.fil"
+                path = "!components/my-package/my-screen.fil",
+                expected = "libs/components/my-package/my-screen.fil"
             ),
             AliasTestCase(
-                path = "~proj/my-package/my-components/file.yaml",
-                expected = "src/components/my-components/file.yaml"
+                path = "@monorepo/design-system/my-components/file.yaml",
+                expected = "src/packages/design-system/my-components/file.yaml"
             ),
             AliasTestCase(
                 path = "!unknown/my-screen",

@@ -27,8 +27,9 @@ class WorkingDirectoryTest {
 
     companion object {
         private val testPathAliases = mapOf(
-            "@proj" to "libs/screens",
-            "@libs" to "src/components"
+            "@proj" to "apps/my-project",
+            "!components" to "libs/components",
+            "@monorepo/design-system" to "src/packages/design-system"
         )
         
         private val testWorkspaceConfig = WorkspaceConfig(pathAliases = testPathAliases)
@@ -37,7 +38,7 @@ class WorkingDirectoryTest {
         fun resolveTestCases() = listOf(
             ResolveTestCase(
                 inputPath = "@proj/my-screen.yaml",
-                expectedPath = "libs/screens/my-screen.yaml"
+                expectedPath = "apps/my-project/my-screen.yaml"
             ),
             ResolveTestCase(
                 inputPath = "@unknown/my-screen.yaml",
@@ -48,12 +49,12 @@ class WorkingDirectoryTest {
                 expectedPath = "regular/path/file.yaml"
             ),
             ResolveTestCase(
-                inputPath = "@libs/components/button.yaml",
-                expectedPath = "src/components/components/button.yaml"
+                inputPath = "!components/components/button.yaml",
+                expectedPath = "libs/components/components/button.yaml"
             ),
             ResolveTestCase(
                 inputPath = "@proj/",
-                expectedPath = "libs/screens/"
+                expectedPath = "apps/my-project/"
             )
         )
     }
