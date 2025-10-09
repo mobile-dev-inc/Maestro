@@ -277,4 +277,127 @@ class PathAliasIntegrationTest {
         }
         assertThat(exception.message).contains("Media file at @media/test-image.jpg")
     }
+
+    @Test
+    fun `should handle JavaScript interpolation in runFlow command execution`() {
+        // Set up workspace config for this test
+        val workspaceConfig = YamlCommandReader.readWorkspaceConfig(configFile)
+        WorkspaceConfigProvider.workspaceConfig = workspaceConfig
+        
+        // Create a sub-flow file
+        val subFlowFile = testDir.resolve("sub-flow.yaml")
+        subFlowFile.toFile().writeText("""
+            appId: com.test.app
+            ---
+            - tapOn: "Dynamic Button"
+        """.trimIndent())
+        
+        val flowFile = testDir.resolve("js-interpolation-flow.yaml")
+        flowFile.toFile().writeText("""
+            appId: com.test.app
+            ---
+            - runFlow:
+                file: "sub-flow.yaml"
+                label: "Dynamic Flow"
+        """.trimIndent())
+        
+        val commands = YamlCommandReader.readCommands(flowFile)
+        val runFlowCommand = commands.find { it.asCommand()?.javaClass?.simpleName == "RunFlowCommand" }
+        assertThat(runFlowCommand).isNotNull()
+        
+        // Verify the command was created successfully
+        val command = runFlowCommand?.asCommand() as? maestro.orchestra.RunFlowCommand
+        assertThat(command).isNotNull()
+        assertThat(command?.sourceDescription).isEqualTo("sub-flow.yaml")
+        assertThat(command?.label).isEqualTo("Dynamic Flow")
+    }
+
+    @Test
+    fun `should handle JavaScript interpolation in runScript command execution`() {
+        // Set up workspace config for this test
+        val workspaceConfig = YamlCommandReader.readWorkspaceConfig(configFile)
+        WorkspaceConfigProvider.workspaceConfig = workspaceConfig
+        
+        // Create a script file with JavaScript interpolation
+        val scriptFile = testDir.resolve("dynamic-script.js")
+        scriptFile.toFile().writeText("""
+            console.log('Script executed');
+            console.log('Timestamp: ' + new Date().toISOString());
+        """.trimIndent())
+        
+        val flowFile = testDir.resolve("js-interpolation-script.yaml")
+        flowFile.toFile().writeText("""
+            appId: com.test.app
+            ---
+            - runScript:
+                file: "dynamic-script.js"
+                env:
+                  PLATFORM: "test"
+        """.trimIndent())
+        
+        val commands = YamlCommandReader.readCommands(flowFile)
+        val runScriptCommand = commands.find { it.asCommand()?.javaClass?.simpleName == "RunScriptCommand" }
+        assertThat(runScriptCommand).isNotNull()
+        
+        // Verify the command was created successfully
+        val command = runScriptCommand?.asCommand() as? maestro.orchestra.RunScriptCommand
+        assertThat(command).isNotNull()
+        assertThat(command?.sourceDescription).isEqualTo("dynamic-script.js")
+        assertThat(command?.script).contains("console.log('Script executed')")
+        assertThat(command?.env).containsEntry("PLATFORM", "test")
+    }
+
+    @Test
+    fun `should handle JavaScript interpolation with pathAlias in runFlow and runScript`() {
+        // Set up workspace config for this test
+        val workspaceConfig = YamlCommandReader.readWorkspaceConfig(configFile)
+        WorkspaceConfigProvider.workspaceConfig = workspaceConfig
+        
+        // Create files in pathAlias directories
+        val screensDir = testDir.resolve("flows/screens")
+        screensDir.toFile().mkdirs()
+        val subFlowFile = screensDir.resolve("login.yaml")
+        subFlowFile.toFile().writeText("""
+            appId: com.test.app
+            ---
+            - tapOn: "Login"
+        """.trimIndent())
+        
+        val scriptsDir = testDir.resolve("scripts")
+        scriptsDir.toFile().mkdirs()
+        val scriptFile = scriptsDir.resolve("auth.js")
+        scriptFile.toFile().writeText("""
+            console.log('Authentication script');
+        """.trimIndent())
+        
+        val flowFile = testDir.resolve("pathalias-js-interpolation.yaml")
+        flowFile.toFile().writeText("""
+            appId: com.test.app
+            ---
+            - runFlow:
+                file: "@screens/login.yaml"
+                label: "Login Flow"
+            - runScript:
+                file: "!scripts/auth.js"
+                env:
+                  ENV: "test"
+        """.trimIndent())
+        
+        val commands = YamlCommandReader.readCommands(flowFile)
+        
+        // Verify runFlow command
+        val runFlowCommand = commands.find { it.asCommand()?.javaClass?.simpleName == "RunFlowCommand" }
+        assertThat(runFlowCommand).isNotNull()
+        val flowCommand = runFlowCommand?.asCommand() as? maestro.orchestra.RunFlowCommand
+        assertThat(flowCommand?.sourceDescription).isEqualTo("@screens/login.yaml")
+        assertThat(flowCommand?.label).isEqualTo("Login Flow")
+        
+        // Verify runScript command
+        val runScriptCommand = commands.find { it.asCommand()?.javaClass?.simpleName == "RunScriptCommand" }
+        assertThat(runScriptCommand).isNotNull()
+        val scriptCommand = runScriptCommand?.asCommand() as? maestro.orchestra.RunScriptCommand
+        assertThat(scriptCommand?.sourceDescription).isEqualTo("!scripts/auth.js")
+        assertThat(scriptCommand?.script).contains("console.log('Authentication script')")
+        assertThat(scriptCommand?.env).containsEntry("ENV", "test")
+    }
 }

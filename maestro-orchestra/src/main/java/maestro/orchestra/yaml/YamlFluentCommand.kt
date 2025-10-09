@@ -372,13 +372,18 @@ data class YamlFluentCommand(
             runScript != null -> listOf(
                 MaestroCommand(
                     RunScriptCommand(
-                        script = resolvePath(flowPath, runScript.file)
-                            .readText(),
+                        script = if (runScript.file.contains("\${")) {
+                            // If file path contains JavaScript interpolation, we'll load it during execution
+                            ""
+                        } else {
+                            resolvePath(flowPath, runScript.file).readText()
+                        },
                         env = runScript.env,
                         sourceDescription = runScript.file,
                         condition = runScript.`when`?.toCondition(),
                         label = runScript.label,
                         optional = runScript.optional,
+                        flowPath = flowPath.toString(),
                     )
                 )
             )
@@ -499,10 +504,20 @@ data class YamlFluentCommand(
                 it.toCommands(flowPath, appId)
                     .withEnv(runFlow.env)
             }
-            ?: runFlow(flowPath, runFlow)
+            ?: if (runFlow.file?.contains("\${") == true) {
+                // If file path contains JavaScript interpolation, we'll load it during execution
+                emptyList()
+            } else {
+                runFlow(flowPath, runFlow)
+            }
 
         val config = runFlow.file?.let {
-            readConfig(flowPath, runFlow.file)
+            if (runFlow.file.contains("\${")) {
+                // If file path contains JavaScript interpolation, we'll load it during execution
+                null
+            } else {
+                readConfig(flowPath, runFlow.file)
+            }
         }
 
         return MaestroCommand(
@@ -513,6 +528,7 @@ data class YamlFluentCommand(
                 config = config,
                 label = runFlow.label,
                 optional = runFlow.optional,
+                flowPath = flowPath.toString(),
             )
         )
     }
