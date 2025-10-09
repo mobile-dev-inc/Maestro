@@ -86,7 +86,7 @@ class ApiClient(
     fun getLatestCliVersion(): CliVersion {
         val request = Request.Builder()
             .header("X-FRESH-INSTALL", if (!Analytics.hasRunBefore) "true" else "false")
-            .url("$baseUrl/maestro/version")
+            .url("$baseUrl/v2/maestro/version")
             .get()
             .build()
 
@@ -108,14 +108,14 @@ class ApiClient(
     }
 
     fun getAuthUrl(port: String): String {
-        return "$baseUrl/maestroLogin/authUrl?port=$port"
+        return "$baseUrl/v2/maestroLogin/authUrl?port=$port"
     }
 
     fun exchangeToken(code: String): String {
         val requestBody = code.toRequestBody("text/plain".toMediaType())
 
         val request = Request.Builder()
-            .url("$baseUrl/maestroLogin/exchange")
+            .url("$baseUrl/v2/maestroLogin/exchange")
             .post(requestBody)
             .build()
 
@@ -135,7 +135,7 @@ class ApiClient(
 
     fun isAuthTokenValid(authToken: String): Boolean {
         val request = Request.Builder()
-            .url("$baseUrl/maestroLogin/valid")
+            .url("$baseUrl/v2/maestroLogin/valid")
             .header("Authorization", "Bearer $authToken")
             .get()
             .build()
@@ -210,7 +210,7 @@ class ApiClient(
     fun getRenderState(id: String): RenderState {
         val baseUrl = "https://maestro-record.ngrok.io"
         val request = Request.Builder()
-            .url("$baseUrl/render/$id")
+            .url("$baseUrl/v2/render/$id")
             .get()
             .build()
         val response = client.newCall(request).execute().use { response ->
@@ -654,6 +654,38 @@ class ApiClient(
             }
         }
     }
+
+    fun getProjects(authToken: String): List<ProjectResponse> {
+        val url = "$baseUrl/v2/maestro-studio/projects"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val projects = JSON.readValue(responseBody, object : TypeReference<List<ProjectResponse>>() {})
+                return projects
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -765,6 +797,11 @@ data class OrgResponse(
   val quota: Map<String, Map<String, Number>>?,
   val metadata: Map<String, String>?,
   val workOSOrgId: String?,
+)
+
+data class ProjectResponse(
+  val id: String,
+  val name: String,
 )
 
 data class CliVersion(

@@ -7,6 +7,7 @@ import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.ProjectResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -80,7 +81,6 @@ class CloudInteractor(
         deviceModel: String? = null,
         deviceOs: String? = null,
     ): Int {
-        if (projectId == null) throw CliError("Missing required parameter '--project-id'")
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -88,6 +88,9 @@ class CloudInteractor(
 
         val authToken = auth.getAuthToken(apiKey)
         if (authToken == null) throw CliError("Failed to get authentication token")
+
+        // Fetch and select project if not provided
+        val selectedProjectId = projectId ?: selectProject(authToken)
 
         // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
         val triggeredPlatform = when {
@@ -97,7 +100,7 @@ class CloudInteractor(
             else -> "unknown"
         }
         Analytics.trackEvent(CloudUploadTriggeredEvent(
-            projectId = projectId,
+            projectId = selectedProjectId,
             platform = triggeredPlatform,
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
@@ -136,7 +139,7 @@ class CloudInteractor(
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
-                projectId = projectId,
+                projectId = selectedProjectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
@@ -147,7 +150,7 @@ class CloudInteractor(
             // Track cloud upload start after we have the response with actual platform
             val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
             Analytics.trackEvent(CloudUploadStartedEvent(
-                projectId = projectId,
+                projectId = selectedProjectId,
                 platform = platform,
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
@@ -155,7 +158,7 @@ class CloudInteractor(
                 deviceOs = deviceOs
             ))
 
-            val project = requireNotNull(projectId)
+            val project = requireNotNull(selectedProjectId)
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
@@ -173,21 +176,66 @@ class CloudInteractor(
                 appId,
                 response.appBinaryId,
                 response.uploadId,
-                projectId,
+                selectedProjectId,
             )
             
             // Track finish after upload completion
             val uploadDuration = System.currentTimeMillis() - uploadStartTime
             Analytics.trackEvent(CloudUploadFinishedEvent(
-                projectId = projectId,
+                projectId = selectedProjectId,
                 success = uploadResponse == 0,
                 durationMs = uploadDuration
             ))
-            
-            // Flush analytics events immediately after tracking the upload finished event
             Analytics.flush()
             
             return uploadResponse
+        }
+    }
+
+    private fun selectProject(authToken: String): String {
+        PrintUtils.message("Fetching projects...")
+
+        val projects = try {
+            client.getProjects(authToken)
+        } catch (e: ApiClient.ApiException) {
+            throw CliError("Failed to fetch projects. Status code: ${e.statusCode}")
+        } catch (e: Exception) {
+            throw CliError("Failed to fetch projects: ${e.message}")
+        }
+
+        if (projects.isEmpty()) {
+            throw CliError("No projects found. Please create a project first at https://console.mobile.dev")
+        }
+
+        return when (projects.size) {
+            1 -> {
+                val project = projects.first()
+                PrintUtils.message("Using project: ${project.name} (${project.id})")
+                project.id
+            }
+            else -> {
+                val selectedProject = pickProject(projects)
+                PrintUtils.message("Selected project: ${selectedProject.name} (${selectedProject.id})")
+                selectedProject.id
+            }
+        }
+    }
+
+    fun pickProject(projects: List<ProjectResponse>): ProjectResponse {
+        PrintUtils.warn("Multiple projects found. Please select one:")
+        
+        projects.forEachIndexed { index, project ->
+            PrintUtils.info("${index + 1}. ${project.name} (${project.id})")
+        }
+        
+        while (true) {
+            val input = PrintUtils.prompt("Enter a number from the list above:")
+            val index = input.toIntOrNull() ?: 0
+            
+            if (index >= 1 && index <= projects.size) {
+                return projects[index - 1]
+            }
+            // Invalid input, loop will continue
         }
     }
 
