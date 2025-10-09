@@ -27,8 +27,8 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
-import maestro.orchestra.util.InputRandomTextHelper
 import com.fasterxml.jackson.annotation.JsonIgnore
+import net.datafaker.Faker
 
 sealed interface Command {
 
@@ -125,7 +125,8 @@ data class SwipeCommand(
             start = start?.evaluateScripts(jsEngine),
             end = end?.evaluateScripts(jsEngine),
             startRelative = startRelative?.evaluateScripts(jsEngine),
-            endRelative = endRelative?.evaluateScripts(jsEngine)
+            endRelative = endRelative?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -200,6 +201,7 @@ data class ScrollUntilVisibleCommand(
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -222,7 +224,7 @@ data class ScrollUntilVisibleCommand(
     }
 }
 
-class ScrollCommand(
+data class ScrollCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -245,7 +247,9 @@ class ScrollCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 
     override fun yamlString(): String {
@@ -260,7 +264,7 @@ class ScrollCommand(
     }
 }
 
-class BackPressCommand(
+data class BackPressCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -294,11 +298,13 @@ class BackPressCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): BackPressCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
-class HideKeyboardCommand(
+data class HideKeyboardCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -331,7 +337,9 @@ class HideKeyboardCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): HideKeyboardCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
@@ -359,7 +367,8 @@ data class CopyTextFromCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): CopyTextFromCommand {
         return copy(
-            selector = selector.evaluateScripts(jsEngine)
+            selector = selector.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -395,6 +404,7 @@ data class TapOnElementCommand(
     val longPress: Boolean? = null,
     val repeat: TapRepeat? = null,
     val waitToSettleTimeoutMs: Int? = null,
+    val relativePoint: String? = null, // New parameter for element-relative coordinates
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -402,7 +412,8 @@ data class TapOnElementCommand(
     override val originalDescription: String
         get() {
             val optional = if (optional || selector.optional) "(Optional) " else ""
-            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
+            val pointInfo = relativePoint?.let { " at $it" } ?: ""
+            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}$pointInfo"
         }
     override fun yamlString(): String {
         val yamlString = buildString {
@@ -421,6 +432,7 @@ data class TapOnElementCommand(
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
         return copy(
             selector = selector.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -486,6 +498,7 @@ data class TapOnPointV2Command(
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
         return copy(
             point = point.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -523,6 +536,7 @@ data class AssertCommand(
         return copy(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -567,7 +581,8 @@ data class AssertConditionCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             condition = condition.evaluateScripts(jsEngine),
-            timeout = timeout?.evaluateScripts(jsEngine)
+            timeout = timeout?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -764,7 +779,8 @@ data class LaunchAppCommand(
             launchArguments = launchArguments?.entries?.associate {
                 val value = it.value
                 it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -795,6 +811,7 @@ data class ApplyConfigurationCommand(
     override fun evaluateScripts(jsEngine: JsEngine): ApplyConfigurationCommand {
         return copy(
             config = config.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -829,6 +846,7 @@ data class OpenLinkCommand(
     override fun evaluateScripts(jsEngine: JsEngine): OpenLinkCommand {
         return copy(
             link = link.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -937,6 +955,7 @@ data class StopAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -964,6 +983,7 @@ data class KillAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -991,6 +1011,7 @@ data class ClearStateCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -1030,7 +1051,13 @@ class ClearKeychainCommand(
 }
 
 enum class InputRandomType {
-    NUMBER, TEXT, TEXT_EMAIL_ADDRESS, TEXT_PERSON_NAME,
+    NUMBER,
+    TEXT,
+    TEXT_EMAIL_ADDRESS,
+    TEXT_PERSON_NAME,
+    TEXT_CITY_NAME,
+    TEXT_COUNTRY_NAME,
+    TEXT_COLOR,
 }
 
 data class InputRandomCommand(
@@ -1052,15 +1079,19 @@ data class InputRandomCommand(
     }
 
     fun genRandomString(): String {
+        val faker = Faker()
         val lengthNonNull = length ?: 8
         val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
 
         return when (inputType) {
-            InputRandomType.NUMBER -> InputRandomTextHelper.getRandomNumber(finalLength)
-            InputRandomType.TEXT -> InputRandomTextHelper.getRandomText(finalLength)
-            InputRandomType.TEXT_EMAIL_ADDRESS -> InputRandomTextHelper.randomEmail()
-            InputRandomType.TEXT_PERSON_NAME -> InputRandomTextHelper.randomPersonName()
-            else -> InputRandomTextHelper.getRandomText(finalLength)
+            InputRandomType.NUMBER -> faker.number().randomNumber(finalLength).toString()
+            InputRandomType.TEXT -> faker.text().text(finalLength)
+            InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
+            InputRandomType.TEXT_PERSON_NAME -> faker.name().name()
+            InputRandomType.TEXT_CITY_NAME -> faker.address().cityName()
+            InputRandomType.TEXT_COUNTRY_NAME -> faker.address().country()
+            InputRandomType.TEXT_COLOR -> faker.color().name()
+            else -> faker.text().text(finalLength)
         }
     }
 
@@ -1127,6 +1158,7 @@ data class RunFlowCommand(
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -1156,6 +1188,7 @@ data class SetLocationCommand(
         return copy(
             latitude = latitude.evaluateScripts(jsEngine),
             longitude = longitude.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -1227,6 +1260,7 @@ data class RepeatCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             times = times?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -1236,6 +1270,7 @@ data class RetryCommand(
     val maxRetries: String? = null,
     val commands: List<MaestroCommand>,
     val config: MaestroConfig?,
+    val sourceDescription: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
@@ -1273,12 +1308,18 @@ data class RetryCommand(
     override val originalDescription: String
         get() {
             val maxAttempts = maxRetries?.toIntOrNull() ?: 1
-            return "Retry $maxAttempts times"
+            val baseDescription = if (sourceDescription != null) {
+                "Retry $sourceDescription"
+            } else {
+                "Retry"
+            }
+            return "$baseDescription $maxAttempts times"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             maxRetries = maxRetries?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -1308,7 +1349,8 @@ data class DefineVariablesCommand(
         return copy(
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -1348,6 +1390,7 @@ data class RunScriptCommand(
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -1456,7 +1499,8 @@ data class TravelCommand(
                     latitude = it.latitude.evaluateScripts(jsEngine),
                     longitude = it.longitude.evaluateScripts(jsEngine)
                 )
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -1485,6 +1529,7 @@ data class StartRecordingCommand(
     override fun evaluateScripts(jsEngine: JsEngine): StartRecordingCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -1511,7 +1556,8 @@ data class AddMediaCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) }
+            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }

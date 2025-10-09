@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java-version: [11, 17]
+        java-version: [17]
 
     steps:
       - name: Clone repository
@@ -72,12 +72,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 8
+          java-version: 17
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -153,7 +153,7 @@ jobs:
 
       - name: Download apps
         working-directory: ${{ github.workspace }}/e2e
-        run: ./download_apps
+        run: ./download_apps android
 
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
@@ -217,7 +217,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -237,7 +237,7 @@ jobs:
 
       - name: Download apps
         working-directory: ${{ github.workspace }}/e2e
-        run: ./download_apps
+        run: ./download_apps ios
 
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
@@ -303,7 +303,7 @@ jobs:
       - name: Download Maestro artifact
         uses: actions/download-artifact@v4
         with:
-          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Download build/Products artifact
         uses: actions/download-artifact@v4

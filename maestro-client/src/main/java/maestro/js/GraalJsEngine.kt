@@ -1,14 +1,16 @@
 package maestro.js
 
 import maestro.utils.HttpClient
+import net.datafaker.Faker
+import net.datafaker.providers.base.AbstractProvider
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import org.graalvm.polyglot.Context
+import org.graalvm.polyglot.HostAccess
 import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
 import org.graalvm.polyglot.proxy.ProxyObject
 import java.io.ByteArrayOutputStream
-import java.util.concurrent.TimeUnit
 import java.util.logging.Handler
 import java.util.logging.LogRecord
 import kotlin.time.Duration.Companion.minutes
@@ -37,6 +39,12 @@ class GraalJsEngine(
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
+    
+    // Stack to track environment variable scopes for proper isolation
+    private val envScopeStack = mutableListOf<HashMap<String, String>>()
+
+    private val faker = Faker()
+    private val fakerPublicClasses = mutableSetOf<Class<*>>() // To avoid re-processing the same class multiple times
 
     private var onLogMessage: (String) -> Unit = {}
 
@@ -68,10 +76,30 @@ class GraalJsEngine(
         sourceName: String,
         runInSubScope: Boolean,
     ): Value {
-        envBinding.putAll(env)
-        val source = Source.newBuilder("js", script, sourceName).build()
-        return createContext().eval(source)
+        if (runInSubScope) {
+            // Save current environment state
+            enterEnvScope()
+            try {
+                // Add the new env vars on top of the current scope
+                envBinding.putAll(env)
+                val source = Source.newBuilder("js", script, sourceName).build()
+                return createContext().eval(source)
+            } finally {
+                // Restore previous environment state
+                leaveEnvScope()
+            }
+        } else {
+            // Original behavior - directly add to envBinding
+            envBinding.putAll(env)
+            val source = Source.newBuilder("js", script, sourceName).build()
+            return createContext().eval(source)
+        }
     }
+
+    val hostAccess = HostAccess.newBuilder()
+        .allowAccessAnnotatedBy(HostAccess.Export::class.java)
+        .allowAllPublicOf(Faker::class.java)
+        .build()
 
     private fun createContext(): Context {
         val outputStream = object : ByteArrayOutputStream() {
@@ -87,6 +115,7 @@ class GraalJsEngine(
             .option("js.strict", "true")
             .logHandler(NULL_HANDLER)
             .out(outputStream)
+            .allowHostAccess(hostAccess)
             .build()
 
         openContexts.add(context)
@@ -94,6 +123,7 @@ class GraalJsEngine(
         envBinding.forEach { (key, value) -> context.getBindings("js").putMember(key, value) }
 
         context.getBindings("js").putMember("http", httpBinding)
+        context.getBindings("js").putMember("faker", faker)
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 
@@ -120,5 +150,38 @@ class GraalJsEngine(
         )
 
         return context
+    }
+
+    override fun enterEnvScope() {
+        // Create a new environment variable scope for flow isolation.
+        // For GraalJS, we manually manage environment variable scoping by
+        // saving the current environment state to a stack before allowing
+        // new variables to be added or existing ones to be overridden.
+        envScopeStack.add(HashMap(envBinding))
+    }
+
+    override fun leaveEnvScope() {
+        // Restore previous environment state
+        if (envScopeStack.isNotEmpty()) {
+            val previousEnv = envScopeStack.removeAt(envScopeStack.size - 1)
+            envBinding.clear()
+            envBinding.putAll(previousEnv)
+        }
+    }
+
+    private fun HostAccess.Builder.allowAllPublicOf(clazz: Class<*>): HostAccess.Builder {
+        if (clazz in fakerPublicClasses) return this
+        fakerPublicClasses.add(clazz)
+        clazz.methods.filter {
+            it.declaringClass != Object::class.java &&
+                    it.declaringClass != AbstractProvider::class.java &&
+                    java.lang.reflect.Modifier.isPublic(it.modifiers)
+        }.forEach { method ->
+            allowAccess(method)
+            if (AbstractProvider::class.java.isAssignableFrom(method.returnType) && !fakerPublicClasses.contains(method.returnType)) {
+                allowAllPublicOf(method.returnType)
+            }
+        }
+        return this
     }
 }

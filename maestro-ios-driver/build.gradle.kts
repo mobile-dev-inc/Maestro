@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -8,7 +7,8 @@ plugins {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01)
+    publishToMavenCentral(true)
+    signAllPublications()
 }
 
 dependencies {
@@ -20,7 +20,12 @@ dependencies {
     api(libs.jackson.module.kotlin)
     api(libs.jarchivelib)
     api(libs.kotlin.result)
-    api(libs.slf4j)
+
+    api(libs.logging.sl4j)
+    api(libs.logging.api)
+    api(libs.logging.layout.template)
+    api(libs.log4j.core)
+
     api(libs.appdirs)
 
     testImplementation(libs.junit.jupiter.api)
@@ -30,13 +35,19 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+        freeCompilerArgs.addAll("-Xjdk-release=17")
     }
 }
 

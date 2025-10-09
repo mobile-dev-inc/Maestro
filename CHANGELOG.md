@@ -2,6 +2,72 @@
 
 ## Unreleased
 
+## 2.0.5
+
+### Fixes
+- Removed debugging logs
+
+## 2.0.4
+
+### Features
+- Added support for tapping at specific coordinates relative to an element using the `relativePoint` parameter in `tapOn` and `doubleTapOn` commands [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/2059)
+- Labels in commands can now be dynamically evaluated using JavaScript expressions (thanks @jerriais!)
+
+### Fixes
+- Fixed issue where `maestro login` would fail if user was already logged in 
+- Fixed iOS permission setting when using 'all' with specific permission overrides
+- Fixed issue where platform argument would be ignored
+- Fixed issue where blank platform argument would incorrectly filter out all tests
+- Fixed off-by-one error when specifying count with `eraseText` command on Android
+- Improved performance by evaluating script conditions eagerly, ahead of visibility conditions (thanks @tokou!)
+- Fixed crash when running Maestro with empty arguments
+- Updated iOS test runner to support Xcode 26
+- Improved logging on Android driver timeouts
+- Improved copy/paste experience in legacy Maestro Studio (thanks @tylerqr!)
+
+
+## 2.0.3
+Fixes:
+- Fix filter logic that was causing incorrect element selection when using multiple selectors together for some applications
+- GraalJS will now isolate environment variables correctly between different runScript executions
+- Fix incorrect reporting of failures in `HtmlTestSuiteReporter`
+
+## 2.0.2
+Fixes:
+- Added Rhino deprecation warning in CLI
+- Fix conditions for checking if web flows exist in workspace
+- Added back Run details to cloud upload logs (regression in Maestro 2.0.0)
+
+## 2.0.1
+Fixes:
+- Fix issues with launching CLI on Windows systems
+
+## 2.0.0
+Breaking Change:
+- Updated java version to 17 better performance, security, and modern features. **If you’re still on an older version, update before using 2.0.0.**
+- We’ve switched from Rhino to **GraalJS** as the default JavaScript engine. Expect **faster execution** and **modern JS support** for your scripts. [GraalJS Behaviour Differences](https://docs.maestro.dev/advanced/javascript/graaljs-support#graaljs-behavior-differences)
+- URLs in the `appId` field are no longer supported. Flows must now use the `url` field in the YAML config for URLs.
+
+Features:
+- Added `setOrientation` command — adjust device orientation in tests (`PORTRAIT`, `UPSIDE_DOWN`, `LANDSCAPE_LEFT`, `LANDSCAPE_RIGHT`). ([Docs](https://docs.maestro.dev/api-reference/commands/setorientation))
+- Enhanced MCP Integration:
+  - More accurate flow path resolution
+  - View hierarchy output size reduced by **50%** (faster & lighter)
+  - `run_flow` / `run_flow_files` now support env variables & hooks
+- Added  `--test-output-dir`  to specify where test artifacts should be saved. ([Docs](https://docs.maestro.dev/cli/test-output-directory))
+- Added support for running entire workspace of **web flows** in a single `test` command.
+- Allowed Keep-Alive from Server to support for persistent connections.
+- Environment variables are now isolated between peer `runFlow` commands.
+- Added timestamp to JUnit and HTML test report
+- DataFaker is now available in JavaScript to generate random data for use in tests ([Docs](https://docs.maestro.dev/advanced/javascript/generating-random-with-faker.md))
+
+Fixes:
+- Fix CLI Cloud upload output
+- Fix broken `maestro studio` command for web version of Studio.
+- Fix **memory leak** for ios test runs that could cause out of memory issues on testing environments.
+- Fix `maestro cloud` command when uploading files that have external dependencias (subflows, scripts and media)
+- Fix disconnect in local iOS test executions when flow contains a large element tree
+
 ## 1.41.0
 Fix:
 - Resolved an issue where view hierarchy was incorrectly returned on full-screen apps or larger devices (e.g., iPhone Pro models, iOS 18). This affected selector matching for taps and assertions.
@@ -40,7 +106,7 @@ Feature
 ## 1.40.0
 
 Fix:
-- JavaScript fails when running maestro test in continuos mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
+- JavaScript fails when running maestro test in continuous mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
 - Ignore notifications in analyse command for CI ([#2306](https://github.com/mobile-dev-inc/Maestro/pull/2306))
 - `config.yaml` not resolving on Windows ([#2327](https://github.com/mobile-dev-inc/Maestro/pull/2327))
 - Fix swipe command failure on iOS after upgrading to Xcode 16.2 [issue #2422](https://github.com/mobile-dev-inc/maestro/issues/2422) ([#2332](https://github.com/mobile-dev-inc/maestro/pull/2332))
@@ -57,7 +123,7 @@ Features:
 - Added support for `androidWebViewHierarchy: devtools` option to build Android WebView hierarchy using Chrome DevTools ([#2350](https://github.com/mobile-dev-inc/Maestro/pull/2350))
 - Added Chrome to available devices for web automation ([#2360](https://github.com/mobile-dev-inc/Maestro/pull/2360))
 - Introduced pre-built mode for setting up iOS driver on simulators without relying on `xcodebuild` ([#2325](https://github.com/mobile-dev-inc/Maestro/pull/2325))
-- Added command-line chat mode to Maestro CLI accessable by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
+- Added command-line chat mode to Maestro CLI accessible by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
 - Introduced `maestro check-syntax` command for validating flow syntax ([#2387](https://github.com/mobile-dev-inc/Maestro/pull/2387))
 - Added `--reinstall-driver` flag that reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
 - Added `--compact` flag that remove empty values to make the output hierarchy json smaller ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
@@ -168,7 +234,7 @@ Features:
 - Feature: allow for passing multiple flow files to `maestro test` ([#1995](https://github.com/mobile-dev-inc/maestro/pull/1995) by [Tarek Belkahia](https://github.com/tokou))
 - Feature: add the `optional` argument to all commands ([#1946](https://github.com/mobile-dev-inc/maestro/pull/1946) by [Tarek Belkahia](https://github.com/tokou))
 
-  This new command-level `optional` argument supersededs the (now removed) selector-level `optional` argument. No behavior changes are expected.
+  This new command-level `optional` argument supersedes the (now removed) selector-level `optional` argument. No behavior changes are expected.
 
   When command with `optional: true` fails, its status is now "warned ⚠️" instead of "skipped ⚪️"
 
@@ -434,7 +500,7 @@ CLI
 - Update: Maestro Studio revamp improvements
   - wrapped element names in sidebar
   - sidebar text always visible
-  - add "hintText" and "accesbilityText" in sidebar
+  - add "hintText" and "accessibilityText" in sidebar
   - improve sidebar search
   - fixed highlight issues in search
   - various other small improvements
@@ -445,7 +511,7 @@ CLI
 
 ## 1.30.1 - 2023-07-14
 
-- Fix: Allow running `maestro studio` and `maestro test` simultaneusly
+- Fix: Allow running `maestro studio` and `maestro test` simultaneously
 - Fix: Connection improvements
 
 ## 1.30.0 - 2023-07-13
@@ -713,7 +779,7 @@ CLI
 
 ## 1.17.2 - 2022-12-13
 
-- Tweak: Deprecate hierachy and query CLI commands
+- Tweak: Deprecate hierarchy and query CLI commands
 
 ## 1.17.1 - 2022-12-12
 
@@ -775,7 +841,7 @@ CLI
 - **Breaking change**: Removed `clipboardPaste` command in favour of new `pasteText` command
 - Fix: Java 8 compatibility issue for M1 users
 - Fix: `_` character was mapped incorrectly on iOS
-- Fix: first `tapOn` command was failing unless it was preceeded by `launchApp` or `openLink`
+- Fix: first `tapOn` command was failing unless it was preceded by `launchApp` or `openLink`
 - Tweak: Maestro no longer kills running `idb_companion` processes
 - Tweak: updated gRPC version to 1.52.0
 
@@ -820,7 +886,7 @@ CLI
 
 ## 1.11.2 - 2022-10-29
 
-- Fix: updating to dadb 1.2.3 to fix an occassional device connection issue
+- Fix: updating to dadb 1.2.3 to fix an occasional device connection issue
 - Fix: injecting `env` parameters into conditions (i.e. in `runFlow`)
 
 ## 1.11.1 - 2022-10-27

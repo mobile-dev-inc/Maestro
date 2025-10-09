@@ -49,7 +49,6 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -67,6 +66,7 @@ class AndroidDriver(
     private var emulatorName: String = "",
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
+    private var portForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -74,6 +74,9 @@ class AndroidDriver(
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .keepAliveTime(2, TimeUnit.MINUTES)
+        .keepAliveTimeout(20, TimeUnit.SECONDS)
+        .keepAliveWithoutCalls(true)
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
@@ -84,7 +87,6 @@ class AndroidDriver(
 
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
-    private var closed = false
 
     private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
@@ -143,16 +145,12 @@ class AndroidDriver(
 
 
     private fun allocateForwarder() {
-        PORT_TO_FORWARDER[hostPort]?.close()
-        PORT_TO_ALLOCATION_POINT[hostPort]?.let {
-            LOGGER.warn("Port $hostPort was already allocated. Allocation point: $it")
-        }
+        portForwarder?.close()
 
-        PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
+        portForwarder = dadb.tcpForward(
             hostPort,
             hostPort
         )
-        PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
     }
 
     private fun awaitLaunch() {
@@ -170,7 +168,6 @@ class AndroidDriver(
     }
 
     override fun close() {
-        if (closed) return
         if (proxySet) {
             resetProxy()
         }
@@ -180,16 +177,8 @@ class AndroidDriver(
         }
 
         LOGGER.info("[Start] close port forwarder")
-        PORT_TO_FORWARDER[hostPort]?.close()
+        portForwarder?.close()
         LOGGER.info("[Done] close port forwarder")
-
-        LOGGER.info("[Start] Remove host port from port forwarder map")
-        PORT_TO_FORWARDER.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port forwarder map")
-
-        LOGGER.info("[Start] Remove host port from port to allocation map")
-        PORT_TO_ALLOCATION_POINT.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port to allocation map")
 
         LOGGER.info("[Start] Uninstall driver from device")
         uninstallMaestroApks()
@@ -384,13 +373,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
-                    closed = true
                     throw MaestroException.DriverTimeout("Android driver unreachable")
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                        closed = true
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
                     }
@@ -1250,13 +1237,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Device call failed on android with $status", throwable)
-                    closed = true
                     throw MaestroException.DriverTimeout("Android driver unreachable")
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while doing android device call")
-                        closed = true
                         throw throwable
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
@@ -1283,8 +1268,6 @@ class AndroidDriver(
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
-        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
-        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }

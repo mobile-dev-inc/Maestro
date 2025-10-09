@@ -1,194 +1,194 @@
 package maestro.cli.analytics
 
-import com.fasterxml.jackson.annotation.JsonFormat
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.posthog.java.PostHog
-import maestro.cli.util.CiUtils
+import com.posthog.server.PostHog
+import com.posthog.server.PostHogConfig
+import com.posthog.server.PostHogInterface
+import maestro.auth.ApiKey
+import maestro.cli.api.ApiClient
 import maestro.cli.util.EnvUtils
-import maestro.cli.util.IOSEnvUtils
-import maestro.device.util.AndroidEnvUtils
 import org.slf4j.LoggerFactory
-import java.net.ConnectException
 import java.nio.file.Path
-import java.time.Duration
-import java.time.Instant
-import java.util.*
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
-import kotlin.io.path.readText
-import kotlin.io.path.writeText
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlin.String
 
-/**
- * The new analytics system for Maestro CLI.
- *  - Sends data to /maestro/analytics endpoint.
- *  - Uses configuration from $XDG_CONFIG_HOME/maestro/analytics.json.
- */
 object Analytics : AutoCloseable {
     private const val POSTHOG_API_KEY: String = "phc_XKhdIS7opUZiS58vpOqbjzgRLFpi0I6HU2g00hR7CVg"
     private const val POSTHOG_HOST: String = "https://us.i.posthog.com"
-
-    private val posthog = PostHog.Builder(POSTHOG_API_KEY).host(POSTHOG_HOST).build();
+    private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
+    private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    private val apiClient = ApiClient(EnvUtils.BASE_API_URL)
+    private val posthog: PostHogInterface = PostHog.with(
+        PostHogConfig.builder(POSTHOG_API_KEY)
+            .host(POSTHOG_HOST)
+            .build()
+    )
 
     private val logger = LoggerFactory.getLogger(Analytics::class.java)
     private val analyticsStatePath: Path = EnvUtils.xdgStateHome().resolve("analytics.json")
+    private val analyticsStateManager = AnalyticsStateManager(analyticsStatePath)
 
-    private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
-    private val analyticsDisabledWithEnvVar: Boolean
-        get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
-
-    private val JSON = jacksonObjectMapper().apply {
-        registerModule(JavaTimeModule())
-        enable(SerializationFeature.INDENT_OUTPUT)
+    // Simple executor for analytics events - following ErrorReporter pattern
+    private val executor = Executors.newCachedThreadPool {
+        Executors.defaultThreadFactory().newThread(it).apply { isDaemon = true }
     }
 
+    private val analyticsDisabledWithEnvVar: Boolean
+      get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
+
     val hasRunBefore: Boolean
-        get() = analyticsStatePath.exists()
-
-    private val analyticsState: AnalyticsState
-        get() {
-            return try {
-                if (analyticsStatePath.exists()) {
-                    JSON.readValue(analyticsStatePath.readText())
-                } else {
-                    AnalyticsState(
-                      uuid = generateUUID(),
-                      enabled = false,
-                      lastUploadedForCLI = null,
-                      lastUploadedTime = null
-                    )
-                }
-            } catch (e: Exception) {
-                logger.warn("Failed to read analytics state: ${e.message}. Using default.")
-                AnalyticsState(
-                    uuid = generateUUID(),
-                    enabled = false,
-                    lastUploadedForCLI = null,
-                    lastUploadedTime = null
-                )
-            }
-      }
-
-    private val uploadConditionsMet: Boolean
-        get() {
-            val lastUploadedTime = analyticsState.lastUploadedTime ?: return true
-            val passed = lastUploadedTime.plus(Duration.ofDays(7)).isBefore(Instant.now())
-            logger.trace(
-                if (passed) "Last upload was more than a week ago, uploading"
-                else "Last upload was less than a week ago, not uploading"
-            )
-            return passed
-        }
-
+        get() = analyticsStateManager.hasRunBefore()
 
     val uuid: String
-        get() = analyticsState.uuid
+        get() = analyticsStateManager.getState().uuid
 
 
-    fun maybeAskToEnableAnalytics() {
+    /**
+     * Super properties to be sent with the event
+     */
+    private val superProperties = SuperProperties.create()
+
+    /**
+     * Call initially just to inform user and set a default state
+     */
+    fun warnAndEnableAnalyticsIfNotDisable() {
         if (hasRunBefore) return
-
         println("Anonymous analytics enabled. To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.\n")
-        saveAnalyticsState(granted = !analyticsDisabledWithEnvVar, uuid = uuid)
+        analyticsStateManager.saveInitialState(granted = !analyticsDisabledWithEnvVar, uuid = uuid)
     }
 
     /**
-     * Uploads analytics if there was a version update.
+     * Identify user in PostHog and update local state.
+     *
+     * This function:
+     * 1. Sends user identification to PostHog analytics
+     * 2. Updates local analytics state with user info
+     * 3. Tracks login event for analytics
+     *
+     * Should only be called when user identity changes (login/logout).
      */
-    fun maybeUploadAnalyticsAsync(commandName: String) {
-        try {
-            if (analyticsDisabledWithEnvVar) {
-                logger.trace("Analytics disabled with env var, not uploading")
-                return
-            }
+    fun identifyAndUpdateState(token: String) {
+        val user = apiClient.getUser(token)
+        val org =  apiClient.getOrg(token)
 
-            if (!analyticsState.enabled) {
-                logger.trace("Analytics disabled with config file, not uploading")
-                return
-            }
+        // Update local state with user info
+        val updatedAnalyticsState = analyticsStateManager.updateState(token, user, org);
+        val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
 
-            if (!uploadConditionsMet) {
-                logger.trace("Upload conditions not met, not uploading")
-                return
-            }
-            logger.trace("Will upload analytics report")
+        // Send identification to PostHog
+        posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
+    }
 
-            posthog.capture(
-                uuid,
-                "maestro_cli_run",
-                mapOf(
-                    "command" to commandName,
-                    "freshInstall" to !hasRunBefore,
-                    "cliVersion" to (EnvUtils.CLI_VERSION?.toString() ?: "Unknown"),
-                    "os" to EnvUtils.OS_NAME,
-                    "osArch" to EnvUtils.OS_ARCH,
-                    "osVersion" to EnvUtils.OS_VERSION,
-                    "javaVersion" to EnvUtils.getJavaVersion().toString(),
-                    "xcodeVersion" to IOSEnvUtils.xcodeVersion,
-                    "flutterVersion" to EnvUtils.getFlutterVersionAndChannel().first,
-                    "flutterChannel" to EnvUtils.getFlutterVersionAndChannel().second,
-                    "androidVersions" to AndroidEnvUtils.androidEmulatorSdkVersions,
-                    "iosVersions" to IOSEnvUtils.simulatorRuntimes,
+    /**
+     * Conditionally identify user based on current and cashed token
+     */
+    fun identifyUserIfNeeded() {
+        // No identification needed if token is null
+        val token = ApiKey.getToken() ?: return
+        // No identification needed if token is same as cachedToken
+        if (token == analyticsStateManager.getState().cachedToken) return
+        // Else Update identification
+        identifyAndUpdateState(token)
+    }
+
+    /**
+     * Track events asynchronously to prevent blocking CLI operations
+     * Use this for important events like authentication, errors, test results, etc.
+     * This method is "fire and forget" - it will never block the calling thread
+     */
+    fun trackEvent(event: PostHogEvent) {
+        executor.submit {
+            try {
+                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return@submit
+
+                identifyUserIfNeeded()
+
+                // Include super properties in each event since PostHog Java client doesn't have register
+                val eventData = convertEventToEventData(event)
+                val userState = analyticsStateManager.getState()
+                val properties = eventData.properties + superProperties.toMap() + UserProperties.fromAnalyticsState(userState).toMap()
+
+                // Send Event
+                posthog.capture(
+                    uuid,
+                    eventData.eventName,
+                    properties
                 )
-            )
-
-            updateAnalyticsState()
-        } catch (e: ConnectException) {
-            // This is fine. The user probably doesn't have internet connection.
-            // We don't care that much about analytics to bug user about it.
-            return
-        } catch (e: Exception) {
-            // This is also fine. We don't want to bug the user.
-            // See discussion at https://github.com/mobile-dev-inc/maestro/pull/1858
-            return
+            } catch (e: Exception) {
+                // Analytics failures should never break CLI functionality
+                logger.trace("Failed to track event ${event.name}: ${e.message}")
+            }
         }
     }
 
-    private fun saveAnalyticsState(
-        granted: Boolean,
-        uuid: String? = null,
-    ): AnalyticsState {
-        val state = AnalyticsState(
-            uuid = uuid ?: generateUUID(),
-            enabled = granted,
-            lastUploadedForCLI = null,
-            lastUploadedTime = null,
-        )
-        val stateJson = JSON.writeValueAsString(state)
-        analyticsStatePath.parent.createDirectories()
-        analyticsStatePath.writeText(stateJson + "\n")
-        logger.trace("Saved analytics to {}, value: {}", analyticsStatePath, stateJson)
-        return state
+    /**
+     * Flush pending PostHog events immediately
+     * Use this when you need to ensure events are sent before continuing
+     */
+    fun flush() {
+        try {
+            posthog.flush()
+        } catch (e: Exception) {
+            logger.warn("Failed to flush PostHog: ${e.message}")
+        }
     }
 
-    private fun updateAnalyticsState() {
-        val stateJson = JSON.writeValueAsString(
-            analyticsState.copy(
-                lastUploadedForCLI = EnvUtils.CLI_VERSION?.toString(),
-                lastUploadedTime = Instant.now(),
-            )
-        )
+    /**
+     * Convert a PostHogEvent to EventData with eventName and properties separated
+     * This allows for clean destructuring in the calling code
+     */
+    private fun convertEventToEventData(event: PostHogEvent): EventData {
+        return try {
+            // Use Jackson to convert the data class to a Map
+            val jsonString = JSON.writeValueAsString(event)
+            val eventMap = JSON.readValue(jsonString, Map::class.java) as Map<String, Any>
 
-        analyticsStatePath.writeText(stateJson + "\n")
-        logger.trace("Updated analytics at {}, value: {}", analyticsStatePath, stateJson)
+            // Extract the name and create properties without it
+            val eventName = event.name
+            val properties = eventMap.filterKeys { it != "name" }
+
+            EventData(eventName, properties)
+        } catch (e: Exception) {
+            logger.warn("Failed to serialize event ${event.name}: ${e.message}")
+            EventData(event.name, mapOf())
+        }
     }
 
-    private fun generateUUID(): String {
-        return CiUtils.getCiProvider() ?: UUID.randomUUID().toString()
-    }
-
+   /**
+    * Close and cleanup resources
+    * Ensures pending analytics events are sent before shutdown
+    */
     override fun close() {
-        posthog.shutdown()
+        // First, flush any pending PostHog events before shutting down threads
+        flush()
+
+        // Now shutdown PostHog to cleanup resources
+        try {
+            posthog.close()
+        } catch (e: Exception) {
+            logger.warn("Failed to close PostHog: ${e.message}")
+        }
+
+        // Now shutdown the executor
+        try {
+            executor.shutdown()
+            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                logger.warn("Analytics executor did not shutdown gracefully, forcing shutdown")
+                executor.shutdownNow()
+            }
+        } catch (e: InterruptedException) {
+            executor.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
     }
 }
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class AnalyticsState(
-    val uuid: String,
-    val enabled: Boolean,
-    val lastUploadedForCLI: String?,
-    @JsonFormat(shape = JsonFormat.Shape.STRING, timezone = "UTC") val lastUploadedTime: Instant?,
+/**
+ * Data class to hold event name and properties for destructuring
+ */
+data class EventData(
+    val eventName: String,
+    val properties: Map<String, Any>
 )

@@ -1,0 +1,7 @@
+appId: com.example.mobileapp
+name: mobileflow
+tags:
+  - tagNameToInclude
+---
+- launchApp
+- tapOn: 'Button'

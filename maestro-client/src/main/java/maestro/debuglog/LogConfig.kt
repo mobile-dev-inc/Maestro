@@ -1,15 +1,15 @@
 package maestro.debuglog
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.LoggerContext
-import ch.qos.logback.classic.encoder.PatternLayoutEncoder
-import ch.qos.logback.classic.spi.ILoggingEvent
-import ch.qos.logback.core.FileAppender
-import ch.qos.logback.core.status.NopStatusListener
-import org.slf4j.LoggerFactory
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.core.appender.ConsoleAppender
+import org.apache.logging.log4j.core.appender.FileAppender
+import org.apache.logging.log4j.core.config.Configurator
+import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder
+import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory
+import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration
 
 object LogConfig {
-    // See https://logback.qos.ch/manual/layouts.html#method
 
     private const val DEFAULT_FILE_LOG_PATTERN = "%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n"
     private const val DEFAULT_CONSOLE_LOG_PATTERN = "%highlight([%5level]) %msg%n"
@@ -18,50 +18,52 @@ object LogConfig {
     private val CONSOLE_LOG_PATTERN: String = System.getenv("MAESTRO_CLI_LOG_PATTERN_CONSOLE") ?: DEFAULT_CONSOLE_LOG_PATTERN
 
     fun configure(logFileName: String? = null, printToConsole: Boolean) {
-        val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
-        loggerContext.statusManager.add(NopStatusListener())
-        loggerContext.reset()
+        val builder = ConfigurationBuilderFactory.newConfigurationBuilder()
+        builder.setStatusLevel(org.apache.logging.log4j.Level.ERROR)
+        builder.setConfigurationName("MaestroConfig")
+
+        val rootLogger = builder.newRootLogger(org.apache.logging.log4j.Level.ALL)
 
         if (logFileName != null) {
-            createAndAddFileAppender(loggerContext, logFileName)
+            val fileAppender = createFileAppender(builder, logFileName)
+            rootLogger.add(builder.newAppenderRef(fileAppender.getName()))
         }
+
         if (printToConsole) {
-            createAndAddConsoleAppender(loggerContext)
+            val consoleAppender = createConsoleAppender(builder)
+            rootLogger.add(builder.newAppenderRef(consoleAppender.getName()))
         }
 
-        loggerContext.getLogger("ROOT").level = Level.ALL
+
+        builder.add(rootLogger)
+
+        val config = builder.build()
+
+        Configurator.reconfigure(config)
     }
 
-    private fun createAndAddConsoleAppender(loggerContext: LoggerContext) {
-        val encoder = PatternLayoutEncoder().apply {
-            context = loggerContext
-            pattern = CONSOLE_LOG_PATTERN
-            start()
-        }
+    private fun createConsoleAppender(builder: ConfigurationBuilder<BuiltConfiguration>): org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder {
+        val consoleAppender = builder.newAppender("Console", "CONSOLE")
 
-        val consoleAppender = ch.qos.logback.core.ConsoleAppender<ILoggingEvent>().apply {
-            context = loggerContext
-            setEncoder(encoder)
-            start()
-        }
+        val consoleLayout = builder.newLayout("PatternLayout")
+        consoleLayout.addAttribute("pattern", CONSOLE_LOG_PATTERN)
+        consoleAppender.add(consoleLayout)
 
-        loggerContext.getLogger("ROOT").addAppender(consoleAppender)
+        builder.add(consoleAppender)
+
+        return consoleAppender
     }
 
-    private fun createAndAddFileAppender(loggerContext: LoggerContext, logFileName: String) {
-        val encoder = PatternLayoutEncoder().apply {
-            context = loggerContext
-            pattern = FILE_LOG_PATTERN
-            start()
-        }
+    private fun createFileAppender(builder: ConfigurationBuilder<BuiltConfiguration>, logFileName: String): org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder {
+        val fileAppender = builder.newAppender("File", FileAppender.PLUGIN_NAME)
+        fileAppender.addAttribute("fileName", logFileName)
 
-        val fileAppender = FileAppender<ILoggingEvent>().apply {
-            context = loggerContext
-            setEncoder(encoder)
-            file = logFileName
-            start()
-        }
+        val fileLayout = builder.newLayout("PatternLayout")
+        fileLayout.addAttribute("pattern", FILE_LOG_PATTERN)
 
-        loggerContext.getLogger("ROOT").addAppender(fileAppender)
+        fileAppender.add(fileLayout)
+        builder.add(fileAppender)
+
+        return fileAppender
     }
 }

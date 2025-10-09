@@ -7,7 +7,7 @@
 # https://blog.gradle.org/best-practices-naming-version-catalog-entries
 
 [versions]
-androidPlugin = "7.4.2"
+androidPlugin = "8.1.4"
 androidxEspresso = "3.6.1"
 androidxTestJunit = "1.2.1"
 androidxUiautomator = "2.3.0"
@@ -17,14 +17,15 @@ axml = "2.1.2"
 commons-codec = "1.17.0"
 commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
 commons-io = "2.16.1"
-dadb = "1.2.9"
-detekt = "1.19.0"
+dadb = "1.2.10"
+datafaker = "2.4.4"
+detekt = "1.23.8"
 googleFindbugs = "3.0.2"
 googleGson = "2.11.0"
 googleProtobuf = "3.21.9"
 googleProtobufPlugin = "0.9.4"
 googleTruth = "1.4.2"
-graaljs = "22.0.0" # Latest version that supports Java 8
+graaljs = "24.1.2"
 grpc = "1.50.2"
 grpcKotlinStub = "1.4.1"
 imageComparison = "4.4.0"
@@ -34,8 +35,8 @@ jansi = "2.4.1"
 jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
-kotlin = "1.8.22"
-kotlinResult = "1.1.18"
+kotlin = "2.2.0"
+kotlinResult = "2.0.1"
 kotlinx-serialization-json = "1.5.0"
 ktor = "2.3.6"
 micrometerObservation = "1.13.4"
@@ -43,21 +44,22 @@ micrometerCore = "1.13.4"
 mockk = "1.12.0"
 mozillaRhino = "1.7.14"
 picocli = "4.6.3"
-posthog = "1.2.0"
+posthog = "1.0.3"
 selenium = "4.26.0"
 selenium-devtools = "4.26.0"
 skiko = "0.8.18"
-slf4j = "1.7.36"
 squareOkhttp = "4.12.0"
 squareOkio = "3.8.0"
 squareMockWebServer = "4.11.0"
 wiremock = "2.35.0"
-logback = "1.2.6"
+logback = "2.21.1"
+log4jCore = "2.24.3"
+
 coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
 clikt = "4.2.2"
 gmsLocation = "21.3.0"
-mcpKotlinSdk = "steviec/kotlin-1.8"  # Git branch name
+mcpKotlinSdk = "steviec/kotlin-1.8"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -73,12 +75,15 @@ commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
+datafaker = { module = "net.datafaker:datafaker", version.ref = "datafaker" }
 google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "googleGson" }
 google-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "googleProtobuf" }
 google-protobuf-kotlin-lite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "googleProtobuf" }
 google-truth = { module = "com.google.truth:truth", version.ref = "googleTruth" }
 graaljs = { module = "org.graalvm.js:js", version.ref = "graaljs" }
+graaljsEngine = { module = "org.graalvm.js:js-scriptengine", version.ref = "graaljs" }
+graaljsLanguage = { module = "org.graalvm.js:js-language", version.ref = "graaljs" }
 grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpcKotlinStub" }
 grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
@@ -119,7 +124,7 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mozilla-rhino = { module = "org.mozilla:rhino", version.ref = "mozillaRhino" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
-posthog = { module = "com.posthog.java:posthog", version.ref = "posthog" }
+posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
 selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v130", version.ref = "selenium-devtools" }
 skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
@@ -128,13 +133,15 @@ skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm6
 skiko-linux-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-x64", version.ref = "skiko" }
 skiko-windows-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-arm64", version.ref = "skiko" }
 skiko-windows-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-x64", version.ref = "skiko" }
-slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 square-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "squareOkhttp" }
 square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "squareOkhttp" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
-logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "logback" }
+logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "logback" }
+logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "logback" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4jCore" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
 
@@ -147,6 +154,6 @@ protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.19.0" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" }
 jreleaser = { id = "org.jreleaser", version = "1.13.1" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }

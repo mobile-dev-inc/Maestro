@@ -28,16 +28,20 @@ import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
+import maestro.cli.util.PrintUtils
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.IdentityHashMap
 import maestro.cli.util.ScreenshotUtils
 import maestro.utils.Insight
+import java.nio.file.Path
 
 /**
  * Knows how to run a list of Maestro commands and update the UI.
@@ -57,7 +61,8 @@ object MaestroCommandRunner {
         debugOutput: FlowDebugOutput,
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
-        analyze: Boolean = false
+        analyze: Boolean = false,
+        testOutputDir: Path?
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -91,12 +96,14 @@ object MaestroCommandRunner {
         }
 
         refreshUi()
+        
         if (analyze) {
             ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
         }
 
         val orchestra = Orchestra(
             maestro = maestro,
+            screenshotsDir = testOutputDir?.resolve("screenshots"),
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
@@ -186,6 +193,13 @@ object MaestroCommandRunner {
         )
 
         val flowSuccess = orchestra.runFlow(commands)
+
+        // Warn users about deprecated Rhino JS engine
+        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
+        if (isRhinoExplicitlyRequested) {
+          PrintUtils.warn("⚠️  The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility. This warning will be removed in a future version.")
+        }        
+
         return flowSuccess
     }
 

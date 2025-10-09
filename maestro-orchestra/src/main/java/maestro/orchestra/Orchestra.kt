@@ -24,7 +24,6 @@ import com.github.romankh3.image.comparison.ImageComparison
 import com.github.romankh3.image.comparison.model.ImageComparisonState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
@@ -34,12 +33,9 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
+import maestro.UiElement
 import maestro.ViewHierarchy
-import maestro.ai.AI
-import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
-import maestro.ai.openai.OpenAI
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
@@ -49,6 +45,7 @@ import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
+import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -68,6 +65,8 @@ import javax.imageio.ImageIO
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.Long.max
+import java.nio.file.Path
+import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
@@ -123,7 +122,7 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
-    private val screenshotsDir: File? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
+    private val screenshotsDir: Path? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
@@ -329,13 +328,14 @@ class Orchestra(
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        val shouldUseGraalJs =
-            config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
+        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
+
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        jsEngine = if (shouldUseGraalJs) {
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
-        } else {
+        jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
+        } else {
+            // Default to GraalJS for better performance and compatibility
+            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
         }
     }
 
@@ -697,7 +697,7 @@ class Orchestra(
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
-                logger.error("Error: $ignored")
+                logger.warn("Error: $ignored")
             }
             maestro.swipeFromCenter(
                 direction,
@@ -762,7 +762,7 @@ class Orchestra(
             numberOfRuns = 0,
         )
 
-        var mutatiing = false
+        var mutating = false
 
         val checkCondition: () -> Boolean = {
             command.condition
@@ -776,7 +776,7 @@ class Orchestra(
             }
 
             val mutated = runSubFlow(command.commands, config, null)
-            mutatiing = mutatiing || mutated
+            mutating = mutating || mutated
             counter++
 
             metadata = metadata.copy(
@@ -789,7 +789,7 @@ class Orchestra(
             throw CommandSkipped
         }
 
-        return mutatiing
+        return mutating
     }
 
     private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
@@ -858,6 +858,30 @@ class Orchestra(
             }
         }
 
+        condition.scriptCondition?.let { value ->
+            // Note that script should have been already evaluated by this point
+
+            if (value.isBlank()) {
+                return false
+            }
+
+            if (value.equals("false", ignoreCase = true)) {
+                return false
+            }
+
+            if (value == "undefined") {
+                return false
+            }
+
+            if (value == "null") {
+                return false
+            }
+
+            if (value.toDoubleOrNull() == 0.0) {
+                return false
+            }
+        }
+
         condition.visible?.let {
             try {
                 findElement(
@@ -865,7 +889,7 @@ class Orchestra(
                     timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
                     optional = commandOptional,
                 )
-            } catch (ignored: MaestroException.ElementNotFound) {
+            } catch (_: MaestroException.ElementNotFound) {
                 return false
             }
         }
@@ -890,30 +914,6 @@ class Orchestra(
 
             // Element was actually visible
             if (result != true) {
-                return false
-            }
-        }
-
-        condition.scriptCondition?.let { value ->
-            // Note that script should have been already evaluated by this point
-
-            if (value.isBlank()) {
-                return false
-            }
-
-            if (value.equals("false", ignoreCase = true)) {
-                return false
-            }
-
-            if (value == "undefined") {
-                return false
-            }
-
-            if (value == "null") {
-                return false
-            }
-
-            if (value.toDoubleOrNull() == 0.0) {
                 return false
             }
         }
@@ -980,34 +980,40 @@ class Orchestra(
         config: MaestroConfig?,
         subflowConfig: MaestroConfig?,
     ): Boolean {
-        executeDefineVariablesCommands(commands, config)
-        // filter out DefineVariablesCommand to not execute it twice
-        val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
+        // Enter environment scope to isolate environment variables for this subflow
+        jsEngine.enterEnvScope()
+        return try {
+            executeDefineVariablesCommands(commands, config)
+            // filter out DefineVariablesCommand to not execute it twice
+            val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
-        var flowSuccess = false
-        val onCompleteSuccess: Boolean
-        try {
-            val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
-                executeSubflowCommands(it, config)
-            } ?: true
+            var flowSuccess = false
+            val onCompleteSuccess: Boolean
+            try {
+                val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
+                    executeSubflowCommands(it, config)
+                } ?: true
 
-            if (onStartSuccess) {
-                flowSuccess = executeSubflowCommands(filteredCommands, config)
+                if (onStartSuccess) {
+                    flowSuccess = executeSubflowCommands(filteredCommands, config)
+                }
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
+                    executeSubflowCommands(it, config)
+                } ?: true
             }
-        } catch (e: Throwable) {
-            throw e
+            onCompleteSuccess && flowSuccess
         } finally {
-            onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
-                executeSubflowCommands(it, config)
-            } ?: true
+            jsEngine.leaveEnvScope()
         }
-        return onCompleteSuccess && flowSuccess
     }
 
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val file = screenshotsDir
-            ?.let { File(it, pathStr) }
+            ?.let { it.resolve(pathStr).toFile() }
             ?: File(pathStr)
 
         maestro.takeScreenshot(file.sink(), false)
@@ -1018,7 +1024,7 @@ class Orchestra(
     private fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = command.path + ".mp4"
         val file = screenshotsDir
-            ?.let { File(it, pathStr) }
+            ?.let { it.resolve(pathStr).toFile() }
             ?: File(pathStr)
         screenRecording = maestro.startScreenRecording(file.sink().buffer())
         return false
@@ -1177,16 +1183,33 @@ class Orchestra(
     ): Boolean {
         val result = findElement(command.selector, optional = command.optional)
 
-        maestro.tap(
-            element = result.element,
-            initialHierarchy = result.hierarchy,
-            retryIfNoChange = retryIfNoChange,
-            waitUntilVisible = waitUntilVisible,
-            longPress = command.longPress ?: false,
-            appId = config?.appId,
-            tapRepeat = command.repeat,
-            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-        )
+
+        // Handle element-relative tap if specified
+        val relativePoint = command.relativePoint
+        if (relativePoint != null) {
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
+
+            maestro.tap(
+                x = tapPoint.x,
+                y = tapPoint.y,
+                retryIfNoChange = retryIfNoChange,
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        } else {
+            // Default behavior: tap at element center
+            maestro.tap(
+                element = result.element,
+                initialHierarchy = result.hierarchy,
+                retryIfNoChange = retryIfNoChange,
+                waitUntilVisible = waitUntilVisible,
+                longPress = command.longPress ?: false,
+                appId = config?.appId,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        }
 
         return true
     }
@@ -1247,6 +1270,7 @@ class Orchestra(
 
         return true
     }
+
 
     private fun findElement(
         selector: ElementSelector,
@@ -1334,29 +1358,25 @@ class Orchestra(
     private fun buildFilter(
         selector: ElementSelector,
     ): FilterWithDescription {
-        val filters = mutableListOf<ElementFilter>()
+        val basicFilters = mutableListOf<ElementFilter>()
+        val relativeFilters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
 
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                basicFilters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
-
         selector.size
             ?.let {
                 descriptions += "Size: $it"
-                filters += Filters.sizeMatches(
+                basicFilters += Filters.sizeMatches(
                     width = it.width,
                     height = it.height,
                     tolerance = it.tolerance,
@@ -1366,38 +1386,38 @@ class Orchestra(
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                filters += Filters.below(buildFilter(it).filterFunc)
+                relativeFilters += Filters.below(buildFilter(it).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                filters += Filters.above(buildFilter(it).filterFunc)
+                relativeFilters += Filters.above(buildFilter(it).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                filters += Filters.leftOf(buildFilter(it).filterFunc)
+                relativeFilters += Filters.leftOf(buildFilter(it).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                filters += Filters.rightOf(buildFilter(it).filterFunc)
+                relativeFilters += Filters.rightOf(buildFilter(it).filterFunc)
             }
 
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                filters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
+                relativeFilters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
             }
 
         selector.containsDescendants
             ?.let { descendantSelectors ->
                 val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
                 descriptions += "Contains descendants: $descendantDescriptions"
-                filters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
+                relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
         selector.traits
@@ -1406,7 +1426,7 @@ class Orchestra(
             }
             ?.forEach { (description, filter) ->
                 descriptions += description
-                filters += filter
+                basicFilters += filter
             }
 
         selector.enabled
@@ -1416,7 +1436,7 @@ class Orchestra(
                 } else {
                     "Disabled"
                 }
-                filters += Filters.enabled(it)
+                basicFilters += Filters.enabled(it)
             }
 
         selector.selected
@@ -1426,7 +1446,7 @@ class Orchestra(
                 } else {
                     "Not selected"
                 }
-                filters += Filters.selected(it)
+                basicFilters += Filters.selected(it)
             }
 
         selector.checked
@@ -1436,7 +1456,7 @@ class Orchestra(
                 } else {
                     "Not checked"
                 }
-                filters += Filters.checked(it)
+                basicFilters += Filters.checked(it)
             }
 
         selector.focused
@@ -1446,16 +1466,25 @@ class Orchestra(
                 } else {
                     "Not focused"
                 }
-                filters += Filters.focused(it)
+                basicFilters += Filters.focused(it)
             }
 
         selector.css
             ?.let {
                 descriptions += "CSS: $it"
-                filters += Filters.css(maestro, it)
+                basicFilters += Filters.css(maestro, it)
             }
 
-        var resultFilter = Filters.intersect(filters)
+        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
+        val basicFilter = if (basicFilters.isNotEmpty()) {
+            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
+        } else {
+            { nodes -> nodes } // Identity filter if no basic filters
+        }
+
+        val allFilters = listOf(basicFilter) + relativeFilters
+        var resultFilter = Filters.intersect(allFilters)
+
         resultFilter = selector.index
             ?.toDouble()
             ?.toInt()

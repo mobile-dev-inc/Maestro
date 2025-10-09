@@ -14,11 +14,38 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
     private val mapper: ObjectMapper,
     private val testSuiteName: String?
 ) : TestSuiteReporter {
+
+    private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
+        name = testSuiteName ?: "Test Suite",
+        device = suite.deviceName,
+        failures = suite.failures().size,
+        time = suite.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
+        timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it) },
+        tests = suite.flows.size,
+        testCases = suite.flows
+            .map { flow ->
+                TestCase(
+                    id = flow.name,
+                    name = flow.name,
+                    classname = flow.name,
+                    failure = flow.failure?.let { failure ->
+                        Failure(
+                            message = failure.message,
+                        )
+                    },
+                    time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
+                    timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it) },
+                    status = flow.status
+                )
+            }
+    )
+
 
     override fun report(
         summary: TestExecutionSummary,
@@ -31,30 +58,7 @@ class JUnitTestSuiteReporter(
                 TestSuites(
                     suites = summary
                         .suites
-                        .map { suite ->
-                            TestSuite(
-                                name = testSuiteName ?: "Test Suite",
-                                device = suite.deviceName,
-                                failures = suite.flows.count { it.status == FlowStatus.ERROR },
-                                time = suite.duration?.inWholeSeconds?.toString(),
-                                tests = suite.flows.size,
-                                testCases = suite.flows
-                                    .map { flow ->
-                                        TestCase(
-                                            id = flow.name,
-                                            name = flow.name,
-                                            classname = flow.name,
-                                            failure = flow.failure?.let { failure ->
-                                                Failure(
-                                                    message = failure.message,
-                                                )
-                                            },
-                                            time = flow.duration?.inWholeSeconds?.toString(),
-                                            status = flow.status
-                                        )
-                                    }
-                            )
-                        }
+                        .map { suiteResultToTestSuite(it) }
                 )
             )
     }
@@ -73,6 +77,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val tests: Int,
         @JacksonXmlProperty(isAttribute = true) val failures: Int,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
+        @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
         @JacksonXmlElementWrapper(useWrapping = false)
         @JsonProperty("testcase")
         val testCases: List<TestCase>,
@@ -83,6 +88,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val name: String,
         @JacksonXmlProperty(isAttribute = true) val classname: String,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
+        @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
         @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,
         val failure: Failure? = null,
     )

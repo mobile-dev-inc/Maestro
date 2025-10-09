@@ -18,6 +18,7 @@ import android.view.KeyEvent.KEYCODE_6
 import android.view.KeyEvent.KEYCODE_7
 import android.view.KeyEvent.KEYCODE_APOSTROPHE
 import android.view.KeyEvent.KEYCODE_AT
+import java.util.concurrent.TimeUnit
 import android.view.KeyEvent.KEYCODE_BACKSLASH
 import android.view.KeyEvent.KEYCODE_COMMA
 import android.view.KeyEvent.KEYCODE_EQUALS
@@ -96,6 +97,10 @@ class MaestroDriverService {
 
         NettyServerBuilder.forPort(port)
             .addService(Service(uiDevice, uiAutomation))
+            .permitKeepAliveTime(30, TimeUnit.SECONDS) // If a client pings more than once every 30 seconds, terminate the connection
+            .permitKeepAliveWithoutCalls(true) // Allow pings even when there are no active streams.
+            .keepAliveTimeout(20, TimeUnit.SECONDS) // wait 20 seconds for client to ack the keep alive
+            .maxConnectionIdle(30, TimeUnit.MINUTES) // If a client is idle for 30 minutes, send a GOAWAY frame.
             .build()
             .start()
 
@@ -285,7 +290,7 @@ class Service(
             val charactersToErase = request.charactersToErase
             Log.d("Maestro", "Erasing text $charactersToErase")
 
-            for (i in 0..charactersToErase) {
+            for (i in 1..charactersToErase) {
                 uiDevice.pressDelete()
             }
 

@@ -15,8 +15,11 @@ data class TestExecutionSummary(
         val passed: Boolean,
         val flows: List<FlowResult>,
         val duration: Duration? = null,
+        val startTime: Long? = null,
         val deviceName: String? = null,
-    )
+    ) {
+        fun failures(): List<FlowResult> = flows.filter { it.status == FlowStatus.ERROR }
+    }
 
     data class FlowResult(
         val name: String,
@@ -24,6 +27,7 @@ data class TestExecutionSummary(
         val status: FlowStatus,
         val failure: Failure? = null,
         val duration: Duration? = null,
+        val startTime: Long? = null,
     )
 
     data class Failure(

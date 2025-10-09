@@ -23,6 +23,9 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.RecordFinishedEvent
+import maestro.cli.analytics.RecordStartedEvent
 import maestro.cli.graphics.LocalVideoRenderer
 import maestro.cli.graphics.RemoteVideoRenderer
 import maestro.cli.graphics.SkiaFrameRenderer
@@ -86,6 +89,11 @@ class RecordCommand : Callable<Int> {
     private var debugOutput: String? = null
 
     override fun call(): Int {
+        // Track record start
+        val startTime = System.currentTimeMillis()
+        val platform = parent?.platform ?: "unknown"
+        Analytics.trackEvent(RecordStartedEvent(platform = platform))
+
         if (!flowFile.exists()) {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
@@ -142,7 +150,7 @@ class RecordCommand : Callable<Int> {
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     maestro.startScreenRecording(out).use {
-                        TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
+                        TestRunner.runSingle(maestro, device, flowFile, env, resultView, path, testOutputDir = null)
                     }
                 }
 
@@ -159,6 +167,11 @@ class RecordCommand : Callable<Int> {
                 videoRenderer.render(screenRecording, frames)
 
                 TestDebugReporter.deleteOldFiles()
+
+                // Track record completion
+                val duration = System.currentTimeMillis() - startTime
+                Analytics.trackEvent(RecordFinishedEvent(platform = platform, durationMs = duration))
+                Analytics.flush()
 
                 exitCode
             },

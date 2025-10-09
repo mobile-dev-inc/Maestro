@@ -14,7 +14,7 @@ struct DeviceInfoHandler: HTTPHandler {
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         do {
             let (width, height, orientation) = try ScreenSizeHelper.actualScreenSize()
-            logger.info("Device orientation is \(String(orientation.rawValue))")
+            NSLog("Device orientation is \(String(orientation.rawValue))")
 
             let deviceInfo = DeviceInfoResponse(
                 widthPoints: Int(width),

@@ -29,6 +29,9 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.TestRunFinishedEvent
+import maestro.cli.analytics.TestRunStartedEvent
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
@@ -61,6 +64,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
+import maestro.device.Platform
 
 @CommandLine.Command(
     name = "test",
@@ -133,6 +137,12 @@ class TestCommand : Callable<Int> {
     private var debugOutput: String? = null
 
     @Option(
+        names = ["--test-output-dir"],
+        description = ["Configures the test output directory for screenshots and other test artifacts (note: this does NOT include debug output)"],
+    )
+    private var testOutputDir: String? = null
+
+    @Option(
         names = ["--flatten-debug-output"],
         description = ["All file outputs from the test case are created in the folder without subfolders or timestamps for each run. It can be used with --debug-output. Useful for CI."]
     )
@@ -197,10 +207,15 @@ class TestCommand : Callable<Int> {
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
-    private fun includesWebFlow(): Boolean {
-        return flowFiles.any { it.isWebFlow() }
+    internal fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
+        return plan.flowsToRun.any { it.toFile().isWebFlow() } ||
+               plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
 
+    internal fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
+        if(plan.flowsToRun.isEmpty() && plan.sequence.flows.isEmpty()) return false
+        return (plan.flowsToRun.all { it.toFile().isWebFlow() } && plan.sequence.flows.all { it.toFile().isWebFlow() })
+    }
 
     override fun call(): Int {
         TestDebugReporter.install(
@@ -234,33 +249,113 @@ class TestCommand : Callable<Int> {
             throw CliError(e.message)
         }
 
+        val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
+
+        // Update TestDebugReporter with the resolved test output directory
+        TestDebugReporter.updateTestOutputDir(resolvedTestOutputDir)
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
-        return handleSessions(debugOutputPath, executionPlan, driverPort?.toInt())
+
+        // Track test execution start
+        val startTime = System.currentTimeMillis()
+        val flowCount = executionPlan.flowsToRun.size
+        val platform = parent?.platform ?: "unknown"
+        val deviceCount = getDeviceCount(executionPlan)
+
+        Analytics.trackEvent(TestRunStartedEvent(
+            flowCount = flowCount,
+            deviceCount = deviceCount,
+            platform = platform
+        ))
+
+        val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
+        val result = handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir, driverPort?.toInt())
+
+        // Track test execution finish
+        val allSuccess = result == 0
+        val duration = System.currentTimeMillis() - startTime
+        Analytics.trackEvent(TestRunFinishedEvent(
+            flowCount = flowCount,
+            deviceCount = deviceCount,
+            platform = platform,
+            allSuccess = allSuccess,
+            durationMs = duration
+        ))
+
+        // Flush analytics events immediately after tracking the upload finished event
+        Analytics.flush()
+
+        return result
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, driverPort: Int?): Int = runBlocking(Dispatchers.IO) {
+    /**
+     * Get the actual number of devices that will be used for test execution
+     */
+    private fun getDeviceCount(plan: ExecutionPlan): Int {
+        val deviceIds = getDeviceIds(plan)
+        return deviceIds.size
+    }
+
+    /**
+     * Get the list of device IDs that will be used for test execution
+     */
+    private fun getDeviceIds(plan: ExecutionPlan): List<String> {
+        val includeWeb = executionPlanIncludesWebFlow(plan)
+        val connectedDevices = DeviceService.listConnectedDevices(
+            includeWeb = includeWeb,
+            host = parent?.host,
+            port = parent?.port,
+        )
+        val availableDevices = connectedDevices.map { it.instanceId }.toSet()
+        return getPassedOptionsDeviceIds(plan)
+            .filter { device -> device in availableDevices }
+            .ifEmpty { availableDevices }
+            .toList()
+    }
+
+    private fun resolveTestOutputDir(plan: ExecutionPlan): Path? {
+        // Command line flag takes precedence
+        testOutputDir?.let { return File(it).toPath() }
+
+        // Then check workspace config
+        plan.workspaceConfig.testOutputDir?.let { return File(it).toPath() }
+
+        // No test output directory configured
+        return null
+    }
+
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?, driverPort: Int?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
         }
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
+        val includeWeb = executionPlanIncludesWebFlow(plan);
+
+        if (includeWeb) {
+          PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
+        }
 
         val connectedDevices = DeviceService.listConnectedDevices(
-            includeWeb = includesWebFlow(),
+            includeWeb = includeWeb,
             host = parent?.host,
             port = parent?.port,
         )
-        val availableDevices = connectedDevices.map { it.instanceId }.toSet()
-        val deviceIds = getPassedOptionsDeviceIds()
+        val availableDevicesIds = connectedDevices.map { it.instanceId }.toSet()
+        val deviceIds = getPassedOptionsDeviceIds(plan)
             .filter { device ->
-                if (device !in availableDevices) {
+                if (device !in availableDevicesIds) {
                     throw CliError("Device $device was requested, but it is not connected.")
                 } else {
                     true
                 }
             }
-            .ifEmpty { availableDevices }
+            .ifEmpty {
+                connectedDevices
+                    .filter { device ->
+                        parent?.platform?.let { Platform.fromString(it) == device.platform } ?: true }
+                    .map { it.instanceId }.toSet()
+            }
             .toList()
 
         val missingDevices = requestedShards - deviceIds.size
@@ -308,6 +403,7 @@ class TestCommand : Callable<Int> {
                     shardIndex = shardIndex,
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
+                    testOutputDir = testOutputDir,
                     driverPort = driverPort,
                 )
             }
@@ -330,6 +426,7 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
+        testOutputDir: Path?,
         driverPort: Int?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = driverPort ?: selectPort(effectiveShards)
@@ -363,7 +460,7 @@ class TestCommand : Callable<Int> {
                     )
                 }
                 runBlocking {
-                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath)
+                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath, testOutputDir)
                 }
             } else {
                 val flowFile = flowFiles.first()
@@ -371,9 +468,9 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken)
+                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken, testOutputDir)
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir)
                 }
             }
         }
@@ -390,6 +487,7 @@ class TestCommand : Callable<Int> {
         device: Device?,
         flowFile: File,
         debugOutputPath: Path,
+        testOutputDir: Path?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -407,6 +505,7 @@ class TestCommand : Callable<Int> {
             debugOutputPath = debugOutputPath,
             analyze = analyze,
             apiKey = authToken,
+            testOutputDir = testOutputDir,
         )
 
         if (resultSingle == 1) {
@@ -426,7 +525,8 @@ class TestCommand : Callable<Int> {
         device: Device?,
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
-        debugOutputPath: Path
+        debugOutputPath: Path,
+        testOutputDir: Path?
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
@@ -437,7 +537,8 @@ class TestCommand : Callable<Int> {
             executionPlan = chunkPlans[shardIndex],
             env = env,
             reportOut = null,
-            debugOutputPath = debugOutputPath
+            debugOutputPath = debugOutputPath,
+            testOutputDir = testOutputDir
         )
 
         if (!flattenDebugOutput) {
@@ -462,17 +563,16 @@ class TestCommand : Callable<Int> {
             }
     }
 
-    private fun getPassedOptionsDeviceIds(): List<String> {
-        val arguments = if (includesWebFlow()) {
-            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-            "chromium"
-        } else parent?.deviceId
-        val deviceIds = arguments
-            .orEmpty()
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-        return deviceIds
+  private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
+      val arguments = if (allFlowsAreWebFlow(plan)) {
+        "chromium"
+      } else parent?.deviceId
+      val deviceIds = arguments
+        .orEmpty()
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+      return deviceIds
     }
 
     private fun printExitDebugMessage() {

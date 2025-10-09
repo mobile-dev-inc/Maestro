@@ -36,7 +36,7 @@ object FileUtils {
         }
 
         val config = YamlCommandReader.readConfig(toPath())
-        return Regex("https?://").containsMatchIn(config.appId)
+        return config.url != null
     }
 
 }

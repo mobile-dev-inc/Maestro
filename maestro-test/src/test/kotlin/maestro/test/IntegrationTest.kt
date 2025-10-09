@@ -1699,7 +1699,7 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.InputText("Inner Parameter"))
         driver.assertHasEvent(Event.InputText("Outer Parameter"))
-        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+        driver.assertHasEvent(Event.InputText("Overridden Parameter"))
     }
 
     @Test
@@ -1720,7 +1720,7 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.InputText("Inline Parameter"))
-        driver.assertHasEvent(Event.InputText("Overriden Parameter"))
+        driver.assertHasEvent(Event.InputText("Overridden Parameter"))
     }
 
     @Test
@@ -1830,7 +1830,7 @@ class IntegrationTest {
                 Event.InputText("1"),
                 Event.InputText("2"),
                 Event.InputText("12"),
-                Event.InputText("3.0"),
+                Event.InputText("3"),
                 Event.InputText("\${A} \${B} 1 2"),
             )
         )
@@ -2231,8 +2231,8 @@ class IntegrationTest {
         // Then
         driver.assertEvents(
             listOf(
-                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
-                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),
+                Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),
             )
         )
     }
@@ -2826,7 +2826,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 098 - Execute Javascript conditionally`() {
+    fun `Case 098a - Execute Javascript conditionally`() {
         // Given
         val commands = readCommands("098_runscript_conditionals")
 
@@ -2849,6 +2849,7 @@ class IntegrationTest {
                     it,
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
+                        metadata.labeledCommand?.let { receivedLogs.add(it) }
                     }
                 ).runFlow(commands)
             }
@@ -2861,6 +2862,35 @@ class IntegrationTest {
         assertThat(receivedLogs).containsExactly(
             "Log from runScript",
         ).inOrder()
+    }
+
+    @Test
+    fun `Case 098b - Execute conditions eagerly`() {
+        // Given
+        val commands = readCommands("098_runscript_conditionals_eager")
+
+        // 'Click me' is not present in the view hierarchy
+        val driver = driver {}
+
+        val receivedLogs = mutableListOf<String>()
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(
+                    maestro = it,
+                    onCommandMetadataUpdate = { _, metadata ->
+                        receivedLogs += metadata.logMessages
+                    }
+                ).runFlow(commands)
+            }
+        }
+
+        // Then
+        // test completes
+        driver.assertEvents(emptyList())
+        // and script did not run
+        assertThat(receivedLogs).isEmpty()
     }
 
     @Test
@@ -3870,7 +3900,121 @@ class IntegrationTest {
         driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
         driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
     }
-    
+
+    @Test
+    fun `Case 127 RhinoJS - Environment variables should be isolated between flows`() {
+        // Test that environment variables from one runFlow don't leak to peer runFlow commands
+        val commands = readCommands("127_env_vars_isolation_rhinojs")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                // Should succeed - uses positive assertions to verify isolation works
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 127 GraalJS - Environment variables should be isolated between flows`() {
+        // Test that environment variables are isolated between flows using GraalJS engine
+        val commands = readCommands("127_env_vars_isolation_graaljs")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                // Should succeed - uses positive assertions to verify isolation works
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 128 - Random Data Generation`() {
+        // Test that environment variables are isolated between flows using GraalJS engine
+        val commands = readCommands("128_datafaker_graaljs")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                // Should succeed - uses positive assertions to verify engine runs and validates data
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 129 - Text and ID with child elements`() {
+        // Given
+        // We're looking for an element with the given text and id, but it has a child element that is only a partial match
+        val commands = readCommands("129_text_and_id")
+        val driver = driver {
+            element {
+                id = "some_id"
+                text = "some_text"
+                bounds = Bounds(0, 0, 200, 200)
+
+                element {
+                    id = ""
+                    text = "some_text"
+                    bounds = Bounds(50, 50, 150, 150)
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
+    @Test
+    fun `Case 130 - Duplicate elements case for checking deepestHierarchy is working`() {
+        // Given
+        // We're looking for an element with the given text and id, but it has a child element that is only a partial match
+        val commands = readCommands("130_text_and_index")
+        val driver = driver {
+            id = "0"
+            element {
+                id = "1"
+                text = "some_text"
+                bounds = Bounds(0, 0, 200, 200)
+            }
+            element {
+                id = "2"
+                text = "some_text"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    id = "3"
+                    text = "some_text"
+                    bounds = Bounds(0, 0, 200, 200)
+
+                    element {
+                        id = "4"
+                        text = "some_text"
+                        bounds = Bounds(50, 50, 150, 150)
+                    }
+                }
+            }
+
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

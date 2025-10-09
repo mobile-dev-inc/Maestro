@@ -31,19 +31,11 @@ class LoginCommand : Callable<Int> {
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     private val auth by lazy {
-        Auth(ApiClient("$apiUrl/v2"))
+        Auth(ApiClient(apiUrl))
     }
 
     override fun call(): Int {
         LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
-
-        val existingToken = ApiKey.getToken()
-
-        if (existingToken != null) {
-            message("Already logged in. Run \"maestro logout\" to logout.")
-            return 0
-        }
-
         val token = auth.triggerSignInFlow()
         println(token)
 

@@ -69,6 +69,16 @@ class StudioCommand : Callable<Int> {
     private var env: Map<String, String> = emptyMap()
 
     override fun call(): Int {
+        println()
+        println("""
+        ╭────────────────────────────────────────────────────────────────────────────────╮
+        │                                                                                │
+        │          Download the new and improved Maestro Studio app today!               │
+        │                                                                                │
+        │ https://maestro.dev?utm_source=cli&utm_campaign=download_studio#maestro-studio │
+        │                                                                                │
+        ╰────────────────────────────────────────────────────────────────────────────────╯""".trimIndent().bold())
+        println()
 
         TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
 
@@ -91,6 +101,7 @@ class StudioCommand : Callable<Int> {
             println()
             println(message)
             tryOpenUrl(studioUrl)
+
 
             println()
             println("Tip: Maestro Studio can now run simultaneously alongside other Maestro CLI commands!")
