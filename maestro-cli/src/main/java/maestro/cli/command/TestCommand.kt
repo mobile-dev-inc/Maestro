@@ -29,6 +29,9 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.TestRunFinishedEvent
+import maestro.cli.analytics.TestRunStartedEvent
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
@@ -247,10 +250,62 @@ class TestCommand : Callable<Int> {
 
         // Update TestDebugReporter with the resolved test output directory
         TestDebugReporter.updateTestOutputDir(resolvedTestOutputDir)
-
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
 
-        return handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+        // Track test execution start
+        val startTime = System.currentTimeMillis()
+        val flowCount = executionPlan.flowsToRun.size
+        val platform = parent?.platform ?: "unknown"
+        val deviceCount = getDeviceCount(executionPlan)
+
+        Analytics.trackEvent(TestRunStartedEvent(
+            flowCount = flowCount,
+            deviceCount = deviceCount,
+            platform = platform
+        ))
+
+        val result = handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+        
+        // Track test execution finish
+        val allSuccess = result == 0
+        val duration = System.currentTimeMillis() - startTime
+        Analytics.trackEvent(TestRunFinishedEvent(
+            flowCount = flowCount,
+            deviceCount = deviceCount,
+            platform = platform,
+            allSuccess = allSuccess,
+            durationMs = duration
+        ))
+
+        // Flush analytics events immediately after tracking the upload finished event
+        Analytics.flush()
+
+        return result
+    }
+
+    /**
+     * Get the actual number of devices that will be used for test execution
+     */
+    private fun getDeviceCount(plan: ExecutionPlan): Int {
+        val deviceIds = getDeviceIds(plan)
+        return deviceIds.size
+    }
+
+    /**
+     * Get the list of device IDs that will be used for test execution
+     */
+    private fun getDeviceIds(plan: ExecutionPlan): List<String> {
+        val includeWeb = executionPlanIncludesWebFlow(plan)
+        val connectedDevices = DeviceService.listConnectedDevices(
+            includeWeb = includeWeb,
+            host = parent?.host,
+            port = parent?.port,
+        )
+        val availableDevices = connectedDevices.map { it.instanceId }.toSet()
+        return getPassedOptionsDeviceIds(plan)
+            .filter { device -> device in availableDevices }
+            .ifEmpty { availableDevices }
+            .toList()
     }
 
     private fun resolveTestOutputDir(plan: ExecutionPlan): Path? {

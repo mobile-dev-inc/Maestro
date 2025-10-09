@@ -7,8 +7,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import io.ktor.util.internal.RemoveFirstDesc
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.TrialStartedEvent
+import maestro.cli.analytics.TrialStartFailedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
@@ -399,6 +402,11 @@ class ApiClient(
                         }
                     } else {
                         println("\u001B[31;1m[ERROR]\u001B[0m Company name is required to start your free trial.")
+                        // Track trial start failed event for empty company name
+                        Analytics.trackEvent(TrialStartFailedEvent(
+                            companyName = "",
+                            failureReason = "EMPTY_COMPANY_NAME"
+                        ))
                     }
                 }
 
@@ -428,11 +436,25 @@ class ApiClient(
 
         try {
             val response = client.newCall(trialRequest).execute()
-            if (response.isSuccessful) return true;
-            println("\u001B[31m${response.body?.string()}\u001B[0m");
+            if (response.isSuccessful) {
+                Analytics.trackEvent(TrialStartedEvent(companyName = companyName))
+                return true
+            }
+            val errorMessage = response.body?.string() ?: "Unknown error"
+            println("\u001B[31m$errorMessage\u001B[0m");
+            // Track trial start failed event
+            Analytics.trackEvent(TrialStartFailedEvent(
+                companyName = companyName,
+                failureReason = "API_ERROR: $errorMessage"
+            ))
             return false
         } catch (e: IOException) {
             println("\u001B[31;1m[ERROR]\u001B[0m We're experiencing connectivity issues, please try again in sometime, reach out to the slack channel in case if this doesn't work.")
+            // Track trial start failed event
+            Analytics.trackEvent(TrialStartFailedEvent(
+                companyName = companyName,
+                failureReason = "CONNECTIVITY_ERROR: ${e.message}"
+            ))
             return false
         }
     }
@@ -571,6 +593,72 @@ class ApiClient(
     }
 
 
+    fun getUser(authToken: String): UserResponse {
+        val baseUrl = "$baseUrl/v2/maestro-studio/user"
+
+        println("baseUrl: $baseUrl")
+
+        val request = Request.Builder()
+          .header("Authorization", "Bearer $authToken")
+          .url(baseUrl)
+          .get()
+          .build()
+
+        val response = try {
+          client.newCall(request).execute()
+        } catch (e: IOException) {
+          throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                  statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val user = JSON.readValue(responseBody, UserResponse::class.java)
+                return user
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
+    fun getOrg(authToken: String): OrgResponse {
+        val baseUrl = "$baseUrl/v2/maestro-studio/org"
+
+        println("baseUrl: $baseUrl")
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(baseUrl)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val user = JSON.readValue(responseBody, OrgResponse::class.java)
+                return user
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -660,6 +748,28 @@ data class RenderState(
     val currentTaskProgress: Float?,
     val error: String?,
     val downloadUrl: String?,
+)
+
+
+data class UserResponse(
+  val id: String,
+  val email: String,
+  val firstName: String,
+  val lastName: String,
+  val status: String,
+  val role: String,
+  val workOSOrgId: String,
+) {
+  val name: String
+    get() = "$firstName $lastName"
+}
+
+data class OrgResponse(
+  val id: String,
+  val name: String,
+  val quota: Map<String, Map<String, Number>>,
+  val metadata: Map<String, String>,
+  val workOSOrgId: String,
 )
 
 data class CliVersion(
