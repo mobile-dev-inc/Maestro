@@ -657,7 +657,7 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
         assertThat(tapCommand.selector.enabled).isTrue()
         assertThat(tapCommand.relativePoint).isEqualTo("25%, 75%")
-        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\" at 25%, 75%")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\", enabled at 25%, 75%")
     }
 
     @Test
