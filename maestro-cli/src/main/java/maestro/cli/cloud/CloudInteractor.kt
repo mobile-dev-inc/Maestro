@@ -7,6 +7,7 @@ import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
@@ -24,6 +25,8 @@ import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ProgressBar
+import com.github.ajalt.mordant.terminal.Terminal
+import com.github.ajalt.mordant.input.interactiveSelectList
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
@@ -86,8 +89,10 @@ class CloudInteractor(
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
-        val authToken = auth.getAuthToken(apiKey)
-        if (authToken == null) throw CliError("Failed to get authentication token")
+        // In case apiKey is provided use that, else fallback to signIn and org Selection
+        val authToken: String = apiKey ?:
+          selectOrganization(auth.getAuthToken(apiKey, true) ?:
+          throw CliError("Failed to get authentication token"))
 
         // Fetch and select project if not provided
         val selectedProjectId = projectId ?: selectProject(authToken)
@@ -193,8 +198,6 @@ class CloudInteractor(
     }
 
     private fun selectProject(authToken: String): String {
-        PrintUtils.message("Fetching projects...")
-
         val projects = try {
             client.getProjects(authToken)
         } catch (e: ApiClient.ApiException) {
@@ -210,33 +213,85 @@ class CloudInteractor(
         return when (projects.size) {
             1 -> {
                 val project = projects.first()
-                PrintUtils.message("Using project: ${project.name} (${project.id})")
+                PrintUtils.info("Using project: ${project.name} (${project.id})")
                 project.id
             }
             else -> {
                 val selectedProject = pickProject(projects)
-                PrintUtils.message("Selected project: ${selectedProject.name} (${selectedProject.id})")
+                PrintUtils.info("Selected project: ${selectedProject.name} (${selectedProject.id})")
                 selectedProject.id
             }
         }
     }
 
     fun pickProject(projects: List<ProjectResponse>): ProjectResponse {
-        PrintUtils.warn("Multiple projects found. Please select one:")
+        val terminal = Terminal()
+        val choices = projects.map { "${it.name} (${it.id})" }
         
-        projects.forEachIndexed { index, project ->
-            PrintUtils.info("${index + 1}. ${project.name} (${project.id})")
+        val selection = terminal.interactiveSelectList(
+            choices,
+            title = "Multiple projects found. Please select one (Bypass this prompt by using --project-id=<>):"
+        )
+        
+        if (selection == null) {
+            terminal.println("No project selected")
+            throw CliError("Project selection was cancelled")
         }
         
-        while (true) {
-            val input = PrintUtils.prompt("Enter a number from the list above:")
-            val index = input.toIntOrNull() ?: 0
-            
-            if (index >= 1 && index <= projects.size) {
-                return projects[index - 1]
+        val selectedIndex = choices.indexOf(selection)
+        return projects[selectedIndex]
+    }
+
+    private fun selectOrganization(authToken: String): String {
+        val orgs = try {
+            client.getOrgs(authToken)
+        } catch (e: ApiClient.ApiException) {
+            throw CliError("Failed to fetch organizations. Status code: ${e.statusCode}")
+        } catch (e: Exception) {
+            throw CliError("Failed to fetch organizations: ${e.message}")
+        }
+
+        if (orgs.isEmpty()) {
+            throw CliError("No organizations found. Please create an organization first at https://console.mobile.dev")
+        }
+
+        return when (orgs.size) {
+            1 -> {
+                val org = orgs.first()
+                PrintUtils.message("Using organization: ${org.name} (${org.id})")
+                authToken
             }
-            // Invalid input, loop will continue
+            else -> {
+                val selectedOrg = pickOrganization(orgs)
+                PrintUtils.info("Selected organization: ${selectedOrg.name} (${selectedOrg.id})")
+                // Switch to the selected organization to get org-scoped token
+                try {
+                    client.switchOrg(authToken, selectedOrg.id)
+                } catch (e: ApiClient.ApiException) {
+                    throw CliError("Failed to switch to organization. Status code: ${e.statusCode}")
+                } catch (e: Exception) {
+                    throw CliError("Failed to switch to organization: ${e.message}")
+                }
+            }
         }
+    }
+
+    fun pickOrganization(orgs: List<OrgResponse>): OrgResponse {
+        val terminal = Terminal()
+        val choices = orgs.map { "${it.name} (${it.id})" }
+        
+        val selection = terminal.interactiveSelectList(
+            choices,
+            title = "Multiple organizations found. Please select one (Bypass this prompt by using --api-key=<>):",
+        )
+        
+        if (selection == null) {
+            terminal.println("No organization selected")
+            throw CliError("Organization selection was cancelled")
+        }
+        
+        val selectedIndex = choices.indexOf(selection)
+        return orgs[selectedIndex]
     }
 
     private fun getAppFile(
@@ -302,8 +357,8 @@ class CloudInteractor(
             PrintUtils.message("Waiting for analyses to complete...")
             println()
 
-            return waitForCompletion(
-                authToken = authToken,
+        return waitForCompletion(
+            authToken = authToken,
                 uploadId = uploadId,
                 appId = appId,
                 failOnCancellation = failOnCancellation,
