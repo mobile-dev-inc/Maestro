@@ -358,13 +358,15 @@ internal class YamlCommandReaderTest {
                         condition = Condition(scriptCondition = "\${5 == 5}")
                     )
                 ),
-                label = "Check that five is still what we think it is"
+                label = "Check that five is still what we think it is",
+                flowPath = Paths.get("build/resources/test/YamlCommandReaderTest/023_labels.yaml").toAbsolutePath().toString()
             ),
             RunScriptCommand(
                 script = "const myNumber = 1 + 1;",
                 condition = null,
                 sourceDescription = "023_runScript_test.js",
-                label = "Run some special calculations"
+                label = "Run some special calculations",
+                flowPath = Paths.get("build/resources/test/YamlCommandReaderTest/023_labels.yaml").toAbsolutePath().toString()
             ),
             SetOrientationCommand(
                 orientation = DeviceOrientation.LANDSCAPE_LEFT,
