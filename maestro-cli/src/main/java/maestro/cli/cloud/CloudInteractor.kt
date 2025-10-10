@@ -252,7 +252,6 @@ class CloudInteractor(
         }
 
         return when (orgs.size) {
-            0 -> { authToken }
             1 -> {
                 val org = orgs.first()
                 PrintUtils.message("Using organization: ${org.name} (${org.id})")
