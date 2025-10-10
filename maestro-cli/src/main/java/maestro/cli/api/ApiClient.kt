@@ -427,7 +427,8 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val jsonBody = """{ "companyName": "$companyName" }""".toRequestBody("application/json".toMediaType())
+        val request = StartTrialRequest(companyName)
+        val jsonBody = JSON.writeValueAsString(request).toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
@@ -849,6 +850,10 @@ class SystemInformationInterceptor : Interceptor {
 data class Insight(
     val category: String,
     val reasoning: String,
+)
+
+data class StartTrialRequest(
+    val companyName: String
 )
 
 class AnalyzeResponse(
