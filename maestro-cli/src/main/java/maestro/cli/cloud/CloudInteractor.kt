@@ -248,7 +248,7 @@ class CloudInteractor(
             println(deviceInfoMessage)
             
             // Print the upload URL
-            PrintUtils.info("Visit Maestro Cloud for more details about the upload:")
+            PrintUtils.info("Visit Maestro Cloud for more details about this upload:")
             PrintUtils.info(uploadUrl.cyan())
             println()
 

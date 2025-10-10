@@ -18,6 +18,9 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.brightRed
+import maestro.cli.view.cyan
+import maestro.cli.view.green
 import maestro.utils.HttpClient
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -360,9 +363,9 @@ class ApiClient(
                         ignoreCase = true
                     )
                 ) {
-                    println("\n\u001B[31;1m[ERROR] Your trial has not started yet.\u001B[0m")
-                    println("\u001B[32;1m[INFO] Start your 7-day free trial with no credit card required!\u001B[0m")
-                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the free trial: ")
+                    PrintUtils.info("\n[ERROR] Your trial has not started yet".brightRed())
+                    PrintUtils.info("[INFO] Start your 7-day free trial with no credit card required!".green())
+                    PrintUtils.info("${"[INPUT]".cyan()} Please enter your company name to start the free trial: ")
                     
                     val scanner = Scanner(System.`in`)
                     val companyName = scanner.nextLine().trim()

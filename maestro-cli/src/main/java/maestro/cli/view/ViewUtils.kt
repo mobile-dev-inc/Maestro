@@ -10,6 +10,10 @@ fun String.red(): String {
     return "@|red $this|@".render()
 }
 
+fun String.brightRed(): String {
+    return "\u001B[91m$this\u001B[0m"
+}
+
 fun String.green(): String {
     return "@|green $this|@".render()
 }

@@ -41,7 +41,7 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Upload your flows on Cloud by using @|yellow `maestro cloud sample/app.apk sample_workspace`|@ (@|cyan https://app.maestro.dev|@)",
+        "Upload your flows on Cloud by using @|yellow `maestro cloud sample/app.apk flows_folder/`|@ (@|cyan https://app.maestro.dev|@)",
         "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in the cloud",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
