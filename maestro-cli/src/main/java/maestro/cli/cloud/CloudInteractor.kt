@@ -251,11 +251,8 @@ class CloudInteractor(
             throw CliError("Failed to fetch organizations: ${e.message}")
         }
 
-        if (orgs.isEmpty()) {
-            throw CliError("No organizations found. Please create an organization first at https://console.mobile.dev")
-        }
-
         return when (orgs.size) {
+            0 -> { authToken }
             1 -> {
                 val org = orgs.first()
                 PrintUtils.message("Using organization: ${org.name} (${org.id})")
