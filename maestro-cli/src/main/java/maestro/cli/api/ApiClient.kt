@@ -18,6 +18,9 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.brightRed
+import maestro.cli.view.cyan
+import maestro.cli.view.green
 import maestro.utils.HttpClient
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -360,9 +363,10 @@ class ApiClient(
                         ignoreCase = true
                     )
                 ) {
-                    println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
-                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
-
+                    PrintUtils.info("\n[ERROR] Your trial has not started yet".brightRed())
+                    PrintUtils.info("[INFO] Start your 7-day free trial with no credit card required!".green())
+                    PrintUtils.info("${"[INPUT]".cyan()} Please enter your company name to start the free trial: ")
+                    
                     val scanner = Scanner(System.`in`)
                     val companyName = scanner.nextLine().trim()
 
@@ -371,7 +375,7 @@ class ApiClient(
 
                         val isTrialStarted = startTrial(authToken, companyName);
                         if (isTrialStarted) {
-                            println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
+                            println("\u001B[32;1m[SUCCESS]\u001B[0m Free trial successfully started! Enjoy your 7-day free trial!\n")
                             return upload(
                                 authToken = authToken,
                                 appFile = appFile,
@@ -400,7 +404,7 @@ class ApiClient(
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
                         }
                     } else {
-                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
+                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required to start your free trial.")
                         // Track trial start failed event for empty company name
                         Analytics.trackEvent(TrialStartFailedEvent(
                             companyName = "",
