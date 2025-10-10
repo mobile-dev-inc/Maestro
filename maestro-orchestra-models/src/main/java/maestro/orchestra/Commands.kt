@@ -732,6 +732,7 @@ data class RunFlowCommand(
     val config: MaestroConfig?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    val flowPath: String? = null, // Store the original flow path for lazy loading
 ) : CompositeCommand {
 
     override fun subCommands(): List<MaestroCommand> {
@@ -761,7 +762,8 @@ data class RunFlowCommand(
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine)
+            label = label?.evaluateScripts(jsEngine),
+            sourceDescription = sourceDescription?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -909,6 +911,7 @@ data class RunScriptCommand(
     val condition: Condition?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    val flowPath: String? = null, // Store the original flow path for lazy loading
 ) : Command {
 
     override val originalDescription: String
@@ -919,12 +922,29 @@ data class RunScriptCommand(
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
+        val evaluatedSourceDescription = sourceDescription.evaluateScripts(jsEngine)
+        
+        // If the source description changed due to JavaScript interpolation, we need to re-load the script
+        val evaluatedScript = if (evaluatedSourceDescription != sourceDescription && flowPath != null) {
+            try {
+                val resolvedPath = java.nio.file.Paths.get(flowPath).resolveSibling(evaluatedSourceDescription)
+                resolvedPath.toFile().readText()
+            } catch (e: Exception) {
+                // If we can't load the new script, fall back to the original
+                script
+            }
+        } else {
+            script
+        }
+        
         return copy(
+            script = evaluatedScript,
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine)
+            label = label?.evaluateScripts(jsEngine),
+            sourceDescription = evaluatedSourceDescription
         )
     }
 }

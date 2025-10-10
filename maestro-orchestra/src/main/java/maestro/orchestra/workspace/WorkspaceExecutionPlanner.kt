@@ -35,6 +35,10 @@ object WorkspaceExecutionPlanner {
             } else {
                 WorkspaceConfig()
             }
+            
+            // Set global workspace config for alias resolution
+            WorkspaceConfigProvider.workspaceConfig = workspaceConfig
+            
             return ExecutionPlan(
                 flowsToRun = input.toList(),
                 sequence = FlowSequence(emptyList()),
@@ -65,6 +69,9 @@ object WorkspaceExecutionPlanner {
             else directories.firstNotNullOfOrNull { findConfigFile(it) }
                 ?.let { YamlCommandReader.readWorkspaceConfig(it) }
                 ?: WorkspaceConfig()
+        
+        // Set global workspace config for alias resolution
+        WorkspaceConfigProvider.workspaceConfig = workspaceConfig
 
         val globs = workspaceConfig.flows ?: listOf("*")
 
