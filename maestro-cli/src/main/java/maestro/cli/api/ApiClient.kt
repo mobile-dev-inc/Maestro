@@ -660,6 +660,68 @@ class ApiClient(
         }
     }
 
+    fun getOrgs(authToken: String): List<OrgResponse> {
+        val url = "$baseUrl/v2/maestro-studio/orgs"
+      
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val orgs = JSON.readValue(responseBody, object : TypeReference<List<OrgResponse>>() {})
+                return orgs
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
+    fun switchOrg(authToken: String, orgId: String): String {
+        val url = "$baseUrl/v2/maestro-studio/org/switch"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(orgId.toRequestBody("text/plain".toMediaType()))
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                // The endpoint returns the API key directly as plain text
+                return responseBody ?: throw Exception("No API key in switch org response")
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     fun getProjects(authToken: String): List<ProjectResponse> {
         val url = "$baseUrl/v2/maestro-studio/projects"
 
