@@ -4015,6 +4015,27 @@ class IntegrationTest {
         // No test failure - if we reach this point, the test passed successfully
     }
 
+    @Test
+    fun `Case 131 - Set Permissions on an installed app`() {
+        // Given
+        val commands = readCommands("131_setPermissions")
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.SetPermissions(appId = "com.example.app", permissions = mapOf("all" to "deny", "notifications" to "unset")))
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
