@@ -57,7 +57,6 @@ jobs:
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
       ANDROID_PLATFORM: platforms;android-32
-      MAESTRO_EXAMPLE: test-value
 
     steps:
       - name: Enable KVM group perms
