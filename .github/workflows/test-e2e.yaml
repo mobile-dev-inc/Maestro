@@ -97,7 +97,7 @@ jobs:
       - name: Set up Android Command-line Tools
         run: |
           # v13
-          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-11479570_latest.zip
+          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
 
       - name: Set up Android SDK components
