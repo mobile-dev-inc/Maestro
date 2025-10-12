@@ -56,7 +56,7 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
-      ANDROID_PLATFORM: platforms;android-32
+      ANDROID_PLATFORM: platforms;android-34
 
     steps:
       - name: Enable KVM group perms
@@ -102,12 +102,13 @@ jobs:
 
       - name: Set up Android SDK components
         run: |
-          yes | sdkmanager --install emulator
+          yes | sdkmanager --licenses
+          sdkmanager --install emulator
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
-          yes | sdkmanager --install "platform-tools"
+          sdkmanager --install "platform-tools"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          yes | sdkmanager --install "$ANDROID_PLATFORM"
-          yes | sdkmanager --install "$ANDROID_OS_IMAGE"
+          sdkmanager --install "$ANDROID_PLATFORM"
+          sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Create AVD
         run: |
