@@ -151,7 +151,8 @@ jobs:
 
       - name: Wait for AVD to start up
         run: |
-          adb wait-for-device
+          adb wait-for-device && echo 'Emulator device online'
+          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && echo 'Emulator booted'
 
           # This is also a prerequiste
           while true; do
