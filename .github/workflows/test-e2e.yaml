@@ -94,12 +94,6 @@ jobs:
           git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
           echo "$HOME/scripts/bin" >> $GITHUB_PATH
 
-      - name: Set up android-wait-for-emulator script
-        run: |
-          curl -fsSl -O https://raw.githubusercontent.com/travis-ci/travis-cookbooks/master/community-cookbooks/android-sdk/files/default/android-wait-for-emulator
-          chmod +x ./android-wait-for-emulator
-          mv ./android-wait-for-emulator $HOME/scripts/bin
-
       - name: Set up Android Command-line Tools
         run: |
           # v13
@@ -154,7 +148,7 @@ jobs:
 
       - name: Wait for AVD to start up
         run: |
-          android-wait-for-emulator
+          adb wait-for-device
 
           # This is also a prerequiste
           while true; do
