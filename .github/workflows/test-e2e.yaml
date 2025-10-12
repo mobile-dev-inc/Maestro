@@ -55,6 +55,7 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
+      ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
       ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
       ANDROID_PLATFORM: platforms;android-34
 
@@ -126,6 +127,7 @@ jobs:
           echo "ANDROID_SDK_HOME=$ANDROID_SDK_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME"
           echo "ANDROID_EMULATOR_HOME=$ANDROID_EMULATOR_HOME"
+          
           echo "HOME=$HOME"
           
           cat << EOF >> ~/.config/.android/avd/MyAVD.avd/config.ini
