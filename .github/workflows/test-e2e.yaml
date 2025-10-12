@@ -148,7 +148,7 @@ jobs:
       - name: Run AVD
         run: |
           emulator @MyAVD \
-            -verbose -no-snapshot-save -no-window -noaudio -no-boot-anim -accel on -camera-back none \
+            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -camera-back none -qemu -m 3072 \
             >~/emulator_stdout.log \
             2>~/emulator_stderr.log &
 
