@@ -13,9 +13,13 @@ appId: com.example.example
     optional: true
 
 - inputText: 'testing'
-- assertVisible: 'testing'
+- assertVisible:
+    text: 'testing'
+    above: 'Login'
 - eraseText: 3
-- assertNotVisible: 'testing'
+- assertNotVisible:
+    text: 'testing'
+    above: 'Login' # In case there's a keyboard suggestion
 - assertVisible:
     text: 'test'
-    optional: true # FIXME: This still takes an extra character sometimes, even after #2123
+    above: 'Login'
