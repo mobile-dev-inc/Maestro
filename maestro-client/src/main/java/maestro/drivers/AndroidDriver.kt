@@ -373,7 +373,7 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
@@ -1237,7 +1237,7 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Device call failed on android with $status", throwable)
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
