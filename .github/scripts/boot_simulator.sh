@@ -2,12 +2,12 @@
 
 # Specify the device type and runtime as per your requirements
 DEVICE_TYPE="iPhone 15 Pro"
-RUNTIME="iOS17.5"
+RUNTIME="iOS18.6"
 
 # Create a unique identifier for the new simulator to avoid naming conflicts
 SIMULATOR_NAME="Simulator_$(uuidgen)"
 
-echo "Creating a new iOS simulator: $SIMULATOR_NAME"
+echo "Creating a new iOS simulator: $SIMULATOR_NAME (Device: $DEVICE_TYPE, Runtime: $RUNTIME)"
 
 # Create the simulator
 simulator_id=$(xcrun simctl create "$SIMULATOR_NAME" "$DEVICE_TYPE" $RUNTIME)
