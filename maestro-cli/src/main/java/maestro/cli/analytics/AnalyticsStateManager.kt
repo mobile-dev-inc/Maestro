@@ -80,8 +80,8 @@ class AnalyticsStateManager(
             workOSOrgId = user.workOSOrgId,
             orgId = org.id,
             orgName = org.name,
-            orgPlan = org.metadata["pricing_plan"],
-            orgTrialExpiresOn = org.metadata["trial_expires_on"]
+            orgPlan = org.metadata?.get("pricing_plan"),
+            orgTrialExpiresOn = org.metadata?.get("trial_expires_on")
         )
         saveState(updatedState)
         return updatedState

@@ -42,6 +42,7 @@ ktor = "2.3.6"
 micrometerObservation = "1.13.4"
 micrometerCore = "1.13.4"
 mockk = "1.12.0"
+mordant = "3.0.2"
 mozillaRhino = "1.7.14"
 picocli = "4.6.3"
 posthog = "1.0.3"
@@ -121,6 +122,7 @@ ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", versio
 micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometerCore" }
 micrometer-observation = { module = "io.micrometer:micrometer-observation", version.ref = "micrometerObservation" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+mordant = { module = "com.github.ajalt.mordant:mordant", version.ref = "mordant" }
 mozilla-rhino = { module = "org.mozilla:rhino", version.ref = "mozillaRhino" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
