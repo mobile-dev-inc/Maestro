@@ -7,11 +7,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import io.ktor.util.internal.RemoveFirstDesc
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.TrialStartedEvent
 import maestro.cli.analytics.TrialStartFailedEvent
+import maestro.cli.analytics.TrialStartPromptedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
@@ -363,6 +363,7 @@ class ApiClient(
                         ignoreCase = true
                     )
                 ) {
+                    Analytics.trackEvent(TrialStartPromptedEvent())
                     PrintUtils.info("\n[ERROR] Your trial has not started yet".brightRed())
                     PrintUtils.info("[INFO] Start your 7-day free trial with no credit card required!".green())
                     PrintUtils.info("${"[INPUT]".cyan()} Please enter your company name to start the free trial: ")
@@ -430,7 +431,8 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val jsonBody = """{ "companyName": "$companyName", "referralSource": "maestro-cli" }""".toRequestBody("application/json".toMediaType())
+        val request = StartTrialRequest(companyName)
+        val jsonBody = JSON.writeValueAsString(request).toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
@@ -658,6 +660,68 @@ class ApiClient(
         }
     }
 
+    fun getOrgs(authToken: String): List<OrgResponse> {
+        val url = "$baseUrl/v2/maestro-studio/orgs"
+      
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val orgs = JSON.readValue(responseBody, object : TypeReference<List<OrgResponse>>() {})
+                return orgs
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
+    fun switchOrg(authToken: String, orgId: String): String {
+        val url = "$baseUrl/v2/maestro-studio/org/switch"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(orgId.toRequestBody("text/plain".toMediaType()))
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                // The endpoint returns the API key directly as plain text
+                return responseBody ?: throw Exception("No API key in switch org response")
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     fun getProjects(authToken: String): List<ProjectResponse> {
         val url = "$baseUrl/v2/maestro-studio/projects"
 
@@ -797,9 +861,9 @@ data class UserResponse(
 data class OrgResponse(
   val id: String,
   val name: String,
-  val quota: Map<String, Map<String, Number>>,
-  val metadata: Map<String, String>,
-  val workOSOrgId: String,
+  val quota: Map<String, Map<String, Number>>?,
+  val metadata: Map<String, String>?,
+  val workOSOrgId: String?,
 )
 
 data class ProjectResponse(
@@ -852,6 +916,10 @@ class SystemInformationInterceptor : Interceptor {
 data class Insight(
     val category: String,
     val reasoning: String,
+)
+
+data class StartTrialRequest(
+    val companyName: String
 )
 
 class AnalyzeResponse(
