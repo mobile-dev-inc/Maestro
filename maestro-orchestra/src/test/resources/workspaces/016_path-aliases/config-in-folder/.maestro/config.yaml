@@ -1,6 +1,6 @@
 pathAliases:
-  "~js": "../scripts"
-  "~sf": "../subflows"
+  "~js": "scripts"
+  "~sf": "subflows"
 
 flows:
-  - "../flows/*"
+  - "flows/*"

@@ -66,6 +66,15 @@ object WorkspaceExecutionPlanner {
                 ?.let { YamlCommandReader.readWorkspaceConfig(it) }
                 ?: WorkspaceConfig()
 
+        // Set up WorkingDirectory with path aliases for flow validation
+        val configDir = config?.parent ?: directories.firstOrNull()
+        if (configDir != null) {
+            maestro.utils.WorkingDirectory.baseDir = configDir.toFile().absoluteFile
+            workspaceConfig.pathAliases?.let {
+                maestro.utils.WorkingDirectory.pathAliases = it
+            }
+        }
+
         val globs = workspaceConfig.flows ?: listOf("*")
 
         val matchers = globs.flatMap { glob ->
@@ -172,6 +181,10 @@ object WorkspaceExecutionPlanner {
         return input.resolve("config.yaml")
             .takeIf { it.exists() }
             ?: input.resolve("config.yml")
+                .takeIf { it.exists() }
+            ?: input.resolve(".maestro/config.yaml")
+                .takeIf { it.exists() }
+            ?: input.resolve(".maestro/config.yml")
                 .takeIf { it.exists() }
     }
 

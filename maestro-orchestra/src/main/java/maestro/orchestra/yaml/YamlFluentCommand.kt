@@ -473,11 +473,8 @@ data class YamlFluentCommand(
             val aliasResolvedPath = if (maestro.utils.WorkingDirectory.pathAliases.isNotEmpty()) {
                 try {
                     val resolved = maestro.utils.WorkingDirectory.resolve(it)
-                    if (resolved.isAbsolute) {
-                        resolved.toPath()
-                    } else {
-                        null
-                    }
+                    // Convert to absolute path - WorkingDirectory already handles baseDir
+                    resolved.absoluteFile.toPath()
                 } catch (e: Exception) {
                     null
                 }
@@ -705,11 +702,8 @@ data class YamlFluentCommand(
         val aliasResolvedPath = if (maestro.utils.WorkingDirectory.pathAliases.isNotEmpty()) {
             try {
                 val resolved = maestro.utils.WorkingDirectory.resolve(requestedPath)
-                if (resolved.isAbsolute) {
-                    resolved.toPath()
-                } else {
-                    null
-                }
+                // Convert to absolute path - WorkingDirectory already handles baseDir
+                resolved.absoluteFile.toPath()
             } catch (e: Exception) {
                 null
             }

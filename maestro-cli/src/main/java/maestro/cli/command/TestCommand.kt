@@ -246,14 +246,6 @@ class TestCommand : Callable<Int> {
             throw CliError(e.message)
         }
 
-        // Set up path aliases from workspace config
-        configFile?.let { config ->
-            maestro.utils.WorkingDirectory.baseDir = config.parentFile.absoluteFile
-            executionPlan.workspaceConfig.pathAliases?.let {
-                maestro.utils.WorkingDirectory.pathAliases = it
-            }
-        }
-
         val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
 
         // Update TestDebugReporter with the resolved test output directory
