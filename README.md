@@ -1,9 +1,10 @@
 > [!TIP]
-> Ready to wire into CI or scale up your testing? [Run Maestro in the Cloud](https://docs.maestro.dev/cloud)
+> Great things happen when testers connect — [Join the Maestro Community](https://maestrodev.typeform.com/to/FelIEe8A)
+
 
 <p align="center">
   <a href="https://www.maestro.dev">
-    <img width="200" alt="Maestro logo" src="https://github.com/user-attachments/assets/91c4f440-288e-4a9e-93a3-3c89a19d2f04" />
+    <img width="1200" alt="Maestro logo" src="https://github.com/mobile-dev-inc/Maestro/blob/main/assets/banne_logo.png" />
   </a>
 </p>
 
@@ -19,88 +20,74 @@
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
 - [Why Maestro?](#why-maestro)
 - [Getting Started](#getting-started)
-- [Maestro Studio – Test IDE](#maestro-studio--test-ide)
-- [Maestro Cloud – Parallel Execution & Scalability](#maestro-cloud--parallel-execution--scalability)
 - [Resources & Community](#resources--community)
 - [Contributing](#contributing)
+- [Maestro Studio – Test IDE](#maestro-studio--test-ide)
+- [Maestro Cloud – Parallel Execution & Scalability](#maestro-cloud--parallel-execution--scalability)
 
----
-
-## Quick Start
-
-Want to see Maestro in action? Run the sample flows included in the `samples` folder.  
-In just a few minutes you can install the CLI, clone the repository and exercise a YAML flow against a sample app:
-
-```bash
-# install the CLI (macOS, Linux or WSL)
-curl -fsSL "https://get.maestro.mobile.dev" | bash
-
-```
-
-```
-
-# clone the repository and run a sample flow
-git clone https://github.com/mobile-dev-inc/maestro.git
-cd maestro/samples
-maestro test android-flow.yaml
-```
-This spins up the sample app on an emulator, interacts with the UI, and validates elements without manual coding.
 
 ---
 
 ## Why Maestro?
 
-Maestro combines a human-readable YAML syntax with an interpreted execution engine.  
-It lets you write, run, and scale cross-platform end-to-end tests for mobile and web with ease:
+Maestro is built on learnings from its predecessors (Appium, Espresso, UIAutomator, XCTest, Selenium, Playwright) and allows you to easily define and test your Flows.
+
+By combining a human-readable YAML syntax with an interpreted execution engine, it lets you write, run, and scale cross-platform end-to-end tests for mobile and web with ease.
 
 - **Cross-platform coverage** – test Android, iOS, and web apps (React Native, Flutter, hybrid) on emulators, simulators, or real devices.  
 - **Human-readable YAML flows** – express interactions as commands like `launchApp`, `tapOn`, and `assertVisible`.  
 - **Resilience & smart waiting** – built-in flakiness tolerance and automatic waiting handle dynamic UIs without manual `sleep()` calls.  
 - **Fast iteration & simple install** – flows are interpreted (no compilation) and installation is a single script.
 
+**Simple Example:**
+```
+# flow_contacts_android.yaml
+
+appId: com.android.contacts
+---
+- launchApp
+- tapOn: "Create new contact"
+- tapOn: "First Name"
+- inputText: "John"
+- tapOn: "Last Name"
+- inputText: "Snow"
+- tapOn: "Save"
+```
+
 ---
 ## Getting Started
+
+Maestro requires Java 17 or higher to be installed on your system. You can verify your Java version by running:
+
+```
+java -version
+```
+
+Installing the CLI:
+
+Run the following command to install Maestro on macOS, Linux or Windows (WSL):
+
+```
+curl -fsSL "https://get.maestro.mobile.dev" | bash
+```
+
+The links below will guide you through the next steps.
 
 - [Installing Maestro](https://docs.maestro.dev/getting-started/installing-maestro)
 - [Build and install your app](https://docs.maestro.dev/getting-started/build-and-install-your-app)
 - [Run a sample flow](https://docs.maestro.dev/getting-started/run-a-sample-flow)
 - [Writing your first flow](https://docs.maestro.dev/getting-started/writing-your-first-flow)
 
----
-
-## Maestro Studio – Test IDE
-
-**Maestro Studio Desktop** is a lightweight IDE that lets you design and execute tests visually — no terminal needed.
-
-- **Simple setup** – just download the native app for macOS, Windows, or Linux.  
-- **Visual flow builder & inspector** – record interactions, inspect elements, and build flows visually.  
-- **AI assistance** – use MaestroGPT to generate commands and answer questions while authoring tests.
-
-[Download Maestro Studio](https://maestro.dev/?utm_source=github-readme#maestro-studio)
-
----
-
-## Maestro Cloud – Parallel Execution & Scalability
-
-When your test suite grows, **Maestro Cloud** lets you run flows in parallel on dedicated infrastructure:
-
-- **Run at scale** – execute hundreds of tests in parallel and cut run times by up to 90%.  
-- **Built-in notifications** – send results to GitHub PRs, Slack, or email.  
-- **Deterministic environments** – stable infrastructure for reproducible tests.  
-- **Debugging & device selection** – includes video replay, logs, and device model selection.
-
-👉 [Start your free 7-day trial](https://maestro.dev/cloud?utm_source=github-readme)
 
 ---
 
 ## Resources & Community
 
+- 💬 [Join the Slack Community](https://maestrodev.typeform.com/to/FelIEe8A)
 - 📘 [Documentation](https://docs.maestro.dev)  
 - 📰 [Blog](https://maestro.dev/blog?utm_source=github-readme) 
-- 💬 [Join the Slack Community](https://maestrodev.typeform.com/to/FelIEe8A)
 - 🐦 [Follow us on X](https://twitter.com/maestro__dev)
 
 ---
@@ -114,6 +101,31 @@ Maestro is open-source under the Apache 2.0 license — contributions are welcom
 - Fork, create a branch, and open a Pull Request.
 
 If you find Maestro useful, ⭐ star the repository to support the project.
+
+---
+
+## Maestro Studio – Test IDE
+
+**Maestro Studio Desktop** is a lightweight IDE that lets you design and execute tests visually — no terminal needed. 
+It is also free, even though Studio is not an open-source project. So you won't find the Maestro Studio code here.
+
+- **Simple setup** – just download the native app for macOS, Windows, or Linux.  
+- **Visual flow builder & inspector** – record interactions, inspect elements, and build flows visually.  
+- **AI assistance** – use MaestroGPT to generate commands and answer questions while authoring tests.
+
+[Download Maestro Studio](https://maestro.dev/?utm_source=github-readme#maestro-studio)
+
+---
+
+## Maestro Cloud – Parallel Execution & Scalability
+
+When your test suite grows, run hundreds of tests in parallel on dedicated infrastructure, cutting execution times by up to 90%. Includes built-in notifications, deterministic environments, and complete debugging tools.
+
+Pricing for Maestro Cloud is completely transparent and can be found on the [pricing page](https://maestro.dev/pricing?utm_source=github-readme).
+
+👉 [Start your free 7-day trial](https://maestro.dev/cloud?utm_source=github-readme)
+
+
 
 ```
   Built with ❤️ by Maestro.dev
