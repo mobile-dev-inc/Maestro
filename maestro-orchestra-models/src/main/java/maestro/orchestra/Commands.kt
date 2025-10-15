@@ -732,6 +732,8 @@ data class RunFlowCommand(
     val config: MaestroConfig?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    val flowFilePath: String? = null, // Original path pattern with potential JS interpolation
+    val parentFlowPath: String? = null, // Path to the parent flow file for resolution
 ) : CompositeCommand {
 
     override fun subCommands(): List<MaestroCommand> {
@@ -758,10 +760,15 @@ data class RunFlowCommand(
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
+        // Evaluate the path pattern if present
+        val evaluatedFlowFilePath = flowFilePath?.evaluateScripts(jsEngine)
+        
         return copy(
+            flowFilePath = evaluatedFlowFilePath,
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine)
+            label = label?.evaluateScripts(jsEngine),
+            sourceDescription = evaluatedFlowFilePath ?: sourceDescription
         )
     }
 }
@@ -909,6 +916,8 @@ data class RunScriptCommand(
     val condition: Condition?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    val scriptPath: String? = null, // Original path pattern with potential JS interpolation
+    val flowPath: String? = null, // Path to the flow file for resolution
 ) : Command {
 
     override val originalDescription: String
@@ -919,12 +928,17 @@ data class RunScriptCommand(
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
+        // Evaluate the path pattern if present
+        val evaluatedScriptPath = scriptPath?.evaluateScripts(jsEngine)
+        
         return copy(
+            scriptPath = evaluatedScriptPath,
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine)
+            label = label?.evaluateScripts(jsEngine),
+            sourceDescription = evaluatedScriptPath ?: sourceDescription
         )
     }
 }

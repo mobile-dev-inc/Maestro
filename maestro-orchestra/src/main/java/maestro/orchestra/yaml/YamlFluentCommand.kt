@@ -372,13 +372,21 @@ data class YamlFluentCommand(
             runScript != null -> listOf(
                 MaestroCommand(
                     RunScriptCommand(
-                        script = resolvePath(flowPath, runScript.file)
-                            .readText(),
+                        script = if (containsJsInterpolation(runScript.file)) {
+                            // Don't read file at parse time if it contains JS interpolation
+                            // It will be resolved at runtime in Orchestra
+                            ""
+                        } else {
+                            resolvePath(flowPath, runScript.file).readText()
+                        },
                         env = runScript.env,
                         sourceDescription = runScript.file,
                         condition = runScript.`when`?.toCondition(),
                         label = runScript.label,
                         optional = runScript.optional,
+                        // Only set these for deferred resolution when JS interpolation is present
+                        scriptPath = if (containsJsInterpolation(runScript.file)) runScript.file else null,
+                        flowPath = if (containsJsInterpolation(runScript.file)) flowPath.toString() else null,
                     )
                 )
             )
@@ -461,7 +469,27 @@ data class YamlFluentCommand(
         }
 
         val mediaPaths = addMedia.files.filterNotNull().map {
-            val path = flowPath.fileSystem.getPath(it)
+            // Check if path contains an alias and resolve it
+            val aliasResolvedPath = if (maestro.utils.WorkingDirectory.pathAliases.isNotEmpty()) {
+                try {
+                    val resolved = maestro.utils.WorkingDirectory.resolve(it)
+                    if (resolved.isAbsolute) {
+                        resolved.toPath()
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+            
+            val path = if (aliasResolvedPath != null) {
+                aliasResolvedPath
+            } else {
+                flowPath.fileSystem.getPath(it)
+            }
 
             val resolvedPath = if (path.isAbsolute) {
                 path
@@ -498,7 +526,11 @@ data class YamlFluentCommand(
             ?: runFlow(flowPath, runFlow)
 
         val config = runFlow.file?.let {
-            readConfig(flowPath, runFlow.file)
+            if (containsJsInterpolation(it)) {
+                null
+            } else {
+                readConfig(flowPath, runFlow.file)
+            }
         }
 
         return MaestroCommand(
@@ -509,6 +541,9 @@ data class YamlFluentCommand(
                 config = config,
                 label = runFlow.label,
                 optional = runFlow.optional,
+                // Only set these for deferred resolution when JS interpolation is present
+                flowFilePath = if (runFlow.file != null && containsJsInterpolation(runFlow.file)) runFlow.file else null,
+                parentFlowPath = if (runFlow.file != null && containsJsInterpolation(runFlow.file)) flowPath.toString() else null,
             )
         )
     }
@@ -619,6 +654,11 @@ data class YamlFluentCommand(
             return emptyList()
         }
 
+        // Don't resolve paths with JS interpolation at parse time
+        if (containsJsInterpolation(runFlow.file)) {
+            return emptyList()
+        }
+
         val runFlowPath = resolvePath(flowPath, runFlow.file)
         return listOf(runFlowPath) + YamlCommandReader.getWatchFiles(runFlowPath)
     }
@@ -626,6 +666,11 @@ data class YamlFluentCommand(
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
         if (command.file == null) {
             error("Invalid runFlow command: No file or commands provided")
+        }
+
+        // Don't read file at parse time if it contains JS interpolation
+        if (containsJsInterpolation(command.file)) {
+            return emptyList()
         }
 
         val runFlowPath = resolvePath(flowPath, command.file)
@@ -648,8 +693,35 @@ data class YamlFluentCommand(
         return YamlCommandReader.readConfig(runFlowPath).toCommand(runFlowPath).applyConfigurationCommand?.config
     }
 
+    /**
+     * Checks if a path contains JavaScript interpolation patterns like ${...}
+     */
+    private fun containsJsInterpolation(path: String): Boolean {
+        return path.contains("\${")
+    }
+
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
-        val path = flowPath.fileSystem.getPath(requestedPath)
+        // Check if requestedPath contains an alias and resolve it
+        val aliasResolvedPath = if (maestro.utils.WorkingDirectory.pathAliases.isNotEmpty()) {
+            try {
+                val resolved = maestro.utils.WorkingDirectory.resolve(requestedPath)
+                if (resolved.isAbsolute) {
+                    resolved.toPath()
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+        
+        val path = if (aliasResolvedPath != null) {
+            aliasResolvedPath
+        } else {
+            flowPath.fileSystem.getPath(requestedPath)
+        }
 
         val resolvedPath = if (path.isAbsolute) {
             path

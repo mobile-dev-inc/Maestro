@@ -1,0 +1,4 @@
+appId: com.example
+---
+- runFlow: '~sf/subflow.yaml'
+- runScript: '~js/script.js'

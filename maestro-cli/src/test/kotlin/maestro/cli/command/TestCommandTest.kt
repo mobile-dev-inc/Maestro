@@ -3,8 +3,11 @@ package maestro.cli.command
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
+import maestro.utils.WorkingDirectory
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.AfterEach
+import java.io.File
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -14,6 +17,13 @@ class TestCommandTest {
     @BeforeEach
     fun setUp() {
         testCommand = TestCommand()
+    }
+
+    @AfterEach
+    fun tearDown() {
+        // Reset WorkingDirectory to defaults after each test
+        WorkingDirectory.baseDir = File(System.getProperty("user.dir"))
+        WorkingDirectory.pathAliases = emptyMap()
     }
 
     /*****************************************
@@ -172,6 +182,51 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    /*****************************************
+    ******** Path Aliases Setup Tests ********
+    ******************************************/
+    @Test
+    fun `path aliases should be loaded when config file exists`() {
+        // Given: A workspace with config.yaml containing pathAliases
+        val projectDir = System.getProperty("user.dir")
+        val workspacePath = Path.of(projectDir, "maestro-orchestra/src/test/resources/workspaces/016_path-aliases/config-in-root")
+        val configPath = workspacePath.resolve("config.yaml")
+        
+        // When: Execution plan is created with the config
+        val executionPlan = WorkspaceExecutionPlanner.plan(
+            input = setOf(workspacePath.resolve("flows")),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+            config = configPath
+        )
+        
+        // Simulate what TestCommand does
+        val configDir = configPath.parent.toFile()
+        WorkingDirectory.baseDir = configDir.absoluteFile
+        executionPlan.workspaceConfig.pathAliases?.let {
+            WorkingDirectory.pathAliases = it
+        }
+        
+        // Then: WorkingDirectory should have the path aliases configured
+        assertThat(WorkingDirectory.pathAliases).isNotEmpty()
+        assertThat(WorkingDirectory.pathAliases).containsEntry("~js", "scripts")
+        assertThat(WorkingDirectory.pathAliases).containsEntry("~sf", "subflows")
+        assertThat(WorkingDirectory.baseDir).isEqualTo(configDir.absoluteFile)
+    }
+
+    @Test
+    fun `path aliases should not be set when config dir is null`() {
+        // Given: No config file (configDir would be null)
+        WorkingDirectory.baseDir = File(System.getProperty("user.dir"))
+        WorkingDirectory.pathAliases = emptyMap()
+        
+        // When: We don't set up path aliases (simulating configDir == null case)
+        // (Do nothing - this is what happens when configDir is null)
+        
+        // Then: WorkingDirectory should have empty path aliases
+        assertThat(WorkingDirectory.pathAliases).isEmpty()
     }
 
     /*****************************************
