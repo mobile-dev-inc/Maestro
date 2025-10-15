@@ -190,14 +190,17 @@ class TestCommandTest {
     @Test
     fun `path aliases should be loaded when config file exists`() {
         // Given: A workspace with config.yaml containing pathAliases
-        val projectDir = System.getProperty("user.dir")
+        val projectDir = System.getProperty("user.dir").let { dir ->
+            // When running from maestro-cli, go up to project root
+            if (dir.endsWith("maestro-cli")) File(dir).parentFile.absolutePath else dir
+        }
         val workspacePath = Path.of(projectDir, "maestro-orchestra/src/test/resources/workspaces/016_path-aliases/config-in-root")
         val configPath = workspacePath.resolve("config.yaml")
         
         // When: Execution plan is created with the config
         // WorkspaceExecutionPlanner now sets up WorkingDirectory automatically
         val executionPlan = WorkspaceExecutionPlanner.plan(
-            input = setOf(workspacePath.resolve("flows")),
+            input = setOf(workspacePath), // Pass workspace root, not flows subdirectory
             includeTags = emptyList(),
             excludeTags = emptyList(),
             config = configPath
