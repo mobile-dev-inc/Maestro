@@ -247,8 +247,8 @@ class TestCommand : Callable<Int> {
         }
 
         // Set up path aliases from workspace config
-        if (configFile != null) {
-            maestro.utils.WorkingDirectory.baseDir = configFile.parentFile.absoluteFile
+        configFile?.let { config ->
+            maestro.utils.WorkingDirectory.baseDir = config.parentFile.absoluteFile
             executionPlan.workspaceConfig.pathAliases?.let {
                 maestro.utils.WorkingDirectory.pathAliases = it
             }
