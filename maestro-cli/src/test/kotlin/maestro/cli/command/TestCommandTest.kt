@@ -195,6 +195,7 @@ class TestCommandTest {
         val configPath = workspacePath.resolve("config.yaml")
         
         // When: Execution plan is created with the config
+        // WorkspaceExecutionPlanner now sets up WorkingDirectory automatically
         val executionPlan = WorkspaceExecutionPlanner.plan(
             input = setOf(workspacePath.resolve("flows")),
             includeTags = emptyList(),
@@ -202,31 +203,11 @@ class TestCommandTest {
             config = configPath
         )
         
-        // Simulate what TestCommand does
-        val configDir = configPath.parent.toFile()
-        WorkingDirectory.baseDir = configDir.absoluteFile
-        executionPlan.workspaceConfig.pathAliases?.let {
-            WorkingDirectory.pathAliases = it
-        }
-        
-        // Then: WorkingDirectory should have the path aliases configured
+        // Then: WorkingDirectory should have been set up by the planner
         assertThat(WorkingDirectory.pathAliases).isNotEmpty()
         assertThat(WorkingDirectory.pathAliases).containsEntry("~js", "scripts")
         assertThat(WorkingDirectory.pathAliases).containsEntry("~sf", "subflows")
-        assertThat(WorkingDirectory.baseDir).isEqualTo(configDir.absoluteFile)
-    }
-
-    @Test
-    fun `path aliases should not be set when config dir is null`() {
-        // Given: No config file (configDir would be null)
-        WorkingDirectory.baseDir = File(System.getProperty("user.dir"))
-        WorkingDirectory.pathAliases = emptyMap()
-        
-        // When: We don't set up path aliases (simulating configDir == null case)
-        // (Do nothing - this is what happens when configDir is null)
-        
-        // Then: WorkingDirectory should have empty path aliases
-        assertThat(WorkingDirectory.pathAliases).isEmpty()
+        assertThat(WorkingDirectory.baseDir.absolutePath).isEqualTo(workspacePath.toFile().absolutePath)
     }
 
     /*****************************************
