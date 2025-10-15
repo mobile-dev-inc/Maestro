@@ -398,13 +398,12 @@ data class YamlFluentCommand(
                 )
             )
             runScript != null -> {
-                val scriptPath = resolvePath(flowPath, runScript.file)
                 listOf(
                     MaestroCommand(
                         RunScriptCommand(
-                            script = scriptPath.readText(),
+                            script = "", // Always defer loading to runtime
                             env = runScript.env,
-                            sourceDescription = scriptPath.toString(),
+                            sourceDescription = runScript.file,
                             condition = runScript.`when`?.toCondition(),
                             label = runScript.label,
                             optional = runScript.optional,
@@ -492,7 +491,6 @@ data class YamlFluentCommand(
 
         val mediaPaths = addMedia.files.filterNotNull().map {
             val path = flowPath.fileSystem.getPath(it)
-
             val resolvedPath = if (path.isAbsolute) {
                 path
             } else {
@@ -528,7 +526,11 @@ data class YamlFluentCommand(
             ?: runFlow(flowPath, runFlow)
 
         val config = runFlow.file?.let {
-            readConfig(flowPath, runFlow.file)
+            if (containsJsInterpolation(it)) {
+                null
+            } else {
+                readConfig(flowPath, runFlow.file)
+            }
         }
 
         return MaestroCommand(
@@ -649,6 +651,11 @@ data class YamlFluentCommand(
             return emptyList()
         }
 
+        // Don't resolve paths with JS interpolation at parse time
+        if (containsJsInterpolation(runFlow.file)) {
+            return emptyList()
+        }
+
         val runFlowPath = resolvePath(flowPath, runFlow.file)
         return listOf(runFlowPath) + YamlCommandReader.getWatchFiles(runFlowPath)
     }
@@ -656,6 +663,11 @@ data class YamlFluentCommand(
     private fun runFlow(flowPath: Path, command: YamlRunFlow): List<MaestroCommand> {
         if (command.file == null) {
             error("Invalid runFlow command: No file or commands provided")
+        }
+
+        // Don't read file at parse time if it contains JS interpolation
+        if (containsJsInterpolation(command.file)) {
+            return emptyList()
         }
 
         val runFlowPath = resolvePath(flowPath, command.file)
@@ -678,9 +690,15 @@ data class YamlFluentCommand(
         return YamlCommandReader.readConfig(runFlowPath).toCommand(runFlowPath).applyConfigurationCommand?.config
     }
 
+    /**
+     * Checks if a string contains JavaScript interpolation patterns, i.e. ${...}
+     */
+    private fun containsJsInterpolation(string: String): Boolean {
+        return string.contains("\${")
+    }
+
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
         val path = flowPath.fileSystem.getPath(requestedPath)
-
         val resolvedPath = if (path.isAbsolute) {
             path
         } else {

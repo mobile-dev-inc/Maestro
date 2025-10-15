@@ -84,6 +84,7 @@ object TestRunner {
                     analyze = analyze,
                     apiKey = apiKey,
                     testOutputDir = testOutputDir,
+                    flowFilePath = flowFile.parentFile.absolutePath,
                 )
             }
         }
@@ -174,7 +175,8 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
-                                    testOutputDir = testOutputDir
+                                    testOutputDir = testOutputDir,
+                                    flowFilePath = flowFile.parentFile.absolutePath,
                                 )
                             }
                         }.get()

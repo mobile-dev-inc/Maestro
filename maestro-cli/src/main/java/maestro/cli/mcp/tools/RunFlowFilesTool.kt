@@ -97,7 +97,7 @@ object RunFlowFilesTool {
                             val commandsWithEnv = commands.withEnv(finalEnv)
                             
                             runBlocking {
-                                orchestra.runFlow(commandsWithEnv)
+                                orchestra.runFlow(commandsWithEnv, fileObj.parentFile.absolutePath)
                             }
                             results.add(mapOf(
                                 "file" to fileObj.absolutePath,
