@@ -63,14 +63,13 @@ import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.sink
-import java.awt.image.BufferedImage
-import java.lang.Long.max
-import javax.imageio.ImageIO
 import org.slf4j.LoggerFactory
+import java.awt.image.BufferedImage
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Path
 import java.util.logging.Filter
+import javax.imageio.ImageIO
 import kotlin.coroutines.coroutineContext
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
@@ -140,7 +139,8 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
-    private val AIPredictionEngine: AIPredictionEngine = CloudAIPredictionEngine(),
+    private val apiKey: String? = null,
+    private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine() },
     private val flowController: FlowController = DefaultFlowController(),
 ) {
 
@@ -487,6 +487,10 @@ class Orchestra(
         command: AssertNoDefectsWithAICommand,
         maestroCommand: MaestroCommand
     ): Boolean {
+        if (AIPredictionEngine == null) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+        }
+
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
@@ -521,6 +525,10 @@ class Orchestra(
     }
 
     private suspend fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean {
+        if (AIPredictionEngine == null) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+        }
+
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
@@ -542,7 +550,7 @@ class Orchestra(
                     |$reasoning
                     """.trimMargin(),
                 hierarchyRoot = maestro.viewHierarchy().root,
-            debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
+                debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
         return false
@@ -552,6 +560,9 @@ class Orchestra(
         command: ExtractTextWithAICommand,
         maestroCommand: MaestroCommand
     ): Boolean {
+        if (AIPredictionEngine == null) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+        }
 
         val metadata = getMetadata(maestroCommand)
 
@@ -577,6 +588,9 @@ class Orchestra(
         command: ExtractPointWithAICommand,
         maestroCommand: MaestroCommand
     ): Boolean {
+        if (AIPredictionEngine == null) {
+            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+        }
 
         val metadata = getMetadata(maestroCommand)
 
@@ -1126,7 +1140,7 @@ class Orchestra(
         val baseline = command.baseline + ".png"
 
         val actual = screenshotsDir
-            ?.let { File(it, baseline) }
+            ?.let { File(it.toFile(), baseline) }
             ?: File(baseline)
 
         val expected = File
@@ -1643,4 +1657,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-
