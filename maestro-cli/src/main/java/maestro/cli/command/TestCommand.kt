@@ -267,7 +267,6 @@ class TestCommand : Callable<Int> {
             platform = platform
         ))
 
-        val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
         val result = handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir, driverPort?.toInt())
 
         // Track test execution finish
