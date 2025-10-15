@@ -75,7 +75,7 @@ curl -fsSL "https://get.maestro.mobile.dev" | bash
 
 The links below will guide you through the next steps.
 
-- [Installing Maestro](https://docs.maestro.dev/getting-started/installing-maestro)
+- [Installing Maestro](https://docs.maestro.dev/getting-started/installing-maestro) (includes regular Windows installation)
 - [Build and install your app](https://docs.maestro.dev/getting-started/build-and-install-your-app)
 - [Run a sample flow](https://docs.maestro.dev/getting-started/run-a-sample-flow)
 - [Writing your first flow](https://docs.maestro.dev/getting-started/writing-your-first-flow)
