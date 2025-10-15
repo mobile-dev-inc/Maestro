@@ -1,0 +1,4 @@
+appId: com.example
+---
+- evalScript: ${output.subflowExecuted = true}
+

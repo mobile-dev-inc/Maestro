@@ -1,0 +1,6 @@
+appId: com.example
+---
+# Test runFlow with JS interpolation in file path
+- evalScript: ${output.flowName = "login"}
+- runFlow: subflows/${output.flowName}.yaml
+- assertTrue: ${output.loginFlowExecuted}

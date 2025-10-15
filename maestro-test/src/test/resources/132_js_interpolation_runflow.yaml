@@ -1,0 +1,7 @@
+appId: com.example
+---
+# Test runFlow with JS interpolation in file path
+- evalScript: ${output.subflowName = "login"}
+- runFlow: 132_js_interpolation_runflow/subflows/${output.subflowName}.yaml
+- assertTrue: ${output.subflowExecuted === true}
+

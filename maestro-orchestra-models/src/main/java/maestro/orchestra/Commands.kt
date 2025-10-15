@@ -758,7 +758,11 @@ data class RunFlowCommand(
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
+        // Evaluate the path pattern if present
+        val evaluatedSourceDescription = sourceDescription?.evaluateScripts(jsEngine)
+        
         return copy(
+            sourceDescription = evaluatedSourceDescription,
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
@@ -919,7 +923,11 @@ data class RunScriptCommand(
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
+        // Evaluate the path pattern if present
+        val evaluatedSourceDescription = sourceDescription.evaluateScripts(jsEngine)
+        
         return copy(
+            sourceDescription = evaluatedSourceDescription,
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
             },

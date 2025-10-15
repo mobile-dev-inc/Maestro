@@ -1,0 +1,6 @@
+appId: com.example
+---
+# Test runScript with JS interpolation in file path
+- evalScript: ${output.scriptName = "dynamic"}
+- runScript: scripts/${output.scriptName}.js
+- assertTrue: ${output.dynamicScriptExecuted}

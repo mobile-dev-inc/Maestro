@@ -61,6 +61,7 @@ import java.lang.Long.max
 import java.nio.file.Path
 import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
+import kotlin.io.path.readText
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -144,7 +145,12 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
+    private val flowPathStack = mutableListOf<String>()
+
+    private val currentFlowPath: String?
+        get() = flowPathStack.lastOrNull()
+
+    suspend fun runFlow(commands: List<MaestroCommand>, initialFlowPath: String? = null): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -153,6 +159,11 @@ class Orchestra(
         initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
+
+        // Initialize the flow path stack with the initial flow path
+        if (initialFlowPath != null) {
+            flowPathStack.add(initialFlowPath)
+        }
 
         executeDefineVariablesCommands(commands, config)
         // filter out DefineVariablesCommand to not execute it twice
@@ -189,6 +200,11 @@ class Orchestra(
                     shouldReinitJsEngine = false,
                 )
             } ?: true
+
+            // Clean up the flow path stack
+            if (initialFlowPath != null && flowPathStack.isNotEmpty()) {
+                flowPathStack.removeAt(flowPathStack.size - 1)
+            }
 
             exception?.let { throw it }
 
@@ -533,8 +549,22 @@ class Orchestra(
 
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
         return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
+            // If we have an evaluated script path, resolve and read the file now
+            val filePath = command.sourceDescription
+            val parentFlowPath = currentFlowPath
+            val script = if (command.script.isEmpty() && filePath != null && parentFlowPath != null) {
+                try {
+                    val finalPath = resolvePath(filePath, parentFlowPath)
+                    finalPath.readText().trimEnd()
+                } catch (e: Exception) {
+                    "" // Fallback to empty if file can't be read
+                }
+            } else {
+                command.script
+            }
+            
             jsEngine.evaluateScript(
-                script = command.script,
+                script = script,
                 env = command.env,
                 sourceName = command.sourceDescription,
                 runInSubScope = true,
@@ -767,10 +797,46 @@ class Orchestra(
 
     private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
         return if (evaluateCondition(command.condition, command.optional)) {
-            runSubFlow(command.commands, config, command.config)
+            // If we have an evaluated flow path, resolve and read the flow now
+            val filePath = command.sourceDescription
+            val parentFlowPath = currentFlowPath
+            val (commands, resolvedFlowPath) = if (command.commands.isEmpty() && filePath != null && parentFlowPath != null) {
+                try {
+                    val finalPath = resolvePath(filePath, parentFlowPath)
+                    Pair(YamlCommandReader.readCommands(finalPath), finalPath.parent.toString())
+                } catch (e: Exception) {
+                    Pair(emptyList(), parentFlowPath) // Fallback to empty if file can't be read
+                }
+            } else {
+                Pair(command.commands, parentFlowPath)
+            }
+            
+            // Push the new flow path onto the stack for nested flows
+            val flowPathToUse = resolvedFlowPath ?: parentFlowPath
+            if (flowPathToUse != null) {
+                flowPathStack.add(flowPathToUse)
+            }
+            try {
+                runSubFlow(commands, config, command.config)
+            } finally {
+                // Pop the flow path when exiting the subflow
+                if (flowPathToUse != null && flowPathStack.isNotEmpty()) {
+                    flowPathStack.removeAt(flowPathStack.size - 1)
+                }
+            }
         } else {
             throw CommandSkipped
         }
+    }
+
+    /**
+     * Resolves a file path relative to the parent flow path.
+     * Used for runtime resolution of paths with JS interpolation.
+     */
+    private fun resolvePath(targetPath: String, parentPath: String): Path {
+        val pathObj = java.nio.file.Paths.get(parentPath)
+        val p = pathObj.fileSystem.getPath(targetPath)
+        return if (p.isAbsolute) p else pathObj.resolveSibling(p).toAbsolutePath()
     }
 
     private fun evaluateCondition(

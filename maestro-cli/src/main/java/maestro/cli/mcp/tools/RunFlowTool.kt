@@ -113,7 +113,7 @@ object RunFlowTool {
                         val orchestra = Orchestra(session.maestro)
                         
                         runBlocking {
-                            orchestra.runFlow(commandsWithEnv)
+                            orchestra.runFlow(commandsWithEnv, tempFile.parentFile.absolutePath)
                         }
                         
                         buildJsonObject {
