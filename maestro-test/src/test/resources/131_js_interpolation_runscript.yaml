@@ -1,0 +1,7 @@
+appId: com.example
+---
+# Test runScript with JS interpolation in file path
+- evalScript: ${output.scriptName = "test_script"}
+- runScript: 131_js_interpolation_runscript/${output.scriptName}.js
+- assertTrue: ${output.scriptExecuted === true}
+

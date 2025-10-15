@@ -61,6 +61,7 @@ import java.lang.Long.max
 import java.nio.file.Path
 import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
+import kotlin.io.path.readText
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -533,8 +534,22 @@ class Orchestra(
 
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
         return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
+            // If we have an evaluated script path, resolve and read the file now
+            val scriptPath = command.scriptPath
+            val flowPath = command.flowPath
+            val script = if (scriptPath != null && flowPath != null) {
+                try {
+                    val finalPath = resolvePath(scriptPath, flowPath)
+                    finalPath.readText()
+                } catch (e: Exception) {
+                    command.script // Fallback to original script
+                }
+            } else {
+                command.script
+            }
+            
             jsEngine.evaluateScript(
-                script = command.script,
+                script = script,
                 env = command.env,
                 sourceName = command.sourceDescription,
                 runInSubScope = true,
@@ -767,10 +782,34 @@ class Orchestra(
 
     private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
         return if (evaluateCondition(command.condition, command.optional)) {
-            runSubFlow(command.commands, config, command.config)
+            // If we have an evaluated flow path, resolve and read the flow now
+            val flowFilePath = command.flowFilePath
+            val parentFlowPath = command.parentFlowPath
+            val commands = if (flowFilePath != null && parentFlowPath != null) {
+                try {
+                    val finalPath = resolvePath(flowFilePath, parentFlowPath)
+                    YamlCommandReader.readCommands(finalPath)
+                } catch (e: Exception) {
+                    command.commands // Fallback to original commands
+                }
+            } else {
+                command.commands
+            }
+            
+            runSubFlow(commands, config, command.config)
         } else {
             throw CommandSkipped
         }
+    }
+
+    /**
+     * Resolves a file path relative to the parent flow path.
+     * Used for runtime resolution of paths with JS interpolation.
+     */
+    private fun resolvePath(targetPath: String, parentPath: String): Path {
+        val pathObj = java.nio.file.Paths.get(parentPath)
+        val p = pathObj.fileSystem.getPath(targetPath)
+        return if (p.isAbsolute) p else pathObj.resolveSibling(p).toAbsolutePath()
     }
 
     private fun evaluateCondition(

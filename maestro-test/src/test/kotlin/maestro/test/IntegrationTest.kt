@@ -4015,6 +4015,52 @@ class IntegrationTest {
         // No test failure - if we reach this point, the test passed successfully
     }
 
+    @Test
+    fun `Case 131 - JavaScript interpolation in runScript path`() {
+        // Given: Flow with JS interpolation in runScript path
+        val commands = readCommands("131_js_interpolation_runscript")
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When: Execute flow with JS interpolation
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then: Flow successfully resolved path at runtime and executed script
+        // No test failure
+    }
+
+    @Test
+    fun `Case 132 - JavaScript interpolation in runFlow path`() {
+        // Given: Flow with JS interpolation in runFlow path
+        val commands = readCommands("132_js_interpolation_runflow")
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When: Execute flow with JS interpolation
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then: Flow successfully resolved path at runtime and executed subflow
+        // No test failure
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
