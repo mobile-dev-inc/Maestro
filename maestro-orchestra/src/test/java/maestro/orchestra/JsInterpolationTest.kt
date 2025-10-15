@@ -20,7 +20,7 @@ class JsInterpolationTest {
     @Test
     fun `runScript with JS interpolation preserves pattern for deferred resolution`() {
         // Given: Workspace with JS interpolation in script path
-        val workspacePath = getTestResourcePath("workspaces/017_js-interpolation/workspace")
+        val workspacePath = getTestResourcePath("workspaces/016_js-interpolation/workspace")
         val flowPath = workspacePath.resolve("flows/test-runscript-js-interpolation.yaml")
         
         // When: Parse flow (should not fail even though ${output.scriptName} doesn't exist yet)
@@ -42,7 +42,7 @@ class JsInterpolationTest {
     @Test
     fun `runFlow with JS interpolation preserves pattern for deferred resolution`() {
         // Given: Workspace with JS interpolation in flow path
-        val workspacePath = getTestResourcePath("workspaces/017_js-interpolation/workspace")
+        val workspacePath = getTestResourcePath("workspaces/016_js-interpolation/workspace")
         val flowPath = workspacePath.resolve("flows/test-runflow-js-interpolation.yaml")
         
         // When: Parse flow (should not fail even though ${output.flowName} doesn't exist yet)
@@ -64,7 +64,7 @@ class JsInterpolationTest {
     @Test
     fun `commands without JS interpolation load files normally`() {
         // Given: Workspace with normal (no JS interpolation) commands
-        val workspacePath = getTestResourcePath("workspaces/017_js-interpolation/workspace")
+        val workspacePath = getTestResourcePath("workspaces/016_js-interpolation/workspace")
         val flowPath = workspacePath.resolve("flows/test-normal-paths.yaml")
         val commands = YamlCommandReader.readCommands(flowPath)
         
