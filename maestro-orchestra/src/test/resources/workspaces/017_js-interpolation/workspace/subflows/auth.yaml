@@ -1,5 +1,0 @@
-appId: com.example
----
-- assertTrue: ${true}
-- evalScript: output.authFlowExecuted = true
-
