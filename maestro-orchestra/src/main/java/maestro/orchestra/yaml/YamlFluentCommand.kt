@@ -673,10 +673,10 @@ data class YamlFluentCommand(
     }
 
     /**
-     * Checks if a path contains JavaScript interpolation patterns like ${...}
+     * Checks if a string contains JavaScript interpolation patterns, i.e. ${...}
      */
-    private fun containsJsInterpolation(path: String): Boolean {
-        return path.contains("\${")
+    private fun containsJsInterpolation(string: String): Boolean {
+        return string.contains("\${")
     }
 
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
