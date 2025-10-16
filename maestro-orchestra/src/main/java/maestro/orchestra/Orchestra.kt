@@ -139,8 +139,7 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
-    private val apiKey: String? = null,
-    private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine() },
+    private val AIPredictionEngine: AIPredictionEngine =  CloudAIPredictionEngine() ,
     private val flowController: FlowController = DefaultFlowController(),
 ) {
 
@@ -487,9 +486,6 @@ class Orchestra(
         command: AssertNoDefectsWithAICommand,
         maestroCommand: MaestroCommand
     ): Boolean {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
 
         val metadata = getMetadata(maestroCommand)
 
@@ -525,9 +521,6 @@ class Orchestra(
     }
 
     private suspend fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
 
         val metadata = getMetadata(maestroCommand)
 
@@ -560,9 +553,6 @@ class Orchestra(
         command: ExtractTextWithAICommand,
         maestroCommand: MaestroCommand
     ): Boolean {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
 
         val metadata = getMetadata(maestroCommand)
 
@@ -588,9 +578,6 @@ class Orchestra(
         command: ExtractPointWithAICommand,
         maestroCommand: MaestroCommand
     ): Boolean {
-        if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
-        }
 
         val metadata = getMetadata(maestroCommand)
 
