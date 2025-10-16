@@ -42,6 +42,7 @@ import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -758,6 +759,21 @@ internal class YamlCommandReaderTest {
 
         // Verify the original description includes both the point and double-tap info
         assertThat(tapCommand.originalDescription).isEqualTo("Double tap on \"Submit\" at 50%, 90%")
+    }
+
+    @Test
+    fun setPermissions(
+        @YamlFile("030_setPermissions.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            SetPermissionsCommand(
+                appId = "com.example.app",
+                permissions = mapOf("all" to "deny", "notifications" to "unset")
+            ),
+        )
     }
 
 
