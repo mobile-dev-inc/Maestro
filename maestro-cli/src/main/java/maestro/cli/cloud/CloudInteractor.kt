@@ -92,8 +92,8 @@ class CloudInteractor(
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
         // In case apiKey is provided use that, else fallback to signIn and org Selection
-        val authToken: String = apiKey ?:
-          selectOrganization(auth.getAuthToken(apiKey, true) ?:
+        val authToken: String = auth.getAuthToken(apiKey, triggerSignIn = false) ?:
+          selectOrganization(auth.getAuthToken(apiKey, triggerSignIn = true) ?:
           throw CliError("Failed to get authentication token"))
 
         // Fetch and select project if not provided
