@@ -12,13 +12,15 @@ import com.fasterxml.jackson.dataformat.xml.ser.ToXmlGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
-import okio.Sink
 import okio.buffer
+import okio.sink
+import java.io.File
 import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
     private val mapper: ObjectMapper,
-    private val testSuiteName: String?
+    private val testSuiteName: String?,
+    override val fileExtension: String?
 ) : TestSuiteReporter {
 
     private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
@@ -49,12 +51,12 @@ class JUnitTestSuiteReporter(
 
     override fun report(
         summary: TestExecutionSummary,
-        out: Sink
+        out: File
     ) {
         mapper
             .writerWithDefaultPrettyPrinter()
             .writeValue(
-                out.buffer().outputStream(),
+                out.sink().buffer().outputStream(),
                 TestSuites(
                     suites = summary
                         .suites
@@ -99,13 +101,14 @@ class JUnitTestSuiteReporter(
 
     companion object {
 
-        fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
+        fun xml(testSuiteName: String?, fileExtension: String?) = JUnitTestSuiteReporter(
             mapper = XmlMapper().apply {
                 registerModule(KotlinModule.Builder().build())
                 setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 configure(ToXmlGenerator.Feature.WRITE_XML_DECLARATION, true)
             },
-            testSuiteName = testSuiteName
+            testSuiteName = testSuiteName,
+            fileExtension = fileExtension,
         )
 
     }
