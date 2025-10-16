@@ -368,6 +368,10 @@ class FakeDriver : Driver {
         assertThat(currentText).isEqualTo(expected)
     }
 
+    fun assertCurrentTextInputMatches(regex: Regex) {
+        assertThat(currentText.matches(regex)).isTrue()
+    }
+
     private fun ensureOpen() {
         if (state != State.OPEN) {
             throw IllegalStateException("Driver is not opened yet")
