@@ -199,6 +199,7 @@ dependencies {
     implementation(libs.logging.api)
     implementation(libs.logging.layout.template)
     implementation(libs.log4j.core)
+    implementation(libs.mordant)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
