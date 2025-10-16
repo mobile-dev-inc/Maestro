@@ -30,6 +30,7 @@ data class YamlLaunchApp(
     val stopApp: Boolean?,
     val permissions: Map<String, String>?,
     val arguments: Map<String, Any>?,
+    val enrollBiometry: Boolean? = null,
     val label: String? = null,
     val optional: Boolean = false,
 ) {
@@ -46,6 +47,7 @@ data class YamlLaunchApp(
                 stopApp = null,
                 permissions = null,
                 arguments = null,
+                enrollBiometry = null,
             )
         }
     }

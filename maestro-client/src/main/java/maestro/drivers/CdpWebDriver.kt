@@ -311,6 +311,10 @@ class CdpWebDriver(
         // Do nothing
     }
 
+    override fun setBiometry(result: Boolean) {
+        // Not supported on web
+    }
+
     override fun tap(point: Point) {
         val driver = ensureOpen()
 
