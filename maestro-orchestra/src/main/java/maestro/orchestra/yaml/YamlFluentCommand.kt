@@ -57,6 +57,7 @@ import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
+import maestro.orchestra.SleepCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
@@ -127,6 +128,7 @@ data class YamlFluentCommand(
     val copyTextFrom: YamlElementSelectorUnion? = null,
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
+    val sleep: YamlSleepCommand? = null,
     val evalScript: YamlEvalScript? = null,
     val scrollUntilVisible: YamlScrollUntilVisible? = null,
     val travel: YamlTravelCommand? = null,
@@ -389,6 +391,16 @@ data class YamlFluentCommand(
                         timeout = waitForAnimationToEnd.timeout,
                         label = waitForAnimationToEnd.label,
                         optional = waitForAnimationToEnd.optional,
+                    )
+                )
+            )
+
+            sleep != null -> listOf(
+                MaestroCommand(
+                    SleepCommand(
+                        timeout = sleep.timeout,
+                        label = sleep.label,
+                        optional = sleep.optional,
                     )
                 )
             )
