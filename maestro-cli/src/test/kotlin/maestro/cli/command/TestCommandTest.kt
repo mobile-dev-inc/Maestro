@@ -3,8 +3,11 @@ package maestro.cli.command
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
+import maestro.utils.WorkingDirectory
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.AfterEach
+import java.io.File
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -14,6 +17,13 @@ class TestCommandTest {
     @BeforeEach
     fun setUp() {
         testCommand = TestCommand()
+    }
+
+    @AfterEach
+    fun tearDown() {
+        // Reset WorkingDirectory to defaults after each test
+        WorkingDirectory.baseDir = File(System.getProperty("user.dir"))
+        WorkingDirectory.pathAliases = emptyMap()
     }
 
     /*****************************************
@@ -172,6 +182,35 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    /*****************************************
+    ******** Path Aliases Setup Tests ********
+    ******************************************/
+    @Test
+    fun `path aliases should be loaded when config file exists`() {
+        // Given: A workspace with config.yaml containing pathAliases
+        val projectDir = System.getProperty("user.dir").let { dir ->
+            // When running from maestro-cli, go up to project root
+            if (dir.endsWith("maestro-cli")) File(dir).parentFile.absolutePath else dir
+        }
+        val workspacePath = Path.of(projectDir, "maestro-orchestra/src/test/resources/workspaces/016_path-aliases/config-in-root")
+        val configPath = workspacePath.resolve("config.yaml")
+        
+        // When: Execution plan is created with the config
+        // WorkspaceExecutionPlanner now sets up WorkingDirectory automatically
+        val executionPlan = WorkspaceExecutionPlanner.plan(
+            input = setOf(workspacePath), // Pass workspace root, not flows subdirectory
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+            config = configPath
+        )
+        
+        // Then: WorkingDirectory should have been set up by the planner
+        assertThat(WorkingDirectory.pathAliases).isNotEmpty()
+        assertThat(WorkingDirectory.pathAliases).containsEntry("~js", "scripts")
+        assertThat(WorkingDirectory.pathAliases).containsEntry("~sf", "subflows")
+        assertThat(WorkingDirectory.baseDir.absolutePath).isEqualTo(workspacePath.toFile().absolutePath)
     }
 
     /*****************************************
