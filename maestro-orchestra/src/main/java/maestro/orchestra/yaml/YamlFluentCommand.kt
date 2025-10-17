@@ -372,21 +372,13 @@ data class YamlFluentCommand(
             runScript != null -> listOf(
                 MaestroCommand(
                     RunScriptCommand(
-                        script = if (containsJsInterpolation(runScript.file)) {
-                            // Don't read file at parse time if it contains JS interpolation
-                            // It will be resolved at runtime in Orchestra
-                            ""
-                        } else {
-                            resolvePath(flowPath, runScript.file).readText()
-                        },
+                        script = "",
                         env = runScript.env,
                         sourceDescription = runScript.file,
                         condition = runScript.`when`?.toCondition(),
                         label = runScript.label,
                         optional = runScript.optional,
-                        // Only set these for deferred resolution when JS interpolation is present
-                        scriptPath = if (containsJsInterpolation(runScript.file)) runScript.file else null,
-                        flowPath = if (containsJsInterpolation(runScript.file)) flowPath.toString() else null,
+                        filePath = runScript.file,
                     )
                 )
             )
@@ -520,9 +512,7 @@ data class YamlFluentCommand(
                 config = config,
                 label = runFlow.label,
                 optional = runFlow.optional,
-                // Only set these for deferred resolution when JS interpolation is present
-                flowFilePath = if (runFlow.file != null && containsJsInterpolation(runFlow.file)) runFlow.file else null,
-                parentFlowPath = if (runFlow.file != null && containsJsInterpolation(runFlow.file)) flowPath.toString() else null,
+                filePath = runFlow.file,
             )
         )
     }

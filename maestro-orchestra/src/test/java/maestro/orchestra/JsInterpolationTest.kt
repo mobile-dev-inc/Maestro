@@ -20,7 +20,7 @@ class JsInterpolationTest {
     @Test
     fun `runScript with JS interpolation preserves pattern for deferred resolution`() {
         // Given: Workspace with JS interpolation in script path
-        val workspacePath = getTestResourcePath("workspaces/016_js-interpolation/workspace")
+        val workspacePath = getTestResourcePath("workspaces/016a_js-interpolation-runscript/workspace")
         val flowPath = workspacePath.resolve("flows/test-runscript-js-interpolation.yaml")
         
         // When: Parse flow (should not fail even though ${output.scriptName} doesn't exist yet)
@@ -33,8 +33,9 @@ class JsInterpolationTest {
             .firstOrNull()
         
         assertThat(runScriptCommand).isNotNull()
-        assertThat(runScriptCommand?.scriptPath).isEqualTo("scripts/\${output.scriptName}.js")
-        assertThat(runScriptCommand?.flowPath).isNotNull()
+        assertThat(runScriptCommand?.filePath).isEqualTo("scripts/\${output.scriptName}.js")
+        // flowPath is no longer set - it's resolved from Orchestra context at runtime
+        assertThat(runScriptCommand?.flowPath).isNull()
         // Script content should be empty since it will be loaded at runtime
         assertThat(runScriptCommand?.script).isEmpty()
     }
@@ -42,7 +43,7 @@ class JsInterpolationTest {
     @Test
     fun `runFlow with JS interpolation preserves pattern for deferred resolution`() {
         // Given: Workspace with JS interpolation in flow path
-        val workspacePath = getTestResourcePath("workspaces/016_js-interpolation/workspace")
+        val workspacePath = getTestResourcePath("workspaces/016b_js-interpolation-runflow/workspace")
         val flowPath = workspacePath.resolve("flows/test-runflow-js-interpolation.yaml")
         
         // When: Parse flow (should not fail even though ${output.flowName} doesn't exist yet)
@@ -55,8 +56,9 @@ class JsInterpolationTest {
             .firstOrNull()
         
         assertThat(runFlowCommand).isNotNull()
-        assertThat(runFlowCommand?.flowFilePath).isEqualTo("subflows/\${output.flowName}.yaml")
-        assertThat(runFlowCommand?.parentFlowPath).isNotNull()
+        assertThat(runFlowCommand?.filePath).isEqualTo("subflows/\${output.flowName}.yaml")
+        // parentFlowPath is no longer set - it's resolved from Orchestra context at runtime
+        assertThat(runFlowCommand?.parentFlowPath).isNull()
         // Commands should be empty since subflow will be loaded at runtime
         assertThat(runFlowCommand?.commands).isEmpty()
     }
@@ -64,7 +66,7 @@ class JsInterpolationTest {
     @Test
     fun `commands without JS interpolation load files normally`() {
         // Given: Workspace with normal (no JS interpolation) commands
-        val workspacePath = getTestResourcePath("workspaces/016_js-interpolation/workspace")
+        val workspacePath = getTestResourcePath("workspaces/016c_js-interpolation-normal-paths/workspace")
         val flowPath = workspacePath.resolve("flows/test-normal-paths.yaml")
         val commands = YamlCommandReader.readCommands(flowPath)
         
@@ -79,10 +81,11 @@ class JsInterpolationTest {
             .filterIsInstance<RunFlowCommand>()
             .firstOrNull()
         
-        // These should be null for non-JS-interpolated paths
-        assertThat(runScriptCommand?.scriptPath).isNull()
+        // scriptPath and flowFilePath are always set when there's a file to resolve
+        assertThat(runScriptCommand?.filePath).isNotNull()
+        assertThat(runFlowCommand?.filePath).isNotNull()
+        // These are never set anymore - resolution uses Orchestra context
         assertThat(runScriptCommand?.flowPath).isNull()
-        assertThat(runFlowCommand?.flowFilePath).isNull()
         assertThat(runFlowCommand?.parentFlowPath).isNull()
         
         // And content should be loaded

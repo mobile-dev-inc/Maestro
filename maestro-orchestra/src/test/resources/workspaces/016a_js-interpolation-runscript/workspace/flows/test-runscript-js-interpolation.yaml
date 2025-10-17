@@ -4,4 +4,3 @@ appId: com.example
 - evalScript: ${output.scriptName = "dynamic"}
 - runScript: scripts/${output.scriptName}.js
 - assertTrue: ${output.dynamicScriptExecuted}
-

@@ -145,7 +145,12 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
+    private val flowPathStack = mutableListOf<String>()
+
+    private val currentFlowPath: String?
+        get() = flowPathStack.lastOrNull()
+
+    suspend fun runFlow(commands: List<MaestroCommand>, initialFlowPath: String? = null): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -154,6 +159,11 @@ class Orchestra(
         initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
+
+        // Initialize the flow path stack with the initial flow path
+        if (initialFlowPath != null) {
+            flowPathStack.add(initialFlowPath)
+        }
 
         executeDefineVariablesCommands(commands, config)
         // filter out DefineVariablesCommand to not execute it twice
@@ -190,6 +200,11 @@ class Orchestra(
                     shouldReinitJsEngine = false,
                 )
             } ?: true
+
+            // Clean up the flow path stack
+            if (initialFlowPath != null && flowPathStack.isNotEmpty()) {
+                flowPathStack.removeAt(flowPathStack.size - 1)
+            }
 
             exception?.let { throw it }
 
@@ -535,11 +550,11 @@ class Orchestra(
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
         return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
             // If we have an evaluated script path, resolve and read the file now
-            val scriptPath = command.scriptPath
-            val flowPath = command.flowPath
-            val script = if (scriptPath != null && flowPath != null) {
+            val filePath = command.filePath
+            val parentFlowPath = currentFlowPath
+            val script = if (filePath != null && parentFlowPath != null) {
                 try {
-                    val finalPath = resolvePath(scriptPath, flowPath)
+                    val finalPath = resolvePath(filePath, parentFlowPath)
                     finalPath.readText()
                 } catch (e: Exception) {
                     command.script // Fallback to original script
@@ -783,20 +798,27 @@ class Orchestra(
     private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
         return if (evaluateCondition(command.condition, command.optional)) {
             // If we have an evaluated flow path, resolve and read the flow now
-            val flowFilePath = command.flowFilePath
-            val parentFlowPath = command.parentFlowPath
-            val commands = if (flowFilePath != null && parentFlowPath != null) {
+            val filePath = command.filePath
+            val parentFlowPath = currentFlowPath
+            val (commands, resolvedFlowPath) = if (filePath != null && parentFlowPath != null) {
                 try {
-                    val finalPath = resolvePath(flowFilePath, parentFlowPath)
-                    YamlCommandReader.readCommands(finalPath)
+                    val finalPath = resolvePath(filePath, parentFlowPath)
+                    Pair(YamlCommandReader.readCommands(finalPath), finalPath.parent.toString())
                 } catch (e: Exception) {
-                    command.commands // Fallback to original commands
+                    Pair(command.commands, parentFlowPath) // Fallback to original commands
                 }
             } else {
-                command.commands
+                Pair(command.commands, parentFlowPath)
             }
             
-            runSubFlow(commands, config, command.config)
+            // Push the new flow path onto the stack for nested flows
+            flowPathStack.add(resolvedFlowPath ?: parentFlowPath)
+            try {
+                runSubFlow(commands, config, command.config)
+            } finally {
+                // Pop the flow path when exiting the subflow
+                flowPathStack.removeAt(flowPathStack.size - 1)
+            }
         } else {
             throw CommandSkipped
         }

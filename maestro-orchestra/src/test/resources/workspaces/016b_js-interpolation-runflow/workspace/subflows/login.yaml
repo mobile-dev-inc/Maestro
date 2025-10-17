@@ -2,4 +2,3 @@ appId: com.example
 ---
 - assertTrue: ${true}
 - evalScript: ${output.loginFlowExecuted = true}
-

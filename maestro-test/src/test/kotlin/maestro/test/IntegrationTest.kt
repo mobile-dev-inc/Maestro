@@ -4020,12 +4020,7 @@ class IntegrationTest {
         // Given: Flow with JS interpolation in runScript path
         val commands = readCommands("131_js_interpolation_runscript")
 
-        val driver = driver {
-            element {
-                id = "element_id"
-                bounds = Bounds(0, 0, 100, 100)
-            }
-        }
+        val driver = driver {}
 
         // When: Execute flow with JS interpolation
         Maestro(driver).use {
