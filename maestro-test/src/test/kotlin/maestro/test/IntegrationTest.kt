@@ -4018,14 +4018,14 @@ class IntegrationTest {
     @Test
     fun `Case 131 - JavaScript interpolation in runScript path`() {
         // Given: Flow with JS interpolation in runScript path
-        val commands = readCommands("131_js_interpolation_runscript")
+        val (commands, flowPath) = readCommandsWithPath("131_js_interpolation_runscript")
 
         val driver = driver {}
 
         // When: Execute flow with JS interpolation
         Maestro(driver).use {
             runBlocking {
-                orchestra(it).runFlow(commands)
+                orchestra(it).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -4036,7 +4036,7 @@ class IntegrationTest {
     @Test
     fun `Case 132 - JavaScript interpolation in runFlow path`() {
         // Given: Flow with JS interpolation in runFlow path
-        val commands = readCommands("132_js_interpolation_runflow")
+        val (commands, flowPath) = readCommandsWithPath("132_js_interpolation_runflow")
 
         val driver = driver {
             element {
@@ -4048,7 +4048,7 @@ class IntegrationTest {
         // When: Execute flow with JS interpolation
         Maestro(driver).use {
             runBlocking {
-                orchestra(it).runFlow(commands)
+                orchestra(it).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -4100,6 +4100,20 @@ class IntegrationTest {
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
+    }
+
+    private fun readCommandsWithPath(
+        caseName: String,
+        withEnv: () -> Map<String, String> = { emptyMap() }
+    ): Pair<List<MaestroCommand>, File> {
+        val resource = javaClass.classLoader.getResource("$caseName.yaml")
+            ?: throw IllegalArgumentException("File $caseName.yaml not found")
+        val flowPath = Paths.get(resource.toURI())
+        return Pair(
+            YamlCommandReader.readCommands(flowPath)
+                .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile())),
+            flowPath.toFile()
+        )
     }
 
 }
