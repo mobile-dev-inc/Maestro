@@ -62,7 +62,8 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: Path?
+        testOutputDir: Path?,
+        flowFilePath: String? = null
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -193,7 +194,7 @@ object MaestroCommandRunner {
             apiKey = apiKey,    
         )
 
-        val flowSuccess = orchestra.runFlow(commands)
+        val flowSuccess = orchestra.runFlow(commands, flowFilePath)
 
         // Warn users about deprecated Rhino JS engine
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
