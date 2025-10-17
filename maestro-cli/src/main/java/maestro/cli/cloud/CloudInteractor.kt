@@ -2,7 +2,6 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
-import maestro.cli.analytics.CloudUploadFinishedEvent
 import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
@@ -27,6 +26,7 @@ import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.input.interactiveSelectList
+import maestro.cli.analytics.CloudUploadSucceededEvent
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
@@ -44,6 +44,7 @@ import java.io.File
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.String
 import kotlin.io.path.absolute
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -114,9 +115,7 @@ class CloudInteractor(
             deviceModel = deviceModel,
             deviceOs = deviceOs
         ))
-
-        val uploadStartTime = System.currentTimeMillis()
-
+      
         PrintUtils.message("Uploading Flow(s)...")
 
         TemporaryDirectory.use { tmpDir ->
@@ -187,11 +186,13 @@ class CloudInteractor(
             )
             
             // Track finish after upload completion
-            val uploadDuration = System.currentTimeMillis() - uploadStartTime
-            Analytics.trackEvent(CloudUploadFinishedEvent(
+            Analytics.trackEvent(CloudUploadSucceededEvent(
                 projectId = selectedProjectId,
-                success = uploadResponse == 0,
-                durationMs = uploadDuration
+                platform = platform,
+                isBinaryUpload = appBinaryId != null,
+                usesEnvironment = env.isNotEmpty(),
+                deviceModel = deviceModel,
+                deviceOs = deviceOs,
             ))
             Analytics.flush()
             
