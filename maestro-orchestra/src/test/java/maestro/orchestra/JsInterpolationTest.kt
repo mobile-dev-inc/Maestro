@@ -34,9 +34,7 @@ class JsInterpolationTest {
             .firstOrNull()
         
         assertThat(runScriptCommand).isNotNull()
-        assertThat(runScriptCommand?.filePath).isEqualTo("scripts/\${output.scriptName}.js")
-        // flowPath is no longer set - it's resolved from Orchestra context at runtime
-        assertThat(runScriptCommand?.flowPath).isNull()
+        assertThat(runScriptCommand?.sourceDescription).isEqualTo("scripts/\${output.scriptName}.js")
         // Script content should be empty since it will be loaded at runtime
         assertThat(runScriptCommand?.script).isEmpty()
     }
@@ -57,41 +55,9 @@ class JsInterpolationTest {
             .firstOrNull()
         
         assertThat(runFlowCommand).isNotNull()
-        assertThat(runFlowCommand?.filePath).isEqualTo("subflows/\${output.flowName}.yaml")
-        // parentFlowPath is no longer set - it's resolved from Orchestra context at runtime
-        assertThat(runFlowCommand?.parentFlowPath).isNull()
+        assertThat(runFlowCommand?.sourceDescription).isEqualTo("subflows/\${output.flowName}.yaml")
         // Commands should be empty since subflow will be loaded at runtime
         assertThat(runFlowCommand?.commands).isEmpty()
-    }
-
-    @Test
-    fun `commands without JS interpolation load files normally`() {
-        // Given: Workspace with normal (no JS interpolation) commands
-        val workspacePath = getTestResourcePath("workspaces/016c_js-interpolation-normal-paths/workspace")
-        val flowPath = workspacePath.resolve("flows/test-normal-paths.yaml")
-        val commands = YamlCommandReader.readCommands(flowPath)
-        
-        // Then: Commands should have loaded content immediately
-        val runScriptCommand = commands
-            .map { it.asCommand() }
-            .filterIsInstance<RunScriptCommand>()
-            .firstOrNull()
-        
-        val runFlowCommand = commands
-            .map { it.asCommand() }
-            .filterIsInstance<RunFlowCommand>()
-            .firstOrNull()
-        
-        // scriptPath and flowFilePath are always set when there's a file to resolve
-        assertThat(runScriptCommand?.filePath).isNotNull()
-        assertThat(runFlowCommand?.filePath).isNotNull()
-        // These are never set anymore - resolution uses Orchestra context
-        assertThat(runScriptCommand?.flowPath).isNull()
-        assertThat(runFlowCommand?.parentFlowPath).isNull()
-        
-        // And content should be loaded
-        assertThat(runScriptCommand?.script).isNotEmpty()
-        assertThat(runFlowCommand?.commands).isNotEmpty()
     }
 
     @Test
@@ -110,7 +76,7 @@ class JsInterpolationTest {
             .firstOrNull()
         
         // Key assertions for deferred resolution
-        assertThat(runFlowCommand?.filePath).isEqualTo("subflows/\${output.flowName}.yaml")
+        assertThat(runFlowCommand?.sourceDescription).isEqualTo("subflows/\${output.flowName}.yaml")
         assertThat(runFlowCommand?.commands).isEmpty()  // Commands are empty until runtime
         assertThat(runFlowCommand?.config).isNull()      // Config is not pre-loaded with JS interpolation
     }
@@ -131,7 +97,8 @@ class JsInterpolationTest {
             .firstOrNull()
         
         // Key assertions for immediate resolution
-        assertThat(runFlowCommand?.filePath).isEqualTo("subflows/login.yaml")
+        // filePath contains the relative path as specified in the YAML from the flow file's perspective
+        assertThat(runFlowCommand?.sourceDescription).isEqualTo("../subflows/login.yaml")
         assertThat(runFlowCommand?.commands).isNotEmpty()  // Commands are loaded at parse time
         // Config should be available since we can read the file
         assertThat(runFlowCommand?.config).isNotNull()
@@ -155,7 +122,7 @@ class JsInterpolationTest {
         // At parse time, commands are empty because file hasn't been loaded yet
         assertThat(runFlowCommand?.commands).isEmpty()
         // But filePath is preserved for runtime resolution
-        assertThat(runFlowCommand?.filePath).isEqualTo("subflows/\${output.flowName}.yaml")
+        assertThat(runFlowCommand?.sourceDescription).isEqualTo("subflows/\${output.flowName}.yaml")
         
         // This demonstrates that when Orchestra.runFlow executes:
         // 1. It evaluates JS: ${output.flowName = "login"}

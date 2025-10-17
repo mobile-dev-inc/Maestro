@@ -550,14 +550,14 @@ class Orchestra(
     private fun runScriptCommand(command: RunScriptCommand): Boolean {
         return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
             // If we have an evaluated script path, resolve and read the file now
-            val filePath = command.filePath
+            val filePath = command.sourceDescription
             val parentFlowPath = currentFlowPath
-            val script = if (filePath != null && parentFlowPath != null) {
+            val script = if (command.script.isEmpty() && filePath != null && parentFlowPath != null) {
                 try {
                     val finalPath = resolvePath(filePath, parentFlowPath)
                     finalPath.readText()
                 } catch (e: Exception) {
-                    command.script // Fallback to original script
+                    "" // Fallback to empty if file can't be read
                 }
             } else {
                 command.script
@@ -798,26 +798,31 @@ class Orchestra(
     private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
         return if (evaluateCondition(command.condition, command.optional)) {
             // If we have an evaluated flow path, resolve and read the flow now
-            val filePath = command.filePath
+            val filePath = command.sourceDescription
             val parentFlowPath = currentFlowPath
-            val (commands, resolvedFlowPath) = if (filePath != null && parentFlowPath != null) {
+            val (commands, resolvedFlowPath) = if (command.commands.isEmpty() && filePath != null && parentFlowPath != null) {
                 try {
                     val finalPath = resolvePath(filePath, parentFlowPath)
                     Pair(YamlCommandReader.readCommands(finalPath), finalPath.parent.toString())
                 } catch (e: Exception) {
-                    Pair(command.commands, parentFlowPath) // Fallback to original commands
+                    Pair(emptyList(), parentFlowPath) // Fallback to empty if file can't be read
                 }
             } else {
                 Pair(command.commands, parentFlowPath)
             }
             
             // Push the new flow path onto the stack for nested flows
-            flowPathStack.add(resolvedFlowPath ?: parentFlowPath)
+            val flowPathToUse = resolvedFlowPath ?: parentFlowPath
+            if (flowPathToUse != null) {
+                flowPathStack.add(flowPathToUse)
+            }
             try {
                 runSubFlow(commands, config, command.config)
             } finally {
                 // Pop the flow path when exiting the subflow
-                flowPathStack.removeAt(flowPathStack.size - 1)
+                if (flowPathToUse != null && flowPathStack.isNotEmpty()) {
+                    flowPathStack.removeAt(flowPathStack.size - 1)
+                }
             }
         } else {
             throw CommandSkipped

@@ -732,7 +732,6 @@ data class RunFlowCommand(
     val config: MaestroConfig?,
     override val label: String? = null,
     override val optional: Boolean = false,
-    val filePath: String? = null, // Original path pattern with potential JS interpolation
 ) : CompositeCommand {
 
     override fun subCommands(): List<MaestroCommand> {
@@ -760,14 +759,13 @@ data class RunFlowCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         // Evaluate the path pattern if present
-        val evaluatedFilePath = filePath?.evaluateScripts(jsEngine)
+        val evaluatedSourceDescription = sourceDescription?.evaluateScripts(jsEngine)
         
         return copy(
-            filePath = evaluatedFilePath,
+            sourceDescription = evaluatedSourceDescription,
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine),
-            sourceDescription = evaluatedFilePath ?: sourceDescription
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -915,7 +913,6 @@ data class RunScriptCommand(
     val condition: Condition?,
     override val label: String? = null,
     override val optional: Boolean = false,
-    val filePath: String? = null, // Original path pattern with potential JS interpolation
 ) : Command {
 
     override val originalDescription: String
@@ -927,16 +924,15 @@ data class RunScriptCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         // Evaluate the path pattern if present
-        val evaluatedFilePath = filePath?.evaluateScripts(jsEngine)
+        val evaluatedSourceDescription = sourceDescription.evaluateScripts(jsEngine)
         
         return copy(
-            filePath = evaluatedFilePath,
+            sourceDescription = evaluatedSourceDescription,
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
-            label = label?.evaluateScripts(jsEngine),
-            sourceDescription = evaluatedFilePath ?: sourceDescription
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }

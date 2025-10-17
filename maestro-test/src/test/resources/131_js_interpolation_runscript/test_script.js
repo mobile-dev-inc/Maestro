@@ -1,3 +1,3 @@
 output.scriptExecuted = true;
-console.log('JS interpolation script executed');
+console.log('Test script executed via JS interpolation');
 
