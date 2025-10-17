@@ -115,9 +115,7 @@ class CloudInteractor(
             deviceModel = deviceModel,
             deviceOs = deviceOs
         ))
-
-        val uploadStartTime = System.currentTimeMillis()
-
+      
         PrintUtils.message("Uploading Flow(s)...")
 
         TemporaryDirectory.use { tmpDir ->
