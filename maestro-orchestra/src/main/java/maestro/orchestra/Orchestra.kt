@@ -344,6 +344,7 @@ class Orchestra(
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
+            is SetPermissionsCommand -> setPermissionsCommand(command)
             is OpenLinkCommand -> openLinkCommand(command, config)
             is PressKeyCommand -> pressKeyCommand(command)
             is EraseTextCommand -> eraseTextCommand(command)
@@ -993,13 +994,16 @@ class Orchestra(
             if (command.clearState == true) {
                 maestro.clearAppState(command.appId)
             }
+        } catch (e: Exception) { 
+            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+        }
 
+        try {
             // For testing convenience, default to allow all on app launch
             val permissions = command.permissions ?: mapOf("all" to "allow")
             maestro.setPermissions(command.appId, permissions)
-
-        } catch (e: Exception) { 
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+        } catch (e: Exception) {
+            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
         }
 
         try {
@@ -1010,6 +1014,16 @@ class Orchestra(
             )
         } catch (e: Exception) {
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}", e)
+        }
+
+        return true
+    }
+
+    private fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
+        try {
+            maestro.setPermissions(command.appId, command.permissions)
+        } catch (e: Exception) {
+            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
         }
 
         return true
