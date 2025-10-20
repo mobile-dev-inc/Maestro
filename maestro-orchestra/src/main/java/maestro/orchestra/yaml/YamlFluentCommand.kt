@@ -372,16 +372,7 @@ data class YamlFluentCommand(
             runScript != null -> listOf(
                 MaestroCommand(
                     RunScriptCommand(
-                        script = if (containsJsInterpolation(runScript.file)) {
-                            "" // Defer loading until runtime when JS interpolation is resolved
-                        } else {
-                            try {
-                                val scriptPath = resolvePath(flowPath, runScript.file)
-                                scriptPath.toFile().readText()
-                            } catch (e: Exception) {
-                                "" // Fallback to empty if file can't be read
-                            }
-                        },
+                        script = "", // Always defer loading to runtime
                         env = runScript.env,
                         sourceDescription = runScript.file,
                         condition = runScript.`when`?.toCondition(),

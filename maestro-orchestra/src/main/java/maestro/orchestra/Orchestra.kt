@@ -555,7 +555,7 @@ class Orchestra(
             val script = if (command.script.isEmpty() && filePath != null && parentFlowPath != null) {
                 try {
                     val finalPath = resolvePath(filePath, parentFlowPath)
-                    finalPath.readText()
+                    finalPath.readText().trimEnd()
                 } catch (e: Exception) {
                     "" // Fallback to empty if file can't be read
                 }
