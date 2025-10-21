@@ -431,7 +431,7 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val request = StartTrialRequest(companyName)
+        val request = StartTrialRequest(companyName, referralSource = "cli")
         val jsonBody = JSON.writeValueAsString(request).toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
@@ -919,7 +919,8 @@ data class Insight(
 )
 
 data class StartTrialRequest(
-    val companyName: String
+    val companyName: String,
+    val referralSource: String,
 )
 
 class AnalyzeResponse(

@@ -3,6 +3,8 @@ package maestro.cli.command
 import maestro.auth.ApiKey
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.UserLoggedOutEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.PrintUtils.message
@@ -35,6 +37,8 @@ class LoginCommand : Callable<Int> {
     }
 
     override fun call(): Int {
+        Analytics.trackEvent(UserLoggedOutEvent())
+
         LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
         val token = auth.triggerSignInFlow()
         println(token)
