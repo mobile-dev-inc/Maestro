@@ -80,6 +80,8 @@ interface IOSDevice : AutoCloseable {
      */
     fun clearKeychain(): Result<Unit, Throwable>
 
+    fun setBiometry(result: Boolean): Result<Unit, Throwable>
+
     /**
      * Launches the app.
      *

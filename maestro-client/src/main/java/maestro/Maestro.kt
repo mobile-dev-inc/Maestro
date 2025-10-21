@@ -96,6 +96,12 @@ class Maestro(
         driver.clearKeychain()
     }
 
+    fun setBiometry(result: Boolean) {
+        LOGGER.info("Setting biometry result: $result")
+
+        driver.setBiometry(result)
+    }
+
     fun backPress() {
         LOGGER.info("Pressing back")
 
