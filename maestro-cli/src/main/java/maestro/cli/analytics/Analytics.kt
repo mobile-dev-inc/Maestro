@@ -79,6 +79,13 @@ object Analytics : AutoCloseable {
 
         // Send identification to PostHog
         posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
+        
+        // Track user authentication event
+        val isFirstAuth = analyticsStateManager.getState().cachedToken == null
+        trackEvent(UserAuthenticatedEvent(
+            isFirstAuth = isFirstAuth,
+            authMethod = "oauth"
+        ))
     }
 
     /**

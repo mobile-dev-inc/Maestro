@@ -1,8 +1,27 @@
 package maestro.cli.analytics
 
+import maestro.cli.model.FlowStatus
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
 import maestro.device.util.AndroidEnvUtils
+
+/**
+ * Organization status enum
+ */
+enum class OrgStatus(val value: String) {
+    TRIAL_EXPIRED("TRIAL_EXPIRED"),
+    GRACE_PERIOD_EXPIRED("GRACE_PERIOD_EXPIRED"),
+    ACTIVE("ACTIVE"),
+    TRIAL_NOT_ACTIVE("TRIAL_NOT_ACTIVE"),
+    IN_GRACE_PERIOD("IN_GRACE_PERIOD");
+}
+
+enum class OrgPlans(val value: String) {
+    BASIC("BASIC"),
+    CLOUD("CLOUD"),
+    CLOUD_MANUAL("CLOUD_MANUAL"),
+    ENTERPRISE("ENTERPRISE"),
+}
 
 /**
  * Strongly-typed PostHog events for Maestro CLI using discriminated unions
@@ -32,19 +51,19 @@ data class SuperProperties(
      */
     fun toMap(): Map<String, Any> {
         return mapOf(
-          "app_version" to app_version,
-          "platform" to platform,
-          "env" to env,
-          "app" to app,
-          "cli_version" to cli_version,
-          "java_version" to java_version,
-          "os_arch" to os_arch,
-          "os_version" to os_version,
-          "xcode_version" to xcode_version,
-          "flutter_version" to flutter_version,
-          "flutter_channel" to flutter_channel,
-          "android_versions" to android_versions,
-          "ios_versions" to ios_versions
+            "app_version" to app_version,
+            "platform" to platform,
+            "env" to env,
+            "app" to app,
+            "cli_version" to cli_version,
+            "java_version" to java_version,
+            "os_arch" to os_arch,
+            "os_version" to os_version,
+            "xcode_version" to xcode_version,
+            "flutter_version" to flutter_version,
+            "flutter_channel" to flutter_channel,
+            "android_versions" to android_versions,
+            "ios_versions" to ios_versions
         ) as Map<String, Any>
     }
     
@@ -102,7 +121,6 @@ data class UserProperties(
             "orgTrialExpiresOn" to orgTrialExpiresOn
         ) as Map<String, Any>
     }
-    
     /**
      * Create UserProperties from AnalyticsState
      */
@@ -141,25 +159,56 @@ data class CliCommandRunEvent(
 ) : CliUsageEvent
 
 /**
- * Test execution events (running individual flows/tests)
+ * Test execution events
  */
 sealed interface TestRunEvent : PostHogEvent
 
 data class TestRunStartedEvent(
-    override val name: String = "maestro_cli_test_run_started",
-    val flowCount: Int,
+    override val name: String = "test_run_started",
     val platform: String,
-    val deviceCount: Int
+) : TestRunEvent
+
+data class TestRunFailedEvent(
+    override val name: String = "test_run_failed",
+    val error: String,
+    val platform: String,
 ) : TestRunEvent
 
 data class TestRunFinishedEvent(
-    override val name: String = "maestro_cli_test_run_finished",
+    override val name: String = "test_run_finished",
+    val status: FlowStatus,
+    val platform: String,
+    val durationMs: Long
+) : TestRunEvent
+
+
+/**
+ * Workspace execution events
+ */
+sealed interface WorkspaceRunEvent : PostHogEvent
+
+data class WorkspaceRunStartedEvent(
+    override val name: String = "workspace_run_started",
+    val flowCount: Int,
+    val platform: String,
+    val deviceCount: Int
+) : WorkspaceRunEvent
+
+data class WorkspaceRunFailedEvent(
+    override val name: String = "workspace_run_failed",
+    val error: String,
     val flowCount: Int,
     val platform: String,
     val deviceCount: Int,
-    val allSuccess: Boolean,
+) : WorkspaceRunEvent
+
+data class WorkspaceRunFinishedEvent(
+    override val name: String = "workspace_run_finished",
+    val flowCount: Int,
+    val platform: String,
+    val deviceCount: Int,
     val durationMs: Long
-) : TestRunEvent
+) : WorkspaceRunEvent
 
 /**
  * Record Screen Event
@@ -183,7 +232,7 @@ data class RecordFinishedEvent(
 sealed interface CloudUploadEvent : PostHogEvent
 
 data class CloudUploadTriggeredEvent(
-    override val name: String = "maestro_cli_cloud_upload_triggered",
+    override val name: String = "cloud_upload_triggered",
     val projectId: String,
     val platform: String,
     val isBinaryUpload: Boolean = false,
@@ -193,7 +242,7 @@ data class CloudUploadTriggeredEvent(
 ) : CloudUploadEvent
 
 data class CloudUploadStartedEvent(
-    override val name: String = "maestro_cli_cloud_upload_started",
+    override val name: String = "cloud_upload_started",
     val projectId: String,
     val platform: String,
     val isBinaryUpload: Boolean = false,
@@ -202,12 +251,43 @@ data class CloudUploadStartedEvent(
     val deviceOs: String? = null
 ) : CloudUploadEvent
 
-data class CloudUploadFinishedEvent(
-    override val name: String = "maestro_cli_cloud_upload_finished",
-    val projectId: String? = null,
-    val success: Boolean? = null,
-    val durationMs: Long? = null,
+data class CloudUploadSucceededEvent(
+    override val name: String = "cloud_upload_succeeded",
+    val projectId: String,
+    val platform: String,
+    val isBinaryUpload: Boolean = false,
+    val usesEnvironment: Boolean = false,
+    val deviceModel: String? = null,
+    val deviceOs: String? = null
 ) : CloudUploadEvent
+
+data class CloudUploadValidationFailedEvent(
+  override val name: String = "cloud_upload_validation_failed",
+  val field: String,
+  val message: String,
+  val projectId: String,
+  val platform: String,
+  val isBinaryUpload: Boolean = false,
+  val usesEnvironment: Boolean = false,
+  val deviceModel: String? = null,
+  val deviceOs: String? = null
+) : CloudUploadEvent
+
+/**
+ * User Auth Event
+ */
+
+sealed interface AuthEvent : PostHogEvent
+
+data class UserAuthenticatedEvent(
+    override val name: String = "user_authenticated",
+    val isFirstAuth: Boolean,
+    val authMethod: String,
+) : AuthEvent
+
+data class UserLoggedOutEvent(
+  override val name: String = "user_logged_out",
+) : AuthEvent
 
 /**
  * Print Hierarchy Events
@@ -215,12 +295,12 @@ data class CloudUploadFinishedEvent(
 sealed interface PrintHierarchyEvent : PostHogEvent
 
 data class PrintHierarchyStartedEvent(
-    override val name: String = "maestro_cli_print_hierarchy_started",
+    override val name: String = "print_hierarchy_started",
     val platform: String
 ) : PrintHierarchyEvent
 
 data class PrintHierarchyFinishedEvent(
-    override val name: String = "maestro_cli_print_hierarchy_finished",
+    override val name: String = "print_hierarchy_finished",
     val platform: String,
     val success: Boolean,
     val durationMs: Long,
@@ -233,16 +313,16 @@ data class PrintHierarchyFinishedEvent(
 sealed interface TrialEvent : PostHogEvent
 
 data class TrialStartPromptedEvent(
-    override val name: String = "maestro_cli_trial_start_prompted",
+    override val name: String = "trial_start_prompted",
 ) : TrialEvent
 
 data class TrialStartedEvent(
-    override val name: String = "maestro_cli_trial_started",
+    override val name: String = "trial_started",
     val companyName: String,
 ) : TrialEvent
 
 data class TrialStartFailedEvent(
-    override val name: String = "maestro_cli_trial_start_failed",
+    override val name: String = "trial_start_failed",
     val companyName: String,
     val failureReason: String,
 ) : TrialEvent
