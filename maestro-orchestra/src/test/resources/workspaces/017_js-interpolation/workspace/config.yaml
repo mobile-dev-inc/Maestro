@@ -1,0 +1,8 @@
+pathAliases:
+  "~js": "scripts"
+  "~sf": "subflows"
+  "~media": "media"
+
+flows:
+  - "flows/*"
+
