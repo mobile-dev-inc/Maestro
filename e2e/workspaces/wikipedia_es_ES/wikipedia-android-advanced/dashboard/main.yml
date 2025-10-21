@@ -1,0 +1,6 @@
+appId: org.wikipedia
+---
+- runFlow: "search.yml"
+- runFlow: "saved.yml"
+- runFlow: "feed.yml"
+- runFlow: "copy-paste.yml"
