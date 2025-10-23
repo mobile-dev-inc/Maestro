@@ -173,6 +173,7 @@ class CloudInteractor(
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                appBinaryId = response.appBinaryId
             ))
 
             val project = requireNotNull(selectedProjectId)
