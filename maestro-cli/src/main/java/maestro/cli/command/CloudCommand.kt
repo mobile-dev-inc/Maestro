@@ -192,7 +192,7 @@ class CloudCommand : Callable<Int> {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowsFile)
 
-        val uploadStatus = CloudInteractor(
+        return CloudInteractor(
             client = ApiClient(apiUrl),
             failOnTimeout = failOnTimeout,
             waitTimeoutMs = TimeUnit.MINUTES.toMillis(resultWaitTimeout.toLong())
@@ -224,15 +224,6 @@ class CloudCommand : Callable<Int> {
             deviceModel = deviceModel,
             deviceOs = deviceOs
         )
-
-        // Convert UploadStatus to exit code
-        return when (uploadStatus.status) {
-            UploadStatus.Status.SUCCESS -> 0
-            UploadStatus.Status.ERROR -> 1
-            UploadStatus.Status.CANCELED -> if (failOnCancellation) 1 else 0
-            UploadStatus.Status.STOPPED -> 1
-            else -> 1
-        }
     }
 
     private fun validateWorkSpace() {

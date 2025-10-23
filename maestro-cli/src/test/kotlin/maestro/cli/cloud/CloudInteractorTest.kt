@@ -187,7 +187,9 @@ class CloudInteractorTest {
             completed = completed,
             flows = flows,
             totalTime = startTime,
-            startTime = null
+            startTime = null,
+            appBinaryId = null,
+            wasAppLaunched = false,
         )
     }
 

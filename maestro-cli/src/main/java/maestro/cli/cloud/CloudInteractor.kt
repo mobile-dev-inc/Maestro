@@ -87,7 +87,7 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
-    ): UploadStatus {
+    ): Int {
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -202,13 +202,19 @@ class CloudInteractor(
                 totalFlows = uploadResponse.flows.size,
                 totalPassedFlows = uploadResponse.flows.count { it.status == FlowStatus.SUCCESS },
                 totalFailedFlows = uploadResponse.flows.count { it.status == FlowStatus.ERROR },
-                appBinaryId = response.appBinaryId,
+                appBinaryId = response.appBinaryId ?: "",
                 wasAppLaunched = uploadResponse.wasAppLaunched
             ))
 
             Analytics.flush()
             
-            return uploadResponse
+            return when (uploadResponse.status) {
+                UploadStatus.Status.SUCCESS -> 0
+                UploadStatus.Status.ERROR -> 1
+                UploadStatus.Status.CANCELED -> if (failOnCancellation) 1 else 0
+                UploadStatus.Status.STOPPED -> 1
+                else -> 1
+            }
         }
     }
 
