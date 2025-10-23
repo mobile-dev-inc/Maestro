@@ -26,6 +26,7 @@ import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.input.interactiveSelectList
+import maestro.cli.analytics.CloudRunFinishedEvent
 import maestro.cli.analytics.CloudUploadSucceededEvent
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
@@ -86,7 +87,7 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
-    ): Int {
+    ): UploadStatus {
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -126,6 +127,16 @@ class CloudInteractor(
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
+            // Track cloud upload start after we have the response with actual platform
+            Analytics.trackEvent(CloudUploadStartedEvent(
+                projectId = selectedProjectId,
+                platform = triggeredPlatform,
+                isBinaryUpload = appBinaryId != null,
+                usesEnvironment = env.isNotEmpty(),
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
+            ))
+
             val response = client.upload(
                 authToken = authToken,
                 appFile = appFileToSend?.toPath(),
@@ -153,15 +164,15 @@ class CloudInteractor(
                 deviceOs = deviceOs
             )
 
-            // Track cloud upload start after we have the response with actual platform
+            // Track finish after upload completion
             val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
-            Analytics.trackEvent(CloudUploadStartedEvent(
+            Analytics.trackEvent(CloudUploadSucceededEvent(
                 projectId = selectedProjectId,
                 platform = platform,
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceOs = deviceOs,
             ))
 
             val project = requireNotNull(selectedProjectId)
@@ -184,16 +195,16 @@ class CloudInteractor(
                 response.uploadId,
                 selectedProjectId,
             )
-            
-            // Track finish after upload completion
-            Analytics.trackEvent(CloudUploadSucceededEvent(
+
+            Analytics.trackEvent(CloudRunFinishedEvent(
                 projectId = selectedProjectId,
-                platform = platform,
-                isBinaryUpload = appBinaryId != null,
-                usesEnvironment = env.isNotEmpty(),
-                deviceModel = deviceModel,
-                deviceOs = deviceOs,
+                totalFlows = uploadResponse.flows.size,
+                totalPassedFlows = uploadResponse.flows.count { it.status == FlowStatus.SUCCESS },
+                totalFailedFlows = uploadResponse.flows.count { it.status == FlowStatus.ERROR },
+                appBinaryId = response.appBinaryId,
+                wasAppLaunched = uploadResponse.wasAppLaunched
             ))
+
             Analytics.flush()
             
             return uploadResponse
@@ -333,7 +344,7 @@ class CloudInteractor(
         appBinaryIdResponse: String?,
         uploadId: String,
         projectId: String
-    ): Int {
+    ): UploadStatus {
         if (async) {
             PrintUtils.message("✅ Upload successful!")
 
@@ -343,7 +354,17 @@ class CloudInteractor(
 
             if (appBinaryIdResponse != null) PrintUtils.info("App binary id: ${appBinaryIdResponse.cyan()}\n")
 
-            return 0
+            // Return a simple UploadStatus for async case
+            return UploadStatus(
+                uploadId = uploadId,
+                status = UploadStatus.Status.SUCCESS,
+                completed = true,
+                totalTime = null,
+                startTime = null,
+                flows = emptyList(),
+                appBinaryId = null,
+                wasAppLaunched = false,
+            )
         } else {
             println(deviceInfoMessage)
             
@@ -356,8 +377,8 @@ class CloudInteractor(
 
             PrintUtils.info("Waiting for runs to be completed...")
 
-        return waitForCompletion(
-            authToken = authToken,
+            return waitForCompletion(
+                authToken = authToken,
                 uploadId = uploadId,
                 appId = appId,
                 failOnCancellation = failOnCancellation,
@@ -399,7 +420,7 @@ class CloudInteractor(
         testSuiteName: String?,
         uploadUrl: String,
         projectId: String?
-    ): Int {
+    ): UploadStatus {
         val startTime = System.currentTimeMillis()
 
         var pollingInterval = minPollIntervalMs
@@ -407,7 +428,7 @@ class CloudInteractor(
         val printedFlows = mutableSetOf<UploadStatus.FlowResult>()
 
         do {
-            val upload = try {
+            val upload: UploadStatus = try {
                 client.uploadStatus(authToken, uploadId, projectId)
             } catch (e: ApiClient.ApiException) {
                 if (e.statusCode == 429) {
@@ -473,16 +494,29 @@ class CloudInteractor(
 
         PrintUtils.warn("* Follow the results of your upload here:\n$uploadUrl")
 
-        return if (failOnTimeout) {
+        if (failOnTimeout) {
             PrintUtils.message("Process will exit with code 1 (FAIL)")
             PrintUtils.message("* To change exit code on Timeout, run maestro with this option: `maestro cloud --fail-on-timeout=<true|false>`")
-
-            1
         } else {
             PrintUtils.message("Process will exit with code 0 (SUCCESS)")
             PrintUtils.message("* To change exit code on Timeout, run maestro with this option: `maestro cloud --fail-on-timeout=<true|false>`")
+        }
 
-            0
+        // Fetch the latest upload status before returning
+        return try {
+            client.uploadStatus(authToken, uploadId, projectId)
+        } catch (e: Exception) {
+            // If we can't fetch the latest status, return a timeout status
+            UploadStatus(
+                uploadId = uploadId,
+                status = UploadStatus.Status.ERROR,
+                completed = false,
+                totalTime = null,
+                startTime = null,
+                flows = emptyList(),
+                appBinaryId = null,
+                wasAppLaunched = false,
+            )
         }
     }
 
@@ -495,7 +529,7 @@ class CloudInteractor(
         reportOutput: File?,
         testSuiteName: String?,
         uploadUrl: String,
-    ): Int {
+    ): UploadStatus {
         TestSuiteStatusView.showSuiteResult(
             upload.toViewModel(
                 TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
@@ -532,19 +566,19 @@ class CloudInteractor(
         }
 
 
-        return if (!failed) {
+        if (!failed) {
             PrintUtils.message("Process will exit with code 0 (SUCCESS)")
             if (isCancelled) {
                 PrintUtils.message("* To change exit code on Cancellation, run maestro with this option: `maestro cloud --fail-on-cancellation=<true|false>`")
             }
-            0
         } else {
             PrintUtils.message("Process will exit with code 1 (FAIL)")
             if (isCancelled && !containsFailure) {
                 PrintUtils.message("* To change exit code on cancellation, run maestro with this option: `maestro cloud --fail-on-cancellation=<true|false>`")
             }
-            1
         }
+
+        return upload
     }
 
     private fun saveReport(
