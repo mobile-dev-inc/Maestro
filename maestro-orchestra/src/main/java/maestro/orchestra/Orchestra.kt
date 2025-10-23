@@ -816,7 +816,7 @@ class Orchestra(
             try {
                 findElement(
                     selector = it,
-                    timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
+                    timeoutMs = adjustedToLatestInteraction(condition.timeout ?: timeoutMs ?: optionalLookupTimeoutMs),
                     optional = commandOptional,
                 )
             } catch (_: MaestroException.ElementNotFound) {
@@ -825,7 +825,7 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
-            val result = MaestroTimer.withTimeout(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
+            val result = MaestroTimer.withTimeout(adjustedToLatestInteraction(condition.timeout ?: timeoutMs ?: optionalLookupTimeoutMs)) {
                 try {
                     findElement(
                         selector = it,
