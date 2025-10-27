@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.0.7
+
+### Fix
+- Fixed bug affecting CI and pull request integrations where org prompts would fail in non-interactive environments.
+- Added logs on launch and clear state for debugging
+
 ## 2.0.6
 
 ### Features
