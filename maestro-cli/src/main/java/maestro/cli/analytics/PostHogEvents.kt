@@ -255,23 +255,27 @@ data class CloudUploadSucceededEvent(
     override val name: String = "cloud_upload_succeeded",
     val projectId: String,
     val platform: String,
-    val isBinaryUpload: Boolean = false,
-    val usesEnvironment: Boolean = false,
+    val isBinaryUpload: Boolean,
+    val usesEnvironment: Boolean,
     val deviceModel: String? = null,
-    val deviceOs: String? = null
+    val deviceOs: String? = null,
+    val appBinaryId: String? = null
 ) : CloudUploadEvent
 
-data class CloudUploadValidationFailedEvent(
-  override val name: String = "cloud_upload_validation_failed",
-  val field: String,
-  val message: String,
-  val projectId: String,
-  val platform: String,
-  val isBinaryUpload: Boolean = false,
-  val usesEnvironment: Boolean = false,
-  val deviceModel: String? = null,
-  val deviceOs: String? = null
-) : CloudUploadEvent
+/**
+ * Cloud Run Event
+ */
+sealed interface CloudRunEvent : PostHogEvent
+
+data class CloudRunFinishedEvent(
+    override val name: String = "cloud_run_finished",
+    val projectId: String,
+    val appBinaryId: String,
+    val totalFlows: Number,
+    val totalPassedFlows: Number,
+    val totalFailedFlows: Number,
+    val wasAppLaunched: Boolean
+) : CloudRunEvent
 
 /**
  * User Auth Event

@@ -796,7 +796,9 @@ data class UploadStatus(
     val completed: Boolean,
     val totalTime: Long?,
     val startTime: Long?,
-    val flows: List<FlowResult>
+    val flows: List<FlowResult>,
+    val appBinaryId: String?,
+    val wasAppLaunched: Boolean
 ) {
 
     data class FlowResult(
