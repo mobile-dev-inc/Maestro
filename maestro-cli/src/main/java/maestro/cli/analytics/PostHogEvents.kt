@@ -259,7 +259,6 @@ data class CloudUploadSucceededEvent(
     val usesEnvironment: Boolean,
     val deviceModel: String? = null,
     val deviceOs: String? = null,
-    val appBinaryId: String? = null
 ) : CloudUploadEvent
 
 /**
@@ -270,7 +269,7 @@ sealed interface CloudRunEvent : PostHogEvent
 data class CloudRunFinishedEvent(
     override val name: String = "cloud_run_finished",
     val projectId: String,
-    val appBinaryId: String,
+    val appPackageId: String,
     val totalFlows: Number,
     val totalPassedFlows: Number,
     val totalFailedFlows: Number,
