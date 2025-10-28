@@ -172,8 +172,7 @@ class CloudInteractor(
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
-                deviceOs = deviceOs,
-                appBinaryId = response.appBinaryId
+                deviceOs = deviceOs
             ))
 
             val project = requireNotNull(selectedProjectId)
@@ -202,7 +201,7 @@ class CloudInteractor(
                 totalFlows = uploadResponse.flows.size,
                 totalPassedFlows = uploadResponse.flows.count { it.status == FlowStatus.SUCCESS },
                 totalFailedFlows = uploadResponse.flows.count { it.status == FlowStatus.ERROR },
-                appBinaryId = response.appBinaryId ?: "",
+                appBinaryId = uploadResponse.appBinaryId ?: "",
                 wasAppLaunched = uploadResponse.wasAppLaunched
             ))
 

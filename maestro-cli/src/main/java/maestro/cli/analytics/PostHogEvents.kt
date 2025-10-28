@@ -259,7 +259,6 @@ data class CloudUploadSucceededEvent(
     val usesEnvironment: Boolean,
     val deviceModel: String? = null,
     val deviceOs: String? = null,
-    val appBinaryId: String? = null
 ) : CloudUploadEvent
 
 /**
