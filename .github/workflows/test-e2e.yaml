@@ -55,8 +55,9 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
-      ANDROID_OS_IMAGE: system-images;android-28;google_apis;x86_64
-      MAESTRO_EXAMPLE: test-value
+      ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
+      ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
+      ANDROID_PLATFORM: platforms;android-34
 
     steps:
       - name: Enable KVM group perms
@@ -74,7 +75,7 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      - name: Download artifacts
+      - name: Download Maestro build from previous job
         uses: actions/download-artifact@v4
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
@@ -94,26 +95,21 @@ jobs:
           git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
           echo "$HOME/scripts/bin" >> $GITHUB_PATH
 
-      - name: Set up android-wait-for-emulator script
-        run: |
-          curl -fsSl -O https://raw.githubusercontent.com/travis-ci/travis-cookbooks/master/community-cookbooks/android-sdk/files/default/android-wait-for-emulator
-          chmod +x ./android-wait-for-emulator
-          mv ./android-wait-for-emulator $HOME/scripts/bin
-
       - name: Set up Android Command-line Tools
         run: |
-          # v8, latest working on Java 8. Source: https://stackoverflow.com/a/78890086/7009800
-          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+          # v13 - see https://stackoverflow.com/a/78890086/7009800
+          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
 
       - name: Set up Android SDK components
         run: |
-          yes | sdkmanager --install emulator
+          yes | sdkmanager --licenses
+          sdkmanager --install emulator
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
-          yes | sdkmanager --install "platform-tools"
+          sdkmanager --install "platform-tools"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          yes | sdkmanager --install "platforms;android-34"
-          yes | sdkmanager --install "$ANDROID_OS_IMAGE"
+          sdkmanager --install "$ANDROID_PLATFORM"
+          sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Create AVD
         run: |
@@ -121,7 +117,20 @@ jobs:
             --package "$ANDROID_OS_IMAGE" \
             --name "MyAVD"
 
-          cat << EOF >> ~/.android/avd/MyAVD.avd/config.ini
+          echo "DEBUG INFO"
+          
+          avdmanager list avd
+
+          echo "ANDROID_PREFS_ROOT=$ANDROID_PREFS_ROOT"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_HOME=$ANDROID_SDK_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME"
+          echo "ANDROID_EMULATOR_HOME=$ANDROID_EMULATOR_HOME"
+          
+          echo "HOME=$HOME"
+          
+          cat << EOF >> ~/.config/.android/avd/MyAVD.avd/config.ini
           hw.cpu.ncore=2
           hw.gpu.enabled=yes
           hw.gpu.mode=swiftshader_indirect
@@ -136,13 +145,14 @@ jobs:
       - name: Run AVD
         run: |
           emulator @MyAVD \
-            -verbose -no-snapshot-save -no-window -noaudio -no-boot-anim -accel on -camera-back none \
+            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -camera-back none -qemu -m 3072 \
             >~/emulator_stdout.log \
             2>~/emulator_stderr.log &
 
       - name: Wait for AVD to start up
         run: |
-          android-wait-for-emulator
+          adb wait-for-device && echo 'Emulator device online'
+          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && echo 'Emulator booted'
 
           # This is also a prerequiste
           while true; do
