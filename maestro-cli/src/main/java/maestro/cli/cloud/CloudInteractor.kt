@@ -201,7 +201,7 @@ class CloudInteractor(
                 totalFlows = uploadResponse.flows.size,
                 totalPassedFlows = uploadResponse.flows.count { it.status == FlowStatus.SUCCESS },
                 totalFailedFlows = uploadResponse.flows.count { it.status == FlowStatus.ERROR },
-                appBinaryId = uploadResponse.appBinaryId ?: "",
+                appPackageId = uploadResponse.appPackageId ?: "",
                 wasAppLaunched = uploadResponse.wasAppLaunched
             ))
 

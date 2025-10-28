@@ -269,7 +269,7 @@ sealed interface CloudRunEvent : PostHogEvent
 data class CloudRunFinishedEvent(
     override val name: String = "cloud_run_finished",
     val projectId: String,
-    val appBinaryId: String,
+    val appPackageId: String,
     val totalFlows: Number,
     val totalPassedFlows: Number,
     val totalFailedFlows: Number,
