@@ -368,7 +368,7 @@ class CloudInteractor(
                 totalTime = null,
                 startTime = null,
                 flows = emptyList(),
-                appBinaryId = null,
+                appPackageId = null,
                 wasAppLaunched = false,
             )
         } else {
@@ -520,7 +520,7 @@ class CloudInteractor(
                 totalTime = null,
                 startTime = null,
                 flows = emptyList(),
-                appBinaryId = null,
+                appPackageId = null,
                 wasAppLaunched = false,
             )
         }
