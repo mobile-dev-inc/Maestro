@@ -13,6 +13,9 @@ import maestro.cli.util.EnvUtils
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.time.Instant
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.*
 import kotlin.String
 import kotlin.io.path.exists
@@ -174,22 +177,32 @@ private fun getOrgStatus(org: OrgResponse?): OrgStatus? {
     val gracePeriod = org.metadata.get("subscription_grace_period")
 
     if (gracePeriod != null) {
-        val graceDate = java.time.LocalDate.parse(gracePeriod)
-        val now = java.time.LocalDate.now()
-        // If grace period is in the past, expired
-        return if (graceDate.isBefore(now)) {
-          OrgStatus.GRACE_PERIOD_EXPIRED
+        val graceDate = parseDate(gracePeriod)
+        if (graceDate != null) {
+            val now = LocalDate.now()
+            // If grace period is in the past, expired
+            return if (graceDate.isBefore(now)) {
+              OrgStatus.GRACE_PERIOD_EXPIRED
+            } else {
+              OrgStatus.IN_GRACE_PERIOD
+            }
         } else {
-          OrgStatus.IN_GRACE_PERIOD
+            // If we can't parse the date, assume it's active
+            return OrgStatus.IN_GRACE_PERIOD
         }
     }
 
     if (pricingPlan == "BASIC" && trialExpirationDate != null) {
-        val trialDate = java.time.LocalDate.parse(trialExpirationDate)
-        val now = java.time.LocalDate.now()
-        if (trialDate.isBefore(now)) {
-            return OrgStatus.TRIAL_EXPIRED
+        val trialDate = parseDate(trialExpirationDate)
+        if (trialDate != null) {
+            val now = LocalDate.now()
+            if (trialDate.isBefore(now)) {
+                return OrgStatus.TRIAL_EXPIRED
+            } else {
+                return OrgStatus.ACTIVE
+            }
         } else {
+            // If we can't parse the date, assume trial is active
             return OrgStatus.ACTIVE
         }
     }
@@ -206,15 +219,38 @@ private fun getOrgStatus(org: OrgResponse?): OrgStatus? {
 }
 
 /**
+ * Helper function to parse dates in multiple formats
+ */
+private fun parseDate(dateString: String?): LocalDate? {
+    if (dateString == null) return null
+    
+    val formatters = listOf(
+        DateTimeFormatter.ISO_LOCAL_DATE, // "2030-02-19"
+        DateTimeFormatter.ofPattern("MMM d yyyy"), // "Feb 19 2030"
+        DateTimeFormatter.ofPattern("MMM dd yyyy"), // "Feb 19 2030" (with zero-padded day)
+        DateTimeFormatter.ofPattern("MMMM d yyyy"), // "February 19 2030"
+        DateTimeFormatter.ofPattern("MMMM dd yyyy"), // "February 19 2030" (with zero-padded day)
+        DateTimeFormatter.ofPattern("MM/dd/yyyy"), // "02/19/2030"
+        DateTimeFormatter.ofPattern("dd/MM/yyyy"), // "19/02/2030"
+        DateTimeFormatter.ofPattern("yyyy-MM-dd"), // "2030-02-19"
+    )
+    
+    for (formatter in formatters) {
+        try {
+            return LocalDate.parse(dateString, formatter)
+        } catch (e: DateTimeParseException) {
+            // Try next formatter
+        }
+    }
+    return null
+}
+
+/**
  * Helper function to calculate days until a date
  */
 private fun calculateDaysUntil(dateString: String?): Int? {
     if (dateString == null) return null
-    return try {
-        val targetDate = java.time.LocalDate.parse(dateString)
-        val now = java.time.LocalDate.now()
-        java.time.temporal.ChronoUnit.DAYS.between(now, targetDate).toInt()
-    } catch (e: Exception) {
-        null
-    }
+    val targetDate = parseDate(dateString) ?: return null
+    val now = LocalDate.now()
+    return java.time.temporal.ChronoUnit.DAYS.between(now, targetDate).toInt()
 }
