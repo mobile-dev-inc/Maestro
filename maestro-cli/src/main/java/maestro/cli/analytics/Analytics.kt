@@ -74,12 +74,16 @@ object Analytics : AutoCloseable {
         val org =  apiClient.getOrg(token)
 
         // Update local state with user info
-        val updatedAnalyticsState = analyticsStateManager.updateState(token, user, org);
+        val updatedAnalyticsState = try {
+            analyticsStateManager.updateState(token, user, org)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
         val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
 
         // Send identification to PostHog
         posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
-        
         // Track user authentication event
         val isFirstAuth = analyticsStateManager.getState().cachedToken == null
         trackEvent(UserAuthenticatedEvent(
@@ -94,8 +98,9 @@ object Analytics : AutoCloseable {
     fun identifyUserIfNeeded() {
         // No identification needed if token is null
         val token = ApiKey.getToken() ?: return
+        val cachedToken = analyticsStateManager.getState().cachedToken
         // No identification needed if token is same as cachedToken
-        if (token == analyticsStateManager.getState().cachedToken) return
+        if (!cachedToken.isNullOrEmpty() && (token == cachedToken)) return
         // Else Update identification
         identifyAndUpdateState(token)
     }
@@ -115,7 +120,18 @@ object Analytics : AutoCloseable {
                 // Include super properties in each event since PostHog Java client doesn't have register
                 val eventData = convertEventToEventData(event)
                 val userState = analyticsStateManager.getState()
-                val properties = eventData.properties + superProperties.toMap() + UserProperties.fromAnalyticsState(userState).toMap()
+                val groupProperties = userState.orgId?.let { orgId ->
+                   mapOf(
+                       "\$groups" to mapOf(
+                           "company" to orgId
+                       )
+                   )
+                } ?: emptyMap()
+                val properties =
+                    eventData.properties +
+                    superProperties.toMap() +
+                    UserProperties.fromAnalyticsState(userState).toMap() +
+                    groupProperties
 
                 // Send Event
                 posthog.capture(
