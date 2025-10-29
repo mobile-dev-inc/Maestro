@@ -1,10 +1,5 @@
 package maestro.cli.util
 
-import java.io.File
-
-object WorkingDirectory {
-    var baseDir: File = File(System.getProperty("user.dir"))
-
-    fun resolve(path: String): File = File(baseDir, path)
-    fun resolve(file: File): File = if (file.isAbsolute) file else File(baseDir, file.path)
-}
+// Re-export WorkingDirectory from maestro-utils for backward compatibility
+@Deprecated("Use maestro.utils.WorkingDirectory instead", ReplaceWith("maestro.utils.WorkingDirectory"))
+typealias WorkingDirectory = maestro.utils.WorkingDirectory
