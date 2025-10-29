@@ -557,8 +557,6 @@ class CloudInteractor(
         val reportOutputSink = reportFormat.fileExtension
             ?.let { extension ->
                 (reportOutput ?: File("report$extension"))
-                    .sink()
-                    .buffer()
             }
 
         if (reportOutputSink != null) {
@@ -591,7 +589,7 @@ class CloudInteractor(
         reportFormat: ReportFormat,
         passed: Boolean,
         suiteResult: TestExecutionSummary.SuiteResult,
-        reportOutputSink: BufferedSink,
+        reportOutput: File,
         testSuiteName: String?
     ) {
         ReporterFactory.buildReporter(reportFormat, testSuiteName)
@@ -600,7 +598,7 @@ class CloudInteractor(
                     passed = passed,
                     suites = listOf(suiteResult)
                 ),
-                reportOutputSink,
+                reportOutput,
             )
     }
 

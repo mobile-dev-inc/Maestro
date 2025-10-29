@@ -1,23 +1,23 @@
 package maestro.cli.report
 
 import com.google.common.truth.Truth.assertThat
-import okio.Buffer
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
 
     @Test
     fun `XML - Test passed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
-        val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml(null, null)
+        val reportOutput = File("tmpReportOutput")
 
         // When
         testee.report(
             summary = testSuccessWithWarning,
-            out = sink
+            out = reportOutput
         )
-        val resultStr = sink.readUtf8()
+        val resultStr = reportOutput.readText(Charsets.UTF_8)
 
         // Then
         assertThat(resultStr).isEqualTo(
@@ -37,15 +37,15 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test failed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
-        val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml(null, null)
+        val reportOutput = File("tmpReportOutput")
 
         // When
         testee.report(
             summary = testSuccessWithError,
-            out = sink
+            out = reportOutput
         )
-        val resultStr = sink.readUtf8()
+        val resultStr = reportOutput.readText(Charsets.UTF_8)
 
         // Then
         assertThat(resultStr).isEqualTo(
@@ -67,15 +67,15 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Custom test suite name is used when present`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml("Custom test suite name")
-        val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml("Custom test suite name", "fileExtension")
+        val reportOutput = File("tmpReportOutput")
 
         // When
         testee.report(
             summary = testSuccessWithWarning,
-            out = sink
+            out = reportOutput
         )
-        val resultStr = sink.readUtf8()
+        val resultStr = reportOutput.readText(Charsets.UTF_8)
 
         // Then
         assertThat(resultStr).isEqualTo(
