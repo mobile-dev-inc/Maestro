@@ -9,6 +9,7 @@ data class Condition(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null,
+    val timeout: Long? = null,
     val label: String? = null,
 ) {
 
