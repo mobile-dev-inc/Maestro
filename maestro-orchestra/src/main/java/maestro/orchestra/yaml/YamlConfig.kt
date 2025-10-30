@@ -25,6 +25,7 @@ data class YamlConfig(
     val env: Map<String, String> = emptyMap(),
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
+    val properties: Map<String, String> = emptyMap(),
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
 
@@ -51,7 +52,8 @@ data class YamlConfig(
             tags = tags,
             ext = ext.toMap(),
             onFlowStart = onFlowStart(flowPath),
-            onFlowComplete = onFlowComplete(flowPath)
+            onFlowComplete = onFlowComplete(flowPath),
+            properties = properties
         )
         return MaestroCommand(ApplyConfigurationCommand(config))
     }
