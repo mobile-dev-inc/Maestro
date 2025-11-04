@@ -428,7 +428,7 @@ class TestCommand : Callable<Int> {
         testOutputDir: Path?,
         driverPort: Int?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
-        val driverHostPort = driverPort ?: selectPort(effectiveShards)
+        val driverHostPort = selectPort(effectiveShards, driverPort)
         val deviceId = deviceIds[shardIndex]
         val executionPlan = chunkPlans[shardIndex]
 
@@ -475,11 +475,13 @@ class TestCommand : Callable<Int> {
         }
     }
 
-    private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) 7001
-        else (7001..7128).shuffled().find { port ->
+    private fun selectPort(effectiveShards: Int, driverPort: Int?): Int {
+        val startingPort = driverPort?: 7001
+        return if (effectiveShards == 1) startingPort
+        else (startingPort..startingPort + 30).shuffled().find { port ->
             usedPorts.putIfAbsent(port, true) == null
         } ?: error("No available ports found")
+    }
 
     private fun runSingleFlow(
         maestro: Maestro,
