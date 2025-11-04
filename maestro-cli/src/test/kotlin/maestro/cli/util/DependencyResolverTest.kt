@@ -594,4 +594,54 @@ class DependencyResolverTest {
 
     }
 
+    @Test
+    fun `deduplicates same script referenced via different relative paths`(@TempDir tempDir: Path) {
+        // Directory layout:
+        // tempDir/
+        //   main_flow.yaml
+        //   sub/
+        //     subflow.yaml
+        //   scripts/
+        //     createAccount.js
+
+        // Create directories
+        tempDir.resolve("sub").toFile().mkdirs()
+        tempDir.resolve("scripts").toFile().mkdirs()
+
+        // Create shared script
+        val script = tempDir.resolve("scripts/createAccount.js")
+        script.writeText("console.log('create account');")
+
+        // Subflow that references script with a simple relative path
+        val subflow = tempDir.resolve("sub/subflow.yaml")
+        subflow.writeText(
+            """
+            appId: com.example.app
+            ---
+            - runScript: ../scripts/createAccount.js
+            """.trimIndent()
+        )
+
+        // Main flow references the same script using a different path notation and the subflow
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText(
+            """
+            appId: com.example.app
+            ---
+            - runFlow: sub/subflow.yaml
+            - runScript: ./sub/../scripts/createAccount.js
+            """.trimIndent()
+        )
+
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+
+        // Expect exactly one instance of the script, despite two different references
+        val scriptCount = dependencies.count { it.fileName.toString() == "createAccount.js" }
+        assertThat(scriptCount).isEqualTo(1)
+
+        // Also expect both flows to be included
+        assertThat(dependencies.any { it.fileName.toString() == "main_flow.yaml" }).isTrue()
+        assertThat(dependencies.any { it.fileName.toString() == "subflow.yaml" }).isTrue()
+    }
+
 }
