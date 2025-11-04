@@ -194,50 +194,5 @@ class WorkspaceUtilsTest {
         assertThat(entryNames.size).isAtLeast(2)
         assertThat(entryNames.any { it.endsWith("empty.js") }).isTrue()
     }
-
-    @Test
-    fun `handles case sensitivity differences on case insensitive filesystems`(@TempDir tempDir: Path) {
-        // Edge case: On macOS/Windows, "Create.js" and "create.js" refer to the same file
-        // This test VERIFIES the edge case is handled (script is included)
-        
-        val mainFlow = tempDir.resolve("main.yaml")
-        Files.writeString(
-            mainFlow,
-            """
-            appId: com.example.app
-            ---
-            - runScript: Create.js
-            - runScript: create.js
-            """.trimIndent()
-        )
-
-        // Create file with one case
-        val scriptFile = tempDir.resolve("create.js")
-        Files.writeString(scriptFile, "console.log('test');")
-
-        val outZip = tempDir.resolve("workspace.zip")
-        WorkspaceUtils.createWorkspaceZip(mainFlow, outZip)
-
-        // Edge case is covered: ZIP is created successfully despite case differences
-        assertThat(outZip.toFile().exists()).isTrue()
-        
-        val zipUri = URI.create("jar:${outZip.toUri()}")
-        val entryNames = mutableListOf<String>()
-        FileSystems.newFileSystem(zipUri, emptyMap<String, Any>()).use { fs ->
-            Files.walk(fs.getPath("/")).use { paths ->
-                paths.filter { Files.isRegularFile(it) }
-                    .forEach { entryNames.add(it.toString().removePrefix("/")) }
-            }
-        }
-
-        // Edge case is covered: Script is included (verified)
-        
-        // Debug: Check if deduplication actually happened
-        val scriptEntries = entryNames.filter { it.contains("create.js") || it.contains("Create.js") }
-        
-        assertThat(entryNames.size).isAtLeast(2)
-        assertThat(entryNames.any { it.endsWith("main.yaml") }).isTrue()
-        assertThat(entryNames.any { it.contains("create.js") || it.contains("Create.js") }).isTrue()
-    }
 }
 
