@@ -587,7 +587,7 @@ class DependencyResolverTest {
         // Test dependency discovery
         val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
 
-        // Should include all files
+        // Should include all of the files
         assertThat(dependencies).hasSize(2)
         assertThat(dependencies).contains(mainFlow)
         assertThat(dependencies).contains(subflow1)
