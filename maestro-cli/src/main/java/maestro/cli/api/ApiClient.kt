@@ -850,14 +850,19 @@ data class RenderState(
 data class UserResponse(
   val id: String,
   val email: String,
-  val firstName: String,
-  val lastName: String,
+  val firstName: String?,
+  val lastName: String?,
   val status: String,
   val role: String,
   val workOSOrgId: String,
 ) {
   val name: String
-    get() = "$firstName $lastName"
+    get() = when {
+      !firstName.isNullOrBlank() && !lastName.isNullOrBlank() -> "$firstName $lastName"
+      !firstName.isNullOrBlank() -> firstName!!
+      !lastName.isNullOrBlank() -> lastName!!
+      else -> email
+    }
 }
 
 data class OrgResponse(
