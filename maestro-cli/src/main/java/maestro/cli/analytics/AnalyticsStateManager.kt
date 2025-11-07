@@ -226,10 +226,10 @@ private fun parseDate(dateString: String?): LocalDate? {
     
     val formatters = listOf(
         DateTimeFormatter.ISO_LOCAL_DATE, // "2030-02-19"
-        DateTimeFormatter.ofPattern("MMM d yyyy"), // "Feb 19 2030"
-        DateTimeFormatter.ofPattern("MMM dd yyyy"), // "Feb 19 2030" (with zero-padded day)
-        DateTimeFormatter.ofPattern("MMMM d yyyy"), // "February 19 2030"
-        DateTimeFormatter.ofPattern("MMMM dd yyyy"), // "February 19 2030" (with zero-padded day)
+        DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH), // "Sep 1 2025"
+        DateTimeFormatter.ofPattern("MMM dd yyyy", Locale.ENGLISH), // "Sep 01 2025" (with zero-padded day)
+        DateTimeFormatter.ofPattern("MMMM d yyyy", Locale.ENGLISH), // "September 1 2025"
+        DateTimeFormatter.ofPattern("MMMM dd yyyy", Locale.ENGLISH), // "September 01 2025" (with zero-padded day)
         DateTimeFormatter.ofPattern("MM/dd/yyyy"), // "02/19/2030"
         DateTimeFormatter.ofPattern("dd/MM/yyyy"), // "19/02/2030"
         DateTimeFormatter.ofPattern("yyyy-MM-dd"), // "2030-02-19"
