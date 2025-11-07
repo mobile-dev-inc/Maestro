@@ -644,4 +644,51 @@ class DependencyResolverTest {
         assertThat(dependencies.any { it.fileName.toString() == "subflow.yaml" }).isTrue()
     }
 
+    @Test
+    fun `treats files with same name but different real paths as different dependencies`(@TempDir tempDir: Path) {
+        // Directory layout:
+        // tempDir/
+        //   main_flow.yaml
+        //   scripts/
+        //     createUser.js
+        //     usa/
+        //       createUser.js
+
+        // Create directories
+        tempDir.resolve("scripts").toFile().mkdirs()
+        tempDir.resolve("scripts/usa").toFile().mkdirs()
+
+        // Create two different scripts with the same filename
+        val script1 = tempDir.resolve("scripts/createUser.js")
+        script1.writeText("console.log('create user - default');")
+
+        val script2 = tempDir.resolve("scripts/usa/createUser.js")
+        script2.writeText("console.log('create user - USA');")
+
+        // Main flow references both scripts
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText(
+            """
+            appId: com.example.app
+            ---
+            - runScript: scripts/createUser.js
+            - runScript: scripts/usa/createUser.js
+            """.trimIndent()
+        )
+
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+
+        // Expect both scripts to be included as separate dependencies
+        assertThat(dependencies).hasSize(3) // main_flow.yaml + 2 scripts
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(script1)
+        assertThat(dependencies).contains(script2)
+
+        // Verify both are present by checking their real paths
+        val scriptPaths = dependencies.filter { it.fileName.toString() == "createUser.js" }
+        assertThat(scriptPaths).hasSize(2)
+        assertThat(scriptPaths).contains(script1)
+        assertThat(scriptPaths).contains(script2)
+    }
+
 }
