@@ -6,16 +6,17 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.yaml.MaestroFlowParser
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.LinkOption
 import kotlin.io.path.exists
 
 object DependencyResolver {
 
     fun discoverAllDependencies(flowFile: Path): List<Path> {
         val discoveredFiles = mutableSetOf<Path>()
-        val filesToProcess = mutableListOf(flowFile)
+        val filesToProcess = mutableListOf(normalizePath(flowFile))
         
         while (filesToProcess.isNotEmpty()) {
-            val currentFile = filesToProcess.removeFirst()
+            val currentFile = normalizePath(filesToProcess.removeFirst())
             
             // Skip if we've already processed this file (prevents circular references)
             if (discoveredFiles.contains(currentFile)) continue
@@ -37,7 +38,9 @@ object DependencyResolver {
                     extractDependenciesFromCommand(maestroCommand, currentFile)
                 }
                 
-                val newDependencies = dependencies.filter { it.exists() && !discoveredFiles.contains(it) }
+                val newDependencies = dependencies
+                    .map { normalizePath(it) }
+                    .filter { it.exists() && !discoveredFiles.contains(it) }
                 filesToProcess.addAll(newDependencies)
                 
             } catch (e: Exception) {
@@ -147,6 +150,16 @@ object DependencyResolver {
                 appendLine("Other files:")
                 otherFiles.forEach { appendLine("  - ${it.fileName}") }
             }
+        }
+    }
+
+    private fun normalizePath(path: Path): Path {
+        return try {
+            // Prefer canonical path without following symlinks
+            path.toRealPath(LinkOption.NOFOLLOW_LINKS)
+        } catch (e: Exception) {
+            // Fall back to absolute normalized path if real path resolution fails
+            path.toAbsolutePath().normalize()
         }
     }
 }
