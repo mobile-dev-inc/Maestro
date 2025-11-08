@@ -99,7 +99,7 @@ class StartDeviceCommand : Callable<Int> {
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,
-                    driverHostPort = parent?.port
+                    driverHostPort = parent?.driverHostPort
                 )
             }
         } catch (e: LocaleValidationIosException) {
