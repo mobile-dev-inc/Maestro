@@ -898,9 +898,13 @@ data class YamlFluentCommand(
             null
         }
 
+        // Include custom identifier fields from YAML
+        val customIdentifiers = selector.getCustomFields().takeIf { it.isNotEmpty() }
+
         return ElementSelector(
             textRegex = selector.text,
             idRegex = selector.id,
+            customIdentifiers = customIdentifiers,
             size = size,
             optional = selector.optional ?: false,
             below = selector.below?.let { toElementSelector(it) },
