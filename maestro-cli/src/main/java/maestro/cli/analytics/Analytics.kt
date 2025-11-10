@@ -70,26 +70,26 @@ object Analytics : AutoCloseable {
      * Should only be called when user identity changes (login/logout).
      */
     fun identifyAndUpdateState(token: String) {
-        val user = apiClient.getUser(token)
-        val org =  apiClient.getOrg(token)
+        try {
+            val user = apiClient.getUser(token)
+            val org =  apiClient.getOrg(token)
 
-        // Update local state with user info
-        val updatedAnalyticsState = try {
-            analyticsStateManager.updateState(token, user, org)
+            // Update local state with user info
+            val updatedAnalyticsState = analyticsStateManager.updateState(token, user, org)
+            val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
+
+            // Send identification to PostHog
+            posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
+            // Track user authentication event
+            val isFirstAuth = analyticsStateManager.getState().cachedToken == null
+            trackEvent(UserAuthenticatedEvent(
+                isFirstAuth = isFirstAuth,
+                authMethod = "oauth"
+            ))
         } catch (e: Exception) {
-            e.printStackTrace()
-            throw e
+            // Analytics failures should never break CLI functionality or show errors to users
+            logger.trace("Failed to identify user: ${e.message}", e)
         }
-        val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
-
-        // Send identification to PostHog
-        posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
-        // Track user authentication event
-        val isFirstAuth = analyticsStateManager.getState().cachedToken == null
-        trackEvent(UserAuthenticatedEvent(
-            isFirstAuth = isFirstAuth,
-            authMethod = "oauth"
-        ))
     }
 
     /**
@@ -141,7 +141,7 @@ object Analytics : AutoCloseable {
                 )
             } catch (e: Exception) {
                 // Analytics failures should never break CLI functionality
-                logger.trace("Failed to track event ${event.name}: ${e.message}")
+                logger.trace("Failed to track event ${event.name}: ${e.message}", e)
             }
         }
     }
@@ -154,7 +154,8 @@ object Analytics : AutoCloseable {
         try {
             posthog.flush()
         } catch (e: Exception) {
-            logger.warn("Failed to flush PostHog: ${e.message}")
+            // Analytics failures should never break CLI functionality or show errors to users
+            logger.trace("Failed to flush PostHog: ${e.message}", e)
         }
     }
 
@@ -174,7 +175,8 @@ object Analytics : AutoCloseable {
 
             EventData(eventName, properties)
         } catch (e: Exception) {
-            logger.warn("Failed to serialize event ${event.name}: ${e.message}")
+            // Analytics failures should never break CLI functionality or show errors to users
+            logger.trace("Failed to serialize event ${event.name}: ${e.message}", e)
             EventData(event.name, mapOf())
         }
     }
@@ -191,14 +193,16 @@ object Analytics : AutoCloseable {
         try {
             posthog.close()
         } catch (e: Exception) {
-            logger.warn("Failed to close PostHog: ${e.message}")
+            // Analytics failures should never break CLI functionality or show errors to users
+            logger.trace("Failed to close PostHog: ${e.message}", e)
         }
 
         // Now shutdown the executor
         try {
             executor.shutdown()
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-                logger.warn("Analytics executor did not shutdown gracefully, forcing shutdown")
+                // Analytics failures should never break CLI functionality or show errors to users
+                logger.trace("Analytics executor did not shutdown gracefully, forcing shutdown")
                 executor.shutdownNow()
             }
         } catch (e: InterruptedException) {
