@@ -361,8 +361,8 @@ class TestCommand : Callable<Int> {
 
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
-            PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
-            throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
+            PrintUtils.warn("You have ${deviceIds.size} devices connected, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
+            throw CliError("Not enough devices connected (${deviceIds.size}) to run the requested number of shards ($requestedShards).")
         }
 
         val effectiveShards = when {
