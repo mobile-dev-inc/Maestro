@@ -15,6 +15,9 @@
             case 'input':
                 return node.value || node.placeholder || node.ariaLabel || ''
 
+            case 'textarea':
+                return node.value || node.placeholder || node.ariaLabel || ''
+
             case 'select':
                 return node.options && node.options.length > 0 ? node.options[node.selectedIndex].text : ''
 
