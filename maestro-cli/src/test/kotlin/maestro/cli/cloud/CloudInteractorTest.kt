@@ -74,7 +74,7 @@ class CloudInteractorTest {
         )
 
         // then
-        assertThat(result).isEqualTo(0)
+        assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
         verify(exactly = 1) { mockApiClient.uploadStatus("token", "upload123", "project123") }
         
         // Verify console output
@@ -157,7 +157,8 @@ class CloudInteractorTest {
         )
 
         // then
-        assertThat(result).isEqualTo(1)
+        assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
+        // The overall upload status is SUCCESS, but individual flows can fail
         verify(exactly = 6) { mockApiClient.uploadStatus("token", "upload123", "project123") }
         
         // Verify console output shows the progression
@@ -186,7 +187,9 @@ class CloudInteractorTest {
             completed = completed,
             flows = flows,
             totalTime = startTime,
-            startTime = null
+            startTime = null,
+            appPackageId = null,
+            wasAppLaunched = false,
         )
     }
 

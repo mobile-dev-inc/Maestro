@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.0.7
+
+### Fix
+- Fixed bug affecting CI and pull request integrations where org prompts would fail in non-interactive environments.
+
+## 2.0.6
+
+### Features
+- Added support for negative index in element selector
+- Made specifying `--project_id` for cloud upload optional. **In case it is not specified and there are multiple projects, a prompt for selecting the project will be provided.**
+- In case the user belongs to multiple organizations and hasn't specified `--api-key` during cloud upload, a prompt for **selecting the organization** will be provided.
+
+### Fixes
+- Added descriptions to missing element selector aspects (enabled, disabled, selected, not selected, focused, not focused)
+
 ## 2.0.5
 
 ### Fixes

@@ -24,6 +24,7 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
+import maestro.cli.api.UploadStatus
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.TestDebugReporter
@@ -41,7 +42,7 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Test a Flow or set of Flows in the cloud (https://app.maestro.dev)",
+        "Upload your flows on Cloud by using @|yellow `maestro cloud sample/app.apk flows_folder/`|@ (@|cyan https://app.maestro.dev|@)",
         "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in the cloud",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
@@ -227,7 +228,7 @@ class CloudCommand : Callable<Int> {
 
     private fun validateWorkSpace() {
         try {
-            PrintUtils.message("Evaluating workspace...")
+            PrintUtils.message("Evaluating flow(s)...")
             WorkspaceExecutionPlanner
                 .plan(
                     input = setOf(flowsFile.toPath().toAbsolutePath()),
@@ -236,7 +237,7 @@ class CloudCommand : Callable<Int> {
                     config = configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
-            throw CliError("Upload aborted. Received error when evaluating workspace:\n\n${e.message}")
+            throw CliError("Upload aborted. Received error when evaluating flow(s):\n\n${e.message}")
         }
     }
 

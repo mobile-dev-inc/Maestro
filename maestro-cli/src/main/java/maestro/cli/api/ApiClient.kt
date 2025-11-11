@@ -7,17 +7,20 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import io.ktor.util.internal.RemoveFirstDesc
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.TrialStartedEvent
 import maestro.cli.analytics.TrialStartFailedEvent
+import maestro.cli.analytics.TrialStartPromptedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.brightRed
+import maestro.cli.view.cyan
+import maestro.cli.view.green
 import maestro.utils.HttpClient
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -360,9 +363,11 @@ class ApiClient(
                         ignoreCase = true
                     )
                 ) {
-                    println("\n\u001B[31;1m[ERROR]\u001B[0m Your trial has not started yet.")
-                    print("\u001B[34;1m[INPUT]\u001B[0m Please enter your company name to start the trial: ")
-
+                    Analytics.trackEvent(TrialStartPromptedEvent())
+                    PrintUtils.info("\n[ERROR] Your trial has not started yet".brightRed())
+                    PrintUtils.info("[INFO] Start your 7-day free trial with no credit card required!".green())
+                    PrintUtils.info("${"[INPUT]".cyan()} Please enter your company name to start the free trial: ")
+                    
                     val scanner = Scanner(System.`in`)
                     val companyName = scanner.nextLine().trim()
 
@@ -371,7 +376,7 @@ class ApiClient(
 
                         val isTrialStarted = startTrial(authToken, companyName);
                         if (isTrialStarted) {
-                            println("\u001B[32;1m[SUCCESS]\u001B[0m Trial successfully started. Enjoy your 7-day free trial!\n")
+                            println("\u001B[32;1m[SUCCESS]\u001B[0m Free trial successfully started! Enjoy your 7-day free trial!\n")
                             return upload(
                                 authToken = authToken,
                                 appFile = appFile,
@@ -400,7 +405,7 @@ class ApiClient(
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
                         }
                     } else {
-                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required for starting a trial.")
+                        println("\u001B[31;1m[ERROR]\u001B[0m Company name is required to start your free trial.")
                         // Track trial start failed event for empty company name
                         Analytics.trackEvent(TrialStartFailedEvent(
                             companyName = "",
@@ -426,7 +431,8 @@ class ApiClient(
         println("Starting your trial...")
         val url = "$baseUrl/v2/start-trial"
 
-        val jsonBody = """{ "companyName": "$companyName", "referralSource": "maestro-cli" }""".toRequestBody("application/json".toMediaType())
+        val request = StartTrialRequest(companyName, referralSource = "cli")
+        val jsonBody = JSON.writeValueAsString(request).toRequestBody("application/json".toMediaType())
         val trialRequest = Request.Builder()
             .header("Authorization", "Bearer $authToken")
             .url(url)
@@ -654,6 +660,68 @@ class ApiClient(
         }
     }
 
+    fun getOrgs(authToken: String): List<OrgResponse> {
+        val url = "$baseUrl/v2/maestro-studio/orgs"
+      
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                val orgs = JSON.readValue(responseBody, object : TypeReference<List<OrgResponse>>() {})
+                return orgs
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
+    fun switchOrg(authToken: String, orgId: String): String {
+        val url = "$baseUrl/v2/maestro-studio/org/switch"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .post(orgId.toRequestBody("text/plain".toMediaType()))
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(
+                    statusCode = response.code
+                )
+            }
+            val responseBody = response.body?.string()
+            try {
+                // The endpoint returns the API key directly as plain text
+                return responseBody ?: throw Exception("No API key in switch org response")
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     fun getProjects(authToken: String): List<ProjectResponse> {
         val url = "$baseUrl/v2/maestro-studio/projects"
 
@@ -728,7 +796,9 @@ data class UploadStatus(
     val completed: Boolean,
     val totalTime: Long?,
     val startTime: Long?,
-    val flows: List<FlowResult>
+    val flows: List<FlowResult>,
+    val appPackageId: String?,
+    val wasAppLaunched: Boolean
 ) {
 
     data class FlowResult(
@@ -780,22 +850,27 @@ data class RenderState(
 data class UserResponse(
   val id: String,
   val email: String,
-  val firstName: String,
-  val lastName: String,
+  val firstName: String?,
+  val lastName: String?,
   val status: String,
   val role: String,
   val workOSOrgId: String,
 ) {
   val name: String
-    get() = "$firstName $lastName"
+    get() = when {
+      !firstName.isNullOrBlank() && !lastName.isNullOrBlank() -> "$firstName $lastName"
+      !firstName.isNullOrBlank() -> firstName!!
+      !lastName.isNullOrBlank() -> lastName!!
+      else -> email
+    }
 }
 
 data class OrgResponse(
   val id: String,
   val name: String,
-  val quota: Map<String, Map<String, Number>>,
-  val metadata: Map<String, String>,
-  val workOSOrgId: String,
+  val quota: Map<String, Map<String, Number>>?,
+  val metadata: Map<String, String>?,
+  val workOSOrgId: String?,
 )
 
 data class ProjectResponse(
@@ -848,6 +923,11 @@ class SystemInformationInterceptor : Interceptor {
 data class Insight(
     val category: String,
     val reasoning: String,
+)
+
+data class StartTrialRequest(
+    val companyName: String,
+    val referralSource: String,
 )
 
 class AnalyzeResponse(

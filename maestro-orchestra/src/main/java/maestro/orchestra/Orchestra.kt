@@ -1074,7 +1074,8 @@ class Orchestra(
             maestro.setPermissions(command.appId, permissions)
 
         } catch (e: Exception) {
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+            logger.error("Failed to clear state", e)
+            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}", cause = e)
         }
 
         try {
@@ -1084,7 +1085,8 @@ class Orchestra(
                 stopIfRunning = command.stopApp ?: true
             )
         } catch (e: Exception) {
-            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}", e)
+            logger.error("Failed to launch app", e)
+            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}", cause = e)
         }
 
         return true
