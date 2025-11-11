@@ -58,6 +58,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
+import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
@@ -68,6 +69,7 @@ import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.nio.file.Path
+import java.time.LocalDate
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
@@ -400,9 +402,9 @@ class TestCommand : Callable<Int> {
         }
         message?.let { PrintUtils.info(it) }
 
-        // Show cloud promotion message if there are more than 5 tests
+        // Show cloud promotion message if there are more than 5 tests (at most once per day)
         if (flowCount > 5) {
-            showCloudFasterResultsPromotionMessage()
+            showCloudFasterResultsPromotionMessageIfNeeded()
         }
 
         val results = (0 until effectiveShards).map { shardIndex ->
@@ -424,7 +426,7 @@ class TestCommand : Callable<Int> {
 
         // Show cloud debug promotion message if there are failures
         if (passed != total) {
-            showCloudDebugPromotionMessage()
+            showCloudDebugPromotionMessageIfNeeded()
         }
 
         suites.mergeSummaries()?.saveReport()
@@ -656,15 +658,43 @@ class TestCommand : Callable<Int> {
         )
     }
 
-    private fun showCloudFasterResultsPromotionMessage() {
+    private fun showCloudFasterResultsPromotionMessageIfNeeded() {
+        val promotionStateManager = PromotionStateManager()
+        val today = LocalDate.now().toString()
+        
+        // Don't show if already shown today
+        if (promotionStateManager.getLastShownDate("fasterResults") == today) {
+            return
+        }
+        
+        // Don't show if user has used cloud command within last 3 days
+        if (promotionStateManager.wasCloudCommandUsedWithinDays(3)) {
+            return
+        }
+        
         val command = "maestro cloud app_file flows_folder/"
         val message = "Get results faster by ${"executing flows in parallel".cyan()} on Maestro Cloud virtual devices. Run: \n${command.green()}"
         PrintUtils.info(message.greenBox())
+        promotionStateManager.setLastShownDate("fasterResults", today)
     }
 
-    private fun showCloudDebugPromotionMessage() {
+    private fun showCloudDebugPromotionMessageIfNeeded() {
+        val promotionStateManager = PromotionStateManager()
+        val today = LocalDate.now().toString()
+
+        // Don't show if already shown today
+        if (promotionStateManager.getLastShownDate("debug") == today) {
+          return
+        }
+
+        // Don't show if user has used cloud command within last 3 days
+        if (promotionStateManager.wasCloudCommandUsedWithinDays(3)) {
+          return
+        }
+        
         val command = "maestro cloud app_file flows_folder/"
         val message = "Debug tests faster by easy access to ${"test recordings, maestro logs, screenshots, and more".cyan()}.\n\nRun your flows on Maestro Cloud:\n${command.green()}"
         PrintUtils.info(message.greenBox())
+        promotionStateManager.setLastShownDate("debug", today)
     }
 }
