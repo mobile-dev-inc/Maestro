@@ -1,6 +1,6 @@
 package maestro.utils
 
-import maestro.Platform
+import maestro.device.Platform
 
 open class LocaleValidationException(message: String): Exception(message)
 
