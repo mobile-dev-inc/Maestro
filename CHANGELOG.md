@@ -5,7 +5,7 @@
 ## 2.0.10
 
 - Fix error messaging when running with shards fails
-- Fixed getting all the right dependency when running or uploading flows
+- Improve gathering of dependencies when running single flows with `maestro cloud`
 
 ## 2.0.7
 
