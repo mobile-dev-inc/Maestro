@@ -130,42 +130,6 @@
         return traverse(document.body)
     }
 
-    maestro.diagnoseElementBounds = (selector) => {
-        // Diagnostic tool to check element bounds and visibility
-        const element = document.querySelector(selector);
-        if (!element) return { error: 'Element not found' };
-        
-        const rect = element.getBoundingClientRect();
-        const inViewport = (
-            rect.top >= 0 &&
-            rect.left >= 0 &&
-            rect.bottom <= window.innerHeight &&
-            rect.right <= window.innerWidth
-        );
-        
-        return {
-            selector: selector,
-            rect: {
-                x: rect.x,
-                y: rect.y,
-                width: rect.width,
-                height: rect.height,
-                top: rect.top,
-                left: rect.left,
-                bottom: rect.bottom,
-                right: rect.right
-            },
-            viewport: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                scrollY: window.scrollY,
-                scrollX: window.scrollX
-            },
-            inViewport: inViewport,
-            partiallyVisible: rect.bottom > 0 && rect.top < window.innerHeight
-        };
-    }
-
     maestro.queryCss = (selector) => {
         // Returns a list of matching elements for the given CSS selector.
         // Does not include children of discovered elements.
