@@ -47,6 +47,7 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
@@ -659,6 +660,11 @@ class TestCommand : Callable<Int> {
     }
 
     private fun showCloudFasterResultsPromotionMessageIfNeeded() {
+        // Don't show in CI environments
+        if (CiUtils.getCiProvider() != null) {
+            return
+        }
+        
         val promotionStateManager = PromotionStateManager()
         val today = LocalDate.now().toString()
         
@@ -679,6 +685,11 @@ class TestCommand : Callable<Int> {
     }
 
     private fun showCloudDebugPromotionMessageIfNeeded() {
+        // Don't show in CI environments
+        if (CiUtils.getCiProvider() != null) {
+            return
+        }
+        
         val promotionStateManager = PromotionStateManager()
         val today = LocalDate.now().toString()
 
