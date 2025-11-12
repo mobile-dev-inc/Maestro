@@ -182,19 +182,35 @@ class CdpWebDriver(
     }
 
     /**
-     * Calculates scroll distance in lines based on scroll duration (derived from speed parameter).
-     * Uses 8x multiplier for Flutter web to achieve smooth, fast scrolling.
+     * Calculates scroll distance in pixels based on scroll duration (derived from speed parameter).
      * 
      * @param durationMs Scroll duration in milliseconds (lower = faster)
-     * @return Number of lines to scroll
+     * @return Number of pixels to scroll
      */
-    private fun calculateScrollLines(durationMs: Long): Int {
+    private fun calculateScrollPixels(durationMs: Long): Int {
         return when {
-            durationMs < 100 -> 120  // Very fast (8x from 15)
-            durationMs < 300 -> 80   // Fast (8x from 10)
-            durationMs < 600 -> 40   // Medium/default (8x from 5)
-            durationMs < 900 -> 16   // Slow (8x from 2)
-            else -> 8                // Very slow/precise (8x from 1)
+            durationMs < 100 -> 3000  // Very fast
+            durationMs < 300 -> 2000  // Fast
+            durationMs < 600 -> 1000  // Medium/default
+            durationMs < 900 -> 400   // Slow
+            else -> 200               // Very slow/precise
+        }
+    }
+
+    /**
+     * Calculates animation duration for smooth scrolling.
+     * Faster speeds = shorter animation for quicker scrolling.
+     * 
+     * @param durationMs Scroll duration in milliseconds
+     * @return Animation duration in milliseconds
+     */
+    private fun calculateAnimationDuration(durationMs: Long): Int {
+        return when {
+            durationMs < 100 -> 300   // Very fast - quick animation
+            durationMs < 300 -> 400   // Fast
+            durationMs < 600 -> 500   // Medium/default
+            durationMs < 900 -> 600   // Slow - longer animation
+            else -> 700               // Very slow - smooth, long animation
         }
     }
 
@@ -404,10 +420,9 @@ class CdpWebDriver(
         val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
         
         if (isFlutter) {
-            // Use Flutter-specific wheel event scrolling
-            // deltaY: 5 lines down (positive = down, negative = up)
-            // deltaMode: 1 (LINE mode - natural scrolling like mouse wheel)
-            executeJS("window.maestro.scrollFlutter(5, 1)")
+            // Use Flutter-specific smooth animated scrolling
+            executeJS("window.maestro.smoothScrollFlutter(500, 500)")
+            sleep(700L) // Wait for animation + Flutter DOM update
         } else {
             // Use standard scroll for regular web pages
             scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
@@ -448,11 +463,18 @@ class CdpWebDriver(
         val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
         
         if (isFlutter) {
-            // Flutter web: Use wheel events with speed-based scroll distance
-            val scrollLines = calculateScrollLines(durationMs)
+            // Flutter web: Use smooth animated scrolling with easing
+            val scrollPixels = calculateScrollPixels(durationMs)
+            val animationDuration = calculateAnimationDuration(durationMs)
             when (swipeDirection) {
-                SwipeDirection.UP -> executeJS("window.maestro.scrollFlutter($scrollLines, 1)")
-                SwipeDirection.DOWN -> executeJS("window.maestro.scrollFlutter(-$scrollLines, 1)")
+                SwipeDirection.UP -> {
+                    executeJS("window.maestro.smoothScrollFlutter($scrollPixels, $animationDuration)")
+                    sleep(animationDuration.toLong() + 200) // Wait for animation + Flutter DOM update
+                }
+                SwipeDirection.DOWN -> {
+                    executeJS("window.maestro.smoothScrollFlutter(-$scrollPixels, $animationDuration)")
+                    sleep(animationDuration.toLong() + 200) // Wait for animation + Flutter DOM update
+                }
                 SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
                 SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
             }
