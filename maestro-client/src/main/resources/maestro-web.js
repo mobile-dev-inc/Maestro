@@ -58,9 +58,6 @@
             return getSyntheticNodeBounds(node);
         }
 
-        // Force layout recalculation for accurate bounds
-        node.offsetHeight; // Trigger reflow
-        
         const rect = node.getBoundingClientRect()
         const vpx = maestro.viewportX;
         const vpy = maestro.viewportY;
@@ -270,61 +267,4 @@
             requestAnimationFrame(animate);
         });
     };
-
-    maestro.scrollFlutter = (deltaY, deltaMode) => {
-        // Legacy scroll function - kept for backward compatibility
-        // deltaMode: 0=pixel, 1=line (default), 2=page
-        if (typeof deltaMode === 'undefined') deltaMode = 1;
-        
-        // Find Flutter root element
-        const target = document.querySelector('flutter-view') || 
-                      document.querySelector('flt-glass-pane');
-        
-        if (!target) {
-            console.error('[Maestro] Flutter root element not found!');
-            throw new Error('Flutter root element not found');
-        }
-        
-        // Calculate center of viewport
-        const x = window.innerWidth / 2;
-        const y = window.innerHeight / 2;
-        
-        // Dispatch the required event sequence for Flutter
-        // 1. Mouseover event
-        const mouseoverEvent = new MouseEvent('mouseover', {
-            clientX: x,
-            clientY: y,
-            bubbles: true
-        });
-        const mouseoverDispatched = target.dispatchEvent(mouseoverEvent);
-        
-        // 2. Mousemove event
-        const mousemoveEvent = new MouseEvent('mousemove', {
-            clientX: x,
-            clientY: y,
-            bubbles: true
-        });
-        const mousemoveDispatched = target.dispatchEvent(mousemoveEvent);
-        
-        // 3. Wheel event (triggers scroll)
-        const wheelEvent = new WheelEvent('wheel', {
-            deltaY: deltaY,
-            deltaMode: deltaMode,
-            clientX: x,
-            clientY: y,
-            bubbles: true,
-            cancelable: true
-        });
-        const wheelDispatched = target.dispatchEvent(wheelEvent);
-        
-        return {
-            success: true,
-            target: target.tagName,
-            events: {
-                mouseover: mouseoverDispatched,
-                mousemove: mousemoveDispatched,
-                wheel: wheelDispatched
-            }
-        };
-    }
 }( window.maestro = window.maestro || {} ));
