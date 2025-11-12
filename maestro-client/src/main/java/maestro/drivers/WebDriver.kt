@@ -131,6 +131,23 @@ class WebDriver(
         return Random().nextInt((end + 1) - start) + start
     }
 
+    /**
+     * Calculates scroll distance in lines based on scroll duration (derived from speed parameter).
+     * Uses 8x multiplier for Flutter web to achieve smooth, fast scrolling.
+     * 
+     * @param durationMs Scroll duration in milliseconds (lower = faster)
+     * @return Number of lines to scroll
+     */
+    private fun calculateScrollLines(durationMs: Long): Int {
+        return when {
+            durationMs < 100 -> 120  // Very fast (8x from 15)
+            durationMs < 300 -> 80   // Fast (8x from 10)
+            durationMs < 600 -> 40   // Medium/default (8x from 5)
+            durationMs < 900 -> 16   // Slow (8x from 2)
+            else -> 8                // Very slow/precise (8x from 1)
+        }
+    }
+
     override fun close() {
         injectedArguments = emptyMap()
 
@@ -339,7 +356,18 @@ class WebDriver(
     }
 
     override fun scrollVertical() {
-        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        // Check if this is a Flutter web app
+        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Use Flutter-specific wheel event scrolling
+            // deltaY: 5 lines down (positive = down, negative = up)
+            // deltaMode: 1 (LINE mode - natural scrolling like mouse wheel)
+            executeJS("window.maestro.scrollFlutter(5, 1)")
+        } else {
+            // Use standard scroll for regular web pages
+            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -373,11 +401,25 @@ class WebDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        when (swipeDirection) {
-            SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-            SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Use wheel events with speed-based scroll distance
+            val scrollLines = calculateScrollLines(durationMs)
+            when (swipeDirection) {
+                SwipeDirection.UP -> executeJS("window.maestro.scrollFlutter($scrollLines, 1)")
+                SwipeDirection.DOWN -> executeJS("window.maestro.scrollFlutter(-$scrollLines, 1)")
+                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+            }
+        } else {
+            // HTML web: Use standard window scrolling
+            when (swipeDirection) {
+                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+            }
         }
     }
 
