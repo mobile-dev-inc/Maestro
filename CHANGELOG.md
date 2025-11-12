@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.0.10
+
+- Fixed sharding information
+- Fixed getting all the right dependency when running or uploading flows
+
 ## 2.0.7
 
 ### Fix
