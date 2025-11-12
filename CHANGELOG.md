@@ -4,7 +4,7 @@
 
 ## 2.0.10
 
-- Fixed sharding information
+- Fix error messaging when running with shards fails
 - Fixed getting all the right dependency when running or uploading flows
 
 ## 2.0.7
