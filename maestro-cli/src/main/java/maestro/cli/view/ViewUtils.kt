@@ -39,6 +39,14 @@ fun String.faint(): String {
 }
 
 fun String.box(): String {
+    return boxWithColor { it.magenta() }
+}
+
+fun String.greenBox(): String {
+    return boxWithColor { it.green() }
+}
+
+private fun String.boxWithColor(colorize: (String) -> String): String {
     val lines = this.lines()
 
     val messageWidth = lines.map { it.replace(Regex("\u001B\\[[\\d;]*[^\\d;]"),"") }.maxOf { it.length }
@@ -46,12 +54,12 @@ fun String.box(): String {
     val paddingY = 1
     val width = messageWidth + paddingX * 2
 
-    val tl = "╭".magenta()
-    val tr = "╮".magenta()
-    val bl = "╰".magenta()
-    val br = "╯".magenta()
-    val hl = "─".magenta()
-    val vl = "│".magenta()
+    val tl = colorize("╭")
+    val tr = colorize("╮")
+    val bl = colorize("╰")
+    val br = colorize("╯")
+    val hl = colorize("─")
+    val vl = colorize("│")
 
     val py = "$vl${" ".repeat(width)}$vl\n".repeat(paddingY)
     val px = " ".repeat(paddingX)
