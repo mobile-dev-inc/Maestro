@@ -243,13 +243,6 @@
         
         const isFlutter = !!(flutterView || glassPane || fltRenderer);
         
-        console.log('[Maestro] Flutter detection:', {
-            isFlutter: isFlutter,
-            hasFlutterView: !!flutterView,
-            hasGlassPane: !!glassPane,
-            hasFltRenderer: !!fltRenderer
-        });
-        
         return isFlutter;
     }
 
@@ -319,28 +312,18 @@
         // deltaMode: 0=pixel, 1=line (default), 2=page
         if (typeof deltaMode === 'undefined') deltaMode = 1;
         
-        console.log('[Maestro] scrollFlutter called:', { deltaY, deltaMode });
-        
         // Find Flutter root element
         const target = document.querySelector('flutter-view') || 
                       document.querySelector('flt-glass-pane');
         
         if (!target) {
             console.error('[Maestro] Flutter root element not found!');
-            console.log('[Maestro] Available elements:', {
-                body: !!document.body,
-                allElements: document.querySelectorAll('*').length
-            });
             throw new Error('Flutter root element not found');
         }
-        
-        console.log('[Maestro] Target element found:', target.tagName);
         
         // Calculate center of viewport
         const x = window.innerWidth / 2;
         const y = window.innerHeight / 2;
-        
-        console.log('[Maestro] Viewport center:', { x, y, width: window.innerWidth, height: window.innerHeight });
         
         // Dispatch the required event sequence for Flutter
         // 1. Mouseover event
@@ -350,7 +333,6 @@
             bubbles: true
         });
         const mouseoverDispatched = target.dispatchEvent(mouseoverEvent);
-        console.log('[Maestro] Mouseover event dispatched:', mouseoverDispatched);
         
         // 2. Mousemove event
         const mousemoveEvent = new MouseEvent('mousemove', {
@@ -359,7 +341,6 @@
             bubbles: true
         });
         const mousemoveDispatched = target.dispatchEvent(mousemoveEvent);
-        console.log('[Maestro] Mousemove event dispatched:', mousemoveDispatched);
         
         // 3. Wheel event (triggers scroll)
         const wheelEvent = new WheelEvent('wheel', {
@@ -371,15 +352,6 @@
             cancelable: true
         });
         const wheelDispatched = target.dispatchEvent(wheelEvent);
-        console.log('[Maestro] Wheel event dispatched:', wheelDispatched);
-        console.log('[Maestro] Wheel event details:', {
-            deltaY: wheelEvent.deltaY,
-            deltaMode: wheelEvent.deltaMode,
-            clientX: wheelEvent.clientX,
-            clientY: wheelEvent.clientY,
-            bubbles: wheelEvent.bubbles,
-            cancelable: wheelEvent.cancelable
-        });
         
         return {
             success: true,
