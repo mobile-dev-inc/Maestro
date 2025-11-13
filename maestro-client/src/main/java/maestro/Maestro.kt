@@ -578,7 +578,7 @@ class Maestro(
     fun sleep(time: Long?) {
         val time = time ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Sleep for $time ms")
-        Thread.sleep(time)
+        MaestroTimer.sleep(MaestroTimer.Reason.COMMAND_SLEEP, time)
     }
 
     fun setProxy(

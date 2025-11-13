@@ -50,6 +50,7 @@ object MaestroTimer {
         WAIT_UNTIL_VISIBLE,
         WAIT_TO_SETTLE,
         BUFFER,
+        COMMAND_SLEEP,
     }
 
 }
