@@ -1,0 +1,5 @@
+appId: com.example
+---
+- evalScript: ${output.subflowExecuted = false}
+- runFlow: '~sf/subflow.yaml'
+- assertTrue: ${output.subflowExecuted}
