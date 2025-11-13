@@ -492,11 +492,16 @@ class TestCommand : Callable<Int> {
         }
     }
 
-    private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) 7001
+    private fun selectPort(effectiveShards: Int): Int {
+        // If user specified driver host port via CLI, use it
+        parent?.driverHostPort?.let { return it }
+
+        // Otherwise use default behavior
+        return if (effectiveShards == 1) 7001
         else (7001..7128).shuffled().find { port ->
             usedPorts.putIfAbsent(port, true) == null
         } ?: error("No available ports found")
+    }
 
     private fun runSingleFlow(
         maestro: Maestro,
