@@ -1,0 +1,22 @@
+appId: com.example.app
+jsEngine: rhinojs
+---
+- inputRandomPersonName
+- inputText: ${maestro.randomText}
+
+- inputRandomEmail
+- inputText: ${maestro.randomText}
+
+- inputRandomNumber
+- inputText: ${maestro.randomText}
+
+- inputRandomText
+- inputText: ${maestro.randomText}
+
+- inputRandomNumber:
+    length: 5
+- inputText: ${maestro.randomText}
+
+- inputRandomText:
+    length: 5
+- inputText: ${maestro.randomText}

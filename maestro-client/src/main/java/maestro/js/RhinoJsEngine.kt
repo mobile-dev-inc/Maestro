@@ -81,6 +81,10 @@ class RhinoJsEngine(
         evaluateScript("maestro.copiedText = '${Js.sanitizeJs(text ?: "")}'")
     }
 
+    override fun setRandomText(text: String?) {
+        evaluateScript("maestro.randomText = '${Js.sanitizeJs(text ?: "")}'")
+    }
+
     override fun putEnv(key: String, value: String) {
         val cleanValue = Js.sanitizeJs(value)
         evaluateScript("var $key = '$cleanValue'")
