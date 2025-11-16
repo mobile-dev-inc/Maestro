@@ -168,7 +168,7 @@ object LocalSimulatorUtils {
     }
 
     fun terminate(deviceId: String, bundleId: String) {
-        // Ignore error return: terminate will fail if the app is not running
+        // Ignore error return: terminate will fail if the app is not running or simulator is shutdown
         logger.info("[Start] Terminating app $bundleId")
         runCatching {
             runCommand(
@@ -180,10 +180,16 @@ object LocalSimulatorUtils {
                     bundleId
                 )
             )
-        }.onFailure {
-            if (it.message?.contains("found nothing to terminate") == false) {
-                logger.info("The bundle $bundleId is already terminated")
-                throw it
+        }.onFailure { error ->
+            val isExpectedError = error.message?.let { msg ->
+                msg.contains("found nothing to terminate") ||
+                msg.contains("Unable to lookup in current state: Shutdown")
+            } ?: false
+
+            if (!isExpectedError) {
+                throw error
+            } else {
+                logger.info("Ignoring expected termination error: ${error.message}")
             }
         }
         logger.info("[Done] Terminating app $bundleId")
