@@ -55,6 +55,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import maestro.unicode.UnicodeDetector
+import maestro.unicode.UnicodeInputHandler
+import maestro.unicode.config.UnicodeConfig
 
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
@@ -71,6 +77,11 @@ class AndroidDriver(
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
+    
+    // Unicode input handler for non-ASCII text
+    private val unicodeInputHandler by lazy { 
+        UnicodeInputHandler(dadb, CoroutineScope(Dispatchers.IO))
+    }
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
@@ -568,10 +579,33 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            runDeviceCall {
-                blockingStubWithTimeout.inputText(inputTextRequest {
-                    this.text = text
-                }) ?: throw IllegalStateException("Input Response can't be null")
+            // Check if text contains Unicode characters
+            val isAsciiOnly = UnicodeDetector.isAsciiOnly(text)
+            val unicodeEnabled = UnicodeConfig.isEnabled
+            
+            if (!isAsciiOnly && unicodeEnabled) {
+                // Use Unicode input handler for non-ASCII text
+                try {
+                    runBlocking {
+                        unicodeInputHandler.ensureReady()
+                        unicodeInputHandler.inputTextSync(text)
+                    }
+                } catch (e: Exception) {
+                    logger.warn("Unicode input failed, falling back to standard input", e)
+                    // Fall back to standard input
+                    runDeviceCall {
+                        blockingStubWithTimeout.inputText(inputTextRequest {
+                            this.text = text
+                        }) ?: throw IllegalStateException("Input Response can't be null")
+                    }
+                }
+            } else {
+                // Use standard input for ASCII text or when Unicode is disabled
+                runDeviceCall {
+                    blockingStubWithTimeout.inputText(inputTextRequest {
+                        this.text = text
+                    }) ?: throw IllegalStateException("Input Response can't be null")
+                }
             }
         }
     }
@@ -734,7 +768,7 @@ class AndroidDriver(
     }
 
     override fun isUnicodeInputSupported(): Boolean {
-        return false
+        return UnicodeConfig.isEnabled
     }
 
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
