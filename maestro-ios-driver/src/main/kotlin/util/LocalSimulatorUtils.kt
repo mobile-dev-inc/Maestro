@@ -394,15 +394,31 @@ object LocalSimulatorUtils {
     }
 
     fun uninstall(deviceId: String, bundleId: String) {
-        runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "uninstall",
-                deviceId,
-                bundleId
+        // Ignore error return: uninstall will fail if the app is not installed or simulator is shutdown
+        logger.info("[Start] Uninstalling app $bundleId")
+        runCatching {
+            runCommand(
+                listOf(
+                    "xcrun",
+                    "simctl",
+                    "uninstall",
+                    deviceId,
+                    bundleId
+                )
             )
-        )
+        }.onFailure { error ->
+            val isExpectedError = error.message?.let { msg ->
+                msg.contains("No devices are booted") ||
+                msg.contains("Unable to lookup in current state: Shutdown")
+            } ?: false
+
+            if (!isExpectedError) {
+                throw error
+            } else {
+                logger.info("Ignoring expected uninstall error: ${error.message}")
+            }
+        }
+        logger.info("[Done] Uninstalling app $bundleId")
     }
 
     fun addMedia(deviceId: String, path: String) {
