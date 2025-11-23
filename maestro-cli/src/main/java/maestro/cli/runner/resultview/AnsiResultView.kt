@@ -32,7 +32,7 @@ import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 
 class AnsiResultView(
     private val prompt: String? = null,

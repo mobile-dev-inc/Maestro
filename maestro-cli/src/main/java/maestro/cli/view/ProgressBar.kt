@@ -1,7 +1,7 @@
 package maestro.cli.view
 
 import maestro.cli.DisableAnsiMixin
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 
 class ProgressBar(private val width: Int) {
 
