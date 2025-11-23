@@ -117,12 +117,8 @@ class AnsiResultView(
         renderLineStart(indent)
         render(statusSymbol)
         render(" ".repeat(2))
-        render(
-            commandState.command.description()
-                .replace("(?<!\\\\)\\\$\\{.*}".toRegex()) { match ->
-                    "@|cyan ${match.value}|@"
-                }
-        )
+
+        renderCommandDescriptionSafely(commandState.command.description())
 
         if (commandState.status == CommandStatus.SKIPPED) {
             render(" (skipped)")
@@ -171,6 +167,32 @@ class AnsiResultView(
                 render(" ║\n")
                 renderCommands(it)
             }
+        }
+    }
+
+    private fun Ansi.renderCommandDescriptionSafely(description: String) {
+        val regex = "(?<!\\\\)\\\$\\{.*?}".toRegex()
+
+        var lastIndex = 0
+        regex.findAll(description).forEach { match ->
+            // Literal text before the match (safe)
+            val literalSegment = description.substring(lastIndex, match.range.first)
+            print(a(literalSegment).toString())
+
+            // Highlighted match (safe ANSI, no markup parsing)
+            print(
+                fgCyan()          // color ON
+                    .a(match.value)
+                    .reset()       // color OFF
+                    .toString()
+            )
+
+            lastIndex = match.range.last + 1
+        }
+
+        // Final literal tail
+        if (lastIndex < description.length) {
+            print(a(description.substring(lastIndex)).toString())
         }
     }
 
