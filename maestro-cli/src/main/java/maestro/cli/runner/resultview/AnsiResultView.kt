@@ -182,7 +182,7 @@ class AnsiResultView(
         commandState.logMessages.forEach {
             renderLineStart(indent + 2)
             render("   ")   // Space that a status symbol would normally occupy
-            render(it)
+            print(fgYellow().a(it).reset().toString()) // Carefully deal with potential for Jansi markdown in the log line
             render("\n")
         }
     }
