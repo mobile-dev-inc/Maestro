@@ -2,6 +2,8 @@ package maestro.cli.report
 
 import kotlinx.html.*
 import kotlinx.html.stream.appendHTML
+import maestro.LogEntry
+import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
@@ -112,9 +114,50 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                         +flow.failure.message
                                                     }
                                                 }
+                                                // Add logs section if logs are present
+                                                if (flow.logs.isNotEmpty()) {
+                                                    h6(classes = "mt-3") { +"Console Logs (${flow.logs.size} entries)" }
+                                                    div(classes = "log-container") {
+                                                        flow.logs.take(100).forEach { log ->
+                                                            renderLogEntry(log)
+                                                        }
+                                                        if (flow.logs.size > 100) {
+                                                            p(classes = "text-muted mt-2") {
+                                                                +"Showing first 100 of ${flow.logs.size} log entries"
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
+                                }
+                            }
+                            // Add basic log styling
+                            style {
+                                unsafe {
+                                    +"""
+                                    .log-container {
+                                        background: #1e1e1e;
+                                        color: #d4d4d4;
+                                        padding: 10px;
+                                        border-radius: 4px;
+                                        max-height: 400px;
+                                        overflow-y: auto;
+                                        font-family: 'Courier New', monospace;
+                                        font-size: 12px;
+                                    }
+                                    .log-entry {
+                                        padding: 2px 0;
+                                        white-space: pre-wrap;
+                                        word-wrap: break-word;
+                                    }
+                                    .log-error { color: #f48771; }
+                                    .log-warn { color: #dcdcaa; }
+                                    .log-info { color: #4ec9b0; }
+                                    .log-debug { color: #569cd6; }
+                                    .log-verbose { color: #858585; }
+                                    """.trimIndent()
                                 }
                             }
                             script(
@@ -125,6 +168,12 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                     }
                 }
             }
+        }
+    }
+
+    private fun DIV.renderLogEntry(log: LogEntry) {
+        div(classes = "log-entry log-${log.level.name.lowercase()}") {
+            +"${log.timestamp} ${log.level.name.padEnd(7)} ${log.tag}: ${log.message}"
         }
     }
 }
