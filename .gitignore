@@ -16,3 +16,4 @@ maestro-orchestra/src/test/resources/media/assets/*
 
 # Local files
 local/
+e2e/google-cloud-sdk
