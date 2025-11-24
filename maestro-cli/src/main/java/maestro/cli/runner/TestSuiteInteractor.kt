@@ -46,6 +46,7 @@ class TestSuiteInteractor(
     private val shardIndex: Int? = null,
     private val captureLog: Boolean = false,
     private val logBufferSize: Int = 5000,
+    private val logLevels: Set<maestro.LogLevel>? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -303,8 +304,18 @@ class TestSuiteInteractor(
         // Stop log capture and collect logs
         val capturedLogs = logCapture?.let {
             try {
-                val logs = it.stop()
-                logger.info("${shardPrefix}Captured ${logs.size} log entries")
+                val allLogs = it.stop()
+                logger.info("${shardPrefix}Captured ${allLogs.size} log entries")
+
+                // Filter by log level if specified
+                val logs = if (logLevels != null) {
+                    allLogs.filter { log -> logLevels.contains(log.level) }
+                        .also { filtered ->
+                            logger.info("${shardPrefix}Filtered to ${filtered.size} entries (levels: ${logLevels.joinToString()})")
+                        }
+                } else {
+                    allLogs
+                }
 
                 // Correlate logs with commands - split proportionally by duration
                 if (logs.isNotEmpty()) {

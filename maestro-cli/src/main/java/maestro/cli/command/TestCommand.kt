@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import maestro.LogLevel
 import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
@@ -586,13 +587,16 @@ class TestCommand : Callable<Int> {
             deviceCount = chunkPlans.size
         ))
 
+        val logLevels = parseLogLevels(includeLogs)
+
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
-            captureLog = includeLogs != null,
+            captureLog = logLevels != null,
             logBufferSize = logBufferSize,
+            logLevels = logLevels,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -678,6 +682,27 @@ class TestCommand : Callable<Int> {
             passedCount = sumOf { it.passedCount ?: 0 },
             totalTests = sumOf { it.totalTests ?: 0 }
         )
+    }
+
+    private fun parseLogLevels(includeLogsValue: String?): Set<LogLevel>? {
+        return when {
+            includeLogsValue == null -> null  // Not enabled
+            includeLogsValue.isEmpty() -> LogLevel.values().toSet()  // All levels
+            else -> {
+                includeLogsValue.split(",")
+                    .map { it.trim().uppercase() }
+                    .mapNotNull {
+                        try {
+                            LogLevel.valueOf(it)
+                        } catch (e: Exception) {
+                            PrintUtils.warn("Unknown log level: $it. Valid levels: ${LogLevel.values().joinToString()}")
+                            null
+                        }
+                    }
+                    .toSet()
+                    .ifEmpty { LogLevel.values().toSet() }  // Fallback to all if parsing failed
+            }
+        }
     }
 
     private fun showCloudFasterResultsPromotionMessageIfNeeded() {
