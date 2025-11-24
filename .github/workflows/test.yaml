@@ -55,12 +55,21 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
-      - name: Upload test report
+      - name: Upload unit test report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: maestro-test-report
+          name: maestro-unit-test-report
           path: ./maestro-test/build/reports
+          retention-days: 1
+          include-hidden-files: true
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-integration-test-report
+          path: ./maestro-cli/build/reports
           retention-days: 1
           include-hidden-files: true
 
