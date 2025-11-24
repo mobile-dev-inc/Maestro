@@ -117,13 +117,36 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                 // Add logs section if logs are present
                                                 if (flow.logs.isNotEmpty()) {
                                                     h6(classes = "mt-3") { +"Console Logs (${flow.logs.size} entries)" }
-                                                    div(classes = "log-container") {
-                                                        flow.logs.take(100).forEach { log ->
-                                                            renderLogEntry(log)
+
+                                                    // Show logs grouped by command if available
+                                                    if (flow.commandLogs.isNotEmpty()) {
+                                                        flow.commandLogs.forEach { (commandDesc, logs) ->
+                                                            if (logs.isNotEmpty()) {
+                                                                div(classes = "command-separator") {
+                                                                    h6(classes = "command-title") {
+                                                                        +"▸ $commandDesc"
+                                                                        span(classes = "badge bg-secondary ms-2") {
+                                                                            +"${logs.size} logs"
+                                                                        }
+                                                                    }
+                                                                    div(classes = "log-container") {
+                                                                        logs.forEach { log ->
+                                                                            renderLogEntry(log)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
                                                         }
-                                                        if (flow.logs.size > 100) {
-                                                            p(classes = "text-muted mt-2") {
-                                                                +"Showing first 100 of ${flow.logs.size} log entries"
+                                                    } else {
+                                                        // Fallback: show all logs without grouping
+                                                        div(classes = "log-container") {
+                                                            flow.logs.take(100).forEach { log ->
+                                                                renderLogEntry(log)
+                                                            }
+                                                            if (flow.logs.size > 100) {
+                                                                p(classes = "text-muted mt-2") {
+                                                                    +"Showing first 100 of ${flow.logs.size} log entries"
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -146,6 +169,24 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                         overflow-y: auto;
                                         font-family: 'Courier New', monospace;
                                         font-size: 12px;
+                                    }
+                                    .command-separator {
+                                        margin-bottom: 20px;
+                                        border-left: 4px solid #007bff;
+                                        padding-left: 10px;
+                                    }
+                                    .command-title {
+                                        color: #007bff;
+                                        font-size: 14px;
+                                        font-weight: 600;
+                                        margin-bottom: 8px;
+                                        padding: 8px;
+                                        background: #2d2d30;
+                                        border-radius: 4px;
+                                    }
+                                    .command-separator .log-container {
+                                        margin-top: 0;
+                                        max-height: 300px;
                                     }
                                     .log-entry {
                                         padding: 2px 0;
