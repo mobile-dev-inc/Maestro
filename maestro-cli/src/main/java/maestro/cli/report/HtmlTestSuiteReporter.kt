@@ -121,18 +121,16 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                     // Show logs grouped by command if available
                                                     if (flow.commandLogs.isNotEmpty()) {
                                                         flow.commandLogs.forEach { (commandDesc, logs) ->
-                                                            if (logs.isNotEmpty()) {
-                                                                div(classes = "command-separator") {
-                                                                    h6(classes = "command-title") {
-                                                                        +"▸ $commandDesc"
-                                                                        span(classes = "badge bg-secondary ms-2") {
-                                                                            +"${logs.size} logs"
-                                                                        }
+                                                            div(classes = "command-separator") {
+                                                                h6(classes = "command-title") {
+                                                                    +"▸ $commandDesc"
+                                                                    span(classes = "badge bg-secondary ms-2") {
+                                                                        +"${logs.size} logs"
                                                                     }
-                                                                    div(classes = "log-container") {
-                                                                        logs.forEach { log ->
-                                                                            renderLogEntry(log)
-                                                                        }
+                                                                }
+                                                                div(classes = "log-container") {
+                                                                    logs.forEach { log ->
+                                                                        renderLogEntry(log)
                                                                     }
                                                                 }
                                                             }

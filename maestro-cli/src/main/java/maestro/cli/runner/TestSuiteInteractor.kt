@@ -311,13 +311,13 @@ class TestSuiteInteractor(
                     debugOutput.commands.entries
                         .sortedBy { it.value.timestamp }
                         .forEachIndexed { index, (command, metadata) ->
-                            val commandStartTime = metadata.timestamp
-                            val commandEndTime = commandStartTime + (metadata.duration ?: 0)
+                            val commandStartTime = metadata.timestamp ?: return@forEachIndexed
+                            val commandEndTime = commandStartTime + (metadata.duration ?: 0L)
 
                             // Find logs that occurred during this command
                             val logsForCommand = logs.filter { log ->
                                 try {
-                                    val logTime = parseLogTimestamp(log.timestamp)
+                                    val logTime = parseLogTimestamp(log.timestamp) ?: return@filter false
                                     logTime >= commandStartTime && logTime <= commandEndTime
                                 } catch (e: Exception) {
                                     false
@@ -375,20 +375,20 @@ class TestSuiteInteractor(
         )
     }
 
-    private fun parseLogTimestamp(timestamp: String): Long {
+    private fun parseLogTimestamp(timestamp: String): Long? {
         // Parse "MM-DD HH:MM:SS.mmm" format to milliseconds
         try {
             val parts = timestamp.split(" ")
-            if (parts.size < 2) return 0
+            if (parts.size < 2) return null
 
             val timePart = parts[1]  // "HH:MM:SS.mmm"
             val timeComponents = timePart.split(":")
-            if (timeComponents.size < 3) return 0
+            if (timeComponents.size < 3) return null
 
-            val hour = timeComponents[0].toIntOrNull() ?: return 0
-            val minute = timeComponents[1].toIntOrNull() ?: return 0
+            val hour = timeComponents[0].toIntOrNull() ?: return null
+            val minute = timeComponents[1].toIntOrNull() ?: return null
             val secondAndMillis = timeComponents[2].split(".")
-            val second = secondAndMillis[0].toIntOrNull() ?: return 0
+            val second = secondAndMillis[0].toIntOrNull() ?: return null
             val millis = secondAndMillis.getOrNull(1)?.toIntOrNull() ?: 0
 
             val calendar = java.util.Calendar.getInstance()
@@ -400,7 +400,7 @@ class TestSuiteInteractor(
             return calendar.timeInMillis
         } catch (e: Exception) {
             logger.debug("Failed to parse log timestamp: $timestamp", e)
-            return 0
+            return null
         }
     }
 
