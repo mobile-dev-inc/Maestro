@@ -12,6 +12,7 @@ import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.report.TestSuiteReporter
+import maestro.cli.util.LogCapture
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
@@ -43,6 +44,8 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    private val captureLog: Boolean = false,
+    private val logBufferSize: Int = 5000,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -176,6 +179,18 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
+        // Start log capture if enabled
+        val logCapture = if (captureLog) {
+            LogCapture(deviceId = device?.instanceId, bufferSize = logBufferSize).apply {
+                try {
+                    start()
+                    logger.info("${shardPrefix}Started log capture")
+                } catch (e: Exception) {
+                    logger.warn("${shardPrefix}Failed to start log capture: ${e.message}")
+                }
+            }
+        } else null
+
         val flowTimeMillis = measureTimeMillis {
             try {
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
@@ -249,6 +264,18 @@ class TestSuiteInteractor(
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
 
+        // Stop log capture and collect logs
+        val capturedLogs = logCapture?.let {
+            try {
+                val logs = it.stop()
+                logger.info("${shardPrefix}Captured ${logs.size} log entries")
+                logs
+            } catch (e: Exception) {
+                logger.warn("${shardPrefix}Failed to stop log capture: ${e.message}")
+                emptyList()
+            }
+        } ?: emptyList()
+
         TestDebugReporter.saveFlow(
             flowName = flowName,
             debugOutput = debugOutput,
@@ -278,6 +305,7 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                logs = capturedLogs,
             ),
             second = aiOutput,
         )
