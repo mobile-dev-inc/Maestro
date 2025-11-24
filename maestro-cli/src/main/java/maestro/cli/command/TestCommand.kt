@@ -214,14 +214,12 @@ class TestCommand : Callable<Int> {
         names = ["--include-logs"],
         description = [
             "Include console logs in the test summary report. " +
-            "Can specify log levels: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE. " +
-            "Use --include-logs without value to include all levels. " +
-            "Logs are automatically included for failed tests."
+            "Specify log levels with =: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE. " +
+            "Use --include-logs or --include-logs= for all levels."
         ],
-        arity = "0..1",
-        fallbackValue = ""
+        paramLabel = "LEVELS"
     )
-    private var includeLogs: String? = null
+    private var includeLogs: String = ""
 
     @Option(
         names = ["--log-buffer-size"],
@@ -247,7 +245,7 @@ class TestCommand : Callable<Int> {
   
     override fun call(): Int {
         // Auto-enable HTML format if --include-logs is specified
-        if (includeLogs != null && format == ReportFormat.NOOP) {
+        if (includeLogs.isNotEmpty() && format == ReportFormat.NOOP) {
             format = ReportFormat.HTML
             if (output == null) {
                 output = File("maestro-report.html")
@@ -693,10 +691,9 @@ class TestCommand : Callable<Int> {
         )
     }
 
-    private fun parseLogLevels(includeLogsValue: String?): Set<LogLevel>? {
+    private fun parseLogLevels(includeLogsValue: String): Set<LogLevel>? {
         return when {
-            includeLogsValue == null -> null  // Not enabled
-            includeLogsValue.isEmpty() -> LogLevel.values().toSet()  // All levels
+            includeLogsValue.isEmpty() -> LogLevel.values().toSet()  // All levels (--include-logs or --include-logs=)
             else -> {
                 includeLogsValue.split(",")
                     .map { it.trim().uppercase() }
