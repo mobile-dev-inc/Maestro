@@ -116,8 +116,13 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                 if (flow.commandLogs.isNotEmpty()) {
                                                     h6(classes = "mt-2 mb-3") { +"Test Steps (${flow.commandLogs.size})" }
 
-                                                    flow.commandLogs.entries.forEachIndexed { idx, (commandDesc, logs) ->
+                                                    flow.commandLogs.entries.forEachIndexed { idx, (commandKey, logs) ->
                                                         val stepId = "${flow.name}-step-$idx"
+                                                        // Parse command description and duration from key
+                                                        val parts = commandKey.split("|||")
+                                                        val commandDesc = parts[0]
+                                                        val duration = parts.getOrNull(1) ?: "unknown"
+
                                                         div(classes = "step-item mb-2") {
                                                             // Step header (clickable)
                                                             button(classes = "btn btn-sm btn-outline-primary w-100 text-start step-header") {
@@ -127,7 +132,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
 
                                                                 span(classes = "step-name") { +commandDesc }
                                                                 span(classes = "badge bg-light text-dark ms-2") {
-                                                                    +"${logs.size} logs"
+                                                                    +duration
                                                                 }
                                                             }
 
@@ -138,7 +143,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                                     // Logs toggle button
                                                                     button(classes = "btn btn-sm btn-secondary mb-2") {
                                                                         attributes["onclick"] = "toggleLogs('$stepId-logs')"
-                                                                        +"View Logs (${logs.size})"
+                                                                        +"View Console Logs (${logs.size} entries)"
                                                                     }
 
                                                                     // Logs container (hidden by default)
