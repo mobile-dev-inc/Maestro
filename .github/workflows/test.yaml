@@ -60,7 +60,7 @@ jobs:
         if: failure()
         with:
           name: maestro-unit-test-report
-          path: ./maestro-test/build/reports
+          path: ./**/build/reports/tests/test
           retention-days: 1
           include-hidden-files: true
 
@@ -69,7 +69,7 @@ jobs:
         if: failure()
         with:
           name: maestro-integration-test-report
-          path: ./maestro-cli/build/reports
+          path: ./**/build/reports/tests/integrationTest
           retention-days: 1
           include-hidden-files: true
 
