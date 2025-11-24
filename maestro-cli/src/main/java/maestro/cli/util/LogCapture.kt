@@ -99,15 +99,41 @@ class LogCapture(
         logger.info("Stopping log capture")
 
         try {
-            // Stop the process
+            // Stop the streaming process
             captureProcess?.destroy()
+            captureThread?.join(1000)
 
-            // Wait for thread to finish (with timeout)
-            captureThread?.join(2000)
+            // Dump recent logs from the device
+            val dumpCommand = buildList {
+                add("adb")
+                deviceId?.let {
+                    add("-s")
+                    add(it)
+                }
+                add("logcat")
+                add("-d")  // Dump mode - get recent logs
+                add("-v")
+                add("time")
+                add("-t")
+                add(bufferSize.toString())  // Get last N entries
+            }
 
-            val logs = logBuffer.toList()
-            logger.info("Captured ${logs.size} log entries")
-            return logs
+            val dumpProcess = ProcessBuilder(dumpCommand)
+                .redirectErrorStream(true)
+                .start()
+
+            val dumpedLogs = mutableListOf<LogEntry>()
+            BufferedReader(InputStreamReader(dumpProcess.inputStream)).use { reader ->
+                reader.lineSequence().forEach { line ->
+                    parseLogLine(line)?.let { entry ->
+                        dumpedLogs.add(entry)
+                    }
+                }
+            }
+
+            dumpProcess.waitFor()
+            logger.info("Captured ${dumpedLogs.size} log entries")
+            return dumpedLogs
         } catch (e: Exception) {
             logger.error("Error stopping log capture", e)
             return logBuffer.toList()
@@ -127,8 +153,8 @@ class LogCapture(
 
     /**
      * Parse a logcat line into a LogEntry.
-     * Format: MM-DD HH:MM:SS.mmm  PID  TID LEVEL TAG     : MESSAGE
-     * Example: 11-24 10:35:09.552  662  4254 I ArtService: Dexopt result...
+     * Format: MM-DD HH:MM:SS.mmm LEVEL/TAG(  PID): MESSAGE
+     * Example: 11-24 11:18:08.068 D/InetDiagMessage(  662): Destroyed live tcp sockets
      */
     private fun parseLogLine(line: String): LogEntry? {
         try {
@@ -137,42 +163,28 @@ class LogCapture(
                 return null
             }
 
-            // Split by spaces (but preserve message)
-            val parts = line.trim().split(Regex("\\s+"), limit = 6)
-            if (parts.size < 6) {
-                return null
-            }
+            // Parse: "MM-DD HH:MM:SS.mmm LEVEL/TAG(  PID): MESSAGE"
+            val regex = Regex("""(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+([VDIWEA])/([^(]+)\(\s*(\d+)\):\s*(.*)""")
+            val match = regex.matchEntire(line.trim()) ?: return null
 
-            val dateTime = "${parts[0]} ${parts[1]}"  // MM-DD HH:MM:SS.mmm
-            val pid = parts[2].toIntOrNull() ?: return null
-            val tid = parts[3].toIntOrNull() ?: return null
-            val levelChar = parts[4]
-            val tagAndMessage = parts[5]
+            val (timestamp, levelChar, tag, pidStr, message) = match.destructured
 
-            // Split tag and message
-            val colonIndex = tagAndMessage.indexOf(':')
-            if (colonIndex < 0) return null
-
-            val tag = tagAndMessage.substring(0, colonIndex).trim()
-            val message = tagAndMessage.substring(colonIndex + 1).trim()
-
-            // Parse log level
-            val level = when (levelChar.firstOrNull()) {
-                'V' -> LogLevel.VERBOSE
-                'D' -> LogLevel.DEBUG
-                'I' -> LogLevel.INFO
-                'W' -> LogLevel.WARN
-                'E' -> LogLevel.ERROR
-                'A' -> LogLevel.ASSERT
+            val level = when (levelChar) {
+                "V" -> LogLevel.VERBOSE
+                "D" -> LogLevel.DEBUG
+                "I" -> LogLevel.INFO
+                "W" -> LogLevel.WARN
+                "E" -> LogLevel.ERROR
+                "A" -> LogLevel.ASSERT
                 else -> return null
             }
 
             return LogEntry(
-                timestamp = dateTime,
-                pid = pid,
-                tid = tid,
+                timestamp = timestamp,
+                pid = pidStr.toInt(),
+                tid = 0,  // Not available in this format
                 level = level,
-                tag = tag,
+                tag = tag.trim(),
                 message = message
             )
         } catch (e: Exception) {

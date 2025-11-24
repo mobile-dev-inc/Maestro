@@ -216,7 +216,9 @@ class TestCommand : Callable<Int> {
             "Can specify log levels: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE. " +
             "Use --include-logs without value to include all levels. " +
             "Logs are automatically included for failed tests."
-        ]
+        ],
+        arity = "0..1",
+        fallbackValue = ""
     )
     private var includeLogs: String? = null
 
