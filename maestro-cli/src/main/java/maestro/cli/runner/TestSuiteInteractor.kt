@@ -335,7 +335,11 @@ class TestSuiteInteractor(
 
                             val commandLogsList = logs.drop(logIndex).take(logsForThisCommand)
                             // Use index and add duration info to make keys unique and informative
-                            val durationStr = if (commandDuration > 0) "${commandDuration}ms" else "instant"
+                            val durationStr = when {
+                                commandDuration >= 1000 -> "%.1fs".format(commandDuration / 1000.0)
+                                commandDuration > 0 -> "${commandDuration}ms"
+                                else -> "<1ms"
+                            }
                             val uniqueKey = "${index + 1}. ${command.description()}|||$durationStr"
                             commandLogs[uniqueKey] = commandLogsList.toMutableList()
 
