@@ -94,58 +94,71 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                         div(classes = "collapse") {
                                             id = flow.name
                                             div(classes = "card-body") {
-                                                p(classes = "card-text") {
-                                                    +"Status: ${flow.status}"
-                                                    br {}
-                                                    +"Duration: ${flow.duration}"
-                                                    br {}
-                                                    +"Start Time: ${
-                                                        flow.startTime?.let {
-                                                            millisToCurrentLocalDateTime(
-                                                                it
-                                                            )
+                                                // Flow summary
+                                                div(classes = "mb-3") {
+                                                    p(classes = "card-text") {
+                                                        +"Status: ${flow.status}"
+                                                        br {}
+                                                        +"Duration: ${flow.duration}"
+                                                        br {}
+                                                        +"Total Steps: ${flow.commandLogs.size}"
+                                                        br {}
+                                                        +"File Name: ${flow.fileName}"
+                                                    }
+                                                    if (flow.failure != null) {
+                                                        p(classes = "card-text text-danger") {
+                                                            +flow.failure.message
                                                         }
-                                                    }"
-                                                    br {}
-                                                    +"File Name: ${flow.fileName}"
-                                                }
-                                                if (flow.failure != null) {
-                                                    p(classes = "card-text text-danger") {
-                                                        +flow.failure.message
                                                     }
                                                 }
-                                                // Add logs section if logs are present
-                                                if (flow.logs.isNotEmpty()) {
-                                                    h6(classes = "mt-3") { +"Console Logs (${flow.logs.size} entries)" }
 
-                                                    // Show logs grouped by command if available
-                                                    if (flow.commandLogs.isNotEmpty()) {
-                                                        flow.commandLogs.forEach { (commandDesc, logs) ->
-                                                            div(classes = "command-separator") {
-                                                                h6(classes = "command-title") {
-                                                                    +"▸ $commandDesc"
-                                                                    span(classes = "badge bg-secondary ms-2") {
-                                                                        +"${logs.size} logs"
-                                                                    }
+                                                // Step list with logs
+                                                if (flow.commandLogs.isNotEmpty()) {
+                                                    h6(classes = "mt-2 mb-3") { +"Test Steps (${flow.commandLogs.size})" }
+
+                                                    flow.commandLogs.entries.forEachIndexed { idx, (commandDesc, logs) ->
+                                                        val stepId = "${flow.name}-step-$idx"
+                                                        div(classes = "step-item mb-2") {
+                                                            // Step header (clickable)
+                                                            button(classes = "btn btn-sm btn-outline-primary w-100 text-start step-header") {
+                                                                attributes["type"] = "button"
+                                                                attributes["data-bs-toggle"] = "collapse"
+                                                                attributes["data-bs-target"] = "#$stepId"
+
+                                                                span(classes = "step-name") { +commandDesc }
+                                                                span(classes = "badge bg-light text-dark ms-2") {
+                                                                    +"${logs.size} logs"
                                                                 }
-                                                                div(classes = "log-container") {
-                                                                    logs.forEach { log ->
-                                                                        renderLogEntry(log)
+                                                            }
+
+                                                            // Step details (collapse)
+                                                            div(classes = "collapse") {
+                                                                id = stepId
+                                                                div(classes = "card card-body mt-1") {
+                                                                    // Logs toggle button
+                                                                    button(classes = "btn btn-sm btn-secondary mb-2") {
+                                                                        attributes["onclick"] = "toggleLogs('$stepId-logs')"
+                                                                        +"View Logs (${logs.size})"
+                                                                    }
+
+                                                                    // Logs container (hidden by default)
+                                                                    div(classes = "log-container") {
+                                                                        id = "$stepId-logs"
+                                                                        attributes["style"] = "display: none;"
+                                                                        logs.forEach { log ->
+                                                                            renderLogEntry(log)
+                                                                        }
                                                                     }
                                                                 }
                                                             }
                                                         }
-                                                    } else {
-                                                        // Fallback: show all logs without grouping
-                                                        div(classes = "log-container") {
-                                                            flow.logs.take(100).forEach { log ->
-                                                                renderLogEntry(log)
-                                                            }
-                                                            if (flow.logs.size > 100) {
-                                                                p(classes = "text-muted mt-2") {
-                                                                    +"Showing first 100 of ${flow.logs.size} log entries"
-                                                                }
-                                                            }
+                                                    }
+                                                } else if (flow.logs.isNotEmpty()) {
+                                                    // Fallback: show all logs
+                                                    h6(classes = "mt-3") { +"Console Logs (${flow.logs.size} entries)" }
+                                                    div(classes = "log-container") {
+                                                        flow.logs.take(100).forEach { log ->
+                                                            renderLogEntry(log)
                                                         }
                                                     }
                                                 }
@@ -196,6 +209,16 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                     .log-info { color: #4ec9b0; }
                                     .log-debug { color: #569cd6; }
                                     .log-verbose { color: #858585; }
+                                    .step-item {
+                                        border-left: 3px solid #dee2e6;
+                                        padding-left: 8px;
+                                    }
+                                    .step-header {
+                                        font-family: monospace;
+                                    }
+                                    .step-name {
+                                        font-weight: 500;
+                                    }
                                     """.trimIndent()
                                 }
                             }
@@ -203,6 +226,23 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                 src = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js",
                                 content = ""
                             )
+                            script {
+                                unsafe {
+                                    +"""
+                                    function toggleLogs(logsId) {
+                                        const logsDiv = document.getElementById(logsId);
+                                        const button = event.target;
+                                        if (logsDiv.style.display === 'none') {
+                                            logsDiv.style.display = 'block';
+                                            button.textContent = button.textContent.replace('View', 'Hide');
+                                        } else {
+                                            logsDiv.style.display = 'none';
+                                            button.textContent = button.textContent.replace('Hide', 'View');
+                                        }
+                                    }
+                                    """.trimIndent()
+                                }
+                            }
                         }
                     }
                 }
