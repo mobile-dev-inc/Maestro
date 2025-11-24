@@ -246,6 +246,15 @@ class TestCommand : Callable<Int> {
     }
   
     override fun call(): Int {
+        // Auto-enable HTML format if --include-logs is specified
+        if (includeLogs != null && format == ReportFormat.NOOP) {
+            format = ReportFormat.HTML
+            if (output == null) {
+                output = File("maestro-report.html")
+            }
+            PrintUtils.info("--include-logs specified: auto-enabled HTML format (output: ${output?.name})")
+        }
+
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
             flattenDebugOutput = flattenDebugOutput,
