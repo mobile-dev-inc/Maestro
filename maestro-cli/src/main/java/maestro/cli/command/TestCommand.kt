@@ -214,12 +214,14 @@ class TestCommand : Callable<Int> {
         names = ["--include-logs"],
         description = [
             "Include console logs in the test summary report. " +
-            "Specify log levels with =: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE. " +
-            "Use --include-logs or --include-logs= for all levels."
+            "Defaults to ERROR,WARN if no levels specified. " +
+            "Specify levels: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE,ALL"
         ],
-        paramLabel = "LEVELS"
+        paramLabel = "LEVELS",
+        arity = "0..1",
+        fallbackValue = "ERROR,WARN"
     )
-    private var includeLogs: String = ""
+    private var includeLogs: String? = null
 
     @Option(
         names = ["--log-buffer-size"],
@@ -245,7 +247,7 @@ class TestCommand : Callable<Int> {
   
     override fun call(): Int {
         // Auto-enable HTML format if --include-logs is specified
-        if (includeLogs.isNotEmpty() && format == ReportFormat.NOOP) {
+        if (includeLogs != null && format == ReportFormat.NOOP) {
             format = ReportFormat.HTML
             if (output == null) {
                 output = File("maestro-report.html")
@@ -691,22 +693,31 @@ class TestCommand : Callable<Int> {
         )
     }
 
-    private fun parseLogLevels(includeLogsValue: String): Set<LogLevel>? {
+    private fun parseLogLevels(includeLogsValue: String?): Set<LogLevel>? {
         return when {
-            includeLogsValue.isEmpty() -> LogLevel.values().toSet()  // All levels (--include-logs or --include-logs=)
+            includeLogsValue == null -> null  // Not specified
+            includeLogsValue.isEmpty() || includeLogsValue.equals("ALL", ignoreCase = true) -> {
+                LogLevel.values().toSet()  // --include-logs= or --include-logs=ALL
+            }
             else -> {
                 includeLogsValue.split(",")
                     .map { it.trim().uppercase() }
                     .mapNotNull {
                         try {
+                            if (it == "ALL") {
+                                return@parseLogLevels LogLevel.values().toSet()
+                            }
                             LogLevel.valueOf(it)
                         } catch (e: Exception) {
-                            PrintUtils.warn("Unknown log level: $it. Valid levels: ${LogLevel.values().joinToString()}")
+                            PrintUtils.warn("Unknown log level: $it. Valid levels: ${LogLevel.values().joinToString()}, ALL")
                             null
                         }
                     }
                     .toSet()
-                    .ifEmpty { LogLevel.values().toSet() }  // Fallback to all if parsing failed
+                    .ifEmpty {
+                        PrintUtils.warn("No valid log levels specified, defaulting to ERROR,WARN")
+                        setOf(LogLevel.ERROR, LogLevel.WARN)
+                    }
             }
         }
     }
