@@ -12,6 +12,7 @@ import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.report.TestSuiteReporter
+import maestro.cli.util.IOSLogCapture
 import maestro.cli.util.LogCapture
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
@@ -180,15 +181,30 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
-        // Start log capture if enabled
-        val logCapture = if (captureLog) {
+        // Start log capture if enabled (platform-specific)
+        val logCapture: Any? = if (captureLog) {
             val deviceId = (device as? maestro.device.Device.Connected)?.instanceId
-            LogCapture(deviceId = deviceId, bufferSize = logBufferSize).apply {
-                try {
-                    start()
-                    logger.info("${shardPrefix}Started log capture")
-                } catch (e: Exception) {
-                    logger.warn("${shardPrefix}Failed to start log capture: ${e.message}")
+            val isIOS = device?.platform == maestro.device.Platform.IOS
+
+            if (isIOS) {
+                val isSimulator = device.deviceType == maestro.device.Device.DeviceType.SIMULATOR
+                IOSLogCapture(deviceId = deviceId, bufferSize = logBufferSize, isSimulator = isSimulator).apply {
+                    try {
+                        start()
+                        logger.info("${shardPrefix}Started iOS log capture (simulator: $isSimulator)")
+                    } catch (e: Exception) {
+                        logger.warn("${shardPrefix}Failed to start iOS log capture: ${e.message}")
+                    }
+                }
+            } else {
+                // Android
+                LogCapture(deviceId = deviceId, bufferSize = logBufferSize).apply {
+                    try {
+                        start()
+                        logger.info("${shardPrefix}Started Android log capture")
+                    } catch (e: Exception) {
+                        logger.warn("${shardPrefix}Failed to start Android log capture: ${e.message}")
+                    }
                 }
             }
         } else null
@@ -223,7 +239,11 @@ class TestSuiteInteractor(
                         }
                         // Capture logs generated during this command
                         if (logCapture != null) {
-                            val currentLogs = logCapture.getBufferedLogs()
+                            val currentLogs = when (logCapture) {
+                                is LogCapture -> logCapture.getBufferedLogs()
+                                is IOSLogCapture -> logCapture.getBufferedLogs()
+                                else -> emptyList()
+                            }
                             if (currentLogs.size > lastLogCount) {
                                 val newLogs = currentLogs.drop(lastLogCount)
                                 commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
@@ -302,9 +322,13 @@ class TestSuiteInteractor(
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
 
         // Stop log capture and collect logs
-        val capturedLogs = logCapture?.let {
+        val capturedLogs = logCapture?.let { capture ->
             try {
-                val allLogs = it.stop()
+                val allLogs = when (capture) {
+                    is LogCapture -> capture.stop()
+                    is IOSLogCapture -> capture.stop()
+                    else -> emptyList()
+                }
                 logger.info("${shardPrefix}Captured ${allLogs.size} log entries")
 
                 // Filter by log level if specified
