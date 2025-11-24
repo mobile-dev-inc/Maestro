@@ -306,30 +306,44 @@ class TestSuiteInteractor(
                 val logs = it.stop()
                 logger.info("${shardPrefix}Captured ${logs.size} log entries")
 
-                // Correlate logs with commands based on timestamps
+                // Correlate logs with commands - split proportionally by duration
                 if (logs.isNotEmpty()) {
-                    debugOutput.commands.entries
+                    val sortedCommands = debugOutput.commands.entries
                         .sortedBy { it.value.timestamp }
-                        .forEachIndexed { index, (command, metadata) ->
-                            val commandStartTime = metadata.timestamp ?: return@forEachIndexed
-                            val commandEndTime = commandStartTime + (metadata.duration ?: 0L)
+                        .toList()
 
-                            // Find logs that occurred during this command
-                            val logsForCommand = logs.filter { log ->
-                                try {
-                                    val logTime = parseLogTimestamp(log.timestamp) ?: return@filter false
-                                    logTime >= commandStartTime && logTime <= commandEndTime
-                                } catch (e: Exception) {
-                                    false
-                                }
-                            }
+                    val totalDuration = sortedCommands.sumOf { it.value.duration ?: 0L }
 
-                            if (logsForCommand.isNotEmpty()) {
-                                commandLogs[command.description()] = logsForCommand.toMutableList()
-                            }
+                    if (totalDuration > 0) {
+                        var logIndex = 0
+                        sortedCommands.forEachIndexed { index, (command, metadata) ->
+                            val commandDuration = metadata.duration ?: 100L  // Give commands without duration some weight
+                            // Allocate logs proportionally to command duration (min 1% per command)
+                            val proportion = (commandDuration.toDouble() / totalDuration).coerceAtLeast(0.01)
+                            val logsForThisCommand = (proportion * logs.size).toInt().coerceAtLeast(1)
+
+                            val commandLogsList = logs.drop(logIndex).take(logsForThisCommand)
+                            // Use index to make duplicate command descriptions unique
+                            val uniqueKey = "${index + 1}. ${command.description()}"
+                            commandLogs[uniqueKey] = commandLogsList.toMutableList()
+
+                            logIndex += logsForThisCommand
                         }
 
-                    logger.info("${shardPrefix}Correlated logs to ${commandLogs.size} commands")
+                        // Add any remaining logs to the last command
+                        if (logIndex < logs.size && sortedCommands.isNotEmpty()) {
+                            val lastCommand = sortedCommands.last().key.description()
+                            commandLogs.getOrPut(lastCommand) { mutableListOf() }
+                                .addAll(logs.drop(logIndex))
+                        }
+
+                        logger.info("${shardPrefix}Split ${logs.size} logs across ${commandLogs.size} commands")
+                    } else {
+                        // If no durations, just put all logs under first command
+                        if (sortedCommands.isNotEmpty()) {
+                            commandLogs[sortedCommands.first().key.description()] = logs.toMutableList()
+                        }
+                    }
                 }
 
                 logs
