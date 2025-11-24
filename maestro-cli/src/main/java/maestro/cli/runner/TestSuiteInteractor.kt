@@ -181,7 +181,8 @@ class TestSuiteInteractor(
 
         // Start log capture if enabled
         val logCapture = if (captureLog) {
-            LogCapture(deviceId = device?.instanceId, bufferSize = logBufferSize).apply {
+            val deviceId = (device as? maestro.device.Device.Connected)?.instanceId
+            LogCapture(deviceId = deviceId, bufferSize = logBufferSize).apply {
                 try {
                     start()
                     logger.info("${shardPrefix}Started log capture")
