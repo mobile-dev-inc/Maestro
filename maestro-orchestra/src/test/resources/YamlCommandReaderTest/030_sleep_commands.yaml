@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- sleep: 100
+- sleep: 1000ms
+- sleep: 1s

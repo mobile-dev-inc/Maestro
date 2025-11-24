@@ -38,6 +38,7 @@ import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.SetOrientationCommand
+import maestro.orchestra.SleepCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
@@ -776,6 +777,20 @@ internal class YamlCommandReaderTest {
         )
     }
 
+
+    @Test
+    fun sleep_commands(
+        @YamlFile("030_sleep_commands.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            SleepCommand(time = 100L),
+            SleepCommand(time = 1000L),
+            SleepCommand(time = 1000L),
+        )
+    }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
