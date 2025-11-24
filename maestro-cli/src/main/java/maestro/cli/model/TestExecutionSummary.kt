@@ -1,5 +1,6 @@
 package maestro.cli.model
 
+import maestro.LogEntry
 import kotlin.time.Duration
 
 // TODO: Some properties should be implemented as getters, but it's not possible.
@@ -28,6 +29,8 @@ data class TestExecutionSummary(
         val failure: Failure? = null,
         val duration: Duration? = null,
         val startTime: Long? = null,
+        val logs: List<LogEntry> = emptyList(),
+        val commandLogs: Map<String, List<LogEntry>> = emptyMap()
     )
 
     data class Failure(
