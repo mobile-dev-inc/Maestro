@@ -305,6 +305,33 @@ class TestSuiteInteractor(
             try {
                 val logs = it.stop()
                 logger.info("${shardPrefix}Captured ${logs.size} log entries")
+
+                // Correlate logs with commands based on timestamps
+                if (logs.isNotEmpty()) {
+                    debugOutput.commands.entries
+                        .sortedBy { it.value.timestamp }
+                        .forEachIndexed { index, (command, metadata) ->
+                            val commandStartTime = metadata.timestamp
+                            val commandEndTime = commandStartTime + (metadata.duration ?: 0)
+
+                            // Find logs that occurred during this command
+                            val logsForCommand = logs.filter { log ->
+                                try {
+                                    val logTime = parseLogTimestamp(log.timestamp)
+                                    logTime >= commandStartTime && logTime <= commandEndTime
+                                } catch (e: Exception) {
+                                    false
+                                }
+                            }
+
+                            if (logsForCommand.isNotEmpty()) {
+                                commandLogs[command.description()] = logsForCommand.toMutableList()
+                            }
+                        }
+
+                    logger.info("${shardPrefix}Correlated logs to ${commandLogs.size} commands")
+                }
+
                 logs
             } catch (e: Exception) {
                 logger.warn("${shardPrefix}Failed to stop log capture: ${e.message}")
@@ -346,6 +373,35 @@ class TestSuiteInteractor(
             ),
             second = aiOutput,
         )
+    }
+
+    private fun parseLogTimestamp(timestamp: String): Long {
+        // Parse "MM-DD HH:MM:SS.mmm" format to milliseconds
+        try {
+            val parts = timestamp.split(" ")
+            if (parts.size < 2) return 0
+
+            val timePart = parts[1]  // "HH:MM:SS.mmm"
+            val timeComponents = timePart.split(":")
+            if (timeComponents.size < 3) return 0
+
+            val hour = timeComponents[0].toIntOrNull() ?: return 0
+            val minute = timeComponents[1].toIntOrNull() ?: return 0
+            val secondAndMillis = timeComponents[2].split(".")
+            val second = secondAndMillis[0].toIntOrNull() ?: return 0
+            val millis = secondAndMillis.getOrNull(1)?.toIntOrNull() ?: 0
+
+            val calendar = java.util.Calendar.getInstance()
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+            calendar.set(java.util.Calendar.MINUTE, minute)
+            calendar.set(java.util.Calendar.SECOND, second)
+            calendar.set(java.util.Calendar.MILLISECOND, millis)
+
+            return calendar.timeInMillis
+        } catch (e: Exception) {
+            logger.debug("Failed to parse log timestamp: $timestamp", e)
+            return 0
+        }
     }
 
 }
