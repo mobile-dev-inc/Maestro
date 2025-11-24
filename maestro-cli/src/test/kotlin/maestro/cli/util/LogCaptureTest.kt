@@ -2,9 +2,7 @@ package maestro.cli.util
 
 import maestro.LogLevel
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import org.junit.jupiter.api.Assertions.*
 
 class LogCaptureTest {
 
