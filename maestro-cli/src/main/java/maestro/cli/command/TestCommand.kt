@@ -589,6 +589,8 @@ class TestCommand : Callable<Int> {
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
+            captureLog = includeLogs != null,
+            logBufferSize = logBufferSize,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
