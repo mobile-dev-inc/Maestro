@@ -16,7 +16,7 @@ class LogCaptureTest {
         val entry = parseMethod.invoke(logCapture, line) as maestro.LogEntry?
 
         assertNotNull(entry)
-        assertEquals("11-24 10:35:09.552", entry.timestamp)
+        assertEquals("11-24 10:35:09.552", entry!!.timestamp)
         assertEquals(662, entry.pid)
         assertEquals(4254, entry.tid)
         assertEquals(LogLevel.INFO, entry.level)
@@ -42,7 +42,7 @@ class LogCaptureTest {
         testCases.forEach { (line, expectedLevel) ->
             val entry = parseMethod.invoke(logCapture, line) as maestro.LogEntry?
             assertNotNull(entry, "Failed to parse: $line")
-            assertEquals(expectedLevel, entry.level)
+            assertEquals(expectedLevel, entry!!.level)
         }
     }
 
@@ -75,7 +75,7 @@ class LogCaptureTest {
         val entry = parseMethod.invoke(logCapture, line) as maestro.LogEntry?
 
         assertNotNull(entry)
-        assertEquals("Message with: multiple: colons", entry.message)
+        assertEquals("Message with: multiple: colons", entry!!.message)
     }
 
     @Test
@@ -88,7 +88,7 @@ class LogCaptureTest {
         val entry = parseMethod.invoke(logCapture, line) as maestro.LogEntry?
 
         assertNotNull(entry)
-        assertEquals("maestro.drivers.AndroidDriver", entry.tag)
+        assertEquals("maestro.drivers.AndroidDriver", entry!!.tag)
         assertEquals("Started log capture", entry.message)
     }
 }

@@ -106,24 +106,32 @@ class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteRepo
                                             id = flow.name
                                             div(classes = "card-body") {
                                                 // Flow summary
-                                                div(classes = "mb-3") {
-                                                    p(classes = "card-text") {
-                                                        +"Status: ${flow.status}"
-                                                        br {}
-                                                        +"Duration: ${flow.duration}"
-                                                        br {}
+                                                p(classes = "card-text") {
+                                                    +"Status: ${flow.status}"
+                                                    br {}
+                                                    +"Duration: ${flow.duration}"
+                                                    br {}
+                                                    +"Start Time: ${
+                                                        flow.startTime?.let {
+                                                            millisToCurrentLocalDateTime(
+                                                                it
+                                                            )
+                                                        }
+                                                    }"
+                                                    br {}
+                                                    if (flow.commandLogs.isNotEmpty()) {
                                                         +"Total Steps: ${flow.commandLogs.size}"
                                                         br {}
-                                                        +"File Name: ${flow.fileName}"
                                                     }
-                                                    if (flow.failure != null) {
-                                                        p(classes = "card-text text-danger") {
-                                                            +flow.failure.message
-                                                        }
+                                                    +"File Name: ${flow.fileName}"
+                                                }
+                                                if (flow.failure != null) {
+                                                    p(classes = "card-text text-danger") {
+                                                        +flow.failure.message
                                                     }
                                                 }
 
-                                                // Step list with logs
+                                                // Step list with logs (priority when available)
                                                 if (flow.commandLogs.isNotEmpty()) {
                                                     h6(classes = "mt-2 mb-3") { +"Test Steps (${flow.commandLogs.size})" }
 
@@ -179,18 +187,8 @@ class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteRepo
                                                             }
                                                         }
                                                     }
-                                                } else if (flow.logs.isNotEmpty()) {
-                                                    // Fallback: show all logs
-                                                    h6(classes = "mt-3") { +"Console Logs (${flow.logs.size} entries)" }
-                                                    div(classes = "log-container") {
-                                                        flow.logs.take(100).forEach { log ->
-                                                            renderLogEntry(log)
-                                                        }
-                                                    }
-                                                }
-
-                                                // Show detailed steps when pretty mode is enabled
-                                                if (pretty && flow.steps.isNotEmpty()) {
+                                                } else if (pretty && flow.steps.isNotEmpty()) {
+                                                    // Show detailed steps when pretty mode is enabled
                                                     h6(classes = "mt-3 mb-3") { +"Test Steps (${flow.steps.size})" }
 
                                                     flow.steps.forEach { step ->
@@ -214,37 +212,51 @@ class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteRepo
                                                             }
                                                         }
                                                     }
+                                                } else if (flow.logs.isNotEmpty()) {
+                                                    // Fallback: show all logs without steps
+                                                    h6(classes = "mt-3") { +"Console Logs (${flow.logs.size} entries)" }
+                                                    div(classes = "log-container") {
+                                                        flow.logs.take(100).forEach { log ->
+                                                            renderLogEntry(log)
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-                            // Load CSS styles (for both pretty mode and logs)
-                            style {
-                                unsafe {
-                                    +loadPrettyCss()
+                            // Load CSS styles when pretty mode is enabled or when there are logs
+                            val hasLogsOrSteps = suite.flows.any { it.commandLogs.isNotEmpty() || (pretty && it.steps.isNotEmpty()) }
+                            if (hasLogsOrSteps) {
+                                style {
+                                    unsafe {
+                                        +loadPrettyCss()
+                                    }
                                 }
                             }
                             script(
                                 src = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js",
                                 content = ""
                             )
-                            script {
-                                unsafe {
-                                    +"""
-                                    function toggleLogs(logsId) {
-                                        const logsDiv = document.getElementById(logsId);
-                                        const button = event.target;
-                                        if (logsDiv.style.display === 'none') {
-                                            logsDiv.style.display = 'block';
-                                            button.textContent = button.textContent.replace('View', 'Hide');
-                                        } else {
-                                            logsDiv.style.display = 'none';
-                                            button.textContent = button.textContent.replace('Hide', 'View');
+                            // Include toggle logs script only when there are command logs
+                            if (suite.flows.any { it.commandLogs.isNotEmpty() }) {
+                                script {
+                                    unsafe {
+                                        +"""
+                                        function toggleLogs(logsId) {
+                                            const logsDiv = document.getElementById(logsId);
+                                            const button = event.target;
+                                            if (logsDiv.style.display === 'none') {
+                                                logsDiv.style.display = 'block';
+                                                button.textContent = button.textContent.replace('View', 'Hide');
+                                            } else {
+                                                logsDiv.style.display = 'none';
+                                                button.textContent = button.textContent.replace('Hide', 'View');
+                                            }
                                         }
+                                        """.trimIndent()
                                     }
-                                    """.trimIndent()
                                 }
                             }
                         }
