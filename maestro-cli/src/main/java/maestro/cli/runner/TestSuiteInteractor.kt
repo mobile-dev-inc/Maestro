@@ -340,7 +340,8 @@ class TestSuiteInteractor(
                                 commandDuration > 0 -> "${commandDuration}ms"
                                 else -> "<1ms"
                             }
-                            val uniqueKey = "${index + 1}. ${command.description()}|||$durationStr"
+                            val status = metadata.status?.toString() ?: "UNKNOWN"
+                            val uniqueKey = "${index + 1}. ${command.description()}|||$durationStr|||$status"
                             commandLogs[uniqueKey] = commandLogsList.toMutableList()
 
                             logIndex += logsForThisCommand

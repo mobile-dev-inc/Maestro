@@ -118,10 +118,19 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
 
                                                     flow.commandLogs.entries.forEachIndexed { idx, (commandKey, logs) ->
                                                         val stepId = "${flow.name}-step-$idx"
-                                                        // Parse command description and duration from key
+                                                        // Parse command description, duration, and status from key
                                                         val parts = commandKey.split("|||")
                                                         val commandDesc = parts[0]
                                                         val duration = parts.getOrNull(1) ?: "unknown"
+                                                        val status = parts.getOrNull(2) ?: "UNKNOWN"
+
+                                                        val statusIcon = when (status) {
+                                                            "COMPLETED" -> "✅"
+                                                            "WARNED" -> "⚠️"
+                                                            "FAILED" -> "❌"
+                                                            "SKIPPED" -> "⏭️"
+                                                            else -> "⚪"
+                                                        }
 
                                                         div(classes = "step-item mb-2") {
                                                             // Step header (clickable)
@@ -130,6 +139,7 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                                 attributes["data-bs-toggle"] = "collapse"
                                                                 attributes["data-bs-target"] = "#$stepId"
 
+                                                                +"$statusIcon "
                                                                 span(classes = "step-name") { +commandDesc }
                                                                 span(classes = "badge bg-light text-dark ms-2") {
                                                                     +duration
