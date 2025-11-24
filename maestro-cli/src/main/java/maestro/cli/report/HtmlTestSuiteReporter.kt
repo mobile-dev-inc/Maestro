@@ -6,7 +6,18 @@ import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
 
-class HtmlTestSuiteReporter : TestSuiteReporter {
+class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteReporter {
+
+    companion object {
+        private fun loadPrettyCss(): String {
+            return HtmlTestSuiteReporter::class.java
+                .getResourceAsStream("/pretty_report.css")
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: ""
+        }
+    }
+
     override fun report(summary: TestExecutionSummary, out: Sink) {
         val bufferedOut = out.buffer()
         val htmlContent = buildHtmlReport(summary)
@@ -105,15 +116,57 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                         }
                                                     }"
                                                     br {}
-                                                    +"File Name: ${flow.fileName}"
+                                                    if (!pretty) {
+                                                        +"File Name: ${flow.fileName}"
+                                                    }
+                                                }
+                                                if (pretty && flow.fileName != null) {
+                                                    p(classes = "card-text") {
+                                                        +"File Name: ${flow.fileName}"
+                                                    }
                                                 }
                                                 if (flow.failure != null) {
                                                     p(classes = "card-text text-danger") {
                                                         +flow.failure.message
                                                     }
                                                 }
+
+                                                // Show detailed steps when pretty mode is enabled
+                                                if (pretty && flow.steps.isNotEmpty()) {
+                                                    h6(classes = "mt-3 mb-3") { +"Test Steps (${flow.steps.size})" }
+
+                                                    flow.steps.forEach { step ->
+                                                        val statusIcon = when (step.status) {
+                                                            "COMPLETED" -> "✅"
+                                                            "WARNED" -> "⚠️"
+                                                            "FAILED" -> "❌"
+                                                            "SKIPPED" -> "⏭️"
+                                                            else -> "⚪"
+                                                        }
+
+                                                        div(classes = "step-item mb-2") {
+                                                            div(classes = "step-header d-flex justify-content-between align-items-center") {
+                                                                span {
+                                                                    +"$statusIcon "
+                                                                    span(classes = "step-name") { +step.description }
+                                                                }
+                                                                span(classes = "badge bg-light text-dark") {
+                                                                    +step.duration
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
+                                    }
+                                }
+                            }
+                            // Add styling for step items when pretty mode is enabled
+                            if (pretty) {
+                                style {
+                                    unsafe {
+                                        +loadPrettyCss()
                                     }
                                 }
                             }
