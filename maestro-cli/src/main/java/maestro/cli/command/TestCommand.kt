@@ -134,6 +134,12 @@ class TestCommand : Callable<Int> {
     private var format: ReportFormat = ReportFormat.NOOP
 
     @Option(
+        names = ["--pretty"],
+        description = ["Enable pretty HTML report with detailed steps and timing (only applicable with --format html)"],
+    )
+    private var pretty: Boolean = false
+
+    @Option(
         names = ["--test-suite-name"],
         description = ["Test suite name"],
     )
@@ -609,7 +615,8 @@ class TestCommand : Callable<Int> {
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
-            reporter = ReporterFactory.buildReporter(format, testSuiteName),
+            reporter = ReporterFactory.buildReporter(format, testSuiteName, pretty),
+            captureSteps = pretty,
             captureLog = logLevels != null,
             logBufferSize = logBufferSize,
             logLevels = logLevels,
@@ -682,7 +689,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun TestExecutionSummary.saveReport() {
-        val reporter = ReporterFactory.buildReporter(format, testSuiteName)
+        val reporter = ReporterFactory.buildReporter(format, testSuiteName, pretty)
 
         format.fileExtension?.let { extension ->
             (output ?: File("report$extension")).sink()

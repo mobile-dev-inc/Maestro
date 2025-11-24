@@ -30,7 +30,14 @@ data class TestExecutionSummary(
         val duration: Duration? = null,
         val startTime: Long? = null,
         val logs: List<LogEntry> = emptyList(),
-        val commandLogs: Map<String, List<LogEntry>> = emptyMap()
+        val commandLogs: Map<String, List<LogEntry>> = emptyMap(),
+        val steps: List<StepResult> = emptyList(),
+    )
+
+    data class StepResult(
+        val description: String,
+        val status: String,
+        val duration: String,
     )
 
     data class Failure(

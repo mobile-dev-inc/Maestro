@@ -8,7 +8,18 @@ import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
 
-class HtmlTestSuiteReporter : TestSuiteReporter {
+class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteReporter {
+
+    companion object {
+        private fun loadPrettyCss(): String {
+            return HtmlTestSuiteReporter::class.java
+                .getResourceAsStream("/pretty_report.css")
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: ""
+        }
+    }
+
     override fun report(summary: TestExecutionSummary, out: Sink) {
         val bufferedOut = out.buffer()
         val htmlContent = buildHtmlReport(summary)
@@ -177,64 +188,42 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                         }
                                                     }
                                                 }
+
+                                                // Show detailed steps when pretty mode is enabled
+                                                if (pretty && flow.steps.isNotEmpty()) {
+                                                    h6(classes = "mt-3 mb-3") { +"Test Steps (${flow.steps.size})" }
+
+                                                    flow.steps.forEach { step ->
+                                                        val statusIcon = when (step.status) {
+                                                            "COMPLETED" -> "✅"
+                                                            "WARNED" -> "⚠️"
+                                                            "FAILED" -> "❌"
+                                                            "SKIPPED" -> "⏭️"
+                                                            else -> "⚪"
+                                                        }
+
+                                                        div(classes = "step-item mb-2") {
+                                                            div(classes = "step-header d-flex justify-content-between align-items-center") {
+                                                                span {
+                                                                    +"$statusIcon "
+                                                                    span(classes = "step-name") { +step.description }
+                                                                }
+                                                                span(classes = "badge bg-light text-dark") {
+                                                                    +step.duration
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                            // Add basic log styling
+                            // Load CSS styles (for both pretty mode and logs)
                             style {
                                 unsafe {
-                                    +"""
-                                    .log-container {
-                                        background: #1e1e1e;
-                                        color: #d4d4d4;
-                                        padding: 10px;
-                                        border-radius: 4px;
-                                        max-height: 400px;
-                                        overflow-y: auto;
-                                        font-family: 'Courier New', monospace;
-                                        font-size: 12px;
-                                    }
-                                    .command-separator {
-                                        margin-bottom: 20px;
-                                        border-left: 4px solid #007bff;
-                                        padding-left: 10px;
-                                    }
-                                    .command-title {
-                                        color: #007bff;
-                                        font-size: 14px;
-                                        font-weight: 600;
-                                        margin-bottom: 8px;
-                                        padding: 8px;
-                                        background: #2d2d30;
-                                        border-radius: 4px;
-                                    }
-                                    .command-separator .log-container {
-                                        margin-top: 0;
-                                        max-height: 300px;
-                                    }
-                                    .log-entry {
-                                        padding: 2px 0;
-                                        white-space: pre-wrap;
-                                        word-wrap: break-word;
-                                    }
-                                    .log-error { color: #f48771; }
-                                    .log-warn { color: #dcdcaa; }
-                                    .log-info { color: #4ec9b0; }
-                                    .log-debug { color: #569cd6; }
-                                    .log-verbose { color: #858585; }
-                                    .step-item {
-                                        border-left: 3px solid #dee2e6;
-                                        padding-left: 8px;
-                                    }
-                                    .step-header {
-                                        font-family: monospace;
-                                    }
-                                    .step-name {
-                                        font-weight: 500;
-                                    }
-                                    """.trimIndent()
+                                    +loadPrettyCss()
                                 }
                             }
                             script(

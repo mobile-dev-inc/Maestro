@@ -1,0 +1,39 @@
+.step-item {
+    border-left: 3px solid #dee2e6;
+    padding-left: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.step-header {
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.step-name {
+    font-weight: 500;
+}
+
+/* Log container styles */
+.log-container {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 10px;
+    border-radius: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.log-entry {
+    padding: 2px 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.log-error { color: #f48771; }
+.log-warn { color: #dcdcaa; }
+.log-info { color: #4ec9b0; }
+.log-debug { color: #569cd6; }
+.log-verbose { color: #858585; }

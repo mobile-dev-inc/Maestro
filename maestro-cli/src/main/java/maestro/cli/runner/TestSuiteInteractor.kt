@@ -46,6 +46,7 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    private val captureSteps: Boolean = false,
     private val captureLog: Boolean = false,
     private val logBufferSize: Int = 5000,
     private val logLevels: Set<maestro.LogLevel>? = null,
@@ -405,6 +406,27 @@ class TestSuiteInteractor(
             )
         )
 
+        // Extract step information if captureSteps is enabled
+        val steps = if (captureSteps) {
+            debugOutput.commands.entries
+                .sortedBy { it.value.timestamp }
+                .mapIndexed { index, (command, metadata) ->
+                    val durationStr = when (val duration = metadata.duration) {
+                        null -> "<1ms"
+                        in 1000..Long.MAX_VALUE -> "%.1fs".format(duration / 1000.0)
+                        else -> "${duration}ms"
+                    }
+                    val status = metadata.status?.toString() ?: "UNKNOWN"
+                    TestExecutionSummary.StepResult(
+                        description = "${index + 1}. ${command.description()}",
+                        status = status,
+                        duration = durationStr,
+                    )
+                }
+        } else {
+            emptyList()
+        }
+
         return Pair(
             first = TestExecutionSummary.FlowResult(
                 name = flowName,
@@ -418,6 +440,7 @@ class TestSuiteInteractor(
                 duration = flowDuration,
                 logs = capturedLogs,
                 commandLogs = commandLogs,
+                steps = steps,
             ),
             second = aiOutput,
         )
