@@ -209,6 +209,23 @@ class TestCommand : Callable<Int> {
     )
     private var appleTeamId: String? = null
 
+    @Option(
+        names = ["--include-logs"],
+        description = [
+            "Include console logs in the test summary report. " +
+            "Can specify log levels: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE. " +
+            "Use --include-logs without value to include all levels. " +
+            "Logs are automatically included for failed tests."
+        ]
+    )
+    private var includeLogs: String? = null
+
+    @Option(
+        names = ["--log-buffer-size"],
+        description = ["Maximum number of log entries to capture per test (default: 5000)"]
+    )
+    private var logBufferSize: Int = 5000
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
