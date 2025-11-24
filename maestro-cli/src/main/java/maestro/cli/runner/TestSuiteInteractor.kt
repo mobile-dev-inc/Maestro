@@ -192,6 +192,10 @@ class TestSuiteInteractor(
             }
         } else null
 
+        // Track logs per command
+        val commandLogs = mutableMapOf<String, MutableList<maestro.LogEntry>>()
+        var lastLogCount = 0
+
         val flowTimeMillis = measureTimeMillis {
             try {
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
@@ -205,12 +209,25 @@ class TestSuiteInteractor(
                             timestamp = System.currentTimeMillis(),
                             status = CommandStatus.RUNNING
                         )
+                        // Mark log position at command start
+                        if (logCapture != null) {
+                            lastLogCount = logCapture.getBufferedLogs().size
+                        }
                     },
                     onCommandComplete = { _, command ->
                         logger.info("${shardPrefix}${command.description()} COMPLETED")
                         debugOutput.commands[command]?.let {
                             it.status = CommandStatus.COMPLETED
                             it.calculateDuration()
+                        }
+                        // Capture logs generated during this command
+                        if (logCapture != null) {
+                            val currentLogs = logCapture.getBufferedLogs()
+                            if (currentLogs.size > lastLogCount) {
+                                val newLogs = currentLogs.drop(lastLogCount)
+                                commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
+                                lastLogCount = currentLogs.size
+                            }
                         }
                     },
                     onCommandFailed = { _, command, e ->
@@ -220,6 +237,15 @@ class TestSuiteInteractor(
                             it.status = CommandStatus.FAILED
                             it.calculateDuration()
                             it.error = e
+                        }
+                        // Capture logs for failed command
+                        if (logCapture != null) {
+                            val currentLogs = logCapture.getBufferedLogs()
+                            if (currentLogs.size > lastLogCount) {
+                                val newLogs = currentLogs.drop(lastLogCount)
+                                commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
+                                lastLogCount = currentLogs.size
+                            }
                         }
 
                         ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
@@ -235,6 +261,15 @@ class TestSuiteInteractor(
                         logger.info("${shardPrefix}${command.description()} WARNED")
                         debugOutput.commands[command]?.apply {
                             status = CommandStatus.WARNED
+                        }
+                        // Capture logs for warned command
+                        if (logCapture != null) {
+                            val currentLogs = logCapture.getBufferedLogs()
+                            if (currentLogs.size > lastLogCount) {
+                                val newLogs = currentLogs.drop(lastLogCount)
+                                commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
+                                lastLogCount = currentLogs.size
+                            }
                         }
                     },
                     onCommandReset = { command ->
@@ -307,6 +342,7 @@ class TestSuiteInteractor(
                 } else null,
                 duration = flowDuration,
                 logs = capturedLogs,
+                commandLogs = commandLogs,
             ),
             second = aiOutput,
         )
