@@ -109,4 +109,33 @@ interface Driver {
         return listOf()
     }
 
+    /**
+     * Start capturing device logs.
+     *
+     * @param packageName Optional package name to filter logs (Android)
+     * @param tag Optional log tag to filter (Android)
+     * @param minLevel Minimum log level to capture (default: INFO)
+     * @param bufferSize Maximum number of log entries to buffer (default: 5000)
+     */
+    fun startLogCapture(
+        packageName: String? = null,
+        tag: String? = null,
+        minLevel: String = "INFO",
+        bufferSize: Int? = null
+    ) = Unit
+
+    /**
+     * Stop capturing logs and return all captured entries.
+     *
+     * @return List of captured log entries
+     */
+    fun stopLogCapture(): List<LogEntry> = emptyList()
+
+    /**
+     * Get currently buffered log entries without stopping capture.
+     *
+     * @return List of log entries in the buffer
+     */
+    fun getLogStream(): List<LogEntry> = emptyList()
+
 }
