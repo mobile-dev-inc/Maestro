@@ -214,14 +214,21 @@ class TestCommand : Callable<Int> {
         names = ["--include-logs"],
         description = [
             "Include console logs in the test summary report. " +
-            "Defaults to ERROR,WARN if no levels specified. " +
-            "Specify levels: --include-logs=ERROR,WARN,INFO,DEBUG,VERBOSE,ALL"
-        ],
-        paramLabel = "LEVELS",
-        arity = "0..1",
-        fallbackValue = "ERROR,WARN"
+            "Defaults to ERROR and WARN levels. " +
+            "Use --log-levels to customize which levels to capture."
+        ]
     )
-    private var includeLogs: String? = null
+    private var includeLogs: Boolean = false
+
+    @Option(
+        names = ["--log-levels"],
+        description = [
+            "Specify which log levels to capture (default: ERROR,WARN). " +
+            "Valid levels: ERROR,WARN,INFO,DEBUG,VERBOSE,ALL"
+        ],
+        paramLabel = "LEVELS"
+    )
+    private var logLevelsStr: String? = null
 
     @Option(
         names = ["--log-buffer-size"],
@@ -596,7 +603,7 @@ class TestCommand : Callable<Int> {
             deviceCount = chunkPlans.size
         ))
 
-        val logLevels = parseLogLevels(includeLogs)
+        val logLevels = parseLogLevels()
 
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
@@ -693,14 +700,17 @@ class TestCommand : Callable<Int> {
         )
     }
 
-    private fun parseLogLevels(includeLogsValue: String?): Set<LogLevel>? {
+    private fun parseLogLevels(): Set<LogLevel>? {
+        if (!includeLogs) return null  // Not enabled
+
+        val levelsStr = logLevelsStr ?: "ERROR,WARN"  // Default to ERROR,WARN
+
         return when {
-            includeLogsValue == null -> null  // Not specified
-            includeLogsValue.isEmpty() || includeLogsValue.equals("ALL", ignoreCase = true) -> {
-                LogLevel.values().toSet()  // --include-logs= or --include-logs=ALL
+            levelsStr.isEmpty() || levelsStr.equals("ALL", ignoreCase = true) -> {
+                LogLevel.values().toSet()
             }
             else -> {
-                includeLogsValue.split(",")
+                levelsStr.split(",")
                     .map { it.trim().uppercase() }
                     .mapNotNull {
                         try {
