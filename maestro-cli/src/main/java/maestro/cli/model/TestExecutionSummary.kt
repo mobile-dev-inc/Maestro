@@ -35,6 +35,10 @@ data class TestExecutionSummary(
         val description: String,
         val status: String,
         val duration: String,
+        val depth: Int = 0,
+        val path: List<Int> = emptyList(),
+        val iteration: Int? = null,
+        val parentDescription: String? = null,
     )
 
     data class Failure(

@@ -1,8 +1,31 @@
 .step-item {
+    --depth: 0;
+    --indent-size: 24px;
     border-left: 3px solid #dee2e6;
     padding-left: 12px;
     padding-top: 8px;
     padding-bottom: 8px;
+    margin-left: calc(var(--depth) * var(--indent-size));
+    transition: margin-left 0.2s ease;
+}
+
+/* Nested items (depth > 0) have no top padding by default */
+.step-item.nested {
+    padding-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0 !important;
+}
+
+/* First child at a new depth level gets top padding */
+/* .step-item.first-at-depth */
+.step-item.nested .step-header {
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.step-item:hover {
+    background-color: #f8f9fa;
 }
 
 .step-header {

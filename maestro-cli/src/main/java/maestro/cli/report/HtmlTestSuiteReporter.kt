@@ -130,6 +130,7 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                 if (detailed && flow.steps.isNotEmpty()) {
                                                     h6(classes = "mt-3 mb-3") { +"Test Steps (${flow.steps.size})" }
 
+                                                    var previousDepth = -1
                                                     flow.steps.forEach { step ->
                                                         val statusIcon = when (step.status) {
                                                             "COMPLETED" -> "✅"
@@ -139,17 +140,36 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                             else -> "⚪"
                                                         }
 
-                                                        div(classes = "step-item mb-2") {
+                                                        val iterationLabel = step.iteration?.let { " (iteration ${it + 1})" } ?: ""
+
+                                                        // Determine CSS classes
+                                                        val cssClasses = buildString {
+                                                            append("step-item mb-2")
+                                                            if (step.depth > 0) {
+                                                                append(" nested")
+                                                            }
+                                                            if (step.depth > previousDepth) {
+                                                                append(" first-at-depth")
+                                                            }
+                                                        }
+
+                                                        div(classes = cssClasses) {
+                                                            style = "--depth: ${step.depth}"
                                                             div(classes = "step-header d-flex justify-content-between align-items-center") {
                                                                 span {
                                                                     +"$statusIcon "
-                                                                    span(classes = "step-name") { +step.description }
+                                                                    span(classes = "step-name") {
+                                                                        +step.description
+                                                                        +iterationLabel
+                                                                    }
                                                                 }
                                                                 span(classes = "badge bg-light text-dark") {
                                                                     +step.duration
                                                                 }
                                                             }
                                                         }
+
+                                                        previousDepth = step.depth
                                                     }
                                                 }
                                             }

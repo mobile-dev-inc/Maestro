@@ -218,7 +218,11 @@ data class CommandDebugMetadata(
     var error: Throwable? = null,
     var hierarchy: TreeNode? = null,
     var sequenceNumber: Int = 0,
-    var evaluatedCommand: MaestroCommand? = null
+    var evaluatedCommand: MaestroCommand? = null,
+    var depth: Int = 0,
+    var path: MutableList<Int> = mutableListOf(),
+    var iteration: Int? = null,
+    var parentCommand: MaestroCommand? = null,
 ) {
     fun calculateDuration() {
         if (timestamp != null) {
