@@ -167,7 +167,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Pretty mode with successful test and steps`() {
         // Given
-        val testee = HtmlTestSuiteReporter(pretty = true)
+        val testee = HtmlTestSuiteReporter(detailed = true)
         val sink = Buffer()
 
         // When
@@ -201,7 +201,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Pretty mode with failed test and steps with various statuses`() {
         // Given
-        val testee = HtmlTestSuiteReporter(pretty = true)
+        val testee = HtmlTestSuiteReporter(detailed = true)
         val sink = Buffer()
 
         // When
@@ -238,7 +238,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Basic mode does not show steps even when present`() {
         // Given
-        val testee = HtmlTestSuiteReporter(pretty = false)
+        val testee = HtmlTestSuiteReporter(detailed = false)
         val sink = Buffer()
 
         // When

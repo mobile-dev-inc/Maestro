@@ -6,7 +6,7 @@ import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
 
-class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteReporter {
+class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteReporter {
 
     companion object {
         private fun loadPrettyCss(): String {
@@ -116,11 +116,11 @@ class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteRepo
                                                         }
                                                     }"
                                                     br {}
-                                                    if (!pretty) {
+                                                    if (!detailed) {
                                                         +"File Name: ${flow.fileName}"
                                                     }
                                                 }
-                                                if (pretty && flow.fileName != null) {
+                                                if (detailed && flow.fileName != null) {
                                                     p(classes = "card-text") {
                                                         +"File Name: ${flow.fileName}"
                                                     }
@@ -131,8 +131,8 @@ class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteRepo
                                                     }
                                                 }
 
-                                                // Show detailed steps when pretty mode is enabled
-                                                if (pretty && flow.steps.isNotEmpty()) {
+                                                // Show detailed steps when detailed mode is enabled
+                                                if (detailed && flow.steps.isNotEmpty()) {
                                                     h6(classes = "mt-3 mb-3") { +"Test Steps (${flow.steps.size})" }
 
                                                     flow.steps.forEach { step ->
@@ -162,8 +162,8 @@ class HtmlTestSuiteReporter(private val pretty: Boolean = false) : TestSuiteRepo
                                     }
                                 }
                             }
-                            // Add styling for step items when pretty mode is enabled
-                            if (pretty) {
+                            // Add styling for step items when detailed mode is enabled
+                            if (detailed) {
                                 style {
                                     unsafe {
                                         +loadPrettyCss()

@@ -129,14 +129,9 @@ class TestCommand : Callable<Int> {
     @Option(
         names = ["--format"],
         description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
+        converter = [ReportFormat.Converter::class]
     )
     private var format: ReportFormat = ReportFormat.NOOP
-
-    @Option(
-        names = ["--pretty"],
-        description = ["Enable pretty HTML report with detailed steps and timing (only applicable with --format html)"],
-    )
-    private var pretty: Boolean = false
 
     @Option(
         names = ["--test-suite-name"],
@@ -599,8 +594,8 @@ class TestCommand : Callable<Int> {
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
-            reporter = ReporterFactory.buildReporter(format, testSuiteName, pretty),
-            captureSteps = pretty,
+            reporter = ReporterFactory.buildReporter(format, testSuiteName),
+            captureSteps = format == ReportFormat.HTML_DETAILED,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -670,7 +665,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun TestExecutionSummary.saveReport() {
-        val reporter = ReporterFactory.buildReporter(format, testSuiteName, pretty)
+        val reporter = ReporterFactory.buildReporter(format, testSuiteName)
 
         format.fileExtension?.let { extension ->
             (output ?: File("report$extension")).sink()
