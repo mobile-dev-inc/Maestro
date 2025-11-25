@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.log4j.core)
 
     implementation(libs.square.okio)
+    implementation(libs.square.okio.jvm)
     api(libs.google.gson)
     api(libs.square.okhttp)
     api(libs.appdirs)

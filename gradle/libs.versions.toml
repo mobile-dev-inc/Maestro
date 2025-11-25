@@ -138,6 +138,7 @@ skiko-windows-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-x6
 square-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "squareOkhttp" }
 square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "squareOkhttp" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
+square-okio-jvm = { module = "com.squareup.okio:okio-jvm", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
 logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "logback" }

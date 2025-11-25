@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -28,6 +27,8 @@ tasks.named<Jar>("jar") {
 dependencies {
     api(libs.kotlin.result)
     api(libs.square.okio)
+    api(libs.square.okio.jvm)
+    api(libs.square.okhttp)
 
     api(libs.logging.sl4j)
     api(libs.logging.api)
