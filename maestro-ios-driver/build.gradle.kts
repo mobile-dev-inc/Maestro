@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.commons.io)
 
     api(libs.square.okhttp)
+    api(libs.square.okio.jvm)
     api(libs.square.okhttp.logs)
     api(libs.jackson.module.kotlin)
     api(libs.jarchivelib)
