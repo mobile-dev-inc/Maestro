@@ -43,6 +43,7 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    private val captureSteps: Boolean = false,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -267,6 +268,66 @@ class TestSuiteInteractor(
             )
         )
 
+        // Extract step information if captureSteps is enabled
+        val steps = if (captureSteps) {
+            // Build hierarchy information from command structure
+            val hierarchyInfo = buildCommandHierarchy(commands)
+
+            // Flatten commands in logical order (not execution order)
+            val orderedSteps = mutableListOf<TestExecutionSummary.StepResult>()
+            var stepIndex = 0
+
+            fun collectSteps(
+                commandList: List<maestro.orchestra.MaestroCommand>,
+                currentDepth: Int = 0,
+                parentDesc: String? = null
+            ) {
+                commandList.forEach { command ->
+                    val metadata = debugOutput.commands[command]
+                    if (metadata != null) {
+                        val durationStr = when (val duration = metadata.duration) {
+                            null -> "<1ms"
+                            else -> if (duration >= 1000) {
+                                "%.1fs".format(duration / 1000.0)
+                            } else {
+                                "${duration}ms"
+                            }
+                        }
+                        val status = metadata.status?.toString() ?: "UNKNOWN"
+                        val displayCommand = metadata.evaluatedCommand ?: command
+                        val hierarchy = hierarchyInfo[command]
+
+                        orderedSteps.add(
+                            TestExecutionSummary.StepResult(
+                                description = "${++stepIndex}. ${displayCommand.description()}",
+                                status = status,
+                                duration = durationStr,
+                                depth = currentDepth,
+                                path = hierarchy?.path ?: metadata.path.toList(),
+                                iteration = hierarchy?.iteration ?: metadata.iteration,
+                                parentDescription = parentDesc,
+                            )
+                        )
+
+                        // Recurse into composite commands
+                        val compositeCommand = command.asCommand() as? maestro.orchestra.CompositeCommand
+                        if (compositeCommand != null) {
+                            collectSteps(
+                                compositeCommand.subCommands(),
+                                currentDepth + 1,
+                                command.description()
+                            )
+                        }
+                    }
+                }
+            }
+
+            collectSteps(commands)
+            orderedSteps
+        } else {
+            emptyList()
+        }
+
         return Pair(
             first = TestExecutionSummary.FlowResult(
                 name = flowName,
@@ -278,9 +339,72 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                steps = steps,
             ),
             second = aiOutput,
         )
+    }
+
+    private data class CommandHierarchy(
+        val depth: Int,
+        val path: List<Int>,
+        val iteration: Int?,
+        val parentDescription: String?
+    )
+
+    private fun buildCommandHierarchy(
+        commands: List<maestro.orchestra.MaestroCommand>
+    ): Map<maestro.orchestra.MaestroCommand, CommandHierarchy> {
+        val hierarchyMap = mutableMapOf<maestro.orchestra.MaestroCommand, CommandHierarchy>()
+
+        fun traverseCommands(
+            commandList: List<maestro.orchestra.MaestroCommand>,
+            depth: Int = 0,
+            path: List<Int> = emptyList(),
+            parentDesc: String? = null,
+            iteration: Int? = null
+        ) {
+            commandList.forEachIndexed { index, command ->
+                val currentPath = path + index
+                hierarchyMap[command] = CommandHierarchy(
+                    depth = depth,
+                    path = currentPath,
+                    iteration = iteration,
+                    parentDescription = parentDesc
+                )
+
+                // Process composite commands
+                val compositeCommand = command.asCommand() as? maestro.orchestra.CompositeCommand
+                if (compositeCommand != null) {
+                    val subCommands = compositeCommand.subCommands()
+                    val parentDescription = command.description()
+
+                    // For RepeatCommand, we need to handle iterations
+                    if (compositeCommand is maestro.orchestra.RepeatCommand) {
+                        // Note: We can't know actual iteration count at this stage,
+                        // but we mark all subcommands as being part of a repeat
+                        traverseCommands(
+                            subCommands,
+                            depth + 1,
+                            currentPath,
+                            parentDescription,
+                            null // Will be set at runtime
+                        )
+                    } else {
+                        traverseCommands(
+                            subCommands,
+                            depth + 1,
+                            currentPath,
+                            parentDescription,
+                            null
+                        )
+                    }
+                }
+            }
+        }
+
+        traverseCommands(commands)
+        return hierarchyMap
     }
 
 }
