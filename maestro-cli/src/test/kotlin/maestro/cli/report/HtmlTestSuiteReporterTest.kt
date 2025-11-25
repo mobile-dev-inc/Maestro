@@ -163,4 +163,101 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
             """.trimIndent()
         )
     }
+
+    @Test
+    fun `HTML - Pretty mode with successful test and steps`() {
+        // Given
+        val testee = HtmlTestSuiteReporter(pretty = true)
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testSuccessWithSteps,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then
+        // Verify key elements are present
+        assertThat(resultStr).contains("Test Steps (3)")
+        assertThat(resultStr).contains("✅")
+        assertThat(resultStr).contains("1. Launch app")
+        assertThat(resultStr).contains("2. Tap on button")
+        assertThat(resultStr).contains("3. Assert visible")
+        assertThat(resultStr).contains("1.2s")
+        assertThat(resultStr).contains("500ms")
+        assertThat(resultStr).contains("100ms")
+        assertThat(resultStr).contains(".step-item")
+        assertThat(resultStr).contains(".step-header")
+        assertThat(resultStr).contains(".step-name")
+
+        // Verify proper HTML structure
+        assertThat(resultStr).contains("<html>")
+        assertThat(resultStr).contains("</html>")
+        assertThat(resultStr).contains("Flow Execution Summary")
+        assertThat(resultStr).contains("Test Result: PASSED")
+    }
+
+    @Test
+    fun `HTML - Pretty mode with failed test and steps with various statuses`() {
+        // Given
+        val testee = HtmlTestSuiteReporter(pretty = true)
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testErrorWithSteps,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then
+        // Verify key elements and various step statuses
+        assertThat(resultStr).contains("Test Steps (4)")
+        assertThat(resultStr).contains("✅") // COMPLETED
+        assertThat(resultStr).contains("⚠️") // WARNED
+        assertThat(resultStr).contains("❌") // FAILED
+        assertThat(resultStr).contains("⏭️") // SKIPPED
+        assertThat(resultStr).contains("1. Launch app")
+        assertThat(resultStr).contains("2. Tap on optional element")
+        assertThat(resultStr).contains("3. Tap on button")
+        assertThat(resultStr).contains("4. Assert visible")
+        assertThat(resultStr).contains("Element not found")
+        assertThat(resultStr).contains(".step-item")
+        assertThat(resultStr).contains(".step-header")
+        assertThat(resultStr).contains(".step-name")
+
+        // Verify proper HTML structure
+        assertThat(resultStr).contains("<html>")
+        assertThat(resultStr).contains("</html>")
+        assertThat(resultStr).contains("Flow Execution Summary")
+        assertThat(resultStr).contains("Test Result: FAILED")
+        assertThat(resultStr).contains("Failed Flow")
+    }
+
+    @Test
+    fun `HTML - Basic mode does not show steps even when present`() {
+        // Given
+        val testee = HtmlTestSuiteReporter(pretty = false)
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testSuccessWithSteps,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then
+        // Should not contain step details
+        assertThat(resultStr).doesNotContain("Test Steps")
+        assertThat(resultStr).doesNotContain("Launch app")
+        assertThat(resultStr).doesNotContain("step-item")
+        assertThat(resultStr).doesNotContain("step-header")
+
+        // Should contain basic flow information
+        assertThat(resultStr).contains("Flow A")
+        assertThat(resultStr).contains("Status: SUCCESS")
+        assertThat(resultStr).contains("File Name: flow_a")
+    }
 }

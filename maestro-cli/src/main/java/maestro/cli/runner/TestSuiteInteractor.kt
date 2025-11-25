@@ -4,6 +4,7 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.cli.CliError
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
@@ -12,6 +13,8 @@ import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.report.TestSuiteReporter
+import maestro.cli.util.IOSLogCapture
+import maestro.cli.util.LogCapture
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
@@ -43,6 +46,10 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    private val captureSteps: Boolean = false,
+    private val captureLog: Boolean = false,
+    private val logBufferSize: Int = 5000,
+    private val logLevels: Set<maestro.LogLevel>? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -176,6 +183,38 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
+        // Start log capture if enabled (platform-specific)
+        val connectedDevice = device as? maestro.device.Device.Connected
+        val deviceId = connectedDevice?.instanceId
+        val isIOS = connectedDevice?.platform == Platform.IOS
+
+        val androidLogCapture: LogCapture? = if (captureLog && !isIOS) {
+            LogCapture(deviceId = deviceId, bufferSize = logBufferSize).apply {
+                try {
+                    start()
+                    logger.info("${shardPrefix}Started Android log capture")
+                } catch (e: Exception) {
+                    logger.warn("${shardPrefix}Failed to start Android log capture: ${e.message}")
+                }
+            }
+        } else null
+
+        val iosLogCapture: IOSLogCapture? = if (captureLog && isIOS && connectedDevice != null) {
+            val isSimulator = connectedDevice?.deviceType == Device.DeviceType.SIMULATOR
+            IOSLogCapture(deviceId = deviceId, bufferSize = logBufferSize, isSimulator = isSimulator).apply {
+                try {
+                    start()
+                    logger.info("${shardPrefix}Started iOS log capture (simulator: $isSimulator)")
+                } catch (e: Exception) {
+                    logger.warn("${shardPrefix}Failed to start iOS log capture: ${e.message}")
+                }
+            }
+        } else null
+
+        // Track logs per command
+        val commandLogs = mutableMapOf<String, MutableList<maestro.LogEntry>>()
+        var lastLogCount = 0
+
         val flowTimeMillis = measureTimeMillis {
             try {
                 YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
@@ -189,12 +228,25 @@ class TestSuiteInteractor(
                             timestamp = System.currentTimeMillis(),
                             status = CommandStatus.RUNNING
                         )
+                        // Mark log position at command start
+                        lastLogCount = androidLogCapture?.getBufferedLogs()?.size
+                            ?: iosLogCapture?.getBufferedLogs()?.size
+                            ?: 0
                     },
                     onCommandComplete = { _, command ->
                         logger.info("${shardPrefix}${command.description()} COMPLETED")
                         debugOutput.commands[command]?.let {
                             it.status = CommandStatus.COMPLETED
                             it.calculateDuration()
+                        }
+                        // Capture logs generated during this command
+                        val currentLogs = androidLogCapture?.getBufferedLogs()
+                            ?: iosLogCapture?.getBufferedLogs()
+                            ?: emptyList()
+                        if (currentLogs.size > lastLogCount) {
+                            val newLogs = currentLogs.drop(lastLogCount)
+                            commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
+                            lastLogCount = currentLogs.size
                         }
                     },
                     onCommandFailed = { _, command, e ->
@@ -204,6 +256,15 @@ class TestSuiteInteractor(
                             it.status = CommandStatus.FAILED
                             it.calculateDuration()
                             it.error = e
+                        }
+                        // Capture logs for failed command
+                        val currentLogs = androidLogCapture?.getBufferedLogs()
+                            ?: iosLogCapture?.getBufferedLogs()
+                            ?: emptyList()
+                        if (currentLogs.size > lastLogCount) {
+                            val newLogs = currentLogs.drop(lastLogCount)
+                            commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
+                            lastLogCount = currentLogs.size
                         }
 
                         ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
@@ -219,6 +280,15 @@ class TestSuiteInteractor(
                         logger.info("${shardPrefix}${command.description()} WARNED")
                         debugOutput.commands[command]?.apply {
                             status = CommandStatus.WARNED
+                        }
+                        // Capture logs for warned command
+                        val currentLogs = androidLogCapture?.getBufferedLogs()
+                            ?: iosLogCapture?.getBufferedLogs()
+                            ?: emptyList()
+                        if (currentLogs.size > lastLogCount) {
+                            val newLogs = currentLogs.drop(lastLogCount)
+                            commandLogs.getOrPut(command.description()) { mutableListOf() }.addAll(newLogs)
+                            lastLogCount = currentLogs.size
                         }
                     },
                     onCommandReset = { command ->
@@ -239,7 +309,7 @@ class TestSuiteInteractor(
                     }
                 )
 
-                val flowSuccess = orchestra.runFlow(commands)
+                val flowSuccess = orchestra.runFlow(commands, flowFile.parentFile.absolutePath)
                 flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
             } catch (e: Exception) {
                 logger.error("${shardPrefix}Failed to complete flow", e)
@@ -248,6 +318,75 @@ class TestSuiteInteractor(
             }
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
+
+        // Stop log capture and collect logs
+        val capturedLogs = try {
+            val allLogs = androidLogCapture?.stop() ?: iosLogCapture?.stop() ?: emptyList()
+            if (allLogs.isNotEmpty()) {
+                logger.info("${shardPrefix}Captured ${allLogs.size} log entries")
+
+                // Filter by log level if specified
+                val logs = if (logLevels != null) {
+                    allLogs.filter { log -> logLevels.contains(log.level) }
+                        .also { filtered ->
+                            logger.info("${shardPrefix}Filtered to ${filtered.size} entries (levels: ${logLevels.joinToString()})")
+                        }
+                } else {
+                    allLogs
+                }
+
+                // Correlate logs with commands - split proportionally by duration
+                if (logs.isNotEmpty()) {
+                    val sortedCommands = debugOutput.commands.entries
+                        .sortedBy { it.value.timestamp }
+                        .toList()
+
+                    val totalDuration = sortedCommands.sumOf { it.value.duration ?: 0L }
+
+                    if (totalDuration > 0) {
+                        var logIndex = 0
+                        sortedCommands.forEachIndexed { index, (command, metadata) ->
+                            val commandDuration = metadata.duration ?: 100L  // Give commands without duration some weight
+                            // Allocate logs proportionally to command duration (min 1% per command)
+                            val proportion = (commandDuration.toDouble() / totalDuration).coerceAtLeast(0.01)
+                            val logsForThisCommand = (proportion * logs.size).toInt().coerceAtLeast(1)
+
+                            val commandLogsList = logs.drop(logIndex).take(logsForThisCommand)
+                            // Use index and add duration info to make keys unique and informative
+                            val durationStr = when {
+                                commandDuration >= 1000 -> "%.1fs".format(commandDuration / 1000.0)
+                                commandDuration > 0 -> "${commandDuration}ms"
+                                else -> "<1ms"
+                            }
+                            val status = metadata.status?.toString() ?: "UNKNOWN"
+                            val uniqueKey = "${index + 1}. ${command.description()}|||$durationStr|||$status"
+                            commandLogs[uniqueKey] = commandLogsList.toMutableList()
+
+                            logIndex += logsForThisCommand
+                        }
+
+                        // Add any remaining logs to the last command
+                        if (logIndex < logs.size && sortedCommands.isNotEmpty()) {
+                            val lastCommand = sortedCommands.last().key.description()
+                            commandLogs.getOrPut(lastCommand) { mutableListOf() }
+                                .addAll(logs.drop(logIndex))
+                        }
+
+                        logger.info("${shardPrefix}Split ${logs.size} logs across ${commandLogs.size} commands")
+                    } else {
+                        // If no durations, just put all logs under first command
+                        if (sortedCommands.isNotEmpty()) {
+                            commandLogs[sortedCommands.first().key.description()] = logs.toMutableList()
+                        }
+                    }
+                }
+
+            }
+            allLogs
+        } catch (e: Exception) {
+            logger.warn("${shardPrefix}Failed to stop log capture: ${e.message}")
+            emptyList()
+        }
 
         TestDebugReporter.saveFlow(
             flowName = flowName,
@@ -267,6 +406,27 @@ class TestSuiteInteractor(
             )
         )
 
+        // Extract step information if captureSteps is enabled
+        val steps = if (captureSteps) {
+            debugOutput.commands.entries
+                .sortedBy { it.value.timestamp }
+                .mapIndexed { index, (command, metadata) ->
+                    val durationStr = when (val duration = metadata.duration) {
+                        null -> "<1ms"
+                        in 1000..Long.MAX_VALUE -> "%.1fs".format(duration / 1000.0)
+                        else -> "${duration}ms"
+                    }
+                    val status = metadata.status?.toString() ?: "UNKNOWN"
+                    TestExecutionSummary.StepResult(
+                        description = "${index + 1}. ${command.description()}",
+                        status = status,
+                        duration = durationStr,
+                    )
+                }
+        } else {
+            emptyList()
+        }
+
         return Pair(
             first = TestExecutionSummary.FlowResult(
                 name = flowName,
@@ -278,9 +438,41 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                logs = capturedLogs,
+                commandLogs = commandLogs,
+                steps = steps,
             ),
             second = aiOutput,
         )
+    }
+
+    private fun parseLogTimestamp(timestamp: String): Long? {
+        // Parse "MM-DD HH:MM:SS.mmm" format to milliseconds
+        try {
+            val parts = timestamp.split(" ")
+            if (parts.size < 2) return null
+
+            val timePart = parts[1]  // "HH:MM:SS.mmm"
+            val timeComponents = timePart.split(":")
+            if (timeComponents.size < 3) return null
+
+            val hour = timeComponents[0].toIntOrNull() ?: return null
+            val minute = timeComponents[1].toIntOrNull() ?: return null
+            val secondAndMillis = timeComponents[2].split(".")
+            val second = secondAndMillis[0].toIntOrNull() ?: return null
+            val millis = secondAndMillis.getOrNull(1)?.toIntOrNull() ?: 0
+
+            val calendar = java.util.Calendar.getInstance()
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+            calendar.set(java.util.Calendar.MINUTE, minute)
+            calendar.set(java.util.Calendar.SECOND, second)
+            calendar.set(java.util.Calendar.MILLISECOND, millis)
+
+            return calendar.timeInMillis
+        } catch (e: Exception) {
+            logger.debug("Failed to parse log timestamp: $timestamp", e)
+            return null
+        }
     }
 
 }

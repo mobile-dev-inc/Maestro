@@ -5,11 +5,11 @@ import okio.BufferedSink
 
 object ReporterFactory {
 
-    fun buildReporter(format: ReportFormat, testSuiteName: String?): TestSuiteReporter {
+    fun buildReporter(format: ReportFormat, testSuiteName: String?, pretty: Boolean = false): TestSuiteReporter {
         return when (format) {
             ReportFormat.JUNIT -> JUnitTestSuiteReporter.xml(testSuiteName)
             ReportFormat.NOOP -> TestSuiteReporter.NOOP
-            ReportFormat.HTML -> HtmlTestSuiteReporter()
+            ReportFormat.HTML -> HtmlTestSuiteReporter(pretty = pretty)
         }
     }
 

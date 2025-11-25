@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import maestro.LogLevel
 import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
@@ -133,6 +134,12 @@ class TestCommand : Callable<Int> {
     private var format: ReportFormat = ReportFormat.NOOP
 
     @Option(
+        names = ["--pretty"],
+        description = ["Enable pretty HTML report with detailed steps and timing (only applicable with --format html)"],
+    )
+    private var pretty: Boolean = false
+
+    @Option(
         names = ["--test-suite-name"],
         description = ["Test suite name"],
     )
@@ -209,6 +216,32 @@ class TestCommand : Callable<Int> {
     )
     private var appleTeamId: String? = null
 
+    @Option(
+        names = ["--include-logs"],
+        description = [
+            "Include console logs in the test summary report. " +
+            "Defaults to ERROR and WARN levels. " +
+            "Use --log-levels to customize which levels to capture."
+        ]
+    )
+    private var includeLogs: Boolean = false
+
+    @Option(
+        names = ["--log-levels"],
+        description = [
+            "Specify which log levels to capture (default: ERROR,WARN). " +
+            "Valid levels: ERROR,WARN,INFO,DEBUG,VERBOSE,ALL"
+        ],
+        paramLabel = "LEVELS"
+    )
+    private var logLevelsStr: String? = null
+
+    @Option(
+        names = ["--log-buffer-size"],
+        description = ["Maximum number of log entries to capture per test (default: 5000)"]
+    )
+    private var logBufferSize: Int = 5000
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -226,6 +259,15 @@ class TestCommand : Callable<Int> {
     }
   
     override fun call(): Int {
+        // Auto-enable HTML format if --include-logs is specified
+        if (includeLogs != null && format == ReportFormat.NOOP) {
+            format = ReportFormat.HTML
+            if (output == null) {
+                output = File("maestro-report.html")
+            }
+            PrintUtils.info("--include-logs specified: auto-enabled HTML format (output: ${output?.name})")
+        }
+
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
             flattenDebugOutput = flattenDebugOutput,
@@ -567,11 +609,17 @@ class TestCommand : Callable<Int> {
             deviceCount = chunkPlans.size
         ))
 
+        val logLevels = parseLogLevels()
+
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
-            reporter = ReporterFactory.buildReporter(format, testSuiteName),
+            reporter = ReporterFactory.buildReporter(format, testSuiteName, pretty),
+            captureSteps = pretty,
+            captureLog = logLevels != null,
+            logBufferSize = logBufferSize,
+            logLevels = logLevels,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -641,7 +689,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun TestExecutionSummary.saveReport() {
-        val reporter = ReporterFactory.buildReporter(format, testSuiteName)
+        val reporter = ReporterFactory.buildReporter(format, testSuiteName, pretty)
 
         format.fileExtension?.let { extension ->
             (output ?: File("report$extension")).sink()
@@ -657,6 +705,38 @@ class TestCommand : Callable<Int> {
             passedCount = sumOf { it.passedCount ?: 0 },
             totalTests = sumOf { it.totalTests ?: 0 }
         )
+    }
+
+    private fun parseLogLevels(): Set<LogLevel>? {
+        if (!includeLogs) return null  // Not enabled
+
+        val levelsStr = logLevelsStr ?: "ERROR,WARN"  // Default to ERROR,WARN
+
+        return when {
+            levelsStr.isEmpty() || levelsStr.equals("ALL", ignoreCase = true) -> {
+                LogLevel.values().toSet()
+            }
+            else -> {
+                levelsStr.split(",")
+                    .map { it.trim().uppercase() }
+                    .mapNotNull {
+                        try {
+                            if (it == "ALL") {
+                                return@parseLogLevels LogLevel.values().toSet()
+                            }
+                            LogLevel.valueOf(it)
+                        } catch (e: Exception) {
+                            PrintUtils.warn("Unknown log level: $it. Valid levels: ${LogLevel.values().joinToString()}, ALL")
+                            null
+                        }
+                    }
+                    .toSet()
+                    .ifEmpty {
+                        PrintUtils.warn("No valid log levels specified, defaulting to ERROR,WARN")
+                        setOf(LogLevel.ERROR, LogLevel.WARN)
+                    }
+            }
+        }
     }
 
     private fun showCloudFasterResultsPromotionMessageIfNeeded() {
