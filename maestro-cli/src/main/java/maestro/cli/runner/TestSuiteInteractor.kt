@@ -274,8 +274,11 @@ class TestSuiteInteractor(
                 .mapIndexed { index, (command, metadata) ->
                     val durationStr = when (val duration = metadata.duration) {
                         null -> "<1ms"
-                        in 1000..Long.MAX_VALUE -> "%.1fs".format(duration / 1000.0)
-                        else -> "${duration}ms"
+                        else -> if (duration >= 1000) {
+                            "%.1fs".format(duration / 1000.0)
+                        } else {
+                            "${duration}ms"
+                        }
                     }
                     val status = metadata.status?.toString() ?: "UNKNOWN"
                     TestExecutionSummary.StepResult(

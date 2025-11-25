@@ -11,7 +11,7 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
     companion object {
         private fun loadPrettyCss(): String {
             return HtmlTestSuiteReporter::class.java
-                .getResourceAsStream("/pretty_report.css")
+                .getResourceAsStream("/html-detailed.css")
                 ?.bufferedReader()
                 ?.use { it.readText() }
                 ?: ""
@@ -116,12 +116,13 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                         }
                                                     }"
                                                     br {}
-                                                    if (!detailed) {
-                                                        +"File Name: ${flow.fileName}"
-                                                    }
                                                 }
-                                                if (detailed && flow.fileName != null) {
-                                                    p(classes = "card-text") {
+                                                if (flow.fileName != null) {
+                                                    if (detailed) {
+                                                        p(classes = "card-text") {
+                                                            +"File Name: ${flow.fileName}"
+                                                        }
+                                                    } else {
                                                         +"File Name: ${flow.fileName}"
                                                     }
                                                 }
