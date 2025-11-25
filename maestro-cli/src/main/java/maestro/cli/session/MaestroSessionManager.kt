@@ -156,6 +156,8 @@ object MaestroSessionManager {
         isHeadless: Boolean,
         driverHostPort: Int?,
     ): MaestroSession {
+        logger.info("createMaestro called - platform: ${selectedDevice.platform}, connectToExistingSession: $connectToExistingSession, isStudio: $isStudio")
+        
         return when {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
@@ -171,7 +173,11 @@ object MaestroSessionManager {
                         driverHostPort,
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio, isHeadless)
+                    Platform.WEB -> {
+                        // For web, always open the driver since browser reuse is handled at Chrome connection level
+                        logger.info("Creating web device - instanceId: ${selectedDevice.device.instanceId}, openDriver: true (browser reuse handled internally)")
+                        pickWebDevice(isStudio, isHeadless, selectedDevice.device.instanceId, true)
+                    }
                 },
                 device = selectedDevice.device,
             )
@@ -195,10 +201,14 @@ object MaestroSessionManager {
                 device = null,
             )
 
-            selectedDevice.platform == Platform.WEB -> MaestroSession(
-                maestro = pickWebDevice(isStudio, isHeadless),
-                device = null
-            )
+            selectedDevice.platform == Platform.WEB -> {
+                // For web, always open the driver since browser reuse is handled at Chrome connection level
+                logger.info("Creating web session - deviceId: ${selectedDevice.deviceId ?: "chromium"}, openDriver: true (browser reuse handled internally)")
+                MaestroSession(
+                    maestro = pickWebDevice(isStudio, isHeadless, selectedDevice.deviceId ?: "chromium", true),
+                    device = null
+                )
+            }
 
             else -> error("Unable to create Maestro session")
         }
@@ -324,8 +334,8 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean): Maestro {
-        return Maestro.web(isStudio, isHeadless)
+    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean, deviceId: String = "chromium", openDriver: Boolean): Maestro {
+        return Maestro.web(isStudio, isHeadless, deviceId, openDriver)
     }
 
     private data class SelectedDevice(

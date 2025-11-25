@@ -47,6 +47,8 @@
 			<string>YES</string>
 			<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
 			<string>1</string>
+			<key>TERM</key>
+			<string>dumb</string>
 		</dict>
 		<key>IsUITestBundle</key>
 		<true/>

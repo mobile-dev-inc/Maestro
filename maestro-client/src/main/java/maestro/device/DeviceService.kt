@@ -143,20 +143,35 @@ object DeviceService {
     }
 
     private fun listWebDevices(): List<Device> {
-        return listOf(
-            Device.Connected(
-                platform = Platform.WEB,
-                description = "Chromium Web Browser",
-                instanceId = "chromium"
-            ),
-            Device.AvailableForLaunch(
-                modelId = "chromium",
-                language = null,
-                country = null,
-                description = "Chromium Web Browser",
-                platform = Platform.WEB
+        // Support multiple browser instances for sharding
+        // Create up to 8 browser instances with unique IDs
+        val maxBrowserInstances = 8
+        val devices = mutableListOf<Device>()
+        
+        for (i in 1..maxBrowserInstances) {
+            val instanceId = "chromium-$i"
+            val description = "Chromium Web Browser (Instance $i)"
+            
+            devices.add(
+                Device.Connected(
+                    platform = Platform.WEB,
+                    description = description,
+                    instanceId = instanceId
+                )
             )
-        )
+            
+            devices.add(
+                Device.AvailableForLaunch(
+                    modelId = instanceId,
+                    language = null,
+                    country = null,
+                    description = description,
+                    platform = Platform.WEB
+                )
+            )
+        }
+        
+        return devices
     }
 
     private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {

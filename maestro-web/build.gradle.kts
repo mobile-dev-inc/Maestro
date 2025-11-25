@@ -10,6 +10,7 @@ plugins {
 
 dependencies {
     implementation(libs.square.okio)
+    implementation(libs.slf4j)
 
     api(libs.selenium)
     api(libs.selenium.devtools)

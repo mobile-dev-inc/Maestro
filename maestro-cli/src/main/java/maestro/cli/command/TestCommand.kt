@@ -479,7 +479,8 @@ class TestCommand : Callable<Int> {
     private fun getPassedOptionsDeviceIds(): List<String> {
         val arguments = if (isWebFlow()) {
             PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-            "chromium"
+            // Don't automatically default to "chromium" - let the sharding logic handle device selection
+            parent?.deviceId
         } else parent?.deviceId
         val deviceIds = arguments
             .orEmpty()

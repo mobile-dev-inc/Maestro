@@ -78,7 +78,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             hierarchy.children = children
             return hierarchy
         } catch let error {
-            guard isIllegalArgumentError(error) else {
+            // We attempt to gracefully recover from known AX snapshot issues instead of failing the whole view hierarchy request.
+            // This is particularly important for dynamic app hierarchies (for example, apps using React Native's new architecture)
+            // where elements can disappear or become invalid while XCTest is taking a snapshot, resulting in AX errors.
+            guard isRecoverableSnapshotError(error) else {
                 logger.error("Snapshot failure, cannot return view hierarchy due to \(error.localizedDescription)")
                 throw AppError(message: error.localizedDescription)
             }
@@ -120,8 +123,16 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    private func isIllegalArgumentError(_ error: Error) -> Bool {
-        error.localizedDescription.contains("Error kAXErrorIllegalArgument getting snapshot for element")
+    private func isRecoverableSnapshotError(_ error: Error) -> Bool {
+        let description = error.localizedDescription
+        
+        // We consider certain AX errors as recoverable and trigger the fallback logic instead of propagating a 500.
+        // - kAXErrorIllegalArgument is a known issue for large or complex view hierarchies when asking XCTest for a snapshot.
+        // - kAXErrorInvalidUIElement can happen when the underlying accessibility element has been invalidated
+        //   (for example, rapidly changing UI or concurrent layout changes such as with RN's new architecture).
+        // Treating both as recoverable allows Maestro to retry from a "recovery element" instead of failing the test run.
+        return description.contains("Error kAXErrorIllegalArgument getting snapshot for element")
+            || description.contains("kAXErrorInvalidUIElement")
     }
 
     private func keyboardHierarchy(_ element: XCUIApplication) -> AXElement? {
