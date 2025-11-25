@@ -116,13 +116,7 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                         }
                                                     }"
                                                     br {}
-                                                }
-                                                if (flow.fileName != null) {
-                                                    if (detailed) {
-                                                        p(classes = "card-text") {
-                                                            +"File Name: ${flow.fileName}"
-                                                        }
-                                                    } else {
+                                                    if (flow.fileName != null) {
                                                         +"File Name: ${flow.fileName}"
                                                     }
                                                 }
