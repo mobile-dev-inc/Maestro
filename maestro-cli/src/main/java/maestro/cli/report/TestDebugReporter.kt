@@ -216,7 +216,9 @@ data class CommandDebugMetadata(
     var timestamp: Long? = null,
     var duration: Long? = null,
     var error: Throwable? = null,
-    var hierarchy: TreeNode? = null
+    var hierarchy: TreeNode? = null,
+    var sequenceNumber: Int = 0,
+    var evaluatedCommand: MaestroCommand? = null
 ) {
     fun calculateDuration() {
         if (timestamp != null) {
