@@ -271,7 +271,7 @@ class TestSuiteInteractor(
         // Extract step information if captureSteps is enabled
         val steps = if (captureSteps) {
             debugOutput.commands.entries
-                .sortedBy { it.value.timestamp }
+                .sortedBy { it.value.sequenceNumber }
                 .mapIndexed { index, (command, metadata) ->
                     val durationStr = when (val duration = metadata.duration) {
                         null -> "<1ms"
@@ -282,8 +282,10 @@ class TestSuiteInteractor(
                         }
                     }
                     val status = metadata.status?.toString() ?: "UNKNOWN"
+                    // Use evaluated command for interpolated labels, fallback to original
+                    val displayCommand = metadata.evaluatedCommand ?: command
                     TestExecutionSummary.StepResult(
-                        description = "${index + 1}. ${command.description()}",
+                        description = "${index + 1}. ${displayCommand.description()}",
                         status = status,
                         duration = durationStr,
                     )
