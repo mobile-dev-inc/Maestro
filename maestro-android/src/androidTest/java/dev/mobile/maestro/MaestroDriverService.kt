@@ -89,7 +89,7 @@ class MaestroDriverService {
 
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val uiDevice = UiDevice.getInstance(instrumentation)
-        val uiAutomation = instrumentation.uiAutomation
+        val uiAutomation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
 
         val port = InstrumentationRegistry.getArguments().getString("port", "7001").toInt()
 
