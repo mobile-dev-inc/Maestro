@@ -106,8 +106,8 @@ object MaestroSessionManager {
             connectToExistingSession = if (isStudio) {
                 false
             } else if (driverHostPort != null) {
-                // Custom port specified → connect to external server (don't start driver)
-                true
+                // Custom port specified → skip session store check for all devices
+                false
             } else {
                 SessionStore.hasActiveSessions(
                     sessionId,
