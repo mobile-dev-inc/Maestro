@@ -105,6 +105,9 @@ object MaestroSessionManager {
             selectedDevice = selectedDevice,
             connectToExistingSession = if (isStudio) {
                 false
+            } else if (driverHostPort != null) {
+                // Custom port specified → connect to external server (don't start driver)
+                true
             } else {
                 SessionStore.hasActiveSessions(
                     sessionId,
@@ -149,7 +152,8 @@ object MaestroSessionManager {
         if (host == null) {
             val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform, deviceIndex)
 
-            if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
+            // Only validate/build driver when NOT using custom driver port
+            if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS && driverHostPort == null) {
                 PrintUtils.message("Detected connected iPhone with ${device.instanceId}!")
                 val driverBuilder = DriverBuilder()
                 RealIOSDeviceDriver(
@@ -423,7 +427,8 @@ object MaestroSessionManager {
 
         return Maestro.ios(
             driver = iosDriver,
-            openDriver = openDriver || xcTestDevice.isShutdown(),
+            // Only check isShutdown() if not using custom driver port (avoids accessing driver files)
+            openDriver = if (driverHostPort != null) openDriver else (openDriver || xcTestDevice.isShutdown()),
         )
     }
 

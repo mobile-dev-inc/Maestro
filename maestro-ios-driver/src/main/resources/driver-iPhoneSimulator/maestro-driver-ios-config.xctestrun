@@ -24,8 +24,8 @@
 		<string>maestro-driver-ios.xcodeproj</string>
 		<key>BundleIdentifiersForCrashReportEmphasis</key>
 		<array>
-			<string>com.aishwarya.maestro-driver-ios</string>
-			<string>com.aishwarya.maestro-driver-iosUITests</string>
+			<string>dev.mobile.maestro-driver-ios</string>
+			<string>dev.mobile.maestro-driver-iosUITests</string>
 		</array>
 		<key>CommandLineArguments</key>
 		<array/>
@@ -70,7 +70,7 @@
 		<key>TestBundlePath</key>
 		<string>__TESTHOST__/PlugIns/maestro-driver-iosUITests.xctest</string>
 		<key>TestHostBundleIdentifier</key>
-		<string>com.aishwarya.maestro-driver-iosUITests.xctrunner</string>
+		<string>dev.mobile.maestro-driver-iosUITests.xctrunner</string>
 		<key>TestHostPath</key>
 		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
 		<key>TestLanguage</key>
