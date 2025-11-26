@@ -130,8 +130,9 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun close() {
-        logger.info("[Start] Uninstall the runner app")
-        uninstall(id = LocalXCTestInstaller.UI_TEST_RUNNER_APP_BUNDLE_ID)
-        logger.info("[Done] Uninstall the runner app")
+        // Skip uninstalling runner app on real devices to allow session reuse
+        // logger.info("[Start] Uninstall the runner app")
+        // uninstall(id = LocalXCTestInstaller.UI_TEST_RUNNER_APP_BUNDLE_ID)
+        // logger.info("[Done] Uninstall the runner app")
     }
 }
