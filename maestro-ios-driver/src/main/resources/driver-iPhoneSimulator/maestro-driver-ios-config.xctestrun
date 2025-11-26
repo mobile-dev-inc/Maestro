@@ -24,8 +24,8 @@
 		<string>maestro-driver-ios.xcodeproj</string>
 		<key>BundleIdentifiersForCrashReportEmphasis</key>
 		<array>
-			<string>dev.mobile.maestro-driver-ios</string>
-			<string>dev.mobile.maestro-driver-iosUITests</string>
+			<string>com.aishwarya.maestro-driver-ios</string>
+			<string>com.aishwarya.maestro-driver-iosUITests</string>
 		</array>
 		<key>CommandLineArguments</key>
 		<array/>
@@ -43,18 +43,8 @@
 		<dict>
 			<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
 			<string>com.apple.AppStore</string>
-			<key>DYLD_INSERT_LIBRARIES</key>
-			<string>/usr/lib/libRPAC.dylib</string>
 			<key>OS_ACTIVITY_DT_MODE</key>
 			<string>YES</string>
-			<key>PERFC_ENABLE_EXTENDED_DIAGNOSTIC_FORMAT</key>
-			<string>1</string>
-			<key>PERFC_ENABLE_PROFILE_MODE</key>
-			<string>1</string>
-			<key>PERFC_RESET_INSERT_LIBRARIES</key>
-			<string>1</string>
-			<key>PERFC_SUPPRESS_SYSTEM_REPORTS</key>
-			<string>1</string>
 			<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
 			<string>1</string>
 			<key>TERM</key>
@@ -80,7 +70,7 @@
 		<key>TestBundlePath</key>
 		<string>__TESTHOST__/PlugIns/maestro-driver-iosUITests.xctest</string>
 		<key>TestHostBundleIdentifier</key>
-		<string>dev.mobile.maestro-driver-iosUITests.xctrunner</string>
+		<string>com.aishwarya.maestro-driver-iosUITests.xctrunner</string>
 		<key>TestHostPath</key>
 		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
 		<key>TestLanguage</key>
@@ -93,12 +83,8 @@
 		<dict>
 			<key>DYLD_FRAMEWORK_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__TESTROOT__/Debug-iphonesimulator/PackageFrameworks:__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks</string>
-			<key>DYLD_INSERT_LIBRARIES</key>
-			<string>/usr/lib/libRPAC.dylib</string>
 			<key>DYLD_LIBRARY_PATH</key>
 			<string>__TESTROOT__/Debug-iphonesimulator:__PLATFORMS__/iPhoneSimulator.platform/Developer/usr/lib</string>
-			<key>PERFC_SUPPRESS_SYSTEM_REPORTS</key>
-			<string>1</string>
 			<key>XCODE_SCHEME_NAME</key>
 			<string>maestro-driver-ios</string>
 			<key>__XCODE_BUILT_PRODUCTS_DIR_PATHS</key>
@@ -131,8 +117,6 @@
 		</dict>
 		<key>UITargetAppPath</key>
 		<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-ios.app</string>
-		<key>UITargetAppPerformanceAntipatternCheckerEnabled</key>
-		<true/>
 		<key>UserAttachmentLifetime</key>
 		<string>deleteOnSuccess</string>
 	</dict>

@@ -56,7 +56,13 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun clearAppState(id: String) {
-        TODO("Not yet implemented")
+        logger.warn(
+            "clearState is not supported on real iOS devices due to iOS security restrictions. " +
+            "App state will NOT be cleared. " +
+            "Workarounds: (1) Remove clearState from tests, (2) Add app-level reset, " +
+            "(3) Manually reinstall app between test runs"
+        )
+        // Do nothing - test continues without clearing state
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {

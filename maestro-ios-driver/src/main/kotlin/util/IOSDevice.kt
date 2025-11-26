@@ -37,6 +37,7 @@ data class DeviceCtlResponse(
     data class DeviceProperties(
         val name: String?,
         val osVersionNumber: String?,
+        val developerModeStatus: String?,
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)

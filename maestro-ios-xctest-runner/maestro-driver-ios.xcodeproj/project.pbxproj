@@ -998,7 +998,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aishwarya.maestro-driver-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1027,7 +1027,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aishwarya.maestro-driver-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1050,7 +1050,7 @@
 					"@loader_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aishwarya.maestro-driver-iosUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
@@ -1076,7 +1076,7 @@
 					"@loader_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aishwarya.maestro-driver-iosUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";

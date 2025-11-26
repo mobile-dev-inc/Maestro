@@ -92,11 +92,21 @@ struct ScreenSizeHelper {
 
         return switch orientation {
         case .portrait: point
+        case .portraitUpsideDown:
+            CGPoint(x: CGFloat(width) - point.x, y: CGFloat(height) - point.y)
         case .landscapeLeft:
             CGPoint(x: CGFloat(width) - point.y, y: CGFloat(point.x))
         case .landscapeRight:
             CGPoint(x: CGFloat(point.y), y: CGFloat(height) - point.x)
-        default: fatalError("Not implemented yet")
+        case .faceUp, .faceDown:
+            // When device is flat, treat as portrait orientation
+            point
+        case .unknown:
+            // Treat unknown orientation as portrait (consistent with actualOrientation())
+            point
+        @unknown default:
+            // Forward compatibility: treat new orientations as portrait
+            point
         }
     }
 }
