@@ -39,20 +39,22 @@ class XCTestIOSDevice(
             // Retry logic for transient kAXErrorInvalidUIElement errors
             // This error occurs when UI elements are deallocated between hierarchy traversal and frame retrieval
             var lastError: Throwable? = null
-            repeat(3) { attempt ->
+            repeat(5) { attempt ->
                 runCatching {
                     // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
+                    logger.info("UIP - Getting view hierarchy")
                     val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
+                    logger.info("UIP - Getting the depth of the view hierarchy")
                     DepthTracker.trackDepth(viewHierarchy.depth)
                     logger.trace("Depth received: ${viewHierarchy.depth}")
                     return@execute viewHierarchy
                 }.onFailure { error ->
                     val isTransientError = error.message?.contains("kAXErrorInvalidUIElement") == true
-
-                    if (isTransientError && attempt < 2) {
-                        logger.warn("View hierarchy request failed with transient error (attempt ${attempt + 1}/3): ${error.message}")
+                    logger.info("UIP - isTransientError$isTransientError")
+                    if (attempt < 5) {
+                        logger.warn("UIP - View hierarchy request failed with transient error (attempt ${attempt + 1}/5): ${error.message}")
                         lastError = error
-                        Thread.sleep(100) // Brief delay before retry
+                        Thread.sleep(300) // Brief delay before retry
                     } else {
                         throw error
                     }
