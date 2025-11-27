@@ -111,39 +111,39 @@ object Analytics : AutoCloseable {
      * This method is "fire and forget" - it will never block the calling thread
      */
     fun trackEvent(event: PostHogEvent) {
-        executor.submit {
-            try {
-                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return@submit
-
-                identifyUserIfNeeded()
-
-                // Include super properties in each event since PostHog Java client doesn't have register
-                val eventData = convertEventToEventData(event)
-                val userState = analyticsStateManager.getState()
-                val groupProperties = userState.orgId?.let { orgId ->
-                   mapOf(
-                       "\$groups" to mapOf(
-                           "company" to orgId
-                       )
-                   )
-                } ?: emptyMap()
-                val properties =
-                    eventData.properties +
-                    superProperties.toMap() +
-                    UserProperties.fromAnalyticsState(userState).toMap() +
-                    groupProperties
-
-                // Send Event
-                posthog.capture(
-                    uuid,
-                    eventData.eventName,
-                    properties
-                )
-            } catch (e: Exception) {
-                // Analytics failures should never break CLI functionality
-                logger.trace("Failed to track event ${event.name}: ${e.message}", e)
-            }
-        }
+//        executor.submit {
+//            try {
+//                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return@submit
+//
+//                identifyUserIfNeeded()
+//
+//                // Include super properties in each event since PostHog Java client doesn't have register
+//                val eventData = convertEventToEventData(event)
+//                val userState = analyticsStateManager.getState()
+//                val groupProperties = userState.orgId?.let { orgId ->
+//                   mapOf(
+//                       "\$groups" to mapOf(
+//                           "company" to orgId
+//                       )
+//                   )
+//                } ?: emptyMap()
+//                val properties =
+//                    eventData.properties +
+//                    superProperties.toMap() +
+//                    UserProperties.fromAnalyticsState(userState).toMap() +
+//                    groupProperties
+//
+//                // Send Event
+//                posthog.capture(
+//                    uuid,
+//                    eventData.eventName,
+//                    properties
+//                )
+//            } catch (e: Exception) {
+//                // Analytics failures should never break CLI functionality
+//                logger.trace("Failed to track event ${event.name}: ${e.message}", e)
+//            }
+//        }
     }
 
     /**
