@@ -24,7 +24,7 @@ import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
-import org.fusesource.jansi.Ansi.ansi
+import org.jline.jansi.Ansi.ansi
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
