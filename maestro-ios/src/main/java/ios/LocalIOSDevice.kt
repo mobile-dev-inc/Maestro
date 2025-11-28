@@ -156,6 +156,10 @@ class LocalIOSDevice(
         xcTestDevice.eraseText(charactersToErase)
     }
 
+    override fun shake(){
+      xcTestDevice.shake()
+    }
+
     override fun addMedia(path: String) {
         deviceController.addMedia(path)
     }
