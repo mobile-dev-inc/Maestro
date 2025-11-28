@@ -587,6 +587,18 @@ internal class YamlCommandReaderTest {
         )
     }
 
+    @Test
+    fun `shake command`(
+        @YamlFile("028_shake.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            ShakeCommand(),
+        )
+    }
+
     // Element-relative tap tests
     @Test
     fun `element-relative tap with text selector and percentage coordinates`(
@@ -618,18 +630,6 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.selector.idRegex).isEqualTo("submit-btn")
         assertThat(tapCommand.relativePoint).isEqualTo("25, 75")
         assertThat(tapCommand.originalDescription).isEqualTo("Tap on id: submit-btn at 25, 75")
-    }
-
-    @Test
-    fun shake(
-        @YamlFile("028_shake.yaml") commands: List<Command>,
-    ) {
-        assertThat(commands).containsExactly(
-            ApplyConfigurationCommand(MaestroConfig(
-                appId = "com.example.app"
-            )),
-            ShakeCommand(),
-        )
     }
 
     @Test

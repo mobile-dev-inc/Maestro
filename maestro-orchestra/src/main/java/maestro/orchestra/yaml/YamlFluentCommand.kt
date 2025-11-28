@@ -332,7 +332,10 @@ data class YamlFluentCommand(
 
             shake != null -> listOf(
                 MaestroCommand(
-                    ShakeCommand()
+                    ShakeCommand(
+                        label = shake.label,
+                        optional = shake.optional
+                    )
                 )
             )
 

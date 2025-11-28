@@ -1095,10 +1095,8 @@ data class ShakeCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
     ) : Command {
-
-    override fun description(): String {
-        return label ?: "Shakes the device"
-    }
+    override val originalDescription: String
+        get() = "Shakes the device"
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return this

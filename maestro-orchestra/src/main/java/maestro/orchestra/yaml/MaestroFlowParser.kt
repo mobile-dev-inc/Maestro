@@ -138,6 +138,10 @@ private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
         _location = location,
         toggleAirplaneMode = YamlToggleAirplaneMode()
     )},
+    "shake" to { location -> YamlFluentCommand(
+        _location = location,
+        shake = YamlShake()
+    )},
     "assertNoDefectsWithAI" to { location -> YamlFluentCommand(
         _location = location,
         assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()
