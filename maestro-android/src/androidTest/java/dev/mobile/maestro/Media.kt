@@ -1,13 +1,21 @@
 package dev.mobile.maestro
 
+import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.content.ContentValues
+import android.content.Context
+import android.content.pm.PackageManager
 import android.provider.MediaStore
+import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.OutputStream
 
 object MediaStorage {
 
-    fun getOutputStream(mediaName: String, mediaExt: String): OutputStream? {
+    fun getOutputStream(context: Context, mediaName: String, mediaExt: String): OutputStream? {
+        if (context.checkSelfPermission(WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            Log.e("MediaStorage", "Permission $WRITE_EXTERNAL_STORAGE not granted")
+            return null
+        }
         val uri = when (mediaExt) {
             Service.FileType.JPG.ext,
             Service.FileType.PNG.ext,
