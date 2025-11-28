@@ -262,6 +262,21 @@ class XCTestIOSDevice(
             )
         } catch (timeout: XCUITestServerError.OperationTimeout) {
             throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
+        } catch (e: Exception) {
+            // Check if runner crashed by testing if channel is still alive
+            if (!client.isChannelAlive()) {
+                logger.error("XCTest runner appears to have crashed or become unresponsive. Attempting restart...")
+                try {
+                    client.restartXCTestRunner()
+                    logger.info("XCTest runner restarted successfully. Retrying operation...")
+                    // Retry the operation once after restart
+                    return call()
+                } catch (restartError: Exception) {
+                    logger.error("Failed to restart XCTest runner", restartError)
+                    throw RuntimeException("XCTest runner crashed and failed to restart: ${e.message}", e)
+                }
+            }
+            throw e
         }
     }
 
