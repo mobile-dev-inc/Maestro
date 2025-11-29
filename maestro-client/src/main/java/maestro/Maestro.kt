@@ -573,6 +573,12 @@ class Maestro(
         ScreenshotUtils.waitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD, driver)
     }
 
+    fun sleep(time: Long?) {
+        val time = time ?: ANIMATION_TIMEOUT_MS
+        LOGGER.info("Sleep for $time ms")
+        MaestroTimer.sleep(MaestroTimer.Reason.COMMAND_SLEEP, time)
+    }
+
     fun setProxy(
         host: String = SocketUtils.localIp(),
         port: Int
