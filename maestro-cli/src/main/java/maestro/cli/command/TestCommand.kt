@@ -51,6 +51,7 @@ import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.isPortAvailable
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.view.greenBox
 import maestro.cli.view.box
@@ -505,12 +506,23 @@ class TestCommand : Callable<Int> {
 
     private fun selectPort(effectiveShards: Int): Int {
         // If user specified driver host port via CLI, use it
-        parent?.driverHostPort?.let { return it }
+        parent?.driverHostPort?.let { port ->
+            if (!isPortAvailable(port)) {
+                throw CliError("Port $port is already in use. Please specify a different port with --driver-host-port")
+            }
+            return port
+        }
 
         // Otherwise use default behavior
-        return if (effectiveShards == 1) 7001
-        else (7001..7128).shuffled().find { port ->
-            usedPorts.putIfAbsent(port, true) == null
+        if (effectiveShards == 1) {
+            if (!isPortAvailable(7001)) {
+                throw CliError("Default port 7001 is already in use. Use --driver-host-port to specify a different port")
+            }
+            return 7001
+        }
+
+        return (7001..7128).shuffled().find { port ->
+            usedPorts.putIfAbsent(port, true) == null && isPortAvailable(port)
         } ?: error("No available ports found")
     }
 
