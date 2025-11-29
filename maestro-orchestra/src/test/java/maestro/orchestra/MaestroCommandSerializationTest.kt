@@ -611,7 +611,7 @@ internal class MaestroCommandSerializationTest {
     fun `serialize WaitForAnimationToEndCommand`() {
         // given
         val command = MaestroCommand(
-            WaitForAnimationToEndCommand(timeout = 9)
+            WaitForAnimationToEndCommand(timeout = "9")
         )
 
         // when
@@ -623,7 +623,7 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "waitForAnimationToEndCommand" : {
-                "timeout" : 9,
+                "timeout" : "9",
                 "optional" : false
               }
             }
