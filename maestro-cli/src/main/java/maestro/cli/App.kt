@@ -37,7 +37,6 @@ import maestro.cli.command.RecordCommand
 import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
-import maestro.cli.command.UploadCommand
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.update.Updates
 import maestro.cli.util.ChangeLogUtils
@@ -57,7 +56,6 @@ import kotlin.system.exitProcess
         TestCommand::class,
         CloudCommand::class,
         RecordCommand::class,
-        UploadCommand::class,
         PrintHierarchyCommand::class,
         QueryCommand::class,
         DownloadSamplesCommand::class,
