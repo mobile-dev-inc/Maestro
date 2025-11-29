@@ -93,6 +93,12 @@ class App {
     var port: Int? = null
 
     @Option(
+        names = ["--driver-host-port"],
+        description = ["AndroidDriver host port for instrumentation communication (default: 7001)"]
+    )
+    var driverHostPort: Int? = null
+
+    @Option(
         names = ["--device", "--udid"],
         description = ["(Optional) Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
     )
