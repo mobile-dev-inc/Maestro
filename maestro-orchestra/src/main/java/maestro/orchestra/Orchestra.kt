@@ -138,6 +138,8 @@ class Orchestra(
 
     private var copiedText: String? = null
 
+    private var currentConfig: MaestroConfig? = null
+
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
     private var screenRecording: ScreenRecording? = null
@@ -201,6 +203,18 @@ class Orchestra(
         config: MaestroConfig? = null,
         shouldReinitJsEngine: Boolean = true,
     ): Boolean {
+        // Store config for use in filtering
+        currentConfig = config
+        
+        // Set identifier config on WebDriver/CdpWebDriver if available
+        config?.identifierConfig?.let { identifierConfig ->
+            val driver = maestro.driver
+            when (driver) {
+                is maestro.drivers.WebDriver -> driver.setIdentifierConfig(identifierConfig.mappings)
+                is maestro.drivers.CdpWebDriver -> driver.setIdentifierConfig(identifierConfig.mappings)
+            }
+        }
+        
         if (shouldReinitJsEngine) {
             initJsEngine(config)
         }
@@ -1248,6 +1262,20 @@ class Orchestra(
                 descriptions += "Id matching regex: $it"
                 basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
+
+        selector.customIdentifiers
+            ?.forEach { (yamlKey, value) ->
+                // Map YAML key to HTML attribute using identifierConfig
+                val htmlAttribute = currentConfig?.identifierConfig?.mappings
+                    ?.entries
+                    ?.find { it.value == yamlKey }
+                    ?.key
+                    ?: yamlKey // Fallback to using yamlKey directly if no mapping found
+                
+                descriptions += "Custom $yamlKey: $value"
+                basicFilters += Filters.customIdentifierMatches(htmlAttribute, value)
+            }
+
         selector.size
             ?.let {
                 descriptions += "Size: $it"
