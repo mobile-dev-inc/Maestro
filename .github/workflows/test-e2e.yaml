@@ -46,6 +46,55 @@ jobs:
           path: build/Products
           retention-days: 1
 
+  test-web:
+    name: Test on Web
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 11
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: 141
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: maestro-cli-jdk11-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+          
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 20
+        run: ./run_tests_web
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: maestro-root-dir-android
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
   test-android:
     name: Test on Android
     runs-on: ubuntu-latest
