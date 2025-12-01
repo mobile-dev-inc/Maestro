@@ -2,12 +2,32 @@ appId: com.example.example
 ---
 - launchApp # For idempotence of sections
 
-- evalScript: ${maestro.copiedText = 'foo'}
 - tapOn: 'Input Test'
+
+# Can paste
 - tapOn:
     id: 'textInput'
-- inputText: 'foo'
+- inputText: 'Foo'
 - copyTextFrom:
     id: 'textInput'
+- eraseText
+- assertNotVisible: 'Foo'
 - pasteText
-- assertVisible: 'foofoo'
+- assertVisible: 'Foo'
+
+# Can paste repeatedly
+- eraseText
+- inputText: 'bar'
+- copyTextFrom:
+    id: 'textInput'
+- eraseText
+- pasteText
+- pasteText
+- assertVisible: 'barbar'
+
+# Copied Text cannot be overridden
+- eraseText
+- evalScript: ${maestro.copiedText = 'foo'}
+- pasteText
+- assertNotVisible: 'foo'
+- assertVisible: 'bar'
