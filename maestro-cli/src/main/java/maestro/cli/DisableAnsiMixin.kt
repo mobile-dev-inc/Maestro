@@ -2,6 +2,7 @@ package maestro.cli
 
 import org.jline.jansi.Ansi
 import org.jline.jansi.AnsiConsole
+import org.jline.nativ.CLibrary
 import picocli.CommandLine
 
 class DisableAnsiMixin {
@@ -39,7 +40,8 @@ class DisableAnsiMixin {
             val parserWithANSIOption = findFirstParserWithMatchedParamLabel(parseResult, "<enableANSIOutput>")
             val mixin = parserWithANSIOption?.commandSpec()?.mixins()?.values?.firstNotNullOfOrNull { it.userObject() as? DisableAnsiMixin }
 
-            ansiEnabled = mixin?.enableANSIOutput ?: true // Use the param value if it was specified
+            val stdoutIsTTY = CLibrary.isatty(1 /* stdout */) != 0
+            ansiEnabled = mixin?.enableANSIOutput ?: stdoutIsTTY // Use the param value if it was specified
             Ansi.setEnabled(ansiEnabled)
 
             if (ansiEnabled) {
