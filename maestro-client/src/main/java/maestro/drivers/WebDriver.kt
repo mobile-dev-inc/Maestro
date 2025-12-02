@@ -26,7 +26,7 @@ import org.openqa.selenium.Keys
 import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v130.emulation.Emulation
+import org.openqa.selenium.devtools.v141.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
@@ -444,7 +444,11 @@ class WebDriver(
             Emulation.setGeolocationOverride(
                 Optional.of(latitude),
                 Optional.of(longitude),
-                Optional.of(0.0)
+                Optional.of(0.0),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty()
             )
         )
     }

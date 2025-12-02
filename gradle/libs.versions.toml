@@ -46,8 +46,8 @@ mordant = "3.0.2"
 mozillaRhino = "1.7.14"
 picocli = "4.6.3"
 posthog = "1.0.3"
-selenium = "4.26.0"
-selenium-devtools = "4.26.0"
+selenium = "4.38.0"
+selenium-devtools = "4.38.0"
 skiko = "0.8.18"
 squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
@@ -128,7 +128,7 @@ picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
 posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
-selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v130", version.ref = "selenium-devtools" }
+selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v141", version.ref = "selenium-devtools" }
 skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
 skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
 skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64", version.ref = "skiko" }
