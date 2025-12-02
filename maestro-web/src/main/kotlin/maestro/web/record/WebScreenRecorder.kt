@@ -3,7 +3,7 @@ package maestro.web.record
 import okio.Sink
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v130.page.Page
+import org.openqa.selenium.devtools.v141.page.Page
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -59,7 +59,7 @@ class WebScreenRecorder(
 
         seleniumDevTools.createSessionIfThereIsNotOne()
 
-        seleniumDevTools.send(Page.enable())
+        seleniumDevTools.send(Page.enable(Optional.of(false)))
 
         seleniumDevTools.send(
             Page.startScreencast(
