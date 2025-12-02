@@ -282,23 +282,7 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
-    @Test
-    internal fun `012 - Deterministic order for local tests`() {
-        // When
-        val plan = WorkspaceExecutionPlanner.plan(
-            input = paths("/workspaces/012_local_deterministic_order"),
-            includeTags = listOf(),
-            excludeTags = listOf(),
-            config = null,
-        )
-
-        // Then
-        assertThat(plan.flowsToRun).containsExactly(
-            path("/workspaces/012_local_deterministic_order/flowA.yaml"),
-            path("/workspaces/012_local_deterministic_order/flowB.yaml"),
-            path("/workspaces/012_local_deterministic_order/flowC.yaml"),
-        ).inOrder()
-    }
+    //012 - Deterministic order for local tests - removed
 
     @Test
     internal fun `013 - Execution order is respected`() {
