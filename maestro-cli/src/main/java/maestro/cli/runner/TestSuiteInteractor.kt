@@ -27,9 +27,12 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
+import maestro.cli.util.GcsUploader
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import okio.buffer
+import okio.sink
 
 /**
  * Similar to [TestRunner], but:
@@ -43,6 +46,8 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    private val recordingEnabled: Boolean = true,
+    private val gcsBucket: String? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -175,6 +180,26 @@ class TestSuiteInteractor(
         var flowName: String = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
 
         logger.info("$shardPrefix Running flow $flowName")
+        PrintUtils.message("${shardPrefix}Running: $flowName")
+
+        // Set up screen recording if enabled
+        val recordingDir = testOutputDir?.resolve("recordings")
+        if (recordingEnabled && recordingDir != null) {
+            recordingDir.toFile().mkdirs()
+        }
+        val recordingFile = if (recordingEnabled && recordingDir != null) {
+            recordingDir.resolve("${flowFile.nameWithoutExtension}.mp4").toFile()
+        } else null
+        val recordingSink = recordingFile?.sink()?.buffer()
+        val screenRecording = if (recordingEnabled && recordingSink != null) {
+            try {
+                logger.info("${shardPrefix}Starting screen recording for flow $flowName")
+                maestro.startScreenRecording(recordingSink)
+            } catch (e: Exception) {
+                logger.warn("${shardPrefix}Failed to start screen recording: ${e.message}")
+                null
+            }
+        } else null
 
         val flowTimeMillis = measureTimeMillis {
             try {
@@ -247,7 +272,35 @@ class TestSuiteInteractor(
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
             }
         }
+
+        // Stop screen recording
+        if (screenRecording != null) {
+            try {
+                logger.info("${shardPrefix}Stopping screen recording for flow $flowName")
+                screenRecording.close()
+                recordingSink?.close()
+                PrintUtils.message("${shardPrefix}Recording saved: ${recordingFile?.absolutePath}")
+
+                // Upload to GCS if configured
+                if (recordingFile != null && gcsBucket != null) {
+                    val gcsUrl = GcsUploader.uploadRecording(
+                        file = recordingFile,
+                        flowName = flowFile.nameWithoutExtension,
+                        shardIndex = shardIndex,
+                        bucketName = gcsBucket
+                    )
+                    if (gcsUrl != null) {
+                        logger.info("${shardPrefix}Recording uploaded to GCS: $gcsUrl")
+                        PrintUtils.message("${shardPrefix}Recording URL: $gcsUrl")
+                    }
+                }
+            } catch (e: Exception) {
+                logger.warn("${shardPrefix}Failed to stop screen recording: ${e.message}")
+            }
+        }
+
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
+        PrintUtils.message("${shardPrefix}Flow '$flowName' execution ended in $flowDuration seconds")
 
         TestDebugReporter.saveFlow(
             flowName = flowName,

@@ -200,6 +200,7 @@ dependencies {
     implementation(libs.logging.layout.template)
     implementation(libs.log4j.core)
     implementation(libs.mordant)
+    implementation(libs.google.cloud.storage)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
