@@ -6,7 +6,18 @@ import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
 
-class HtmlTestSuiteReporter : TestSuiteReporter {
+class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteReporter {
+
+    companion object {
+        private fun loadPrettyCss(): String {
+            return HtmlTestSuiteReporter::class.java
+                .getResourceAsStream("/html-detailed.css")
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: ""
+        }
+    }
+
     override fun report(summary: TestExecutionSummary, out: Sink) {
         val bufferedOut = out.buffer()
         val htmlContent = buildHtmlReport(summary)
@@ -105,15 +116,72 @@ class HtmlTestSuiteReporter : TestSuiteReporter {
                                                         }
                                                     }"
                                                     br {}
-                                                    +"File Name: ${flow.fileName}"
+                                                    if (flow.fileName != null) {
+                                                        +"File Name: ${flow.fileName}"
+                                                    }
                                                 }
                                                 if (flow.failure != null) {
                                                     p(classes = "card-text text-danger") {
                                                         +flow.failure.message
                                                     }
                                                 }
+
+                                                // Show detailed steps when detailed mode is enabled
+                                                if (detailed && flow.steps.isNotEmpty()) {
+                                                    h6(classes = "mt-3 mb-3") { +"Test Steps (${flow.steps.size})" }
+
+                                                    var previousDepth = -1
+                                                    flow.steps.forEach { step ->
+                                                        val statusIcon = when (step.status) {
+                                                            "COMPLETED" -> "✅"
+                                                            "WARNED" -> "⚠️"
+                                                            "FAILED" -> "❌"
+                                                            "SKIPPED" -> "⏭️"
+                                                            else -> "⚪"
+                                                        }
+
+                                                        val iterationLabel = step.iteration?.let { " (iteration ${it + 1})" } ?: ""
+
+                                                        // Determine CSS classes
+                                                        val cssClasses = buildString {
+                                                            append("step-item mb-2")
+                                                            if (step.depth > 0) {
+                                                                append(" nested")
+                                                            }
+                                                            if (step.depth > previousDepth) {
+                                                                append(" first-at-depth")
+                                                            }
+                                                        }
+
+                                                        div(classes = cssClasses) {
+                                                            style = "--depth: ${step.depth}"
+                                                            div(classes = "step-header d-flex justify-content-between align-items-center") {
+                                                                span {
+                                                                    +"$statusIcon "
+                                                                    span(classes = "step-name") {
+                                                                        +step.description
+                                                                        +iterationLabel
+                                                                    }
+                                                                }
+                                                                span(classes = "badge bg-light text-dark") {
+                                                                    +step.duration
+                                                                }
+                                                            }
+                                                        }
+
+                                                        previousDepth = step.depth
+                                                    }
+                                                }
                                             }
                                         }
+                                    }
+                                }
+                            }
+                            // Add styling for step items when detailed mode is enabled
+                            if (detailed) {
+                                style {
+                                    unsafe {
+                                        +loadPrettyCss()
                                     }
                                 }
                             }
