@@ -175,6 +175,7 @@ class TestSuiteInteractor(
         var flowName: String = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
 
         logger.info("$shardPrefix Running flow $flowName")
+        PrintUtils.message("${shardPrefix}Running: $flowName")
 
         val flowTimeMillis = measureTimeMillis {
             try {
@@ -248,6 +249,7 @@ class TestSuiteInteractor(
             }
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
+        PrintUtils.message("${shardPrefix}Flow '$flowName' execution ended in $flowDuration seconds")
 
         TestDebugReporter.saveFlow(
             flowName = flowName,
