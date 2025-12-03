@@ -86,10 +86,14 @@ object DebugLogStore {
     }
 
     fun finalizeRun() {
-        fileHandler.close()
-        val output = File(currentRunLogDirectory.parent, "${currentRunLogDirectory.name}.zip")
-        FileUtils.zipDir(currentRunLogDirectory.toPath(), output.toPath())
-        currentRunLogDirectory.deleteRecursively()
+        try {
+            fileHandler.close()
+            val output = File(currentRunLogDirectory.parent, "${currentRunLogDirectory.name}.zip")
+            FileUtils.zipDir(currentRunLogDirectory.toPath(), output.toPath())
+            currentRunLogDirectory.deleteRecursively()
+        } catch (e: Exception) {
+            // do nothing.
+        }
     }
 
     private fun logFile(named: String): File {
