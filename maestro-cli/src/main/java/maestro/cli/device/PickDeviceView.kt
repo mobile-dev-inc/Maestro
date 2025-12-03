@@ -7,7 +7,7 @@ import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
 import maestro.device.Platform
-import org.fusesource.jansi.Ansi.ansi
+import org.jline.jansi.Ansi.ansi
 
 object PickDeviceView {
 
