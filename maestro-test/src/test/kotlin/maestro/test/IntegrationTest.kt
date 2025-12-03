@@ -1839,13 +1839,13 @@ class IntegrationTest {
     @Test
     fun `Case 064 - Javascript files`() {
         // given
-        val commands = readCommands("064_js_files")
+        val (commands, flowPath) = readCommandsWithPath("064_js_files")
         val driver = driver { }
 
         // when
         Maestro(driver).use {
             runBlocking {
-                orchestra(it).runFlow(commands)
+                orchestra(it).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -2673,7 +2673,7 @@ class IntegrationTest {
     @Test
     fun `Case 092 - Log messages`() {
         // Given
-        val commands = readCommands("092_log_messages")
+        val (commands, flowPath) = readCommandsWithPath("092_log_messages")
         val driver = driver {
         }
 
@@ -2687,7 +2687,7 @@ class IntegrationTest {
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
                     }
-                ).runFlow(commands)
+                ).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -2828,7 +2828,7 @@ class IntegrationTest {
     @Test
     fun `Case 098a - Execute Javascript conditionally`() {
         // Given
-        val commands = readCommands("098_runscript_conditionals")
+        val (commands, flowPath) = readCommandsWithPath("098_runscript_conditionals")
 
         val driver = driver {
             element {
@@ -2851,7 +2851,7 @@ class IntegrationTest {
                         receivedLogs += metadata.logMessages
                         metadata.labeledCommand?.let { receivedLogs.add(it) }
                     }
-                ).runFlow(commands)
+                ).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -2867,7 +2867,7 @@ class IntegrationTest {
     @Test
     fun `Case 098b - Execute conditions eagerly`() {
         // Given
-        val commands = readCommands("098_runscript_conditionals_eager")
+        val (commands, flowPath) = readCommandsWithPath("098_runscript_conditionals_eager")
 
         // 'Click me' is not present in the view hierarchy
         val driver = driver {}
@@ -2882,7 +2882,7 @@ class IntegrationTest {
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
                     }
-                ).runFlow(commands)
+                ).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -2994,7 +2994,7 @@ class IntegrationTest {
     @Test
     fun `Case 103 - execute onFlowStart and onFlowComplete hooks`() {
         // given
-        val commands = readCommands("103_on_flow_start_complete_hooks")
+        val (commands, flowPath) = readCommandsWithPath("103_on_flow_start_complete_hooks")
         val driver = driver { }
         val receivedLogs = mutableListOf<String>()
 
@@ -3006,7 +3006,7 @@ class IntegrationTest {
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
                     }
-                ).runFlow(commands)
+                ).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -3055,7 +3055,7 @@ class IntegrationTest {
     @Test
     fun `Case 105 - execute onFlowStart and onFlowComplete when js output is set`() {
         // Given
-        val commands = readCommands("105_on_flow_start_complete_when_js_output_set")
+        val (commands, flowPath) = readCommandsWithPath("105_on_flow_start_complete_when_js_output_set")
 
         val driver = driver {
         }
@@ -3069,7 +3069,7 @@ class IntegrationTest {
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
                     }
-                ).runFlow(commands)
+                ).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -3083,7 +3083,7 @@ class IntegrationTest {
     @Test
     fun `Case 106 - execute onFlowStart and onFlowComplete when js output is set with subflows`() {
         // Given
-        val commands = readCommands("106_on_flow_start_complete_when_js_output_set_subflows")
+        val (commands, flowPath) = readCommandsWithPath("106_on_flow_start_complete_when_js_output_set_subflows")
 
         val driver = driver {
         }
@@ -3097,7 +3097,7 @@ class IntegrationTest {
                     onCommandMetadataUpdate = { _, metadata ->
                         receivedLogs += metadata.logMessages
                     }
-                ).runFlow(commands)
+                ).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -3380,7 +3380,7 @@ class IntegrationTest {
     @Test
     fun `Case 117 - Scroll until view is visible - with speed and timeout evaluate`() {
         // Given
-        val commands = readCommands("117_scroll_until_visible_speed")
+        val (commands, flowPath) = readCommandsWithPath("117_scroll_until_visible_speed")
         val expectedDuration = "601"
         val expectedTimeout = "20000"
         val info = driver { }.deviceInfo()
@@ -3401,7 +3401,7 @@ class IntegrationTest {
                 orchestra(it, onCommandMetadataUpdate = { _, metaData ->
                     scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
                     timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
-                }).runFlow(commands)
+                }).runFlow(commands, initialFlowPath = flowPath.absolutePath)
             }
         }
 
@@ -4015,6 +4015,47 @@ class IntegrationTest {
         // No test failure - if we reach this point, the test passed successfully
     }
 
+    @Test
+    fun `Case 131 - JavaScript interpolation in runScript path`() {
+        // Given: Flow with JS interpolation in runScript path
+        val (commands, flowPath) = readCommandsWithPath("131_js_interpolation_runscript")
+
+        val driver = driver {}
+
+        // When: Execute flow with JS interpolation
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands, initialFlowPath = flowPath.absolutePath)
+            }
+        }
+
+        // Then: Flow successfully resolved path at runtime and executed script
+        // No test failure
+    }
+
+    @Test
+    fun `Case 132 - JavaScript interpolation in runFlow path`() {
+        // Given: Flow with JS interpolation in runFlow path
+        val (commands, flowPath) = readCommandsWithPath("132_js_interpolation_runflow")
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When: Execute flow with JS interpolation
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands, initialFlowPath = flowPath.absolutePath)
+            }
+        }
+
+        // Then: Flow successfully resolved path at runtime and executed subflow
+        // No test failure
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
@@ -4059,6 +4100,20 @@ class IntegrationTest {
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
+    }
+
+    private fun readCommandsWithPath(
+        caseName: String,
+        withEnv: () -> Map<String, String> = { emptyMap() }
+    ): Pair<List<MaestroCommand>, File> {
+        val resource = javaClass.classLoader.getResource("$caseName.yaml")
+            ?: throw IllegalArgumentException("File $caseName.yaml not found")
+        val flowPath = Paths.get(resource.toURI())
+        return Pair(
+            YamlCommandReader.readCommands(flowPath)
+                .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile())),
+            flowPath.toFile()
+        )
     }
 
 }
