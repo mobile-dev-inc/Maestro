@@ -253,6 +253,10 @@ class XCTestIOSDevice(
     }
 
     private fun <T> execute(call: () -> T): T {
+        return executeWithRetry(call, restartAttempts = 0)
+    }
+
+    private fun <T> executeWithRetry(call: () -> T, restartAttempts: Int): T {
         return try {
             call()
         } catch (appCrashException: XCUITestServerError.AppCrash) {
@@ -264,23 +268,28 @@ class XCTestIOSDevice(
             throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
         } catch (e: Exception) {
             // Check if runner crashed by testing if channel is still alive
-            if (!client.isChannelAlive()) {
-                logger.error("XCTest runner appears to have crashed or become unresponsive. Attempting restart...")
+            if (!client.isChannelAlive() && restartAttempts < MAX_RESTART_ATTEMPTS) {
+                logger.error("XCTest runner appears to have crashed or become unresponsive. Attempting restart ${restartAttempts + 1}/$MAX_RESTART_ATTEMPTS...")
                 try {
                     client.restartXCTestRunner()
                     logger.info("XCTest runner restarted successfully. Retrying operation...")
-                    // Retry the operation once after restart
-                    return call()
+                    // Retry the operation with incremented attempt counter
+                    return executeWithRetry(call, restartAttempts + 1)
                 } catch (restartError: Exception) {
                     logger.error("Failed to restart XCTest runner", restartError)
                     throw RuntimeException("XCTest runner crashed and failed to restart: ${e.message}", e)
                 }
+            }
+            if (!client.isChannelAlive()) {
+                logger.error("XCTest runner crashed and max restart attempts ($MAX_RESTART_ATTEMPTS) exceeded")
+                throw RuntimeException("XCTest runner crashed and max restart attempts exceeded: ${e.message}", e)
             }
             throw e
         }
     }
 
     companion object {
+        private const val MAX_RESTART_ATTEMPTS = 2
         private val allPermissions = listOf(
             "notifications"
         )
