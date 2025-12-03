@@ -23,9 +23,11 @@ _h3() {
 
 platform="${1:-}"
 if [ "$platform" = "android" ]; then
-	exclude_tags="ios,ai"
+	exclude_tags="ios,web,ai"
 elif [ "$platform" = "ios" ]; then
-	exclude_tags="android,ai"
+	exclude_tags="android,web,ai"
+elif [ "$platform" = "web" ]; then
+	exclude_tags="android,ios,ai"
 else
 	echo "usage: $0 <android|ios>"
 	exit 1 
