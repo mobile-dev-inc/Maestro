@@ -121,6 +121,14 @@ object Filters {
         }
     }
 
+    fun customIdentifierMatches(attributeName: String, value: String): ElementFilter {
+        return { nodes ->
+            nodes.filter {
+                it.attributes[attributeName] == value
+            }
+        }
+    }
+
     fun sizeMatches(
         width: Int? = null,
         height: Int? = null,
