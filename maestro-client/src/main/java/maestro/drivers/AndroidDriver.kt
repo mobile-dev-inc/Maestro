@@ -802,6 +802,7 @@ class AndroidDriver(
     override fun addMedia(mediaFiles: List<File>) {
         metrics.measured("operation", mapOf("command" to "addMedia", "mediaFilesCount" to mediaFiles.size.toString())) {
             LOGGER.info("[Start] Adding media files")
+            dadb.shell("pm grant dev.mobile.maestro android.permission.WRITE_EXTERNAL_STORAGE")
             mediaFiles.forEach { addMediaToDevice(it) }
             LOGGER.info("[Done] Adding media files")
         }
