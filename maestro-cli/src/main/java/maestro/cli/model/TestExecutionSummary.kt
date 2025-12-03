@@ -28,6 +28,13 @@ data class TestExecutionSummary(
         val failure: Failure? = null,
         val duration: Duration? = null,
         val startTime: Long? = null,
+        val steps: List<StepResult> = emptyList(),
+    )
+
+    data class StepResult(
+        val description: String,
+        val status: String,
+        val duration: String,
     )
 
     data class Failure(
