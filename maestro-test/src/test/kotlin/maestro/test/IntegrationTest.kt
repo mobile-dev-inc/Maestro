@@ -56,6 +56,10 @@ class IntegrationTest {
     @AfterEach
     internal fun tearDown() {
         File("041_take_screenshot_with_filename.png").delete()
+        File("131_screenshots/filename.png").delete()
+        File("131_screenshots").delete()
+        File("132_recordings/filename.mp4").delete()
+        File("132_recordings").delete()
         File("099_screen_recording.mp4").delete()
         File("028_env.mp4").delete()
     }
@@ -4013,6 +4017,57 @@ class IntegrationTest {
 
         // Then
         // No test failure - if we reach this point, the test passed successfully
+    }
+
+    @Test
+    fun `Case 131 - Take screenshot with path`() {
+        // Given
+        val commands = readCommands("131_take_screenshot_with_path")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("131_screenshots/filename.png").exists())
+    }
+
+    @Test
+    fun `Case 132 - Screen recording with path`() {
+        // Given
+        val commands = readCommands("132_screen_recording_with_path")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.StartRecording,
+                Event.StopRecording,
+            )
+        )
+        assert(File("132_recordings/filename.mp4").exists())
     }
 
     private fun orchestra(

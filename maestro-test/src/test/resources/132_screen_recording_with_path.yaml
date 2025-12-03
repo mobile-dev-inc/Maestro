@@ -1,0 +1,4 @@
+appId: com.other.app
+---
+- startRecording: '132_recordings/filename'
+- stopRecording
