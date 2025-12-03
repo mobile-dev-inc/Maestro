@@ -4015,6 +4015,51 @@ class IntegrationTest {
         // No test failure - if we reach this point, the test passed successfully
     }
 
+    @Test
+    fun `Case 131 - Repeat while with custom timeout`() {
+        // Given
+        val commands = readCommands("131_repeat_while_timeout")
+        val driver = driver {
+            var counter = 0
+
+            val counterView = element {
+                text = "Value 0"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Always Visible Element"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 100, 100, 100)
+                onClick = {
+                    counter++
+                    counterView.text = "Value $counter"
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // The "Always Visible Element" is always visible, so the while condition
+        // (notVisible: "Always Visible Element") should be false.
+        // With a 100ms timeout, it should check quickly and not run the loop.
+        // Button should never be tapped.
+        driver.assertEventCount(
+            Event.Tap(Point(50, 50)),
+            expectedCount = 0
+        )
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
