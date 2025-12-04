@@ -206,6 +206,18 @@ class TestCommand : Callable<Int> {
     )
     private var appleTeamId: String? = null
 
+    @Option(
+        names = ["--no-record"],
+        description = ["Disable video recording of flow executions (recording is enabled by default)"],
+    )
+    private var noRecord: Boolean = false
+
+    @Option(
+        names = ["--gcs-bucket"],
+        description = ["Google Cloud Storage bucket name for uploading recordings (defaults to GCS_BUCKET env var)"],
+    )
+    private var gcsBucket: String = System.getenv("GCS_BUCKET") ?: ""
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -562,6 +574,8 @@ class TestCommand : Callable<Int> {
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
+            recordingEnabled = !noRecord,
+            gcsBucket = gcsBucket.ifBlank { null },
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,

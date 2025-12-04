@@ -20,6 +20,7 @@ commons-io = "2.16.1"
 dadb = "1.2.10"
 datafaker = "2.4.4"
 detekt = "1.23.8"
+googleCloudStorage = "2.30.1"
 googleFindbugs = "3.0.2"
 googleGson = "2.11.0"
 googleProtobuf = "3.21.9"
@@ -77,6 +78,7 @@ commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "co
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
 datafaker = { module = "net.datafaker:datafaker", version.ref = "datafaker" }
+google-cloud-storage = { module = "com.google.cloud:google-cloud-storage", version.ref = "googleCloudStorage" }
 google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "googleGson" }
 google-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "googleProtobuf" }
