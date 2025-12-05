@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.Orchestra
@@ -28,38 +29,35 @@ object BackTool {
         ) { request ->
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                
+
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("device_id is required")),
                         isError = true
                     )
                 }
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     val command = BackPressCommand(
                         label = null,
                         optional = false
                     )
-                    
+
                     val orchestra = Orchestra(session.maestro)
                     runBlocking {
                         orchestra.executeCommands(listOf(MaestroCommand(command = command)))
                     }
-                    
+
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
                         put("message", "Back button pressed successfully")
                     }.toString()
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(

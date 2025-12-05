@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.TapOnElementCommand
@@ -69,14 +70,14 @@ object TapOnTool {
                 val checked = request.arguments["checked"]?.jsonPrimitive?.booleanOrNull
                 val focused = request.arguments["focused"]?.jsonPrimitive?.booleanOrNull
                 val selected = request.arguments["selected"]?.jsonPrimitive?.booleanOrNull
-                
+
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("device_id is required")),
                         isError = true
                     )
                 }
-                
+
                 // Validate that at least one selector is provided
                 if (text == null && id == null) {
                     return@RegisteredTool CallToolResult(
@@ -84,19 +85,16 @@ object TapOnTool {
                         isError = true
                     )
                 }
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     // Escape special regex characters to prevent regex injection issues
                     fun escapeRegex(input: String): String {
                         return input.replace(Regex("[()\\[\\]{}+*?^$|.\\\\]")) { "\\${it.value}" }
                     }
-                    
+
                     val elementSelector = ElementSelector(
                         textRegex = if (useFuzzyMatching && text != null) ".*${escapeRegex(text)}.*" else text,
                         idRegex = if (useFuzzyMatching && id != null) ".*${escapeRegex(id)}.*" else id,
@@ -106,25 +104,25 @@ object TapOnTool {
                         focused = focused,
                         selected = selected
                     )
-                    
+
                     val command = TapOnElementCommand(
                         selector = elementSelector,
                         retryIfNoChange = true,
                         waitUntilVisible = true
                     )
-                    
+
                     val orchestra = Orchestra(session.maestro)
                     runBlocking {
                         orchestra.executeCommands(listOf(MaestroCommand(command = command)))
                     }
-                    
+
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
                         put("message", "Tap executed successfully")
                     }.toString()
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(

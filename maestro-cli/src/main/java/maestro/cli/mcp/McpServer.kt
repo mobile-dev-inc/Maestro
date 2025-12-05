@@ -26,13 +26,19 @@ import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.QueryDocsTool
 import maestro.cli.util.WorkingDirectory
+import kotlin.concurrent.thread
 
 // Main function to run the Maestro MCP server
 fun runMaestroMcpServer() {
     // Disable all console logging to prevent interference with JSON-RPC communication
     LogConfig.configure(logFileName = null, printToConsole = false)
-    
+
     val sessionManager = MaestroSessionManager
+
+    // Register shutdown hook to clean up web session cache
+    Runtime.getRuntime().addShutdownHook(thread(start = false) {
+        WebSessionCache.shutdown()
+    })
 
     // Create the MCP Server instance with Maestro implementation
     val server = Server(
@@ -78,6 +84,8 @@ fun runMaestroMcpServer() {
         server.connect(transport)
         val done = Job()
         server.onClose {
+            // Clean up web session when server closes
+            WebSessionCache.shutdown()
             done.complete()
         }
         done.join()

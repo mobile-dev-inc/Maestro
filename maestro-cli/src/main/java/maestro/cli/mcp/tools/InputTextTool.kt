@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.Orchestra
@@ -33,32 +34,29 @@ object InputTextTool {
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val text = request.arguments["text"]?.jsonPrimitive?.content
-                
+
                 if (deviceId == null || text == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("Both device_id and text are required")),
                         isError = true
                     )
                 }
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     val command = InputTextCommand(
                         text = text,
                         label = null,
                         optional = false
                     )
-                    
+
                     val orchestra = Orchestra(session.maestro)
                     runBlocking {
                         orchestra.executeCommands(listOf(MaestroCommand(command = command)))
                     }
-                    
+
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
@@ -66,7 +64,7 @@ object InputTextTool {
                         put("message", "Text input successful")
                     }.toString()
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(
