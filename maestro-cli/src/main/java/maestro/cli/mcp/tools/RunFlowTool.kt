@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
@@ -80,42 +81,39 @@ object RunFlowTool {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val flowYaml = request.arguments["flow_yaml"]?.jsonPrimitive?.content
                 val envParam = request.arguments["env"]?.jsonObject
-                
+
                 if (deviceId == null || flowYaml == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("Both device_id and flow_yaml are required")),
                         isError = true
                     )
                 }
-                
+
                 // Parse environment variables from JSON object
                 val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     // Create a temporary file with the YAML content
                     val tempFile = Files.createTempFile("maestro-flow", ".yaml").toFile()
                     try {
                         tempFile.writeText(flowYaml)
-                        
+
                         // Parse and execute the flow with environment variables
                         val commands = YamlCommandReader.readCommands(tempFile.toPath())
                         val finalEnv = env
                             .withInjectedShellEnvVars()
                             .withDefaultEnvVars(tempFile)
                         val commandsWithEnv = commands.withEnv(finalEnv)
-                        
+
                         val orchestra = Orchestra(session.maestro)
-                        
+
                         runBlocking {
                             orchestra.runFlow(commandsWithEnv)
                         }
-                        
+
                         buildJsonObject {
                             put("success", true)
                             put("device_id", deviceId)
@@ -134,7 +132,7 @@ object RunFlowTool {
                         tempFile.delete()
                     }
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(

@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
@@ -46,26 +47,26 @@ object RunFlowFilesTool {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val flowFilesString = request.arguments["flow_files"]?.jsonPrimitive?.content
                 val envParam = request.arguments["env"]?.jsonObject
-                
+
                 if (deviceId == null || flowFilesString == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("Both device_id and flow_files are required")),
                         isError = true
                     )
                 }
-                
+
                 val flowFiles = flowFilesString.split(",").map { it.trim() }
-                
+
                 if (flowFiles.isEmpty()) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("At least one flow file must be provided")),
                         isError = true
                     )
                 }
-                
+
                 // Parse environment variables from JSON object
                 val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
-                
+
                 // Resolve all flow files to File objects once
                 val resolvedFiles = flowFiles.map { WorkingDirectory.resolve(it) }
                 // Validate all files exist before executing
@@ -76,18 +77,15 @@ object RunFlowFilesTool {
                         isError = true
                     )
                 }
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     val orchestra = Orchestra(session.maestro)
                     val results = mutableListOf<Map<String, Any>>()
                     var totalCommands = 0
-                    
+
                     for (fileObj in resolvedFiles) {
                         try {
                             val commands = YamlCommandReader.readCommands(fileObj.toPath())
@@ -95,7 +93,7 @@ object RunFlowFilesTool {
                                 .withInjectedShellEnvVars()
                                 .withDefaultEnvVars(fileObj)
                             val commandsWithEnv = commands.withEnv(finalEnv)
-                            
+
                             runBlocking {
                                 orchestra.runFlow(commandsWithEnv)
                             }
@@ -115,11 +113,11 @@ object RunFlowFilesTool {
                             ))
                         }
                     }
-                    
+
                     val finalEnv = env
                         .withInjectedShellEnvVars()
                         .withDefaultEnvVars()
-                    
+
                     buildJsonObject {
                         put("success", results.all { (it["success"] as Boolean) })
                         put("device_id", deviceId)
@@ -146,15 +144,15 @@ object RunFlowFilesTool {
                                 }
                             }
                         }
-                        put("message", if (results.all { (it["success"] as Boolean) }) 
-                            "All flows executed successfully" 
-                        else 
+                        put("message", if (results.all { (it["success"] as Boolean) })
+                            "All flows executed successfully"
+                        else
                             "Some flows failed to execute")
                     }.toString()
                 }
-                
+
                 // Check if any flows failed and return isError accordingly
-                val anyFlowsFailed = result.contains("\"success\":false")                
+                val anyFlowsFailed = result.contains("\"success\":false")
                 CallToolResult(
                     content = listOf(TextContent(result)),
                     isError = anyFlowsFailed

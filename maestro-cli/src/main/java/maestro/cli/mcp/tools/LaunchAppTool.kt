@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.Orchestra
@@ -33,20 +34,17 @@ object LaunchAppTool {
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val appId = request.arguments["appId"]?.jsonPrimitive?.content
-                
+
                 if (deviceId == null || appId == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("Both device_id and appId are required")),
                         isError = true
                     )
                 }
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     val command = LaunchAppCommand(
                         appId = appId,
@@ -58,12 +56,12 @@ object LaunchAppTool {
                         label = null,
                         optional = false
                     )
-                    
+
                     val orchestra = Orchestra(session.maestro)
                     runBlocking {
                         orchestra.executeCommands(listOf(MaestroCommand(command = command)))
                     }
-                    
+
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
@@ -71,7 +69,7 @@ object LaunchAppTool {
                         put("message", "App launched successfully")
                     }.toString()
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(
