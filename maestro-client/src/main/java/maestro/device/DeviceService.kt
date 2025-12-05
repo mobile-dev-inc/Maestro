@@ -267,7 +267,11 @@ object DeviceService {
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
-            if (device.connectionProperties.tunnelState != DeviceCtlResponse.ConnectionProperties.CONNECTED || udid == null) {
+            // Accept devices that are either connected via tunnel OR have Developer Mode enabled
+            val isDeveloperModeEnabled = device.deviceProperties?.developerModeStatus == "enabled"
+            val isTunnelConnected = device.connectionProperties.tunnelState == DeviceCtlResponse.ConnectionProperties.CONNECTED
+
+            if (udid == null || (!isTunnelConnected && !isDeveloperModeEnabled)) {
                 return@mapNotNull null
             }
 
