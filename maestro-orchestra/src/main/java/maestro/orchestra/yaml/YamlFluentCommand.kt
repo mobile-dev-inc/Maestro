@@ -833,6 +833,7 @@ data class YamlFluentCommand(
             }
 
             is YamlSwipeElement -> return swipeElementCommand(swipe)
+            is YamlRelativeCoordinateSwipeElement -> return swipeRelativeCoordinatesSwipeElementCommand(swipe)
             else -> {
                 throw IllegalStateException(
                     "Provide swipe direction UP, DOWN, RIGHT OR LEFT or by giving explicit " +
@@ -851,6 +852,18 @@ data class YamlFluentCommand(
                 label = swipeElement.label,
                 optional = swipeElement.optional,
                 waitToSettleTimeoutMs = swipeElement.waitToSettleTimeoutMs
+            )
+        )
+    }
+
+    private fun swipeRelativeCoordinatesSwipeElementCommand(swipeElement: YamlRelativeCoordinateSwipeElement): MaestroCommand {
+        return MaestroCommand(
+            swipeCommand = SwipeCommand(
+                elementSelector = toElementSelector(swipeElement.from),
+                endRelative = swipeElement.to,
+                duration = swipeElement.duration,
+                label = swipeElement.label,
+                optional = swipeElement.optional,
             )
         )
     }

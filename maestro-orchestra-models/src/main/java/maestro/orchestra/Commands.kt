@@ -79,6 +79,9 @@ data class SwipeCommand(
             startRelative != null && endRelative != null -> {
                 "Swipe from ($startRelative) to ($endRelative) in $duration ms"
             }
+            elementSelector != null && (endPoint != null || endRelative != null) -> {
+                "Swiping from ${elementSelector.description()} to ${endPoint ?: endRelative} coordinates"
+            }
             else -> "Invalid input to swipe command"
         }
 

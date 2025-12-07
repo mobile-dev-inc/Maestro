@@ -760,6 +760,31 @@ internal class YamlCommandReaderTest {
         assertThat(tapCommand.originalDescription).isEqualTo("Double tap on \"Submit\" at 50%, 90%")
     }
 
+    @Test
+    fun `swipe from element`(
+        @YamlFile("030_SwipeFromElement.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(
+                config=MaestroConfig(
+                    appId="com.example.app"
+                )
+            ),
+            SwipeCommand(
+                elementSelector = ElementSelector(idRegex = "some-id"),
+                direction = SwipeDirection.RIGHT
+            ),
+            SwipeCommand(
+                elementSelector = ElementSelector(idRegex = "some-id"),
+                endRelative = "10%,12%"
+            ),
+            SwipeCommand(
+                elementSelector = ElementSelector(idRegex = "some-id"),
+                endPoint = Point(x = 150, y = 333)
+            )
+        )
+    }
+
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
