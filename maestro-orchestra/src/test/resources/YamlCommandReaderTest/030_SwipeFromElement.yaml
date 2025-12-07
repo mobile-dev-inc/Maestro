@@ -1,0 +1,14 @@
+appId: com.example.app
+---
+- swipe:
+    from:
+      id: some-id
+    direction: RIGHT
+- swipe:
+    from:
+      id: some-id
+    to: '10%,12%'
+- swipe:
+    from:
+      id: some-id
+    to: '150,333'
