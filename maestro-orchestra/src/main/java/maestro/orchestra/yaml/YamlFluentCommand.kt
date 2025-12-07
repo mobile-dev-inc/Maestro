@@ -967,6 +967,7 @@ data class YamlFluentCommand(
             visible = visible?.let { toElementSelector(it) },
             notVisible = notVisible?.let { toElementSelector(it) },
             scriptCondition = `true`?.trim(),
+            timeout = timeout,
             label = label
         )
     }

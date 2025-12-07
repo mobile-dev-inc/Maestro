@@ -1,0 +1,13 @@
+appId: com.other.app
+---
+- evalScript: ${output.counter = 0}
+- repeat:
+    while:
+      notVisible: "Always Visible Element"
+      timeout: 100
+    commands:
+      - evalScript: ${output.counter = output.counter + 1}
+      - tapOn: Button
+# The element is always visible, so with 100ms timeout the condition should
+# evaluate to false quickly and the loop should never run
+- assertVisible: "Value 0"
