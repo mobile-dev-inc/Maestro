@@ -70,6 +70,10 @@ class GraalJsEngine(
         this.maestroBinding["copiedText"] = text
     }
 
+    override fun setRandomText(text: String?) {
+        this.maestroBinding["randomText"] = text
+    }
+
     override fun evaluateScript(
         script: String,
         env: Map<String, String>,
