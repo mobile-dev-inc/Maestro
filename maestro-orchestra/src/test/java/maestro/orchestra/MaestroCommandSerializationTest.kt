@@ -351,6 +351,37 @@ internal class MaestroCommandSerializationTest {
     }
 
     @Test
+    fun `serialize SetPermissionsCommand`() {
+        // given
+        val command = MaestroCommand(
+            SetPermissionsCommand("com.twitter.android", permissions = mapOf("all" to "deny", "notifications" to "unset"))
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "setPermissionsCommand" : {
+                "appId" : "com.twitter.android",
+                "permissions" : {
+                  "all" : "deny",
+                  "notifications" : "unset"
+                },
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
     fun `serialize ApplyConfigurationCommand`() {
         // given
         val command = MaestroCommand(

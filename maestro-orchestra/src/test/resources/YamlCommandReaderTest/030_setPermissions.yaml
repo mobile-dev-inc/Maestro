@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- setPermissions:
+    permissions:
+      all: deny
+      notifications: unset

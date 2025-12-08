@@ -926,9 +926,11 @@ class AndroidDriver(
 
     private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
         try {
-            dadb.shell("pm $permissionValue $appId $permission")
+            shell("pm $permissionValue $appId $permission")
         } catch (exception: Exception) {
-            /* no-op */
+            // We don't need to be loud about this. IOExceptions were caught in shell. Remaining issues are likely due
+            // to "all" containing permissions that the app doesn't support.
+            logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
         }
     }
 
