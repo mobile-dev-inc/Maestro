@@ -64,7 +64,7 @@ jobs:
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@v2
         with:
-          chrome-version: 141
+          chrome-version: 142
 
       - name: Download artifacts
         uses: actions/download-artifact@v7
