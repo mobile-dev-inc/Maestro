@@ -22,7 +22,7 @@ class BugReportCommand : Callable<Int> {
 
     override fun call(): Int {
         val message = """
-            Please open an issue on github: https://github.com/mobile-dev-inc/maestro/issues/new
+            Please open an issue on GitHub: https://github.com/mobile-dev-inc/Maestro/issues/new?template=bug_report.yaml
             Attach the files found in this folder ${DebugLogStore.logDirectory}
             """.trimIndent()
         println(message)
