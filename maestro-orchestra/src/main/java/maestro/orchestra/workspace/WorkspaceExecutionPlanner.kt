@@ -135,12 +135,6 @@ object WorkspaceExecutionPlanner {
         } ?: emptyList()
         var normalFlows = allFlows - flowsToRunInSequence.toSet()
 
-        if (workspaceConfig.local?.deterministicOrder == true) {
-            println()
-            println("WARNING! deterministicOrder has been deprecated in favour of executionOrder and will be removed in a future version")
-            normalFlows = normalFlows.sortedBy { it.name }
-        }
-
         // validation of media files for add media command
         allFlows.forEach {
             val commands = YamlCommandReader

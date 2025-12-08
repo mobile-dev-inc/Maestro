@@ -47,14 +47,19 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
+import maestro.cli.view.greenBox
 import maestro.cli.view.box
+import maestro.cli.view.green
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
+import maestro.cli.view.cyan
+import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
@@ -65,6 +70,7 @@ import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.nio.file.Path
+import java.time.LocalDate
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
@@ -205,6 +211,15 @@ class TestCommand : Callable<Int> {
         hidden = true
     )
     private var appleTeamId: String? = null
+
+    @Option(names = ["-p", "--platform"], description = ["Select a platform to run on"])
+    var platform: String? = null
+
+    @Option(
+        names = ["--device", "--udid"],
+        description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
+    )
+    var deviceId: String? = null
 
     @Option(
         names = ["--no-record"],
@@ -367,9 +382,9 @@ class TestCommand : Callable<Int> {
                 }
             }
             .ifEmpty {
+                val platform = platform ?: parent?.platform
                 connectedDevices
-                    .filter { device ->
-                        parent?.platform?.let { Platform.fromString(it) == device.platform } ?: true }
+                    .filter { platform == null || it.platform == Platform.fromString(platform) }
                     .map { it.instanceId }.toSet()
             }
             .toList()
@@ -411,6 +426,12 @@ class TestCommand : Callable<Int> {
             else -> null
         }
         message?.let { PrintUtils.info(it) }
+
+        // Show cloud promotion message if there are more than 5 tests (at most once per day)
+        if (flowCount > 5) {
+            showCloudFasterResultsPromotionMessageIfNeeded()
+        }
+
         val results = (0 until effectiveShards).map { shardIndex ->
             async(Dispatchers.IO + CoroutineName("shard-$shardIndex")) {
                 runShardSuite(
@@ -428,6 +449,11 @@ class TestCommand : Callable<Int> {
         val passed = results.sumOf { it.first ?: 0 }
         val total = results.sumOf { it.second ?: 0 }
         val suites = results.mapNotNull { it.third }
+
+        // Show cloud debug promotion message if there are failures
+        if (passed != total) {
+            showCloudDebugPromotionMessageIfNeeded()
+        }
 
         suites.mergeSummaries()?.saveReport()
 
@@ -457,7 +483,7 @@ class TestCommand : Callable<Int> {
             teamId = appleTeamId,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
-            platform = parent?.platform,
+            platform = platform ?: parent?.platform,
             isHeadless = headless,
             reinstallDriver = reinstallDriver,
             executionPlan = executionPlan
@@ -618,10 +644,10 @@ class TestCommand : Callable<Int> {
             }
     }
 
-  private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
+    private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
       val arguments = if (allFlowsAreWebFlow(plan)) {
         "chromium"
-      } else parent?.deviceId
+      } else deviceId ?: parent?.deviceId
       val deviceIds = arguments
         .orEmpty()
         .split(",")
@@ -661,5 +687,55 @@ class TestCommand : Callable<Int> {
             passedCount = sumOf { it.passedCount ?: 0 },
             totalTests = sumOf { it.totalTests ?: 0 }
         )
+    }
+
+    private fun showCloudFasterResultsPromotionMessageIfNeeded() {
+        // Don't show in CI environments
+        if (CiUtils.getCiProvider() != null) {
+            return
+        }
+
+        val promotionStateManager = PromotionStateManager()
+        val today = LocalDate.now().toString()
+
+        // Don't show if already shown today
+        if (promotionStateManager.getLastShownDate("fasterResults") == today) {
+            return
+        }
+
+        // Don't show if user has used cloud command within last 3 days
+        if (promotionStateManager.wasCloudCommandUsedWithinDays(3)) {
+            return
+        }
+
+        val command = "maestro cloud app_file flows_folder/"
+        val message = "Get results faster by ${"executing flows in parallel".cyan()} on Maestro Cloud virtual devices. Run: \n${command.green()}"
+        PrintUtils.info(message.greenBox())
+        promotionStateManager.setLastShownDate("fasterResults", today)
+    }
+
+    private fun showCloudDebugPromotionMessageIfNeeded() {
+        // Don't show in CI environments
+        if (CiUtils.getCiProvider() != null) {
+            return
+        }
+
+        val promotionStateManager = PromotionStateManager()
+        val today = LocalDate.now().toString()
+
+        // Don't show if already shown today
+        if (promotionStateManager.getLastShownDate("debug") == today) {
+          return
+        }
+
+        // Don't show if user has used cloud command within last 3 days
+        if (promotionStateManager.wasCloudCommandUsedWithinDays(3)) {
+          return
+        }
+
+        val command = "maestro cloud app_file flows_folder/"
+        val message = "Debug tests faster by easy access to ${"test recordings, maestro logs, screenshots, and more".cyan()}.\n\nRun your flows on Maestro Cloud:\n${command.green()}"
+        PrintUtils.info(message.greenBox())
+        promotionStateManager.setLastShownDate("debug", today)
     }
 }

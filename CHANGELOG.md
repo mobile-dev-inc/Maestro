@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.0.10
+
+- Fix error messaging when running with shards fails
+- Improve gathering of dependencies when running single flows with `maestro cloud`
+
 ## 2.0.7
 
 ### Fix

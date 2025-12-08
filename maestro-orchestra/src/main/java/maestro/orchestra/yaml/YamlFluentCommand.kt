@@ -62,6 +62,7 @@ import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
+import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -113,6 +114,7 @@ data class YamlFluentCommand(
     val inputRandomCountryName: YamlInputRandomCountryName? = null,
     val inputRandomColorName: YamlInputRandomColorName? = null,
     val launchApp: YamlLaunchApp? = null,
+    val setPermissions: YamlSetPermissions? = null,
     val swipe: YamlSwipe? = null,
     val openLink: YamlOpenLink? = null,
     val openBrowser: String? = null,
@@ -155,6 +157,7 @@ data class YamlFluentCommand(
     private fun _toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
         return when {
             launchApp != null -> listOf(launchApp(launchApp, appId))
+            setPermissions != null -> listOf(setPermissions(command = setPermissions, appId))
             tapOn != null -> listOf(tapCommand(tapOn))
             longPressOn != null -> listOf(tapCommand(longPressOn, longPress = true))
             assertVisible != null -> listOf(
@@ -734,6 +737,17 @@ data class YamlFluentCommand(
                 stopApp = command.stopApp,
                 permissions = command.permissions,
                 launchArguments = command.arguments,
+                label = command.label,
+                optional = command.optional,
+            )
+        )
+    }
+
+    private fun setPermissions(command: YamlSetPermissions, appId: String): MaestroCommand {
+        return MaestroCommand(
+            SetPermissionsCommand(
+                appId = command.appId ?: appId,
+                permissions = command.permissions,
                 label = command.label,
                 optional = command.optional,
             )

@@ -785,6 +785,24 @@ data class LaunchAppCommand(
     }
 }
 
+data class SetPermissionsCommand(
+    val appId: String,
+    var permissions: Map<String, String>,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Set permissions"
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
+        return copy(
+            appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+}
+
 data class ApplyConfigurationCommand(
     val config: MaestroConfig,
     override val label: String? = null,

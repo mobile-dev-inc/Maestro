@@ -44,6 +44,7 @@ data class MaestroCommand(
     val inputTextCommand: InputTextCommand? = null,
     val inputRandomTextCommand: InputRandomCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
+    val setPermissionsCommand: SetPermissionsCommand? = null,
     val applyConfigurationCommand: ApplyConfigurationCommand? = null,
     val openLinkCommand: OpenLinkCommand? = null,
     val pressKeyCommand: PressKeyCommand? = null,
@@ -91,6 +92,7 @@ data class MaestroCommand(
         inputRandomTextCommand = command as? InputRandomCommand,
         assertVisualCommand = command as? AssertVisualCommand,
         launchAppCommand = command as? LaunchAppCommand,
+        setPermissionsCommand = command as? SetPermissionsCommand,
         applyConfigurationCommand = command as? ApplyConfigurationCommand,
         openLinkCommand = command as? OpenLinkCommand,
         pressKeyCommand = command as? PressKeyCommand,
@@ -137,6 +139,7 @@ data class MaestroCommand(
         inputTextCommand != null -> inputTextCommand
         inputRandomTextCommand != null -> inputRandomTextCommand
         launchAppCommand != null -> launchAppCommand
+        setPermissionsCommand != null -> setPermissionsCommand
         applyConfigurationCommand != null -> applyConfigurationCommand
         openLinkCommand != null -> openLinkCommand
         pressKeyCommand != null -> pressKeyCommand
