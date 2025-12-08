@@ -795,6 +795,17 @@ data class SetPermissionsCommand(
     override val originalDescription: String
         get() = "Set permissions"
 
+    override fun yamlString(): String {
+        val yamlString = buildString {
+            appendLine(
+                """
+                |setPermissions
+                """
+            )
+        }
+        return yamlString
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
