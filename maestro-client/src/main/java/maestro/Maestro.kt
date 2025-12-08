@@ -575,8 +575,7 @@ class Maestro(
         ScreenshotUtils.waitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD, driver)
     }
 
-    fun sleep(time: Long?) {
-        val time = time ?: ANIMATION_TIMEOUT_MS
+    fun sleep(time: Long) {
         LOGGER.info("Sleep for $time ms")
         MaestroTimer.sleep(MaestroTimer.Reason.COMMAND_SLEEP, time)
     }

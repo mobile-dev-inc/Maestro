@@ -553,7 +553,11 @@ class Orchestra(
     }
 
     private fun sleepCommand(command: SleepCommand): Boolean {
-        maestro.sleep(command.time)
+        val time = command.time
+        if (time == null) {
+            throw MaestroException.InvalidCommand("Missing required parameter <time> for sleep command")
+        }
+        maestro.sleep(time)
         return true
     }
 
