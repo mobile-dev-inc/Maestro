@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Hide incomplete `maestro driver-setup` command from `maestro --help`
+- Add `--platform` and `--device` to `maestro test` command
+- Remove deprecated `deterministicOrder` feature from workspace config
+- Remove deprecated `maestro upload` command
+- Bump web support to Chrome v141
+- Fix bug that said that analytics was enabled when it wasn't
+- Add custom JUnit properties to reporting
+- Fix building Maestro on Java >17
+- Fix link in `maestro bugreport`
+- Bump npm dependencies in legacy Maestro Studio
+- Add `setPermissions` command, for setting app permissions outside of `launchApp`
+- Fix cancellation of flows whilst repeat loops are running
+- Fix enumeration of multi-select elements in Web
+- Add support for --no-reinstall-driver option to `test` and `hierarchy` commands
+
 ## 2.0.10
 
 - Fix error messaging when running with shards fails
