@@ -39,7 +39,7 @@ class GraalJsEngine(
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
-    
+
     // Stack to track environment variable scopes for proper isolation
     private val envScopeStack = mutableListOf<HashMap<String, String>>()
 
@@ -52,7 +52,10 @@ class GraalJsEngine(
 
     override fun close() {
         openContexts.forEach { it.close() }
+        openContexts.clear()
     }
+
+    fun openContextCount(): Int = openContexts.size
 
     override fun onLogMessage(callback: (String) -> Unit) {
         onLogMessage = callback
@@ -75,15 +78,14 @@ class GraalJsEngine(
         env: Map<String, String>,
         sourceName: String,
         runInSubScope: Boolean,
-    ): Value {
+    ): Any {
         if (runInSubScope) {
             // Save current environment state
             enterEnvScope()
             try {
                 // Add the new env vars on top of the current scope
                 envBinding.putAll(env)
-                val source = Source.newBuilder("js", script, sourceName).build()
-                return createContext().eval(source)
+                return evalAndCloseContext(script, sourceName)
             } finally {
                 // Restore previous environment state
                 leaveEnvScope()
@@ -91,9 +93,35 @@ class GraalJsEngine(
         } else {
             // Original behavior - directly add to envBinding
             envBinding.putAll(env)
-            val source = Source.newBuilder("js", script, sourceName).build()
-            return createContext().eval(source)
+            return evalAndCloseContext(script, sourceName)
         }
+    }
+
+    private fun evalAndCloseContext(script: String, sourceName: String): Any {
+        // Set platform before snapshot (it's set once but we do it here to keep it near the snapshot logic)
+        maestroBinding["platform"] = platform
+
+        // Snapshot shared bindings before evaluation
+        val outputBefore = outputBinding.toMap()
+        val maestroBefore = maestroBinding.toMap()
+
+        val context = createContext()
+        val source = Source.newBuilder("js", script, sourceName).build()
+        val result = context.eval(source)
+
+        // Only close context if shared bindings weren't modified.
+        // If modified, the stored values may be Value objects tied to this context.
+        val bindingsModified = outputBinding != outputBefore || maestroBinding != maestroBefore
+        if (!bindingsModified) {
+            // Convert to string before closing - Value objects become invalid after context close.
+            // Callers (see Env.kt) call .toString() on the result anyway.
+            val stringResult = result.toString()
+            context.close()
+            openContexts.remove(context)
+            return stringResult
+        }
+
+        return result
     }
 
     val hostAccess = HostAccess.newBuilder()
@@ -126,8 +154,6 @@ class GraalJsEngine(
         context.getBindings("js").putMember("faker", faker)
         context.getBindings("js").putMember("output", ProxyObject.fromMap(outputBinding))
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
-
-        maestroBinding["platform"] = platform
 
         context.eval(
             "js", """
