@@ -102,8 +102,8 @@ class CloudInteractor(
         // Fetch and select project if not provided
         val selectedProjectId = projectId ?: selectProject(authToken)
 
-        // Record cloud command usage for promotion message suppression
-        PromotionStateManager().recordCloudCommandUsage()
+//        // Record cloud command usage for promotion message suppression
+//        PromotionStateManager().recordCloudCommandUsage()
 
         // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
         val triggeredPlatform = when {

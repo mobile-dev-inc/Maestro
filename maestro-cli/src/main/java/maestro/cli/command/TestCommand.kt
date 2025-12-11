@@ -427,10 +427,10 @@ class TestCommand : Callable<Int> {
         }
         message?.let { PrintUtils.info(it) }
 
-        // Show cloud promotion message if there are more than 5 tests (at most once per day)
-        if (flowCount > 5) {
-            showCloudFasterResultsPromotionMessageIfNeeded()
-        }
+//        // Show cloud promotion message if there are more than 5 tests (at most once per day)
+//        if (flowCount > 5) {
+//            showCloudFasterResultsPromotionMessageIfNeeded()
+//        }
 
         val results = (0 until effectiveShards).map { shardIndex ->
             async(Dispatchers.IO + CoroutineName("shard-$shardIndex")) {
@@ -450,10 +450,10 @@ class TestCommand : Callable<Int> {
         val total = results.sumOf { it.second ?: 0 }
         val suites = results.mapNotNull { it.third }
 
-        // Show cloud debug promotion message if there are failures
-        if (passed != total) {
-            showCloudDebugPromotionMessageIfNeeded()
-        }
+//        // Show cloud debug promotion message if there are failures
+//        if (passed != total) {
+//            showCloudDebugPromotionMessageIfNeeded()
+//        }
 
         suites.mergeSummaries()?.saveReport()
 
