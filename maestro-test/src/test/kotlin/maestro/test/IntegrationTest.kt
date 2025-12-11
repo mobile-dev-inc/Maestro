@@ -39,6 +39,8 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.fail
+import org.slf4j.LoggerFactory
 import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
@@ -3554,6 +3556,9 @@ class IntegrationTest {
 
                 // Launch the work in our cancellable scope
                 scope.launch(job) {
+                    // Cancel the job immediately
+                    coroutineContext.cancel()
+
                     try {
                         Orchestra(
                             maestro,
@@ -3570,9 +3575,6 @@ class IntegrationTest {
                         // Expected cancellation
                     }
                 }
-
-                // Cancel the job immediately
-                job.cancel()
 
                 // Actively wait for skipped count to reach expected value or timeout
                 withTimeout(2000) {
@@ -4034,6 +4036,100 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertHasEvent(Event.SetPermissions(appId = "com.example.app", permissions = mapOf("all" to "deny", "notifications" to "unset")))
+    }
+
+
+    @Test
+    fun `Case 132 - repeatWhile respects coroutine timeout and gets cancelled`() {
+        // Given
+        // You can reuse 075_repeat_while.yaml or make a dedicated one that just keeps the while true.
+        val commands = readCommands("075_repeat_while")
+
+        val driver = driver {
+            element {
+                text = "Value 0"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                }
+            }
+        }
+
+        var completed = 0
+        var skipped = 0
+        val executedCommands = mutableListOf<String>()
+
+        Maestro(driver).use { maestro ->
+            // When & Then
+            runBlocking {
+                // Optional: mirror Case 124 style and isolate flow in its own scope
+                val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+                try {
+                    val maxReasonableSkips = 1_00
+
+                    withTimeout(2000) {
+                        val flowJob = coroutineContext[Job]
+
+                        val orchestra = Orchestra(
+                            maestro = maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandComplete = { index, command ->
+                                println("""
+                                    Completed command ${command.description()} at index $index.
+                                """.trimIndent()
+                                )
+
+                                completed += 1
+                            },
+                            onCommandSkipped = { index, command ->
+                                skipped += 1
+                                /**
+                                 * When this fail it means we might have entered an infinite loop.
+                                 *
+                                 * Our orchestra should not have infinite loops when timeout exceed.
+                                 */
+                                println("""
+                                        Command ${command.description()} at index $index was skipped $skipped times.
+                                """.trimIndent()
+                                )
+                                if (skipped > maxReasonableSkips) {
+                                    fail("Likely infinite loop: onCommandSkipped called $skipped times (command=$command index=$index)")
+                                }
+                            },
+                            onCommandMetadataUpdate = { cmd, _ ->
+                                val commandName = when {
+                                    cmd.tapOnElement != null -> "TapOnCommand"
+                                    else -> "OtherCommand"
+                                }
+                                executedCommands.add(commandName)
+                            }
+                        )
+
+                        // This should be interrupted by withTimeout if repeatWhile keeps going
+                        orchestra.runFlow(commands)
+                    }
+                } finally {
+                    scope.coroutineContext[Job]?.cancel()
+                }
+            }
+        }
+
+        // Assertions
+        // Some commands actually completed before timeout.
+        assertThat(completed).isGreaterThan(0)
+
+        // Depending on how you wire onCommandSkipped for cancellation, you may or may not
+        // see skipped > 0; keep this if you convert cancellations to "skipped".
+        assertThat(skipped).isGreaterThan(0)
+
+        // Sanity: we saw at least one TapOnCommand in metadata.
+        assertThat(executedCommands).contains("TapOnCommand")
     }
 
     private fun orchestra(
