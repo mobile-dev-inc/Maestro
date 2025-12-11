@@ -55,8 +55,10 @@ object Analytics : AutoCloseable {
      */
     fun warnAndEnableAnalyticsIfNotDisable() {
         if (hasRunBefore) return
-        println("Anonymous analytics enabled. To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.\n")
-        analyticsStateManager.saveInitialState(granted = !analyticsDisabledWithEnvVar, uuid = uuid)
+        val analyticsShouldBeEnabled = !analyticsDisabledWithEnvVar
+        if (analyticsShouldBeEnabled)
+            println("Anonymous analytics enabled. To opt out, set $DISABLE_ANALYTICS_ENV_VAR environment variable to any value before running Maestro.\n")
+        analyticsStateManager.saveInitialState(granted = analyticsShouldBeEnabled, uuid = uuid)
     }
 
     /**

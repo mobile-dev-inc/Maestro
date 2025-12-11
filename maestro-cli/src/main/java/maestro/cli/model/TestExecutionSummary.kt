@@ -28,6 +28,7 @@ data class TestExecutionSummary(
         val failure: Failure? = null,
         val duration: Duration? = null,
         val startTime: Long? = null,
+        val properties: Map<String, String>? = null,
     )
 
     data class Failure(

@@ -41,26 +41,34 @@ jobs:
         id: integration-test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 33
+          api-level: 34
           arch: x86_64
           target: google_apis
           script: ./gradlew integrationTest
 
       - name: Upload Maestro integration debug artifacts
         uses: actions/upload-artifact@v4
-        if: steps.integration-test.outcome == 'failure'
         with:
           name: maestro-root-dir-android
           path: ~/.maestro
           retention-days: 1
           include-hidden-files: true
 
-      - name: Upload test report
+      - name: Upload unit test report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: maestro-test-report
-          path: ./maestro-test/build/reports
+          name: maestro-unit-test-report
+          path: ./**/build/reports/tests/test
+          retention-days: 1
+          include-hidden-files: true
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-integration-test-report
+          path: ./**/build/reports/tests/integrationTest
           retention-days: 1
           include-hidden-files: true
 

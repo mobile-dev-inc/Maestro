@@ -177,7 +177,8 @@ class TestSuiteInteractor(
             .readCommands(flowFile.toPath())
             .withEnv(env)
 
-        var flowName: String = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+        val maestroConfig = YamlCommandReader.getConfig(commands)
+        val flowName: String = maestroConfig?.name ?: flowFile.nameWithoutExtension
 
         logger.info("$shardPrefix Running flow $flowName")
         PrintUtils.message("${shardPrefix}Running: $flowName")
@@ -204,8 +205,6 @@ class TestSuiteInteractor(
 
         val flowTimeMillis = measureTimeMillis {
             try {
-                YamlCommandReader.getConfig(commands)?.name?.let { flowName = it }
-
                 val orchestra = Orchestra(
                     maestro = maestro,
                     screenshotsDir = testOutputDir?.resolve("screenshots"),
@@ -332,6 +331,7 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                properties = maestroConfig?.properties,
             ),
             second = aiOutput,
         )
