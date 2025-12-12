@@ -48,7 +48,7 @@ kotlin {
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=17")
+        freeCompilerArgs.addAll("-Xjdk-release=17", "-Xannotation-default-target=param-property")
     }
 }
 

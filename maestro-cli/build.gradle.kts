@@ -215,7 +215,7 @@ kotlin {
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=17")
+        freeCompilerArgs.addAll("-Xjdk-release=17", "-Xannotation-default-target=param-property")
     }
 }
 
@@ -223,7 +223,7 @@ tasks.create("createProperties") {
     dependsOn("processResources")
 
     doLast {
-        File("$buildDir/resources/main/version.properties").writer().use { w ->
+        File("${layout.buildDirectory.get()}/resources/main/version.properties").writer().use { w ->
             val p = Properties()
             p["version"] = CLI_VERSION
             p.store(w, null)
@@ -327,10 +327,8 @@ jreleaser {
             // The default template path
             templateDirectory.set(file("src/jreleaser/distributions/maestro/brew"))
 
-            repoTap {
-                repoOwner.set("mobile-dev-inc")
-                name.set("homebrew-tap")
-            }
+            repository.repoOwner.set("mobile-dev-inc")
+            repository.name.set("homebrew-tap")
 
             dependencies {
                 dependency("openjdk", "17+")
