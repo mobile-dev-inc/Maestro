@@ -16,7 +16,7 @@
                 return node.value || node.placeholder || node.ariaLabel || ''
 
             case 'select':
-                return node.options && node.options.length > 0 ? node.options[node.selectedIndex].text : ''
+                return Array.from(node.selectedOptions).map((option) => option.text).join(', ')
 
             default:
                 const childNodes = [...(node.childNodes || [])].filter(node => node.nodeType === Node.TEXT_NODE)
