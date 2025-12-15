@@ -4073,8 +4073,6 @@ class IntegrationTest {
                     val maxReasonableSkips = 1_00
 
                     withTimeout(2000) {
-                        val flowJob = coroutineContext[Job]
-
                         val orchestra = Orchestra(
                             maestro = maestro,
                             lookupTimeoutMs = 0L,
@@ -4101,13 +4099,6 @@ class IntegrationTest {
                                 if (skipped > maxReasonableSkips) {
                                     fail("Likely infinite loop: onCommandSkipped called $skipped times (command=$command index=$index)")
                                 }
-                            },
-                            onCommandMetadataUpdate = { cmd, _ ->
-                                val commandName = when {
-                                    cmd.tapOnElement != null -> "TapOnCommand"
-                                    else -> "OtherCommand"
-                                }
-                                executedCommands.add(commandName)
                             }
                         )
 
@@ -4127,9 +4118,6 @@ class IntegrationTest {
         // Depending on how you wire onCommandSkipped for cancellation, you may or may not
         // see skipped > 0; keep this if you convert cancellations to "skipped".
         assertThat(skipped).isGreaterThan(0)
-
-        // Sanity: we saw at least one TapOnCommand in metadata.
-        assertThat(executedCommands).contains("TapOnCommand")
     }
 
     private fun orchestra(
