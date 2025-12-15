@@ -48,6 +48,7 @@ jobs:
 
       - name: Upload Maestro integration debug artifacts
         uses: actions/upload-artifact@v4
+        if: failure()
         with:
           name: maestro-root-dir-android
           path: ~/.maestro

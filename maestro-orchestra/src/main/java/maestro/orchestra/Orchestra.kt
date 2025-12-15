@@ -19,6 +19,7 @@
 
 package maestro.orchestra
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import maestro.Driver
 import maestro.ElementFilter
@@ -68,11 +69,6 @@ import kotlin.coroutines.coroutineContext
 //    that is streamed to disk.
 //  Idea:
 //    Orchestra should expose a callback like "onResourceRequested: (Command, CommandOutputType)"
-sealed class CommandOutput {
-    data class Screenshot(val screenshot: Buffer) : CommandOutput()
-    data class ScreenRecording(val screenRecording: Buffer) : CommandOutput()
-    data class AIDefects(val defects: List<Defect>, val screenshot: Buffer) : CommandOutput()
-}
 
 interface FlowController {
     suspend fun waitIfPaused()
@@ -86,7 +82,7 @@ class DefaultFlowController : FlowController {
 
     override suspend fun waitIfPaused() {
         while (_isPaused) {
-            if (!coroutineContext.isActive) {
+            if (!currentCoroutineContext().isActive) {
                 break
             }
             Thread.sleep(500)
@@ -205,7 +201,7 @@ class Orchestra(
             initJsEngine(config)
         }
 
-        if (!coroutineContext.isActive) {
+        if (!currentCoroutineContext().isActive) {
             logger.info("Flow cancelled, skipping initAndroidChromeDevTools...")
         } else {
             initAndroidChromeDevTools(config)
@@ -213,8 +209,8 @@ class Orchestra(
 
         commands
             .forEachIndexed { index, command ->
-                if (!coroutineContext.isActive) {
-                    logger.info("[Command execution] Command skipped due to cancellation: ${command}")
+                if (!currentCoroutineContext().isActive) {
+                    logger.info("[Command execution] Command skipped due to cancellation: $command")
                     onCommandSkipped(index, command)
                     return@forEachIndexed
                 }
@@ -311,7 +307,7 @@ class Orchestra(
     private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
 
-        if (!coroutineContext.isActive) {
+        if (!currentCoroutineContext().isActive) {
             throw CommandSkipped
         }
 
@@ -701,7 +697,7 @@ class Orchestra(
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
         }
 
-        while (checkCondition() && counter < maxRuns) {
+        while (checkCondition() && counter < maxRuns && currentCoroutineContext().isActive) {
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
             }
