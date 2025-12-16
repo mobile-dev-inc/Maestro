@@ -611,7 +611,7 @@ class Orchestra(
 
                 logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
                 logger.info("Element bounds: ${element.bounds}")
-                logger.info("Visibility Percent: $retryCenterCount")
+                logger.info("Visibility Percent: $visibility")
                 logger.info("Command centerElement: $command.centerElement")
                 logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
 
