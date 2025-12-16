@@ -10,6 +10,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
+import java.net.Proxy
 import xcuitest.installer.XCTestInstaller
 import kotlin.time.Duration.Companion.seconds
 
@@ -19,7 +20,7 @@ class XCTestDriverClient(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
         connectTimeout = 1.seconds
-    ),
+    ).newBuilder().proxy(Proxy.NO_PROXY).build(),
     private val reinstallDriver: Boolean = true,
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
