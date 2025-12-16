@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -eu
+
+# Runs all tests in the workspaces directory.
+
+command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
+
+[ "$(basename "$PWD")" = "e2e" ] || { echo "must be run from e2e directory" && exit 1; }
+
+ALL_PASS=true
+
+_h1() {
+	printf "=>\n=> %s\n=>\n" "$1"
+}
+
+_h2() {
+	printf "==> [%s] %s\n" "$1" "$2"
+}
+
+_h3() {
+	printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"
+}
+
+platform="web"
+
+mkfifo pipe
+trap 'rm -f pipe' EXIT
+
+export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
+
+PASSING_WEB_WORKSPACES="sauce_demo" # Comma separated list
+FAILING_WEB_WORKSPACES=""
+
+# Run passing tests
+for workspace_dir in ./workspaces/*; do
+  WORKSPACE_PASS=true
+	app_name="$(basename "$workspace_dir")"
+	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
+
+	###
+	### Run passing tests
+	###
+	# shellcheck disable=SC2199,SC2076
+	if [[ "$PASSING_WEB_WORKSPACES" =~ "$app_name" ]]; then
+  	_h2 "$app_name" "run passing tests"
+
+    while IFS= read -r line; do
+        _h3 "$app_name" "passing" "$line"
+    done < pipe &
+
+    maestro --verbose --platform "$platform" test --headless --include-tags passing "$workspace_dir" 1>pipe 2>&1 || WORKSPACE_PASS=false
+
+    if [ "$WORKSPACE_PASS" = "false" ]; then
+          _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"
+      ALL_PASS=false
+    fi
+  else
+    echo "Skipping passing tests for $app_name"
+  fi
+
+	###
+	### Run failing tests
+	###
+	WORKSPACE_PASS=true # Reset for failing flows
+	# shellcheck disable=SC2199,SC2076
+	if [[ "$FAILING_WEB_WORKSPACES" =~ "$workspace_dir" ]]; then
+    _h2 "$app_name" "run failing tests"
+
+    while IFS= read -r line; do
+        _h3 "$app_name" "failing" "$line"
+    done < pipe &
+
+    maestro --verbose --platform "$platform" test --headless --include-tags failing "$workspace_dir" 1>pipe 2>&1 && WORKSPACE_PASS=false
+
+    if [ "$WORKSPACE_PASS" = "false" ]; then
+      _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
+      ALL_PASS=false
+    fi
+  else
+      echo "Skipping failing tests for $app_name"
+  fi
+done
+
+if [ "$ALL_PASS" = "false" ]; then
+	_h1 "FAILURE: some tests failed!"
+	exit 1
+else
+	_h1 "SUCCESS: all tests passed!"
+fi
