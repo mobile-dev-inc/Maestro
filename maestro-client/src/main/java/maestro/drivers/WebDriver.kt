@@ -7,7 +7,7 @@ import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.OnDeviceElementQuery
-import maestro.Platform
+import maestro.device.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection

@@ -85,9 +85,9 @@ class StartDeviceCommand : Callable<Int> {
         val o = osVersion.toIntOrNull()
 
         val maestroPlatform = when(p) {
-            Platform.ANDROID -> maestro.Platform.ANDROID
-            Platform.IOS -> maestro.Platform.IOS
-            Platform.WEB -> maestro.Platform.WEB
+            Platform.ANDROID -> maestro.device.Platform.ANDROID
+            Platform.IOS -> maestro.device.Platform.IOS
+            Platform.WEB -> maestro.device.Platform.WEB
         }
 
         val locale = deviceLocale ?: "en_US"
