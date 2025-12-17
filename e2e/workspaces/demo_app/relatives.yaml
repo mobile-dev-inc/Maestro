@@ -1,6 +1,7 @@
 appId: com.example.example
 tags:
     - passing
+    - android # iOS uses a different tree stucture
 ---
 - launchApp:
     clearState: true
