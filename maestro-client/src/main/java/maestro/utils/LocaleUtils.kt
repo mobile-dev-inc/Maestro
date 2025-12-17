@@ -11,7 +11,7 @@ class LocaleValidationIosException : LocaleValidationException("Failed to valida
 // Android
 class LocaleValidationAndroidLanguageException(val language: String) : LocaleValidationException("Failed to validate Android device language: $language")
 class LocaleValidationAndroidCountryException(val country: String) : LocaleValidationException("Failed to validate Android device country: $country")
-class LocaleValidationAndroidLocaleCombinationException(val locale: String) : LocaleValidationException("Failed to validate Android device locale combination: $locale (not a valid Java Locale combination)")
+class LocaleValidationAndroidLocaleCombinationException(val locale: String) : LocaleValidationException("Failed to validate Android device locale combination: $locale (not a valid Locale combination)")
 
 // Web
 class LocaleValidationWebException(val locale: String) : LocaleValidationException("Failed to validate web browser iOS: $locale")
