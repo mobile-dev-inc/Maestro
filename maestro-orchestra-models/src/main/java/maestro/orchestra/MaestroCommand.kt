@@ -57,7 +57,8 @@ data class MaestroCommand(
     val setLocationCommand: SetLocationCommand? = null,
     var setOrientationCommand: SetOrientationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
-    val copyTextCommand: CopyTextFromCommand? = null,
+    val copyTextFromCommand: CopyTextFromCommand? = null,
+    val copyTextCommand: CopyTextCommand? = null,
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
     val runScriptCommand: RunScriptCommand? = null,
@@ -103,7 +104,8 @@ data class MaestroCommand(
         setLocationCommand = command as? SetLocationCommand,
         setOrientationCommand = command as? SetOrientationCommand,
         repeatCommand = command as? RepeatCommand,
-        copyTextCommand = command as? CopyTextFromCommand,
+        copyTextFromCommand = command as? CopyTextFromCommand,
+        copyTextCommand = command as? CopyTextCommand,
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
         runScriptCommand = command as? RunScriptCommand,
@@ -149,6 +151,7 @@ data class MaestroCommand(
         setLocationCommand != null -> setLocationCommand
         setOrientationCommand != null -> setOrientationCommand
         repeatCommand != null -> repeatCommand
+        copyTextFromCommand != null -> copyTextFromCommand
         copyTextCommand != null -> copyTextCommand
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
@@ -170,7 +173,7 @@ data class MaestroCommand(
         return when {
             tapOnElement?.selector != null -> tapOnElement.selector
             swipeCommand?.elementSelector != null -> swipeCommand.elementSelector
-            copyTextCommand?.selector != null -> copyTextCommand.selector
+            copyTextFromCommand?.selector != null -> copyTextFromCommand.selector
             assertConditionCommand?.condition?.visible != null -> assertConditionCommand.condition.visible
             assertConditionCommand?.condition?.notVisible != null -> assertConditionCommand.condition.notVisible
             scrollUntilVisible?.selector != null -> scrollUntilVisible.selector

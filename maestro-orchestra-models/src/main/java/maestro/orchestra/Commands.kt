@@ -267,6 +267,23 @@ data class CopyTextFromCommand(
     }
 }
 
+data class CopyTextCommand(
+    val text: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Copy text to clipboard"
+
+    override fun evaluateScripts(jsEngine: JsEngine): CopyTextCommand {
+        return copy(
+            text = text.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+}
+
 data class PasteTextCommand(
     override val label: String? = null,
     override val optional: Boolean = false,

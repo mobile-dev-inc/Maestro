@@ -34,6 +34,7 @@ import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Condition
+import maestro.orchestra.CopyTextCommand
 import maestro.orchestra.CopyTextFromCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
@@ -127,6 +128,7 @@ data class YamlFluentCommand(
     val setOrientation: YamlSetOrientation? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
+    val copyText: YamlCopyText? = null,
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: YamlEvalScript? = null,
@@ -372,6 +374,15 @@ data class YamlFluentCommand(
             )
 
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
+            copyText != null -> listOf(
+                MaestroCommand(
+                    CopyTextCommand(
+                        text = copyText.text,
+                        label = copyText.label,
+                        optional = copyText.optional
+                    )
+                )
+            )
             runScript != null -> listOf(
                 MaestroCommand(
                     RunScriptCommand(
