@@ -267,16 +267,16 @@ data class CopyTextFromCommand(
     }
 }
 
-data class CopyTextCommand(
+data class SetClipboardCommand(
     val text: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
     override val originalDescription: String
-        get() = "Copy text to clipboard"
+        get() = "Set Maestro clipboard to $text"
 
-    override fun evaluateScripts(jsEngine: JsEngine): CopyTextCommand {
+    override fun evaluateScripts(jsEngine: JsEngine): SetClipboardCommand {
         return copy(
             text = text.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)

@@ -4121,9 +4121,9 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 133 - Copy text to clipboard`() {
+    fun `Case 133 - Set clipboard`() {
         // Given
-        val commands = readCommands("133_copyText")
+        val commands = readCommands("133_setClipboard")
 
         val driver = driver {
             element {

@@ -57,8 +57,8 @@ data class MaestroCommand(
     val setLocationCommand: SetLocationCommand? = null,
     var setOrientationCommand: SetOrientationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
-    val copyTextFromCommand: CopyTextFromCommand? = null,
-    val copyTextCommand: CopyTextCommand? = null,
+    val copyTextCommand: CopyTextFromCommand? = null,
+    val setClipboardCommand: SetClipboardCommand? = null,
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
     val runScriptCommand: RunScriptCommand? = null,
@@ -104,8 +104,8 @@ data class MaestroCommand(
         setLocationCommand = command as? SetLocationCommand,
         setOrientationCommand = command as? SetOrientationCommand,
         repeatCommand = command as? RepeatCommand,
-        copyTextFromCommand = command as? CopyTextFromCommand,
-        copyTextCommand = command as? CopyTextCommand,
+        copyTextCommand = command as? CopyTextFromCommand,
+        setClipboardCommand = command as? SetClipboardCommand,
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
         runScriptCommand = command as? RunScriptCommand,
@@ -152,7 +152,7 @@ data class MaestroCommand(
         setOrientationCommand != null -> setOrientationCommand
         repeatCommand != null -> repeatCommand
         copyTextFromCommand != null -> copyTextFromCommand
-        copyTextCommand != null -> copyTextCommand
+        setClipboardCommand != null -> setClipboardCommand
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
         runScriptCommand != null -> runScriptCommand
@@ -173,7 +173,7 @@ data class MaestroCommand(
         return when {
             tapOnElement?.selector != null -> tapOnElement.selector
             swipeCommand?.elementSelector != null -> swipeCommand.elementSelector
-            copyTextFromCommand?.selector != null -> copyTextFromCommand.selector
+            copyTextCommand?.selector != null -> copyTextCommand.selector
             assertConditionCommand?.condition?.visible != null -> assertConditionCommand.condition.visible
             assertConditionCommand?.condition?.notVisible != null -> assertConditionCommand.condition.notVisible
             scrollUntilVisible?.selector != null -> scrollUntilVisible.selector

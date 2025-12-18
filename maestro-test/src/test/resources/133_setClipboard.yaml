@@ -1,4 +1,4 @@
 appId: com.example.app
 ---
-- copyText: "Hello, Maestro!"
+- setClipboard: "Hello, Maestro!"
 - pasteText

@@ -329,7 +329,7 @@ class Orchestra(
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
-            is CopyTextCommand -> copyTextCommand(command)
+            is SetClipboardCommand -> setClipboardCommand(command)
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
@@ -1451,7 +1451,7 @@ class Orchestra(
         return true
     }
 
-    private fun copyTextCommand(command: CopyTextCommand): Boolean {
+    private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
         copiedText = command.text
         jsEngine.setCopiedText(copiedText)
 
