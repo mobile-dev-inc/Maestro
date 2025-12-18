@@ -151,7 +151,7 @@ data class MaestroCommand(
         setLocationCommand != null -> setLocationCommand
         setOrientationCommand != null -> setOrientationCommand
         repeatCommand != null -> repeatCommand
-        copyTextFromCommand != null -> copyTextFromCommand
+        copyTextCommand != null -> copyTextCommand
         setClipboardCommand != null -> setClipboardCommand
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
