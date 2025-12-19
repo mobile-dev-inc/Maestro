@@ -58,6 +58,7 @@ data class MaestroCommand(
     var setOrientationCommand: SetOrientationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
     val copyTextCommand: CopyTextFromCommand? = null,
+    val setClipboardCommand: SetClipboardCommand? = null,
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
     val runScriptCommand: RunScriptCommand? = null,
@@ -104,6 +105,7 @@ data class MaestroCommand(
         setOrientationCommand = command as? SetOrientationCommand,
         repeatCommand = command as? RepeatCommand,
         copyTextCommand = command as? CopyTextFromCommand,
+        setClipboardCommand = command as? SetClipboardCommand,
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
         runScriptCommand = command as? RunScriptCommand,
@@ -150,6 +152,7 @@ data class MaestroCommand(
         setOrientationCommand != null -> setOrientationCommand
         repeatCommand != null -> repeatCommand
         copyTextCommand != null -> copyTextCommand
+        setClipboardCommand != null -> setClipboardCommand
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
         runScriptCommand != null -> runScriptCommand
