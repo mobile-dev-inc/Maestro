@@ -52,25 +52,93 @@ object XCRunnerCLIUtils {
     }
 
     fun setProxy(host: String, port: Int) {
-        ProcessBuilder("networksetup", "-setwebproxy", "Wi-Fi", host, port.toString())
+        val service = proxyNetworkService()
+        runNetworksetup("-setwebproxy", service, host, port.toString())
+        runNetworksetup("-setwebproxystate", service, "on")
+        runNetworksetup("-setsecurewebproxy", service, host, port.toString())
+        runNetworksetup("-setsecurewebproxystate", service, "on")
+    }
+
+    fun resetProxy() {
+        val service = proxyNetworkService()
+        runNetworksetup("-setwebproxystate", service, "off")
+        runNetworksetup("-setsecurewebproxystate", service, "off")
+    }
+
+    data class ProxySettings(
+        val webEnabled: Boolean,
+        val webHost: String,
+        val webPort: Int,
+        val secureEnabled: Boolean,
+        val secureHost: String,
+        val securePort: Int,
+    )
+
+    fun currentProxySettings(service: String = proxyNetworkService()): ProxySettings {
+        val web = readProxyConfig(listOf("networksetup", "-getwebproxy", service))
+        val secure = readProxyConfig(listOf("networksetup", "-getsecurewebproxy", service))
+        return ProxySettings(
+            webEnabled = web.enabled,
+            webHost = web.host,
+            webPort = web.port,
+            secureEnabled = secure.enabled,
+            secureHost = secure.host,
+            securePort = secure.port,
+        )
+    }
+
+    fun restoreProxySettings(settings: ProxySettings, service: String = proxyNetworkService()) {
+        // Best-effort restore. Some macOS versions may reject an empty host; always restore enabled state at least.
+        runCatching {
+            runNetworksetup("-setwebproxy", service, settings.webHost, settings.webPort.toString())
+        }
+        runNetworksetup("-setwebproxystate", service, if (settings.webEnabled) "on" else "off")
+
+        runCatching {
+            runNetworksetup("-setsecurewebproxy", service, settings.secureHost, settings.securePort.toString())
+        }
+        runNetworksetup("-setsecurewebproxystate", service, if (settings.secureEnabled) "on" else "off")
+    }
+
+    private data class ParsedProxyConfig(
+        val enabled: Boolean,
+        val host: String,
+        val port: Int,
+    )
+
+    private fun readProxyConfig(command: List<String>): ParsedProxyConfig {
+        val process = ProcessBuilder(command)
             .redirectErrorStream(true)
             .start()
-            .waitFor()
-        ProcessBuilder("networksetup", "-setsecurewebproxy", "Wi-Fi", host, port.toString())
+
+        val lines = process.inputStream.bufferedReader().readLines()
+        process.waitFor()
+
+        fun findValue(prefix: String): String? {
+            val line = lines.firstOrNull { it.trimStart().startsWith(prefix) } ?: return null
+            return line.substringAfter(prefix).trim()
+        }
+
+        val enabled = when (findValue("Enabled:")) {
+            "Yes" -> true
+            "No" -> false
+            else -> false
+        }
+        val host = findValue("Server:") ?: ""
+        val port = findValue("Port:")?.toIntOrNull() ?: 0
+
+        return ParsedProxyConfig(enabled = enabled, host = host, port = port)
+    }
+
+    private fun runNetworksetup(vararg args: String) {
+        ProcessBuilder(listOf("networksetup") + args)
             .redirectErrorStream(true)
             .start()
             .waitFor()
     }
 
-    fun resetProxy() {
-        ProcessBuilder("networksetup", "-setwebproxystate", "Wi-Fi", "off")
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
-        ProcessBuilder("networksetup", "-setsecurewebproxystate", "Wi-Fi", "off")
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
+    private fun proxyNetworkService(): String {
+        return System.getenv("MAESTRO_NETWORK_SERVICE")?.takeIf { it.isNotBlank() } ?: "Wi-Fi"
     }
 
     fun uninstall(bundleId: String, deviceId: String) {

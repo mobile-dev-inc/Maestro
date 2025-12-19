@@ -1,0 +1,23 @@
+appId: dev.mobile.maestro-driver-ios
+tags:
+  - passing
+  - ios
+---
+- launchApp
+
+- extendedWaitUntil:
+    visible: "NETWORK_ONLINE"
+    timeout: 20000
+
+- setAirplaneMode: enabled
+
+- extendedWaitUntil:
+    visible: "NETWORK_OFFLINE"
+    timeout: 20000
+
+- setAirplaneMode: disabled
+
+- extendedWaitUntil:
+    visible: "NETWORK_ONLINE"
+    timeout: 20000
+
