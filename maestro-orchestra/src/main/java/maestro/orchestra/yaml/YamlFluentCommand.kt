@@ -377,8 +377,8 @@ data class YamlFluentCommand(
             setClipboard != null -> listOf(
                 MaestroCommand(
                     SetClipboardCommand(
-                        text = setClipboard.text.
-                        label = setClipboard.label.
+                        text = setClipboard.text,
+                        label = setClipboard.label,
                         optional = setClipboard.optional
                     )
                 )
