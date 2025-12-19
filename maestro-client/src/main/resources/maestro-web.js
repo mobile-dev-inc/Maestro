@@ -193,4 +193,78 @@
         }
         return segs.length ? '/' + segs.join('/') : null;
     }
+
+    // -------------- Flutter Web Scrolling Support --------------
+    
+    maestro.isFlutterApp = () => {
+        // Detect if this is a Flutter web app by checking for Flutter-specific elements
+        const flutterView = document.querySelector('flutter-view');
+        const glassPane = document.querySelector('flt-glass-pane');
+        const fltRenderer = document.querySelector('[flt-renderer]');
+        
+        const isFlutter = !!(flutterView || glassPane || fltRenderer);
+        
+        return isFlutter;
+    }
+
+    maestro.smoothScrollFlutter = (pixels, duration = 500) => {
+        // Smooth animated scrolling for Flutter web with easing
+        return new Promise((resolve) => {
+            const target = document.querySelector('flutter-view') || 
+                          document.querySelector('flt-glass-pane');
+            
+            if (!target) {
+                console.error('[Maestro] Flutter root element not found');
+                resolve(false);
+                return;
+            }
+            
+            const x = window.innerWidth / 2;
+            const y = window.innerHeight / 2;
+            const start = performance.now();
+            let last = 0;
+            
+            function animate(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                
+                // Cubic ease-in-out for natural animation
+                const eased = progress < 0.5 
+                    ? 4 * progress * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                
+                const delta = eased * pixels - last;
+                last = eased * pixels;
+                
+                if (Math.abs(delta) > 0.01) {
+                    target.dispatchEvent(new MouseEvent('mouseover', {
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true
+                    }));
+                    target.dispatchEvent(new MouseEvent('mousemove', {
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true
+                    }));
+                    target.dispatchEvent(new WheelEvent('wheel', {
+                        deltaY: delta,
+                        deltaMode: 0,
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Animation complete, wait for Flutter to update DOM
+                    setTimeout(() => resolve(true), 100);
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        });
+    };
 }( window.maestro = window.maestro || {} ));
