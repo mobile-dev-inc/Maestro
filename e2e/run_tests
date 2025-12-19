@@ -38,6 +38,16 @@ export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
 # Run passing tests
 for workspace_dir in ./workspaces/*; do
+
+  # Skip workspaces with no tests for iOS
+  case $(basename "$workspace_dir") in
+  		demo_app|nowinandroid|setOrientation) # demo_app has OOM issues on GHA
+  			if [ "$platform" = "ios" ]; then
+  			  continue
+  			fi
+  			;;
+  esac
+
 	WORKSPACE_PASS=true
 	app_name="$(basename "$workspace_dir")"
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
