@@ -9,46 +9,53 @@ internal class LocaleUtilsTest {
     @Test
     internal fun `parseLocaleParams when invalid locale is received throws WrongLocaleFormat exception`() {
         assertThrows<LocaleValidationWrongLocaleFormatException> {
-            LocaleUtils.parseLocaleParams("someInvalidLocale", Platform.ANDROID)
+            LocaleUtils.fromLocaleString("someInvalidLocale", Platform.ANDROID)
         }
     }
 
     @Test
-    internal fun `parseLocaleParams when not supported platform is received throws NotSupportedPlatform exception`() {
-        assertThrows<LocaleValidationNotSupportedPlatformException> {
-            LocaleUtils.parseLocaleParams("de_DE", Platform.WEB)
+    internal fun `parseLocaleParams when not supported locale is received and platform is Web throws LocaleValidationWebException exception`() {
+        assertThrows<LocaleValidationWebException> {
+            LocaleUtils.fromLocaleString("de_DE", Platform.WEB)
+        }
+    }
+
+    @Test
+    internal fun `parseLocaleParams when the combination is not valid and platform is Android throws LocaleValidationAndroidLocaleCombinationException exception`() {
+        assertThrows<LocaleValidationAndroidLocaleCombinationException> {
+          LocaleUtils.fromLocaleString("ar_US", Platform.ANDROID)
         }
     }
 
     @Test
     internal fun `parseLocaleParams when not supported locale is received and platform is iOS throws ValidationIos exception`() {
         assertThrows<LocaleValidationIosException> {
-            LocaleUtils.parseLocaleParams("de_IN", Platform.IOS)
+            LocaleUtils.fromLocaleString("de_IN", Platform.IOS)
         }
     }
 
     @Test
     internal fun `parseLocaleParams when not supported locale language is received and platform is Android throws ValidationAndroidLanguage exception`() {
         assertThrows<LocaleValidationAndroidLanguageException> {
-            LocaleUtils.parseLocaleParams("ee_IN", Platform.ANDROID)
+            LocaleUtils.fromLocaleString("ee_IN", Platform.ANDROID)
         }
     }
 
     @Test
     internal fun `parseLocaleParams when not supported locale country is received and platform is Android throws ValidationAndroidLanguage exception`() {
         assertThrows<LocaleValidationAndroidCountryException> {
-            LocaleUtils.parseLocaleParams("hi_EE", Platform.ANDROID)
+            LocaleUtils.fromLocaleString("hi_EE", Platform.ANDROID)
         }
     }
 
     @Test
     internal fun `parseLocaleParams when supported locale is received returns correct language and country codes`() {
-        val (language1, country1) = LocaleUtils.parseLocaleParams("de_DE", Platform.ANDROID)
-        val (language2, country2) = LocaleUtils.parseLocaleParams("es_ES", Platform.IOS)
+        val locale1 = LocaleUtils.fromLocaleString("de_DE", Platform.ANDROID)
+        val locale2 = LocaleUtils.fromLocaleString("es_ES", Platform.IOS)
 
-        assertThat(language1).isEqualTo("de")
-        assertThat(country1).isEqualTo("DE")
-        assertThat(language2).isEqualTo("es")
-        assertThat(country2).isEqualTo("ES")
+        assertThat(locale1.getLanguageCode()).isEqualTo("de")
+        assertThat(locale1.getCountryCode()).isEqualTo("DE")
+        assertThat(locale2.getLanguageCode()).isEqualTo("es")
+        assertThat(locale2.getCountryCode()).isEqualTo("ES")
     }
 }
