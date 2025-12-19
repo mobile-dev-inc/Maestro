@@ -232,6 +232,10 @@ class CdpWebDriver(
         stopApp(appId)
     }
 
+    override fun shake() {
+        // TODO: Implement shake for web
+    }
+
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         ensureOpen()
 

@@ -366,6 +366,7 @@ class Orchestra(
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is RetryCommand -> retryCommand(command, config)
+            is ShakeCommand -> shakeCommand(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -588,6 +589,12 @@ class Orchestra(
 
     private fun killAppCommand(command: KillAppCommand): Boolean {
         maestro.killApp(command.appId)
+
+        return true
+    }
+
+    private fun shakeCommand(command: ShakeCommand): Boolean {
+        maestro.shake()
 
         return true
     }
