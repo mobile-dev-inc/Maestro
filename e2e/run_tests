@@ -81,7 +81,7 @@ for workspace_dir in ./workspaces/*; do
 	###
 	# edge case: some workspaces have no failing flows
 	case $app_name in
-		wikipedia|setOrientation)
+		wikipedia|setOrientation|no-app)
 			continue
 			;;
 	esac
