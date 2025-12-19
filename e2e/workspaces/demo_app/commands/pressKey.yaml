@@ -10,6 +10,7 @@ appId: com.example.example
 
 - assertVisible: 'Form Test'
 - tapOn: 'Form Test'
-- assertNotVisible: 'Form Test'
-- pressKey: 'Back'
-- assertVisible: 'Form Test'
+- tapOn: 'Email'
+- inputText: 'types'
+- pressKey: backspace
+- assertVisible: 'type'

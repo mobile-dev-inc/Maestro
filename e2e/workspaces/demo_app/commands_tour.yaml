@@ -2,7 +2,6 @@
 appId: com.example.example
 tags:
     - passing
-    - android # TODO: Make this iOS compatible (or skip platform-specific tests)
 env:
   THING: "five"
   RUN_ONLY: ""  # Set to a command name to run only that command
@@ -31,6 +30,7 @@ env:
 - runFlow:
     when:
       true: ${RUN_ONLY == "" || RUN_ONLY == "back"}
+      platform: android
     file: commands/back.yaml
     label: back
 
@@ -67,6 +67,7 @@ env:
 - runFlow:
     when:
       true: ${RUN_ONLY == "" || RUN_ONLY == "hideKeyboard"}
+      platform: android
     file: commands/hideKeyboard.yaml
     label: hideKeyboard
 
