@@ -220,7 +220,9 @@ data class YamlFluentCommand(
                     AssertConditionCommand(
                         Condition(
                             assertEqual = assertEqual.toModel("assertEqual")
-                        )
+                        ),
+                        label = assertEqual.label,
+                        optional = assertEqual.optional,
                     )
                 )
             )
@@ -230,7 +232,9 @@ data class YamlFluentCommand(
                     AssertConditionCommand(
                         Condition(
                             assertNotEqual = assertNotEqual.toModel("assertNotEqual")
-                        )
+                        ),
+                        label = assertNotEqual.label,
+                        optional = assertNotEqual.optional,
                     )
                 )
             )
@@ -1005,8 +1009,8 @@ data class YamlFluentCommand(
             visible = visible?.let { toElementSelector(it) },
             notVisible = notVisible?.let { toElementSelector(it) },
             scriptCondition = `true`?.trim(),
-            assertEqual = equal?.toMode("equal"),
-            assertNotEqual = notEqual?.toMode("equal"),
+            assertEqual = equal?.toModel("equal"),
+            assertNotEqual = notEqual?.toModel("equal"),
             label = label
         )
     }
