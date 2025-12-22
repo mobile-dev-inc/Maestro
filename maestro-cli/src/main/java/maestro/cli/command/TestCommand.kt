@@ -200,8 +200,10 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--reinstall-driver"],
-        description = ["[Beta] Reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled"],
-        hidden = true
+        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
+        negatable = true,
+        defaultValue = "true",
+        fallbackValue = "true"
     )
     private var reinstallDriver: Boolean = true
 
