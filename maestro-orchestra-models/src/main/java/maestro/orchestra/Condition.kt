@@ -9,9 +9,9 @@ data class Condition(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null,
+    val label: String? = null,
     val assertEqual: AssertEqual? = null,
     val assertNotEqual: AssertNotEqual? = null,
-    val label: String? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): Condition {
@@ -20,7 +20,7 @@ data class Condition(
             notVisible = notVisible?.evaluateScripts(jsEngine),
             scriptCondition = scriptCondition?.evaluateScripts(jsEngine),
             assertEqual = assertEqual?.evaluateScripts(jsEngine),
-            assertNotEqual = assertNotEqual?.ev.evaluateScripts(jsEngine),
+            assertNotEqual = assertNotEqual?.evaluateScripts(jsEngine),
         )
     }
 
@@ -48,11 +48,11 @@ data class Condition(
         }
 
         assertEqual?.let {
-            description.add("${it.value1} is equal to ${it.value2}")
+            descriptions.add("${it.value1} is equal to ${it.value2}")
         }
 
         assertNotEqual?.let {
-            description.add("${it.value1} is not equal to ${it.value2}")
+            descriptions.add("${it.value1} is not equal to ${it.value2}")
         }
 
         return if (descriptions.isEmpty()) {
