@@ -235,6 +235,18 @@ class TestCommand : Callable<Int> {
     )
     private var gcsBucket: String = System.getenv("GCS_BUCKET") ?: ""
 
+    @Option(
+        names = ["--attempt-number"],
+        description = ["Current retry attempt number (1-based). Used to determine if recording should be enabled. Defaults to ATTEMPT_NUMBER env var or 1."],
+    )
+    private var attemptNumber: Int = System.getenv("ATTEMPT_NUMBER")?.toIntOrNull() ?: 1
+
+    @Option(
+        names = ["--max-retries"],
+        description = ["Total number of retry attempts allowed. Recording only happens on the last attempt. Defaults to MAX_RETRIES env var or 1."],
+    )
+    private var maxRetries: Int = System.getenv("MAX_RETRIES")?.toIntOrNull() ?: 1
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -604,6 +616,8 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             recordingEnabled = !noRecord,
             gcsBucket = gcsBucket.ifBlank { null },
+            attemptNumber = attemptNumber,
+            maxRetries = maxRetries,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,

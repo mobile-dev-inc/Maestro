@@ -60,11 +60,14 @@ object GcsUploader {
     }
 
     /**
-     * Uploads a recording file to GCS with a structured path.
+     * Uploads a recording file to GCS bucket root.
+     *
+     * Naming convention: {buildName}-{buildNumber}-{deviceName}-{attemptNumber}-{flowName}.mp4
+     * Example: nightly-12345-OmioIOS1-1-login_flow.mp4
      *
      * @param file The recording file to upload
      * @param flowName The name of the flow
-     * @param shardIndex Optional shard index for sharded runs
+     * @param shardIndex Optional shard index for sharded runs (deprecated, use DEVICE_NAME env var instead)
      * @param bucketName The GCS bucket name
      * @return The public URL of the uploaded file, or null if upload failed
      */
@@ -74,9 +77,17 @@ object GcsUploader {
         shardIndex: Int? = null,
         bucketName: String? = System.getenv("GCS_BUCKET")
     ): String? {
-        val timestamp = System.currentTimeMillis()
-        val shardSuffix = shardIndex?.let { "_shard${it + 1}" } ?: ""
-        val objectName = "recordings/${timestamp}/${flowName}${shardSuffix}.mp4"
+        // Read build info from environment variables (set by pipeline)
+        val buildName = System.getenv("BUILD_NAME") ?: "local"
+        val buildNumber = System.getenv("BUILD_NUMBER") ?: "0"
+        val deviceName = System.getenv("DEVICE_NAME") ?: shardIndex?.let { "shard${it + 1}" } ?: "unknown"
+        val attemptNumber = System.getenv("ATTEMPT_NUMBER") ?: "1"
+
+        // Naming: BuildName-BuildNumber-SimulatorName-attempt-FlowName.mp4
+        // Uploaded to root of bucket (no folder structure)
+        val objectName = "${buildName}-${buildNumber}-${deviceName}-${attemptNumber}-${flowName}.mp4"
+
+        logger.info("Uploading recording with name: $objectName")
         return uploadFile(file, objectName, bucketName)
     }
 

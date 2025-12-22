@@ -48,6 +48,8 @@ class TestSuiteInteractor(
     private val shardIndex: Int? = null,
     private val recordingEnabled: Boolean = true,
     private val gcsBucket: String? = null,
+    private val attemptNumber: Int = 1,
+    private val maxRetries: Int = 1,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -183,18 +185,26 @@ class TestSuiteInteractor(
         logger.info("$shardPrefix Running flow $flowName")
         PrintUtils.message("${shardPrefix}Running: $flowName")
 
-        // Set up screen recording if enabled
+        // Set up screen recording if enabled AND this is the last attempt
+        // (no point recording if test will be retried anyway)
+        val isLastAttempt = attemptNumber >= maxRetries
+        val shouldRecord = recordingEnabled && isLastAttempt
+
+        if (!isLastAttempt && recordingEnabled) {
+            logger.info("${shardPrefix}Skipping recording for flow $flowName (attempt $attemptNumber of $maxRetries)")
+        }
+
         val recordingDir = testOutputDir?.resolve("recordings")
-        if (recordingEnabled && recordingDir != null) {
+        if (shouldRecord && recordingDir != null) {
             recordingDir.toFile().mkdirs()
         }
-        val recordingFile = if (recordingEnabled && recordingDir != null) {
+        val recordingFile = if (shouldRecord && recordingDir != null) {
             recordingDir.resolve("${flowFile.nameWithoutExtension}.mp4").toFile()
         } else null
         val recordingSink = recordingFile?.sink()?.buffer()
-        val screenRecording = if (recordingEnabled && recordingSink != null) {
+        val screenRecording = if (shouldRecord && recordingSink != null) {
             try {
-                logger.info("${shardPrefix}Starting screen recording for flow $flowName")
+                logger.info("${shardPrefix}Starting screen recording for flow $flowName (last attempt)")
                 maestro.startScreenRecording(recordingSink)
             } catch (e: Exception) {
                 logger.warn("${shardPrefix}Failed to start screen recording: ${e.message}")
@@ -273,16 +283,18 @@ class TestSuiteInteractor(
             }
         }
 
-        // Stop screen recording
+        // Stop screen recording and handle upload/cleanup
         if (screenRecording != null) {
             try {
                 logger.info("${shardPrefix}Stopping screen recording for flow $flowName")
                 screenRecording.close()
                 recordingSink?.close()
-                PrintUtils.message("${shardPrefix}Recording saved: ${recordingFile?.absolutePath}")
 
-                // Upload to GCS if configured
-                if (recordingFile != null && gcsBucket != null) {
+                // Only upload to GCS if test FAILED and GCS is configured
+                // (no need to store recordings of passing tests)
+                val shouldUpload = flowStatus == FlowStatus.ERROR && gcsBucket != null && recordingFile != null
+
+                if (shouldUpload && recordingFile != null) {
                     val gcsUrl = GcsUploader.uploadRecording(
                         file = recordingFile,
                         flowName = flowFile.nameWithoutExtension,
@@ -291,11 +303,31 @@ class TestSuiteInteractor(
                     )
                     if (gcsUrl != null) {
                         logger.info("${shardPrefix}Recording uploaded to GCS: $gcsUrl")
-                        PrintUtils.message("${shardPrefix}Recording URL: $gcsUrl")
+                        // Output in parseable format for external pipelines
+                        PrintUtils.message("[RECORDING] ${flowFile.nameWithoutExtension} $gcsUrl")
+                    }
+                } else if (flowStatus == FlowStatus.SUCCESS) {
+                    logger.info("${shardPrefix}Test passed, skipping recording upload for flow $flowName")
+                }
+
+                // Always delete local recording file after processing
+                // (we either uploaded it to GCS or don't need it)
+                if (recordingFile?.exists() == true) {
+                    val deleted = recordingFile.delete()
+                    if (deleted) {
+                        logger.info("${shardPrefix}Deleted local recording file: ${recordingFile.absolutePath}")
+                    } else {
+                        logger.warn("${shardPrefix}Failed to delete local recording file: ${recordingFile.absolutePath}")
                     }
                 }
             } catch (e: Exception) {
-                logger.warn("${shardPrefix}Failed to stop screen recording: ${e.message}")
+                logger.warn("${shardPrefix}Failed to process screen recording: ${e.message}")
+                // Attempt cleanup on error too
+                try {
+                    recordingFile?.delete()
+                } catch (cleanupError: Exception) {
+                    logger.warn("${shardPrefix}Failed to cleanup recording file: ${cleanupError.message}")
+                }
             }
         }
 
