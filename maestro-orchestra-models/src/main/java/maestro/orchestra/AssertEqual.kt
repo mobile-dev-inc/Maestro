@@ -1,3 +1,8 @@
+package maestro.orchestra
+
+import maestro.js.JsEngine
+import maestro.orchestra.util.Env.evaluateScripts
+
 data class AssertEqual(
     val value1: String,
     val value2: String,
