@@ -1,0 +1,11 @@
+data class AssertEqual(
+    val value1: String,
+    val value2: String,
+) {
+    fun evaluateScripts(jsEngine: JsEngine): AssertEqual {
+        return copy(
+            value1 = value1.evaluateScripts(jsEngine),
+            value2 = value2.evaluateScripts(jsEngine),
+        )
+    }
+}

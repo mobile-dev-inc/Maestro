@@ -413,8 +413,23 @@ class Orchestra(
             - This could be a real regression that needs to be addressed
         """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
+
+            val message = when { 
+                command.condition.assertEqual != null -> { 
+                    val value1 = command.condition.assertEqual!!.value1
+                    val value2 = command.condition.assertEqual!!.value2
+                    "Assertion failed: expected $value2, but got $valu1"
+                }
+                command.condition.assertNotEqual != null -> { 
+                    val value1 = command.condition.assertNotEqual!!.value1
+                    val value2 = command.condition.assertNotEqual!!.value2
+                    "Assertion failed: expected values to differ, but both were $valu1"
+                }
+                else -> "Assertion is false: ${command.condition.description()}"
+            }
+
             throw MaestroException.AssertionFailure(
-                message = "Assertion is false: ${command.condition.description()}",
+                message = message,
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
@@ -805,6 +820,18 @@ class Orchestra(
             }
 
             if (value.toDoubleOrNull() == 0.0) {
+                return false
+            }
+        }
+
+        condition.assertEqual?.let { 
+            if (it.value1 != it.value2) { 
+                return false
+            }
+        }
+
+        condition.assertNotEqual?.let { 
+            if (it.value1 == it.value2) { 
                 return false
             }
         }
