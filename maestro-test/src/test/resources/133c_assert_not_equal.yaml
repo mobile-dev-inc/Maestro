@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- assertNotEqual:
+    value1: "maestro"
+    value2: "maestros"

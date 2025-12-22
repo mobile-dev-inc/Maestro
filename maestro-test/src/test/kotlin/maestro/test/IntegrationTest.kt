@@ -4120,6 +4120,65 @@ class IntegrationTest {
         assertThat(skipped).isGreaterThan(0)
     }
 
+    @Test
+    fun `Case 133a - Assert Equal`() { 
+        // Given
+        val commands = readCommands("133a_assert_equal");
+        
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
+    @Test
+    fun `Case 133b - Assert Equal - failure`() {
+        // Given
+        val commands = readCommands("133b_assert_equal_failure")
+
+        val driver = driver {
+        }
+
+        // When
+        val ex = assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Then
+        assertThat(ex.message).contains("Assertion failed: expected maestros, but got maestro")
+    }
+
+    @Test
+    fun `Case 133c - Assert Not Equal`() { 
+        // Given
+        val commands = readCommands("133c_assert_not_equal");
+        
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

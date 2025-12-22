@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- assertEqual:
+    value1: "maestro"
+    value2: "maestro"
+- assertEqual:
+    value1: ${2 + 2}
+    value2: ${8 - 4}
