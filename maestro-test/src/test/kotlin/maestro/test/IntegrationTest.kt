@@ -4179,6 +4179,42 @@ class IntegrationTest {
         // No test failure - if we reach this point, the test passed successfully
     }
 
+
+    @Test
+    fun `Case 133d - Assert Equal Conditions`() { 
+        // Given
+        val commands = readCommands("133d_assert_equal_condition");
+        
+        val driver = driver {
+        }
+
+        // When
+        var runFlowCompleted = false
+        var runFlowSkipped = false
+
+        Maestro(driver).use {
+            runBlocking {
+                val orchestra = Orchestra(
+                    it,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandComplete = { _, cmd ->
+                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) runFlowCompleted = true
+                    },
+                    onCommandSkipped = { _, cmd ->
+                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) runFlowSkipped = true
+                    }
+                )
+
+                orchestra.runFlow(commands)
+            }
+        }
+        
+        // Then
+        assertThat(runFlowCompleted).isTrue()
+        assertThat(runFlowSkipped).isFalse()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
