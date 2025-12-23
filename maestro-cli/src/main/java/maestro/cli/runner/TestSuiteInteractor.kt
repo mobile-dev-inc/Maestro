@@ -153,7 +153,62 @@ class TestSuiteInteractor(
         // TODO(bartekpacia): Should it also be saving to debugOutputPath?
         TestDebugReporter.saveSuggestions(aiOutputs, debugOutputPath)
 
+        // DEBUG: Dump recording-related logs to console for Jenkins visibility
+        dumpRecordingDebugLogs()
+
         return summary
+    }
+
+    /**
+     * Dumps recording-related debug logs to stdout for Jenkins console visibility.
+     * Reads the latest maestro.log and filters for recording-related entries.
+     */
+    private fun dumpRecordingDebugLogs() {
+        try {
+            val maestroDir = File(System.getProperty("user.home"), ".maestro/tests")
+            if (!maestroDir.exists()) {
+                println("[DEBUG-DUMP] No .maestro/tests directory found")
+                return
+            }
+
+            // Find the most recent test directory
+            val latestTestDir = maestroDir.listFiles()
+                ?.filter { it.isDirectory }
+                ?.maxByOrNull { it.lastModified() }
+
+            if (latestTestDir == null) {
+                println("[DEBUG-DUMP] No test directories found in ${maestroDir.absolutePath}")
+                return
+            }
+
+            val logFile = File(latestTestDir, "maestro.log")
+            if (!logFile.exists()) {
+                println("[DEBUG-DUMP] No maestro.log found in ${latestTestDir.absolutePath}")
+                return
+            }
+
+            println("\n" + "=".repeat(80))
+            println("[DEBUG-DUMP] Recording debug logs from: ${logFile.absolutePath}")
+            println("=".repeat(80))
+
+            // Filter and print recording-related log lines
+            logFile.readLines()
+                .filter { line ->
+                    line.contains("[RECORDING-DEBUG]") ||
+                    line.contains("[GCS-DEBUG]") ||
+                    line.contains("screen recording") ||
+                    line.contains("Recording") ||
+                    line.contains("GCS")
+                }
+                .forEach { println(it) }
+
+            println("=".repeat(80))
+            println("[DEBUG-DUMP] End of recording debug logs")
+            println("=".repeat(80) + "\n")
+
+        } catch (e: Exception) {
+            println("[DEBUG-DUMP] Failed to dump debug logs: ${e.message}")
+        }
     }
 
     private suspend fun runFlow(
@@ -190,14 +245,28 @@ class TestSuiteInteractor(
         val isLastAttempt = attemptNumber >= maxRetries
         val shouldRecord = recordingEnabled && isLastAttempt
 
+        // DEBUG LOGS: Recording decision
+        logger.info("${shardPrefix}[RECORDING-DEBUG] Flow: $flowName")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] recordingEnabled=$recordingEnabled, attemptNumber=$attemptNumber, maxRetries=$maxRetries")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] isLastAttempt=$isLastAttempt (attemptNumber >= maxRetries = $attemptNumber >= $maxRetries)")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] shouldRecord=$shouldRecord (recordingEnabled && isLastAttempt)")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] gcsBucket=${gcsBucket ?: "NOT SET"}")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] testOutputDir=$testOutputDir")
+
         if (!isLastAttempt && recordingEnabled) {
             logger.info("${shardPrefix}Skipping recording for flow $flowName (attempt $attemptNumber of $maxRetries)")
         }
 
-        val recordingDir = testOutputDir?.resolve("recordings")
-        if (shouldRecord && recordingDir != null) {
-            recordingDir.toFile().mkdirs()
-        }
+        // Use testOutputDir if provided, otherwise use a temp directory for recordings
+        // This allows GCS upload to work even without --output flag
+        val recordingDir = if (shouldRecord) {
+            val dir = testOutputDir?.resolve("recordings")
+                ?: File(System.getProperty("java.io.tmpdir"), "maestro-recordings").toPath()
+            dir.toFile().mkdirs()
+            logger.info("${shardPrefix}[RECORDING-DEBUG] Using recording directory: $dir")
+            dir
+        } else null
+
         val recordingFile = if (shouldRecord && recordingDir != null) {
             recordingDir.resolve("${flowFile.nameWithoutExtension}.mp4").toFile()
         } else null
@@ -293,6 +362,14 @@ class TestSuiteInteractor(
                 // Only upload to GCS if test FAILED and GCS is configured
                 // (no need to store recordings of passing tests)
                 val shouldUpload = flowStatus == FlowStatus.ERROR && gcsBucket != null && recordingFile != null
+
+                // DEBUG LOGS: Upload decision
+                logger.info("${shardPrefix}[RECORDING-DEBUG] Post-execution state:")
+                logger.info("${shardPrefix}[RECORDING-DEBUG] flowStatus=$flowStatus")
+                logger.info("${shardPrefix}[RECORDING-DEBUG] recordingFile=${recordingFile?.absolutePath ?: "NULL"}")
+                logger.info("${shardPrefix}[RECORDING-DEBUG] recordingFile.exists=${recordingFile?.exists()}")
+                logger.info("${shardPrefix}[RECORDING-DEBUG] gcsBucket=${gcsBucket ?: "NOT SET"}")
+                logger.info("${shardPrefix}[RECORDING-DEBUG] shouldUpload=$shouldUpload (flowStatus==ERROR && gcsBucket!=null && recordingFile!=null)")
 
                 if (shouldUpload && recordingFile != null) {
                     val gcsUrl = GcsUploader.uploadRecording(

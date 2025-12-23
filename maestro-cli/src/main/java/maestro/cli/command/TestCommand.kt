@@ -609,6 +609,14 @@ class TestCommand : Callable<Int> {
             deviceCount = chunkPlans.size
         ))
 
+        // DEBUG LOGS: Recording configuration passed to TestSuiteInteractor
+        println("[TEST-CMD-DEBUG] Creating TestSuiteInteractor with recording config:")
+        println("[TEST-CMD-DEBUG]   noRecord=$noRecord -> recordingEnabled=${!noRecord}")
+        println("[TEST-CMD-DEBUG]   gcsBucket='$gcsBucket' -> ${gcsBucket.ifBlank { null }}")
+        println("[TEST-CMD-DEBUG]   attemptNumber=$attemptNumber")
+        println("[TEST-CMD-DEBUG]   maxRetries=$maxRetries")
+        println("[TEST-CMD-DEBUG]   shardIndex=${if (chunkPlans.size == 1) null else shardIndex}")
+
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
             device = device,
