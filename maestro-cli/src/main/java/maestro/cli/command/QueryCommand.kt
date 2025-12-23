@@ -39,8 +39,7 @@ import picocli.CommandLine.Spec
     name = "query",
     description = [
         "Find elements in the view hierarchy of the connected device"
-    ],
-    hidden = true
+    ]
 )
 class QueryCommand : Runnable {
 
