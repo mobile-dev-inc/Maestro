@@ -415,8 +415,12 @@ class Orchestra(
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
 
             val message =
-                command.condition.assertEqual?.let { "Assertion failed: expected ${it.value2}, but got ${it.value1}" }
-                ?: command.condition.assertNotEqual?.let { "Assertion failed: expected values to differ, but both were ${it.value1}" }
+                command.condition.assertEqual?.let {
+                    "Assertion failed: expected '${it.value2}', but got '${it.value1}'"
+                }
+                ?: command.condition.assertNotEqual?.let {
+                    "Assertion failed: expected values to differ, but both were '${it.value1}'"
+                }
                 ?: "Assertion is false: ${command.condition.description()}"
 
             throw MaestroException.AssertionFailure(

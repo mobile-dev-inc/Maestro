@@ -4157,7 +4157,7 @@ class IntegrationTest {
         }
 
         // Then
-        assertThat(ex.message).contains("Assertion failed: expected maestros, but got maestro")
+        assertThat(ex.message).contains("Assertion failed: expected 'maestros', but got 'maestro'")
     }
 
     @Test
