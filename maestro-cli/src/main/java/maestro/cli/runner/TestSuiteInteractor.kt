@@ -153,62 +153,7 @@ class TestSuiteInteractor(
         // TODO(bartekpacia): Should it also be saving to debugOutputPath?
         TestDebugReporter.saveSuggestions(aiOutputs, debugOutputPath)
 
-        // DEBUG: Dump recording-related logs to console for Jenkins visibility
-        dumpRecordingDebugLogs()
-
         return summary
-    }
-
-    /**
-     * Dumps recording-related debug logs to stdout for Jenkins console visibility.
-     * Reads the latest maestro.log and filters for recording-related entries.
-     */
-    private fun dumpRecordingDebugLogs() {
-        try {
-            val maestroDir = File(System.getProperty("user.home"), ".maestro/tests")
-            if (!maestroDir.exists()) {
-                println("[DEBUG-DUMP] No .maestro/tests directory found")
-                return
-            }
-
-            // Find the most recent test directory
-            val latestTestDir = maestroDir.listFiles()
-                ?.filter { it.isDirectory }
-                ?.maxByOrNull { it.lastModified() }
-
-            if (latestTestDir == null) {
-                println("[DEBUG-DUMP] No test directories found in ${maestroDir.absolutePath}")
-                return
-            }
-
-            val logFile = File(latestTestDir, "maestro.log")
-            if (!logFile.exists()) {
-                println("[DEBUG-DUMP] No maestro.log found in ${latestTestDir.absolutePath}")
-                return
-            }
-
-            println("\n" + "=".repeat(80))
-            println("[DEBUG-DUMP] Recording debug logs from: ${logFile.absolutePath}")
-            println("=".repeat(80))
-
-            // Filter and print recording-related log lines
-            logFile.readLines()
-                .filter { line ->
-                    line.contains("[RECORDING-DEBUG]") ||
-                    line.contains("[GCS-DEBUG]") ||
-                    line.contains("screen recording") ||
-                    line.contains("Recording") ||
-                    line.contains("GCS")
-                }
-                .forEach { println(it) }
-
-            println("=".repeat(80))
-            println("[DEBUG-DUMP] End of recording debug logs")
-            println("=".repeat(80) + "\n")
-
-        } catch (e: Exception) {
-            println("[DEBUG-DUMP] Failed to dump debug logs: ${e.message}")
-        }
     }
 
     private suspend fun runFlow(
