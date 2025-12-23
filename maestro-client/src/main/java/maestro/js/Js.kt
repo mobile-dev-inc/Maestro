@@ -17,12 +17,19 @@ object Js {
         const output = {}
         const maestro = {
             copiedText: '',
-            platform: 'unknown'
+            platform: 'unknown',
+            flowName: 'unknown'
         }
     """.trimIndent()
 
     fun initScriptWithPlatform(platform: String): String {
         return initScript.replace("platform: 'unknown'", "platform: '$platform'")
+    }
+
+    fun initScriptWithPlatformAndFlowName(platform: String, flowName: String): String {
+        return initScript
+            .replace("platform: 'unknown'", "platform: '$platform'")
+            .replace("flowName: 'unknown'", "flowName: '${sanitizeJs(flowName)}'")
     }
 
     fun sanitizeJs(text: String): String {

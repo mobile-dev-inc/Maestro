@@ -190,7 +190,8 @@ object MaestroCommandRunner {
                     )
                 )
             },
-            apiKey = apiKey,    
+            apiKey = apiKey,
+            flowName = flowName,
         )
 
         val flowSuccess = orchestra.runFlow(commands)
