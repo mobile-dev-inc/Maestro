@@ -31,6 +31,7 @@ class GraalJsEngine(
         protocols = listOf(Protocol.HTTP_1_1)
     ),
     platform: String = "unknown",
+    flowName: String = "unknown",
 ) : JsEngine {
 
     private val openContexts = HashSet<Context>()
@@ -49,6 +50,7 @@ class GraalJsEngine(
     private var onLogMessage: (String) -> Unit = {}
 
     private var platform = platform
+    private var flowName = flowName
 
     override fun close() {
         openContexts.forEach { it.close() }
@@ -128,6 +130,7 @@ class GraalJsEngine(
         context.getBindings("js").putMember("maestro", ProxyObject.fromMap(maestroBinding))
 
         maestroBinding["platform"] = platform
+        maestroBinding["flowName"] = flowName
 
         context.eval(
             "js", """
