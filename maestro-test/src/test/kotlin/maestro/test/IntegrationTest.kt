@@ -4121,9 +4121,9 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 133a - Assert Equal`() { 
+    fun `Case 133 - Assert Equal`() { 
         // Given
-        val commands = readCommands("133a_assert_equal");
+        val commands = readCommands("133_assert_equal");
         
         val driver = driver {
         }
@@ -4140,9 +4140,9 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 133b - Assert Equal - failure`() {
+    fun `Case 133 - Assert Equal - failure`() {
         // Given
-        val commands = readCommands("133b_assert_equal_failure")
+        val commands = readCommands("133_assert_equal_failure")
 
         val driver = driver {
         }
@@ -4161,9 +4161,9 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 133c - Assert Not Equal`() { 
+    fun `Case 133 - Assert Not Equal`() { 
         // Given
-        val commands = readCommands("133c_assert_not_equal");
+        val commands = readCommands("133_assert_not_equal");
         
         val driver = driver {
         }
@@ -4181,16 +4181,16 @@ class IntegrationTest {
 
 
     @Test
-    fun `Case 133d - Assert Equal Conditions`() { 
+    fun `Case 133 - Assert Equal Conditions`() { 
         // Given
-        val commands = readCommands("133d_assert_equal_condition");
+        val commands = readCommands("133_assert_equal_condition");
         
         val driver = driver {
         }
 
         // When
-        var runFlowCompleted = false
-        var runFlowSkipped = false
+        var completed = 0
+        var skipped = 0
 
         Maestro(driver).use {
             runBlocking {
@@ -4199,10 +4199,14 @@ class IntegrationTest {
                     lookupTimeoutMs = 0L,
                     optionalLookupTimeoutMs = 0L,
                     onCommandComplete = { _, cmd ->
-                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) runFlowCompleted = true
+                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) {
+                            completed += 1
+                        }
                     },
                     onCommandSkipped = { _, cmd ->
-                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) runFlowSkipped = true
+                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) {
+                            skipped += 1
+                        }
                     }
                 )
 
@@ -4211,8 +4215,8 @@ class IntegrationTest {
         }
         
         // Then
-        assertThat(runFlowCompleted).isTrue()
-        assertThat(runFlowSkipped).isFalse()
+        assertThat(completed).isEqualTo(1)
+        assertThat(skipped).isEqualTo(0)
     }
 
     private fun orchestra(
