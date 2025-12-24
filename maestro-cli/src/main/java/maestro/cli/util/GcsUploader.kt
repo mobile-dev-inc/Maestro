@@ -90,7 +90,6 @@ object GcsUploader {
         val buildName = System.getenv("BUILD_NAME") ?: "local"
         val buildNumber = System.getenv("BUILD_NUMBER") ?: "0"
         val deviceName = System.getenv("DEVICE_NAME") ?: shardIndex?.let { "shard${it + 1}" } ?: "unknown"
-        val attemptNumber = System.getenv("ATTEMPT_NUMBER") ?: "1"
 
         // DEBUG LOGS: Environment variables for naming
         logger.info("[GCS-DEBUG] uploadRecording called for flowName=$flowName")
@@ -98,13 +97,13 @@ object GcsUploader {
         logger.info("[GCS-DEBUG]   BUILD_NAME env=${System.getenv("BUILD_NAME")} -> buildName=$buildName")
         logger.info("[GCS-DEBUG]   BUILD_NUMBER env=${System.getenv("BUILD_NUMBER")} -> buildNumber=$buildNumber")
         logger.info("[GCS-DEBUG]   DEVICE_NAME env=${System.getenv("DEVICE_NAME")} -> deviceName=$deviceName (shardIndex=$shardIndex)")
-        logger.info("[GCS-DEBUG]   ATTEMPT_NUMBER env=${System.getenv("ATTEMPT_NUMBER")} -> attemptNumber=$attemptNumber")
         logger.info("[GCS-DEBUG]   GCS_BUCKET env=${System.getenv("GCS_BUCKET")} -> bucketName=$bucketName")
         logger.info("[GCS-DEBUG]   GOOGLE_APPLICATION_CREDENTIALS=${System.getenv("GOOGLE_APPLICATION_CREDENTIALS") ?: "NOT SET"}")
 
-        // Naming: BuildName-BuildNumber-SimulatorName-attempt-FlowName.mp4
+        // Naming: BuildName-BuildNumber-DeviceName-FlowName.mp4
+        // (No attempt number since we only record on last attempt)
         // Uploaded to root of bucket (no folder structure)
-        val objectName = "${buildName}-${buildNumber}-${deviceName}-${attemptNumber}-${flowName}.mp4"
+        val objectName = "${buildName}-${buildNumber}-${deviceName}-${flowName}.mp4"
 
         logger.info("[GCS-DEBUG] Constructed objectName=$objectName")
         logger.info("[GCS-DEBUG] File to upload: ${file.absolutePath}, exists=${file.exists()}, size=${if (file.exists()) file.length() else "N/A"} bytes")
