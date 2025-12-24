@@ -1951,13 +1951,16 @@ class IntegrationTest {
         }
 
         // Then
-        assertThrows<MaestroException.AssertionFailure> {
+        val ex = assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
                 runBlocking {
                     orchestra(it).runFlow(commands)
                 }
             }
         }
+
+        // Verify failure message contains expected text
+        assertThat(ex.message).contains("Assertion is false: 0 is true")
     }
 
     @Test
