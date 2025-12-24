@@ -62,4 +62,13 @@ data class Condition(
         }
     }
 
+    fun failureMessage(): String {
+        label?.let { return it }
+
+        equal?.let { return it.failureMessage() }
+        notEqual?.let { return it.failureMessage() }
+
+        return "Assertion is false: ${description()}"
+    }
+
 }

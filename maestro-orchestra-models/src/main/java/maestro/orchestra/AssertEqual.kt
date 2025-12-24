@@ -13,4 +13,8 @@ data class AssertEqual(
             value2 = value2.evaluateScripts(jsEngine),
         )
     }
+
+    fun failureMessage(): String {
+        return "Assertion failed: expected '${value2}', but got '${value1}'"
+    }
 }

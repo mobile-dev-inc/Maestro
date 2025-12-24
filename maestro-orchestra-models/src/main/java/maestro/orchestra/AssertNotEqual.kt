@@ -13,4 +13,8 @@ data class AssertNotEqual(
             value2 = value2.evaluateScripts(jsEngine),
         )
     }
+
+    fun failureMessage(): String {
+        return "Assertion failed: expected values to differ, but both were '${value1}'"
+    }
 }
