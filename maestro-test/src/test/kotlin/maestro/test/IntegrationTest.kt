@@ -60,6 +60,7 @@ class IntegrationTest {
         File("041_take_screenshot_with_filename.png").delete()
         File("099_screen_recording.mp4").delete()
         File("028_env.mp4").delete()
+        File("134_shard_device_env_vars_test-device_shard1.png").delete()
     }
 
     @Test
@@ -4146,6 +4147,39 @@ class IntegrationTest {
                 Event.InputText("Hello, Maestro!"),
             )
         )
+    }
+
+    @Test
+    fun `Case 134 - Shard and device env vars`() {
+        // Given
+        val commands = readCommands("134_shard_device_env_vars") {
+            mapOf(
+                "MAESTRO_DEVICE_UDID" to "test-device",
+                "MAESTRO_SHARD_ID" to "1",
+                "MAESTRO_SHARD_INDEX" to "0",
+            )
+        }
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - verify screenshot was created with env vars in filename
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp(appId = "com.example.app"),
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("134_shard_device_env_vars_test-device_shard1.png").exists())
     }
 
     private fun orchestra(
