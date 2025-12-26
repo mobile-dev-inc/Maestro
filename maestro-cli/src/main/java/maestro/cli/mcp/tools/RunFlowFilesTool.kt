@@ -93,7 +93,7 @@ object RunFlowFilesTool {
                             val commands = YamlCommandReader.readCommands(fileObj.toPath())
                             val finalEnv = env
                                 .withInjectedShellEnvVars()
-                                .withDefaultEnvVars(fileObj)
+                                .withDefaultEnvVars(fileObj, deviceId)
                             val commandsWithEnv = commands.withEnv(finalEnv)
                             
                             runBlocking {
@@ -118,7 +118,7 @@ object RunFlowFilesTool {
                     
                     val finalEnv = env
                         .withInjectedShellEnvVars()
-                        .withDefaultEnvVars()
+                        .withDefaultEnvVars(deviceId = deviceId)
                     
                     buildJsonObject {
                         put("success", results.all { (it["success"] as Boolean) })

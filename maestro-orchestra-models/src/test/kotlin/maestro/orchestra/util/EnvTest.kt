@@ -29,6 +29,30 @@ class EnvTest {
     }
 
     @Test
+    fun `withDefaultEnvVars should add shard and device values`() {
+        val env = emptyEnv.withDefaultEnvVars(
+            flowFile = File("myFlow.yml"),
+            deviceId = "device-123",
+            shardIndex = 1
+        )
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-123")
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("2")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("1")
+    }
+
+    @Test
+    fun `withDefaultEnvVars should override shard and device values`() {
+        val env = mapOf(
+            "MAESTRO_DEVICE_UDID" to "old-device",
+            "MAESTRO_SHARD_ID" to "99",
+            "MAESTRO_SHARD_INDEX" to "98",
+        ).withDefaultEnvVars(deviceId = "device-456", shardIndex = 0)
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-456")
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("1")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("0")
+    }
+
+    @Test
     fun `withInjectedShellEnvVars only keeps MAESTRO_ vars`() {
         val env = emptyEnv.withInjectedShellEnvVars()
         assertThat(env.filterKeys { it.startsWith("MAESTRO_").not() }).isEmpty()
