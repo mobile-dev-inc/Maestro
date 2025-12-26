@@ -487,7 +487,15 @@ class TestCommand : Callable<Int> {
                     )
                 }
                 runBlocking {
-                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath, testOutputDir)
+                    runMultipleFlows(
+                        maestro,
+                        device,
+                        chunkPlans,
+                        shardIndex,
+                        debugOutputPath,
+                        testOutputDir,
+                        deviceId,
+                    )
                 }
             } else {
                 val flowFile = flowFiles.first()
@@ -495,9 +503,18 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken, testOutputDir)
+                    TestRunner.runContinuous(
+                        maestro,
+                        device,
+                        flowFile,
+                        env,
+                        analyze,
+                        authToken,
+                        testOutputDir,
+                        deviceId,
+                    )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
                 }
             }
         }
@@ -515,6 +532,7 @@ class TestCommand : Callable<Int> {
         flowFile: File,
         debugOutputPath: Path,
         testOutputDir: Path?,
+        deviceId: String?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -538,6 +556,7 @@ class TestCommand : Callable<Int> {
             analyze = analyze,
             apiKey = authToken,
             testOutputDir = testOutputDir,
+            deviceId = deviceId,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -568,7 +587,8 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
-        testOutputDir: Path?
+        testOutputDir: Path?,
+        deviceId: String?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val startTime = System.currentTimeMillis()
         val totalFlowCount = chunkPlans.sumOf { it.flowsToRun.size }
@@ -588,7 +608,8 @@ class TestCommand : Callable<Int> {
             env = env,
             reportOut = null,
             debugOutputPath = debugOutputPath,
-            testOutputDir = testOutputDir
+            testOutputDir = testOutputDir,
+            deviceId = deviceId,
         )
 
         val duration = System.currentTimeMillis() - startTime
