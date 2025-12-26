@@ -42,6 +42,8 @@ object Env {
         val defaultEnvVars = mutableMapOf<String, String>()
         flowFile?.nameWithoutExtension?.let { defaultEnvVars["MAESTRO_FILENAME"] = it }
         deviceId?.takeIf { it.isNotBlank() }?.let { defaultEnvVars["MAESTRO_DEVICE_UDID"] = it }
+        // MAESTRO_SHARD_ID is 1-indexed (shardIndex + 1) for human-readable display,
+        // while MAESTRO_SHARD_INDEX is 0-indexed (shardIndex) for programmatic use.
         shardIndex?.let {
             defaultEnvVars["MAESTRO_SHARD_ID"] = (it + 1).toString()
             defaultEnvVars["MAESTRO_SHARD_INDEX"] = it.toString()

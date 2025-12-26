@@ -53,6 +53,34 @@ class EnvTest {
     }
 
     @Test
+    fun `withDefaultEnvVars should skip blank deviceId`() {
+        val env = emptyEnv.withDefaultEnvVars(deviceId = "   ")
+        assertThat(env.containsKey("MAESTRO_DEVICE_UDID")).isFalse()
+    }
+
+    @Test
+    fun `withDefaultEnvVars should skip empty string deviceId`() {
+        val env = emptyEnv.withDefaultEnvVars(deviceId = "")
+        assertThat(env.containsKey("MAESTRO_DEVICE_UDID")).isFalse()
+    }
+
+    @Test
+    fun `withDefaultEnvVars should handle deviceId without shardIndex`() {
+        val env = emptyEnv.withDefaultEnvVars(deviceId = "device-123")
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-123")
+        assertThat(env.containsKey("MAESTRO_SHARD_ID")).isFalse()
+        assertThat(env.containsKey("MAESTRO_SHARD_INDEX")).isFalse()
+    }
+
+    @Test
+    fun `withDefaultEnvVars should handle shardIndex without deviceId`() {
+        val env = emptyEnv.withDefaultEnvVars(shardIndex = 2)
+        assertThat(env.containsKey("MAESTRO_DEVICE_UDID")).isFalse()
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("3")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("2")
+    }
+
+    @Test
     fun `withInjectedShellEnvVars only keeps MAESTRO_ vars`() {
         val env = emptyEnv.withInjectedShellEnvVars()
         assertThat(env.filterKeys { it.startsWith("MAESTRO_").not() }).isEmpty()
