@@ -158,7 +158,7 @@ class RecordCommand : Callable<Int> {
                             resultView,
                             path,
                             testOutputDir = null,
-                            deviceId = device.instanceId,
+                            deviceId = (device as? maestro.device.Device.Connected)?.instanceId ?: deviceId,
                         )
                     }
                 }
