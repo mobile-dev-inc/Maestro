@@ -320,6 +320,7 @@ class TestSuiteInteractor(
                     val gcsUrl = GcsUploader.uploadRecording(
                         file = recordingFile,
                         flowName = flowFile.nameWithoutExtension,
+                        env = env,
                         shardIndex = shardIndex,
                         bucketName = gcsBucket
                     )
