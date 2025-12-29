@@ -1,16 +1,16 @@
 package maestro.cli.util
 
-import com.google.cloud.storage.BlobId
-import com.google.cloud.storage.BlobInfo
-import com.google.cloud.storage.StorageOptions
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
- * Utility class for uploading files to Google Cloud Storage.
+ * Utility class for uploading files to Google Cloud Storage using gcloud CLI.
  *
- * Authentication is handled via the GOOGLE_APPLICATION_CREDENTIALS environment variable,
- * which should point to a service account JSON key file.
+ * Authentication is handled via gcloud CLI's default credentials:
+ * - Application Default Credentials (gcloud auth application-default login)
+ * - Service account (gcloud auth activate-service-account)
+ * - Workload Identity (on GCP)
  *
  * The bucket name is configured via the GCS_BUCKET environment variable.
  */
@@ -19,7 +19,7 @@ object GcsUploader {
     private val logger = LoggerFactory.getLogger(GcsUploader::class.java)
 
     /**
-     * Uploads a file to Google Cloud Storage.
+     * Uploads a file to Google Cloud Storage using gcloud CLI.
      *
      * @param file The file to upload
      * @param objectName The name/path of the object in the bucket (e.g., "recordings/flow-name.mp4")
@@ -41,29 +41,37 @@ object GcsUploader {
             return null
         }
 
+        val gcsPath = "gs://$bucketName/$objectName"
+        val command = listOf("gcloud", "storage", "cp", file.absolutePath, gcsPath)
+
+        logger.info("[GCS-DEBUG] Executing: ${command.joinToString(" ")}")
+
         return try {
-            logger.info("[GCS-DEBUG] Creating GCS storage client...")
-            val storage = StorageOptions.getDefaultInstance().service
-            logger.info("[GCS-DEBUG] Storage client created successfully")
+            val process = ProcessBuilder(command)
+                .redirectErrorStream(true)
+                .start()
 
-            val blobId = BlobId.of(bucketName, objectName)
-            val contentType = getContentType(file)
-            logger.info("[GCS-DEBUG] BlobId created: bucket=$bucketName, object=$objectName, contentType=$contentType")
+            val output = process.inputStream.bufferedReader().readText()
+            val exitCode = process.waitFor(120, TimeUnit.SECONDS)
 
-            val blobInfo = BlobInfo.newBuilder(blobId)
-                .setContentType(contentType)
-                .build()
+            if (!exitCode) {
+                process.destroyForcibly()
+                logger.error("[GCS-DEBUG] gcloud command timed out after 120 seconds")
+                return null
+            }
 
-            logger.info("[GCS-DEBUG] Starting upload...")
-            storage.createFrom(blobInfo, file.toPath())
-            logger.info("[GCS-DEBUG] Upload completed successfully")
-
-            val url = "https://storage.googleapis.com/$bucketName/$objectName"
-            logger.info("Uploaded ${file.name} to $url")
-            url
+            if (process.exitValue() == 0) {
+                val url = "https://storage.googleapis.com/$bucketName/$objectName"
+                logger.info("[GCS-DEBUG] Upload completed successfully")
+                logger.info("Uploaded ${file.name} to $url")
+                url
+            } else {
+                logger.error("[GCS-DEBUG] gcloud command failed with exit code ${process.exitValue()}")
+                logger.error("[GCS-DEBUG] Output: $output")
+                null
+            }
         } catch (e: Exception) {
             logger.error("[GCS-DEBUG] Failed to upload file to GCS: ${e.message}", e)
-            logger.error("Failed to upload file to GCS: ${e.message}", e)
             null
         }
     }
@@ -71,8 +79,8 @@ object GcsUploader {
     /**
      * Uploads a recording file to GCS bucket root.
      *
-     * Naming convention: {buildName}-{buildNumber}-{deviceName}-{attemptNumber}-{flowName}.mp4
-     * Example: nightly-12345-OmioIOS1-1-login_flow.mp4
+     * Naming convention: {buildName}-{buildNumber}-{deviceName}-{flowName}.mp4
+     * Example: nightly-12345-OmioIOS1-login_flow.mp4
      *
      * @param file The recording file to upload
      * @param flowName The name of the flow
@@ -98,7 +106,6 @@ object GcsUploader {
         logger.info("[GCS-DEBUG]   BUILD_NUMBER env=${System.getenv("BUILD_NUMBER")} -> buildNumber=$buildNumber")
         logger.info("[GCS-DEBUG]   DEVICE_NAME env=${System.getenv("DEVICE_NAME")} -> deviceName=$deviceName (shardIndex=$shardIndex)")
         logger.info("[GCS-DEBUG]   GCS_BUCKET env=${System.getenv("GCS_BUCKET")} -> bucketName=$bucketName")
-        logger.info("[GCS-DEBUG]   GOOGLE_APPLICATION_CREDENTIALS=${System.getenv("GOOGLE_APPLICATION_CREDENTIALS") ?: "NOT SET"}")
 
         // Naming: BuildName-BuildNumber-DeviceName-FlowName.mp4
         // (No attempt number since we only record on last attempt)
@@ -109,17 +116,6 @@ object GcsUploader {
         logger.info("[GCS-DEBUG] File to upload: ${file.absolutePath}, exists=${file.exists()}, size=${if (file.exists()) file.length() else "N/A"} bytes")
 
         return uploadFile(file, objectName, bucketName)
-    }
-
-    private fun getContentType(file: File): String {
-        return when (file.extension.lowercase()) {
-            "mp4" -> "video/mp4"
-            "mov" -> "video/quicktime"
-            "webm" -> "video/webm"
-            "png" -> "image/png"
-            "jpg", "jpeg" -> "image/jpeg"
-            else -> "application/octet-stream"
-        }
     }
 
     /**
