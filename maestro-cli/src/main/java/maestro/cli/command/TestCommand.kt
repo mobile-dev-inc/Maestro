@@ -609,12 +609,16 @@ class TestCommand : Callable<Int> {
             deviceCount = chunkPlans.size
         ))
 
+        // Read attempt/retry info from env map (passed via -e flags) with fallback to CLI options
+        val effectiveAttemptNumber = env["ATTEMPT_NUMBER"]?.toIntOrNull() ?: attemptNumber
+        val effectiveMaxRetries = env["MAX_RETRIES"]?.toIntOrNull() ?: maxRetries
+
         // DEBUG LOGS: Recording configuration passed to TestSuiteInteractor
         println("[TEST-CMD-DEBUG] Creating TestSuiteInteractor with recording config:")
         println("[TEST-CMD-DEBUG]   noRecord=$noRecord -> recordingEnabled=${!noRecord}")
         println("[TEST-CMD-DEBUG]   gcsBucket='$gcsBucket' -> ${gcsBucket.ifBlank { null }}")
-        println("[TEST-CMD-DEBUG]   attemptNumber=$attemptNumber")
-        println("[TEST-CMD-DEBUG]   maxRetries=$maxRetries")
+        println("[TEST-CMD-DEBUG]   attemptNumber=$effectiveAttemptNumber (env=${env["ATTEMPT_NUMBER"]}, cli=$attemptNumber)")
+        println("[TEST-CMD-DEBUG]   maxRetries=$effectiveMaxRetries (env=${env["MAX_RETRIES"]}, cli=$maxRetries)")
         println("[TEST-CMD-DEBUG]   shardIndex=${if (chunkPlans.size == 1) null else shardIndex}")
 
         val suiteResult = TestSuiteInteractor(
@@ -624,8 +628,8 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             recordingEnabled = !noRecord,
             gcsBucket = gcsBucket.ifBlank { null },
-            attemptNumber = attemptNumber,
-            maxRetries = maxRetries,
+            attemptNumber = effectiveAttemptNumber,
+            maxRetries = effectiveMaxRetries,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
