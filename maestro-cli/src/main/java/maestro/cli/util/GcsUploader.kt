@@ -61,7 +61,8 @@ object GcsUploader {
             }
 
             if (process.exitValue() == 0) {
-                val url = "https://storage.googleapis.com/$bucketName/$objectName"
+                // Use authenticated URL (requires Google login, but works with private buckets)
+                val url = "https://storage.cloud.google.com/$bucketName/$objectName"
                 logger.info("[GCS-DEBUG] Upload completed successfully")
                 logger.info("Uploaded ${file.name} to $url")
                 url
