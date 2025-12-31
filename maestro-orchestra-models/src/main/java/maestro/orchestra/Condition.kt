@@ -10,6 +10,8 @@ data class Condition(
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null,
     val label: String? = null,
+    val equal: AssertEqual? = null,
+    val notEqual: AssertNotEqual? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): Condition {
@@ -17,6 +19,8 @@ data class Condition(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
             scriptCondition = scriptCondition?.evaluateScripts(jsEngine),
+            equal = equal?.evaluateScripts(jsEngine),
+            notEqual = notEqual?.evaluateScripts(jsEngine),
         )
     }
 
@@ -43,11 +47,28 @@ data class Condition(
             descriptions.add("$it is true")
         }
 
+        equal?.let {
+            descriptions.add("${it.value1} is equal to ${it.value2}")
+        }
+
+        notEqual?.let {
+            descriptions.add("${it.value1} is not equal to ${it.value2}")
+        }
+
         return if (descriptions.isEmpty()) {
             "true"
         } else {
             descriptions.joinToString(" and ")
         }
+    }
+
+    fun failureMessage(): String {
+        label?.let { return it }
+
+        equal?.let { return it.failureMessage() }
+        notEqual?.let { return it.failureMessage() }
+
+        return "Assertion is false: ${description()}"
     }
 
 }
