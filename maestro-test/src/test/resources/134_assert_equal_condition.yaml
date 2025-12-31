@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- runFlow: 
+    file: ./134_assert_equal_subflow.yaml
+    when:
+      equal:
+        value1: "maestro"
+        value2: "maestro"

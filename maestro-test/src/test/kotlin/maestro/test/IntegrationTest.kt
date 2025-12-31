@@ -1951,13 +1951,16 @@ class IntegrationTest {
         }
 
         // Then
-        assertThrows<MaestroException.AssertionFailure> {
+        val ex = assertThrows<MaestroException.AssertionFailure> {
             Maestro(driver).use {
                 runBlocking {
                     orchestra(it).runFlow(commands)
                 }
             }
         }
+
+        // Verify failure message contains expected text
+        assertThat(ex.message).contains("Assertion is false: 0 is true")
     }
 
     @Test
@@ -4146,6 +4149,105 @@ class IntegrationTest {
                 Event.InputText("Hello, Maestro!"),
             )
         )
+    }
+
+    @Test
+    fun `Case 134 - Assert Equal`() { 
+        // Given
+        val commands = readCommands("134_assert_equal");
+        
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
+    @Test
+    fun `Case 134 - Assert Equal - failure`() {
+        // Given
+        val commands = readCommands("134_assert_equal_failure")
+
+        val driver = driver {
+        }
+
+        // When
+        val ex = assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Then
+        assertThat(ex.message).contains("Assertion failed: expected 'maestros', but got 'maestro'")
+    }
+
+    @Test
+    fun `Case 134 - Assert Not Equal`() { 
+        // Given
+        val commands = readCommands("134_assert_not_equal");
+        
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - if we reach this point, the test passed successfully
+    }
+
+
+    @Test
+    fun `Case 134 - Assert Equal Conditions`() { 
+        // Given
+        val commands = readCommands("134_assert_equal_condition");
+        
+        val driver = driver {
+        }
+
+        // When
+        var completed = 0
+        var skipped = 0
+
+        Maestro(driver).use {
+            runBlocking {
+                val orchestra = Orchestra(
+                    it,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandComplete = { _, cmd ->
+                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) {
+                            completed += 1
+                        }
+                    },
+                    onCommandSkipped = { _, cmd ->
+                        if (cmd.asCommand() is maestro.orchestra.RunFlowCommand) {
+                            skipped += 1
+                        }
+                    }
+                )
+
+                orchestra.runFlow(commands)
+            }
+        }
+        
+        // Then
+        assertThat(completed).isEqualTo(1)
+        assertThat(skipped).isEqualTo(0)
     }
 
     private fun orchestra(
