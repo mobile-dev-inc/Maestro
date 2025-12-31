@@ -414,8 +414,11 @@ class Orchestra(
             - This could be a real regression that needs to be addressed
         """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
+
+            val message = command.condition.failureMessage()
+
             throw MaestroException.AssertionFailure(
-                message = "Assertion is false: ${command.condition.description()}",
+                message = message,
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
@@ -806,6 +809,18 @@ class Orchestra(
             }
 
             if (value.toDoubleOrNull() == 0.0) {
+                return false
+            }
+        }
+
+        condition.equal?.let {
+            if (it.value1 != it.value2) { 
+                return false
+            }
+        }
+
+        condition.notEqual?.let {
+            if (it.value1 == it.value2) { 
                 return false
             }
         }
