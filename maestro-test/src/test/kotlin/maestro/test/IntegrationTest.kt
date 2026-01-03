@@ -4151,20 +4151,22 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 120 - GraalJs import`() {
+    fun `Case 134 - GraalJs import`() {
         // given
-        val commands = readCommands("120_graaljs_import")
+        val commands = readCommands("134_graaljs_import")
         val driver = driver { }
         val receivedLogs = mutableMapOf<MaestroCommand, List<String>>()
 
         // when
         Maestro(driver).use {
-            orchestra(
-                maestro = it,
-                onCommandMetadataUpdate = { command, metadata ->
-                    receivedLogs[command] = metadata.logMessages
-                },
-            ).runFlow(commands)
+            runBlocking {
+                orchestra(
+                    maestro = it,
+                    onCommandMetadataUpdate = { command, metadata ->
+                        receivedLogs[command] = metadata.logMessages
+                    },
+                ).runFlow(commands)
+            }
         }
 
         // then
@@ -4175,15 +4177,17 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 120 - GraalJs import disallowed`() {
+    fun `Case 134 - GraalJs import disallowed`() {
         assertThrows<PolyglotException> {
             // given
-            val commands = readCommands("120_graaljs_import_disallowed")
+            val commands = readCommands("134_graaljs_import_disallowed")
             val driver = driver { }
 
             // when
             Maestro(driver).use {
-                orchestra(it).runFlow(commands)
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
     }

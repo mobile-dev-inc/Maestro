@@ -2,4 +2,4 @@ appId: com.example.app
 jsEngine: graaljs
 graalJsAllowIo: true
 ---
-- runScript: 120_script.mjs
+- runScript: 134_script.mjs
