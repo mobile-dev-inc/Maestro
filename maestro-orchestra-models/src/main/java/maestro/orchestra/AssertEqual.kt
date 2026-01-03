@@ -15,6 +15,6 @@ data class AssertEqual(
     }
 
     fun failureMessage(): String {
-        return "Assertion failed: expected '${value2}', but got '${value1}'"
+        return "Assertion failed: expected '${value2}' to equal '${value1}'"
     }
 }

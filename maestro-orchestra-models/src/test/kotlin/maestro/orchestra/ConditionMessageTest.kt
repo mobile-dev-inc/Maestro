@@ -9,7 +9,7 @@ class ConditionMessageTest {
     @Test
     fun `AssertEqual failureMessage`() {
         val ae = AssertEqual("maestro", "maestros")
-        assertEquals(ae.failureMessage(), "Assertion failed: expected 'maestros', but got 'maestro'")
+        assertEquals(ae.failureMessage(), "Assertion failed: expected 'maestros' to equal 'maestro'")
     }
 
     @Test
@@ -33,7 +33,7 @@ class ConditionMessageTest {
     @Test
     fun `Condition delegates to equal`() {
         val cond = Condition(equal = AssertEqual("foo", "bar"))
-        assertEquals(cond.failureMessage(), "Assertion failed: expected 'bar', but got 'foo'")
+        assertEquals(cond.failureMessage(), "Assertion failed: expected 'bar' to equal 'foo'")
     }
 
     @Test
