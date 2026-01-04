@@ -9,6 +9,7 @@ import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.HostAccess
 import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
+import org.graalvm.polyglot.io.IOAccess
 import org.graalvm.polyglot.proxy.ProxyObject
 import java.io.ByteArrayOutputStream
 import java.util.logging.Handler
@@ -112,8 +113,13 @@ class GraalJsEngine(
             }
         }
 
+        val ioAccess = IOAccess.newBuilder()
+            .allowHostFileAccess(allowIo)
+            .allowHostSocketAccess(false)
+            .build()
+
         val context = Context.newBuilder("js")
-            .allowIO(allowIo)
+            .allowIO(ioAccess)
             .option("js.strict", "true")
             .logHandler(NULL_HANDLER)
             .out(outputStream)
