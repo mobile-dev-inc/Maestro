@@ -5,8 +5,41 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: Test on Java ${{ matrix.java-version }}
+  unit-test:
+    name: Unit Test on Java ${{ matrix.java-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [17]
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java-version }}
+          cache: gradle
+
+      - name: Test
+        id: unit-test
+        run: ./gradlew test
+
+      - name: Upload unit test report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-unit-test-report
+          path: ./**/build/reports/tests/test
+          retention-days: 1
+          include-hidden-files: true
+
+  integration-test:
+    name: Integration Test on Java ${{ matrix.java-version }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -32,10 +65,6 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
-      - name: Test
-        id: unit-test
-        run: ./gradlew test
-
       - name: Run Integration test
         if: matrix.java-version == '17'
         id: integration-test
@@ -55,15 +84,6 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
-      - name: Upload unit test report
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: maestro-unit-test-report
-          path: ./**/build/reports/tests/test
-          retention-days: 1
-          include-hidden-files: true
-
       - name: Upload integration test report
         uses: actions/upload-artifact@v4
         if: failure()
@@ -72,7 +92,6 @@ jobs:
           path: ./**/build/reports/tests/integrationTest
           retention-days: 1
           include-hidden-files: true
-
 
   validate-gradle-wrapper:
     runs-on: ubuntu-latest
