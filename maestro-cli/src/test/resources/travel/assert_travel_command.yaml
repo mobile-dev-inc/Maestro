@@ -14,7 +14,7 @@ appId: "com.google.android.apps.maps"
       - 46.2276, 5.9900
       - 43.7230, 10.3966
       - 41.8902, 12.4922
-    speed: 1500
+    speed: 1000
 - assertVisible: .*Colosseo.*
 
 
