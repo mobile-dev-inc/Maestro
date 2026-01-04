@@ -73,7 +73,14 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
-          script: ./gradlew integrationTest
+          script: |
+            # h/t https://gist.github.com/Tobias-Pe/52c8d6e162f75fb5dff5258a525fbf79
+            adb logcat -c                             # clear logs
+            touch emulator.log                        # create log file
+            chmod 777 emulator.log                    # allow writing to log file
+            adb logcat >> emulator.log &              # pipe all logcat messages into log file as a background process
+            ./gradlew integrationTest                 # run the tests
+            cp emulator.log ~/.maestro/emulator.log   # copy emulator log with other debug artifacts
 
       - name: Upload Maestro integration debug artifacts
         uses: actions/upload-artifact@v4
