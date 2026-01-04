@@ -9,9 +9,9 @@ data class Condition(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null,
+    val equal: EqualityCondition? = null,
+    val notEqual: EqualityCondition? = null,
     val label: String? = null,
-    val equal: AssertEqual? = null,
-    val notEqual: AssertNotEqual? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): Condition {
@@ -48,11 +48,11 @@ data class Condition(
         }
 
         equal?.let {
-            descriptions.add("${it.value1} is equal to ${it.value2}")
+            descriptions.add("'${it.value2}' equals '${it.value1}'")
         }
 
         notEqual?.let {
-            descriptions.add("${it.value1} is not equal to ${it.value2}")
+            descriptions.add("'${it.value2}' does not equal '${it.value1}'")
         }
 
         return if (descriptions.isEmpty()) {
@@ -65,10 +65,9 @@ data class Condition(
     fun failureMessage(): String {
         label?.let { return it }
 
-        equal?.let { return it.failureMessage() }
-        notEqual?.let { return it.failureMessage() }
+        equal?.let { return "Assertion failed: expected '${it.value2}' to equal '${it.value1}'" }
+        notEqual?.let { return "Assertion failed: expected '${it.value2}' to not equal '${it.value1}'" }
 
         return "Assertion is false: ${description()}"
     }
-
 }

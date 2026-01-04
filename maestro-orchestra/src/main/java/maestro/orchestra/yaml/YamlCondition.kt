@@ -10,7 +10,7 @@ data class YamlCondition(
     val notVisible: YamlElementSelectorUnion? = null,
     val `true`: String? = null,
     val equal: YamlAssertEqual? = null,
-    val notEqual: YamlAssertNotEqual? = null,
+    val notEqual: YamlAssertEqual? = null,
     val label: String? = null,
     val optional: Boolean = false,
 )

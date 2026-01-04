@@ -405,22 +405,13 @@ class Orchestra(
 
     private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
-        val debugMessage = """
-            Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state
-            - This could be a real regression that needs to be addressed
-        """.trimIndent()
+
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
-
             val message = command.condition.failureMessage()
-
             throw MaestroException.AssertionFailure(
                 message = message,
                 hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = debugMessage
+                debugMessage = message,
             )
         }
 
@@ -820,7 +811,7 @@ class Orchestra(
         }
 
         condition.notEqual?.let {
-            if (it.value1 == it.value2) { 
+            if (it.value1 == it.value2) {
                 return false
             }
         }

@@ -28,8 +28,6 @@ import maestro.Point
 import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AssertConditionCommand
-import maestro.orchestra.AssertEqual
-import maestro.orchestra.AssertNotEqual
 import maestro.orchestra.AssertNoDefectsWithAICommand
 import maestro.orchestra.AssertWithAICommand
 import maestro.orchestra.BackPressCommand
@@ -221,7 +219,7 @@ data class YamlFluentCommand(
                 MaestroCommand(
                     AssertConditionCommand(
                         Condition(
-                            equal = assertEqual.toModel("assertEqual")
+                            equal = assertEqual.toCondition(),
                         ),
                         label = assertEqual.label,
                         optional = assertEqual.optional,
@@ -233,7 +231,7 @@ data class YamlFluentCommand(
                 MaestroCommand(
                     AssertConditionCommand(
                         Condition(
-                            notEqual = assertNotEqual.toModel("assertNotEqual")
+                            notEqual = assertNotEqual.toCondition(),
                         ),
                         label = assertNotEqual.label,
                         optional = assertNotEqual.optional,
@@ -1020,8 +1018,8 @@ data class YamlFluentCommand(
             visible = visible?.let { toElementSelector(it) },
             notVisible = notVisible?.let { toElementSelector(it) },
             scriptCondition = `true`?.trim(),
-            equal = equal?.toModel("equal"),
-            notEqual = notEqual?.toModel("equal"),
+            equal = equal?.toCondition(),
+            notEqual = notEqual?.toCondition(),
             label = label
         )
     }

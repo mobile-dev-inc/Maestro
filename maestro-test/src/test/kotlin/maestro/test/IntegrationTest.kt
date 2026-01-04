@@ -4192,10 +4192,10 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 134 - Assert Not Equal`() { 
+    fun `Case 134 - Assert Not Equal`() {
         // Given
         val commands = readCommands("134_assert_not_equal");
-        
+
         val driver = driver {
         }
 
@@ -4209,7 +4209,6 @@ class IntegrationTest {
         // Then
         // No test failure - if we reach this point, the test passed successfully
     }
-
 
     @Test
     fun `Case 134 - Assert Equal Conditions`() { 

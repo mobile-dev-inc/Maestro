@@ -1,7 +1,6 @@
 package maestro.orchestra.yaml
 
-import maestro.orchestra.AssertEqual
-import maestro.orchestra.error.SyntaxError
+import maestro.orchestra.EqualityCondition
 
 data class YamlAssertEqual(
     val value1: String? = null,
@@ -9,10 +8,10 @@ data class YamlAssertEqual(
     val label: String? = null,
     val optional: Boolean = false,
 ) {
-    fun toModel(commandName: String): AssertEqual {
-        return AssertEqual(
-            value1 = value1 ?: throw SyntaxError("$commandName requires value1"),
-            value2 = value2 ?: throw SyntaxError("$commandName requires value2"),
+    fun toCondition(): EqualityCondition {
+        return EqualityCondition(
+            value1 = value1,
+            value2 = value2,
         )
     } 
 }

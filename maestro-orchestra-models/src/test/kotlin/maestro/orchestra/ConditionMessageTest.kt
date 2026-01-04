@@ -1,44 +1,36 @@
 package maestro.orchestra
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-
 import org.junit.jupiter.api.Test
 
 class ConditionMessageTest {
     @Test
-    fun `AssertEqual failureMessage`() {
-        val ae = AssertEqual("maestro", "maestros")
-        assertEquals(ae.failureMessage(), "Assertion failed: expected 'maestros' to equal 'maestro'")
-    }
-
-    @Test
-    fun `AssertNotEqual failureMessage`() {
-        val ane = AssertNotEqual("same", "same")
-        assertEquals(ane.failureMessage(), "Assertion failed: expected values to differ, but both were 'same'")
+    fun `EqualityCondition failureMessage via Condition`() {
+        val cond = Condition(equal = EqualityCondition("maestro", "maestros"))
+        assertEquals("Assertion failed: expected 'maestros' to equal 'maestro'", cond.failureMessage())
     }
 
     @Test
     fun `Condition default message`() {
         val cond = Condition()
-        assertEquals(cond.failureMessage(), "Assertion is false: true")
+        assertEquals("Assertion is false: true", cond.failureMessage())
     }
 
     @Test
-    fun `Condition prefers label when present`() {
-        val cond = Condition(label = "Custom label", equal = AssertEqual("a", "b"))
-        assertEquals(cond.failureMessage(), "Custom label")
+    fun `Condition with label returns label`() {
+        val cond = Condition(label = "Custom label", equal = EqualityCondition("a", "b"))
+        assertEquals("Custom label", cond.failureMessage())
     }
 
     @Test
-    fun `Condition delegates to equal`() {
-        val cond = Condition(equal = AssertEqual("foo", "bar"))
-        assertEquals(cond.failureMessage(), "Assertion failed: expected 'bar' to equal 'foo'")
+    fun `Condition delegates to equal for failureMessage`() {
+        val cond = Condition(equal = EqualityCondition("foo", "bar"))
+        assertEquals("Assertion failed: expected 'bar' to equal 'foo'", cond.failureMessage())
     }
 
     @Test
-    fun `Condition delegates to notEqual`() {
-        val cond = Condition(notEqual = AssertNotEqual("x", "x"))
-        assertEquals(cond.failureMessage(), "Assertion failed: expected values to differ, but both were 'x'")
+    fun `Condition delegates to notEqual for failureMessage`() {
+        val cond = Condition(notEqual = EqualityCondition("foo", "foo"))
+        assertEquals("Assertion failed: expected 'foo' to not equal 'foo'", cond.failureMessage())
     }
 }
