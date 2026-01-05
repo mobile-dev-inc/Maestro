@@ -979,7 +979,7 @@ data class WaitForAnimationToEndCommand(
 }
 
 data class SleepCommand(
-    val time: Long?,
+    val time: String?,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -988,7 +988,21 @@ data class SleepCommand(
         get() = "Sleep for $time ms"
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+        return copy(
+            time = time?.evaluateScripts(jsEngine)?.parseDuration()
+        )
+    }
+
+    private fun String.parseDuration(): String? {
+        return Regex("""^(\d+)(ms|s)?$""").matchEntire(this.trim().lowercase())
+            ?.let {
+                val value = it.groupValues[1].toLong() // Get the digits
+                when (it.groupValues[2]) { // If there's a duration unit
+                    "s"  -> (value * 1_000).toString()
+                    "ms", "" -> value.toString()
+                    else -> null // Unknown unit, ignore the digits and return null
+                }
+            } // When no match, we'll return null
     }
 }
 

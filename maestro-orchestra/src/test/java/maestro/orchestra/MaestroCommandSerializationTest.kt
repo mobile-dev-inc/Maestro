@@ -697,7 +697,7 @@ internal class MaestroCommandSerializationTest {
     fun `serialize SleepCommand`() {
         // given
         val command = MaestroCommand(
-            SleepCommand(time = 1000)
+            SleepCommand(time = "1000")
         )
         // when
         val serializedCommandJson = command.toJson()
@@ -707,7 +707,7 @@ internal class MaestroCommandSerializationTest {
         val expectedJson = """
             {
               "sleepCommand" : {
-                "time" : 1000,
+                "time" : "1000",
                 "optional" : false
               }
             }

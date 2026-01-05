@@ -786,9 +786,9 @@ internal class YamlCommandReaderTest {
             ApplyConfigurationCommand(MaestroConfig(
                 appId = "com.example.app",
             )),
-            SleepCommand(time = 100L),
-            SleepCommand(time = 1000L),
-            SleepCommand(time = 1000L),
+            SleepCommand(time = "100"),
+            SleepCommand(time = "1000ms"),
+            SleepCommand(time = "1s"),
         )
     }
 

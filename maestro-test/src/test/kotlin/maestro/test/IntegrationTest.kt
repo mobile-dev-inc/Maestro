@@ -4148,6 +4148,77 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 134 - Sleep`() {
+        // Given
+        val commands = readCommands("134_sleep")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        fakeTimer.assertEvent(MaestroTimer.Reason.COMMAND_SLEEP, 1000L) // Raw value
+        fakeTimer.assertEvent(MaestroTimer.Reason.COMMAND_SLEEP, 2000L) // Raw duration
+        fakeTimer.assertEvent(MaestroTimer.Reason.COMMAND_SLEEP, 3000L) // Object with time
+    }
+
+    @Test
+    fun `Case 134 - Sleep with JS variables`() {
+        // Given
+        val commands = readCommands("134_sleep_with_js")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        fakeTimer.assertEvent(MaestroTimer.Reason.COMMAND_SLEEP, 1000L) // Env var
+        fakeTimer.assertEvent(MaestroTimer.Reason.COMMAND_SLEEP, 2000L) // Env var with duration unit
+        fakeTimer.assertEvent(MaestroTimer.Reason.COMMAND_SLEEP, 3000L) // JS calculation expression
+
+    }
+
+    @Test
+    fun `Case 134 - Sleep (invalid)`() {
+        // Given
+        val commands = readCommands("134_sleep_invalid")
+
+        val driver = driver {
+        }
+
+        // When
+        var caughtException: Exception? = null
+        Maestro(driver).use {
+            runBlocking {
+                try {
+                    orchestra(it).runFlow(commands)
+                } catch (e: Exception) {
+                    caughtException = e
+                }
+            }
+        }
+
+        // Then
+        // Test failure due to invalid sleep time
+        assertThat(caughtException).isNotNull()
+        assertThat(caughtException!!.message).contains("Missing or invalid required parameter <time> for sleep command")
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

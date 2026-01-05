@@ -18,6 +18,14 @@ class FakeTimer {
         }
     }
 
+    fun assertEvent(reason: MaestroTimer.Reason, time: Long) {
+        val reasonMatching = events.filter { it.reason == reason }
+        if (reasonMatching.isEmpty()) throw AssertionError("No timer event for reason $reason found")
+
+        reasonMatching.filter { it.time == time }.firstOrNull()
+            ?: throw AssertionError("No timer event for $reason with time $time found (but found times: ${reasonMatching.map { it.time }})")
+    }
+
     private data class Event(
         val reason: MaestroTimer.Reason,
         val time: Long,
