@@ -780,7 +780,7 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun sleep_commands(
-        @YamlFile("030_sleep_commands.yaml") commands: List<Command>,
+        @YamlFile("031_sleep_commands.yaml") commands: List<Command>,
     ) {
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(MaestroConfig(
