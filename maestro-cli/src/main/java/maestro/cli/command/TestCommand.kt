@@ -263,6 +263,10 @@ class TestCommand : Callable<Int> {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
         }
 
+        if (screenSize != null && !screenSize!!.matches(Regex("\\d+x\\d+"))) {
+            throw CliError("Invalid screen size format. Please use the format {Width}x{Height}, e.g. 1920x1080.")
+        }
+
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
                 input = flowFiles.map { it.toPath().toAbsolutePath() }.toSet(),
