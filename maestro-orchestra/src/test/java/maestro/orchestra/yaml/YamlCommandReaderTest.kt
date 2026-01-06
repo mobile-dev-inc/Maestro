@@ -789,6 +789,9 @@ internal class YamlCommandReaderTest {
             SleepCommand(time = "100"),
             SleepCommand(time = "1000ms"),
             SleepCommand(time = "1s"),
+            SleepCommand(time = "2s"),
+            SleepCommand(time = "2500ms"),
+            SleepCommand(time = "3000", label = "Three second sleep"),
         )
     }
 

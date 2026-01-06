@@ -3,3 +3,10 @@ appId: com.example.app
 - sleep: 100
 - sleep: 1000ms
 - sleep: 1s
+- sleep:
+    time: 2s
+- sleep:
+    time: 2500ms
+- sleep:
+    time: 3000
+    label: Three second sleep
