@@ -285,7 +285,7 @@ class Maestro(
         }
     }
 
-    private fun screenshotBasedTap(
+    private fun hierarchyBasedTap(
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = false,
@@ -294,7 +294,7 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
+        LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
 
@@ -321,7 +321,7 @@ class Maestro(
         }
     }
 
-    private fun hierarchyBasedTap(
+    private fun screenshotBasedTap(
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = false,
@@ -330,7 +330,7 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
+        LOGGER.info("Try tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
         val screenshotBeforeTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
@@ -357,6 +357,8 @@ class Maestro(
                 LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
                 return
             }
+
+            LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
 
             val screenshotAfterTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
             if (screenshotBeforeTap != null &&
