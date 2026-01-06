@@ -4173,7 +4173,7 @@ class IntegrationTest {
     @Test
     fun `Case 134 - Sleep with JS variables`() {
         // Given
-        val commands = readCommands("134_sleep_with_js")
+        val commands = readCommands("134_sleep_with_JS")
 
         val driver = driver {
         }
