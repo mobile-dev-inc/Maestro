@@ -11,14 +11,8 @@ import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
-import maestro.utils.AndroidSupportedCountry
-import maestro.utils.AndroidSupportedLanguage
-import maestro.utils.LocaleUtils
-import maestro.utils.LocaleValidationAndroidCountryException
-import maestro.utils.LocaleValidationAndroidLanguageException
-import maestro.utils.LocaleValidationIosException
-import maestro.utils.LocaleValidationWrongLocaleFormatException
-import maestro.utils.LocaleValidationAndroidLocaleCombinationException
+import maestro.locale.DeviceLocale
+import maestro.locale.LocaleValidationException
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
@@ -95,37 +89,17 @@ class StartDeviceCommand : Callable<Int> {
         val locale = deviceLocale ?: "en_US"
 
         try {
-            val locale = LocaleUtils.fromLocaleString(locale, maestroPlatform)
+            val locale = DeviceLocale.fromString(locale, maestroPlatform)
 
-            DeviceCreateUtil.getOrCreateDevice(p, o, locale.getLanguageCode(), locale.getCountryCode(), forceCreate).let { device ->
+            DeviceCreateUtil.getOrCreateDevice(p, o, locale.languageCode, locale.code, forceCreate).let { device ->
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,
                     driverHostPort = parent?.port
                 )
             }
-        } catch (e: LocaleValidationIosException) {
-            val locales = LocaleUtils.Ios.getAllLocales().joinToString("\n")
-            throw CliError("$deviceLocale locale is currently not supported by Maestro, please check that it is a valid ISO-639-1 + ISO-3166-1 code. Here is a full list of supported locales:\n" +
-                    "\n" +
-                    locales
-            )
-        } catch (e: LocaleValidationAndroidLanguageException) {
-            val languages = AndroidSupportedLanguage.getLanguageCodes()
-            throw CliError("${e.message} language is currently not supported by Maestro, please check that it is a valid ISO-639-1 code. Here is a full list of supported languages:\n" +
-                    "\n" +
-                    languages
-            )
-        } catch (e: LocaleValidationAndroidCountryException) {
-            val countries = AndroidSupportedCountry.getCountryCodes()
-            throw CliError("${e.country} country is currently not supported by Maestro, please check that it is a valid ISO-3166-1 code. Here is a full list of supported countries:\n" +
-                    "\n" +
-                    countries
-            )
-        } catch(e: LocaleValidationAndroidLocaleCombinationException) {
-            throw CliError("Wrong device locale was provided: $deviceLocale is not a valid combination for language and country.")
-        } catch(e: LocaleValidationWrongLocaleFormatException) {
-            throw CliError("Wrong device locale format was provided $deviceLocale. A combination of lowercase ISO-639-1 code and uppercase ISO-3166-1 code should be used, i.e. \"de_DE\" for Germany. More info can be found here https://maestro.mobile.dev/")
+        } catch (e: LocaleValidationException) {
+            throw CliError(e.message.toString())
         }
 
         return 0
