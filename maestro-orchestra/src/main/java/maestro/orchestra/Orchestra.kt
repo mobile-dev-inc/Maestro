@@ -128,6 +128,7 @@ class Orchestra(
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
+    private val flowName: String? = null,
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -285,13 +286,15 @@ class Orchestra(
             jsEngine.close()
         }
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
-                
+
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
+        val resolvedFlowName = flowName ?: config?.name ?: "unknown"
+
         jsEngine = if (isRhinoExplicitlyRequested) {
-            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
+            httpClient?.let { RhinoJsEngine(it, platform, resolvedFlowName) } ?: RhinoJsEngine(platform = platform, flowName = resolvedFlowName)
         } else {
             // Default to GraalJS for better performance and compatibility
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+            httpClient?.let { GraalJsEngine(it, platform, resolvedFlowName) } ?: GraalJsEngine(platform = platform, flowName = resolvedFlowName)
         }
     }
 

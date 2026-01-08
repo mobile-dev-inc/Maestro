@@ -15,6 +15,7 @@ class RhinoJsEngine(
         protocols=listOf(Protocol.HTTP_1_1)
     ),
     platform: String = "unknown",
+    flowName: String = "unknown",
 ) : JsEngine {
 
     private val context = Context.enter()
@@ -47,7 +48,7 @@ class RhinoJsEngine(
 
         context.evaluateString(
             currentScope,
-            Js.initScriptWithPlatform(platform),
+            Js.initScriptWithPlatformAndFlowName(platform, flowName),
             "maestro-runtime",
             1,
             null
