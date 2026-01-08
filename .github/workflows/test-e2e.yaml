@@ -254,10 +254,9 @@ jobs:
 
   test-ios:
     name: Test on iOS
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: build
     timeout-minutes: 120
-    #if: ${{ false }}
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
