@@ -54,6 +54,7 @@ import util.XCRunnerCLIUtils
 import java.io.File
 import java.net.SocketTimeoutException
 import kotlin.collections.set
+import kotlin.random.Random
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
@@ -65,6 +66,8 @@ class IOSDriver(
 
     private var appId: String? = null
     private var proxySet = false
+    private var networkConditionProxySet = false
+    private var networkConditionProxySnapshot: XCRunnerCLIUtils.ProxySettings? = null
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -80,11 +83,19 @@ class IOSDriver(
 
     override fun close() {
         metrics.measured("close") {
+            networkConditionProxySnapshot?.let {
+                runCatching { XCRunnerCLIUtils.restoreProxySettings(it) }
+                networkConditionProxySnapshot = null
+                networkConditionProxySet = false
+            }
+
             if (proxySet) {
                 resetProxy()
             }
             iosDevice.close()
             appId = null
+            proxySet = false
+            networkConditionProxySet = false
         }
     }
 
@@ -514,12 +525,50 @@ class IOSDriver(
     }
 
     override fun isAirplaneModeEnabled(): Boolean {
-        LOGGER.warn("Airplane mode is not available on iOS simulators")
-        return false
+        return metrics.measured("operation", mapOf("command" to "isAirplaneModeEnabled")) {
+            // Maestro's iOS support is simulator-only; treat "airplane mode" as "proxy blackhole".
+            return@measured networkConditionProxySet
+        }
     }
 
     override fun setAirplaneMode(enabled: Boolean) {
-        LOGGER.warn("Airplane mode is not available on iOS simulators")
+        metrics.measured("operation", mapOf("command" to "setAirplaneMode", "enabled" to enabled.toString())) {
+            if (enabled) {
+                if (networkConditionProxySnapshot == null) {
+                    networkConditionProxySnapshot = XCRunnerCLIUtils.currentProxySettings()
+                }
+                val port = pickBlackholePort()
+                XCRunnerCLIUtils.setProxy("127.0.0.1", port)
+                networkConditionProxySet = true
+            } else if (networkConditionProxySet) {
+                networkConditionProxySnapshot?.let {
+                    XCRunnerCLIUtils.restoreProxySettings(it)
+                } ?: run {
+                    XCRunnerCLIUtils.resetProxy()
+                }
+                networkConditionProxySet = false
+                networkConditionProxySnapshot = null
+            }
+        }
+    }
+
+    private fun pickBlackholePort(): Int {
+        val candidates = listOf(1, 9, 65534, 65533) + List(8) { 49152 + Random.nextInt(16383) }
+        for (port in candidates.distinct()) {
+            if (isPortClosed(port)) return port
+        }
+        return 65534
+    }
+
+    private fun isPortClosed(port: Int): Boolean {
+        return try {
+            java.net.Socket().use { socket ->
+                socket.connect(java.net.InetSocketAddress("127.0.0.1", port), 50)
+            }
+            false
+        } catch (_: Exception) {
+            true
+        }
     }
 
     private fun addMediaToDevice(mediaFile: File) {

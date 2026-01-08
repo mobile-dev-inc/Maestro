@@ -11,6 +11,16 @@ local.properties
 
 bin
 
+# Local Gradle wrapper cache (IDE / offline builds)
+/.gradle-user-home/
+
+# Xcode derived data (from build-maestro-ios-runner.sh)
+/driver-iPhoneSimulator/
+/driver-iPhoneOS/
+
+# Local scratch
+/tmp/
+
 # media assets
 maestro-orchestra/src/test/resources/media/assets/*
 
