@@ -36,27 +36,31 @@ trap 'rm -f pipe' EXIT
 
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
-# Run passing tests
 for workspace_dir in ./workspaces/*; do
 
-  # Skip workspaces with no tests for iOS
-  case $(basename "$workspace_dir") in
-  		demo_app|nowinandroid|setOrientation) # demo_app has OOM issues on GHA
+  app_name="$(basename "$workspace_dir")"
+
+  case $app_name in
+      # Skip workspaces with no tests for iOS
+      # demo_app has OOM issues on GHA
+  		demo_app|nowinandroid|setOrientation)
   			if [ "$platform" = "ios" ]; then
   			  continue
   			fi
   			;;
+  	  # Skip workspaces with no tests for Android
+      simple_web_view)
+        if [ "$platform" = "android" ]; then
+          continue
+        fi
+        ;;
+      # Skip web-only workspaces for all mobile tests - those are run by run_tests_web
+      sauce_demo)
+        continue
+        ;;
   esac
 
 	WORKSPACE_PASS=true
-	app_name="$(basename "$workspace_dir")"
-
-	# Skip web-only workspaces for mobile e2e tests
-	case $app_name in
-	  sauce_demo)
-	    continue
-	    ;;
-	esac
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 
@@ -81,7 +85,7 @@ for workspace_dir in ./workspaces/*; do
 	###
 	# edge case: some workspaces have no failing flows
 	case $app_name in
-		wikipedia|setOrientation)
+		wikipedia|setOrientation|no-app|simple_web_view)
 			continue
 			;;
 	esac

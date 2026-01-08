@@ -52,7 +52,11 @@ struct ViewHierarchyHandler: HTTPHandler {
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
             fullStatusBars(springboardApplication)
         } ?? []
-
+        
+        // Fetch Safari WebView hierarchy for iOS 26+ (runs in separate SafariViewService process)
+        let safariWebViewHierarchy = logger.measure(message: "Fetch Safari WebView hierarchy") {
+            getSafariWebViewHierarchy()
+        }
 
         let deviceFrame = springboardApplication.frame
         let deviceAxFrame = [
@@ -70,7 +74,7 @@ struct ViewHierarchyHandler: HTTPHandler {
                 let appWidth = appFrame["Width"], appWidth > 0,
                 let appHeight = appFrame["Height"], appHeight > 0
             else {
-                return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
             }
             
             let offsetX = deviceWidth - appWidth
@@ -81,9 +85,9 @@ struct ViewHierarchyHandler: HTTPHandler {
             
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
             
-            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
         } else {
-            return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
         }
     }
     
@@ -228,6 +232,40 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
         
         return snapshots
+    }
+    
+    /// Fetches the Safari WebView hierarchy for iOS 26+ where SFSafariViewController
+    /// runs in a separate process (com.apple.SafariViewService).
+    /// Returns nil if not on iOS 26+, Safari service is not running, or no webviews exist.
+    private func getSafariWebViewHierarchy() -> AXElement? {
+        let systemVersion = ProcessInfo.processInfo.operatingSystemVersion
+        guard systemVersion.majorVersion >= 26 else {
+            return nil
+        }
+        
+        let safariWebService = XCUIApplication(bundleIdentifier: "com.apple.SafariViewService")
+        
+        let isRunning = safariWebService.state == .runningForeground || safariWebService.state == .runningBackground
+        guard isRunning else {
+            return nil
+        }
+        
+        let webViewCount = safariWebService.webViews.count
+        guard webViewCount > 0 else {
+            return nil
+        }
+        
+        NSLog("[Start] Fetching Safari WebView hierarchy (\(webViewCount) webview(s) detected)")
+        
+        do {
+            AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
+            let safariHierarchy = try elementHierarchy(xcuiElement: safariWebService)
+            NSLog("[Done] Safari WebView hierarchy fetched successfully")
+            return safariHierarchy
+        } catch {
+            NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func findRecoveryElement(_ element: XCUIElement) throws -> XCUIElement {
