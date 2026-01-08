@@ -1,0 +1,13 @@
+appId: com.example.SimpleWebViewApp
+tags:
+  - passing
+  - ios
+---
+- launchApp:
+    clearState: true
+
+- tapOn: Open Login Page
+
+- assertVisible: Login
+- assertVisible: Sign In
+- assertVisible: Forgot your password?

@@ -254,10 +254,9 @@ jobs:
 
   test-ios:
     name: Test on iOS
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: build
     timeout-minutes: 120
-    #if: ${{ false }}
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
@@ -289,7 +288,11 @@ jobs:
           maestro --version
 
       - name: Boot Simulator
-        run: ./.github/scripts/boot_simulator.sh
+        run: |
+          xcrun simctl list runtimes
+          export RUNTIME="iOS26.1"
+          export DEVICE_TYPE="iPhone 17 Pro"
+          ./.github/scripts/boot_simulator.sh
 
       - name: Download apps
         working-directory: ${{ github.workspace }}/e2e
@@ -322,7 +325,7 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
-      - name: Upload xc test runner logs
+      - name: Upload xctest runner logs
         uses: actions/upload-artifact@v6
         if: success() || failure()
         with:
@@ -331,7 +334,7 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
-      - name: Upload screen recording of AVD
+      - name: Upload screen recording of Simulator
         uses: actions/upload-artifact@v6
         if: success() || failure()
         with:
