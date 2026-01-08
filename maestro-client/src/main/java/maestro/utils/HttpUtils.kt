@@ -37,12 +37,12 @@ object HttpUtils {
         }
 
         // If we have a workspace root, try to resolve relative to it
-        if (scriptDir != null) {
-            val resolvedFile = File(scriptDir, filePath)
-            if (resolvedFile.exists()) {
-                return resolvedFile
-            }
-        }
+//        if (scriptDir != null) {
+//            val resolvedFile = File(scriptDir, filePath)
+//            if (resolvedFile.exists()) {
+//                return resolvedFile
+//            }
+//        }
 
         // Fall back to the original behavior (current working directory)
         return file
