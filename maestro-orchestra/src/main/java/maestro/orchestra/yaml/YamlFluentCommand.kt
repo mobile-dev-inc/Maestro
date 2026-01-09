@@ -96,6 +96,8 @@ data class YamlFluentCommand(
     val assertTrue: YamlAssertTrue? = null,
     val assertNoDefectsWithAI: YamlAssertNoDefectsWithAI? = null,
     val assertWithAI: YamlAssertWithAI? = null,
+    val assertEqual: YamlAssertEqual? = null,
+    val assertNotEqual: YamlAssertNotEqual? = null,
     val extractTextWithAI: YamlExtractTextWithAI? = null,
     val back: YamlActionBack? = null,
     val clearKeychain: YamlActionClearKeychain? = null,
@@ -209,6 +211,30 @@ data class YamlFluentCommand(
                         assertion = assertWithAI.assertion,
                         optional = assertWithAI.optional,
                         label = assertWithAI.label,
+                    )
+                )
+            )
+
+            assertEqual != null -> listOf(
+                MaestroCommand(
+                    AssertConditionCommand(
+                        Condition(
+                            equal = assertEqual.toCondition(),
+                        ),
+                        label = assertEqual.label,
+                        optional = assertEqual.optional,
+                    )
+                )
+            )
+
+            assertNotEqual != null -> listOf(
+                MaestroCommand(
+                    AssertConditionCommand(
+                        Condition(
+                            notEqual = assertNotEqual.toCondition(),
+                        ),
+                        label = assertNotEqual.label,
+                        optional = assertNotEqual.optional,
                     )
                 )
             )
@@ -992,6 +1018,8 @@ data class YamlFluentCommand(
             visible = visible?.let { toElementSelector(it) },
             notVisible = notVisible?.let { toElementSelector(it) },
             scriptCondition = `true`?.trim(),
+            equal = equal?.toCondition(),
+            notEqual = notEqual?.toCondition(),
             label = label
         )
     }

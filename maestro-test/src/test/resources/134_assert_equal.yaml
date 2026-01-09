@@ -1,0 +1,20 @@
+appId: com.example.app
+---
+- assertEqual:
+    value1: "maestro"
+    value2: "maestro"
+- assertEqual:
+    value1: ${2 + 2}
+    value2: ${8 - 4}
+- assertEqual:
+    value1: "1"
+    value2: ${1.0}
+- assertEqual:
+    value1: ${true}
+    value2: ${!false}
+- assertEqual:
+    value1: ${`hello` + ` ` + `world`}
+    value2: "hello world"
+- assertEqual:
+    value1: ${["foo"][0]}
+    value2: "foo"
