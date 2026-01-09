@@ -180,6 +180,12 @@ class TestCommand : Callable<Int> {
     private var headless: Boolean = false
 
     @Option(
+        names = ["--screen-size"],
+        description = ["(Web only) Set the size of the headless browser. Use the format {Width}x{Height}. Usage is --screen-size 1920x1080"],
+    )
+    private var screenSize: String? = null
+
+    @Option(
         names = ["--analyze"],
         description = ["[Beta] Enhance the test output analysis with AI Insights"],
     )
@@ -255,6 +261,10 @@ class TestCommand : Callable<Int> {
 
         if (configFile != null && configFile?.exists()?.not() == true) {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        }
+
+        if (screenSize != null && !screenSize!!.matches(Regex("\\d+x\\d+"))) {
+            throw CliError("Invalid screen size format. Please use the format {Width}x{Height}, e.g. 1920x1080.")
         }
 
         val executionPlan = try {
@@ -470,6 +480,7 @@ class TestCommand : Callable<Int> {
             deviceId = deviceId,
             platform = platform ?: parent?.platform,
             isHeadless = headless,
+            screenSize = screenSize,
             reinstallDriver = reinstallDriver,
             executionPlan = executionPlan
         ) { session ->
