@@ -29,9 +29,19 @@ object Env {
         if (env.isEmpty()) this
         else listOf(MaestroCommand(DefineVariablesCommand(env))) + this
 
+    // Shard variables that should only be controlled by internal logic, not from shell environment
+    private val INTERNAL_ONLY_ENV_VARS = setOf(
+        "MAESTRO_SHARD_ID",
+        "MAESTRO_SHARD_INDEX",
+    )
+
     fun Map<String, String>.withInjectedShellEnvVars(): Map<String, String> = this +
         System.getenv()
-            .filterKeys { it.startsWith("MAESTRO_") && this.containsKey(it).not() }
+            .filterKeys {
+                it.startsWith("MAESTRO_") &&
+                    this.containsKey(it).not() &&
+                    it !in INTERNAL_ONLY_ENV_VARS
+            }
             .filterValues { it != null && it.isNotEmpty() }
 
     fun Map<String, String>.withDefaultEnvVars(

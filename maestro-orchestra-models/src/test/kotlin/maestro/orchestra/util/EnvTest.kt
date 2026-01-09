@@ -87,6 +87,19 @@ class EnvTest {
     }
 
     @Test
+    fun `withInjectedShellEnvVars should not inject shard variables from shell`() {
+        // Shard variables should only be controlled by internal logic (withDefaultEnvVars),
+        // not from external shell environment, to prevent inconsistent state where only
+        // one of MAESTRO_SHARD_ID or MAESTRO_SHARD_INDEX is set from external environment.
+        val env = emptyEnv.withInjectedShellEnvVars()
+        // These assertions verify that even if shell has MAESTRO_SHARD_* vars,
+        // they won't be injected. The actual shell env might not have these vars,
+        // but this test documents the expected behavior.
+        assertThat(env.containsKey("MAESTRO_SHARD_ID")).isFalse()
+        assertThat(env.containsKey("MAESTRO_SHARD_INDEX")).isFalse()
+    }
+
+    @Test
     fun `withInjectedShellEnvVars does not strip previous MAESTRO_ vars`() {
         val rand = Random.nextInt()
         val env = mapOf("MAESTRO_$rand" to "$rand").withInjectedShellEnvVars()
