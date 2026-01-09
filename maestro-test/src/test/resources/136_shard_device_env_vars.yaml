@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+# Test MAESTRO_DEVICE_UDID, MAESTRO_SHARD_ID, and MAESTRO_SHARD_INDEX env vars
+- launchApp
+- takeScreenshot: ${MAESTRO_FILENAME}_${MAESTRO_DEVICE_UDID}_shard${MAESTRO_SHARD_ID}_idx${MAESTRO_SHARD_INDEX}
