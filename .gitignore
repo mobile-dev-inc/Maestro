@@ -15,5 +15,4 @@ bin
 maestro-orchestra/src/test/resources/media/assets/*
 
 # Local files
-local/.serena/
-firebase-debug.log
+local/
