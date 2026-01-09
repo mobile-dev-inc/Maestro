@@ -53,6 +53,34 @@ class EnvTest {
     }
 
     @Test
+    fun `withDefaultEnvVars should not add shard values when shardIndex is null`() {
+        val env = emptyEnv.withDefaultEnvVars(
+            flowFile = File("myFlow.yml"),
+            deviceId = "device-123",
+            shardIndex = null
+        )
+        assertThat(env["MAESTRO_FILENAME"]).isEqualTo("myFlow")
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-123")
+        assertThat(env.containsKey("MAESTRO_SHARD_ID")).isFalse()
+        assertThat(env.containsKey("MAESTRO_SHARD_INDEX")).isFalse()
+    }
+
+    @Test
+    fun `withDefaultEnvVars should preserve existing shard values when shardIndex is null`() {
+        // This test documents current behavior: pre-existing shell env vars pass through
+        val env = mapOf(
+            "MAESTRO_SHARD_ID" to "1",
+            "MAESTRO_SHARD_INDEX" to "0",
+        ).withDefaultEnvVars(
+            flowFile = File("myFlow.yml"),
+            shardIndex = null
+        )
+        // Pre-existing values are preserved (not removed) when shardIndex is null
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("1")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("0")
+    }
+
+    @Test
     fun `withInjectedShellEnvVars only keeps MAESTRO_ vars`() {
         val env = emptyEnv.withInjectedShellEnvVars()
         assertThat(env.filterKeys { it.startsWith("MAESTRO_").not() }).isEmpty()
