@@ -1,0 +1,9 @@
+appId: com.example.app
+env:
+  SLEEP_TIME_ONE: 1000
+  SLEEP_TIME_TWO: 2000
+  SLEEP_TIME_THREE: 2999
+---
+- sleep: ${SLEEP_TIME_ONE}
+- sleep: ${SLEEP_TIME_TWO}ms
+- sleep: ${parseInt(SLEEP_TIME_THREE) + 1}

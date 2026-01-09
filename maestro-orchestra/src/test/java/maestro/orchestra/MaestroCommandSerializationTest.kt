@@ -693,6 +693,31 @@ internal class MaestroCommandSerializationTest {
             .isEqualTo(command)
     }
 
+    @Test
+    fun `serialize SleepCommand`() {
+        // given
+        val command = MaestroCommand(
+            SleepCommand(time = "1000")
+        )
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "sleepCommand" : {
+                "time" : "1000",
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
     private fun MaestroCommand.toJson(): String =
         objectMapper
             .writerWithDefaultPrettyPrinter()
