@@ -56,7 +56,9 @@ object Env {
             defaultEnvVars["MAESTRO_SHARD_ID"] = (it + 1).toString()
             defaultEnvVars["MAESTRO_SHARD_INDEX"] = it.toString()
         }
-        return if (defaultEnvVars.isEmpty()) this
-        else this + defaultEnvVars
+        // Start with base map, removing any existing shard vars to prevent external pollution
+        val baseMap = this - INTERNAL_ONLY_ENV_VARS
+        return if (defaultEnvVars.isEmpty()) baseMap
+        else baseMap + defaultEnvVars
     }
 }
