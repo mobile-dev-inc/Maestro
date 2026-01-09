@@ -1,16 +1,17 @@
 package maestro.cli.command
 
+import maestro.Platform
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
-import maestro.device.Platform
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.device.DeviceCatalog
 import maestro.locale.DeviceLocale
 import maestro.locale.LocaleValidationException
 import picocli.CommandLine
@@ -87,9 +88,9 @@ class StartDeviceCommand : Callable<Int> {
         }
 
         try {
-            val locale = DeviceLocale.fromString(deviceLocale ?: "en_US", maestroPlatform)
+            val deviceSpec = DeviceCatalog.getDeviceSpecs(maestroPlatform, deviceLocale ?: "en_US")
 
-            DeviceCreateUtil.getOrCreateDevice(p, o, locale.languageCode, locale.countryCode, forceCreate).let { device ->
+            DeviceCreateUtil.getOrCreateDevice(p, o, deviceSpec.locale.languageCode, deviceSpec.locale.countryCode, forceCreate).let { device ->
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,
