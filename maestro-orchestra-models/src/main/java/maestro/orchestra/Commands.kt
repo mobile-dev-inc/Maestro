@@ -373,6 +373,23 @@ data class CopyTextFromCommand(
     }
 }
 
+data class SetClipboardCommand(
+    val text: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Set Maestro clipboard to $text"
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetClipboardCommand {
+        return copy(
+            text = text.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+}
+
 data class PasteTextCommand(
     override val label: String? = null,
     override val optional: Boolean = false,

@@ -36,6 +36,7 @@ import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.SetClipboardCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -131,6 +132,7 @@ data class YamlFluentCommand(
     val setOrientation: YamlSetOrientation? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
+    val setClipboard: YamlSetClipboard? = null,
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: YamlEvalScript? = null,
@@ -398,6 +400,15 @@ data class YamlFluentCommand(
             )
 
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
+            setClipboard != null -> listOf(
+                MaestroCommand(
+                    SetClipboardCommand(
+                        text = setClipboard.text,
+                        label = setClipboard.label,
+                        optional = setClipboard.optional
+                    )
+                )
+            )
             runScript != null -> listOf(
                 MaestroCommand(
                     RunScriptCommand(
