@@ -8,6 +8,9 @@ tags:
 
 - tapOn: Open Login Page
 
-- assertVisible: Login
+- extendedWaitUntil:
+    visible: Login
+    timeout: 30000
+    label: Wait for Login page to load
 - assertVisible: Sign In
 - assertVisible: Forgot your password?
