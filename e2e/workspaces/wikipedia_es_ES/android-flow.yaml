@@ -1,0 +1,6 @@
+appId: org.wikipedia
+tags:
+  - android
+  - passing
+---
+- launchApp
