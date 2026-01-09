@@ -66,18 +66,23 @@ class EnvTest {
     }
 
     @Test
-    fun `withDefaultEnvVars should preserve existing shard values when shardIndex is null`() {
-        // This test documents current behavior: pre-existing shell env vars pass through
+    fun `withDefaultEnvVars should clear shard values when shardIndex is null`() {
+        // Shard vars should only exist when sharding - clear any pre-existing ones
+        // to prevent external pollution from --env, flow env, or shell
         val env = mapOf(
             "MAESTRO_SHARD_ID" to "1",
             "MAESTRO_SHARD_INDEX" to "0",
+            "OTHER_VAR" to "preserved",
         ).withDefaultEnvVars(
             flowFile = File("myFlow.yml"),
             shardIndex = null
         )
-        // Pre-existing values are preserved (not removed) when shardIndex is null
-        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("1")
-        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("0")
+        // Shard values are removed when shardIndex is null
+        assertThat(env.containsKey("MAESTRO_SHARD_ID")).isFalse()
+        assertThat(env.containsKey("MAESTRO_SHARD_INDEX")).isFalse()
+        // Other vars are preserved
+        assertThat(env["OTHER_VAR"]).isEqualTo("preserved")
+        assertThat(env["MAESTRO_FILENAME"]).isEqualTo("myFlow")
     }
 
     @Test
