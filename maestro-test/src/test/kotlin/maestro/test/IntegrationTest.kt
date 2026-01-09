@@ -4219,13 +4219,13 @@ class IntegrationTest {
     @Test
     fun `Case 137 - Shard and device env vars`() {
         // Given
-        val commands = readCommands("137_shard_device_env_vars") {
-            mapOf(
-                "MAESTRO_DEVICE_UDID" to "test-device",
-                "MAESTRO_SHARD_ID" to "1",
-                "MAESTRO_SHARD_INDEX" to "0",
-            )
-        }
+        // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
+        // MAESTRO_SHARD_* vars, since those are now reserved internal-only variables
+        val commands = readCommands(
+            caseName = "137_shard_device_env_vars",
+            deviceId = "test-device",
+            shardIndex = 0,  // Will set MAESTRO_SHARD_ID=1, MAESTRO_SHARD_INDEX=0
+        )
 
         val driver = driver {
         }
@@ -4286,12 +4286,14 @@ class IntegrationTest {
 
     private fun readCommands(
         caseName: String,
-        withEnv: () -> Map<String, String> = { emptyMap() }
+        deviceId: String? = null,
+        shardIndex: Int? = null,
+        withEnv: () -> Map<String, String> = { emptyMap() },
     ): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
-            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
+            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
     }
 }
