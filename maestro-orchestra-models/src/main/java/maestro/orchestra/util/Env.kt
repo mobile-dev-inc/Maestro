@@ -29,7 +29,11 @@ object Env {
         if (env.isEmpty()) this
         else listOf(MaestroCommand(DefineVariablesCommand(env))) + this
 
-    // Shard variables that should only be controlled by internal logic, not from shell environment
+    /**
+     * Reserved internal env vars that are controlled exclusively by Maestro.
+     * These cannot be set externally via --env, flow env, or shell environment.
+     * Any external values will be stripped and replaced by internal logic.
+     */
     private val INTERNAL_ONLY_ENV_VARS = setOf(
         "MAESTRO_SHARD_ID",
         "MAESTRO_SHARD_INDEX",
