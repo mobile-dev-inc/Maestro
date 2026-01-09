@@ -79,13 +79,16 @@ internal class DeviceLocaleTest {
     @Test
     internal fun `isValid returns true for valid locales`() {
         assertThat(DeviceLocale.isValid("en_US", Platform.ANDROID)).isTrue()
+        assertThat(DeviceLocale.isValid("he-IL", Platform.ANDROID)).isTrue()
         assertThat(DeviceLocale.isValid("es_ES", Platform.IOS)).isTrue()
+        assertThat(DeviceLocale.isValid("he-IL", Platform.IOS)).isTrue()
         assertThat(DeviceLocale.isValid("en_US", Platform.WEB)).isTrue()
     }
 
     @Test
     internal fun `isValid returns false for invalid locales`() {
         assertThat(DeviceLocale.isValid("de_DE", Platform.WEB)).isFalse()
+        assertThat(DeviceLocale.isValid("he-IL", Platform.WEB)).isFalse()
         assertThat(DeviceLocale.isValid("invalid", Platform.ANDROID)).isFalse()
         assertThat(DeviceLocale.isValid("ar_US", Platform.ANDROID)).isFalse()
     }
