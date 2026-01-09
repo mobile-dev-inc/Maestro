@@ -1,6 +1,6 @@
 package maestro.cli.command
 
-import maestro.Platform
+import maestro.device.Platform
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
@@ -12,7 +12,6 @@ import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.device.DeviceCatalog
-import maestro.locale.DeviceLocale
 import maestro.locale.LocaleValidationException
 import picocli.CommandLine
 import java.util.concurrent.Callable
