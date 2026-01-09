@@ -1,0 +1,6 @@
+# External plugin implementations
+maestro.plugins.WaitCommandPlugin
+maestro.plugins.LogCommandPlugin
+maestro.plugins.MultiTapCommandPlugin
+maestro.plugins.MultiSwipeCommandPlugin
+maestro.plugins.TypewriterCommandPlugin
