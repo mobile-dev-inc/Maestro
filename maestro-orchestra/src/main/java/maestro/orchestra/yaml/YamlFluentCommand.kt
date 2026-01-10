@@ -138,6 +138,7 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
+    @JsonIgnore val customCommand: YamlCustomCommand? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
 
@@ -454,6 +455,8 @@ data class YamlFluentCommand(
                 )
             )
 
+            customCommand != null -> listOf(customCommandToRunFlow(customCommand, flowPath))
+
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -547,6 +550,55 @@ data class YamlFluentCommand(
                 label = retry.label,
                 optional = retry.optional,
                 config = config
+            )
+        )
+    }
+
+    // Converts a custom command to a RunFlowCommand.
+    private fun customCommandToRunFlow(command: YamlCustomCommand, flowPath: Path): MaestroCommand {
+        val commandFile = CustomCommandLoader.findCustomCommand(flowPath, command.commandName)
+
+        if (commandFile == null) {
+            throw SyntaxError("`${command.commandName}` is not a valid command. ${suggestCommandMessage(command.commandName)}")
+        }
+
+        // Get the config (front-matter) from the file
+        val config = YamlCommandReader.readConfig(commandFile)
+
+        // Build env from provided params, applying defaults and validating required params
+        val env = command.params.mapValues { it.value.toString() }.toMutableMap()
+
+        // Validate params defined in the command file's front-matter
+        val params = config.params ?: emptyMap()
+
+        for ((paramName, paramDef) in params) {
+            val wasProvided = command.params.containsKey(paramName)
+
+            if (!wasProvided) {
+                val isRequired = paramDef.required
+                val hasDefault = paramDef.default != null
+
+                // Handle a required parameter not being defined
+                if (isRequired && !hasDefault) {
+                    throw SyntaxError("Missing required parameter '$paramName' for command '${command.commandName}'")
+                }
+
+                // Use a default parameter if it does exist
+                if (hasDefault) {
+                    env[paramName] = paramDef.default.toString()
+                }
+            }
+        }
+
+        val commands = YamlCommandReader.readCommands(commandFile).withEnv(env)
+
+        return MaestroCommand(
+            RunFlowCommand(
+                commands = commands,
+                sourceDescription = "commands/${command.commandName}.yaml",
+                config = null,
+                label = command.label ?: command.commandName,
+                optional = command.optional
             )
         )
     }
