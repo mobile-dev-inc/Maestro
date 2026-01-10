@@ -50,6 +50,9 @@ class TestSuiteInteractor(
     private val gcsBucket: String? = null,
     private val attemptNumber: Int = 1,
     private val maxRetries: Int = 1,
+    private val buildName: String? = null,
+    private val buildNumber: String? = null,
+    private val deviceName: String? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -187,14 +190,17 @@ class TestSuiteInteractor(
 
         // Set up screen recording if enabled AND this is the last attempt
         // (no point recording if test will be retried anyway)
+        // Also require BUILD_NAME, BUILD_NUMBER, and DEVICE_NAME to be set (don't use defaults)
         val isLastAttempt = attemptNumber >= maxRetries
-        val shouldRecord = recordingEnabled && isLastAttempt
+        val hasRequiredEnvVars = buildName != null && buildNumber != null && deviceName != null
+        val shouldRecord = recordingEnabled && isLastAttempt && hasRequiredEnvVars
 
         // DEBUG LOGS: Recording decision
         logger.info("${shardPrefix}[RECORDING-DEBUG] Flow: $flowName")
         logger.info("${shardPrefix}[RECORDING-DEBUG] recordingEnabled=$recordingEnabled, attemptNumber=$attemptNumber, maxRetries=$maxRetries")
         logger.info("${shardPrefix}[RECORDING-DEBUG] isLastAttempt=$isLastAttempt (attemptNumber >= maxRetries = $attemptNumber >= $maxRetries)")
-        logger.info("${shardPrefix}[RECORDING-DEBUG] shouldRecord=$shouldRecord (recordingEnabled && isLastAttempt)")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] hasRequiredEnvVars=$hasRequiredEnvVars (buildName=$buildName, buildNumber=$buildNumber, deviceName=$deviceName)")
+        logger.info("${shardPrefix}[RECORDING-DEBUG] shouldRecord=$shouldRecord (recordingEnabled && isLastAttempt && hasRequiredEnvVars)")
         logger.info("${shardPrefix}[RECORDING-DEBUG] gcsBucket=${gcsBucket ?: "NOT SET"}")
         logger.info("${shardPrefix}[RECORDING-DEBUG] testOutputDir=$testOutputDir")
 
@@ -320,8 +326,9 @@ class TestSuiteInteractor(
                     val gcsUrl = GcsUploader.uploadRecording(
                         file = recordingFile,
                         flowName = flowFile.nameWithoutExtension,
-                        env = env,
-                        shardIndex = shardIndex,
+                        buildName = buildName!!,
+                        buildNumber = buildNumber!!,
+                        deviceName = deviceName!!,
                         bucketName = gcsBucket
                     )
                     if (gcsUrl != null) {

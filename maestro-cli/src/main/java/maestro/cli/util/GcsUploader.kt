@@ -85,30 +85,26 @@ object GcsUploader {
      *
      * @param file The recording file to upload
      * @param flowName The name of the flow
-     * @param env Environment variables map (from Maestro -e flags)
-     * @param shardIndex Optional shard index for sharded runs (fallback for DEVICE_NAME)
+     * @param buildName Build identifier (e.g., "nightly", "pr-check")
+     * @param buildNumber CI build number
+     * @param deviceName Device/simulator name
      * @param bucketName The GCS bucket name
      * @return The public URL of the uploaded file, or null if upload failed
      */
     fun uploadRecording(
         file: File,
         flowName: String,
-        env: Map<String, String> = emptyMap(),
-        shardIndex: Int? = null,
+        buildName: String,
+        buildNumber: String,
+        deviceName: String,
         bucketName: String? = System.getenv("GCS_BUCKET")
     ): String? {
-        // Read build info from env map (passed via -e flags) - these are for naming only
-        val buildName = env["BUILD_NAME"] ?: "local"
-        val buildNumber = env["BUILD_NUMBER"] ?: "0"
-        val deviceName = env["DEVICE_NAME"] ?: shardIndex?.let { "shard${it + 1}" } ?: "unknown"
-
         // DEBUG LOGS: Environment variables for naming
         logger.info("[GCS-DEBUG] uploadRecording called for flowName=$flowName")
-        logger.info("[GCS-DEBUG] Env map values (from -e flags):")
-        logger.info("[GCS-DEBUG]   BUILD_NAME=${env["BUILD_NAME"]} -> buildName=$buildName")
-        logger.info("[GCS-DEBUG]   BUILD_NUMBER=${env["BUILD_NUMBER"]} -> buildNumber=$buildNumber")
-        logger.info("[GCS-DEBUG]   DEVICE_NAME=${env["DEVICE_NAME"]} -> deviceName=$deviceName (shardIndex=$shardIndex)")
-        logger.info("[GCS-DEBUG]   GCS_BUCKET (from System.getenv) -> bucketName=$bucketName")
+        logger.info("[GCS-DEBUG] buildName=$buildName")
+        logger.info("[GCS-DEBUG] buildNumber=$buildNumber")
+        logger.info("[GCS-DEBUG] deviceName=$deviceName")
+        logger.info("[GCS-DEBUG] GCS_BUCKET (from System.getenv) -> bucketName=$bucketName")
 
         // Naming: BuildName-BuildNumber-DeviceName-FlowName.mp4
         // (No attempt number since we only record on last attempt)
