@@ -23,6 +23,7 @@
 - Fix use of hierarchy and screenshot strategies across Android and iOS
 - Fix web tests running into Chrome's password leak detection
 - Fix webview detection and interaction on iOS 26
+- Fix broken relative paths when uploading files via multipart form in `http.post`
 
 Special thanks to the Maestro community for contributing to this release! Shout out to @tokou, @kprakash2, @trongrg, @vibin, @ryuuhei0729, @Thomvis, @MarcellDr and @leovarmak ❤️
 
