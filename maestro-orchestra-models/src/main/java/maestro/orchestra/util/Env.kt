@@ -50,11 +50,13 @@ object Env {
 
     fun Map<String, String>.withDefaultEnvVars(
         flowFile: File? = null,
+        flowName: String? = null,
         deviceId: String? = null,
         shardIndex: Int? = null,
     ): Map<String, String> {
         val defaultEnvVars = mutableMapOf<String, String>()
         flowFile?.nameWithoutExtension?.let { defaultEnvVars["MAESTRO_FILENAME"] = it }
+        flowName?.let { defaultEnvVars["MAESTRO_FLOW_NAME"] = it }
         deviceId?.takeIf { it.isNotBlank() }?.let { defaultEnvVars["MAESTRO_DEVICE_UDID"] = it }
         // Always set shard vars - use actual values if sharding, otherwise defaults (1, 0)
         // This ensures flows using these vars don't fail with undefined when debugging in Studio
