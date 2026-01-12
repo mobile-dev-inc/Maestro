@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 2.1.0
+
+- Add `setPermissions` command, for setting app permissions outside of `launchApp`
+- Add `setClipboard` command, for setting Maestro's internal clipboard without copying from an element
+- Add `--platform` and `--device` to `maestro test` command
+- Add custom JUnit properties to reporting
+- Add support for --no-reinstall-driver option to `test` and `hierarchy` commands
+- Add creation of missing folders specified in the path when taking screenshots or recording videos
+- Bump web support to Chrome v142
+- Bump npm dependencies in legacy Maestro Studio
+- Hide incomplete `maestro driver-setup` command from `maestro --help`
+- Remove deprecated `deterministicOrder` feature from workspace config
+- Remove deprecated `maestro upload` command
+- Fix bug that reported that analytics was enabled when it wasn't
+- Fix building Maestro on Java >17
+- Fix link in `maestro bugreport`
+- Fix cancellation of flows whilst repeat loops are running
+- Fix enumeration of multi-select elements in Web
+- Fix use of hierarchy and screenshot strategies across Android and iOS
+- Fix web tests running into Chrome's password leak detection
+- Fix webview detection and interaction on iOS 26
+
+Special thanks to the Maestro community for contributing to this release! Shout out to @tokou, @kprakash2, @trongrg, @vibin, @ryuuhei0729, @Thomvis, @MarcellDr and @leovarmak ❤️
+
 ## 2.0.10
 
 - Fix error messaging when running with shards fails
