@@ -256,53 +256,6 @@ abstract class JsEngineTest {
     }
 
     @Test
-    fun `HTTP - Multipart form resolves file path relative to script location`(wiremockInfo: WireMockRuntimeInfo) {
-        // Given: Create a directory structure with script and file in different locations
-        // tempDir/
-        //   scripts/
-        //     upload.js
-        //   media/
-        //     test.txt
-        val tempDir = Files.createTempDirectory("maestro-test")
-        try {
-            val scriptsDir = tempDir.resolve("scripts").toFile().apply { mkdirs() }
-            val mediaDir = tempDir.resolve("media").toFile().apply { mkdirs() }
-            val testFile = mediaDir.resolve("test.txt").apply { writeText("test content") }
-            val scriptFile = scriptsDir.resolve("upload.js")
-
-            val port = wiremockInfo.httpPort
-            stubFor(
-                post("/upload")
-                    .withMultipartRequestBody(
-                        MultipartValuePatternBuilder("file")
-                            .withBody(equalTo("test content"))
-                    )
-                    .willReturn(okJson("""{"success": true}"""))
-            )
-
-            val script = """
-                var response = http.post('http://localhost:$port/upload', {
-                    multipartForm: {
-                        "file": {
-                            "filePath": "../media/test.txt",
-                            "mediaType": "text/plain"
-                        }
-                    }
-                });
-                json(response.body).success
-            """.trimIndent()
-
-            // When: Evaluate script with source name pointing to script file location
-            val result = engine.evaluateScript(script, sourceName = scriptFile.absolutePath)
-
-            // Then: File should be found relative to script location
-            assertThat(result.toString()).isEqualTo("true")
-        } finally {
-            tempDir.toFile().deleteRecursively()
-        }
-    }
-
-    @Test
     fun `HTTP - Multipart form with multiple files resolves each relative to script`(wiremockInfo: WireMockRuntimeInfo) {
         // Given: Multiple files in different locations
         val tempDir = Files.createTempDirectory("maestro-test")
