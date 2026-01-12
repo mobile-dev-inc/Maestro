@@ -30,7 +30,7 @@ class GraalJsEngine(
         writeTimeout = 5.minutes,
         protocols = listOf(Protocol.HTTP_1_1)
     ),
-    platform: String = "unknown",
+    platform: String = "unknown"
 ) : JsEngine {
 
     private val openContexts = HashSet<Context>()
@@ -76,6 +76,9 @@ class GraalJsEngine(
         sourceName: String,
         runInSubScope: Boolean,
     ): Value {
+        // Set current script directory for resolving relative file paths
+        httpBinding.setCurrentScriptDir(if (sourceName != "inline-script") sourceName else null)
+
         if (runInSubScope) {
             // Save current environment state
             enterEnvScope()

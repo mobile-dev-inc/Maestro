@@ -11,6 +11,12 @@ import org.graalvm.polyglot.proxy.ProxyObject
 class GraalJsHttp(
     private val httpClient: OkHttpClient
 ) {
+    @Volatile
+    private var currentScriptDir: java.io.File? = null
+
+    fun setCurrentScriptDir(scriptPath: String?) {
+      currentScriptDir = scriptPath?.let { java.io.File(it).parentFile }
+    }
 
     @JvmOverloads
     @Export
@@ -76,7 +82,7 @@ class GraalJsHttp(
         if (multipartForm == null) {
             requestBuilder.method(method, body?.toRequestBody())
         } else {
-            requestBuilder.method(method, multipartForm.toMultipartBody())
+            requestBuilder.method(method, multipartForm.toMultipartBody(currentScriptDir))
         }
 
         val headers: Map<*, *> = params?.get("headers") as? Map<*, *> ?: emptyMap<Any, Any>()
