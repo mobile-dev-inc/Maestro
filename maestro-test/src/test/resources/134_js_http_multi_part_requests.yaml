@@ -1,3 +1,0 @@
-appId: xyz.blueskyweb.app
----
-- runScript: "./script/multipart_request_file_script.js"

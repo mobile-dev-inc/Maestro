@@ -58,6 +58,10 @@ class IntegrationTest {
     @AfterEach
     internal fun tearDown() {
         File("041_take_screenshot_with_filename.png").delete()
+        File("134_screenshots/filename.png").delete()
+        File("134_screenshots").delete()
+        File("135_recordings/filename.mp4").delete()
+        File("135_recordings").delete()
         File("099_screen_recording.mp4").delete()
         File("028_env.mp4").delete()
     }
@@ -4149,9 +4153,59 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 134 - Relative path in http multipart script`() {
+    fun `Case 134 - Take screenshot with path`() {
+        // Given
+        val commands = readCommands("134_take_screenshot_with_path")
+
+        val driver = driver {
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("134_screenshots/filename.png").exists())
+    }
+
+    @Test
+    fun `Case 135 - Screen recording with path`() {
+        // Given
+        val commands = readCommands("135_screen_recording_with_path")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.StartRecording,
+                Event.StopRecording,
+            )
+        )
+        assert(File("135_recordings/filename.mp4").exists())
+    }
+
+    @Test
+    fun `Case 136 - Relative path in http multipart script`() {
         // Flow running a JS file which is using multipartForm which has an image as relative path from script
-        val commands = readCommands("134_js_http_multi_part_requests")
+        val commands = readCommands("136_js_http_multi_part_requests")
         val driver = driver {}
 
         Maestro(driver).use {
