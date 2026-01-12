@@ -4160,7 +4160,6 @@ class IntegrationTest {
         val driver = driver {
         }
 
-        // When
         Maestro(driver).use {
             runBlocking {
                 orchestra(it).runFlow(commands)
@@ -4201,6 +4200,19 @@ class IntegrationTest {
             )
         )
         assert(File("135_recordings/filename.mp4").exists())
+    }
+
+    @Test
+    fun `Case 136 - Relative path in http multipart script`() {
+        // Flow running a JS file which is using multipartForm which has an image as relative path from script
+        val commands = readCommands("136_js_http_multi_part_requests")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
     }
 
     private fun orchestra(
@@ -4248,5 +4260,4 @@ class IntegrationTest {
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
     }
-
 }
