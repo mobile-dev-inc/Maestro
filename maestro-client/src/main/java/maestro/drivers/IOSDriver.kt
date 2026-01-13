@@ -522,6 +522,10 @@ class IOSDriver(
         LOGGER.warn("Airplane mode is not available on iOS simulators")
     }
 
+    override fun sendBroadcast(action: String, receiver: String?, extras: Map<String, Any>?) {
+        LOGGER.warn("sendBroadcast not available on iOS simulators")
+    }
+
     private fun addMediaToDevice(mediaFile: File) {
         metrics.measured("operation", mapOf("command" to "addMediaToDevice")) {
             val namedSource = NamedSource(

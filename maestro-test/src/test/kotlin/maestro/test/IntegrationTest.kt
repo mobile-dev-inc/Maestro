@@ -4215,6 +4215,31 @@ class IntegrationTest {
         }
     }
 
+    @Test
+    fun `Case 137 - Send broadcast`() {
+        // Given
+        val commands = readCommands("137_send_broadcast")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.SendBroadcast("android.intent.action.MAIN", null, null))
+        driver.assertHasEvent(Event.SendBroadcast("android.intent.action.VIEW", "com.example.app/.MyReceiver", null))
+        driver.assertHasEvent(Event.SendBroadcast("com.example.CUSTOM_ACTION", null, mapOf(
+            "message" to "test message",
+            "count" to 42,
+            "enabled" to true
+        )))
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

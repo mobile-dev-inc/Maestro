@@ -349,6 +349,7 @@ class Orchestra(
             is TakeScreenshotCommand -> takeScreenshotCommand(command)
             is StopAppCommand -> stopAppCommand(command)
             is KillAppCommand -> killAppCommand(command)
+            is SendBroadcastCommand -> sendBroadcastCommand(command)
             is ClearStateCommand -> clearAppStateCommand(command)
             is ClearKeychainCommand -> clearKeychainCommand()
             is RunFlowCommand -> runFlowCommand(command, config)
@@ -589,6 +590,16 @@ class Orchestra(
 
     private fun killAppCommand(command: KillAppCommand): Boolean {
         maestro.killApp(command.appId)
+
+        return true
+    }
+
+    private fun sendBroadcastCommand(command: SendBroadcastCommand): Boolean {
+        maestro.sendBroadcast(
+            action = command.action,
+            receiver = command.receiver,
+            extras = command.extras
+        )
 
         return true
     }

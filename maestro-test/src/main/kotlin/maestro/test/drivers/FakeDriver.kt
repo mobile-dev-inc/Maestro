@@ -127,6 +127,12 @@ class FakeDriver : Driver {
         events.add(Event.KillApp(appId))
     }
 
+    override fun sendBroadcast(action: String, receiver: String?, extras: Map<String, Any>?) {
+        ensureOpen()
+
+        events.add(Event.SendBroadcast(action, receiver, extras))
+    }
+
     override fun clearAppState(appId: String) {
         ensureOpen()
 
@@ -474,6 +480,12 @@ class FakeDriver : Driver {
 
         data class KillApp(
             val appId: String
+        ) : Event()
+
+        data class SendBroadcast(
+            val action: String,
+            val receiver: String?,
+            val extras: Map<String, Any>?
         ) : Event()
 
         data class ClearState(
