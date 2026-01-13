@@ -385,19 +385,21 @@ data class YamlFluentCommand(
                     )
                 )
             )
-            runScript != null -> listOf(
-                MaestroCommand(
-                    RunScriptCommand(
-                        script = resolvePath(flowPath, runScript.file)
-                            .readText(),
-                        env = runScript.env,
-                        sourceDescription = runScript.file,
-                        condition = runScript.`when`?.toCondition(),
-                        label = runScript.label,
-                        optional = runScript.optional,
+            runScript != null -> {
+                val scriptPath = resolvePath(flowPath, runScript.file)
+                listOf(
+                    MaestroCommand(
+                        RunScriptCommand(
+                            script = scriptPath.readText(),
+                            env = runScript.env,
+                            sourceDescription = scriptPath.toString(),
+                            condition = runScript.`when`?.toCondition(),
+                            label = runScript.label,
+                            optional = runScript.optional,
+                        )
                     )
                 )
-            )
+            }
 
             waitForAnimationToEnd != null -> listOf(
                 MaestroCommand(

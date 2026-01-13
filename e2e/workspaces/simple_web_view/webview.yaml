@@ -1,0 +1,16 @@
+appId: com.example.SimpleWebViewApp
+tags:
+  - passing
+  - ios
+---
+- launchApp:
+    clearState: true
+
+- tapOn: Open Login Page
+
+- extendedWaitUntil:
+    visible: Login
+    timeout: 30000
+    label: Wait for Login page to load
+- assertVisible: Sign In
+- assertVisible: Forgot your password?
