@@ -3,6 +3,7 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.WebSessionCache
 import maestro.cli.session.MaestroSessionManager
 import maestro.TreeNode
 import kotlinx.coroutines.runBlocking
@@ -29,29 +30,26 @@ object InspectViewHierarchyTool {
         ) { request ->
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                
+
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("device_id is required")),
                         isError = true
                     )
                 }
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
+
+                val result = WebSessionCache.withSession(
+                    sessionManager = sessionManager,
+                    deviceId = deviceId
                 ) { session ->
                     val maestro = session.maestro
                     val viewHierarchy = maestro.viewHierarchy()
                     val tree = viewHierarchy.root
-                    
+
                     // Return CSV format (original format for compatibility)
                     ViewHierarchyFormatters.extractCsvOutput(tree)
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(
@@ -61,5 +59,5 @@ object InspectViewHierarchyTool {
             }
         }
     }
-    
+
 }
