@@ -693,9 +693,6 @@ data class SendBroadcastCommand(
             if (receiver != null) {
                 result += " to $receiver"
             }
-            if (extras != null && extras.isNotEmpty()) {
-                result += " (extras: $extras)"
-            }
             return result
         }
 
@@ -705,7 +702,7 @@ data class SendBroadcastCommand(
             receiver = receiver?.evaluateScripts(jsEngine),
             extras = extras?.entries?.associate {
                 val value = it.value
-                it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
+                it.key to if (value is String) value.evaluateScripts(jsEngine) else value
             },
             label = label?.evaluateScripts(jsEngine)
         )

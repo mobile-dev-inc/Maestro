@@ -1,4 +1,6 @@
 appId: com.example.app
+env:
+  ENV_VALUE: env_value
 ---
 - sendBroadcast: android.intent.action.MAIN
 - sendBroadcast:
@@ -10,3 +12,4 @@ appId: com.example.app
       message: "test message"
       count: 42
       enabled: true
+      env_param: "${ENV_VALUE}"

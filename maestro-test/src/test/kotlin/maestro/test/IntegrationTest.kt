@@ -4236,7 +4236,8 @@ class IntegrationTest {
         driver.assertHasEvent(Event.SendBroadcast("com.example.CUSTOM_ACTION", null, mapOf(
             "message" to "test message",
             "count" to 42,
-            "enabled" to true
+            "enabled" to true,
+            "env_param" to "env_value"
         )))
     }
 
