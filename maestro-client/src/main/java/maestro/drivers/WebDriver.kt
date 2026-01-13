@@ -457,6 +457,11 @@ class WebDriver(
         // no-op for web
     }
 
+    fun resizeBrowser(width: Int, height: Int) {
+        val driver = ensureOpen()
+        driver.manage().window().setSize(org.openqa.selenium.Dimension(width, height))
+    }
+
     override fun eraseText(charactersToErase: Int) {
         val driver = ensureOpen()
 

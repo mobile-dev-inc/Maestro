@@ -1126,6 +1126,24 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
+data class ResizeBrowserCommand(
+    val width: Int,
+    val height: Int,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Resize browser to ${width}x${height}"
+
+    override fun description(): String {
+        return label ?: "Resize browser to ${width}x${height}"
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): ResizeBrowserCommand {
+        return this
+    }
+}
+
 internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {

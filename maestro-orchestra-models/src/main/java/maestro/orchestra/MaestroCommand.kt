@@ -71,6 +71,7 @@ data class MaestroCommand(
     val addMediaCommand: AddMediaCommand? = null,
     val setAirplaneModeCommand: SetAirplaneModeCommand? = null,
     val toggleAirplaneModeCommand: ToggleAirplaneModeCommand? = null,
+    val resizeBrowserCommand: ResizeBrowserCommand? = null,
     val retryCommand: RetryCommand? = null,
 ) {
 
@@ -118,6 +119,7 @@ data class MaestroCommand(
         addMediaCommand = command as? AddMediaCommand,
         setAirplaneModeCommand = command as? SetAirplaneModeCommand,
         toggleAirplaneModeCommand = command as? ToggleAirplaneModeCommand,
+        resizeBrowserCommand = command as? ResizeBrowserCommand,
         retryCommand = command as? RetryCommand
     )
 
@@ -165,6 +167,7 @@ data class MaestroCommand(
         addMediaCommand != null -> addMediaCommand
         setAirplaneModeCommand != null -> setAirplaneModeCommand
         toggleAirplaneModeCommand != null -> toggleAirplaneModeCommand
+        resizeBrowserCommand != null -> resizeBrowserCommand
         retryCommand != null -> retryCommand
         else -> null
     }

@@ -46,7 +46,9 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 
 class CdpWebDriver(
     val isStudio: Boolean,
-    private val isHeadless: Boolean = false
+    private val isHeadless: Boolean = false,
+    private val initialWidth: Int = 1024,
+    private val initialHeight: Int = 768
 ) : Driver {
 
     private lateinit var cdpClient: CdpClient
@@ -84,6 +86,11 @@ class CdpWebDriver(
             // and do not fail gracefully.
         }
 
+        // Set window size immediately after driver creation
+        if (initialWidth != 1024 || initialHeight != 768) {
+            resizeBrowser(initialWidth, initialHeight)
+        }
+
         if (isStudio) {
             seleniumDriver?.get("https://maestro.mobile.dev")
         }
@@ -117,8 +124,11 @@ class CdpWebDriver(
 
                 if (isHeadless) {
                     addArguments("--headless=new")
-                    addArguments("--window-size=1024,768")
+                    addArguments("--window-size=${initialWidth},${initialHeight}")
                     setExperimentalOption("detach", true)
+                } else {
+                    // Set initial window size for non-headless mode too
+                    addArguments("--window-size=${initialWidth},${initialHeight}")
                 }
             }
         )
@@ -204,6 +214,11 @@ class CdpWebDriver(
         seleniumDriver = null
         lastSeenWindowHandles = setOf()
         webScreenRecorder = null
+    }
+
+    fun resizeBrowser(width: Int, height: Int) {
+        val driver = ensureOpen()
+        driver.manage().window().setSize(org.openqa.selenium.Dimension(width, height))
     }
 
     override fun deviceInfo(): DeviceInfo {
