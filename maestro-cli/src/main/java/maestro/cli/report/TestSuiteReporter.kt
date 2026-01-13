@@ -1,24 +1,27 @@
 package maestro.cli.report
 
 import maestro.cli.model.TestExecutionSummary
-import okio.Sink
+import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 interface TestSuiteReporter {
+    val fileExtension: String?
 
     /**
      * Writes the report for [summary] to [out] in the format specified by the implementation.
      */
     fun report(
         summary: TestExecutionSummary,
-        out: Sink,
+        out: File,
     )
 
     companion object {
         val NOOP: TestSuiteReporter = object : TestSuiteReporter {
-            override fun report(summary: TestExecutionSummary, out: Sink) {
+            override val fileExtension: String? = null
+
+            override fun report(summary: TestExecutionSummary, out: File) {
                 // no-op
             }
         }

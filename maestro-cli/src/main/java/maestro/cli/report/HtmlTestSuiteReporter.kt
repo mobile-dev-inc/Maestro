@@ -3,15 +3,16 @@ package maestro.cli.report
 import kotlinx.html.*
 import kotlinx.html.stream.appendHTML
 import maestro.cli.model.TestExecutionSummary
-import okio.Sink
 import okio.buffer
+import okio.sink
+import java.io.File
 
-class HtmlTestSuiteReporter : TestSuiteReporter {
-    override fun report(summary: TestExecutionSummary, out: Sink) {
-        val bufferedOut = out.buffer()
-        val htmlContent = buildHtmlReport(summary)
-        bufferedOut.writeUtf8(htmlContent)
-        bufferedOut.close()
+class HtmlTestSuiteReporter(override val fileExtension: String?) : TestSuiteReporter {
+  override fun report(summary: TestExecutionSummary, out: File) {
+    val bufferedOut = out.sink().buffer()
+    val htmlContent = buildHtmlReport(summary)
+    bufferedOut.writeUtf8(htmlContent)
+    bufferedOut.close()
     }
 
     private fun buildHtmlReport(summary: TestExecutionSummary): String {
