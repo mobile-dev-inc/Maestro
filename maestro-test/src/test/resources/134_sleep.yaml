@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- sleep: '1000'
+- sleep: '2s'
+- sleep:
+    time: '3000'

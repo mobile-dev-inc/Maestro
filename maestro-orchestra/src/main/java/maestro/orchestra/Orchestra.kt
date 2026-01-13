@@ -367,6 +367,7 @@ class Orchestra(
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is RetryCommand -> retryCommand(command, config)
+            is SleepCommand -> sleepCommand(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -549,6 +550,13 @@ class Orchestra(
     private fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {
         maestro.waitForAnimationToEnd(command.timeout)
 
+        return true
+    }
+
+    private fun sleepCommand(command: SleepCommand): Boolean {
+        val time = command.time
+        if (time == null || time.toLong() < 0) throw MaestroException.InvalidCommand("Missing or invalid required parameter <time> for sleep command")
+        maestro.sleep(time.toLong())
         return true
     }
 

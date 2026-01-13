@@ -70,6 +70,7 @@ import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
+import maestro.orchestra.SleepCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidFlowFile
@@ -140,6 +141,7 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
+    val sleep: YamlSleepCommand? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
 
@@ -364,7 +366,7 @@ data class YamlFluentCommand(
                     )
                 )
             )
-            
+
             repeat != null -> listOf(
                 repeatCommand(repeat, flowPath, appId)
             )
@@ -463,6 +465,15 @@ data class YamlFluentCommand(
                     ToggleAirplaneModeCommand(
                         toggleAirplaneMode.label,
                         toggleAirplaneMode.optional
+                    )
+                )
+            )
+
+            sleep != null -> listOf(
+                MaestroCommand(
+                    SleepCommand(
+                        time = sleep.time,
+                        label = sleep.label
                     )
                 )
             )

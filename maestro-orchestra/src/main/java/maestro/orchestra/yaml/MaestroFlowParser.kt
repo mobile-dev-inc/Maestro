@@ -142,6 +142,10 @@ private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
         _location = location,
         assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()
     )},
+    "sleep" to { location -> YamlFluentCommand(
+        _location = location,
+        sleep = YamlSleepCommand(time = null)
+    )},
 )
 
 private val allCommands = (stringCommands.keys + objectCommands).distinct()
