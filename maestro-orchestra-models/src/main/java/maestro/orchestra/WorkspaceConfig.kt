@@ -39,7 +39,8 @@ data class WorkspaceConfig(
 
     data class PlatformConfiguration(
         val android: AndroidConfiguration? = null,
-        val ios: IOSConfiguration? = null
+        val ios: IOSConfiguration? = null,
+        val web: WebConfiguration? = null
     ) {
         data class AndroidConfiguration(
             val disableAnimations: Boolean = false,
@@ -48,6 +49,10 @@ data class WorkspaceConfig(
         data class IOSConfiguration(
             val disableAnimations: Boolean = false,
             val snapshotKeyHonorModalViews: Boolean? = null,
+        )
+
+        data class WebConfiguration(
+            val selectorAliases: Map<String, String> = emptyMap()
         )
     }
 

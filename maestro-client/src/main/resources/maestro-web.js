@@ -93,17 +93,17 @@
         return null;
       }
 
-      // Extract custom identifiers based on configured attributes
-      // Only extract attributes that are explicitly configured in identifierConfig
-      if (node.getAttribute && maestro.identifierConfig && Object.keys(maestro.identifierConfig).length > 0) {
-        for (const htmlAttr in maestro.identifierConfig) {
+      // Extract custom identifiers based on configured selector aliases
+      // Only extract attributes that are explicitly configured in selectorAliases
+      if (node.getAttribute && maestro.selectorAliases && Object.keys(maestro.selectorAliases).length > 0) {
+        for (const htmlAttr in maestro.selectorAliases) {
           const value = node.getAttribute(htmlAttr)
           if (value !== null) {
             // Store with HTML attribute name for filtering
             attributes[htmlAttr] = value
-            
-            // Also store with YAML key for backwards compatibility
-            const yamlKey = maestro.identifierConfig[htmlAttr]
+
+            // Also store with YAML key (the alias) for selector matching
+            const yamlKey = maestro.selectorAliases[htmlAttr]
             if (yamlKey) {
               attributes[yamlKey] = value
             }
@@ -141,8 +141,8 @@
     maestro.viewportWidth = 0;
     maestro.viewportHeight = 0;
     
-    // Identifier configuration (set by driver, do NOT set default here)
-    // maestro.identifierConfig will be injected by WebDriver/CdpWebDriver
+    // Selector aliases configuration (set by driver, do NOT set default here)
+    // maestro.selectorAliases will be injected by WebDriver/CdpWebDriver
 
     maestro.getContentDescription = () => {
         return traverse(document.body)

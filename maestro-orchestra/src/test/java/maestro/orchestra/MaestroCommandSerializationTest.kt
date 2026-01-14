@@ -375,10 +375,7 @@ internal class MaestroCommandSerializationTest {
                   "appId" : "com.twitter.android",
                   "name" : "Twitter",
                   "tags" : [ ],
-                  "ext" : { },
-                  "identifierConfig" : {
-                    "mappings" : { }
-                  }
+                  "ext" : { }
                 },
                 "optional" : false
               }

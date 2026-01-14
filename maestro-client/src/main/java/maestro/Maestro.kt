@@ -632,6 +632,7 @@ class Maestro(
         fun web(
             isStudio: Boolean,
             isHeadless: Boolean,
+            selectorAliases: Map<String, String> = emptyMap(),
         ): Maestro {
             // Check that JRE is at least 11
             val version = System.getProperty("java.version")
@@ -647,6 +648,7 @@ class Maestro(
             val driver = CdpWebDriver(
                 isStudio = isStudio,
                 isHeadless = isHeadless,
+                selectorAliases = selectorAliases,
             )
             driver.open()
             return Maestro(driver)

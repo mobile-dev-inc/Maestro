@@ -42,14 +42,15 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 class WebDriver(
     val isStudio: Boolean,
     isHeadless: Boolean = isStudio,
-    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless)
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless),
+    selectorAliases: Map<String, String> = emptyMap()
 ) : Driver {
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
     private var injectedArguments: Map<String, Any> = emptyMap()
-    private var identifierConfig: Map<String, String>? = null
+    private var selectorAliases: Map<String, String> = selectorAliases
 
     private var webScreenRecorder: WebScreenRecorder? = null
 
@@ -94,12 +95,12 @@ class WebDriver(
         try {
             executor.executeScript("$maestroWebScript")
 
-            // Inject identifier config into browser
-            identifierConfig?.let { config ->
-                val configJson = config.entries.joinToString(",") { (k, v) -> 
+            // Inject selector aliases into browser
+            if (selectorAliases.isNotEmpty()) {
+                val configJson = selectorAliases.entries.joinToString(",") { (k, v) -> 
                     "\"$k\":\"$v\"" 
                 }
-                executor.executeScript("window.maestro.identifierConfig = {$configJson}")
+                executor.executeScript("window.maestro.selectorAliases = {$configJson}")
             }
 
             injectedArguments.forEach { (key, value) ->
@@ -168,10 +169,6 @@ class WebDriver(
             widthGrid = width.toInt(),
             heightGrid = height.toInt(),
         )
-    }
-
-    fun setIdentifierConfig(config: Map<String, String>) {
-        this.identifierConfig = config
     }
 
     override fun launchApp(

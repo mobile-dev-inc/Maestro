@@ -206,15 +206,6 @@ class Orchestra(
         // Store config for use in filtering
         currentConfig = config
         
-        // Set identifier config on WebDriver/CdpWebDriver if available
-        config?.identifierConfig?.let { identifierConfig ->
-            val driver = maestro.driver
-            when (driver) {
-                is maestro.drivers.WebDriver -> driver.setIdentifierConfig(identifierConfig.mappings)
-                is maestro.drivers.CdpWebDriver -> driver.setIdentifierConfig(identifierConfig.mappings)
-            }
-        }
-        
         if (shouldReinitJsEngine) {
             initJsEngine(config)
         }
@@ -1265,15 +1256,10 @@ class Orchestra(
 
         selector.customIdentifiers
             ?.forEach { (yamlKey, value) ->
-                // Map YAML key to HTML attribute using identifierConfig
-                val htmlAttribute = currentConfig?.identifierConfig?.mappings
-                    ?.entries
-                    ?.find { it.value == yamlKey }
-                    ?.key
-                    ?: yamlKey // Fallback to using yamlKey directly if no mapping found
-                
+                // Custom identifiers use the YAML key directly - the browser-side JS
+                // handles mapping from HTML attributes based on workspace identifierConfig
                 descriptions += "Custom $yamlKey: $value"
-                basicFilters += Filters.customIdentifierMatches(htmlAttribute, value)
+                basicFilters += Filters.customIdentifierMatches(yamlKey, value)
             }
 
         selector.size

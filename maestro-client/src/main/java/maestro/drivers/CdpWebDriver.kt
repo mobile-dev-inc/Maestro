@@ -46,7 +46,8 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 
 class CdpWebDriver(
     val isStudio: Boolean,
-    private val isHeadless: Boolean = false
+    private val isHeadless: Boolean = false,
+    selectorAliases: Map<String, String> = emptyMap()
 ) : Driver {
 
     private lateinit var cdpClient: CdpClient
@@ -55,7 +56,7 @@ class CdpWebDriver(
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
     private var injectedArguments: Map<String, Any> = emptyMap()
-    private var identifierConfig: Map<String, String>? = null
+    private var selectorAliases: Map<String, String> = selectorAliases
 
     private var webScreenRecorder: WebScreenRecorder? = null
 
@@ -137,12 +138,12 @@ class CdpWebDriver(
 
                 cdpClient.evaluate("$maestroWebScript", target)
 
-                // Inject identifier config into browser
-                identifierConfig?.let { config ->
-                    val configJson = config.entries.joinToString(",") { (k, v) -> 
+                // Inject selector aliases into browser
+                if (selectorAliases.isNotEmpty()) {
+                    val configJson = selectorAliases.entries.joinToString(",") { (k, v) -> 
                         "\"$k\":\"$v\"" 
                     }
-                    cdpClient.evaluate("window.maestro.identifierConfig = {$configJson}", target)
+                    cdpClient.evaluate("window.maestro.selectorAliases = {$configJson}", target)
                 }
 
                 injectedArguments.forEach { (key, value) ->
@@ -216,10 +217,6 @@ class CdpWebDriver(
             widthGrid = width,
             heightGrid = height,
         )
-    }
-
-    fun setIdentifierConfig(config: Map<String, String>) {
-        this.identifierConfig = config
     }
 
     override fun launchApp(
