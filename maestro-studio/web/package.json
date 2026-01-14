@@ -42,6 +42,13 @@
     "web-vitals": "^2.1.4",
     "yaml": "^2.2.1"
   },
+  "overrides": {
+    "react-scripts": {
+      "@svgr/webpack": "8.1.0",
+      "postcss": "$postcss",
+      "webpack-dev-server": "5.2.1"
+    }
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
@@ -86,7 +93,7 @@
     "ajv": "^6.12.6",
     "ajv-keywords": "^3.5.2",
     "autoprefixer": "^10.4.13",
-    "postcss": "^8.4.19",
+    "postcss": "^8.4.31",
     "tailwindcss": "^3.2.4",
     "webpack": "^5.75.0"
   }

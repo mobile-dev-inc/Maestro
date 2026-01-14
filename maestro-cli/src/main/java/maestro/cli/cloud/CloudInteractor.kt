@@ -35,6 +35,7 @@ import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.web.WebInteractor
+import maestro.cli.promotion.PromotionStateManager
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -100,6 +101,9 @@ class CloudInteractor(
 
         // Fetch and select project if not provided
         val selectedProjectId = projectId ?: selectProject(authToken)
+
+        // Record cloud command usage for promotion message suppression
+        PromotionStateManager().recordCloudCommandUsage()
 
         // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
         val triggeredPlatform = when {

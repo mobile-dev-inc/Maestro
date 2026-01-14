@@ -54,7 +54,6 @@ object TestSuiteStatusView {
             if (canceledFlows.isNotEmpty()) {
                 PrintUtils.warn("${shardPrefix}${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
             }
-
         } else {
             val passedFlows = suite.flows
                 .filter { it.status == FlowStatus.SUCCESS || it.status == FlowStatus.WARNING }
