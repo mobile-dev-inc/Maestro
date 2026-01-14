@@ -19,6 +19,15 @@ class PlainTextResultView: ResultView {
 
     private fun renderErrorState(state: UiState.Error) {
         println(state.message)
+
+        // If onFlowComplete also failed, show it as a secondary error
+        state.onFlowCompleteError?.let { onCompleteError ->
+            println()
+            println("━".repeat(80))
+            println("Note: onFlowComplete also failed:")
+            println()
+            println(onCompleteError)
+        }
     }
 
     private fun renderRunningState(state: UiState.Running) {

@@ -5,7 +5,10 @@ import maestro.cli.runner.CommandState
 
 sealed class UiState {
 
-    data class Error(val message: String) : UiState()
+    data class Error(
+        val message: String,
+        val onFlowCompleteError: String? = null
+    ) : UiState()
 
     data class Running(
         val flowName: String,

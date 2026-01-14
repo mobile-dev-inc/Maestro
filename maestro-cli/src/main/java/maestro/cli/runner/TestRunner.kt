@@ -20,6 +20,7 @@ import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.error.OnFlowCompleteFailedException
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -200,12 +201,21 @@ object TestRunner {
             Ok(block())
         } catch (e: Exception) {
             logger.error("Failed to run flow", e)
-            val message = ErrorViewUtils.exceptionToMessage(e)
+
+            // If both the flow and onFlowComplete failed, show both errors
+            val (message, onFlowCompleteError) = if (e is OnFlowCompleteFailedException) {
+                val originalMessage = ErrorViewUtils.exceptionToMessage(e.originalException)
+                val onCompleteMessage = ErrorViewUtils.exceptionToMessage(e.onFlowCompleteException)
+                Pair(originalMessage, onCompleteMessage)
+            } else {
+                Pair(ErrorViewUtils.exceptionToMessage(e), null)
+            }
 
             if (!maestro.isShutDown()) {
                 view.setState(
                     UiState.Error(
-                        message = message
+                        message = message,
+                        onFlowCompleteError = onFlowCompleteError
                     )
                 )
             }
