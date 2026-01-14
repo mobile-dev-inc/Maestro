@@ -198,23 +198,14 @@ class Orchestra(
             // If we have both exceptions, wrap them together
             if (exception != null && onCompleteException != null) {
                 // Create a wrapper exception that preserves the original but notes the onFlowComplete failure
-                logger.info("Both flow and onFlowComplete failed - wrapping exceptions")
-                logger.info("Original exception: ${exception::class.qualifiedName}")
-                logger.info("OnComplete exception: ${onCompleteException::class.qualifiedName}")
                 throw OnFlowCompleteFailedException(exception!!, onCompleteException)
             }
 
             // Throw original exception if it exists
-            exception?.let {
-                logger.info("Only flow failed - throwing original exception: ${it::class.qualifiedName}")
-                throw it
-            }
+            exception?.let { throw it }
 
             // If only onFlowComplete failed, throw that
-            onCompleteException?.let {
-                logger.info("Only onFlowComplete failed - throwing onComplete exception: ${it::class.qualifiedName}")
-                throw it
-            }
+            onCompleteException?.let { throw it }
 
             return onCompleteSuccess && flowSuccess
         }

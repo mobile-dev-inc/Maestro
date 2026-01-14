@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- runScript: 137_failing_script.js
+- assertVisible: "NonExistentElement"

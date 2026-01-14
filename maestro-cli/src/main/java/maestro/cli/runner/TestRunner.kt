@@ -205,18 +205,14 @@ object TestRunner {
             Ok(block())
         } catch (e: Exception) {
             logger.error("Failed to run flow", e)
-            logger.error("Exception type: ${e::class.qualifiedName}")
-            logger.error("Is OnFlowCompleteFailedException: ${e is OnFlowCompleteFailedException}")
 
             // If both the flow and onFlowComplete failed, show both errors
             val (message, onFlowCompleteError) = if (e is OnFlowCompleteFailedException) {
-                logger.error("Detected OnFlowCompleteFailedException - splitting errors")
                 onOnFlowCompleteFailedException()
                 val originalMessage = ErrorViewUtils.exceptionToMessage(e.originalException)
                 val onCompleteMessage = ErrorViewUtils.exceptionToMessage(e.onFlowCompleteException)
                 Pair(originalMessage, onCompleteMessage)
             } else {
-                logger.error("NOT OnFlowCompleteFailedException - using single error")
                 Pair(ErrorViewUtils.exceptionToMessage(e), null)
             }
 

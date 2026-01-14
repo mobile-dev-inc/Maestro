@@ -25,6 +25,7 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
+import maestro.orchestra.error.OnFlowCompleteFailedException
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
@@ -35,6 +36,7 @@ import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
 import maestro.utils.MaestroTimer
+import org.graalvm.polyglot.PolyglotException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -4213,6 +4215,59 @@ class IntegrationTest {
                 orchestra(it).runFlow(commands)
             }
         }
+    }
+
+    @Test
+    fun `Case 137 - Flow fails with assertion AND runScript throws JS error`() {
+        val commands = readCommands("137_assertion_and_runscript_js_error")
+        val driver = driver {}
+
+        // JS error happens first, so it should be the exception thrown (not wrapped)
+        assertThrows<PolyglotException> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Case 138 - Flow fails with assertion AND onFlowComplete fails`() {
+        val commands = readCommands("138_assertion_and_onflowcomplete_fail")
+        val driver = driver {}
+
+        // Both flow and onFlowComplete fail - should wrap both exceptions
+        val exception = assertThrows<OnFlowCompleteFailedException> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify both exceptions are preserved
+        assertThat(exception.originalException).isInstanceOf(MaestroException.AssertionFailure::class.java)
+        assertThat(exception.onFlowCompleteException).isInstanceOf(PolyglotException::class.java)
+    }
+
+    @Test
+    fun `Case 139 - Flow fails with JS error AND onFlowComplete fails`() {
+        val commands = readCommands("139_runscript_and_onflowcomplete_fail")
+        val driver = driver {}
+
+        // Both flow (JS) and onFlowComplete fail - should wrap both exceptions
+        val exception = assertThrows<OnFlowCompleteFailedException> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify both exceptions are preserved
+        assertThat(exception.originalException).isInstanceOf(PolyglotException::class.java)
+        assertThat(exception.onFlowCompleteException).isInstanceOf(PolyglotException::class.java)
     }
 
     private fun orchestra(
