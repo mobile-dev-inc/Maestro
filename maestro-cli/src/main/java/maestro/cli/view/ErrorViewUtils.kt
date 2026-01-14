@@ -3,6 +3,7 @@ package maestro.cli.view
 import maestro.MaestroException
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.NoInputException
+import maestro.orchestra.error.OnFlowCompleteFailedException
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.error.ValidationError
 import org.graalvm.polyglot.PolyglotException
@@ -12,11 +13,15 @@ object ErrorViewUtils {
 
     fun exceptionToMessage(e: Throwable): String {
         return when (e) {
+            // OnFlowCompleteFailedException should be handled by TestRunner, but if it reaches here,
+            // return the original exception message (the primary error)
+            is OnFlowCompleteFailedException -> exceptionToMessage(e.originalException)
             is ValidationError -> e.message
             is NoInputException -> "No commands found in Flow file"
             is InvalidFlowFile -> "Flow file is invalid: ${e.flowPath}"
             is UnicodeNotSupportedError -> "Unicode character input is not supported: ${e.text}. Please use ASCII characters. Follow the issue: https://github.com/mobile-dev-inc/maestro/issues/146"
             is InterruptedException -> "Interrupted"
+            is MaestroException.AssertionFailure -> "${e.message}\n\n${e.debugMessage}"
             is MaestroException -> e.message
             is PolyglotException -> {
                 // Get the first stack trace element which should contain the JS location
