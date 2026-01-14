@@ -216,7 +216,11 @@ object MaestroSessionManager {
                         platformConfiguration = platformConfiguration
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio, isHeadless)
+                    Platform.WEB -> pickWebDevice(
+                        isStudio = isStudio,
+                        isHeadless = isHeadless,
+                        selectorAliases = platformConfiguration?.web?.selectorAliases ?: emptyMap()
+                    )
                 },
                 device = selectedDevice.device,
             )
@@ -244,7 +248,11 @@ object MaestroSessionManager {
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
-                maestro = pickWebDevice(isStudio, isHeadless),
+                maestro = pickWebDevice(
+                    isStudio = isStudio,
+                    isHeadless = isHeadless,
+                    selectorAliases = platformConfiguration?.web?.selectorAliases ?: emptyMap()
+                ),
                 device = null
             )
 
@@ -432,8 +440,12 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean): Maestro {
-        return Maestro.web(isStudio, isHeadless)
+    private fun pickWebDevice(
+        isStudio: Boolean,
+        isHeadless: Boolean,
+        selectorAliases: Map<String, String> = emptyMap()
+    ): Maestro {
+        return Maestro.web(isStudio, isHeadless, selectorAliases)
     }
 
     private data class SelectedDevice(
