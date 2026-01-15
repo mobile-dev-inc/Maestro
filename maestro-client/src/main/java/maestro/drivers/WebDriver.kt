@@ -387,27 +387,44 @@ class WebDriver(
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         val driver = ensureOpen()
 
-        val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
-        val swipe = org.openqa.selenium.interactions.Sequence(finger, 1)
-        swipe.addAction(
-            finger.createPointerMove(
-                Duration.ofMillis(0),
-                PointerInput.Origin.viewport(),
-                start.x,
-                start.y
+        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Convert coordinate-based swipe to wheel events
+            // Calculate the scroll delta from start to end points
+            val deltaX = start.x - end.x  // Swipe left = scroll right (positive deltaX)
+            val deltaY = start.y - end.y  // Swipe up = scroll down (positive deltaY)
+            
+            // Dispatch wheel events at the center of the viewport for Flutter
+            val waitMs = (durationMs + 500).coerceAtLeast(1000L)
+            executeAsyncJS(
+                "window.maestro.smoothScrollFlutterByDelta($deltaX, $deltaY, $durationMs)",
+                waitMs
             )
-        )
-        swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        swipe.addAction(
-            finger.createPointerMove(
-                Duration.ofMillis(durationMs),
-                PointerInput.Origin.viewport(),
-                end.x,
-                end.y
+        } else {
+            // Standard web: Use touch pointer drag
+            val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
+            val swipe = org.openqa.selenium.interactions.Sequence(finger, 1)
+            swipe.addAction(
+                finger.createPointerMove(
+                    Duration.ofMillis(0),
+                    PointerInput.Origin.viewport(),
+                    start.x,
+                    start.y
+                )
             )
-        )
-        swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
-        (driver as RemoteWebDriver).perform(listOf(swipe))
+            swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+            swipe.addAction(
+                finger.createPointerMove(
+                    Duration.ofMillis(durationMs),
+                    PointerInput.Origin.viewport(),
+                    end.x,
+                    end.y
+                )
+            )
+            swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
+            (driver as RemoteWebDriver).perform(listOf(swipe))
+        }
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
