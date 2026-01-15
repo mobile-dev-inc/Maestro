@@ -368,34 +368,64 @@ class TestCommand : Callable<Int> {
                     true
                 }
             }
-            // Don't default to all available devices here. Handle it based on sharding later.
-            // This allows the device picker prompt to work when no devices are specified
+
+        // Determine effective shards based on requested shards and flow count/type
+        val effectiveShards = when {
+            onlySequenceFlows -> 1 // Sequence flows always run on one device
+            shardAll != null -> requestedShards.coerceAtMost(connectedDevices.size) // Cannot run more shards than connected devices if replicating all flows
+            shardSplit != null -> requestedShards.coerceAtMost(plan.flowsToRun.size).coerceAtMost(connectedDevices.size) // Cannot run more shards than flows or connected devices
+            else -> 1 // Default to 1 shard if no sharding options are provided
+        }
 
         // Determine the list of device IDs to use for the shards
         val deviceIds: List<String?> = if (passedDeviceIds.isNotEmpty()) {
             // If specific devices were passed, use them
             passedDeviceIds
         } else {
-            // If no devices were passed, pass null to trigger device selection prompt if needed
-            listOf(null)
+            // If no devices were passed...
+            if (effectiveShards == 1) {
+                // For a single shard, pass null to trigger device selection prompt if needed
+                listOf(null)
+            } else {
+                // For multiple shards, use all available connected devices filtered by platform
+                val platform = platform ?: parent?.platform
+                val connectedDeviceIds = connectedDevices
+                    .filter { platform == null || it.platform == Platform.fromString(platform) }
+                    .map { it.instanceId }
+                if (connectedDeviceIds.size < effectiveShards) {
+                    throw CliError("Not enough devices connected (${connectedDeviceIds.size}) to run the requested number of shards ($effectiveShards).")
+                }
+                // Use only as many devices as needed for the shards
+                connectedDeviceIds.take(effectiveShards)
+            }
         }
 
-        val effectiveShards = when {
+        // Validate if enough devices are available for the requested shards IF specific devices were requested OR sharding is used
+        if (passedDeviceIds.isNotEmpty() || effectiveShards > 1) {
+            val missingDevices = effectiveShards - deviceIds.size
+            if (missingDevices > 0) {
+                PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $effectiveShards shards. Missing $missingDevices device(s).")
+                throw CliError("Not enough devices available ($missingDevices missing) for the requested number of shards ($effectiveShards). Ensure devices are connected or reduce shard count.")
+            }
+        }
 
-            onlySequenceFlows -> 1
-
-            shardAll == null -> requestedShards.coerceAtMost(plan.flowsToRun.size)
-
-            shardSplit == null -> requestedShards.coerceAtMost(deviceIds.size)
-
-            else -> 1
+        // Shard warning logic
+        if (shardAll == null && shardSplit != null && requestedShards > plan.flowsToRun.size) {
+            val warning = "Requested $requestedShards shards, " +
+                    "but cannot run more shards than flows (${plan.flowsToRun.size}). " +
+                    "Will use $effectiveShards shards instead."
+            PrintUtils.warn(warning)
+        } else if (shardAll != null && requestedShards > availableDevicesIds.size) {
+            val warning = "Requested $requestedShards shards, " +
+                    "but cannot run more shards than connected devices (${availableDevicesIds.size}). " +
+                    "Will use $effectiveShards shards instead."
+            PrintUtils.warn(warning)
         }
 
         val warning = "Requested $requestedShards shards, " +
                 "but it cannot be higher than the number of flows (${plan.flowsToRun.size}). " +
                 "Will use $effectiveShards shards instead."
         if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
-
 
         val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
 
@@ -449,15 +479,13 @@ class TestCommand : Callable<Int> {
 
     private fun runShardSuite(
         effectiveShards: Int,
-        deviceIds: List<String?>, // Allow null device IDs
+        deviceIds: List<String?>,
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
         testOutputDir: Path?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
-<<<<<<< HEAD
-        // DeviceId can be null if we need to prompt
         val deviceId: String? = deviceIds[shardIndex]
         val executionPlan = chunkPlans[shardIndex]
 
@@ -473,7 +501,7 @@ class TestCommand : Callable<Int> {
             port = parent?.port,
             teamId = appleTeamId,
             driverHostPort = driverHostPort,
-            deviceId = deviceId, // Pass the potentially null deviceId to allow device picker prompt
+            deviceId = deviceId,
             platform = platform ?: parent?.platform,
             isHeadless = headless,
             reinstallDriver = reinstallDriver,
@@ -631,13 +659,9 @@ class TestCommand : Callable<Int> {
             }
     }
 
-<<<<<<< HEAD
-    private fun getPassedOptionsDeviceIds(): List<String> {
-        val arguments = if (isWebFlow()) {
-            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-            // Don't automatically default to "chromium" - let the sharding logic handle device selection
-            parent?.deviceId
-      } else deviceId ?: parent?.deviceId
+    private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
+      // Don't automatically default to "chromium" - let the sharding logic handle device selection
+      val arguments = deviceId ?: parent?.deviceId
       val deviceIds = arguments
         .orEmpty()
         .split(",")
