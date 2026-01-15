@@ -181,39 +181,6 @@ class CdpWebDriver(
         return Random().nextInt((end + 1) - start) + start
     }
 
-    /**
-     * Calculates scroll distance in pixels based on scroll duration (derived from speed parameter).
-     * 
-     * @param durationMs Scroll duration in milliseconds (lower = faster)
-     * @return Number of pixels to scroll
-     */
-    private fun calculateScrollPixels(durationMs: Long): Int {
-        return when {
-            durationMs < 100 -> 3000  // Very fast
-            durationMs < 300 -> 2000  // Fast
-            durationMs < 600 -> 1000  // Medium/default
-            durationMs < 900 -> 400   // Slow
-            else -> 200               // Very slow/precise
-        }
-    }
-
-    /**
-     * Calculates animation duration for smooth scrolling.
-     * Faster speeds = shorter animation for quicker scrolling.
-     * 
-     * @param durationMs Scroll duration in milliseconds
-     * @return Animation duration in milliseconds
-     */
-    private fun calculateAnimationDuration(durationMs: Long): Int {
-        return when {
-            durationMs < 100 -> 300   // Very fast - quick animation
-            durationMs < 300 -> 400   // Fast
-            durationMs < 600 -> 500   // Medium/default
-            durationMs < 900 -> 600   // Slow - longer animation
-            else -> 700               // Very slow - smooth, long animation
-        }
-    }
-
     override fun close() {
         injectedArguments = emptyMap()
 
@@ -421,8 +388,7 @@ class CdpWebDriver(
         
         if (isFlutter) {
             // Use Flutter-specific smooth animated scrolling
-            executeJS("window.maestro.smoothScrollFlutter(500, 500)")
-            sleep(700L) // Wait for animation + Flutter DOM update
+            executeJS("window.maestro.smoothScrollFlutter('UP', 500)")
         } else {
             // Use standard scroll for regular web pages
             scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
@@ -464,20 +430,7 @@ class CdpWebDriver(
         
         if (isFlutter) {
             // Flutter web: Use smooth animated scrolling with easing
-            val scrollPixels = calculateScrollPixels(durationMs)
-            val animationDuration = calculateAnimationDuration(durationMs)
-            when (swipeDirection) {
-                SwipeDirection.UP -> {
-                    executeJS("window.maestro.smoothScrollFlutter($scrollPixels, $animationDuration)")
-                    sleep(animationDuration.toLong() + 200) // Wait for animation + Flutter DOM update
-                }
-                SwipeDirection.DOWN -> {
-                    executeJS("window.maestro.smoothScrollFlutter(-$scrollPixels, $animationDuration)")
-                    sleep(animationDuration.toLong() + 200) // Wait for animation + Flutter DOM update
-                }
-                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
-            }
+            executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
         } else {
             // HTML web: Use standard window scrolling
             when (swipeDirection) {

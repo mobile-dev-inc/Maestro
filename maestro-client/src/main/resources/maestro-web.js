@@ -207,7 +207,7 @@
         return isFlutter;
     }
 
-    maestro.smoothScrollFlutter = (pixels, duration = 500) => {
+    maestro.smoothScrollFlutter = (direction, durationMs = 500) => {
         // Smooth animated scrolling for Flutter web with easing
         return new Promise((resolve) => {
             const target = document.querySelector('flutter-view') || 
@@ -218,11 +218,28 @@
                 resolve(false);
                 return;
             }
+
+            const normalizedDirection = (direction || 'UP').toString().toUpperCase();
+            const isVertical = normalizedDirection === 'UP' || normalizedDirection === 'DOWN';
+            const isHorizontal = normalizedDirection === 'LEFT' || normalizedDirection === 'RIGHT';
+            if (!isVertical && !isHorizontal) {
+                console.error('[Maestro] Unsupported Flutter scroll direction:', direction);
+                resolve(false);
+                return;
+            }
+
+            const duration = typeof durationMs === 'number' && durationMs > 0 ? durationMs : 500;
+            const distance = Math.max(1, Math.round(duration * 2));
+            const totalX = normalizedDirection === 'LEFT' ? distance :
+                normalizedDirection === 'RIGHT' ? -distance : 0;
+            const totalY = normalizedDirection === 'UP' ? distance :
+                normalizedDirection === 'DOWN' ? -distance : 0;
             
             const x = window.innerWidth / 2;
             const y = window.innerHeight / 2;
             const start = performance.now();
-            let last = 0;
+            let lastX = 0;
+            let lastY = 0;
             
             function animate(now) {
                 const progress = Math.min((now - start) / duration, 1);
@@ -232,10 +249,14 @@
                     ? 4 * progress * progress * progress 
                     : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                 
-                const delta = eased * pixels - last;
-                last = eased * pixels;
+                const nextX = eased * totalX;
+                const nextY = eased * totalY;
+                const deltaX = nextX - lastX;
+                const deltaY = nextY - lastY;
+                lastX = nextX;
+                lastY = nextY;
                 
-                if (Math.abs(delta) > 0.01) {
+                if (Math.abs(deltaX) > 0.01 || Math.abs(deltaY) > 0.01) {
                     target.dispatchEvent(new MouseEvent('mouseover', {
                         clientX: x,
                         clientY: y,
@@ -247,7 +268,8 @@
                         bubbles: true
                     }));
                     target.dispatchEvent(new WheelEvent('wheel', {
-                        deltaY: delta,
+                        deltaX: deltaX,
+                        deltaY: deltaY,
                         deltaMode: 0,
                         clientX: x,
                         clientY: y,
