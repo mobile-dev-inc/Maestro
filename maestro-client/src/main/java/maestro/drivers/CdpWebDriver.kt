@@ -1,6 +1,7 @@
 package maestro.drivers
 
 import CdpClient
+import CdpTarget
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
@@ -115,6 +116,17 @@ class CdpWebDriver(
                 )
                 setExperimentalOption("prefs", chromePrefs)
 
+                // Use Chrome for Testing binary to support extension loading (Chrome 137+ removed --load-extension support in normal Chrome)
+                val chromeBinaryPath = System.getenv("MAESTRO_CHROME_BINARY_PATH")
+                    ?: error("MAESTRO_CHROME_BINARY_PATH is not set")
+                setBinary(chromeBinaryPath)
+                LOGGER.info("Using Chrome binary: $chromeBinaryPath")
+
+                val chromeExtensionPath = System.getenv("MAESTRO_CHROME_EXTENSION_PATH")
+                    ?: error("MAESTRO_CHROME_EXTENSION_PATH is not set")
+                addArguments("--load-extension=$chromeExtensionPath")
+                LOGGER.info("CDP Loading browser extension from path: $chromeExtensionPath")
+
                 if (isHeadless) {
                     addArguments("--headless=new")
                     addArguments("--window-size=1024,768")
@@ -139,10 +151,19 @@ class CdpWebDriver(
         return seleniumDriver ?: error("Driver is not open")
     }
 
+    /**
+     * Gets the main browser page target, filtering out extension pages.
+     * When extensions are loaded, Chrome creates multiple CDP targets including
+     * extension background pages. This helper ensures we target the main browser page.
+     */
+    private suspend fun getMainPageTarget(): CdpTarget {
+        return cdpClient.listTargets().lastOrNull { !it.url.endsWith("background.js") } ?: error("No suitable CDP target found (excluding background.js targets)")
+    }
+
     private fun executeJS(js: String): Any? {
         return runBlocking {
             try {
-                val target = cdpClient.listTargets().first()
+                val target = getMainPageTarget()
 
                 cdpClient.evaluate("$maestroWebScript", target)
 
@@ -226,7 +247,7 @@ class CdpWebDriver(
         injectedArguments = injectedArguments + launchArguments
 
         runBlocking {
-            val target = cdpClient.listTargets().first()
+            val target = getMainPageTarget()
             cdpClient.openUrl(appId, target)
         }
     }
@@ -469,7 +490,7 @@ class CdpWebDriver(
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
         runBlocking {
-            val target = cdpClient.listTargets().first()
+            val target = getMainPageTarget()
             val bytes = cdpClient.captureScreenshot(target)
 
             out.buffer().use { it.write(bytes) }
