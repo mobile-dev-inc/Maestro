@@ -90,11 +90,12 @@ object RunFlowFilesTool {
                     
                     for (fileObj in resolvedFiles) {
                         try {
-                            val commands = YamlCommandReader.readCommands(fileObj.toPath())
+                            val rawCommands = YamlCommandReader.readCommands(fileObj.toPath())
+                            val flowName = YamlCommandReader.getConfig(rawCommands)?.name
                             val finalEnv = env
                                 .withInjectedShellEnvVars()
-                                .withDefaultEnvVars(fileObj)
-                            val commandsWithEnv = commands.withEnv(finalEnv)
+                                .withDefaultEnvVars(fileObj, flowName)
+                            val commandsWithEnv = rawCommands.withEnv(finalEnv)
                             
                             runBlocking {
                                 orchestra.runFlow(commandsWithEnv)
@@ -102,10 +103,10 @@ object RunFlowFilesTool {
                             results.add(mapOf(
                                 "file" to fileObj.absolutePath,
                                 "success" to true,
-                                "commands_executed" to commands.size,
+                                "commands_executed" to rawCommands.size,
                                 "message" to "Flow executed successfully"
                             ))
-                            totalCommands += commands.size
+                            totalCommands += rawCommands.size
                         } catch (e: Exception) {
                             results.add(mapOf(
                                 "file" to fileObj.absolutePath,

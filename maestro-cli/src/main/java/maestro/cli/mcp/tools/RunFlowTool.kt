@@ -104,11 +104,12 @@ object RunFlowTool {
                         tempFile.writeText(flowYaml)
                         
                         // Parse and execute the flow with environment variables
-                        val commands = YamlCommandReader.readCommands(tempFile.toPath())
+                        val rawCommands = YamlCommandReader.readCommands(tempFile.toPath())
+                        val flowName = YamlCommandReader.getConfig(rawCommands)?.name
                         val finalEnv = env
                             .withInjectedShellEnvVars()
-                            .withDefaultEnvVars(tempFile)
-                        val commandsWithEnv = commands.withEnv(finalEnv)
+                            .withDefaultEnvVars(tempFile, flowName)
+                        val commandsWithEnv = rawCommands.withEnv(finalEnv)
                         
                         val orchestra = Orchestra(session.maestro)
                         
@@ -119,7 +120,7 @@ object RunFlowTool {
                         buildJsonObject {
                             put("success", true)
                             put("device_id", deviceId)
-                            put("commands_executed", commands.size)
+                            put("commands_executed", rawCommands.size)
                             put("message", "Flow executed successfully")
                             if (finalEnv.isNotEmpty()) {
                                 putJsonObject("env_vars") {
