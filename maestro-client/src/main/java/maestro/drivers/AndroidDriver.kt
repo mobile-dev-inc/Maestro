@@ -934,9 +934,13 @@ class AndroidDriver(
         try {
             shell("pm $permissionValue $appId $permission")
         } catch (exception: Exception) {
-            // We don't need to be loud about this. IOExceptions were caught in shell. Remaining issues are likely due
-            // to "all" containing permissions that the app doesn't support.
-            logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
+            // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
+            if (exception.message?.contains("is not a changeable permission type") == false) {
+                // Debug level is fine.
+                // We don't need to be loud about this. IOExceptions were already caught in shell(..)
+                // Remaining issues are likely due to "all" containing permissions that the app doesn't support.
+                logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
+            }
         }
     }
 
@@ -1065,6 +1069,14 @@ class AndroidDriver(
 
             if (node.hasAttribute("class")) {
                 attributesBuilder["class"] = node.getAttribute("class")
+            }
+
+            if (node.hasAttribute("important-for-accessibility")) {
+                attributesBuilder["important-for-accessibility"] = node.getAttribute("important-for-accessibility")
+            }
+
+            if (node.hasAttribute("error")) {
+                attributesBuilder["error"] = node.getAttribute("error")
             }
 
             attributesBuilder

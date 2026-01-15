@@ -130,7 +130,7 @@ picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
 posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
-selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v141", version.ref = "selenium-devtools" }
+selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v142", version.ref = "selenium-devtools" }
 skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
 skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
 skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64", version.ref = "skiko" }

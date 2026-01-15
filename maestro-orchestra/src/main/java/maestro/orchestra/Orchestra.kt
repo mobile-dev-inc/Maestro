@@ -383,6 +383,7 @@ class Orchestra(
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
+            is SetClipboardCommand -> setClipboardCommand(command)
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
@@ -1588,6 +1589,13 @@ class Orchestra(
         copiedText = resolveText(result.element.treeNode.attributes)
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
 
+        jsEngine.setCopiedText(copiedText)
+
+        return true
+    }
+
+    private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
+        copiedText = command.text
         jsEngine.setCopiedText(copiedText)
 
         return true

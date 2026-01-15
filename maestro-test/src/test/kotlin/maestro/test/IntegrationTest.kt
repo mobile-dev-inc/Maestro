@@ -4120,6 +4120,34 @@ class IntegrationTest {
         assertThat(skipped).isGreaterThan(0)
     }
 
+    @Test
+    fun `Case 133 - Set clipboard`() {
+        // Given
+        val commands = readCommands("133_setClipboard")
+
+        val driver = driver {
+            element {
+                id = "inputField"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.InputText("Hello, Maestro!"),
+            )
+        )
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
