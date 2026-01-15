@@ -1,0 +1,9 @@
+appId: com.apple.mobilesafari
+---
+# Simple Safari launch for view hierarchy testing
+- launchApp:
+    clearState: true
+
+# Wait for Safari to load
+- waitForAnimationToEnd:
+    timeout: 2000

@@ -6,13 +6,22 @@ tags:
 ---
 - runFlow: subflows/onboarding-ios.yaml
 
-# Dismiss the auth modal if visible
+- runFlow:
+    when:
+      visible:
+        text: Explore your Wikipedia Year in Review
+    commands:
+      - tapOn: Done
+    label: Dismiss Year In Review popup, if visible
+
 - runFlow:
     when:
       visible: "You have been logged out"
     commands:
       - tapOn:
           text: "Continue without logging in"
+    label: Dismiss the auth modal if visible
+
 - tapOn:
     text: "Non existent view"
     optional: true

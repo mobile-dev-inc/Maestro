@@ -40,7 +40,8 @@ data class ElementSelector(
     val selected: Boolean? = null,
     val checked: Boolean? = null,
     val focused: Boolean? = null,
-    val childOf: ElementSelector? = null
+    val childOf: ElementSelector? = null,
+    val css: String? = null,
 ) {
 
     data class SizeSelector(
@@ -60,7 +61,8 @@ data class ElementSelector(
             containsChild = containsChild?.evaluateScripts(jsEngine),
             containsDescendants = containsDescendants?.map { it.evaluateScripts(jsEngine) },
             index = index?.evaluateScripts(jsEngine),
-            childOf = childOf?.evaluateScripts(jsEngine)
+            childOf = childOf?.evaluateScripts(jsEngine),
+            css = css?.evaluateScripts(jsEngine),
         )
     }
 
@@ -73,6 +75,13 @@ data class ElementSelector(
 
         idRegex?.let {
             descriptions.add("id: $it")
+        }
+
+        enabled?.let {
+            when(enabled){
+                true -> descriptions.add("enabled")
+                false -> descriptions.add("disabled")
+            }
         }
 
         below?.let {
@@ -119,8 +128,26 @@ data class ElementSelector(
             descriptions.add("Index: ${it.toDoubleOrNull()?.toInt() ?: it}")
         }
 
+        selected?.let {
+            when(selected){
+                true -> descriptions.add("selected")
+                false -> descriptions.add("not selected")
+            }
+        }
+
+        focused?.let {
+            when(focused){
+                true -> descriptions.add("focused")
+                false -> descriptions.add("not focused")
+            }
+        }
+
         childOf?.let {
             descriptions.add("Child of: ${it.description()}")
+        }
+
+        css?.let {
+            descriptions.add("CSS: $it")
         }
 
         return descriptions.joinToString(", ")

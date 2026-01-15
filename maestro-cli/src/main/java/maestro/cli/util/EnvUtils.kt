@@ -48,10 +48,6 @@ object EnvUtils {
         return Paths.get(System.getProperty("user.home"), ".maestro")
     }
 
-    fun maestroCloudApiKey(): String? {
-        return System.getenv("MAESTRO_CLOUD_API_KEY")
-    }
-
     /**
      * @return true, if we're executing from Windows Linux shell (WSL)
      */
@@ -131,7 +127,7 @@ object EnvUtils {
         }
     }
 
-    private fun getCLIVersion(): CliVersion? {
+    fun getCLIVersion(): CliVersion? {
         val props = try {
             Updates::class.java.classLoader.getResourceAsStream("version.properties").use {
                 Properties().apply { load(it) }

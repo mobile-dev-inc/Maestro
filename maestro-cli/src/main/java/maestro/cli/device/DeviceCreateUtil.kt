@@ -8,7 +8,7 @@ import maestro.cli.CliError
 import maestro.cli.util.*
 import maestro.device.util.AvdDevice
 
-internal object DeviceCreateUtil {
+object DeviceCreateUtil {
 
     fun getOrCreateDevice(
         platform: Platform,
@@ -23,7 +23,7 @@ internal object DeviceCreateUtil {
         else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
     }
 
-    private fun getOrCreateIosDevice(
+    fun getOrCreateIosDevice(
         version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
         @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
@@ -68,6 +68,14 @@ internal object DeviceCreateUtil {
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
                 throw CliError(msg)
+            } else if (error.contains("xcrun: error: unable to find utility \"simctl\"")) {
+                val msg = """
+                    The xcode-select CLI tools are not installed, install with xcode-select --install
+                    
+                    If the xcode-select CLI tools are already installed, the path may be broken. Try
+                    running sudo xcode-select -r to repair the path and re-run this command
+                """.trimIndent()
+                throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
                 throw CliError("Device type $device is either not supported or not found.")
             } else {
@@ -83,11 +91,12 @@ internal object DeviceCreateUtil {
             platform = Platform.IOS,
             language = language,
             country = country,
+            deviceType = Device.DeviceType.SIMULATOR
         )
 
     }
 
-    private fun getOrCreateAndroidDevice(
+    fun getOrCreateAndroidDevice(
         version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
         @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigAndroid.defaultVersion
@@ -166,6 +175,7 @@ internal object DeviceCreateUtil {
             platform = Platform.ANDROID,
             language = language,
             country = country,
+            deviceType = Device.DeviceType.EMULATOR,
         )
     }
 }

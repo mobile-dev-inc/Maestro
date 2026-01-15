@@ -8,6 +8,7 @@ import io.ktor.server.http.content.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.runBlocking
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Maestro
@@ -23,6 +24,8 @@ import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.yaml.FlowParseException
+import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.yaml.YamlFluentCommand
 
@@ -54,12 +57,14 @@ object DeviceService {
         routing.post("/api/run-command") {
             val request = call.parseBody<RunCommandRequest>()
             try {
-                val commands = YamlCommandReader.readSingleCommand(Paths.get(""), "", request.yaml)
+                val commands = MaestroFlowParser.parseCommand(Paths.get(""), "", request.yaml)
                 if (request.dryRun != true) {
                     executeCommands(maestro, commands)
                 }
                 val response = jacksonObjectMapper().writeValueAsString(commands)
                 call.respond(response)
+            } catch (e: FlowParseException) {
+                call.respond(HttpStatusCode.BadRequest, listOfNotNull(e.errorMessage, e.docs).joinToString("\n"))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.BadRequest, e.message ?: "Failed to run command")
             }
@@ -104,13 +109,15 @@ object DeviceService {
     }
 
     private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>) {
-        var failure: Throwable? = null
-        val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
-            failure = throwable
-            Orchestra.ErrorResolution.FAIL
-        }).executeCommands(commands)
-        if (failure != null) {
-            throw RuntimeException("Command execution failed")
+        runBlocking {
+            var failure: Throwable? = null
+            val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
+                failure = throwable
+                Orchestra.ErrorResolution.FAIL
+            }).executeCommands(commands)
+            if (failure != null) {
+                throw RuntimeException("Command execution failed")
+            }
         }
     }
 

@@ -30,9 +30,15 @@ object WorkspaceExecutionPlanner {
 
         if (input.isRegularFile) {
             validateFlowFile(input.first())
+            val workspaceConfig = if (config != null) {
+                YamlCommandReader.readWorkspaceConfig(config.absolute())
+            } else {
+                WorkspaceConfig()
+            }
             return ExecutionPlan(
                 flowsToRun = input.toList(),
                 sequence = FlowSequence(emptyList()),
+                workspaceConfig = workspaceConfig
             )
         }
 
@@ -40,10 +46,10 @@ object WorkspaceExecutionPlanner {
 
         val (files, directories) = input.partition { it.isRegularFile() }
 
-        val flowFiles = files.filter { isFlowFile(it) }
+        val flowFiles = files.filter { isFlowFile(it, config) }
         val flowFilesInDirs: List<Path> = directories.flatMap { dir -> Files
             .walk(dir)
-            .filter { isFlowFile(it) }
+            .filter { isFlowFile(it, config) }
             .toList()
         }
         if (flowFilesInDirs.isEmpty() && flowFiles.isEmpty()) {
@@ -129,12 +135,6 @@ object WorkspaceExecutionPlanner {
         } ?: emptyList()
         var normalFlows = allFlows - flowsToRunInSequence.toSet()
 
-        if (workspaceConfig.local?.deterministicOrder == true) {
-            println()
-            println("WARNING! deterministicOrder has been deprecated in favour of executionOrder and will be removed in a future version")
-            normalFlows = normalFlows.sortedBy { it.name }
-        }
-
         // validation of media files for add media command
         allFlows.forEach {
             val commands = YamlCommandReader
@@ -146,10 +146,11 @@ object WorkspaceExecutionPlanner {
 
         val executionPlan = ExecutionPlan(
             flowsToRun = normalFlows,
-            FlowSequence(
+            sequence = FlowSequence(
                 flowsToRunInSequence,
                 workspaceConfig.executionOrder?.continueOnFailure
-            )
+            ),
+            workspaceConfig = workspaceConfig,
         )
 
         logger.info("Created execution plan: $executionPlan")
@@ -188,5 +189,6 @@ object WorkspaceExecutionPlanner {
     data class ExecutionPlan(
         val flowsToRun: List<Path>,
         val sequence: FlowSequence,
+        val workspaceConfig: WorkspaceConfig = WorkspaceConfig(),
     )
 }

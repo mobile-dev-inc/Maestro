@@ -60,10 +60,16 @@ class ChromeSeleniumFactory(
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
-                addArguments("--remote-debugging-port=$debuggingPort")
-                addArguments("--user-data-dir=${userDataDir.absolutePath}")
-                addArguments("--disable-web-security") // Helps with localhost testing
-                addArguments("--disable-features=VizDisplayCompositor") // Stability improvement
+
+                // Disable password management
+                addArguments("--password-store=basic")
+                val chromePrefs = hashMapOf<String, Any>(
+                    "credentials_enable_service" to false,
+                    "profile.password_manager_enabled" to false,
+                    "profile.password_manager_leak_detection" to false   // important one
+                )
+                setExperimentalOption("prefs", chromePrefs)
+
                 if (isHeadless) {
                     addArguments("--headless=new")
                     addArguments("--window-size=1024,768")

@@ -10,7 +10,7 @@ struct SwipeRouteHandlerV2: HTTPHandler {
     )
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(SwipeRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(SwipeRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided for swipe request v2").httpResponse
         }
         

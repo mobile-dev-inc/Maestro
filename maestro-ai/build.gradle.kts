@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -15,7 +14,8 @@ application {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.S01)
+    publishToMavenCentral(true)
+    signAllPublications()
 }
 
 tasks.named<Jar>("jar") {
@@ -27,11 +27,14 @@ tasks.named<Jar>("jar") {
 dependencies {
     api(libs.kotlin.result)
     api(libs.square.okio)
+    api(libs.square.okio.jvm)
+    api(libs.square.okhttp)
 
-    api(libs.slf4j)
-    api(libs.logback) {
-        exclude(group = "org.slf4j", module = "slf4j-api")
-    }
+    api(libs.logging.sl4j)
+    api(libs.logging.api)
+    api(libs.logging.layout.template)
+    api(libs.log4j.core)
+
 
     api(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
@@ -48,12 +51,18 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=1.8")
+        freeCompilerArgs.addAll("-Xjdk-release=17")
     }
 }

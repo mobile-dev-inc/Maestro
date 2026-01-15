@@ -26,6 +26,8 @@ class RouteHandlerFactory {
             return EraseTextHandler()
         case .deviceInfo:
             return DeviceInfoHandler()
+        case .setOrientation:
+            return SetOrientationHandler()
         case .setPermissions:
             return SetPermissionsHandler()
         case .viewHierarchy:
@@ -36,6 +38,8 @@ class RouteHandlerFactory {
             return KeyboardRouteHandler()
         case .terminateApp:
             return TerminateAppHandler()
+        case .launchApp:
+             return LaunchAppHandler()
         }
     }
 }

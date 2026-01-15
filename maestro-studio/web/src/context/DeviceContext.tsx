@@ -69,7 +69,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({
   }, [fetchedDeviceScreen]);
 
   /**
-   * It currently loading, set loading false when deviceScreenState or error is recieved
+   * It currently loading, set loading false when deviceScreenState or error is received
    */
   useEffect(() => {
     if (isLoading) {

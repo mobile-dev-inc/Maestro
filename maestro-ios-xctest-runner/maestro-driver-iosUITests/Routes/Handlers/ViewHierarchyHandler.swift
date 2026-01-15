@@ -5,8 +5,7 @@ import os
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
 
-    private static let springboardBundleId = "com.apple.springboard"
-    private let springboardApplication = XCUIApplication(bundleIdentifier: Self.springboardBundleId)
+    private let springboardApplication = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private let snapshotMaxDepth = 60
 
     private let logger = Logger(
@@ -15,7 +14,7 @@ struct ViewHierarchyHandler: HTTPHandler {
     )
 
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(ViewHierarchyRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(ViewHierarchyRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "incorrect request body provided").httpResponse
         }
 
@@ -38,10 +37,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             let body = try JSONEncoder().encode(viewHierarchy)
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
-            logger.error("AppError in handleRequest, Error:\(error)");
+            NSLog("AppError in handleRequest, Error:\(error)");
             return error.httpResponse
         } catch let error {
-            logger.error("Error in handleRequest, Error:\(error)");
+            NSLog("Error in handleRequest, Error:\(error)");
             return AppError(message: "Snapshot failure while getting view hierarchy. Error: \(error.localizedDescription)").httpResponse
         }
     }
@@ -49,14 +48,75 @@ struct ViewHierarchyHandler: HTTPHandler {
     func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
         SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(foregroundApp: foregroundApp)
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
+                
+        let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
+            fullStatusBars(springboardApplication)
+        } ?? []
         
-        let keyboard = foregroundApp.keyboards.firstMatch
-        if (excludeKeyboardElements && keyboard.exists) {
-            let filteredChildren = appHierarchy.filterAllChildrenNotInKeyboardBounds(keyboard.frame)
-            return AXElement(children: [AXElement(children: filteredChildren)].compactMap { $0 })
+        // Fetch Safari WebView hierarchy for iOS 26+ (runs in separate SafariViewService process)
+        let safariWebViewHierarchy = logger.measure(message: "Fetch Safari WebView hierarchy") {
+            getSafariWebViewHierarchy()
         }
 
-        return AXElement(children: [appHierarchy].compactMap { $0 })
+        let deviceFrame = springboardApplication.frame
+        let deviceAxFrame = [
+            "X": Double(deviceFrame.minX),
+            "Y": Double(deviceFrame.minY),
+            "Width": Double(deviceFrame.width),
+            "Height": Double(deviceFrame.height)
+        ]
+        let appFrame = appHierarchy.frame
+        
+        if deviceAxFrame != appFrame {
+            guard
+                let deviceWidth = deviceAxFrame["Width"], deviceWidth > 0,
+                let deviceHeight = deviceAxFrame["Height"], deviceHeight > 0,
+                let appWidth = appFrame["Width"], appWidth > 0,
+                let appHeight = appFrame["Height"], appHeight > 0
+            else {
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            }
+            
+            let offsetX = deviceWidth - appWidth
+            let offsetY = deviceHeight - appHeight
+            let offset = WindowOffset(offsetX: offsetX, offsetY: offsetY)
+            
+            NSLog("Adjusting view hierarchy with offset: \(offset)")
+            
+            let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
+            
+            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+        } else {
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+        }
+    }
+    
+    func expandElementSizes(_ element: AXElement, offset: WindowOffset) -> AXElement {
+        let adjustedFrame: AXFrame = [
+            "X": (element.frame["X"] ?? 0) + offset.offsetX,
+            "Y": (element.frame["Y"] ?? 0) + offset.offsetY,
+            "Width": element.frame["Width"] ?? 0,
+            "Height": element.frame["Height"] ?? 0
+        ]
+        let adjustedChildren = element.children?.map { expandElementSizes($0, offset: offset) } ?? []
+        
+        return AXElement(
+            identifier: element.identifier,
+            frame: adjustedFrame,
+            value: element.value,
+            title: element.title,
+            label: element.label,
+            elementType: element.elementType,
+            enabled: element.enabled,
+            horizontalSizeClass: element.horizontalSizeClass,
+            verticalSizeClass: element.verticalSizeClass,
+            placeholderValue: element.placeholderValue,
+            selected: element.selected,
+            hasFocus: element.hasFocus,
+            displayID: element.displayID,
+            windowContextID: element.windowContextID,
+            children: adjustedChildren
+        )
     }
 
     func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
@@ -78,12 +138,21 @@ struct ViewHierarchyHandler: HTTPHandler {
             hierarchy.children = children
             return hierarchy
         } catch let error {
-            // We attempt to gracefully recover from known AX snapshot issues instead of failing the whole view hierarchy request.
-            // This is particularly important for dynamic app hierarchies (for example, apps using React Native's new architecture)
-            // where elements can disappear or become invalid while XCTest is taking a snapshot, resulting in AX errors.
-            guard isRecoverableSnapshotError(error) else {
-                logger.error("Snapshot failure, cannot return view hierarchy due to \(error.localizedDescription)")
-                throw AppError(message: error.localizedDescription)
+            guard isIllegalArgumentError(error) else {
+                NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
+                if let nsError = error as NSError?,
+                   nsError.domain == "com.apple.dt.XCTest.XCTFuture",
+                   nsError.code == 1000,
+                   nsError.localizedDescription.contains("Timed out while evaluating UI query") {
+                    throw AppError(type: .timeout, message: error.localizedDescription)
+                } else if let nsError = error as NSError?,
+                           nsError.domain == "com.apple.dt.xctest.automation-support.error",
+                           nsError.code == 6,
+                           nsError.localizedDescription.contains("Unable to perform work on main run loop, process main thread busy for") {
+                    throw AppError(type: .timeout, message: nsError.localizedDescription)
+                } else {
+                    throw AppError(message: error.localizedDescription)
+                }
             }
 
             NSLog("Snapshot failure, getting recovery element for fallback")
@@ -159,6 +228,52 @@ struct ViewHierarchyHandler: HTTPHandler {
         
         let alert = element.alerts.firstMatch
         return try? elementHierarchy(xcuiElement: alert)
+    }
+    
+    func fullStatusBars(_ element: XCUIApplication) -> [AXElement]? {
+        guard element.statusBars.firstMatch.exists else {
+            return nil
+        }
+        
+        let snapshots = try? element.statusBars.allElementsBoundByIndex.compactMap{ (statusBar) in
+            try elementHierarchy(xcuiElement: statusBar)
+        }
+        
+        return snapshots
+    }
+    
+    /// Fetches the Safari WebView hierarchy for iOS 26+ where SFSafariViewController
+    /// runs in a separate process (com.apple.SafariViewService).
+    /// Returns nil if not on iOS 26+, Safari service is not running, or no webviews exist.
+    private func getSafariWebViewHierarchy() -> AXElement? {
+        let systemVersion = ProcessInfo.processInfo.operatingSystemVersion
+        guard systemVersion.majorVersion >= 26 else {
+            return nil
+        }
+        
+        let safariWebService = XCUIApplication(bundleIdentifier: "com.apple.SafariViewService")
+        
+        let isRunning = safariWebService.state == .runningForeground || safariWebService.state == .runningBackground
+        guard isRunning else {
+            return nil
+        }
+        
+        let webViewCount = safariWebService.webViews.count
+        guard webViewCount > 0 else {
+            return nil
+        }
+        
+        NSLog("[Start] Fetching Safari WebView hierarchy (\(webViewCount) webview(s) detected)")
+        
+        do {
+            AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
+            let safariHierarchy = try elementHierarchy(xcuiElement: safariWebService)
+            NSLog("[Done] Safari WebView hierarchy fetched successfully")
+            return safariHierarchy
+        } catch {
+            NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func findRecoveryElement(_ element: XCUIElement) throws -> XCUIElement {

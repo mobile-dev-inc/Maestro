@@ -1,0 +1,31 @@
+appId: com.example.app
+jsEngine: rhino
+env:
+  MY_VAR: 0
+---
+- runFlow:
+    env:
+      MY_VAR: 1
+    commands:
+      - assertTrue: ${MY_VAR === '1'}
+      - evalScript: ${if(MY_VAR !== '1') { throw Error } } # tests scoping for evalScript
+      - runScript:
+          file: 127_script.js
+          env:
+            MY_VAR: 3
+      # THIS WILL FAIL. Unlike the Graal engine, the Rhino engine will persist vals set in scripts
+      # across runs. I added this line in the Graal engine to show that the Graal engine does the 
+      # right thing, but I'm leaving this line and this commment to show what Rhino does _not_ support.
+      # - runScript:
+      #     file: 127_script_mutate_env_var.js
+      - runFlow:
+          env:
+            MY_VAR: 2
+          commands:
+            - assertTrue: ${MY_VAR === '2'}
+      - assertTrue: ${MY_VAR === '1'}
+
+# Second flow should NOT see first flow's variable or script variable
+- runFlow:
+    commands:
+      - assertTrue: ${MY_VAR === '0'}

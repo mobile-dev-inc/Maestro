@@ -19,8 +19,10 @@
 
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
@@ -33,6 +35,7 @@ import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.SetClipboardCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -57,6 +60,8 @@ import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.SetOrientationCommand
+import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -102,7 +107,11 @@ data class YamlFluentCommand(
     val inputRandomNumber: YamlInputRandomNumber? = null,
     val inputRandomEmail: YamlInputRandomEmail? = null,
     val inputRandomPersonName: YamlInputRandomPersonName? = null,
+    val inputRandomCityName: YamlInputRandomCityName? = null,
+    val inputRandomCountryName: YamlInputRandomCountryName? = null,
+    val inputRandomColorName: YamlInputRandomColorName? = null,
     val launchApp: YamlLaunchApp? = null,
+    val setPermissions: YamlSetPermissions? = null,
     val swipe: YamlSwipe? = null,
     val openLink: YamlOpenLink? = null,
     val openBrowser: String? = null,
@@ -116,8 +125,10 @@ data class YamlFluentCommand(
     val clearState: YamlClearState? = null,
     val runFlow: YamlRunFlow? = null,
     val setLocation: YamlSetLocation? = null,
+    val setOrientation: YamlSetOrientation? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
+    val setClipboard: YamlSetClipboard? = null,
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: YamlEvalScript? = null,
@@ -144,6 +155,7 @@ data class YamlFluentCommand(
     private fun _toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
         return when {
             launchApp != null -> listOf(launchApp(launchApp, appId))
+            setPermissions != null -> listOf(setPermissions(command = setPermissions, appId))
             tapOn != null -> listOf(tapCommand(tapOn))
             longPressOn != null -> listOf(tapCommand(longPressOn, longPress = true))
             assertVisible != null -> listOf(
@@ -217,58 +229,14 @@ data class YamlFluentCommand(
                     addMediaCommand = addMediaCommand(addMedia, flowPath)
                 )
             )
-
-            inputText != null -> listOf(
-                MaestroCommand(
-                    InputTextCommand(
-                        text = inputText.text,
-                        label = inputText.label,
-                        optional = inputText.optional
-                    )
-                )
-            )
-
-            inputRandomText != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.TEXT,
-                        length = inputRandomText.length,
-                        label = inputRandomText.label,
-                        optional = inputRandomText.optional
-                    )
-                )
-            )
-
-            inputRandomNumber != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.NUMBER,
-                        length = inputRandomNumber.length,
-                        label = inputRandomNumber.label,
-                        optional = inputRandomNumber.optional
-                    )
-                )
-            )
-
-            inputRandomEmail != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.TEXT_EMAIL_ADDRESS,
-                        label = inputRandomEmail.label,
-                        optional = inputRandomEmail.optional
-                    )
-                )
-            )
-
-            inputRandomPersonName != null -> listOf(
-                MaestroCommand(
-                    InputRandomCommand(
-                        inputType = InputRandomType.TEXT_PERSON_NAME,
-                        label = inputRandomPersonName.label,
-                        optional = inputRandomPersonName.optional
-                    )
-                )
-            )
+            inputText != null -> listOf(MaestroCommand(InputTextCommand(text = inputText.text, label = inputText.label, optional = inputText.optional)))
+            inputRandomText != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT, length = inputRandomText.length, label = inputRandomText.label, optional = inputRandomText.optional)))
+            inputRandomNumber != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.NUMBER, length = inputRandomNumber.length, label = inputRandomNumber.label, optional = inputRandomNumber.optional)))
+            inputRandomEmail != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_EMAIL_ADDRESS, label = inputRandomEmail.label, optional = inputRandomEmail.optional)))
+            inputRandomPersonName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_PERSON_NAME, label = inputRandomPersonName.label, optional = inputRandomPersonName.optional)))
+            inputRandomCityName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_CITY_NAME, label = inputRandomCityName.label, optional = inputRandomCityName.optional)))
+            inputRandomCountryName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COUNTRY_NAME, label = inputRandomCountryName.label, optional = inputRandomCountryName.optional)))
+            inputRandomColorName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COLOR, label = inputRandomColorName.label, optional = inputRandomColorName.optional)))
 
             swipe != null -> listOf(swipeCommand(swipe))
             openLink != null -> listOf(
@@ -387,6 +355,16 @@ data class YamlFluentCommand(
                 )
             )
 
+            setOrientation != null -> listOf(
+                MaestroCommand(
+                    SetOrientationCommand(
+                        orientation = DeviceOrientation.getByName(setOrientation.orientation) ?: throw SyntaxError("Unknown orientation: $setOrientation"),
+                        label = setOrientation.label,
+                        optional = setOrientation.optional,
+                    )
+                )
+            )
+            
             repeat != null -> listOf(
                 repeatCommand(repeat, flowPath, appId)
             )
@@ -396,19 +374,30 @@ data class YamlFluentCommand(
             )
 
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
-            runScript != null -> listOf(
+            setClipboard != null -> listOf(
                 MaestroCommand(
-                    RunScriptCommand(
-                        script = resolvePath(flowPath, runScript.file)
-                            .readText(),
-                        env = runScript.env,
-                        sourceDescription = runScript.file,
-                        condition = runScript.`when`?.toCondition(),
-                        label = runScript.label,
-                        optional = runScript.optional,
+                    SetClipboardCommand(
+                        text = setClipboard.text,
+                        label = setClipboard.label,
+                        optional = setClipboard.optional
                     )
                 )
             )
+            runScript != null -> {
+                val scriptPath = resolvePath(flowPath, runScript.file)
+                listOf(
+                    MaestroCommand(
+                        RunScriptCommand(
+                            script = scriptPath.readText(),
+                            env = runScript.env,
+                            sourceDescription = scriptPath.toString(),
+                            condition = runScript.`when`?.toCondition(),
+                            label = runScript.label,
+                            optional = runScript.optional,
+                        )
+                    )
+                )
+            }
 
             waitForAnimationToEnd != null -> listOf(
                 MaestroCommand(
@@ -567,6 +556,7 @@ data class YamlFluentCommand(
             RetryCommand(
                 maxRetries = maxRetries,
                 commands = commands,
+                sourceDescription = retry.file,
                 label = retry.label,
                 optional = retry.optional,
                 config = config
@@ -732,12 +722,23 @@ data class YamlFluentCommand(
         )
     }
 
+    private fun setPermissions(command: YamlSetPermissions, appId: String): MaestroCommand {
+        return MaestroCommand(
+            SetPermissionsCommand(
+                appId = command.appId ?: appId,
+                permissions = command.permissions,
+                label = command.label,
+                optional = command.optional,
+            )
+        )
+    }
+
     private fun tapCommand(
         tapOn: YamlElementSelectorUnion,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null
     ): MaestroCommand {
-        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: true
+        val retryIfNoChange = (tapOn as? YamlElementSelector)?.retryTapIfNoChange ?: false
         val waitUntilVisible = (tapOn as? YamlElementSelector)?.waitUntilVisible ?: false
         val point = (tapOn as? YamlElementSelector)?.point
         val label = (tapOn as? YamlElementSelector)?.label
@@ -756,17 +757,37 @@ data class YamlFluentCommand(
         }
 
         return if (point != null) {
-            MaestroCommand(
-                TapOnPointV2Command(
-                    point = point,
-                    retryIfNoChange = retryIfNoChange,
-                    longPress = longPress,
-                    repeat = repeat,
-                    waitToSettleTimeoutMs = waitToSettleTimeoutMs,
-                    label = label,
-                    optional = optional,
+            val elementSelector = toElementSelector(tapOn)
+            
+            // Check if we have both element selector and point - this means element-relative tap
+            if (hasAnySelector(elementSelector)) {
+                MaestroCommand(
+                    command = TapOnElementCommand(
+                        selector = elementSelector,
+                        retryIfNoChange = retryIfNoChange,
+                        waitUntilVisible = waitUntilVisible,
+                        longPress = longPress,
+                        repeat = repeat,
+                        waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+                        label = label,
+                        optional = optional,
+                        relativePoint = point, // Parameter for element-relative coordinates
+                    )
                 )
-            )
+            } else {
+                // Pure point-based tap (screen coordinates)
+                MaestroCommand(
+                    TapOnPointV2Command(
+                        point = point,
+                        retryIfNoChange = retryIfNoChange,
+                        longPress = longPress,
+                        repeat = repeat,
+                        waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+                        label = label,
+                        optional = optional,
+                    )
+                )
+            }
         } else {
             MaestroCommand(
                 command = TapOnElementCommand(
@@ -873,6 +894,26 @@ data class YamlFluentCommand(
         }
     }
 
+    private fun hasAnySelector(selector: ElementSelector): Boolean {
+        return selector.textRegex != null ||
+                selector.idRegex != null ||
+                selector.size != null ||
+                selector.below != null ||
+                selector.above != null ||
+                selector.leftOf != null ||
+                selector.rightOf != null ||
+                selector.containsChild != null ||
+                selector.containsDescendants != null ||
+                selector.traits != null ||
+                selector.index != null ||
+                selector.enabled != null ||
+                selector.selected != null ||
+                selector.checked != null ||
+                selector.focused != null ||
+                selector.childOf != null ||
+                selector.css != null
+    }
+
     private fun toElementSelector(selector: YamlElementSelector): ElementSelector {
         val size = if (selector.width != null || selector.height != null) {
             ElementSelector.SizeSelector(
@@ -903,7 +944,8 @@ data class YamlFluentCommand(
             selected = selector.selected,
             checked = selector.checked,
             focused = selector.focused,
-            childOf = selector.childOf?.let { toElementSelector(it) }
+            childOf = selector.childOf?.let { toElementSelector(it) },
+            css = selector.css,
         )
     }
 
@@ -940,6 +982,7 @@ data class YamlFluentCommand(
                 centerElement = yaml.centerElement,
                 label = yaml.label,
                 optional = yaml.optional,
+                originalSpeedValue = yaml.speed,
                 waitToSettleTimeoutMs = yaml.waitToSettleTimeoutMs
             )
         )

@@ -26,3 +26,5 @@ deploymentTargetSelector.xml
 gradle.xml
 kotlinc.xml
 vcs.xml
+
+copilot.data.migration.*

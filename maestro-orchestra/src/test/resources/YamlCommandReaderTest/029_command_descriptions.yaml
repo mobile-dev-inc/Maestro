@@ -1,0 +1,15 @@
+appId: com.example.app
+---
+- tapOn:
+    text: "maybe-later"
+    label: "Scroll to find the maybe-later button"
+
+- inputText:
+    text: ${username}
+
+- assertVisible:
+    text: "Hello ${username}"
+
+- assertTrue:
+    condition: ${true}
+    label: ${"Check that".concat(" ", "true is still true")}

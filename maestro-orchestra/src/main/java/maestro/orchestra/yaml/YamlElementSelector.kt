@@ -50,5 +50,6 @@ data class YamlElementSelector(
     val delay: Int? = null,
     val waitToSettleTimeoutMs: Int? = null,
     val childOf: YamlElementSelectorUnion? = null,
-    val label: String? = null
+    val label: String? = null,
+    val css: String? = null,
 ) : YamlElementSelectorUnion

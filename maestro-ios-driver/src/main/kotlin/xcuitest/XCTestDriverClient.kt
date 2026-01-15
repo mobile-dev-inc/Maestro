@@ -19,29 +19,24 @@ class XCTestDriverClient(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
         connectTimeout = 1.seconds
-    )
+    ),
+    private val reinstallDriver: Boolean = true,
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
 
     private lateinit var client: XCTestClient
 
-    constructor(installer: XCTestInstaller, client: XCTestClient): this(installer) {
+    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = true): this(installer, reinstallDriver = reinstallDriver) {
         this.client = client
     }
 
-    private var isShuttingDown = false
-
-    init {
-        Runtime.getRuntime().addShutdownHook(Thread {
-            isShuttingDown = true
-        })
-    }
-
     fun restartXCTestRunner() {
-        logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
-        installer.uninstall()
+        if(reinstallDriver) {
+            logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
+            installer.uninstall()
+            logger.trace("XCTest Runner uninstalled, will install and start it")
+        }
 
-        logger.trace("XCTest Runner uninstalled, will install and start it")
         client = installer.start()
     }
 
@@ -65,6 +60,10 @@ class XCTestDriverClient(
 
     fun terminateApp(appId: String) {
         executeJsonRequest("terminateApp", TerminateAppRequest(appId))
+    }
+
+    fun launchApp(appId: String) {
+        executeJsonRequest("launchApp", LaunchAppRequest(appId))
     }
 
     fun keyboardInfo(installedApps: Set<String>): KeyboardInfoResponse {
@@ -146,6 +145,10 @@ class XCTestDriverClient(
             y = y,
             duration = duration
         ))
+    }
+
+    fun setOrientation(orientation: String) {
+        executeJsonRequest("setOrientation", SetOrientationRequest(orientation))
     }
 
     fun pressKey(name: String) {
@@ -257,6 +260,10 @@ class XCTestDriverClient(
             Error("Unable to parse error", "unknown")
         }
         when {
+            code == 408 -> {
+                logger.error("Request for $pathString timeout, body: $responseBodyAsString")
+                throw XCUITestServerError.OperationTimeout(error.errorMessage, pathString)
+            }
             code in 400..499 -> {
                 logger.error("Request for $pathString failed with bad request ${code}, body: $responseBodyAsString")
                 throw XCUITestServerError.BadRequest(

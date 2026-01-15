@@ -2,7 +2,6 @@ package maestro.device
 
 import dadb.Dadb
 import dadb.adbserver.AdbServer
-import maestro.device.DeviceError
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -12,6 +11,7 @@ import maestro.utils.MaestroTimer
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
+import util.DeviceCtlResponse
 import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -19,6 +19,7 @@ import java.util.concurrent.TimeoutException
 
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
+
     fun startDevice(
         device: Device.AvailableForLaunch,
         driverHostPort: Int?,
@@ -48,6 +49,7 @@ object DeviceService {
                     instanceId = device.modelId,
                     description = device.description,
                     platform = device.platform,
+                    deviceType = device.deviceType,
                 )
             }
 
@@ -64,6 +66,8 @@ object DeviceService {
                     "full"
                 ).start().waitFor(10,TimeUnit.SECONDS)
 
+                var lastException: Exception? = null
+
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
                         Dadb.list().lastOrNull{ dadb ->
@@ -71,9 +75,10 @@ object DeviceService {
                         }
                     } catch (ignored: Exception) {
                         Thread.sleep(100)
+                        lastException = ignored
                         null
                     }
-                } ?: throw DeviceError("Unable to start device: ${device.modelId}")
+                } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
 
                 PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
                 while (!bootComplete(dadb)) {
@@ -102,6 +107,7 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = device.description,
                     platform = device.platform,
+                    deviceType = device.deviceType,
                 )
             }
 
@@ -110,6 +116,7 @@ object DeviceService {
                     instanceId = "",
                     description = "Chromium Web Browser",
                     platform = device.platform,
+                    deviceType = device.deviceType,
                 )
             }
         }
@@ -142,39 +149,26 @@ object DeviceService {
                 }
     }
 
-    private fun listWebDevices(): List<Device> {
-        // Support multiple browser instances for sharding
-        // Create up to 8 browser instances with unique IDs
-        val maxBrowserInstances = 8
-        val devices = mutableListOf<Device>()
-        
-        for (i in 1..maxBrowserInstances) {
-            val instanceId = "chromium-$i"
-            val description = "Chromium Web Browser (Instance $i)"
-            
-            devices.add(
-                Device.Connected(
-                    platform = Platform.WEB,
-                    description = description,
-                    instanceId = instanceId
-                )
+    fun listWebDevices(): List<Device> {
+        return listOf(
+            Device.Connected(
+                platform = Platform.WEB,
+                description = "Chromium Web Browser",
+                instanceId = "chromium",
+                deviceType = Device.DeviceType.BROWSER
+            ),
+            Device.AvailableForLaunch(
+                modelId = "chromium",
+                language = null,
+                country = null,
+                description = "Chromium Web Browser",
+                platform = Platform.WEB,
+                deviceType = Device.DeviceType.BROWSER
             )
-            
-            devices.add(
-                Device.AvailableForLaunch(
-                    modelId = instanceId,
-                    language = null,
-                    country = null,
-                    description = description,
-                    platform = Platform.WEB
-                )
-            )
-        }
-        
-        return devices
+        )
     }
 
-    private fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
+    fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
         val host = host ?: "localhost"
         if (port != null) {
             val dadb = Dadb.create(host, port)
@@ -183,6 +177,7 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
+                    deviceType = Device.DeviceType.EMULATOR
                 )
             )
         }
@@ -204,10 +199,16 @@ object DeviceService {
                     }
                 }.getOrNull()
 
+                val instanceId = dadb.toString()
+                val deviceType = when  {
+                    instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
+                    else -> Device.DeviceType.REAL
+                }
                 Device.Connected(
-                    instanceId = dadb.toString(),
+                    instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
+                    deviceType = deviceType
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -229,6 +230,7 @@ object DeviceService {
                                 platform = Platform.ANDROID,
                                 language = null,
                                 country = null,
+                                deviceType = Device.DeviceType.EMULATOR
                             )
                         }
                         .toList()
@@ -257,7 +259,31 @@ object DeviceService {
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
+            } + listIOSConnectedDevices()
+    }
+
+    fun listIOSConnectedDevices(): List<Device.Connected> {
+        val connectedIphoneList = util.LocalIOSDevice().listDeviceViaDeviceCtl()
+
+        return connectedIphoneList.mapNotNull { device ->
+            val udid = device.hardwareProperties?.udid
+            if (device.connectionProperties.tunnelState != DeviceCtlResponse.ConnectionProperties.CONNECTED || udid == null) {
+                return@mapNotNull null
             }
+
+            val description = listOfNotNull(
+                device.deviceProperties?.name,
+                device.deviceProperties?.osVersionNumber,
+                device.identifier
+            ).joinToString(" - ")
+
+            Device.Connected(
+                instanceId = udid,
+                description = description,
+                platform = Platform.IOS,
+                deviceType = Device.DeviceType.REAL
+            )
+        }
     }
 
     private fun device(
@@ -273,6 +299,7 @@ object DeviceService {
                 instanceId = device.udid,
                 description = description,
                 platform = Platform.IOS,
+                deviceType = Device.DeviceType.SIMULATOR
             )
         } else {
             Device.AvailableForLaunch(
@@ -281,6 +308,7 @@ object DeviceService {
                 platform = Platform.IOS,
                 language = null,
                 country = null,
+                deviceType =  Device.DeviceType.SIMULATOR
             )
         }
     }
@@ -301,7 +329,8 @@ object DeviceService {
                         Device.Connected(
                             instanceId = output,
                             description = output,
-                            platform = Platform.ANDROID
+                            platform = Platform.ANDROID,
+                            deviceType = Device.DeviceType.EMULATOR
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
@@ -427,10 +456,7 @@ object DeviceService {
         }
 
         if (process.exitValue() != 0) {
-            val processOutput = process.errorStream
-                .source()
-                .buffer()
-                .readUtf8()
+            val processOutput = process.inputStream.source().buffer().readUtf8() + "\n" + process.errorStream.source().buffer().readUtf8()
 
             throw IllegalStateException("Failed to list avd devices emulator: $processOutput")
         }

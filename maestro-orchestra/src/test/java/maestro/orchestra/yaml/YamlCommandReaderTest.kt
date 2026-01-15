@@ -1,6 +1,7 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
+import maestro.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -36,10 +37,12 @@ import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
+import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -218,6 +221,10 @@ internal class YamlCommandReaderTest {
     fun labels(
         @YamlFile("023_labels.yaml") commands: List<Command>,
     ) {
+        // Compute expected absolute path for runScript command
+        val testResourcesPath = YamlCommandReaderTest::class.java.classLoader.getResource("YamlCommandReaderTest/023_runScript_test.js")?.toURI()
+        val expectedScriptPath = testResourcesPath?.let { java.nio.file.Paths.get(it).toString() } ?: "023_runScript_test.js"
+        
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(
                 config=MaestroConfig(
@@ -228,14 +235,14 @@ internal class YamlCommandReaderTest {
             // Taps
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false,
                 label = "Tap on the important button"
             ),
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false,
                 repeat = TapRepeat(
@@ -246,14 +253,14 @@ internal class YamlCommandReaderTest {
             ),
             TapOnElementCommand(
                 selector = ElementSelector(idRegex = "foo"),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = true,
                 label = "Press and hold the important button"
             ),
             TapOnPointV2Command(
                 point = "50%,50%",
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 longPress = false,
                 label = "Tap on the middle of the screen"
             ),
@@ -361,8 +368,12 @@ internal class YamlCommandReaderTest {
             RunScriptCommand(
                 script = "const myNumber = 1 + 1;",
                 condition = null,
-                sourceDescription = "023_runScript_test.js",
+                sourceDescription = expectedScriptPath,
                 label = "Run some special calculations"
+            ),
+            SetOrientationCommand(
+                orientation = DeviceOrientation.LANDSCAPE_LEFT,
+                label = "Set the device orientation"
             ),
             ScrollCommand(
                 label = "Scroll down"
@@ -431,7 +442,7 @@ internal class YamlCommandReaderTest {
                     MaestroCommand(
                         command = TapOnElementCommand(
                             selector = ElementSelector(idRegex = "foo"),
-                            retryIfNoChange = true,
+                            retryIfNoChange = false,
                             waitUntilVisible = false,
                             longPress = false,
                             label = "Tap on the important button"
@@ -440,7 +451,7 @@ internal class YamlCommandReaderTest {
                     MaestroCommand(
                         command = TapOnElementCommand(
                             selector = ElementSelector(idRegex = "bar"),
-                            retryIfNoChange = true,
+                            retryIfNoChange = false,
                             waitUntilVisible = false,
                             longPress = false,
                             label = "Tap on the other important button"
@@ -490,21 +501,21 @@ internal class YamlCommandReaderTest {
                 ElementSelector(
                     textRegex = "Hello",
                 ),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false
             ),
             TapOnElementCommand(
                 selector = ElementSelector(textRegex = "Hello"),
                 repeat = TapRepeat(2, TapOnElementCommand.DEFAULT_REPEAT_DELAY),
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false,
                 longPress = false
             ),
             TapOnElementCommand(
                 selector = ElementSelector(textRegex = "Hello"),
                 longPress = true,
-                retryIfNoChange = true,
+                retryIfNoChange = false,
                 waitUntilVisible = false
             ),
             AssertConditionCommand(
@@ -579,6 +590,196 @@ internal class YamlCommandReaderTest {
             )
         )
     }
+
+    // Element-relative tap tests
+    @Test
+    fun `element-relative tap with text selector and percentage coordinates`(
+        @YamlFile("029_element_relative_tap_text_percentage.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.retryIfNoChange).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.waitUntilVisible).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.longPress).isFalse() // YAML parsing sets default values
+        assertThat(tapCommand.optional).isFalse()
+
+        // Verify the original description includes the point
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\" at 50%, 90%")
+    }
+
+    @Test
+    fun `element-relative tap with ID selector and absolute coordinates`(
+        @YamlFile("029_element_relative_tap_id_absolute.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.idRegex).isEqualTo("submit-btn")
+        assertThat(tapCommand.relativePoint).isEqualTo("25, 75")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on id: submit-btn at 25, 75")
+    }
+
+    @Test
+    fun `element-relative tap with CSS selector`(
+        @YamlFile("029_element_relative_tap_css.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.css).isEqualTo(".submit-button")
+        assertThat(tapCommand.relativePoint).isEqualTo("75%, 25%")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on CSS: .submit-button at 75%, 25%")
+    }
+
+    @Test
+    fun `element-relative tap with size selector`(
+        @YamlFile("029_element_relative_tap_size.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.size?.width).isEqualTo(200)
+        assertThat(tapCommand.selector.size?.height).isEqualTo(50)
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 50%")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on Size: 200x50 at 50%, 50%")
+    }
+
+    @Test
+    fun `element-relative tap with enabled selector`(
+        @YamlFile("029_element_relative_tap_enabled.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
+        assertThat(tapCommand.selector.enabled).isTrue()
+        assertThat(tapCommand.relativePoint).isEqualTo("25%, 75%")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\", enabled at 25%, 75%")
+    }
+
+    @Test
+    fun `element-relative tap with index selector`(
+        @YamlFile("029_element_relative_tap_index.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Button")
+        assertThat(tapCommand.selector.index).isEqualTo("2")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Button\", Index: 2 at 50%, 90%")
+    }
+
+    @Test
+    fun `element-relative tap with label`(
+        @YamlFile("029_element_relative_tap_label.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Login")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.label).isEqualTo("Tap Login Button at Bottom")
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Login\" at 50%, 90%")
+        assertThat(tapCommand.description()).isEqualTo("Tap Login Button at Bottom")
+    }
+
+    @Test
+    fun `pure point tap (no element selector) - should create TapOnPointV2Command`(
+        @YamlFile("029_pure_point_tap.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val pointCommand = commands[1] as TapOnPointV2Command
+
+        // Then: Verify the real command structure
+        assertThat(pointCommand.point).isEqualTo("50%, 90%")
+        assertThat(pointCommand.retryIfNoChange).isFalse() // YAML parsing sets default values
+        assertThat(pointCommand.longPress).isFalse() // YAML parsing sets default values
+        assertThat(pointCommand.originalDescription).isEqualTo("Tap on point (50%, 90%)")
+    }
+
+    @Test
+    fun `regular element tap (no point) - should create TapOnElementCommand without relativePoint`(
+        @YamlFile("029_regular_element_tap.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
+        assertThat(tapCommand.relativePoint).isNull()
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap on \"Submit\"")
+    }
+
+    @Test
+    fun `element-relative tap with repeat - should support both relativePoint and repeat`(
+        @YamlFile("029_element_relative_tap_with_repeat.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.repeat).isNotNull()
+        assertThat(tapCommand.repeat?.repeat).isEqualTo(3)
+        assertThat(tapCommand.repeat?.delay).isEqualTo(100L)
+        assertThat(tapCommand.retryIfNoChange).isFalse()
+        assertThat(tapCommand.waitUntilVisible).isFalse()
+        assertThat(tapCommand.longPress).isFalse()
+        assertThat(tapCommand.optional).isFalse()
+
+        // Verify the original description includes both the point and repeat info
+        assertThat(tapCommand.originalDescription).isEqualTo("Tap x3 on \"Submit\" at 50%, 90%")
+    }
+
+    @Test
+    fun `doubleTapOn with element-relative coordinates - should support both doubleTap and relativePoint`(
+        @YamlFile("029_double_tap_element_relative.yaml") commands: List<Command>
+    ) {
+        // Given: YAML command parsed by real YamlCommandReader
+        val tapCommand = commands[1] as TapOnElementCommand
+
+        // Then: Verify the real command structure
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Submit")
+        assertThat(tapCommand.relativePoint).isEqualTo("50%, 90%")
+        assertThat(tapCommand.repeat).isNotNull()
+        assertThat(tapCommand.repeat?.repeat).isEqualTo(2)
+        assertThat(tapCommand.repeat?.delay).isEqualTo(TapOnElementCommand.DEFAULT_REPEAT_DELAY)
+        assertThat(tapCommand.retryIfNoChange).isFalse()
+        assertThat(tapCommand.waitUntilVisible).isFalse()
+        assertThat(tapCommand.longPress).isFalse()
+        assertThat(tapCommand.optional).isFalse()
+
+        // Verify the original description includes both the point and double-tap info
+        assertThat(tapCommand.originalDescription).isEqualTo("Double tap on \"Submit\" at 50%, 90%")
+    }
+
+    @Test
+    fun setPermissions(
+        @YamlFile("030_setPermissions.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            SetPermissionsCommand(
+                appId = "com.example.app",
+                permissions = mapOf("all" to "deny", "notifications" to "unset")
+            ),
+        )
+    }
+
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()

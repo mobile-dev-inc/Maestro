@@ -5,14 +5,14 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: Test on Java ${{ matrix.java-version }}
+  unit-test:
+    name: Unit Test on Java ${{ matrix.java-version }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        java-version: [11, 17]
+        java-version: [17]
 
     steps:
       - name: Clone repository
@@ -26,8 +26,138 @@ jobs:
           cache: gradle
 
       - name: Test
+        id: unit-test
         run: ./gradlew test
 
+      - name: Upload unit test report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-unit-test-report
+          path: ./**/build/reports/tests/test
+          retention-days: 1
+          include-hidden-files: true
+
+  android-integration-test:
+    name: Android Integration Test on Java ${{ matrix.java-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [17]
+
+    steps:
+      # This is needed to enable hardware acceleration
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java-version }}
+          cache: gradle
+
+      - name: Run Integration test
+        if: matrix.java-version == '17'
+        id: integration-test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: |
+            # h/t https://gist.github.com/Tobias-Pe/52c8d6e162f75fb5dff5258a525fbf79
+            adb logcat -c                             # clear logs
+            touch emulator.log                        # create log file
+            chmod 777 emulator.log                    # allow writing to log file
+            adb logcat >> emulator.log &              # pipe all logcat messages into log file as a background process
+            ./gradlew integrationTest                 # run the tests
+            cp emulator.log ~/.maestro/emulator.log   # copy emulator log with other debug artifacts
+
+      - name: Upload Maestro integration debug artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-root-dir-android
+          path: ~/.maestro
+          retention-days: 1
+          include-hidden-files: true
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: maestro-integration-test-report
+          path: ./**/build/reports/tests/integrationTest
+          retention-days: 1
+          include-hidden-files: true
+
+  ios-integration-test:
+    name: iOS Integration Test on Java ${{ matrix.java-version }}
+    runs-on: macos-latest
+    timeout-minutes: 50
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [17]
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java-version }}
+          cache: gradle
+
+      - name: Set permission to scripts
+        run: chmod +x .github/scripts/boot_simulator.sh
+
+      - name: Boot Simulator
+        run: ./.github/scripts/boot_simulator.sh
+
+      - name: Set Simulator
+        run: |
+          SIMULATOR_ID=$(xcrun simctl list -j | jq -r '.devices | to_entries[] | .value[] | select(.isAvailable==true and .state=="Booted") | .udid' | head -n 1)
+          echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps iOS
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: |
+          unzip apps/wikipedia.zip
+          xcrun simctl install $SIMULATOR_ID ./Wikipedia.app
+
+      - name: Build for Testing
+        working-directory: ${{ github.workspace }}
+        run: |
+          xcodebuild clean build-for-testing \
+          -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
+          -derivedDataPath "./driver-verification" \
+          -scheme driver-verification-tests \
+          -destination "generic/platform=iOS Simulator"
+
+      - name: Run Integration tests
+        run: |
+          XCTESTRUN_FILE=$(find ./driver-verification/Build/Products -name "driver-verification-tests*.xctestrun" | head -n 1)
+          echo "Running tests on $SIMULATOR_ID"
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN_FILE" \
+            -destination "id=$SIMULATOR_ID"
 
   validate-gradle-wrapper:
     runs-on: ubuntu-latest

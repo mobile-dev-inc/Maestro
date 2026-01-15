@@ -6,7 +6,9 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
+import kotlinx.coroutines.runBlocking
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.device.Device
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
@@ -46,7 +48,9 @@ object TestRunner {
         env: Map<String, String>,
         resultView: ResultView,
         debugOutputPath: Path,
-        analyze: Boolean = false
+        analyze: Boolean = false,
+        apiKey: String? = null,
+        testOutputDir: Path?,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -62,21 +66,25 @@ object TestRunner {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(updatedEnv)
 
-            val flowName = YamlCommandReader.getConfig(commands)?.name
-            if (flowName != null) {
-                aiOutput = aiOutput.copy(flowName = flowName)
-            }
+            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+            aiOutput = aiOutput.copy(flowName = flowName)
 
-            MaestroCommandRunner.runCommands(
-                flowName = flowName ?: flowFile.nameWithoutExtension,
-                maestro = maestro,
-                device = device,
-                view = resultView,
-                commands = commands,
-                debugOutput = debugOutput,
-                aiOutput = aiOutput,
-                analyze = analyze,
-            )
+            logger.info("Running flow ${flowFile.name}...")
+
+            runBlocking {
+                MaestroCommandRunner.runCommands(
+                    flowName = flowName,
+                    maestro = maestro,
+                    device = device,
+                    view = resultView,
+                    commands = commands,
+                    debugOutput = debugOutput,
+                    aiOutput = aiOutput,
+                    analyze = analyze,
+                    apiKey = apiKey,
+                    testOutputDir = testOutputDir,
+                )
+            }
         }
 
         TestDebugReporter.saveFlow(
@@ -89,7 +97,18 @@ object TestRunner {
             path = debugOutputPath,
         )
 
-        if (debugOutput.exception != null) PrintUtils.err("${debugOutput.exception?.message}")
+        val exception = debugOutput.exception
+        if (exception != null) {
+            PrintUtils.err(exception.message)
+            if (exception is MaestroException.AssertionFailure) {
+                PrintUtils.err(exception.debugMessage)
+            } else {
+                val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
+                if (exception is MaestroException.DriverTimeout && debugMessage != null) {
+                    PrintUtils.err(debugMessage)
+                }
+            }
+        }
 
         return if (result.get() == true) 0 else 1
     }
@@ -103,6 +122,8 @@ object TestRunner {
         flowFile: File,
         env: Map<String, String>,
         analyze: Boolean = false,
+        apiKey: String? = null,
+        testOutputDir: Path?
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
@@ -134,20 +155,24 @@ object TestRunner {
                         previousCommands = commands
 
                         runCatching(resultView, maestro) {
-                            MaestroCommandRunner.runCommands(
-                                flowName = flowName ?: flowFile.nameWithoutExtension,
-                                maestro = maestro,
-                                device = device,
-                                view = resultView,
-                                commands = commands,
-                                debugOutput = FlowDebugOutput(),
-                                // TODO(bartekpacia): make AI outputs work in continuous mode (see #1972)
-                                aiOutput = FlowAIOutput(
-                                    flowName = "TODO",
-                                    flowFile = flowFile,
-                                ),
-                                analyze = analyze
-                            )
+                            runBlocking {
+                                MaestroCommandRunner.runCommands(
+                                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                                    maestro = maestro,
+                                    device = device,
+                                    view = resultView,
+                                    commands = commands,
+                                    debugOutput = FlowDebugOutput(),
+                                    // TODO(bartekpacia): make AI outputs work in continuous mode (see #1972)
+                                    aiOutput = FlowAIOutput(
+                                        flowName = "TODO",
+                                        flowFile = flowFile,
+                                    ),
+                                    analyze = analyze,
+                                    apiKey = apiKey,
+                                    testOutputDir = testOutputDir
+                                )
+                            }
                         }.get()
                     }
                 }

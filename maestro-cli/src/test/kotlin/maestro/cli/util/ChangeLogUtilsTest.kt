@@ -1,9 +1,10 @@
 package maestro.cli.util
 
 import com.google.common.truth.Truth.assertThat
-import java.io.File
 import maestro.cli.util.EnvUtils.CLI_VERSION
 import org.junit.jupiter.api.Test
+import java.io.File
+
 
 class ChangeLogUtilsTest {
 

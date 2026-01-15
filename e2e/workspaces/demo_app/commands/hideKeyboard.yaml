@@ -4,8 +4,23 @@ appId: com.example.example
 
 - tapOn: 'Form Test'
 - tapOn: 'Email'
-- assertVisible:
-    id: com.google.android.inputmethod.latin:id/key_pos_shift # The shift key on the Android keyboard
-- hideKeyboard
-- assertNotVisible:
-    id: com.google.android.inputmethod.latin:id/key_pos_shift
+
+- runFlow:
+    when:
+      platform: android
+    commands:
+      - assertVisible:
+          id: com.google.android.inputmethod.latin:id/key_pos_shift # The shift key on the Android keyboard
+      - hideKeyboard
+      - assertNotVisible:
+          id: com.google.android.inputmethod.latin:id/key_pos_shift
+
+- runFlow:
+    when:
+      platform: ios
+    commands:
+      - assertVisible:
+          id: shift # The shift key on the iOS keyboard
+      - hideKeyboard
+      - assertNotVisible:
+          id: shift 

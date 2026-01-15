@@ -1,6 +1,8 @@
 package maestro.orchestra.workspace
 
 import com.google.common.truth.Truth.assertThat
+import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.WorkspaceConfig.*
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -280,23 +282,7 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
-    @Test
-    internal fun `012 - Deterministic order for local tests`() {
-        // When
-        val plan = WorkspaceExecutionPlanner.plan(
-            input = paths("/workspaces/012_local_deterministic_order"),
-            includeTags = listOf(),
-            excludeTags = listOf(),
-            config = null,
-        )
-
-        // Then
-        assertThat(plan.flowsToRun).containsExactly(
-            path("/workspaces/012_local_deterministic_order/flowA.yaml"),
-            path("/workspaces/012_local_deterministic_order/flowB.yaml"),
-            path("/workspaces/012_local_deterministic_order/flowC.yaml"),
-        ).inOrder()
-    }
+    //012 - Deterministic order for local tests - removed
 
     @Test
     internal fun `013 - Execution order is respected`() {
@@ -335,6 +321,41 @@ internal class WorkspaceExecutionPlannerTest {
         // Then
         assertThat(plan.flowsToRun).containsExactly(
             path("/workspaces/014_config_not_null/flowA.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `017 - Upload configs on local and cloud both are supported`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/015_workspace_cloud_configs"),
+            includeTags = listOf("included"),
+            excludeTags = listOf("notIncluded"),
+            config = null
+        )
+
+        assertThat(plan.workspaceConfig.notifications?.email?.recipients).containsExactly("abc@mobile.dev")
+        assertThat(plan.workspaceConfig.notifications?.slack?.channels).containsExactly("e2e-testing")
+        assertThat(plan.workspaceConfig.executionOrder?.flowsOrder).containsExactly("flowA", "flowB")
+        assertThat(plan.workspaceConfig.disableRetries).isTrue()
+    }
+
+    @Test
+    internal fun `017 - Upload platform configs on are supported`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/015_workspace_cloud_configs"),
+            includeTags = listOf("included"),
+            excludeTags = listOf("notIncluded"),
+            config = null
+        )
+
+        val platformConfiguration = plan.workspaceConfig.platform
+        assertThat(platformConfiguration).isEqualTo(
+            PlatformConfiguration(
+                android = PlatformConfiguration.AndroidConfiguration(disableAnimations = true),
+                ios = PlatformConfiguration.IOSConfiguration(disableAnimations = true, snapshotKeyHonorModalViews = false)
+            )
         )
     }
 

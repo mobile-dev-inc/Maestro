@@ -55,7 +55,7 @@ object Filters {
     }
 
     fun nonClickable(): ElementFilter {
-        return  { nodes -> nodes.filter { it.clickable == false } }
+        return { nodes -> nodes.filter { it.clickable == false } }
     }
 
     fun textMatches(regex: Regex): ElementFilter {
@@ -65,9 +65,9 @@ object Filters {
                     val strippedValue = value.replace('\n', ' ')
 
                     regex.matches(value)
-                        || regex.pattern == value
-                        || regex.matches(strippedValue)
-                        || regex.pattern == strippedValue
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
                 } ?: false
             }.toSet()
 
@@ -76,9 +76,9 @@ object Filters {
                     val strippedValue = value.replace('\n', ' ')
 
                     regex.matches(value)
-                        || regex.pattern == value
-                        || regex.matches(strippedValue)
-                        || regex.pattern == strippedValue
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
                 } ?: false
             }
 
@@ -87,9 +87,9 @@ object Filters {
                     val strippedValue = value.replace('\n', ' ')
 
                     regex.matches(value)
-                        || regex.pattern == value
-                        || regex.matches(strippedValue)
-                        || regex.pattern == strippedValue
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
                 } ?: false
             }.toSet()
 
@@ -229,11 +229,14 @@ object Filters {
 
     fun index(idx: Int): ElementFilter {
         return { nodes ->
-            listOfNotNull(
-                nodes
-                    .sortedWith(INDEX_COMPARATOR)
-                    .getOrNull(idx)
-            )
+            val sortedNodes = nodes.sortedWith(INDEX_COMPARATOR)
+            val resolvedIndex = if (idx >= 0) idx else sortedNodes.size + idx
+
+            if (resolvedIndex < 0) {
+                emptyList()
+            } else {
+                listOfNotNull(sortedNodes.getOrNull(resolvedIndex))
+            }
         }
     }
 
@@ -269,13 +272,29 @@ object Filters {
 
     fun deepestMatchingElement(filter: ElementFilter): ElementFilter {
         return { nodes ->
-            filter(nodes)
-                .map {
-                    val matchingChildren = deepestMatchingElement(filter)(it.children)
-
-                    matchingChildren.lastOrNull()
-                        ?: it
+            nodes.flatMap { node ->
+                val matchingChildren = deepestMatchingElement(filter)(node.children)
+                if (matchingChildren.isNotEmpty()) {
+                    matchingChildren
+                } else if (filter(listOf(node)).isNotEmpty()) {
+                    listOf(node)
+                } else {
+                    emptyList()
                 }
+            }.distinct()
+        }
+    }
+
+    fun css(maestro: Maestro, cssSelector: String): ElementFilter {
+        return { nodes ->
+            val matchingNodes = maestro.findElementsByOnDeviceQuery(
+                timeoutMs = 5000,
+                query = OnDeviceElementQuery.Css(css = cssSelector),
+            )?.elements?.map { it.treeNode } ?: emptyList()
+
+            nodes.filter { node ->
+                matchingNodes.any { it == node }
+            }
         }
     }
 

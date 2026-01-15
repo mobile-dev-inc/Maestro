@@ -14,18 +14,18 @@ class RhinoJsEngine(
         writeTimeout=5.minutes,
         protocols=listOf(Protocol.HTTP_1_1)
     ),
-    platform: String = "unknown",
+    platform: String = "unknown"
 ) : JsEngine {
 
     private val context = Context.enter()
 
     private var currentScope = JsScope(root = true)
     private var onLogMessage: (String) -> Unit = {}
+    private val jsHttp = JsHttp(httpClient)
 
     init {
         context.initSafeStandardObjects(currentScope)
 
-        val jsHttp = JsHttp(httpClient)
         jsHttp.defineFunctionProperties(
             arrayOf("request", "get", "post", "put", "delete"),
             JsHttp::class.java,
@@ -92,6 +92,9 @@ class RhinoJsEngine(
         sourceName: String,
         runInSubScope: Boolean,
     ): Any? {
+        // Set current script directory for resolving relative file paths
+        jsHttp.setCurrentScriptDir(if (sourceName != "inline-script") sourceName else null)
+
         val scope = if (runInSubScope) {
             // We create a new scope for each evaluation to prevent local variables
             // from clashing with each other across multiple scripts.
@@ -116,6 +119,18 @@ class RhinoJsEngine(
             1,
             null
         )
+    }
+
+    override fun enterEnvScope() {
+        // Create a new environment variable scope for flow isolation.
+        // For RhinoJS, we can use the existing JavaScript scope mechanism
+        // which automatically handles variable isolation and cleanup.
+        enterScope()
+    }
+
+    override fun leaveEnvScope() {
+        // For RhinoJS, we can use the existing scope mechanism
+        leaveScope()
     }
 
 }

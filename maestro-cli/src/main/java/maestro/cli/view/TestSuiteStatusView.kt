@@ -8,6 +8,7 @@ import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import org.fusesource.jansi.Ansi
 import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 object TestSuiteStatusView {
@@ -53,7 +54,6 @@ object TestSuiteStatusView {
             if (canceledFlows.isNotEmpty()) {
                 PrintUtils.warn("${shardPrefix}${canceledFlows.size} ${flowWord(canceledFlows.size)} Canceled")
             }
-
         } else {
             val passedFlows = suite.flows
                 .filter { it.status == FlowStatus.SUCCESS || it.status == FlowStatus.WARNING }
@@ -77,8 +77,8 @@ object TestSuiteStatusView {
         println()
 
         if (suite.uploadDetails != null) {
-            println("==== View details in the console ====")
-            PrintUtils.message(uploadUrl)
+            PrintUtils.info("==== View Details on Maestro Cloud ====")
+            PrintUtils.info(uploadUrl.cyan())
             println()
         }
     }
@@ -168,16 +168,13 @@ object TestSuiteStatusView {
                 }
             )
 
-            fun UploadStatus.FlowResult.toViewModel(
-                duration: Duration? = null
-            ) = FlowResult(
+            fun UploadStatus.FlowResult.toViewModel() = FlowResult(
                 name = name,
                 status = status,
                 error = errors.firstOrNull(),
                 cancellationReason = cancellationReason,
-                duration = duration
+                duration = totalTime?.milliseconds
             )
-
         }
 
     }

@@ -12,7 +12,7 @@ struct PressButtonHandler: HTTPHandler {
     )
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
-        guard let requestBody = try? JSONDecoder().decode(PressButtonRequest.self, from: request.body) else {
+        guard let requestBody = try? await JSONDecoder().decode(PressButtonRequest.self, from: request.bodyData) else {
             return AppError(type: .precondition, message: "Incorrect request body for PressButton Handler").httpResponse
         }
         

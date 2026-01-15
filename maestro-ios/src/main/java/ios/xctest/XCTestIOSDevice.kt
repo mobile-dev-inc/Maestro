@@ -1,10 +1,10 @@
 package ios.xctest
 
 import com.github.michaelbull.result.Result
+import device.IOSDevice
 import hierarchy.ViewHierarchy
-import ios.IOSDevice
 import ios.IOSDeviceErrors
-import ios.IOSScreenRecording
+import device.IOSScreenRecording
 import xcuitest.api.DeviceInfo
 import maestro.utils.DepthTracker
 import maestro.utils.network.XCUITestServerError
@@ -13,8 +13,6 @@ import okio.buffer
 import org.slf4j.LoggerFactory
 import xcuitest.XCTestDriverClient
 import java.io.InputStream
-import java.net.SocketTimeoutException
-import java.util.UUID
 
 class XCTestIOSDevice(
     override val deviceId: String?,
@@ -130,7 +128,7 @@ class XCTestIOSDevice(
         error("Not supported")
     }
 
-    override fun uninstall(id: String): Result<Unit, Throwable> {
+    override fun uninstall(id: String) {
         error("Not supported")
     }
 
@@ -145,9 +143,10 @@ class XCTestIOSDevice(
     override fun launch(
         id: String,
         launchArguments: Map<String, Any>,
-        maestroSessionId: UUID?,
-    ): Result<Unit, Throwable> {
-        error("Not supported")
+    ) {
+        execute {
+            client.launchApp(id)
+        }
     }
 
     override fun stop(id: String) {
@@ -178,6 +177,10 @@ class XCTestIOSDevice(
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
         error("Not supported")
+    }
+
+    override fun setOrientation(orientation: String) {
+        execute { client.setOrientation(orientation) }
     }
 
     override fun isShutdown(): Boolean {
@@ -235,6 +238,8 @@ class XCTestIOSDevice(
                 "App crashed or stopped while executing flow, please check diagnostic logs: " +
                         "~/Library/Logs/DiagnosticReports directory"
             )
+        } catch (timeout: XCUITestServerError.OperationTimeout) {
+            throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
         }
     }
 

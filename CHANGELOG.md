@@ -2,6 +2,185 @@
 
 ## Unreleased
 
+## 2.1.0
+
+- Add `setPermissions` command, for setting app permissions outside of `launchApp`
+- Add `setClipboard` command, for setting Maestro's internal clipboard without copying from an element
+- Add `--platform` and `--device` to `maestro test` command
+- Add custom JUnit properties to reporting
+- Add support for --no-reinstall-driver option to `test` and `hierarchy` commands
+- Add creation of missing folders specified in the path when taking screenshots or recording videos
+- Bump web support to Chrome v142
+- Bump npm dependencies in legacy Maestro Studio
+- Hide incomplete `maestro driver-setup` command from `maestro --help`
+- Remove deprecated `deterministicOrder` feature from workspace config
+- Remove deprecated `maestro upload` command
+- Fix bug that reported that analytics was enabled when it wasn't
+- Fix building Maestro on Java >17
+- Fix link in `maestro bugreport`
+- Fix cancellation of flows whilst repeat loops are running
+- Fix enumeration of multi-select elements in Web
+- Fix use of hierarchy and screenshot strategies across Android and iOS
+- Fix web tests running into Chrome's password leak detection
+- Fix webview detection and interaction on iOS 26
+- Fix broken relative paths when uploading files via multipart form in `http.post`
+
+Special thanks to the Maestro community for contributing to this release! Shout out to @tokou, @kprakash2, @trongrg, @vibin, @ryuuhei0729, @Thomvis, @MarcellDr and @leovarmak ❤️
+
+## 2.0.10
+
+- Fix error messaging when running with shards fails
+- Improve gathering of dependencies when running single flows with `maestro cloud`
+
+## 2.0.7
+
+### Fix
+- Fixed bug affecting CI and pull request integrations where org prompts would fail in non-interactive environments.
+
+## 2.0.6
+
+### Features
+- Added support for negative index in element selector
+- Made specifying `--project_id` for cloud upload optional. **In case it is not specified and there are multiple projects, a prompt for selecting the project will be provided.**
+- In case the user belongs to multiple organizations and hasn't specified `--api-key` during cloud upload, a prompt for **selecting the organization** will be provided.
+
+### Fixes
+- Added descriptions to missing element selector aspects (enabled, disabled, selected, not selected, focused, not focused)
+
+## 2.0.5
+
+### Fixes
+- Removed debugging logs
+
+## 2.0.4
+
+### Features
+- Added support for tapping at specific coordinates relative to an element using the `relativePoint` parameter in `tapOn` and `doubleTapOn` commands [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/2059)
+- Labels in commands can now be dynamically evaluated using JavaScript expressions (thanks @jerriais!)
+
+### Fixes
+- Fixed issue where `maestro login` would fail if user was already logged in 
+- Fixed iOS permission setting when using 'all' with specific permission overrides
+- Fixed issue where platform argument would be ignored
+- Fixed issue where blank platform argument would incorrectly filter out all tests
+- Fixed off-by-one error when specifying count with `eraseText` command on Android
+- Improved performance by evaluating script conditions eagerly, ahead of visibility conditions (thanks @tokou!)
+- Fixed crash when running Maestro with empty arguments
+- Updated iOS test runner to support Xcode 26
+- Improved logging on Android driver timeouts
+- Improved copy/paste experience in legacy Maestro Studio (thanks @tylerqr!)
+
+
+## 2.0.3
+Fixes:
+- Fix filter logic that was causing incorrect element selection when using multiple selectors together for some applications
+- GraalJS will now isolate environment variables correctly between different runScript executions
+- Fix incorrect reporting of failures in `HtmlTestSuiteReporter`
+
+## 2.0.2
+Fixes:
+- Added Rhino deprecation warning in CLI
+- Fix conditions for checking if web flows exist in workspace
+- Added back Run details to cloud upload logs (regression in Maestro 2.0.0)
+
+## 2.0.1
+Fixes:
+- Fix issues with launching CLI on Windows systems
+
+## 2.0.0
+Breaking Change:
+- Updated java version to 17 better performance, security, and modern features. **If you’re still on an older version, update before using 2.0.0.**
+- We’ve switched from Rhino to **GraalJS** as the default JavaScript engine. Expect **faster execution** and **modern JS support** for your scripts. [GraalJS Behaviour Differences](https://docs.maestro.dev/advanced/javascript/graaljs-support#graaljs-behavior-differences)
+- URLs in the `appId` field are no longer supported. Flows must now use the `url` field in the YAML config for URLs.
+
+Features:
+- Added `setOrientation` command — adjust device orientation in tests (`PORTRAIT`, `UPSIDE_DOWN`, `LANDSCAPE_LEFT`, `LANDSCAPE_RIGHT`). ([Docs](https://docs.maestro.dev/api-reference/commands/setorientation))
+- Enhanced MCP Integration:
+  - More accurate flow path resolution
+  - View hierarchy output size reduced by **50%** (faster & lighter)
+  - `run_flow` / `run_flow_files` now support env variables & hooks
+- Added  `--test-output-dir`  to specify where test artifacts should be saved. ([Docs](https://docs.maestro.dev/cli/test-output-directory))
+- Added support for running entire workspace of **web flows** in a single `test` command.
+- Allowed Keep-Alive from Server to support for persistent connections.
+- Environment variables are now isolated between peer `runFlow` commands.
+- Added timestamp to JUnit and HTML test report
+- DataFaker is now available in JavaScript to generate random data for use in tests ([Docs](https://docs.maestro.dev/advanced/javascript/generating-random-with-faker.md))
+
+Fixes:
+- Fix CLI Cloud upload output
+- Fix broken `maestro studio` command for web version of Studio.
+- Fix **memory leak** for ios test runs that could cause out of memory issues on testing environments.
+- Fix `maestro cloud` command when uploading files that have external dependencias (subflows, scripts and media)
+- Fix disconnect in local iOS test executions when flow contains a large element tree
+
+## 1.41.0
+Fix:
+- Resolved an issue where view hierarchy was incorrectly returned on full-screen apps or larger devices (e.g., iPhone Pro models, iOS 18). This affected selector matching for taps and assertions.
+- Maestro now properly handles timeouts from the XCTest framework when the app UI is slow or too large. These are surfaced as actionable exceptions with helpful messages.
+- setLocation now mocks all major location providers (GPS, network, fused). Also ensures proper cleanup when the driver shuts down.
+- Errors when .maestro config file is misinterpreted as a test flow file.
+
+Features:
+- Platform configs are now supported via workspace configuration [(Docs)](https://docs.maestro.dev/api-reference/configuration/workspace-configuration#platform-configuration):
+  * `disableAnimations` for both android and iOS.
+  * `snapshotKeyHonorModalViews`: On iOS, includes elements behind modals that are still visible on modal to user but gets missing in hierarchy.
+- Added support for selecting `select` tags dropdown elements in web flows.
+- Debug messages are now attached to Maestro exceptions to help users understand failures faster.
+- Added support for selecting elements using CSS/DOM query
+- Added Maestro MCP server implementation to cli by [[Stevie Clifton](https://github.com/steviec)]
+
+Breaking Change:
+- `retryTapIfNoChange` is now disabled by default. It was causing side effects in some apps. If needed, it can still be manually enabled.
+
+
+## 1.40.3
+Fix
+- MissingKotlinParameterException during using maestro commands.
+
+## 1.40.2
+Fix
+- Sharding on iOS, throwing FileSystemAlreadyExistsException exception 
+
+## 1.40.1
+Fix
+- iOS apps going on background while using maestro commands
+
+Feature
+- Flag to skip interactive device selection by picking a --device-index
+
+## 1.40.0
+
+Fix:
+- JavaScript fails when running maestro test in continuous mode. Affected Commands: `maestro test`, `maestro record` ([#2311](https://github.com/mobile-dev-inc/Maestro/pull/2311))
+- Ignore notifications in analyse command for CI ([#2306](https://github.com/mobile-dev-inc/Maestro/pull/2306))
+- `config.yaml` not resolving on Windows ([#2327](https://github.com/mobile-dev-inc/Maestro/pull/2327))
+- Fix swipe command failure on iOS after upgrading to Xcode 16.2 [issue #2422](https://github.com/mobile-dev-inc/maestro/issues/2422) ([#2332](https://github.com/mobile-dev-inc/maestro/pull/2332))
+- Fix `app-binary-id` option on maestro cloud upload ([#2361](https://github.com/mobile-dev-inc/Maestro/pull/2361))
+- Ensure commands with missing elements fail as expected in Studio ([#2140](https://github.com/mobile-dev-inc/Maestro/pull/2140))
+- Prevent flows from getting stuck on the cloud by properly setting driver closing state ([#2364](https://github.com/mobile-dev-inc/Maestro/pull/2364))
+- Fix `maestro cloud` & `maestro start-device` on windows ([#2371](https://github.com/mobile-dev-inc/Maestro/pull/2371))
+- Improved `maestro cloud` to only process valid flow `.yaml`/`.yml` files and skip unrelated files like `config.yaml`, preventing parsing errors when uploading folders with mixed content ([#2359](https://github.com/mobile-dev-inc/Maestro/pull/2359))
+- Improved `maestro cloud` to skip validating non-flow files (e.g., .js, README, config.yaml) in folders, preventing parsing errors and upload failures
+- Fix setting up iOS Driver when not on bash environment ([#2412](https://github.com/mobile-dev-inc/Maestro/pull/2412))
+- Speed up view hierarchy generation by reducing SpringBoard queries and avoiding redundant app list calls on iOS. ([#2419](https://github.com/mobile-dev-inc/Maestro/pull/2419))
+
+Features:
+- Added support for `androidWebViewHierarchy: devtools` option to build Android WebView hierarchy using Chrome DevTools ([#2350](https://github.com/mobile-dev-inc/Maestro/pull/2350))
+- Added Chrome to available devices for web automation ([#2360](https://github.com/mobile-dev-inc/Maestro/pull/2360))
+- Introduced pre-built mode for setting up iOS driver on simulators without relying on `xcodebuild` ([#2325](https://github.com/mobile-dev-inc/Maestro/pull/2325))
+- Added command-line chat mode to Maestro CLI accessible by `maestro chat --ask=` and `maestro chat` ([#2378](https://github.com/mobile-dev-inc/Maestro/pull/2378))
+- Introduced `maestro check-syntax` command for validating flow syntax ([#2387](https://github.com/mobile-dev-inc/Maestro/pull/2387))
+- Added `--reinstall-driver` flag that reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added `--compact` flag that remove empty values to make the output hierarchy json smaller ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added `--device-os` and `--device-model` options to target specific iOS minor versions and devices ([Docs](https://docs.maestro.dev/cloud/reference/configuring-os-version#using-a-specific-ios-minor-version-and-device-recommended)) ([#2413](https://github.com/mobile-dev-inc/Maestro/pull/2413))
+- Added support for ios 18 on cloud and local
+- Bumped default iOS version to 16 for `maestro start-device`
+- Enabled AI command usage on `mobile.dev` ([#2425](https://github.com/mobile-dev-inc/Maestro/pull/2425))
+
+Chore: 
+- Update Flying Fox HTTP server on iOS driver ([#2415](https://github.com/mobile-dev-inc/Maestro/pull/2415))
+- Migrated app termination from `simctl` to `xctest` for improved stability` ([#2418](https://github.com/mobile-dev-inc/Maestro/pull/2418))
+
 ## 1.39.13
 
 - Fix : Adding upload route back again
@@ -100,7 +279,7 @@ Features:
 - Feature: allow for passing multiple flow files to `maestro test` ([#1995](https://github.com/mobile-dev-inc/maestro/pull/1995) by [Tarek Belkahia](https://github.com/tokou))
 - Feature: add the `optional` argument to all commands ([#1946](https://github.com/mobile-dev-inc/maestro/pull/1946) by [Tarek Belkahia](https://github.com/tokou))
 
-  This new command-level `optional` argument supersededs the (now removed) selector-level `optional` argument. No behavior changes are expected.
+  This new command-level `optional` argument supersedes the (now removed) selector-level `optional` argument. No behavior changes are expected.
 
   When command with `optional: true` fails, its status is now "warned ⚠️" instead of "skipped ⚪️"
 
@@ -366,7 +545,7 @@ CLI
 - Update: Maestro Studio revamp improvements
   - wrapped element names in sidebar
   - sidebar text always visible
-  - add "hintText" and "accesbilityText" in sidebar
+  - add "hintText" and "accessibilityText" in sidebar
   - improve sidebar search
   - fixed highlight issues in search
   - various other small improvements
@@ -377,7 +556,7 @@ CLI
 
 ## 1.30.1 - 2023-07-14
 
-- Fix: Allow running `maestro studio` and `maestro test` simultaneusly
+- Fix: Allow running `maestro studio` and `maestro test` simultaneously
 - Fix: Connection improvements
 
 ## 1.30.0 - 2023-07-13
@@ -645,7 +824,7 @@ CLI
 
 ## 1.17.2 - 2022-12-13
 
-- Tweak: Deprecate hierachy and query CLI commands
+- Tweak: Deprecate hierarchy and query CLI commands
 
 ## 1.17.1 - 2022-12-12
 
@@ -707,7 +886,7 @@ CLI
 - **Breaking change**: Removed `clipboardPaste` command in favour of new `pasteText` command
 - Fix: Java 8 compatibility issue for M1 users
 - Fix: `_` character was mapped incorrectly on iOS
-- Fix: first `tapOn` command was failing unless it was preceeded by `launchApp` or `openLink`
+- Fix: first `tapOn` command was failing unless it was preceded by `launchApp` or `openLink`
 - Tweak: Maestro no longer kills running `idb_companion` processes
 - Tweak: updated gRPC version to 1.52.0
 
@@ -752,7 +931,7 @@ CLI
 
 ## 1.11.2 - 2022-10-29
 
-- Fix: updating to dadb 1.2.3 to fix an occassional device connection issue
+- Fix: updating to dadb 1.2.3 to fix an occasional device connection issue
 - Fix: injecting `env` parameters into conditions (i.e. in `runFlow`)
 
 ## 1.11.1 - 2022-10-27

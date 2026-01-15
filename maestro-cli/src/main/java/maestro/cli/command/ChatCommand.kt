@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.EnvUtils.BASE_API_URL
@@ -16,19 +17,26 @@ import java.util.concurrent.Callable
 )
 class ChatCommand : Callable<Int> {
 
-    @CommandLine.Option(order = 2, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = BASE_API_URL
-
     @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
     private var apiKey: String? = null
 
+    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
+    private var apiUrl: String = BASE_API_URL
+
+    @CommandLine.Option(
+        order = 2,
+        names = ["--ask"],
+        description = ["Gets a response and immediately exits the chat session"]
+    )
+    private var ask: String? = null
+
     private val auth by lazy {
-        Auth(ApiClient("$apiUrl/v2"))
+        Auth(ApiClient(apiUrl))
     }
 
     override fun call(): Int {
         if (apiKey == null) {
-            apiKey = auth.getCachedAuthToken()
+            apiKey = ApiKey.getToken()
         }
 
         if (apiKey == null) {
@@ -36,21 +44,25 @@ class ChatCommand : Callable<Int> {
             return 1
         }
 
-        val client = ApiClient(apiUrl!!)
-        println(
-            """
+        val client = ApiClient(apiUrl)
+        if (ask == null) {
+            println(
+                """
             Welcome to MaestroGPT!
 
             You can ask questions about Maestro documentation and code.
             To exit, type "quit" or "exit".
             
             """.trimIndent()
-        )
+            )
+        }
         val sessionId = "maestro_cli:" + UUID.randomUUID().toString()
 
         while (true) {
-            print(ansi().fgBrightMagenta().a("> ").reset().toString())
-            val question = readLine()
+            if(ask == null) {
+                print(ansi().fgBrightMagenta().a("> ").reset().toString())
+            }
+            val question = ask ?: readLine()
 
             if (question == null || question == "quit" || question == "exit") {
                 println("Goodbye!")
@@ -62,10 +74,18 @@ class ChatCommand : Callable<Int> {
             messages.filter { it.role == "assistant" }.mapNotNull { message ->
                 message.content.map { it.text }.joinToString("\n").takeIf { it.isNotBlank() }
             }.forEach { message ->
-                println(
-                    ansi().fgBrightMagenta().a("MaestroGPT> ").reset().fgBrightCyan().a(message).reset().toString()
-                )
+                if(ask != null) {
+                    println(message)
+                } else {
+                    println(
+                        ansi().fgBrightMagenta().a("MaestroGPT> ").reset().fgBrightCyan().a(message).reset().toString()
+                    )
+                }
                 println()
+            }
+
+            if (ask != null) {
+                return 0
             }
         }
     }

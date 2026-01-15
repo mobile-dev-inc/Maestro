@@ -20,9 +20,8 @@
 package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
-import maestro.Filters.asFilter
 import maestro.UiElement.Companion.toUiElementOrNull
-import maestro.drivers.WebDriver
+import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
@@ -33,15 +32,12 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
-import java.util.*
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 class Maestro(
-     val driver: Driver,
+    val driver: Driver,
 ) : AutoCloseable {
-
-    private val sessionId = UUID.randomUUID()
 
     val deviceName: String
         get() = driver.name()
@@ -66,9 +62,10 @@ class Maestro(
         LOGGER.info("Launching app $appId")
 
         if (stopIfRunning) {
+            LOGGER.info("Stopping $appId app during launch")
             driver.stopApp(appId)
         }
-        driver.launchApp(appId, launchArguments, sessionId = sessionId)
+        driver.launchApp(appId, launchArguments)
     }
 
     fun stopApp(appId: String) {
@@ -176,7 +173,7 @@ class Maestro(
     fun tap(
         element: UiElement,
         initialHierarchy: ViewHierarchy,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         waitUntilVisible: Boolean = false,
         longPress: Boolean = false,
         appId: String? = null,
@@ -230,7 +227,7 @@ class Maestro(
     fun tapOnRelative(
         percentX: Int,
         percentY: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -251,7 +248,7 @@ class Maestro(
     fun tap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -273,7 +270,7 @@ class Maestro(
     private fun performTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
@@ -288,16 +285,16 @@ class Maestro(
         }
     }
 
-    private fun screenshotBasedTap(
+    private fun hierarchyBasedTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
+        LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
 
@@ -324,16 +321,16 @@ class Maestro(
         }
     }
 
-    private fun hierarchyBasedTap(
+    private fun screenshotBasedTap(
         x: Int,
         y: Int,
-        retryIfNoChange: Boolean = true,
+        retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
+        LOGGER.info("Try tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
         val screenshotBeforeTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
@@ -360,6 +357,8 @@ class Maestro(
                 LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
                 return
             }
+
+            LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
 
             val screenshotAfterTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
             if (screenshotBeforeTap != null &&
@@ -412,37 +411,8 @@ class Maestro(
         }
     }
 
-    fun findElementByRegexp(regex: Regex, timeoutMs: Long): UiElement {
-        LOGGER.info("Looking for element by regex: ${regex.pattern} (timeout $timeoutMs)")
-
-        return findElementWithTimeout(timeoutMs, Filters.textMatches(regex))?.element
-            ?: throw MaestroException.ElementNotFound(
-                "No element that matches regex: $regex",
-                viewHierarchy().root
-            )
-    }
-
     fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy {
         return ViewHierarchy.from(driver, excludeKeyboardElements)
-    }
-
-    fun findElementByIdRegex(regex: Regex, timeoutMs: Long): UiElement {
-        LOGGER.info("Looking for element by id regex: ${regex.pattern} (timeout $timeoutMs)")
-
-        return findElementWithTimeout(timeoutMs, Filters.idMatches(regex))?.element
-            ?: throw MaestroException.ElementNotFound(
-                "No element has id that matches regex $regex",
-                viewHierarchy().root
-            )
-    }
-
-    fun findElementBySize(width: Int?, height: Int?, tolerance: Int?, timeoutMs: Long): UiElement? {
-        LOGGER.info("Looking for element by size: $width x $height (tolerance $tolerance) (timeout $timeoutMs)")
-
-        return findElementWithTimeout(
-            timeoutMs,
-            Filters.sizeMatches(width, height, tolerance).asFilter()
-        )?.element
     }
 
     fun findElementWithTimeout(
@@ -463,6 +433,19 @@ class Maestro(
                 hierarchy = ViewHierarchy(element.treeNode)
             }
             return FindElementResult(element, hierarchy)
+        }
+    }
+
+    fun findElementsByOnDeviceQuery(
+        timeoutMs: Long,
+        query: OnDeviceElementQuery
+    ): OnDeviceElementQueryResult? {
+        return MaestroTimer.withTimeout(timeoutMs) {
+            val elements = driver.queryOnDeviceElements(query)
+
+            OnDeviceElementQueryResult(
+                elements = elements.mapNotNull { it.toUiElementOrNull() },
+            )
         }
     }
 
@@ -568,6 +551,16 @@ class Maestro(
         driver.setLocation(latitude.toDouble(), longitude.toDouble())
     }
 
+    fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean = true) {
+        LOGGER.info("Setting orientation: $orientation")
+
+        driver.setOrientation(orientation)
+
+        if (waitForAppToSettle) {
+            waitForAppToSettle()
+        }
+    }
+
     fun eraseText(charactersToErase: Int) {
         LOGGER.info("Erasing $charactersToErase characters")
 
@@ -655,7 +648,7 @@ class Maestro(
                 }
             }
 
-            val driver = WebDriver(
+            val driver = CdpWebDriver(
                 isStudio = isStudio,
                 isHeadless = isHeadless,
                 deviceId = deviceId,

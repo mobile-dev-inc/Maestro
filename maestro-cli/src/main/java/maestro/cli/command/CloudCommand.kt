@@ -24,6 +24,7 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
+import maestro.cli.api.UploadStatus
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.TestDebugReporter
@@ -41,7 +42,7 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Test a Flow or set of Flows in the cloud (https://app.maestro.dev)",
+        "Upload your flows on Cloud by using @|yellow `maestro cloud sample/app.apk flows_folder/`|@ (@|cyan https://app.maestro.dev|@)",
         "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in the cloud",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
@@ -144,7 +145,7 @@ class CloudCommand : Callable<Int> {
     )
     private var output: File? = null
 
-    @Option(order = 17, names = ["--ios-version"], description = ["iOS version to run your flow against"])
+    @Option(order = 17, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
     private var iOSVersion: String? = null
 
     @Option(order = 18, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
@@ -153,10 +154,10 @@ class CloudCommand : Callable<Int> {
     @Option(order = 19, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
     private var deviceLocale: String? = null
 
-    @Option(order = 20, names = ["--device-model"], description = ["Device model to run your flow against [closed beta]"])
+    @Option(order = 20, names = ["--device-model"], description = ["Device model to run your flow against. Supported values include iPhone-11, etc. Only supported for iOS at the moment."])
     private var deviceModel: String? = null
 
-    @Option(order = 21, names = ["--device-os"], description = ["OS version to run your flow against [closed beta]"])
+    @Option(order = 21, names = ["--device-os"], description = ["OS version to run your flow against. Supported values include iOS-16-4, iOS-17-5, iOS-18-2, etc. Only supported for iOS at the moment."])
     private var deviceOs: String? = null
 
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
@@ -227,7 +228,7 @@ class CloudCommand : Callable<Int> {
 
     private fun validateWorkSpace() {
         try {
-            PrintUtils.message("Evaluating workspace...")
+            PrintUtils.message("Evaluating flow(s)...")
             WorkspaceExecutionPlanner
                 .plan(
                     input = setOf(flowsFile.toPath().toAbsolutePath()),
@@ -236,7 +237,7 @@ class CloudCommand : Callable<Int> {
                     config = configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
-            throw CliError("Upload aborted. Received error when evaluating workspace:\n\n${e.message}")
+            throw CliError("Upload aborted. Received error when evaluating flow(s):\n\n${e.message}")
         }
     }
 

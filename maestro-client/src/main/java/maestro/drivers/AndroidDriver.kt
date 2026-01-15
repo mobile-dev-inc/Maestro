@@ -34,8 +34,7 @@ import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
-import maestro.android.chromedevtools.AndroidWebViewHierarchy
-import maestro.android.chromedevtools.DadbChromeDevToolsClient
+import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -50,7 +49,6 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -66,6 +64,7 @@ class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
+    private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
     private var open = false
@@ -82,10 +81,13 @@ class AndroidDriver(
     private val asyncStub get() = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
+    private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
+
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
 
+    private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
 
     override fun name(): String {
@@ -155,14 +157,14 @@ class AndroidDriver(
     private fun allocateForwarder() {
         // Close existing forwarder on this port if it exists
         PORT_TO_FORWARDER[hostPort]?.close()
-        
+
         // Try to find an available port, starting with the preferred hostPort
         val portToUse = findAvailablePort(hostPort)
-        
+
         if (portToUse != hostPort) {
             LOGGER.info("Original port $hostPort was unavailable, using port $portToUse instead")
         }
-        
+
         try {
             PORT_TO_FORWARDER[portToUse] = dadb.tcpForward(
                 portToUse,
@@ -174,11 +176,11 @@ class AndroidDriver(
             throw e
         }
     }
-    
+
     /**
      * Attempts to find an available port, starting with the preferred port.
      * If that port is unavailable, tries ports in the range 7001-7128.
-     * 
+     *
      * @param preferredPort The port to try first
      * @return An available port or the original port if no alternatives found
      */
@@ -192,12 +194,12 @@ class AndroidDriver(
         } catch (e: Exception) {
             LOGGER.warn("Port $preferredPort is already in use, looking for alternative port")
         }
-        
+
         // Try alternative ports in the range
         for (port in (7001..7128).shuffled()) {
             // Don't try the original port again
             if (port == preferredPort) continue
-            
+
             try {
                 val socket = java.net.ServerSocket(port)
                 socket.close()
@@ -207,7 +209,7 @@ class AndroidDriver(
                 continue
             }
         }
-        
+
         // If we couldn't find an available port, return the original and let the
         // operation fail, which will give a more descriptive error
         LOGGER.warn("Could not find an available port in range 7001-7128, will try with original port $preferredPort")
@@ -229,9 +231,12 @@ class AndroidDriver(
     }
 
     override fun close() {
-        if (closed) return
         if (proxySet) {
             resetProxy()
+        }
+        if (isLocationMocked) {
+            blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
+            isLocationMocked = false
         }
 
         LOGGER.info("[Start] close port forwarder")
@@ -246,8 +251,14 @@ class AndroidDriver(
         PORT_TO_ALLOCATION_POINT.remove(actualPort)
         LOGGER.info("[Done] Remove host port from port to allocation map")
 
+
         LOGGER.info("[Start] Uninstall driver from device")
-        uninstallMaestroApks()
+        if (reinstallDriver) {
+            uninstallMaestroDriverApp()
+        }
+        if (reinstallDriver) {
+            uninstallMaestroServerApp()
+        }
         LOGGER.info("[Done] Uninstall driver from device")
 
         LOGGER.info("[Start] Close instrumentation session")
@@ -258,6 +269,8 @@ class AndroidDriver(
         LOGGER.info("[Start] Shutdown GRPC channel")
         channel.shutdown()
         LOGGER.info("[Done] Shutdown GRPC channel")
+
+        androidWebViewHierarchyClient.close()
 
         if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
             throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
@@ -285,7 +298,6 @@ class AndroidDriver(
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
-        sessionId: UUID?,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
             if(!open) // pick device flow, no open() invocation
@@ -296,8 +308,6 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            val sessionUUID = sessionId ?: UUID.randomUUID()
-            dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
             runDeviceCall {
                 blockingStubWithTimeout.launchApp(
                     launchAppRequest {
@@ -406,7 +416,7 @@ class AndroidDriver(
 
             val baseTree = mapHierarchy(document)
 
-            val treeNode = AndroidWebViewHierarchy.augmentHierarchy(dadb, baseTree, chromeDevToolsEnabled)
+            val treeNode = androidWebViewHierarchyClient.augmentHierarchy(baseTree, chromeDevToolsEnabled)
 
             if (excludeKeyboardElements) {
                 treeNode.excludeKeyboardElements() ?: treeNode
@@ -444,13 +454,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
-                    closed = true
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                        closed = true
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
                     }
@@ -739,7 +747,18 @@ class AndroidDriver(
 
     override fun setLocation(latitude: Double, longitude: Double) {
         metrics.measured("operation", mapOf("command" to "setLocation")) {
-            shell("appops set dev.mobile.maestro android:mock_location allow")
+            if (!isLocationMocked) {
+                LOGGER.info("[Start] Setting up for mocking location $latitude, $longitude")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
+                shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
+                shell("appops set dev.mobile.maestro android:mock_location allow")
+                runDeviceCall {
+                    blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
+                }
+                LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
+
+                isLocationMocked = true
+            }
 
             runDeviceCall {
                 blockingStubWithTimeout.setLocation(
@@ -749,6 +768,18 @@ class AndroidDriver(
                     }
                 ) ?: error("Set Location Response can't be null")
             }
+        }
+    }
+
+    override fun setOrientation(orientation: DeviceOrientation) {
+        // Disable accelerometer based rotation before overriding orientation
+        dadb.shell("settings put system accelerometer_rotation 0")
+
+        when(orientation) {
+            DeviceOrientation.PORTRAIT -> dadb.shell("settings put system user_rotation 0")
+            DeviceOrientation.LANDSCAPE_LEFT -> dadb.shell("settings put system user_rotation 1")
+            DeviceOrientation.UPSIDE_DOWN -> dadb.shell("settings put system user_rotation 2")
+            DeviceOrientation.LANDSCAPE_RIGHT -> dadb.shell("settings put system user_rotation 3")
         }
     }
 
@@ -976,9 +1007,15 @@ class AndroidDriver(
 
     private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
         try {
-            dadb.shell("pm $permissionValue $appId $permission")
+            shell("pm $permissionValue $appId $permission")
         } catch (exception: Exception) {
-            /* no-op */
+            // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
+            if (exception.message?.contains("is not a changeable permission type") == false) {
+                // Debug level is fine.
+                // We don't need to be loud about this. IOExceptions were already caught in shell(..)
+                // Remaining issues are likely due to "all" containing permissions that the app doesn't support.
+                logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
+            }
         }
     }
 
@@ -1109,6 +1146,14 @@ class AndroidDriver(
                 attributesBuilder["class"] = node.getAttribute("class")
             }
 
+            if (node.hasAttribute("important-for-accessibility")) {
+                attributesBuilder["important-for-accessibility"] = node.getAttribute("important-for-accessibility")
+            }
+
+            if (node.hasAttribute("error")) {
+                attributesBuilder["error"] = node.getAttribute("error")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
@@ -1139,7 +1184,11 @@ class AndroidDriver(
 
     fun installMaestroDriverApp() {
         metrics.measured("operation", mapOf("command" to "installMaestroDriverApp")) {
-            uninstallMaestroDriverApp()
+            if (reinstallDriver) {
+                uninstallMaestroDriverApp()
+            } else if (isPackageInstalled("dev.mobile.maestro")) {
+                return@measured
+            }
 
             val maestroAppApk = File.createTempFile("maestro-app", ".apk")
 
@@ -1158,7 +1207,11 @@ class AndroidDriver(
     }
 
     private fun installMaestroServerApp() {
-        uninstallMaestroServerApp()
+        if (reinstallDriver) {
+            uninstallMaestroServerApp()
+        } else if (isPackageInstalled("dev.mobile.maestro.test")) {
+            return
+        }
 
         val maestroServerApk = File.createTempFile("maestro-server", ".apk")
 
@@ -1287,13 +1340,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Device call failed on android with $status", throwable)
-                    closed = true
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while doing android device call")
-                        closed = true
                         throw throwable
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
@@ -1320,8 +1371,6 @@ class AndroidDriver(
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
-        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
-        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }
