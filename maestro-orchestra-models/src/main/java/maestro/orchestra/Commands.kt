@@ -382,6 +382,17 @@ data class SetClipboardCommand(
     override val originalDescription: String
         get() = "Set Maestro clipboard to $text"
 
+    override fun yamlString(): String {
+        val yamlString = buildString {
+            appendLine(
+                """
+                |setClipboard: $text
+                """
+            )
+        }
+        return yamlString
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SetClipboardCommand {
         return copy(
             text = text.evaluateScripts(jsEngine),
