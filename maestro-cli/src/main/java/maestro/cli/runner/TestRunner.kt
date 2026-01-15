@@ -58,16 +58,16 @@ object TestRunner {
             flowFile = flowFile,
         )
 
-        val updatedEnv = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile)
-
         val result = runCatching(resultView, maestro) {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(updatedEnv)
-
-            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+            val rawCommands = YamlCommandReader.readCommands(flowFile.toPath())
+            val flowName = YamlCommandReader.getConfig(rawCommands)?.name ?: flowFile.nameWithoutExtension
             aiOutput = aiOutput.copy(flowName = flowName)
+
+            val updatedEnv = env
+                .withInjectedShellEnvVars()
+                .withDefaultEnvVars(flowFile, flowName)
+
+            val commands = rawCommands.withEnv(updatedEnv)
 
             logger.info("Running flow ${flowFile.name}...")
 
@@ -139,15 +139,14 @@ object TestRunner {
                     join()
                 }
 
+                val rawCommands = YamlCommandReader.readCommands(flowFile.toPath())
+                val flowName = YamlCommandReader.getConfig(rawCommands)?.name
+
                 val updatedEnv = env
                     .withInjectedShellEnvVars()
-                    .withDefaultEnvVars(flowFile)
+                    .withDefaultEnvVars(flowFile, flowName)
 
-                val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
-                    .withEnv(updatedEnv)
-
-                val flowName = YamlCommandReader.getConfig(commands)?.name
+                val commands = rawCommands.withEnv(updatedEnv)
 
                 // Restart the flow if anything has changed
                 if (commands != previousCommands) {

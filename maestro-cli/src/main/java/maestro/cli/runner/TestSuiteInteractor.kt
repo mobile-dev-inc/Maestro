@@ -70,10 +70,8 @@ class TestSuiteInteractor(
         val flowSequence = executionPlan.sequence
         for (flow in flowSequence.flows) {
             val flowFile = flow.toFile()
-            val updatedEnv = env
-                .withInjectedShellEnvVars()
-                .withDefaultEnvVars(flowFile)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val baseEnv = env.withInjectedShellEnvVars()
+            val (result, aiOutput) = runFlow(flowFile, baseEnv, maestro, debugOutputPath, testOutputDir)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -90,10 +88,8 @@ class TestSuiteInteractor(
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
             val flowFile = flow.toFile()
-            val updatedEnv = env
-                .withInjectedShellEnvVars()
-                .withDefaultEnvVars(flowFile)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val baseEnv = env.withInjectedShellEnvVars()
+            val (result, aiOutput) = runFlow(flowFile, baseEnv, maestro, debugOutputPath, testOutputDir)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -164,16 +160,16 @@ class TestSuiteInteractor(
         var errorMessage: String? = null
 
         val debugOutput = FlowDebugOutput()
+        val rawCommands = YamlCommandReader.readCommands(flowFile.toPath())
+        val maestroConfig = YamlCommandReader.getConfig(rawCommands)
+        val flowName: String = maestroConfig?.name ?: flowFile.nameWithoutExtension
+
         val aiOutput = FlowAIOutput(
-            flowName = flowFile.nameWithoutExtension,
+            flowName = flowName,
             flowFile = flowFile,
         )
-        val commands = YamlCommandReader
-            .readCommands(flowFile.toPath())
-            .withEnv(env)
-
-        val maestroConfig = YamlCommandReader.getConfig(commands)
-        val flowName: String = maestroConfig?.name ?: flowFile.nameWithoutExtension
+        val updatedEnv = env.withDefaultEnvVars(flowFile, flowName)
+        val commands = rawCommands.withEnv(updatedEnv)
 
         logger.info("$shardPrefix Running flow $flowName")
 

@@ -29,6 +29,26 @@ class EnvTest {
     }
 
     @Test
+    fun `withDefaultEnvVars should add flow name when provided`() {
+        val env = emptyEnv.withDefaultEnvVars(File("myFlow.yml"), "MyFlowName")
+        assertThat(env["MAESTRO_FILENAME"]).isEqualTo("myFlow")
+        assertThat(env["MAESTRO_FLOW_NAME"]).isEqualTo("MyFlowName")
+    }
+
+    @Test
+    fun `withDefaultEnvVars should not add MAESTRO_FLOW_NAME when flowName is null`() {
+        val env = emptyEnv.withDefaultEnvVars(File("myFlow.yml"), null)
+        assertThat(env["MAESTRO_FILENAME"]).isEqualTo("myFlow")
+        assertThat(env.containsKey("MAESTRO_FLOW_NAME")).isFalse()
+    }
+
+    @Test
+    fun `withDefaultEnvVars should override MAESTRO_FLOW_NAME`() {
+        val env = mapOf("MAESTRO_FLOW_NAME" to "OtherName").withDefaultEnvVars(File("myFlow.yml"), "MyFlowName")
+        assertThat(env["MAESTRO_FLOW_NAME"]).isEqualTo("MyFlowName")
+    }
+
+    @Test
     fun `withInjectedShellEnvVars only keeps MAESTRO_ vars`() {
         val env = emptyEnv.withInjectedShellEnvVars()
         assertThat(env.filterKeys { it.startsWith("MAESTRO_").not() }).isEmpty()

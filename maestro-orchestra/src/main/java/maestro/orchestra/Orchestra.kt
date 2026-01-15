@@ -286,7 +286,7 @@ class Orchestra(
             jsEngine.close()
         }
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
-                
+
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
