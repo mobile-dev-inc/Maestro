@@ -1371,6 +1371,8 @@ class AndroidDriver(
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
+        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
+        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }

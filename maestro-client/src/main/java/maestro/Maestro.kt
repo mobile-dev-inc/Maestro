@@ -651,7 +651,6 @@ class Maestro(
             val driver = CdpWebDriver(
                 isStudio = isStudio,
                 isHeadless = isHeadless,
-                deviceId = deviceId,
             )
             if (openDriver) {
                 driver.open()
