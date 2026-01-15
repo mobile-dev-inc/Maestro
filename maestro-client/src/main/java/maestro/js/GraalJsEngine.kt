@@ -30,7 +30,7 @@ class GraalJsEngine(
         writeTimeout = 5.minutes,
         protocols = listOf(Protocol.HTTP_1_1)
     ),
-    platform: String = "unknown",
+    platform: String = "unknown"
 ) : JsEngine {
 
     private val openContexts = HashSet<Context>()
