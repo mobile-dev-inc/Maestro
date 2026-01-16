@@ -1,10 +1,10 @@
 package maestro.cli.view
 
 import maestro.MaestroException
-import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.NoInputException
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.error.InvalidFlowFile
 import org.mozilla.javascript.EcmaError
 
 object ErrorViewUtils {

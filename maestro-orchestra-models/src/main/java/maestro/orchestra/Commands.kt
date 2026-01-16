@@ -27,7 +27,10 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.FileReader
 import com.fasterxml.jackson.annotation.JsonIgnore
+import java.nio.file.Path
+import kotlin.io.path.readText
 import net.datafaker.Faker
 
 sealed interface Command {
@@ -938,10 +941,11 @@ data class DefineVariablesCommand(
 }
 
 data class RunScriptCommand(
-    val script: String,
+    val script: String = "",
     val env: Map<String, String> = emptyMap(),
     val sourceDescription: String,
     val condition: Condition?,
+    val flowPath: Path,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -954,11 +958,15 @@ data class RunScriptCommand(
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
+        val evaluatedSourceDescription = sourceDescription.evaluateScripts(jsEngine)
+        val resolvedScriptPath = FileReader.resolvePath(flowPath, evaluatedSourceDescription)
         return copy(
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
+            sourceDescription = resolvedScriptPath.toString(),
+            script = resolvedScriptPath.readText(),
             label = label?.evaluateScripts(jsEngine)
         )
     }

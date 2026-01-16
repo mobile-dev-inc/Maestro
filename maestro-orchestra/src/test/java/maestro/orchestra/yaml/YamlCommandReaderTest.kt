@@ -59,6 +59,7 @@ import maestro.orchestra.yaml.junit.YamlFile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.FileSystems
+import java.nio.file.Path
 import java.nio.file.Paths
 
 @Suppress("JUnitMalformedDeclaration")
@@ -221,10 +222,6 @@ internal class YamlCommandReaderTest {
     fun labels(
         @YamlFile("023_labels.yaml") commands: List<Command>,
     ) {
-        // Compute expected absolute path for runScript command
-        val testResourcesPath = YamlCommandReaderTest::class.java.classLoader.getResource("YamlCommandReaderTest/023_runScript_test.js")?.toURI()
-        val expectedScriptPath = testResourcesPath?.let { java.nio.file.Paths.get(it).toString() } ?: "023_runScript_test.js"
-        
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(
                 config=MaestroConfig(
@@ -366,10 +363,11 @@ internal class YamlCommandReaderTest {
                 label = "Check that five is still what we think it is"
             ),
             RunScriptCommand(
-                script = "const myNumber = 1 + 1;",
+                script = "", // Will be resolved at runtime
                 condition = null,
-                sourceDescription = expectedScriptPath,
-                label = "Run some special calculations"
+                sourceDescription = "023_runScript_test.js",
+                label = "Run some special calculations",
+                flowPath = Path.of("build/resources/test/YamlCommandReaderTest/023_labels.yaml").toAbsolutePath(),
             ),
             SetOrientationCommand(
                 orientation = DeviceOrientation.LANDSCAPE_LEFT,

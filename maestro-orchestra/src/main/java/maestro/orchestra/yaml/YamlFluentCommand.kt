@@ -72,15 +72,14 @@ import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
-import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.error.InvalidFlowFile
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
-import kotlin.io.path.readText
 
 class ToCommandsException(
     override val cause: Throwable,
@@ -383,21 +382,18 @@ data class YamlFluentCommand(
                     )
                 )
             )
-            runScript != null -> {
-                val scriptPath = resolvePath(flowPath, runScript.file)
-                listOf(
-                    MaestroCommand(
-                        RunScriptCommand(
-                            script = scriptPath.readText(),
-                            env = runScript.env,
-                            sourceDescription = scriptPath.toString(),
-                            condition = runScript.`when`?.toCondition(),
-                            label = runScript.label,
-                            optional = runScript.optional,
-                        )
+            runScript != null -> listOf(
+                MaestroCommand(
+                    RunScriptCommand(
+                        env = runScript.env,
+                        sourceDescription = runScript.file,
+                        condition = runScript.`when`?.toCondition(),
+                        label = runScript.label,
+                        optional = runScript.optional,
+                        flowPath = flowPath,
                     )
                 )
-            }
+            )
 
             waitForAnimationToEnd != null -> listOf(
                 MaestroCommand(
@@ -664,6 +660,10 @@ data class YamlFluentCommand(
         return YamlCommandReader.readConfig(runFlowPath).toCommand(runFlowPath).applyConfigurationCommand?.config
     }
 
+    @Deprecated(
+        message = "Use FileReader.resolvePath instead.",
+        replaceWith = ReplaceWith("FileReader.resolvePath(flowPath, requestedPath)", "maestro.orchestra.util")
+    )
     private fun resolvePath(flowPath: Path, requestedPath: String): Path {
         val path = flowPath.fileSystem.getPath(requestedPath)
 
