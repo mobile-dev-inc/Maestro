@@ -38,6 +38,7 @@ import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
+import maestro.orchestra.error.OnFlowCompleteFailedException
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -179,15 +180,32 @@ class Orchestra(
         } catch (e: Throwable) {
             exception = e
         } finally {
-            val onCompleteSuccess = config?.onFlowComplete?.commands?.let {
-                executeCommands(
-                    commands = it,
-                    config = config,
-                    shouldReinitJsEngine = false,
-                )
-            } ?: true
+            var onCompleteException: Throwable? = null
+            val onCompleteSuccess = try {
+                config?.onFlowComplete?.commands?.let {
+                    executeCommands(
+                        commands = it,
+                        config = config,
+                        shouldReinitJsEngine = false,
+                    )
+                } ?: true
+            } catch (e: Throwable) {
+                // If onFlowComplete fails, capture it but don't let it override the original exception
+                onCompleteException = e
+                false
+            }
 
+            // If we have both exceptions, wrap them together
+            if (exception != null && onCompleteException != null) {
+                // Create a wrapper exception that preserves the original but notes the onFlowComplete failure
+                throw OnFlowCompleteFailedException(exception!!, onCompleteException)
+            }
+
+            // Throw original exception if it exists
             exception?.let { throw it }
+
+            // If only onFlowComplete failed, throw that
+            onCompleteException?.let { throw it }
 
             return onCompleteSuccess && flowSuccess
         }
@@ -911,13 +929,13 @@ class Orchestra(
     ): Boolean {
         // Enter environment scope to isolate environment variables for this subflow
         jsEngine.enterEnvScope()
-        return try {
+        try {
             executeDefineVariablesCommands(commands, config)
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
             var flowSuccess = false
-            val onCompleteSuccess: Boolean
+            var exception: Throwable? = null
             try {
                 val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
                     executeSubflowCommands(it, config)
@@ -927,13 +945,34 @@ class Orchestra(
                     flowSuccess = executeSubflowCommands(filteredCommands, config)
                 }
             } catch (e: Throwable) {
-                throw e
+                exception = e
             } finally {
-                onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
-                    executeSubflowCommands(it, config)
-                } ?: true
+                var onCompleteException: Throwable? = null
+                val onCompleteSuccess = try {
+                    subflowConfig?.onFlowComplete?.commands?.let {
+                        executeSubflowCommands(it, config)
+                    } ?: true
+                } catch (e: Throwable) {
+                    onCompleteException = e
+                    false
+                }
+
+                // If we have both exceptions, wrap them together
+                if (exception != null && onCompleteException != null) {
+                    throw OnFlowCompleteFailedException(exception!!, onCompleteException)
+                }
+
+                exception?.let { throw it }
+                onCompleteException?.let { throw it }
+
+                // If no exceptions, return the combined success result
+                if (exception == null && onCompleteException == null) {
+                    return onCompleteSuccess && flowSuccess
+                }
             }
-            onCompleteSuccess && flowSuccess
+
+            // This should never be reached due to throws above, but compiler needs it
+            return false
         } finally {
             jsEngine.leaveEnvScope()
         }

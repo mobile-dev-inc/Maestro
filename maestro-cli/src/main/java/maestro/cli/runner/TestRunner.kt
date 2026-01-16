@@ -20,6 +20,7 @@ import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.error.OnFlowCompleteFailedException
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -62,7 +63,8 @@ object TestRunner {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowFile)
 
-        val result = runCatching(resultView, maestro) {
+        var handledOnFlowCompleteFailed = false
+        val result = runCatching(resultView, maestro, onOnFlowCompleteFailedException = { handledOnFlowCompleteFailed = true }) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(updatedEnv)
 
@@ -97,8 +99,10 @@ object TestRunner {
             path = debugOutputPath,
         )
 
+        // If we had an OnFlowCompleteFailedException, both errors were already shown through the UI
+        // Don't print debugOutput.exception again as it would be redundant
         val exception = debugOutput.exception
-        if (exception != null) {
+        if (exception != null && !handledOnFlowCompleteFailed) {
             PrintUtils.err(exception.message)
             if (exception is MaestroException.AssertionFailure) {
                 PrintUtils.err(exception.debugMessage)
@@ -194,18 +198,29 @@ object TestRunner {
     private fun <T> runCatching(
         view: ResultView,
         maestro: Maestro,
+        onOnFlowCompleteFailedException: () -> Unit = {},
         block: () -> T,
     ): Result<T, Exception> {
         return try {
             Ok(block())
         } catch (e: Exception) {
             logger.error("Failed to run flow", e)
-            val message = ErrorViewUtils.exceptionToMessage(e)
+
+            // If both the flow and onFlowComplete failed, show both errors
+            val (message, onFlowCompleteError) = if (e is OnFlowCompleteFailedException) {
+                onOnFlowCompleteFailedException()
+                val originalMessage = ErrorViewUtils.exceptionToMessage(e.originalException)
+                val onCompleteMessage = ErrorViewUtils.exceptionToMessage(e.onFlowCompleteException)
+                Pair(originalMessage, onCompleteMessage)
+            } else {
+                Pair(ErrorViewUtils.exceptionToMessage(e), null)
+            }
 
             if (!maestro.isShutDown()) {
                 view.setState(
                     UiState.Error(
-                        message = message
+                        message = message,
+                        onFlowCompleteError = onFlowCompleteError
                     )
                 )
             }
