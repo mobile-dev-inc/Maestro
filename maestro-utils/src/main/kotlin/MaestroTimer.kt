@@ -1,5 +1,7 @@
 package maestro.utils
 
+import kotlinx.coroutines.*
+
 object MaestroTimer {
 
     var sleep: (Reason, Long) -> Unit = { _, ms -> Thread.sleep(ms) }
@@ -18,6 +20,8 @@ object MaestroTimer {
             if (result != null) {
                 return result
             }
+            
+            sleep(Reason.BUFFER, 250)
         } while (System.currentTimeMillis() < endTime)
 
         return null
