@@ -119,6 +119,10 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
+    override fun shake() {
+        TODO("Not yet implemented")
+    }
+
     override fun addMedia(path: String) {
         TODO("Not yet implemented")
     }
