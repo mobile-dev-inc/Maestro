@@ -1,0 +1,9 @@
+appId: com.example.example
+---
+- launchApp
+- tapOn: "Nesting Test"
+
+- takeScreenshot:
+    path: cropped_screenshot
+    cropOn:
+      id: "level-1"
