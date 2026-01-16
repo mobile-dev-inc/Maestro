@@ -43,6 +43,7 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    private val captureSteps: Boolean = false,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -267,6 +268,32 @@ class TestSuiteInteractor(
             )
         )
 
+        // Extract step information if captureSteps is enabled
+        val steps = if (captureSteps) {
+            debugOutput.commands.entries
+                .sortedBy { it.value.sequenceNumber }
+                .mapIndexed { index, (command, metadata) ->
+                    val durationStr = when (val duration = metadata.duration) {
+                        null -> "<1ms"
+                        else -> if (duration >= 1000) {
+                            "%.1fs".format(duration / 1000.0)
+                        } else {
+                            "${duration}ms"
+                        }
+                    }
+                    val status = metadata.status?.toString() ?: "UNKNOWN"
+                    // Use evaluated command for interpolated labels, fallback to original
+                    val displayCommand = metadata.evaluatedCommand ?: command
+                    TestExecutionSummary.StepResult(
+                        description = "${index + 1}. ${displayCommand.description()}",
+                        status = status,
+                        duration = durationStr,
+                    )
+                }
+        } else {
+            emptyList()
+        }
+
         return Pair(
             first = TestExecutionSummary.FlowResult(
                 name = flowName,
@@ -279,6 +306,7 @@ class TestSuiteInteractor(
                 } else null,
                 duration = flowDuration,
                 properties = maestroConfig?.properties,
+                steps = steps,
             ),
             second = aiOutput,
         )

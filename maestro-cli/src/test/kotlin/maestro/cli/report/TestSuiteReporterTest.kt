@@ -75,4 +75,84 @@ abstract class TestSuiteReporterTest {
             )
         )
     )
+
+    val testSuccessWithSteps = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Flow A",
+                        fileName = "flow_a",
+                        status = FlowStatus.SUCCESS,
+                        duration = 5000.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli(),
+                        steps = listOf(
+                            TestExecutionSummary.StepResult(
+                                description = "1. Launch app",
+                                status = "COMPLETED",
+                                duration = "1.2s"
+                            ),
+                            TestExecutionSummary.StepResult(
+                                description = "2. Tap on button",
+                                status = "COMPLETED",
+                                duration = "500ms"
+                            ),
+                            TestExecutionSummary.StepResult(
+                                description = "3. Assert visible",
+                                status = "COMPLETED",
+                                duration = "100ms"
+                            ),
+                        )
+                    ),
+                ),
+                duration = 5000.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
+
+    val testErrorWithSteps = TestExecutionSummary(
+        passed = false,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = false,
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Flow B",
+                        fileName = "flow_b",
+                        status = FlowStatus.ERROR,
+                        failure = TestExecutionSummary.Failure("Element not found"),
+                        duration = 3000.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli(),
+                        steps = listOf(
+                            TestExecutionSummary.StepResult(
+                                description = "1. Launch app",
+                                status = "COMPLETED",
+                                duration = "1.5s"
+                            ),
+                            TestExecutionSummary.StepResult(
+                                description = "2. Tap on optional element",
+                                status = "WARNED",
+                                duration = "<1ms"
+                            ),
+                            TestExecutionSummary.StepResult(
+                                description = "3. Tap on button",
+                                status = "FAILED",
+                                duration = "2.0s"
+                            ),
+                            TestExecutionSummary.StepResult(
+                                description = "4. Assert visible",
+                                status = "SKIPPED",
+                                duration = "0ms"
+                            ),
+                        )
+                    ),
+                ),
+                duration = 3000.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
 }

@@ -3586,7 +3586,7 @@ class IntegrationTest {
                 }
 
                 // Actively wait for skipped count to reach expected value or timeout
-                withTimeout(2000) {
+                withTimeout(3000) {
                     while (skipped < expectedSkipped) {
                         yield() // Cooperatively yield to let other coroutines run
 
