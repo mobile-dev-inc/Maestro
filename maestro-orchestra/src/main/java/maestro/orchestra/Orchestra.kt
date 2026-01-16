@@ -58,11 +58,13 @@ import okio.Sink
 import okio.buffer
 import okio.sink
 import org.slf4j.LoggerFactory
+import java.awt.image.BufferedImage
 import java.io.File
 import java.lang.Long.max
 import java.nio.file.Path
 import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
+import javax.imageio.ImageIO
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -942,7 +944,14 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        maestro.takeScreenshot(fileSink, false)
+
+        val cropped = command.cropOn?.let { findElement(it, optional = command.optional) }
+
+        if (cropped == null) {
+            maestro.takeScreenshot(fileSink, false)
+        } else {
+            maestro.takePartialScreenshot(sink = fileSink, bounds = cropped.element.bounds, compressed = false)
+        }
         return false
     }
 
