@@ -678,6 +678,37 @@ data class KillAppCommand(
     }
 }
 
+data class SendBroadcastCommand(
+    val action: String,
+    val receiver: String? = null,
+    val extras: Map<String, Any>? = null,
+    override val label: String? = null,
+) : Command {
+
+    override val optional: Boolean = true
+
+    override val originalDescription: String
+        get() {
+            var result = "Broadcast $action"
+            if (receiver != null) {
+                result += " to $receiver"
+            }
+            return result
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            action = action.evaluateScripts(jsEngine),
+            receiver = receiver?.evaluateScripts(jsEngine),
+            extras = extras?.entries?.associate {
+                val value = it.value
+                it.key to if (value is String) value.evaluateScripts(jsEngine) else value
+            },
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+}
+
 data class ClearStateCommand(
     val appId: String,
     override val label: String? = null,

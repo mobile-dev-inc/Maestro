@@ -866,6 +866,49 @@ class AndroidDriver(
         this.chromeDevToolsEnabled = enabled
     }
 
+    override fun sendBroadcast(action: String, receiver: String?, extras: Map<String, Any>?) {
+        metrics.measured("operation", mapOf("command" to "broadcast", "action" to action)) {
+            val command = buildSendBroadcastCommand(action, receiver, extras)
+            try {
+                shell(command)
+            } catch (e: IOException) {
+                if (e.message?.contains("Security exception: Permission Denial:") == true) {
+                    try {
+                        shell("su root $command")
+                    } catch (e: IOException) {
+                        throw MaestroException.NoRootAccess(
+                            "Failed to broadcast $action. Permission denied. Make sure the app has necessary permissions or run an emulator with root access."
+                        )
+                    }
+                } else {
+                    throw e
+                }
+            }
+        }
+    }
+
+    private fun buildSendBroadcastCommand(action: String, receiver: String?, extras: Map<String, Any>?): String {
+        return buildString {
+            append("am broadcast")
+            append(" -a $action")
+
+            if (receiver != null) {
+                append(" -n $receiver")
+            }
+
+            extras?.forEach { (key, value) ->
+                when (value) {
+                    is Boolean -> append(" --ez $key $value")
+                    is Int -> append(" --ei $key $value")
+                    is Long -> append(" --el $key $value")
+                    is Double -> append(" --ef $key $value")
+                    is String -> append(" --es $key $value")
+                    else -> append(" --es $key ${value.toString()}")
+                }
+            }
+        }
+    }
+
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
             dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `sendBroadcast` command for sending Android broadcast intents
+
 ## 2.1.0
 
 - Add `setPermissions` command, for setting app permissions outside of `launchApp`

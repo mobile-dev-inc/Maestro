@@ -80,6 +80,14 @@ class Maestro(
         driver.killApp(appId)
     }
 
+    fun sendBroadcast(action: String, receiver: String?, extras: Map<String, Any>?) {
+        LOGGER.info("Broadcasting action: $action" +
+            (receiver?.let { " to receiver: $it" } ?: "") +
+            (extras?.let { " with extras: $it" } ?: ""))
+
+        driver.sendBroadcast(action, receiver, extras)
+    }
+
     fun clearAppState(appId: String) {
         LOGGER.info("Clearing app state $appId")
 
