@@ -107,7 +107,7 @@ object RunFlowTool {
                         val commands = YamlCommandReader.readCommands(tempFile.toPath())
                         val finalEnv = env
                             .withInjectedShellEnvVars()
-                            .withDefaultEnvVars(tempFile)
+                            .withDefaultEnvVars(tempFile, deviceId)
                         val commandsWithEnv = commands.withEnv(finalEnv)
                         
                         val orchestra = Orchestra(session.maestro)

@@ -53,7 +53,8 @@ class TestSuiteInteractor(
         reportOut: Sink?,
         env: Map<String, String>,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
+        testOutputDir: Path? = null,
+        deviceId: String? = null,
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
             throw CliError("${shardPrefix}No flows returned from the tag filter used")
@@ -72,7 +73,7 @@ class TestSuiteInteractor(
             val flowFile = flow.toFile()
             val updatedEnv = env
                 .withInjectedShellEnvVars()
-                .withDefaultEnvVars(flowFile)
+                .withDefaultEnvVars(flowFile, deviceId, shardIndex)
             val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
@@ -92,7 +93,7 @@ class TestSuiteInteractor(
             val flowFile = flow.toFile()
             val updatedEnv = env
                 .withInjectedShellEnvVars()
-                .withDefaultEnvVars(flowFile)
+                .withDefaultEnvVars(flowFile, deviceId, shardIndex)
             val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
             aiOutputs.add(aiOutput)
 

@@ -57,13 +57,14 @@ class IntegrationTest {
 
     @AfterEach
     internal fun tearDown() {
-        File("041_take_screenshot_with_filename.png").delete()
-        File("134_screenshots/filename.png").delete()
-        File("134_screenshots").delete()
-        File("135_recordings/filename.mp4").delete()
-        File("135_recordings").delete()
-        File("099_screen_recording.mp4").delete()
         File("028_env.mp4").delete()
+        File("041_take_screenshot_with_filename.png").delete()
+        File("099_screen_recording.mp4").delete()
+        File("134_screenshots").delete()
+        File("134_screenshots/filename.png").delete()
+        File("135_recordings").delete()
+        File("135_recordings/filename.mp4").delete()
+        File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
     }
 
     @Test
@@ -616,7 +617,11 @@ class IntegrationTest {
             listOf(
                 MaestroCommand(
                     DefineVariablesCommand(
-                        env = mapOf("MAESTRO_FILENAME" to "020_parse_config")
+                        env = mapOf(
+                            "MAESTRO_FILENAME" to "020_parse_config",
+                            "MAESTRO_SHARD_ID" to "1",
+                            "MAESTRO_SHARD_INDEX" to "0",
+                        )
                     )
                 ),
                 MaestroCommand(
@@ -4215,6 +4220,39 @@ class IntegrationTest {
         }
     }
 
+    @Test
+    fun `Case 137 - Shard and device env vars`() {
+        // Given
+        // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
+        // MAESTRO_SHARD_* vars, since those are now reserved internal-only variables
+        val commands = readCommands(
+            caseName = "137_shard_device_env_vars",
+            deviceId = "test-device",
+            shardIndex = 0,  // Will set MAESTRO_SHARD_ID=1, MAESTRO_SHARD_INDEX=0
+        )
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - verify screenshot was created with env vars in filename
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp(appId = "com.example.app"),
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
@@ -4252,12 +4290,14 @@ class IntegrationTest {
 
     private fun readCommands(
         caseName: String,
-        withEnv: () -> Map<String, String> = { emptyMap() }
+        deviceId: String? = null,
+        shardIndex: Int? = null,
+        withEnv: () -> Map<String, String> = { emptyMap() },
     ): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
-            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
+            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
     }
 }
