@@ -4438,7 +4438,9 @@ class IntegrationTest {
 
         // When
         Maestro(driver).use {
-            orchestra(it).runFlow(commands)
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
         }
 
         // Then
