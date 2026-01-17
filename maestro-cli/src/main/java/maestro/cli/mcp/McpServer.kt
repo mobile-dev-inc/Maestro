@@ -50,7 +50,7 @@ fun runMaestroMcpServer() {
     // Register tools
     server.addTools(listOf(
         ListDevicesTool.create(),
-        StartDeviceTool.create(sessionManager),
+        StartDeviceTool.create(),
         LaunchAppTool.create(sessionManager),
         TakeScreenshotTool.create(sessionManager),
         TapOnTool.create(sessionManager),

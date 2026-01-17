@@ -3,12 +3,11 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
-import maestro.cli.session.MaestroSessionManager
 import maestro.device.DeviceService
 import maestro.device.Platform
 
 object StartDeviceTool {
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "start_device",
@@ -61,22 +60,9 @@ object StartDeviceTool {
                     if (available != null) {
                         val connectedDevice = DeviceService.startDevice(
                             device = available,
-                            driverHostPort = null
+                            driverHostPort = null,
+                            installDriver = available.platform == Platform.ANDROID
                         )
-
-                        // For Android devices, initialize driver to install APKs and start instrumentation
-                        if (connectedDevice.platform == Platform.ANDROID) {
-                            sessionManager.newSession(
-                                host = null,
-                                port = null,
-                                driverHostPort = null,
-                                deviceId = connectedDevice.instanceId,
-                                platform = "android"
-                            ) { _ ->
-                                // Session initialization installs driver APKs and starts instrumentation
-                                // The session is then closed but the driver remains running
-                            }
-                        }
 
                         return@RegisteredTool CallToolResult(content = listOf(TextContent(buildResult(connectedDevice, false))))
                     }
@@ -98,22 +84,9 @@ object StartDeviceTool {
                 if (available != null) {
                     val connectedDevice = DeviceService.startDevice(
                         device = available,
-                        driverHostPort = null
+                        driverHostPort = null,
+                        installDriver = available.platform == Platform.ANDROID
                     )
-
-                    // For Android devices, initialize driver to install APKs and start instrumentation
-                    if (connectedDevice.platform == Platform.ANDROID) {
-                        sessionManager.newSession(
-                            host = null,
-                            port = null,
-                            driverHostPort = null,
-                            deviceId = connectedDevice.instanceId,
-                            platform = "android"
-                        ) { _ ->
-                            // Session initialization installs driver APKs and starts instrumentation
-                            // The session is then closed but the driver remains running
-                        }
-                    }
 
                     return@RegisteredTool CallToolResult(content = listOf(TextContent(buildResult(connectedDevice, false))))
                 }
