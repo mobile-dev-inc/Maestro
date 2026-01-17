@@ -23,7 +23,8 @@ object DeviceService {
     fun startDevice(
         device: Device.AvailableForLaunch,
         driverHostPort: Int?,
-        connectedDevices: Set<String> = setOf()
+        connectedDevices: Set<String> = setOf(),
+        installDriver: Boolean = false
     ): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
@@ -83,6 +84,13 @@ object DeviceService {
                 PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
                 while (!bootComplete(dadb)) {
                     Thread.sleep(1000)
+                }
+
+                // Install Maestro driver APKs if requested (idempotent - skips if already installed)
+                if (installDriver) {
+                    PrintUtils.message("Installing Maestro driver...")
+                    val driver = AndroidDriver(dadb, driverHostPort)
+                    driver.installMaestroDriverApp()
                 }
 
                 if (device.language != null && device.country != null) {
