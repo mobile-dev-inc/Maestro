@@ -42,7 +42,7 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 class WebDriver(
     val isStudio: Boolean,
     isHeadless: Boolean = isStudio,
-    screenSize: String?
+    screenSize: String?,
     selectorAliases: Map<String, String> = emptyMap(),
     private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless, screenSize)
 ) : Driver {
