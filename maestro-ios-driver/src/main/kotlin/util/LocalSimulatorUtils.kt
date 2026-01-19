@@ -3,6 +3,7 @@ package util
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
+import maestro.utils.TempFileHandler
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
@@ -15,13 +16,15 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
-import kotlin.io.path.createTempDirectory
 
-object LocalSimulatorUtils {
+class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
-    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+    companion object {
+        private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+    }
+
     private val homedir = System.getProperty("user.home")
     private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
     private val date = dateFormatter.format(LocalDateTime.now())
@@ -256,7 +259,7 @@ object LocalSimulatorUtils {
 
         val pathToBinary = Path(appBinaryPath)
         if (Files.isDirectory(pathToBinary)) {
-            val tmpDir = createTempDirectory()
+            val tmpDir = tempFileHandler.createTempDirectory().toPath()
             val tmpBundlePath = tmpDir.resolve("$bundleId-${System.currentTimeMillis()}.app")
 
             logger.info("Copying app binary from $pathToBinary to $tmpBundlePath")
@@ -614,8 +617,7 @@ object LocalSimulatorUtils {
     }
 
     fun install(deviceId: String, stream: InputStream) {
-        val temp = createTempDirectory()
-        val extractDir = temp.toFile()
+        val extractDir = tempFileHandler.createTempDirectory()
 
         ArchiverFactory
             .createArchiver(ArchiveFormat.ZIP)
@@ -642,10 +644,10 @@ object LocalSimulatorUtils {
     )
 
     fun startScreenRecording(deviceId: String): ScreenRecording {
-        val tempDir = createTempDirectory()
+        val tempDir = tempFileHandler.createTempDirectory()
         val inputStream = LocalSimulatorUtils::class.java.getResourceAsStream("/screenrecord.sh")
         if (inputStream != null) {
-            val recording = File(tempDir.toFile(), "screenrecording.mov")
+            val recording = File(tempDir, "screenrecording.mov")
 
             val processBuilder = ProcessBuilder(
                 listOf(

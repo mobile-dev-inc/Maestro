@@ -4,6 +4,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
+import maestro.utils.TempFileHandler
 import xcuitest.api.DeviceInfo
 import okio.Sink
 import okio.buffer
@@ -19,11 +20,14 @@ import java.nio.file.Files
 
 class SimctlIOSDevice(
     override val deviceId: String,
+    val tempFileHandler: TempFileHandler = TempFileHandler(),
 ) : IOSDevice {
 
     companion object {
         private val logger = LoggerFactory.getLogger(SimctlIOSDevice::class.java)
     }
+
+    private val localSimulatorUtils by lazy { LocalSimulatorUtils(tempFileHandler) }
 
     private var screenRecording: LocalSimulatorUtils.ScreenRecording? = null
 
@@ -64,20 +68,20 @@ class SimctlIOSDevice(
     }
 
     override fun install(stream: InputStream) {
-        LocalSimulatorUtils.install(deviceId, stream)
+        localSimulatorUtils.install(deviceId, stream)
     }
 
     override fun uninstall(id: String) {
-        LocalSimulatorUtils.uninstall(deviceId, id)
+        localSimulatorUtils.uninstall(deviceId, id)
     }
 
     override fun clearAppState(id: String) {
-        LocalSimulatorUtils.clearAppState(deviceId, id)
+        localSimulatorUtils.clearAppState(deviceId, id)
     }
 
     override fun clearKeychain(): Result<Unit, Throwable> {
         return runCatching {
-            LocalSimulatorUtils.clearKeychain(deviceId)
+            localSimulatorUtils.clearKeychain(deviceId)
         }
     }
 
@@ -86,7 +90,7 @@ class SimctlIOSDevice(
         launchArguments: Map<String, Any>,
     ) {
         val iOSLaunchArguments = launchArguments.toIOSLaunchArguments()
-        LocalSimulatorUtils.launch(
+        localSimulatorUtils.launch(
             deviceId = deviceId,
             bundleId = id,
             launchArguments = iOSLaunchArguments,
@@ -94,7 +98,7 @@ class SimctlIOSDevice(
     }
 
     override fun stop(id: String) {
-        LocalSimulatorUtils.terminate(deviceId, bundleId = id)
+        localSimulatorUtils.terminate(deviceId, bundleId = id)
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -103,7 +107,7 @@ class SimctlIOSDevice(
 
     override fun openLink(link: String): Result<Unit, Throwable> {
         return runCatching {
-            LocalSimulatorUtils.openURL(deviceId, link)
+            localSimulatorUtils.openURL(deviceId, link)
         }
     }
 
@@ -113,7 +117,7 @@ class SimctlIOSDevice(
 
     override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
         return runCatching {
-            val screenRecording = LocalSimulatorUtils.startScreenRecording(deviceId)
+            val screenRecording = localSimulatorUtils.startScreenRecording(deviceId)
             this.screenRecording = screenRecording
 
             object : IOSScreenRecording {
@@ -135,17 +139,17 @@ class SimctlIOSDevice(
 
     private fun stopScreenRecording(): File? {
         return screenRecording
-            ?.let { LocalSimulatorUtils.stopScreenRecording(it) }
+            ?.let { localSimulatorUtils.stopScreenRecording(it) }
             .also { screenRecording = null }
     }
 
     override fun addMedia(path: String) {
-        LocalSimulatorUtils.addMedia(deviceId, path)
+        localSimulatorUtils.addMedia(deviceId, path)
     }
 
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
         return runCatching {
-            LocalSimulatorUtils.setLocation(deviceId, latitude, longitude)
+            localSimulatorUtils.setLocation(deviceId, latitude, longitude)
         }
     }
 
@@ -166,14 +170,14 @@ class SimctlIOSDevice(
 
         runCatching {
             logger.info("[Start] Setting permissions $formattedPermissions through applesimutils")
-            LocalSimulatorUtils.setAppleSimutilsPermissions(deviceId, id, permissions)
+            localSimulatorUtils.setAppleSimutilsPermissions(deviceId, id, permissions)
             logger.info("[Done] Setting permissions through applesimutils")
         }.onFailure {
             logger.error("Failed setting permissions $permissions via applesimutils", it)
         }
 
         logger.info("[Start] Setting Permissions $formattedPermissions through simctl")
-        LocalSimulatorUtils.setSimctlPermissions(deviceId, id, permissions)
+        localSimulatorUtils.setSimctlPermissions(deviceId, id, permissions)
         logger.info("[Done] Setting Permissions $formattedPermissions through simctl")
     }
 

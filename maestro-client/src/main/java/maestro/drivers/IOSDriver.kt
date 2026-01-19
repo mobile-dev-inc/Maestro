@@ -47,6 +47,7 @@ import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.NoopInsights
 import maestro.utils.ScreenshotUtils
+import maestro.utils.TempFileHandler
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
@@ -65,6 +66,7 @@ class IOSDriver(
 
     private var appId: String? = null
     private var proxySet = false
+    private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = TempFileHandler())
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -458,13 +460,13 @@ class IOSDriver(
 
     override fun setProxy(host: String, port: Int) {
         metrics.measured("operation", mapOf("command" to "setProxy")) {
-            XCRunnerCLIUtils.setProxy(host, port)
+            xcRunnerCLIUtils.setProxy(host, port)
             proxySet = true
         }
     }
 
     override fun resetProxy() {
-        XCRunnerCLIUtils.resetProxy()
+        xcRunnerCLIUtils.resetProxy()
     }
 
     override fun isShutdown(): Boolean {

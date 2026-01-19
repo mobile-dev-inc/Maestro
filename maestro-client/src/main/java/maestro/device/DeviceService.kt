@@ -8,6 +8,7 @@ import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
 import maestro.utils.LocaleUtils
 import maestro.utils.MaestroTimer
+import maestro.utils.TempFileHandler
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
@@ -20,6 +21,9 @@ import java.util.concurrent.TimeoutException
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
 
+    private val tempFileHandler = TempFileHandler()
+    private val localSimulatorUtils = util.LocalSimulatorUtils(tempFileHandler)
+
     fun startDevice(
         device: Device.AvailableForLaunch,
         driverHostPort: Int?,
@@ -28,17 +32,17 @@ object DeviceService {
         when (device.platform) {
             Platform.IOS -> {
                 try {
-                    util.LocalSimulatorUtils.bootSimulator(device.modelId)
+                    localSimulatorUtils.bootSimulator(device.modelId)
                     if (device.language != null && device.country != null) {
                         PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
-                        util.LocalSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
+                        localSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
                         LocaleUtils.findIOSLocale(device.language, device.country)?.let {
-                            util.LocalSimulatorUtils.setDeviceLocale(device.modelId, it)
+                            localSimulatorUtils.setDeviceLocale(device.modelId, it)
                         }
-                        util.LocalSimulatorUtils.reboot(device.modelId)
+                        localSimulatorUtils.reboot(device.modelId)
                     }
-                    util.LocalSimulatorUtils.launchSimulator(device.modelId)
-                    util.LocalSimulatorUtils.awaitLaunch(device.modelId)
+                    localSimulatorUtils.launchSimulator(device.modelId)
+                    localSimulatorUtils.awaitLaunch(device.modelId)
                 } catch (e: util.LocalSimulatorUtils.SimctlError) {
                     logger.error("Failed to launch simulator", e)
                     throw DeviceError(e.message)
@@ -244,7 +248,7 @@ object DeviceService {
 
     private fun listIOSDevices(): List<Device> {
         val simctlList = try {
-            util.LocalSimulatorUtils.list()
+            localSimulatorUtils.list()
         } catch (ignored: Exception) {
             return emptyList()
         }

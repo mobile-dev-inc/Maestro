@@ -1,6 +1,7 @@
 package util
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import maestro.utils.TempFileHandler
 import net.harawata.appdirs.AppDirsFactory
 import java.io.File
 import java.nio.file.Files
@@ -9,30 +10,32 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolutePathString
 
-object XCRunnerCLIUtils {
+class XCRunnerCLIUtils(private val tempFileHandler: TempFileHandler = TempFileHandler()) {
 
-    private const val APP_NAME = "maestro"
-    private const val APP_AUTHOR = "mobile_dev"
-    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
-    private const val MAX_COUNT_XCTEST_LOGS = 5
+    companion object {
+        private const val APP_NAME = "maestro"
+        private const val APP_AUTHOR = "mobile_dev"
+        private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+        private const val MAX_COUNT_XCTEST_LOGS = 5
+
+        internal val logDirectory by lazy {
+            val parentName = AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR)
+            val logsDirectory = File(parentName, "xctest_runner_logs")
+            File(parentName).apply {
+                if (!exists()) mkdir()
+
+                if (!logsDirectory.exists()) logsDirectory.mkdir()
+
+                val existing = logsDirectory.listFiles() ?: emptyArray()
+                val toDelete = existing.sortedByDescending { it.name }
+                val count = toDelete.size
+                if (count > MAX_COUNT_XCTEST_LOGS) toDelete.forEach { it.deleteRecursively() }
+            }
+            logsDirectory
+        }
+    }
 
     private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
-
-    internal val logDirectory by lazy {
-        val parentName = AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR)
-        val logsDirectory = File(parentName, "xctest_runner_logs")
-        File(parentName).apply {
-            if (!exists()) mkdir()
-
-            if (!logsDirectory.exists()) logsDirectory.mkdir()
-
-            val existing = logsDirectory.listFiles() ?: emptyArray()
-            val toDelete = existing.sortedByDescending { it.name }
-            val count = toDelete.size
-            if (count > MAX_COUNT_XCTEST_LOGS) toDelete.forEach { it.deleteRecursively() }
-        }
-        logsDirectory
-    }
 
     fun clearLogs() {
         logDirectory.listFiles()?.forEach { it.deleteRecursively() }
@@ -123,7 +126,7 @@ object XCRunnerCLIUtils {
     fun runXcTestWithoutBuild(deviceId: String, xcTestRunFilePath: String, port: Int, snapshotKeyHonorModalViews: Boolean?): Process {
         val date = dateFormatter.format(LocalDateTime.now())
         val outputFile = File(logDirectory, "xctest_runner_$date.log")
-        val logOutputDir = Files.createTempDirectory("maestro_xctestrunner_xcodebuild_output")
+        val logOutputDir = tempFileHandler.createTempDirectory("maestro_xctestrunner_xcodebuild_output").toPath()
         val params = mutableMapOf("TEST_RUNNER_PORT" to port.toString())
         if (snapshotKeyHonorModalViews != null) {
             params["TEST_RUNNER_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
