@@ -23,6 +23,12 @@ else
 	DEVELOPMENT_TEAM_OPT="DEVELOPMENT_TEAM=${DEVELOPMENT_TEAM}"
 fi
 
+if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
+  ARCHS="$(ARCHS_STANDARD)" # Build for all current standard simulator architectures
+else
+  ARCHS="arm64" # Build only for arm64 on device builds
+fi
+
 rm -rf "$PWD/$DERIVED_DATA_PATH"
 rm -rf "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
 
@@ -35,8 +41,7 @@ xcodebuild clean build-for-testing \
   -derivedDataPath "$PWD/$DERIVED_DATA_PATH" \
   -scheme maestro-driver-ios \
   -destination "$DESTINATION" \
-  ${ARCHS:+ARCHS="$ARCHS"}
-  ${DEVELOPMENT_TEAM_OPT}
+  ARCHS="$ARCHS" ${DEVELOPMENT_TEAM_OPT}
 
 ## Copy built apps and xctestrun file
 cp -r \
