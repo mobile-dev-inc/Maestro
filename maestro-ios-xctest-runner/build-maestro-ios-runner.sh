@@ -8,7 +8,6 @@ fi
 
 DERIVED_DATA_PATH="${DERIVED_DATA_DIR:-driver-iPhoneSimulator}"
 DESTINATION="${DESTINATION:-generic/platform=iOS Simulator}"
-ARCHS="${ARCHS:-arm64}"
 
 # Determine build output directory
 if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
@@ -36,7 +35,8 @@ xcodebuild clean build-for-testing \
   -derivedDataPath "$PWD/$DERIVED_DATA_PATH" \
   -scheme maestro-driver-ios \
   -destination "$DESTINATION" \
-  ARCHS="$ARCHS" ${DEVELOPMENT_TEAM_OPT}
+  ${ARCHS:+ARCHS="$ARCHS"}
+  ${DEVELOPMENT_TEAM_OPT}
 
 ## Copy built apps and xctestrun file
 cp -r \
