@@ -38,6 +38,7 @@ import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
+import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import util.XCRunnerCLIUtils
@@ -379,6 +380,7 @@ object MaestroSessionManager {
              else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
+        val tempFileHandler = TempFileHandler()
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
                 val device = util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
@@ -388,6 +390,7 @@ object MaestroSessionManager {
             Device.DeviceType.SIMULATOR -> {
                 val simctlIOSDevice = SimctlIOSDevice(
                     deviceId = deviceId,
+                    tempFileHandler = tempFileHandler
                 )
                 simctlIOSDevice
             }
@@ -401,7 +404,8 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
             deviceType = iOSDeviceType,
             iOSDriverConfig = iOSDriverConfig,
-            deviceController = deviceController
+            deviceController = deviceController,
+            tempFileHandler = tempFileHandler
         )
 
         val xcTestDriverClient = XCTestDriverClient(
@@ -410,10 +414,11 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
         )
 
+        val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = tempFileHandler)
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
+            getInstalledApps = { xcRunnerCLIUtils.listApps(deviceId) },
         )
 
         val iosDriver = IOSDriver(
