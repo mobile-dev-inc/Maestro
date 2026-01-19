@@ -2,4 +2,4 @@ appId: com.example.app
 onFlowComplete:
   - runScript: 138_failing_cleanup.js
 ---
-- assertVisible: "NonExistentElement"
+- runScript: 138_failing_script.js

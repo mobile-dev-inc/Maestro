@@ -191,12 +191,18 @@ object MaestroCommandRunner {
                     )
                 )
             },
+            getCurrentException = { debugOutput.exception },
             apiKey = apiKey,    
         )
 
         val flowSuccess = try {
             orchestra.runFlow(commands)
         } catch (e: Throwable) {
+            // If Orchestra already wrapped the exceptions, just re-throw
+            if (e is OnFlowCompleteFailedException) {
+                throw e
+            }
+
             // If onFlowComplete threw an exception AND we have a previous flow failure,
             // wrap them together so both errors are shown
             if (debugOutput.exception != null) {

@@ -127,6 +127,7 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
+    private val getCurrentException: () -> Throwable? = { null },
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
@@ -180,6 +181,14 @@ class Orchestra(
         } catch (e: Throwable) {
             exception = e
         } finally {
+            // Save the flow exception before onFlowComplete can overwrite it
+            // This handles cases where flow failed with assertion (didn't throw)
+            val savedFlowException = if (!flowSuccess && exception == null) {
+                getCurrentException()
+            } else {
+                null
+            }
+
             var onCompleteException: Throwable? = null
             val onCompleteSuccess = try {
                 config?.onFlowComplete?.commands?.let {
@@ -193,6 +202,14 @@ class Orchestra(
                 // If onFlowComplete fails, capture it but don't let it override the original exception
                 onCompleteException = e
                 false
+            }
+
+            // Check for dual assertion failures (both failed, neither threw)
+            if (savedFlowException != null && !onCompleteSuccess && onCompleteException == null) {
+                val currentException = getCurrentException()
+                if (currentException != null && currentException != savedFlowException) {
+                    throw OnFlowCompleteFailedException(savedFlowException, currentException)
+                }
             }
 
             // If we have both exceptions, wrap them together
@@ -936,6 +953,7 @@ class Orchestra(
 
             var flowSuccess = false
             var exception: Throwable? = null
+            var onCompleteSuccess = true
             try {
                 val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
                     executeSubflowCommands(it, config)
@@ -947,8 +965,16 @@ class Orchestra(
             } catch (e: Throwable) {
                 exception = e
             } finally {
+                // Save the flow exception before onFlowComplete can overwrite it
+                // This handles cases where flow failed with assertion (didn't throw)
+                val savedFlowException = if (!flowSuccess && exception == null) {
+                    getCurrentException()
+                } else {
+                    null
+                }
+
                 var onCompleteException: Throwable? = null
-                val onCompleteSuccess = try {
+                onCompleteSuccess = try {
                     subflowConfig?.onFlowComplete?.commands?.let {
                         executeSubflowCommands(it, config)
                     } ?: true
@@ -957,22 +983,24 @@ class Orchestra(
                     false
                 }
 
-                // If we have both exceptions, wrap them together
+                // Check for dual assertion failures (both failed, neither threw)
+                if (savedFlowException != null && !onCompleteSuccess && onCompleteException == null) {
+                    val currentException = getCurrentException()
+                    if (currentException != null && currentException != savedFlowException) {
+                        throw OnFlowCompleteFailedException(savedFlowException, currentException)
+                    }
+                }
+
+                // If we have both exceptions (at least one threw), wrap them together
                 if (exception != null && onCompleteException != null) {
                     throw OnFlowCompleteFailedException(exception!!, onCompleteException)
                 }
 
                 exception?.let { throw it }
                 onCompleteException?.let { throw it }
-
-                // If no exceptions, return the combined success result
-                if (exception == null && onCompleteException == null) {
-                    return onCompleteSuccess && flowSuccess
-                }
             }
 
-            // This should never be reached due to throws above, but compiler needs it
-            return false
+            return onCompleteSuccess && flowSuccess
         } finally {
             jsEngine.leaveEnvScope()
         }

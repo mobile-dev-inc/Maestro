@@ -32,7 +32,7 @@ object ErrorViewUtils {
                 } else {
                     firstTrace.ifEmpty { "unknown location" }
                 }
-                "Script failed: ${e.message}\n    at $location\n\nCheck maestro.log for full polyglot stacktrace."
+                "Script failed: ${e.message}\n    at $location\n\nCheck maestro.log for full stacktrace."
             }
             is EcmaError -> "${e.name}: ${e.message}}"
             else -> e.stackTraceToString()

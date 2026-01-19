@@ -68,23 +68,35 @@ class AnsiResultView(
 
     private fun renderErrorState(state: UiState.Error) {
         renderFrame {
-            // If we have a saved Running state with onFlowComplete commands that executed,
-            // show them before the error to preserve visibility of cleanup/debug output
+            // If we have a saved Running state, show the executed commands for context
             lastRunningState?.let { runningState ->
+                // Show main flow commands if any executed
+                val hasExecutedMainCommands = runningState.commands.any {
+                    it.status != CommandStatus.PENDING
+                }
+                if (hasExecutedMainCommands) {
+                    render(" ║\n")
+                    render(" ║  > Flow: ${runningState.flowName}\n")
+                    render(" ║\n")
+                    renderCommands(runningState.commands)
+                    render(" ║\n")
+                }
+
+                // Show onFlowComplete commands if any executed
                 if (runningState.onFlowCompleteCommands.isNotEmpty()) {
-                    // Check if any onFlowComplete command actually ran (not just pending)
-                    val hasExecutedCommands = runningState.onFlowCompleteCommands.any {
+                    val hasExecutedOnCompleteCommands = runningState.onFlowCompleteCommands.any {
                         it.status != CommandStatus.PENDING
                     }
-                    if (hasExecutedCommands) {
+                    if (hasExecutedOnCompleteCommands) {
                         render(" ║\n")
                         render(" ║  > On Flow Complete\n")
                         render(" ║\n")
                         renderCommands(runningState.onFlowCompleteCommands)
                         render(" ║\n")
-                        render("\n")
                     }
                 }
+
+                render("\n")
             }
 
             fgRed()
