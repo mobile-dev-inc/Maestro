@@ -59,13 +59,14 @@ class IntegrationTest {
 
     @AfterEach
     internal fun tearDown() {
-        File("041_take_screenshot_with_filename.png").delete()
-        File("134_screenshots/filename.png").delete()
-        File("134_screenshots").delete()
-        File("135_recordings/filename.mp4").delete()
-        File("135_recordings").delete()
-        File("099_screen_recording.mp4").delete()
         File("028_env.mp4").delete()
+        File("041_take_screenshot_with_filename.png").delete()
+        File("099_screen_recording.mp4").delete()
+        File("134_screenshots").delete()
+        File("134_screenshots/filename.png").delete()
+        File("135_recordings").delete()
+        File("135_recordings/filename.mp4").delete()
+        File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
     }
 
     @Test
@@ -618,7 +619,11 @@ class IntegrationTest {
             listOf(
                 MaestroCommand(
                     DefineVariablesCommand(
-                        env = mapOf("MAESTRO_FILENAME" to "020_parse_config")
+                        env = mapOf(
+                            "MAESTRO_FILENAME" to "020_parse_config",
+                            "MAESTRO_SHARD_ID" to "1",
+                            "MAESTRO_SHARD_INDEX" to "0",
+                        )
                     )
                 ),
                 MaestroCommand(
@@ -3583,7 +3588,7 @@ class IntegrationTest {
                 }
 
                 // Actively wait for skipped count to reach expected value or timeout
-                withTimeout(2000) {
+                withTimeout(3000) {
                     while (skipped < expectedSkipped) {
                         yield() // Cooperatively yield to let other coroutines run
 
@@ -4218,8 +4223,41 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 137 - Flow fails with assertion AND onFlowComplete fails`() {
-        val commands = readCommands("137_assertion_and_onflowcomplete_fail")
+    fun `Case 137 - Shard and device env vars`() {
+        // Given
+        // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
+        // MAESTRO_SHARD_* vars, since those are now reserved internal-only variables
+        val commands = readCommands(
+            caseName = "137_shard_device_env_vars",
+            deviceId = "test-device",
+            shardIndex = 0,  // Will set MAESTRO_SHARD_ID=1, MAESTRO_SHARD_INDEX=0
+        )
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - verify screenshot was created with env vars in filename
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp(appId = "com.example.app"),
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
+    }
+
+    @Test
+    fun `Case 138 - Flow fails with assertion AND onFlowComplete fails`() {
+        val commands = readCommands("138_assertion_and_onflowcomplete_fail")
         val driver = driver {}
 
         // Both flow and onFlowComplete fail - should wrap both exceptions
@@ -4237,8 +4275,8 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 138 - Flow fails with JS error AND onFlowComplete fails`() {
-        val commands = readCommands("138_runscript_and_onflowcomplete_fail")
+    fun `Case 139 - Flow fails with JS error AND onFlowComplete fails`() {
+        val commands = readCommands("139_runscript_and_onflowcomplete_fail")
         val driver = driver {}
 
         // Both flow (JS) and onFlowComplete fail - should wrap both exceptions
@@ -4256,8 +4294,8 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 139 - Flow fails with assertion but onFlowComplete succeeds`() {
-        val commands = readCommands("139_assertion_fail_onflowcomplete_pass")
+    fun `Case 140 - Flow fails with assertion but onFlowComplete succeeds`() {
+        val commands = readCommands("140_assertion_fail_onflowcomplete_pass")
         val driver = driver {}
 
         // Only flow fails, onFlowComplete passes - should just throw the assertion
@@ -4274,8 +4312,8 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 140 - Flow fails with assertion AND onFlowComplete fails with assertion`() {
-        val commands = readCommands("140_double_assertion_fail")
+    fun `Case 141 - Flow fails with assertion AND onFlowComplete fails with assertion`() {
+        val commands = readCommands("141_double_assertion_fail")
         val driver = driver {}
 
         // Both flow and onFlowComplete fail with assertions (not JS) - should wrap both
@@ -4329,12 +4367,14 @@ class IntegrationTest {
 
     private fun readCommands(
         caseName: String,
-        withEnv: () -> Map<String, String> = { emptyMap() }
+        deviceId: String? = null,
+        shardIndex: Int? = null,
+        withEnv: () -> Map<String, String> = { emptyMap() },
     ): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
-            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
+            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
     }
 }

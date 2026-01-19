@@ -97,10 +97,12 @@ object MaestroCommandRunner {
         }
 
         refreshUi()
-        
+
         if (analyze) {
             ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
         }
+
+        var commandSequenceNumber = 0
 
         val orchestra = Orchestra(
             maestro = maestro,
@@ -111,7 +113,8 @@ object MaestroCommandRunner {
                 commandStatuses[command] = CommandStatus.RUNNING
                 debugOutput.commands[command] = CommandDebugMetadata(
                     timestamp = System.currentTimeMillis(),
-                    status = CommandStatus.RUNNING
+                    status = CommandStatus.RUNNING,
+                    sequenceNumber = commandSequenceNumber++
                 )
 
                 refreshUi()
@@ -179,6 +182,8 @@ object MaestroCommandRunner {
             onCommandMetadataUpdate = { command, metadata ->
                 logger.info("${command.description()} metadata $metadata")
                 commandMetadata[command] = metadata
+                // Update debug output with evaluated command for interpolated labels
+                debugOutput.commands[command]?.evaluatedCommand = metadata.evaluatedCommand
                 refreshUi()
             },
             onCommandGeneratedOutput = { command, defects, screenshot ->

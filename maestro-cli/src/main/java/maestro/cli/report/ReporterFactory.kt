@@ -9,7 +9,8 @@ object ReporterFactory {
         return when (format) {
             ReportFormat.JUNIT -> JUnitTestSuiteReporter.xml(testSuiteName)
             ReportFormat.NOOP -> TestSuiteReporter.NOOP
-            ReportFormat.HTML -> HtmlTestSuiteReporter()
+            ReportFormat.HTML -> HtmlTestSuiteReporter(detailed = false)
+            ReportFormat.HTML_DETAILED -> HtmlTestSuiteReporter(detailed = true)
         }
     }
 

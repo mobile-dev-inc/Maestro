@@ -1,5 +1,0 @@
-appId: com.example.app
-onFlowComplete:
-  - runScript: 138_failing_cleanup.js
----
-- runScript: 138_failing_script.js
