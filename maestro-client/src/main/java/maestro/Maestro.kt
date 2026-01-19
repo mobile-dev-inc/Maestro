@@ -634,8 +634,8 @@ class Maestro(
         fun web(
             isStudio: Boolean,
             isHeadless: Boolean,
-            selectorAliases: Map<String, String> = emptyMap(),
-            screenSize: String?
+            screenSize: String?,
+            selectorAliases: Map<String, String> = emptyMap()
         ): Maestro {
             // Check that JRE is at least 11
             val version = System.getProperty("java.version")
