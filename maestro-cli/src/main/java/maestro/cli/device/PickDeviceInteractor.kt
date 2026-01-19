@@ -1,10 +1,10 @@
 package maestro.cli.device
 
+import maestro.Platform
 import maestro.cli.CliError
 import maestro.device.DeviceService
 import maestro.device.DeviceService.withPlatform
 import maestro.device.Device
-import maestro.device.Platform
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 

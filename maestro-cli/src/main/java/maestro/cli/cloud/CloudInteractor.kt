@@ -10,7 +10,7 @@ import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
-import maestro.device.Platform
+import maestro.Platform
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.RunningFlow

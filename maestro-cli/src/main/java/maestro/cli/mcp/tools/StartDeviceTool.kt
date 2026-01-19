@@ -4,7 +4,7 @@ import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.device.DeviceService
-import maestro.device.Platform
+import maestro.Platform
 
 object StartDeviceTool {
     fun create(): RegisteredTool {

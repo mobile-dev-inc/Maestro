@@ -24,6 +24,7 @@ import dadb.adbserver.AdbServer
 import ios.LocalIOSDevice
 import ios.devicectl.DeviceControlIOSDevice
 import device.SimctlIOSDevice
+import maestro.Platform
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.device.Device
@@ -31,7 +32,6 @@ import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.driver.DriverBuilder
 import maestro.cli.driver.RealIOSDeviceDriver
 import maestro.cli.util.PrintUtils
-import maestro.device.Platform
 import maestro.utils.CliInsights
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver

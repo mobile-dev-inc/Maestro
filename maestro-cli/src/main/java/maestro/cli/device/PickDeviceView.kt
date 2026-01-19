@@ -1,11 +1,11 @@
 package maestro.cli.device
 
+import maestro.Platform
 import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
 import maestro.device.DeviceCatalog
 import maestro.device.DeviceSpec
-import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
 
 /**
