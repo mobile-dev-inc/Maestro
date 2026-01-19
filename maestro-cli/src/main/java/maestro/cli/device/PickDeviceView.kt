@@ -1,13 +1,21 @@
 package maestro.cli.device
 
 import maestro.cli.CliError
-import maestro.cli.model.DeviceStartOptions
-import maestro.cli.util.DeviceConfigAndroid
-import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
+import maestro.device.DeviceCatalog
+import maestro.device.DeviceSpec
 import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
+
+/**
+ * Result of requesting device options from the user.
+ * Contains both the selected platform and the complete device specification.
+ */
+data class DeviceSelectionResult(
+    val platform: Platform,
+    val deviceSpec: DeviceSpec
+)
 
 object PickDeviceView {
 
@@ -24,7 +32,7 @@ object PickDeviceView {
         return pickIndex(devices)
     }
 
-    fun requestDeviceOptions(platform: Platform? = null): DeviceStartOptions {
+    fun requestDeviceOptions(platform: Platform? = null): DeviceSelectionResult {
         val selectedPlatform = if (platform == null) {
             PrintUtils.message("Please specify a device platform [android, ios, web]:")
             readlnOrNull()?.lowercase()?.let {
@@ -37,26 +45,37 @@ object PickDeviceView {
             } ?: throw CliError("Please specify a platform")
         } else platform
 
+        val maestroPlatform = when(selectedPlatform) {
+            Platform.ANDROID -> maestro.Platform.ANDROID
+            Platform.IOS -> maestro.Platform.IOS
+            Platform.WEB -> maestro.Platform.WEB
+        }
+        
         val version = selectedPlatform.let {
             when (it) {
                 Platform.IOS -> {
-                    PrintUtils.message("Please specify iOS version ${DeviceConfigIos.versions}: Press ENTER for default (${DeviceConfigIos.defaultVersion})")
-                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigIos.defaultVersion
+                    val supportedVersions = DeviceCatalog.getSupportedOSVersions(maestroPlatform)
+                    val defaultVersion = DeviceCatalog.getDefaultOSVersion(maestroPlatform)
+                    PrintUtils.message("Please specify iOS version $supportedVersions: Press ENTER for default ($defaultVersion)")
+                    readlnOrNull()?.toIntOrNull() ?: defaultVersion.version
                 }
 
                 Platform.ANDROID -> {
-                    PrintUtils.message("Please specify Android version ${DeviceConfigAndroid.versions}: Press ENTER for default (${DeviceConfigAndroid.defaultVersion})")
-                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigAndroid.defaultVersion
+                    val supportedVersions = DeviceCatalog.getSupportedOSVersions(maestroPlatform)
+                    val defaultVersion = DeviceCatalog.getDefaultOSVersion(maestroPlatform)
+                    PrintUtils.message("Please specify Android version $supportedVersions: Press ENTER for default ($defaultVersion)")
+                    readlnOrNull()?.toIntOrNull() ?: defaultVersion.version
                 }
 
                 Platform.WEB -> 0
             }
         }
 
-        return DeviceStartOptions(
+        val deviceSpec = DeviceCatalog.getDeviceSpecs(maestroPlatform, null, version, null)
+        
+        return DeviceSelectionResult(
             platform = selectedPlatform,
-            osVersion = version,
-            forceCreate = false
+            deviceSpec = deviceSpec
         )
     }
 

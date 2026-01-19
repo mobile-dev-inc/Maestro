@@ -83,8 +83,8 @@ object PickDeviceInteractor {
         when(input) {
             "1" -> {
                 PrintUtils.clearConsole()
-                val options = PickDeviceView.requestDeviceOptions(platform)
-                if (options.platform == Platform.WEB) {
+                val selection = PickDeviceView.requestDeviceOptions(platform)
+                if (selection.platform == Platform.WEB) {
                     return Device.AvailableForLaunch(
                         platform = Platform.WEB,
                         description = "Chromium Desktop Browser (Experimental)",
@@ -94,7 +94,10 @@ object PickDeviceInteractor {
                         deviceType = Device.DeviceType.BROWSER
                     )
                 }
-                return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, null, null, options.forceCreate)
+                return DeviceCreateUtil.getOrCreateDevice(
+                    platform = selection.platform,
+                    deviceSpec = selection.deviceSpec
+                )
             }
             "2" -> {
                 PrintUtils.clearConsole()

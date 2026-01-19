@@ -1,17 +1,15 @@
 package maestro.cli.command
 
-import maestro.device.Platform
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
-import maestro.cli.util.DeviceConfigAndroid
-import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.device.DeviceCatalog
+import maestro.device.Platform
 import maestro.locale.LocaleValidationException
 import picocli.CommandLine
 import java.util.concurrent.Callable
@@ -70,16 +68,6 @@ class StartDeviceCommand : Callable<Int> {
         val p = Platform.fromString(platform)
             ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
 
-        // default OS version
-        if (!::osVersion.isInitialized) {
-            osVersion = when (p) {
-                Platform.IOS -> DeviceConfigIos.defaultVersion.toString()
-                Platform.ANDROID -> DeviceConfigAndroid.defaultVersion.toString()
-                else -> ""
-            }
-        }
-        val o = osVersion.toIntOrNull()
-
         val maestroPlatform = when(p) {
             Platform.ANDROID -> maestro.Platform.ANDROID
             Platform.IOS -> maestro.Platform.IOS
@@ -87,9 +75,13 @@ class StartDeviceCommand : Callable<Int> {
         }
 
         try {
-            val deviceSpec = DeviceCatalog.getDeviceSpecs(maestroPlatform, deviceLocale ?: "en_US")
+            val deviceSpec = DeviceCatalog.getDeviceSpecs(
+                platform = maestroPlatform,
+                locale = deviceLocale,
+                osVersion = if (::osVersion.isInitialized) osVersion.toIntOrNull() else null
+            )
 
-            DeviceCreateUtil.getOrCreateDevice(p, o, deviceSpec.locale.languageCode, deviceSpec.locale.countryCode, forceCreate).let { device ->
+            DeviceCreateUtil.getOrCreateDevice(p, deviceSpec).let { device ->
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,

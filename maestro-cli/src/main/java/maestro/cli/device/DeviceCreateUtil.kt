@@ -3,41 +3,94 @@ package maestro.cli.device
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
+import maestro.device.DeviceSpec
+import maestro.device.IosOS
+import maestro.device.AndroidOS
+import maestro.device.IosModel
+import maestro.device.AndroidModel
 
 import maestro.cli.CliError
 import maestro.cli.util.*
 import maestro.device.util.AvdDevice
 
+/**
+ * Android device configuration for creating emulators.
+ * Contains all the necessary configuration to create an Android Virtual Device.
+ */
+internal data class AndroidDeviceConfig(
+    val deviceName: String,
+    val device: String,
+    val tag: String,
+    val systemImage: String,
+    val abi: String
+)
+
+/**
+ * CPU Architecture types for emulator/simulator creation.
+ */
+internal enum class CpuArchitecture {
+    X86_64,
+    ARM64,
+    UNKNOWN
+}
+
 object DeviceCreateUtil {
 
     fun getOrCreateDevice(
         platform: Platform,
-        osVersion: Int? = null,
-        language: String? = null,
-        country: String? = null,
+        deviceSpec: DeviceSpec,
         forceCreate: Boolean = false,
         shardIndex: Int? = null,
     ): Device.AvailableForLaunch = when (platform) {
-        Platform.ANDROID -> getOrCreateAndroidDevice(osVersion, language, country, forceCreate, shardIndex)
-        Platform.IOS -> getOrCreateIosDevice(osVersion, language, country, forceCreate, shardIndex)
+        Platform.ANDROID -> getOrCreateAndroidDevice(deviceSpec, forceCreate, shardIndex)
+        Platform.IOS -> getOrCreateIosDevice(deviceSpec, forceCreate, shardIndex)
         else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+    }
+    
+    /**
+     * Creates Android emulator configuration including system image and ABI based on architecture.
+     * This is CLI-specific logic that depends on the host system architecture.
+     */
+    private fun createAndroidEmulatorConfig(
+        apiLevel: Int,
+        device: AvdDevice,
+        architecture: CpuArchitecture
+    ): AndroidDeviceConfig {
+        val tag = "google_apis"
+        val systemImage = when (architecture) {
+            CpuArchitecture.X86_64 -> "x86_64"
+            CpuArchitecture.ARM64 -> "arm64-v8a"
+            else -> throw IllegalStateException("Unsupported architecture $architecture")
+        }.let {
+            "system-images;android-$apiLevel;google_apis;$it"
+        }
+        val abi = when (architecture) {
+            CpuArchitecture.X86_64 -> "x86_64"
+            CpuArchitecture.ARM64 -> "arm64-v8a"
+            else -> throw IllegalStateException("Unsupported architecture $architecture")
+        }
+
+        return AndroidDeviceConfig(
+            deviceName = "", // Not used - we generate name via DeviceSpec
+            device = device.nameId,
+            tag = tag,
+            systemImage = systemImage,
+            abi = abi
+        )
     }
 
     fun getOrCreateIosDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
-        if (version !in DeviceConfigIos.versions) {
-            throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
-        }
+        // Safe cast - validation already done in DeviceCatalog.getDeviceSpecs()
+        val iosOS = deviceSpec.deviceOS as IosOS
+        val iosModel = deviceSpec.deviceModel as IosModel
+        
+        val version = iosOS.version
+        val runtime = iosOS.runtime
 
-        val runtime = DeviceConfigIos.runtimes[version]
-        if (runtime == null) {
-            throw CliError("Provided iOS runtime is not supported $runtime")
-        }
-
-        val deviceName = DeviceConfigIos.generateDeviceName(version) + shardIndex?.let { "_${it + 1}" }.orEmpty()
-        val device = DeviceConfigIos.device
+        val deviceName = deviceSpec.generateDeviceName(shardIndex)
+        val device = iosModel.modelId
 
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
@@ -89,33 +142,41 @@ object DeviceCreateUtil {
             modelId = deviceUUID,
             description = deviceName,
             platform = Platform.IOS,
-            language = language,
-            country = country,
+            language = deviceSpec.locale.languageCode,
+            country = deviceSpec.locale.countryCode,
             deviceType = Device.DeviceType.SIMULATOR
         )
 
     }
 
     fun getOrCreateAndroidDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigAndroid.defaultVersion
-        if (version !in DeviceConfigAndroid.versions) {
-            throw CliError("Provided Android version is not supported. Please use one of ${DeviceConfigAndroid.versions}")
-        }
+        // Safe cast - validation already done in DeviceCatalog.getDeviceSpecs()
+        val androidOS = deviceSpec.deviceOS as AndroidOS
+        val androidModel = deviceSpec.deviceModel as AndroidModel
+        
+        val version = androidOS.version
 
-        val architecture = EnvUtils.getMacOSArchitecture()
+        val cpuArch = EnvUtils.getMacOSArchitecture()
+        val architecture = when (cpuArch) {
+            CPU_ARCHITECTURE.x86_64 -> CpuArchitecture.X86_64
+            CPU_ARCHITECTURE.ARM64 -> CpuArchitecture.ARM64
+            else -> CpuArchitecture.UNKNOWN
+        }
+        
         val pixels = DeviceService.getAvailablePixelDevices()
-        val pixel = DeviceConfigAndroid.choosePixelDevice(pixels) ?: AvdDevice("-1", "Pixel 6", "pixel_6")
+        val pixel = AndroidModel.chooseBestPixel(pixels) { it.nameId } ?: 
+            AvdDevice("-1", androidModel.modelId, androidModel.displayName)
 
         val config = try {
-            DeviceConfigAndroid.createConfig(version, pixel, architecture)
+            createAndroidEmulatorConfig(version, pixel, architecture)
         } catch (e: IllegalStateException) {
             throw CliError(e.message ?: "Unable to create android device config")
         }
 
         val systemImage = config.systemImage
-        val deviceName = config.deviceName + shardIndex?.let { "_${it + 1}" }.orEmpty()
+        val deviceName = deviceSpec.generateDeviceName(shardIndex)
 
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
@@ -155,7 +216,7 @@ object DeviceCreateUtil {
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = config.deviceName,
+                deviceName = deviceName,
                 device = config.device,
                 systemImage = config.systemImage,
                 tag = config.tag,
@@ -173,8 +234,8 @@ object DeviceCreateUtil {
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
-            language = language,
-            country = country,
+            language = deviceSpec.locale.languageCode,
+            country = deviceSpec.locale.countryCode,
             deviceType = Device.DeviceType.EMULATOR,
         )
     }
