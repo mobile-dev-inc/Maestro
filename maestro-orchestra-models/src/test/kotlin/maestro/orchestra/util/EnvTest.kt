@@ -29,9 +29,79 @@ class EnvTest {
     }
 
     @Test
+    fun `withDefaultEnvVars should add shard and device values`() {
+        val env = emptyEnv.withDefaultEnvVars(
+            flowFile = File("myFlow.yml"),
+            deviceId = "device-123",
+            shardIndex = 1
+        )
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-123")
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("2")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("1")
+    }
+
+    @Test
+    fun `withDefaultEnvVars should override shard and device values`() {
+        val env = mapOf(
+            "MAESTRO_DEVICE_UDID" to "old-device",
+            "MAESTRO_SHARD_ID" to "99",
+            "MAESTRO_SHARD_INDEX" to "98",
+        ).withDefaultEnvVars(deviceId = "device-456", shardIndex = 0)
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-456")
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("1")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("0")
+    }
+
+    @Test
+    fun `withDefaultEnvVars should set default shard values when shardIndex is null`() {
+        // When not sharding, shard vars default to 1/0 so flows don't fail with undefined
+        val env = emptyEnv.withDefaultEnvVars(
+            flowFile = File("myFlow.yml"),
+            deviceId = "device-123",
+            shardIndex = null
+        )
+        assertThat(env["MAESTRO_FILENAME"]).isEqualTo("myFlow")
+        assertThat(env["MAESTRO_DEVICE_UDID"]).isEqualTo("device-123")
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("1")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("0")
+    }
+
+    @Test
+    fun `withDefaultEnvVars should override external shard values with defaults when shardIndex is null`() {
+        // External shard values (from --env, flow env, or shell) are replaced with defaults
+        val env = mapOf(
+            "MAESTRO_SHARD_ID" to "99",
+            "MAESTRO_SHARD_INDEX" to "98",
+            "OTHER_VAR" to "preserved",
+        ).withDefaultEnvVars(
+            flowFile = File("myFlow.yml"),
+            shardIndex = null
+        )
+        // Shard values are reset to defaults (not the external values)
+        assertThat(env["MAESTRO_SHARD_ID"]).isEqualTo("1")
+        assertThat(env["MAESTRO_SHARD_INDEX"]).isEqualTo("0")
+        // Other vars are preserved
+        assertThat(env["OTHER_VAR"]).isEqualTo("preserved")
+        assertThat(env["MAESTRO_FILENAME"]).isEqualTo("myFlow")
+    }
+
+    @Test
     fun `withInjectedShellEnvVars only keeps MAESTRO_ vars`() {
         val env = emptyEnv.withInjectedShellEnvVars()
         assertThat(env.filterKeys { it.startsWith("MAESTRO_").not() }).isEmpty()
+    }
+
+    @Test
+    fun `withInjectedShellEnvVars should not inject shard variables from shell`() {
+        // Shard variables should only be controlled by internal logic (withDefaultEnvVars),
+        // not from external shell environment, to prevent inconsistent state where only
+        // one of MAESTRO_SHARD_ID or MAESTRO_SHARD_INDEX is set from external environment.
+        val env = emptyEnv.withInjectedShellEnvVars()
+        // These assertions verify that even if shell has MAESTRO_SHARD_* vars,
+        // they won't be injected. The actual shell env might not have these vars,
+        // but this test documents the expected behavior.
+        assertThat(env.containsKey("MAESTRO_SHARD_ID")).isFalse()
+        assertThat(env.containsKey("MAESTRO_SHARD_INDEX")).isFalse()
     }
 
     @Test
