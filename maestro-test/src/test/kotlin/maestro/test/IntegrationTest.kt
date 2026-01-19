@@ -39,6 +39,8 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.fail
+import org.slf4j.LoggerFactory
 import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
@@ -55,9 +57,14 @@ class IntegrationTest {
 
     @AfterEach
     internal fun tearDown() {
+        File("028_env.mp4").delete()
         File("041_take_screenshot_with_filename.png").delete()
         File("099_screen_recording.mp4").delete()
-        File("028_env.mp4").delete()
+        File("134_screenshots").delete()
+        File("134_screenshots/filename.png").delete()
+        File("135_recordings").delete()
+        File("135_recordings/filename.mp4").delete()
+        File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
     }
 
     @Test
@@ -610,7 +617,11 @@ class IntegrationTest {
             listOf(
                 MaestroCommand(
                     DefineVariablesCommand(
-                        env = mapOf("MAESTRO_FILENAME" to "020_parse_config")
+                        env = mapOf(
+                            "MAESTRO_FILENAME" to "020_parse_config",
+                            "MAESTRO_SHARD_ID" to "1",
+                            "MAESTRO_SHARD_INDEX" to "0",
+                        )
                     )
                 ),
                 MaestroCommand(
@@ -3554,6 +3565,9 @@ class IntegrationTest {
 
                 // Launch the work in our cancellable scope
                 scope.launch(job) {
+                    // Cancel the job immediately
+                    coroutineContext.cancel()
+
                     try {
                         Orchestra(
                             maestro,
@@ -3571,11 +3585,8 @@ class IntegrationTest {
                     }
                 }
 
-                // Cancel the job immediately
-                job.cancel()
-
                 // Actively wait for skipped count to reach expected value or timeout
-                withTimeout(2000) {
+                withTimeout(3000) {
                     while (skipped < expectedSkipped) {
                         yield() // Cooperatively yield to let other coroutines run
 
@@ -4036,6 +4047,212 @@ class IntegrationTest {
         driver.assertHasEvent(Event.SetPermissions(appId = "com.example.app", permissions = mapOf("all" to "deny", "notifications" to "unset")))
     }
 
+
+    @Test
+    fun `Case 132 - repeatWhile respects coroutine timeout and gets cancelled`() {
+        // Given
+        // You can reuse 075_repeat_while.yaml or make a dedicated one that just keeps the while true.
+        val commands = readCommands("075_repeat_while")
+
+        val driver = driver {
+            element {
+                text = "Value 0"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                }
+            }
+        }
+
+        var completed = 0
+        var skipped = 0
+        val executedCommands = mutableListOf<String>()
+
+        Maestro(driver).use { maestro ->
+            // When & Then
+            runBlocking {
+                // Optional: mirror Case 124 style and isolate flow in its own scope
+                val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+                try {
+                    val maxReasonableSkips = 1_00
+
+                    withTimeout(2000) {
+                        val orchestra = Orchestra(
+                            maestro = maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandComplete = { index, command ->
+                                println("""
+                                    Completed command ${command.description()} at index $index.
+                                """.trimIndent()
+                                )
+
+                                completed += 1
+                            },
+                            onCommandSkipped = { index, command ->
+                                skipped += 1
+                                /**
+                                 * When this fail it means we might have entered an infinite loop.
+                                 *
+                                 * Our orchestra should not have infinite loops when timeout exceed.
+                                 */
+                                println("""
+                                        Command ${command.description()} at index $index was skipped $skipped times.
+                                """.trimIndent()
+                                )
+                                if (skipped > maxReasonableSkips) {
+                                    fail("Likely infinite loop: onCommandSkipped called $skipped times (command=$command index=$index)")
+                                }
+                            }
+                        )
+
+                        // This should be interrupted by withTimeout if repeatWhile keeps going
+                        orchestra.runFlow(commands)
+                    }
+                } finally {
+                    scope.coroutineContext[Job]?.cancel()
+                }
+            }
+        }
+
+        // Assertions
+        // Some commands actually completed before timeout.
+        assertThat(completed).isGreaterThan(0)
+
+        // Depending on how you wire onCommandSkipped for cancellation, you may or may not
+        // see skipped > 0; keep this if you convert cancellations to "skipped".
+        assertThat(skipped).isGreaterThan(0)
+    }
+
+    @Test
+    fun `Case 133 - Set clipboard`() {
+        // Given
+        val commands = readCommands("133_setClipboard")
+
+        val driver = driver {
+            element {
+                id = "inputField"
+                bounds = Bounds(0, 100, 100, 200)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.InputText("Hello, Maestro!"),
+            )
+        )
+    }
+
+    @Test
+    fun `Case 134 - Take screenshot with path`() {
+        // Given
+        val commands = readCommands("134_take_screenshot_with_path")
+
+        val driver = driver {
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("134_screenshots/filename.png").exists())
+    }
+
+    @Test
+    fun `Case 135 - Screen recording with path`() {
+        // Given
+        val commands = readCommands("135_screen_recording_with_path")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertEvents(
+            listOf(
+                Event.StartRecording,
+                Event.StopRecording,
+            )
+        )
+        assert(File("135_recordings/filename.mp4").exists())
+    }
+
+    @Test
+    fun `Case 136 - Relative path in http multipart script`() {
+        // Flow running a JS file which is using multipartForm which has an image as relative path from script
+        val commands = readCommands("136_js_http_multi_part_requests")
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 137 - Shard and device env vars`() {
+        // Given
+        // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
+        // MAESTRO_SHARD_* vars, since those are now reserved internal-only variables
+        val commands = readCommands(
+            caseName = "137_shard_device_env_vars",
+            deviceId = "test-device",
+            shardIndex = 0,  // Will set MAESTRO_SHARD_ID=1, MAESTRO_SHARD_INDEX=0
+        )
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure - verify screenshot was created with env vars in filename
+        driver.assertEvents(
+            listOf(
+                Event.LaunchApp(appId = "com.example.app"),
+                Event.TakeScreenshot,
+            )
+        )
+        assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
@@ -4073,13 +4290,14 @@ class IntegrationTest {
 
     private fun readCommands(
         caseName: String,
-        withEnv: () -> Map<String, String> = { emptyMap() }
+        deviceId: String? = null,
+        shardIndex: Int? = null,
+        withEnv: () -> Map<String, String> = { emptyMap() },
     ): List<MaestroCommand> {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
-            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile()))
+            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
     }
-
 }

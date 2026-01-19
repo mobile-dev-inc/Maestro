@@ -64,6 +64,7 @@ class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
+    private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
     private var portForwarder: AutoCloseable? = null
@@ -181,7 +182,12 @@ class AndroidDriver(
         LOGGER.info("[Done] close port forwarder")
 
         LOGGER.info("[Start] Uninstall driver from device")
-        uninstallMaestroApks()
+        if (reinstallDriver) {
+            uninstallMaestroDriverApp()
+        }
+        if (reinstallDriver) {
+            uninstallMaestroServerApp()
+        }
         LOGGER.info("[Done] Uninstall driver from device")
 
         LOGGER.info("[Start] Close instrumentation session")
@@ -928,9 +934,13 @@ class AndroidDriver(
         try {
             shell("pm $permissionValue $appId $permission")
         } catch (exception: Exception) {
-            // We don't need to be loud about this. IOExceptions were caught in shell. Remaining issues are likely due
-            // to "all" containing permissions that the app doesn't support.
-            logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
+            // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
+            if (exception.message?.contains("is not a changeable permission type") == false) {
+                // Debug level is fine.
+                // We don't need to be loud about this. IOExceptions were already caught in shell(..)
+                // Remaining issues are likely due to "all" containing permissions that the app doesn't support.
+                logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
+            }
         }
     }
 
@@ -1061,6 +1071,14 @@ class AndroidDriver(
                 attributesBuilder["class"] = node.getAttribute("class")
             }
 
+            if (node.hasAttribute("important-for-accessibility")) {
+                attributesBuilder["important-for-accessibility"] = node.getAttribute("important-for-accessibility")
+            }
+
+            if (node.hasAttribute("error")) {
+                attributesBuilder["error"] = node.getAttribute("error")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
@@ -1091,7 +1109,11 @@ class AndroidDriver(
 
     fun installMaestroDriverApp() {
         metrics.measured("operation", mapOf("command" to "installMaestroDriverApp")) {
-            uninstallMaestroDriverApp()
+            if (reinstallDriver) {
+                uninstallMaestroDriverApp()
+            } else if (isPackageInstalled("dev.mobile.maestro")) {
+                return@measured
+            }
 
             val maestroAppApk = File.createTempFile("maestro-app", ".apk")
 
@@ -1110,7 +1132,11 @@ class AndroidDriver(
     }
 
     private fun installMaestroServerApp() {
-        uninstallMaestroServerApp()
+        if (reinstallDriver) {
+            uninstallMaestroServerApp()
+        } else if (isPackageInstalled("dev.mobile.maestro.test")) {
+            return
+        }
 
         val maestroServerApk = File.createTempFile("maestro-server", ".apk")
 

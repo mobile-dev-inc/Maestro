@@ -340,6 +340,7 @@ jreleaser {
 }
 
 tasks.register<Test>("integrationTest") {
+    group = "verification"
     useJUnitPlatform {
         includeTags("IntegrationTest")
     }

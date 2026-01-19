@@ -9,7 +9,8 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 class ChromeSeleniumFactory(
-    private val isHeadless: Boolean
+    private val isHeadless: Boolean,
+    private val screenSize: String?
 ) : SeleniumFactory {
 
     override fun create(): WebDriver {
@@ -28,9 +29,26 @@ class ChromeSeleniumFactory(
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
+
+                // Disable password management
+                addArguments("--password-store=basic")
+                val chromePrefs = hashMapOf<String, Any>(
+                    "credentials_enable_service" to false,
+                    "profile.password_manager_enabled" to false,
+                    "profile.password_manager_leak_detection" to false   // important one
+                )
+                setExperimentalOption("prefs", chromePrefs)
+
                 if (isHeadless) {
                     addArguments("--headless=new")
-                    addArguments("--window-size=1024,768")
+
+                    if(screenSize != null){
+                        addArguments("--window-size=" + screenSize.replace('x',','))
+                    }
+                    else{
+                        addArguments("--window-size=1024,768")
+                    }
+
                     setExperimentalOption("detach", true)
                 }
             }

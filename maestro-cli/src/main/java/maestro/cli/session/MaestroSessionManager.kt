@@ -38,6 +38,7 @@ import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
+import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import util.XCRunnerCLIUtils
@@ -71,6 +72,7 @@ object MaestroSessionManager {
         platform: String? = null,
         isStudio: Boolean = false,
         isHeadless: Boolean = false,
+        screenSize: String? = null,
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
@@ -113,6 +115,7 @@ object MaestroSessionManager {
             },
             isStudio = isStudio,
             isHeadless = isHeadless,
+            screenSize = screenSize,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
             platformConfiguration = executionPlan?.workspaceConfig?.platform
@@ -193,6 +196,7 @@ object MaestroSessionManager {
         connectToExistingSession: Boolean,
         isStudio: Boolean,
         isHeadless: Boolean,
+        screenSize: String?,
         reinstallDriver: Boolean,
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
@@ -204,6 +208,7 @@ object MaestroSessionManager {
                         selectedDevice.device.instanceId,
                         !connectToExistingSession,
                         driverHostPort,
+                        reinstallDriver,
                     )
 
                     Platform.IOS -> createIOS(
@@ -218,6 +223,7 @@ object MaestroSessionManager {
                     Platform.WEB -> pickWebDevice(
                         isStudio = isStudio,
                         isHeadless = isHeadless,
+                        screenSize = screenSize,
                         selectorAliases = platformConfiguration?.web?.selectorAliases ?: emptyMap()
                     )
                 },
@@ -230,6 +236,7 @@ object MaestroSessionManager {
                     selectedDevice.port,
                     driverHostPort,
                     !connectToExistingSession,
+                    reinstallDriver,
                 ),
                 device = null,
             )
@@ -249,6 +256,7 @@ object MaestroSessionManager {
                 maestro = pickWebDevice(
                     isStudio = isStudio,
                     isHeadless = isHeadless,
+                    screenSize = screenSize,
                     selectorAliases = platformConfiguration?.web?.selectorAliases ?: emptyMap()
                 ),
                 device = null
@@ -281,6 +289,7 @@ object MaestroSessionManager {
         port: Int?,
         driverHostPort: Int?,
         openDriver: Boolean,
+        reinstallDriver: Boolean,
     ): Maestro {
         val dadb = if (port != null) {
             Dadb.create(host ?: defaultHost, port)
@@ -291,7 +300,7 @@ object MaestroSessionManager {
         }
 
         return Maestro.android(
-            driver = AndroidDriver(dadb, driverHostPort),
+            driver = AndroidDriver(dadb, driverHostPort, "", reinstallDriver),
             openDriver = openDriver,
         )
     }
@@ -326,6 +335,7 @@ object MaestroSessionManager {
         instanceId: String,
         openDriver: Boolean,
         driverHostPort: Int?,
+        reinstallDriver: Boolean,
     ): Maestro {
         val driver = AndroidDriver(
             dadb = Dadb
@@ -335,6 +345,7 @@ object MaestroSessionManager {
                 ?: error("Unable to find device with id $instanceId"),
             hostPort = driverHostPort,
             emulatorName = instanceId,
+            reinstallDriver = reinstallDriver,
         )
 
         return Maestro.android(
@@ -379,9 +390,10 @@ object MaestroSessionManager {
                     snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
                 )
             }
-            else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
+             else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
+        val tempFileHandler = TempFileHandler()
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
                 val device = util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
@@ -391,6 +403,7 @@ object MaestroSessionManager {
             Device.DeviceType.SIMULATOR -> {
                 val simctlIOSDevice = SimctlIOSDevice(
                     deviceId = deviceId,
+                    tempFileHandler = tempFileHandler
                 )
                 simctlIOSDevice
             }
@@ -404,7 +417,8 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
             deviceType = iOSDeviceType,
             iOSDriverConfig = iOSDriverConfig,
-            deviceController = deviceController
+            deviceController = deviceController,
+            tempFileHandler = tempFileHandler
         )
 
         val xcTestDriverClient = XCTestDriverClient(
@@ -413,10 +427,11 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
         )
 
+        val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = tempFileHandler)
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
+            getInstalledApps = { xcRunnerCLIUtils.listApps(deviceId) },
         )
 
         val iosDriver = IOSDriver(
@@ -438,9 +453,10 @@ object MaestroSessionManager {
     private fun pickWebDevice(
         isStudio: Boolean,
         isHeadless: Boolean,
+        screenSize: String?,
         selectorAliases: Map<String, String> = emptyMap()
     ): Maestro {
-        return Maestro.web(isStudio, isHeadless, selectorAliases)
+        return Maestro.web(isStudio, isHeadless, screenSize, selectorAliases)
     }
 
     private data class SelectedDevice(
