@@ -32,7 +32,6 @@ import maestro.cli.graphics.SkiaFrameRenderer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
-import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
@@ -148,11 +147,7 @@ class RecordCommand : Callable<Int> {
                     )
                 }
 
-                val resultView = if (DisableAnsiMixin.ansiEnabled) {
-                    AnsiResultView(useEmojis = !EnvUtils.isWindows())
-                } else {
-                    PlainTextResultView()
-                }
+                val resultView = AnsiResultView(useEmojis = DisableAnsiMixin.ansiEnabled && !EnvUtils.isWindows())
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     maestro.startScreenRecording(out).use {
