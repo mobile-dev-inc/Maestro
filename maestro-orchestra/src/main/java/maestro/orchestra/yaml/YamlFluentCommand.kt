@@ -35,6 +35,7 @@ import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.SetClipboardCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
@@ -127,6 +128,7 @@ data class YamlFluentCommand(
     val setOrientation: YamlSetOrientation? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
+    val setClipboard: YamlSetClipboard? = null,
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
     val evalScript: YamlEvalScript? = null,
@@ -372,19 +374,30 @@ data class YamlFluentCommand(
             )
 
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
-            runScript != null -> listOf(
+            setClipboard != null -> listOf(
                 MaestroCommand(
-                    RunScriptCommand(
-                        script = resolvePath(flowPath, runScript.file)
-                            .readText(),
-                        env = runScript.env,
-                        sourceDescription = runScript.file,
-                        condition = runScript.`when`?.toCondition(),
-                        label = runScript.label,
-                        optional = runScript.optional,
+                    SetClipboardCommand(
+                        text = setClipboard.text,
+                        label = setClipboard.label,
+                        optional = setClipboard.optional
                     )
                 )
             )
+            runScript != null -> {
+                val scriptPath = resolvePath(flowPath, runScript.file)
+                listOf(
+                    MaestroCommand(
+                        RunScriptCommand(
+                            script = scriptPath.readText(),
+                            env = runScript.env,
+                            sourceDescription = scriptPath.toString(),
+                            condition = runScript.`when`?.toCondition(),
+                            label = runScript.label,
+                            optional = runScript.optional,
+                        )
+                    )
+                )
+            }
 
             waitForAnimationToEnd != null -> listOf(
                 MaestroCommand(

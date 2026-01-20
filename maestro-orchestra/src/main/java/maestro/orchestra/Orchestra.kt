@@ -53,6 +53,7 @@ import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
+import okio.BufferedSink
 import okio.Sink
 import okio.buffer
 import okio.sink
@@ -218,6 +219,13 @@ class Orchestra(
                 // Check for pause before executing each command
                 flowController.waitIfPaused()
 
+                val evaluatedCommand = command.evaluateScripts(jsEngine)
+                val metadata = getMetadata(command)
+                    .copy(
+                        evaluatedCommand = evaluatedCommand,
+                    )
+                updateMetadata(command, metadata)
+
                 onCommandStart(index, command)
 
                 jsEngine.onLogMessage { msg ->
@@ -228,13 +236,6 @@ class Orchestra(
                     )
                     logger.info("JsConsole: $msg")
                 }
-
-                val evaluatedCommand = command.evaluateScripts(jsEngine)
-                val metadata = getMetadata(command)
-                    .copy(
-                        evaluatedCommand = evaluatedCommand,
-                    )
-                updateMetadata(command, metadata)
 
                 val callback: (Insight) -> Unit = { insight ->
                     updateMetadata(
@@ -329,6 +330,7 @@ class Orchestra(
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
+            is SetClipboardCommand -> setClipboardCommand(command)
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
@@ -854,14 +856,14 @@ class Orchestra(
         return try {
             commands
                 .mapIndexed { index, command ->
-                    onCommandStart(index, command)
-
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
                         .copy(
                             evaluatedCommand = evaluatedCommand,
                         )
                     updateMetadata(command, metadata)
+
+                    onCommandStart(index, command)
 
                     return@mapIndexed try {
                         try {
@@ -939,21 +941,15 @@ class Orchestra(
 
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
-        val file = screenshotsDir
-            ?.let { it.resolve(pathStr).toFile() }
-            ?: File(pathStr)
-
-        maestro.takeScreenshot(file, false)
-
+        val fileSink = getFileSink(screenshotsDir, pathStr)
+        maestro.takeScreenshot(fileSink, false)
         return false
     }
 
     private fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = command.path + ".mp4"
-        val file = screenshotsDir
-            ?.let { it.resolve(pathStr).toFile() }
-            ?: File(pathStr)
-        screenRecording = maestro.startScreenRecording(file.sink().buffer())
+        val fileSink = getFileSink(screenshotsDir, pathStr)
+        screenRecording = maestro.startScreenRecording(fileSink)
         return false
     }
 
@@ -1450,6 +1446,13 @@ class Orchestra(
         return true
     }
 
+    private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
+        copiedText = command.text
+        jsEngine.setCopiedText(copiedText)
+
+        return true
+    }
+
     private fun resolveText(attributes: MutableMap<String, String>): String? {
         return if (!attributes["text"].isNullOrEmpty()) {
             attributes["text"]
@@ -1463,6 +1466,22 @@ class Orchestra(
     private fun pasteText(): Boolean {
         copiedText?.let { maestro.inputText(it) }
         return true
+    }
+
+    private fun getFileSink(parentPath: Path?, filePathStr: String): BufferedSink {
+        // Work out relative v absolute input
+        val resolvedFile = parentPath?.resolve(filePathStr)?.toFile() ?: File(filePathStr)
+        val absoluteFile = resolvedFile.absoluteFile
+
+        if(absoluteFile.parentFile.exists() || absoluteFile.parentFile.mkdirs()) {
+            return resolvedFile
+                .sink()
+                .buffer()
+        } else {
+            throw MaestroException.DestinationIsNotWritable(
+                "Unable to create directory for file: ${absoluteFile.parentFile.absolutePath}"
+            )
+        }
     }
 
     private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {
