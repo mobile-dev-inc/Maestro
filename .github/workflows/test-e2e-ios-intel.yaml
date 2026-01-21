@@ -1,0 +1,137 @@
+name: Test E2E on iOS (Intel)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on Java ${{ matrix.java-version }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [17]
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java-version }}
+          cache: gradle
+
+      # Do not rebuild this - let's test the one that is in the repo
+      #- name: Build xctest-runner
+      #  run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
+
+      - name: Build Maestro CLI
+        run: ./gradlew :maestro-cli:distZip
+
+      - name: Upload zipped Maestro CLI artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
+          path: maestro-cli/build/distributions/maestro.zip
+          retention-days: 1
+
+      - name: Upload build/Products to artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: build__Products-jdk${{ matrix.java-version }}
+          path: build/Products
+          retention-days: 1
+
+  test-ios:
+    name: Test on iOS
+    runs-on: macos-15-intel
+    needs: build
+    timeout-minutes: 120
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
+      MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Boot Simulator
+        run: |
+          xcrun simctl list runtimes
+          export RUNTIME="iOS18.5"
+          export DEVICE_TYPE="iPhone 17 Pro"
+          ./.github/scripts/boot_simulator.sh
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps ios
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps ios
+
+      - name: Start screen recording
+        run: |
+          xcrun simctl io booted recordVideo --codec h264 ~/screenrecord.mp4 &
+          echo $! > ~/screenrecord.pid
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 120
+        run: ./run_tests ios
+
+      - name: Stop screen recording
+        if: success() || failure()
+        run: kill -SIGINT "$(cat ~/screenrecord.pid)"
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: maestro-root-dir-ios
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload xctest runner logs
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: xctest_runner_logs
+          path: ~/Library/Logs/maestro/xctest_runner_logs
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload screen recording of Simulator
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: maestro-screenrecord-ios.mp4
+          path: ~/screenrecord.mp4
+          retention-days: 7
