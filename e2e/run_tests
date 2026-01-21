@@ -105,6 +105,15 @@ for workspace_dir in ./workspaces/*; do
     fi
 done
 
+###
+### Validate screenshots
+###
+if [ "$ALL_PASS" = "true" ]; then
+	_h2 "screenshot validation" "comparing screenshots"
+	chmod +x ./validate_screenshots.sh
+	./validate_screenshots.sh || ALL_PASS=false
+fi
+
 if [ "$ALL_PASS" = "false" ]; then
 	_h1 "FAILURE: some tests failed!"
 	exit 1

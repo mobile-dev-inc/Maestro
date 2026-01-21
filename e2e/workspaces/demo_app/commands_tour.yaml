@@ -170,7 +170,17 @@ env:
 
 # TODO: swipe
 
-# TODO: takeScreenshot
+- runFlow:
+    when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "takeScreenshot"}
+    file: commands/takeScreenshot.yaml
+    label: takeScreenshot
+
+- runFlow:
+    when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "takeScreenshotCroppedTest"}
+    file: commands/takeScreenshotCroppedTest.yaml
+    label: takeScreenshotCroppedTest
 
 # TODO: tapOn
 
