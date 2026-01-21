@@ -147,7 +147,7 @@ class RecordCommand : Callable<Int> {
                     )
                 }
 
-                val resultView = AnsiResultView(useEmojis = DisableAnsiMixin.ansiEnabled && !EnvUtils.isWindows())
+                val resultView = AnsiResultView(useEmojis = !EnvUtils.isWindows())
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     maestro.startScreenRecording(out).use {
