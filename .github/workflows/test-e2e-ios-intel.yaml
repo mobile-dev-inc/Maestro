@@ -85,7 +85,7 @@ jobs:
         run: |
           xcrun simctl list runtimes
           export RUNTIME="iOS18.5"
-          export DEVICE_TYPE="iPhone 17 Pro"
+          export DEVICE_TYPE="iPhone 16"
           ./.github/scripts/boot_simulator.sh
 
       - name: Download apps
