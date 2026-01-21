@@ -176,6 +176,12 @@ env:
     file: commands/takeScreenshot.yaml
     label: takeScreenshot
 
+- runFlow:
+    when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "takeScreenshotCroppedTest"}
+    file: commands/takeScreenshotCroppedTest.yaml
+    label: takeScreenshotCroppedTest
+
 # TODO: tapOn
 
 # TODO: toggleAirplaneMode

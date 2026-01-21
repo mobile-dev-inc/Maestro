@@ -4255,16 +4255,16 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 122 - Take cropped screenshot`() {
+    fun `Case 138 - Take cropped screenshot`() {
         // Given
-        val commands = readCommands("122_take_cropped_screenshot")
+        val commands = readCommands("138_take_cropped_screenshot")
         val boundHeight = 100
         val boundWidth = 100
 
         val driver = driver {
             element {
                 id = "element_id"
-                bounds = Bounds(0,0,boundHeight,boundWidth)
+                bounds = Bounds(0, 0, boundHeight, boundWidth)
             }
         }
 
@@ -4285,7 +4285,7 @@ class IntegrationTest {
                 Event.TakeScreenshot,
             )
         )
-        val file = File("122_take_cropped_screenshot_with_filename.png")
+        val file = File("138_take_cropped_screenshot_with_filename.png")
         val image = ImageIO.read(file)
 
         assert(file.exists())
