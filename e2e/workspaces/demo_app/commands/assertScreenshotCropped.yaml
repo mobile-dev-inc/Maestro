@@ -4,6 +4,6 @@ appId: com.example.example
 - tapOn: "Cropped Screenshot Test"
 
 - assertScreenshot:
-    path: workspaces/demo_app/screenshots/actual_${MAESTRO_FILENAME}_cropped_screenshot
+    path: screenshots/${MAESTRO_FILENAME}
     cropOn:
       id: "testContainer"
