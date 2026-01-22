@@ -568,8 +568,11 @@ class Orchestra(
         }
 
         if (!actualFile.exists()) {
-            ImageIO.write(photoNow, "png", actualFile)
-            return true
+            throw MaestroException.AssertionFailure(
+                message = "Screenshot file not found: ${actualFile.absolutePath}. Expected screenshot file does not exist. Please create the reference screenshot first.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot file. The file was expected at: ${actualFile.absolutePath}"
+            )
         }
 
         val oldPhoto: BufferedImage = ImageIO.read(actualFile)
