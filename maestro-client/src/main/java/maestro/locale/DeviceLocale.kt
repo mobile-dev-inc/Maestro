@@ -48,6 +48,8 @@ sealed interface DeviceLocale {
   companion object {
     /**
      * Creates a DeviceLocale from a locale string and platform.
+     * If localeString is null, returns the default locale "en_US" for the platform.
+     * 
      * This is useful for platform-agnostic code that needs to work with locales.
      *
      * For platform-specific code, prefer using the specific locale types directly:
@@ -55,13 +57,16 @@ sealed interface DeviceLocale {
      * - IosLocale.fromString("en_US")
      * - WebLocale.fromString("en_US")
      *
+     * @param localeString The locale string (e.g., "en_US"). If null, defaults to "en_US"
+     * @param platform The target platform
      * @throws LocaleValidationException if the locale string is invalid or unsupported
      */
-    fun fromString(localeString: String, platform: Platform): DeviceLocale {
+    fun fromString(localeString: String?, platform: Platform): DeviceLocale {
+      val finalLocale = localeString ?: "en_US"
       return when (platform) {
-        Platform.ANDROID -> AndroidLocale.fromString(localeString)
-        Platform.IOS -> IosLocale.fromString(localeString)
-        Platform.WEB -> WebLocale.fromString(localeString)
+        Platform.ANDROID -> AndroidLocale.fromString(finalLocale)
+        Platform.IOS -> IosLocale.fromString(finalLocale)
+        Platform.WEB -> WebLocale.fromString(finalLocale)
       }
     }
 

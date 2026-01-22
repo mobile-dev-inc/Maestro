@@ -1,4 +1,5 @@
 package maestro.device
+import maestro.Platform
 
 sealed class Device(
     open val description: String,

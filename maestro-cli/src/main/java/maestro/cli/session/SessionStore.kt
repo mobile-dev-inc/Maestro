@@ -1,7 +1,7 @@
 package maestro.cli.session
 
+import maestro.Platform
 import maestro.cli.db.KeyValueStore
-import maestro.device.Platform
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 

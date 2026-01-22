@@ -25,6 +25,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
+import maestro.Platform
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -75,7 +76,6 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
-import maestro.device.Platform
 
 @CommandLine.Command(
     name = "test",
