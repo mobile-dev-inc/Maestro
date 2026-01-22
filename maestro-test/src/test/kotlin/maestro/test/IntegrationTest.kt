@@ -4253,6 +4253,44 @@ class IntegrationTest {
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
     }
 
+    @Test
+    fun `Case 138 - Send broadcast`() {
+        // Given
+        val commands = readCommands("138_send_broadcast")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertHasEvent(Event.SendBroadcast("android.intent.action.MAIN", null, null))
+        driver.assertHasEvent(
+            Event.SendBroadcast(
+                "android.intent.action.VIEW",
+                "com.example.app/.MyReceiver",
+                null,
+            ),
+        )
+        driver.assertHasEvent(
+            Event.SendBroadcast(
+                "com.example.CUSTOM_ACTION",
+                null,
+                mapOf(
+                    "message" to "test message",
+                    "count" to 42,
+                    "enabled" to true,
+                    "env_param" to "env_value",
+                ),
+            ),
+        )
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

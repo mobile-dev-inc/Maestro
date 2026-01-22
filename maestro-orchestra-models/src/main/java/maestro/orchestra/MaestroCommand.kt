@@ -51,6 +51,7 @@ data class MaestroCommand(
     val takeScreenshotCommand: TakeScreenshotCommand? = null,
     val stopAppCommand: StopAppCommand? = null,
     val killAppCommand: KillAppCommand? = null,
+    val sendBroadcastCommand: SendBroadcastCommand? = null,
     val clearStateCommand: ClearStateCommand? = null,
     val clearKeychainCommand: ClearKeychainCommand? = null,
     val runFlowCommand: RunFlowCommand? = null,
@@ -98,6 +99,7 @@ data class MaestroCommand(
         takeScreenshotCommand = command as? TakeScreenshotCommand,
         stopAppCommand = command as? StopAppCommand,
         killAppCommand = command as? KillAppCommand,
+        sendBroadcastCommand = command as? SendBroadcastCommand,
         clearStateCommand = command as? ClearStateCommand,
         clearKeychainCommand = command as? ClearKeychainCommand,
         runFlowCommand = command as? RunFlowCommand,
@@ -145,6 +147,7 @@ data class MaestroCommand(
         takeScreenshotCommand != null -> takeScreenshotCommand
         stopAppCommand != null -> stopAppCommand
         killAppCommand != null -> killAppCommand
+        sendBroadcastCommand != null -> sendBroadcastCommand
         clearStateCommand != null -> clearStateCommand
         clearKeychainCommand != null -> clearKeychainCommand
         runFlowCommand != null -> runFlowCommand
