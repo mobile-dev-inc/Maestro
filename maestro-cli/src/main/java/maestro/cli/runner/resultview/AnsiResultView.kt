@@ -46,13 +46,18 @@ class AnsiResultView(
 
     private var previousFrame: String? = null
 
+    private var lastRunningState: UiState.Running? = null
+
     init {
         println(Ansi.ansi().eraseScreen())
     }
 
     override fun setState(state: UiState) {
         when (state) {
-            is UiState.Running -> renderRunningState(state)
+            is UiState.Running -> {
+                lastRunningState = state
+                renderRunningState(state)
+            }
             is UiState.Error -> renderErrorState(state)
         }
     }
@@ -63,9 +68,54 @@ class AnsiResultView(
 
     private fun renderErrorState(state: UiState.Error) {
         renderFrame {
+            // If we have a saved Running state, show the executed commands for context
+            lastRunningState?.let { runningState ->
+                // Show main flow commands if any executed
+                val hasExecutedMainCommands = runningState.commands.any {
+                    it.status != CommandStatus.PENDING
+                }
+                if (hasExecutedMainCommands) {
+                    render(" ║\n")
+                    render(" ║  > Flow: ${runningState.flowName}\n")
+                    render(" ║\n")
+                    renderCommands(runningState.commands)
+                    render(" ║\n")
+                }
+
+                // Show onFlowComplete commands if any executed
+                if (runningState.onFlowCompleteCommands.isNotEmpty()) {
+                    val hasExecutedOnCompleteCommands = runningState.onFlowCompleteCommands.any {
+                        it.status != CommandStatus.PENDING
+                    }
+                    if (hasExecutedOnCompleteCommands) {
+                        render(" ║\n")
+                        render(" ║  > On Flow Complete\n")
+                        render(" ║\n")
+                        renderCommands(runningState.onFlowCompleteCommands)
+                        render(" ║\n")
+                    }
+                }
+
+                render("\n")
+            }
+
             fgRed()
             render(state.message)
             render("\n")
+
+            // If onFlowComplete also failed, show it as a secondary error
+            state.onFlowCompleteError?.also { onCompleteError ->
+                render("\n")
+                fgYellow()
+                render("━".repeat(80))
+                render("\n")
+                render("Note: onFlowComplete also failed:\n")
+                render("\n")
+                render(onCompleteError)
+                render("\n")
+            }
+
+            reset()
         }
     }
 

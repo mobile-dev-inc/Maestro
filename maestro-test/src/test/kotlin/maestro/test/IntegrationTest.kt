@@ -25,6 +25,7 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
+import maestro.orchestra.error.OnFlowCompleteFailedException
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
@@ -35,6 +36,7 @@ import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
 import maestro.utils.MaestroTimer
+import org.graalvm.polyglot.PolyglotException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -4251,6 +4253,81 @@ class IntegrationTest {
             )
         )
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
+    }
+
+    @Test
+    fun `Case 138 - Flow fails with assertion AND onFlowComplete fails`() {
+        val commands = readCommands("138_assertion_and_onflowcomplete_fail")
+        val driver = driver {}
+
+        // Both flow and onFlowComplete fail - should wrap both exceptions
+        val exception = assertThrows<OnFlowCompleteFailedException> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify both exceptions are preserved
+        assertThat(exception.originalException).isInstanceOf(MaestroException.AssertionFailure::class.java)
+        assertThat(exception.onFlowCompleteException).isInstanceOf(PolyglotException::class.java)
+    }
+
+    @Test
+    fun `Case 139 - Flow fails with JS error AND onFlowComplete fails`() {
+        val commands = readCommands("139_runscript_and_onflowcomplete_fail")
+        val driver = driver {}
+
+        // Both flow (JS) and onFlowComplete fail - should wrap both exceptions
+        val exception = assertThrows<OnFlowCompleteFailedException> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify both exceptions are preserved
+        assertThat(exception.originalException).isInstanceOf(PolyglotException::class.java)
+        assertThat(exception.onFlowCompleteException).isInstanceOf(PolyglotException::class.java)
+    }
+
+    @Test
+    fun `Case 140 - Flow fails with assertion but onFlowComplete succeeds`() {
+        val commands = readCommands("140_assertion_fail_onflowcomplete_pass")
+        val driver = driver {}
+
+        // Only flow fails, onFlowComplete passes - should just throw the assertion
+        val exception = assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify it's a simple assertion failure, not wrapped
+        assertThat(exception).isInstanceOf(MaestroException.AssertionFailure::class.java)
+    }
+
+    @Test
+    fun `Case 141 - Flow fails with assertion AND onFlowComplete fails with assertion`() {
+        val commands = readCommands("141_double_assertion_fail")
+        val driver = driver {}
+
+        // Both flow and onFlowComplete fail with assertions (not JS) - should wrap both
+        val exception = assertThrows<OnFlowCompleteFailedException> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify both exceptions are assertions
+        assertThat(exception.originalException).isInstanceOf(MaestroException.AssertionFailure::class.java)
+        assertThat(exception.onFlowCompleteException).isInstanceOf(MaestroException.AssertionFailure::class.java)
     }
 
     private fun orchestra(

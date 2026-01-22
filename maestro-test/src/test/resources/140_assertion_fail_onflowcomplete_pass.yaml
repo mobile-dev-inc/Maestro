@@ -1,0 +1,5 @@
+appId: com.example.app
+onFlowComplete:
+  - evalScript: ${console.log('Cleanup successful')}
+---
+- assertVisible: "NonExistentElement"
