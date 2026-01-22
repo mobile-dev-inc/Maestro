@@ -619,6 +619,7 @@ class IntegrationTest {
                     DefineVariablesCommand(
                         env = mapOf(
                             "MAESTRO_FILENAME" to "020_parse_config",
+                            "MAESTRO_FLOW_NAME" to "020_parse_config",
                             "MAESTRO_SHARD_ID" to "1",
                             "MAESTRO_SHARD_INDEX" to "0",
                         )
