@@ -153,6 +153,11 @@ interface IOSDevice : AutoCloseable {
 
     fun eraseText(charactersToErase: Int)
 
+    /**
+    * Shake the device
+    */
+    fun shake()
+
     fun addMedia(path: String)
 }
 
