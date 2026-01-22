@@ -1,0 +1,9 @@
+appId: com.example.example
+---
+- launchApp
+- tapOn: "Cropped Screenshot Test"
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/actual_${MAESTRO_FILENAME}_cropped_screenshot
+    cropOn:
+      id: "testContainer"

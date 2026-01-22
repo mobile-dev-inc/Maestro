@@ -475,19 +475,23 @@ data class ExtractTextWithAICommand(
     }
 }
 
-data class AssertVisualCommand(
-    val baseline: String,
-    val thresholdPercentage: Int,
+data class AssertScreenshotCommand(
+    val path: String,
+    val thresholdPercentage: Double,
+    val cropOn: ElementSelector? = null,
     override val optional: Boolean = false,
     override val label: String? = null,
 ) : Command {
-    override fun description(): String {
-        return label ?: "Assert visual difference with baseline $baseline (threshold: $thresholdPercentage%)"
-    }
+    override val originalDescription: String
+        get() {
+            val cropInfo = cropOn?.let { " (cropped on ${it.description()})" } ?: ""
+            return "Assert screenshot matches $path (threshold: $thresholdPercentage%)$cropInfo"
+        }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            baseline = baseline.evaluateScripts(jsEngine)
+            path = path.evaluateScripts(jsEngine),
+            cropOn = cropOn?.evaluateScripts(jsEngine)
         )
     }
 }

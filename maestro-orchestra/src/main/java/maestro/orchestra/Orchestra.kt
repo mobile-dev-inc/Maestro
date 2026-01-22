@@ -345,7 +345,7 @@ class Orchestra(
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
-            is AssertVisualCommand -> assertVisualCommand(command)
+            is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
@@ -534,13 +534,16 @@ class Orchestra(
         return false
     }
 
-    private fun assertVisualCommand(command: AssertVisualCommand): Boolean {
-        val baseline = command.baseline + ".png"
-        val thresholdDifferencePercentage = (100 - command.thresholdPercentage).toDouble()
+    private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+        val path = if (command.path.endsWith(".png")) command.path else command.path + ".png"
+        val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
 
-        val screenshotsDir = File(".maestro/visual_regression").apply { mkdirs() }
-
-        val actual = File(screenshotsDir, baseline)
+        val actualFile = if (screenshotsDir != null) {
+            screenshotsDir.resolve(path).toFile()
+        } else {
+            File(path)
+        }
+        actualFile.parentFile?.mkdirs()
 
         val expected = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
@@ -548,17 +551,38 @@ class Orchestra(
 
         maestro.takeScreenshot(expected.sink(), false)
 
-        if (!actual.exists()) {
-            expected.copyTo(actual, overwrite = true)
+        var photoNow: BufferedImage = ImageIO.read(expected)
+
+        val cropOn = command.cropOn
+        if (cropOn != null) {
+            val elementResult = findElement(cropOn, optional = command.optional)
+            val bounds = elementResult.element.bounds
+            val x = bounds.x.coerceAtLeast(0)
+            val y = bounds.y.coerceAtLeast(0)
+            val width = bounds.width.coerceAtMost(photoNow.width - x)
+            val height = bounds.height.coerceAtMost(photoNow.height - y)
+
+            if (width > 0 && height > 0) {
+                photoNow = photoNow.getSubimage(x, y, width, height)
+            }
+        }
+
+        if (!actualFile.exists()) {
+            ImageIO.write(photoNow, "png", actualFile)
             return true
         }
 
-        val photoNow: BufferedImage = ImageIO.read(expected)
-        val oldPhoto: BufferedImage = ImageIO.read(actual)
-        val failedRegressionDir = File(".maestro/failed_visual_regression").apply { mkdirs() }
-        val regressionFailedFile = File(failedRegressionDir, baseline)
+        val oldPhoto: BufferedImage = ImageIO.read(actualFile)
+
+        val diffFileName = path.replace(".png", "_diff.png")
+        val diffFile = if (screenshotsDir != null) {
+            screenshotsDir.resolve(diffFileName).toFile()
+        } else {
+            File(diffFileName)
+        }
+
         val comparison =
-            ImageComparison(photoNow, oldPhoto, regressionFailedFile)
+            ImageComparison(oldPhoto, photoNow, diffFile)
 
         comparison.apply {
             allowingPercentOfDifferentPixels = thresholdDifferencePercentage
@@ -571,8 +595,9 @@ class Orchestra(
 
         if (ImageComparisonState.MISMATCH === comparisonState.imageComparisonState) {
             throw MaestroException.AssertionFailure(
-                message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}",
+                message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
                 hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
         }
         return true
