@@ -1,6 +1,6 @@
 appId: com.example.example
 tags:
-  - passing
+  - failing
 ---
 - launchApp
 - tapOn: "Cropped Screenshot Test"
