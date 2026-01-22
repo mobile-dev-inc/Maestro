@@ -69,10 +69,6 @@ object YamlCommandReader {
         return configurationCommand?.config
     }
 
-    /**
-     * Returns the flow name from the config, or falls back to the provided default name.
-     * This ensures consistent flow name resolution across the codebase.
-     */
     fun getFlowName(commands: List<MaestroCommand>, fallbackName: String): String {
         return getConfig(commands)?.name ?: fallbackName
     }
