@@ -6,6 +6,6 @@ tags:
 - tapOn: "Cropped Screenshot Test"
 
 - assertScreenshot:
-    path: e2e/workspaces/demo_app/screenshots/${MAESTRO_FILENAME}
+    path: workspaces/demo_app/screenshots/${MAESTRO_FILENAME}
     cropOn:
       id: "testContainer"
