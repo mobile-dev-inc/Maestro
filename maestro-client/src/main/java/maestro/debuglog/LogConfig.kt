@@ -1,8 +1,5 @@
 package maestro.debuglog
 
-import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.core.LoggerContext
-import org.apache.logging.log4j.core.appender.ConsoleAppender
 import org.apache.logging.log4j.core.appender.FileAppender
 import org.apache.logging.log4j.core.config.Configurator
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder
@@ -21,6 +18,12 @@ object LogConfig {
         val builder = ConfigurationBuilderFactory.newConfigurationBuilder()
         builder.setStatusLevel(org.apache.logging.log4j.Level.ERROR)
         builder.setConfigurationName("MaestroConfig")
+
+        // Disable ktor logging completely
+        builder.add(
+            builder.newLogger("io.ktor", org.apache.logging.log4j.Level.OFF)
+                .addAttribute("additivity", false)
+        )
 
         val rootLogger = builder.newRootLogger(org.apache.logging.log4j.Level.ALL)
 

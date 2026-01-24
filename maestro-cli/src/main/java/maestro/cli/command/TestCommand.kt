@@ -129,6 +129,7 @@ class TestCommand : Callable<Int> {
     @Option(
         names = ["--format"],
         description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
+        converter = [ReportFormat.Converter::class]
     )
     private var format: ReportFormat = ReportFormat.NOOP
 
@@ -178,6 +179,12 @@ class TestCommand : Callable<Int> {
         description = ["(Web only) Run the tests in headless mode"],
     )
     private var headless: Boolean = false
+
+    @Option(
+        names = ["--screen-size"],
+        description = ["(Web only) Set the size of the headless browser. Use the format {Width}x{Height}. Usage is --screen-size 1920x1080"],
+    )
+    private var screenSize: String? = null
 
     @Option(
         names = ["--analyze"],
@@ -282,6 +289,10 @@ class TestCommand : Callable<Int> {
 
         if (configFile != null && configFile?.exists()?.not() == true) {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        }
+
+        if (screenSize != null && !screenSize!!.matches(Regex("\\d+x\\d+"))) {
+            throw CliError("Invalid screen size format. Please use the format {Width}x{Height}, e.g. 1920x1080.")
         }
 
         val executionPlan = try {
@@ -499,6 +510,7 @@ class TestCommand : Callable<Int> {
             deviceId = deviceId,
             platform = platform ?: parent?.platform,
             isHeadless = headless,
+            screenSize = screenSize,
             reinstallDriver = reinstallDriver,
             executionPlan = executionPlan
         ) { session ->
@@ -516,7 +528,15 @@ class TestCommand : Callable<Int> {
                     )
                 }
                 runBlocking {
-                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath, testOutputDir)
+                    runMultipleFlows(
+                        maestro,
+                        device,
+                        chunkPlans,
+                        shardIndex,
+                        debugOutputPath,
+                        testOutputDir,
+                        deviceId,
+                    )
                 }
             } else {
                 val flowFile = flowFiles.first()
@@ -524,9 +544,18 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken, testOutputDir)
+                    TestRunner.runContinuous(
+                        maestro,
+                        device,
+                        flowFile,
+                        env,
+                        analyze,
+                        authToken,
+                        testOutputDir,
+                        deviceId,
+                    )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
                 }
             }
         }
@@ -546,6 +575,7 @@ class TestCommand : Callable<Int> {
         flowFile: File,
         debugOutputPath: Path,
         testOutputDir: Path?,
+        deviceId: String?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -569,6 +599,7 @@ class TestCommand : Callable<Int> {
             analyze = analyze,
             apiKey = authToken,
             testOutputDir = testOutputDir,
+            deviceId = deviceId,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -599,7 +630,8 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
-        testOutputDir: Path?
+        testOutputDir: Path?,
+        deviceId: String?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val startTime = System.currentTimeMillis()
         val totalFlowCount = chunkPlans.sumOf { it.flowsToRun.size }
@@ -641,12 +673,14 @@ class TestCommand : Callable<Int> {
             buildName = buildName,
             buildNumber = buildNumber,
             deviceName = deviceName,
+            captureSteps = format == ReportFormat.HTML_DETAILED,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
             reportOut = null,
             debugOutputPath = debugOutputPath,
-            testOutputDir = testOutputDir
+            testOutputDir = testOutputDir,
+            deviceId = deviceId,
         )
 
         val duration = System.currentTimeMillis() - startTime

@@ -1,0 +1,15 @@
+.step-item {
+    border-left: 3px solid #dee2e6;
+    padding-left: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.step-header {
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.step-name {
+    font-weight: 500;
+}
