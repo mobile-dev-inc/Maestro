@@ -535,23 +535,25 @@ class Orchestra(
     }
 
     private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
-        val path = if (command.path.endsWith(".png")) command.path else command.path + ".png"
+        val path = command.path
         val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
 
-        val actualFile = if (screenshotsDir != null) {
+        val expectedFile = if (screenshotsDir != null) {
             screenshotsDir.resolve(path).toFile()
         } else {
             File(path)
         }
-        actualFile.parentFile?.mkdirs()
+        expectedFile.parentFile?.mkdirs()
 
-        val expected = File
+        // Temp file is always PNG since maestro.takeScreenshot() produces PNG format
+        // The extension doesn't matter as we read it into BufferedImage immediately
+        val actualScreenshotFile = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
             .also { it.deleteOnExit() }
 
-        maestro.takeScreenshot(expected.sink(), false)
+        maestro.takeScreenshot(actualScreenshotFile.sink(), false)
 
-        var photoNow: BufferedImage = ImageIO.read(expected)
+        var actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
 
         val cropOn = command.cropOn
         if (cropOn != null) {
@@ -559,8 +561,8 @@ class Orchestra(
             val bounds = elementResult.element.bounds
             val x = bounds.x.coerceAtLeast(0)
             val y = bounds.y.coerceAtLeast(0)
-            val width = bounds.width.coerceAtMost(photoNow.width - x)
-            val height = bounds.height.coerceAtMost(photoNow.height - y)
+            val width = bounds.width.coerceAtMost(actualImage.width - x)
+            val height = bounds.height.coerceAtMost(actualImage.height - y)
 
             if (width <= 0 || height <= 0) {
                 throw MaestroException.AssertionFailure(
@@ -570,20 +572,30 @@ class Orchestra(
                 )
             }
 
-                photoNow = photoNow.getSubimage(x, y, width, height)
+            actualImage = actualImage.getSubimage(x, y, width, height)
         }
 
-        if (!actualFile.exists()) {
+        if (!expectedFile.exists()) {
             throw MaestroException.AssertionFailure(
-                message = "Screenshot file not found: ${actualFile.absolutePath}. Expected screenshot file does not exist. Please create the reference screenshot first.",
+                message = "Screenshot file not found: ${expectedFile.absolutePath}. Expected screenshot file does not exist. Please create the reference screenshot first.",
                 hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot file. The file was expected at: ${actualFile.absolutePath}"
+                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot file. The file was expected at: ${expectedFile.absolutePath}"
             )
         }
 
-        val oldPhoto: BufferedImage = ImageIO.read(actualFile)
+        val expectedImage: BufferedImage = ImageIO.read(expectedFile)
 
-        val diffFileName = path.replace(".png", "_diff.png")
+        val extension = if (path.contains('.')) {
+            path.substringAfterLast('.')
+        } else {
+            "png"
+        }
+        val baseName = if (path.contains('.')) {
+            path.substringBeforeLast('.')
+        } else {
+            path
+        }
+        val diffFileName = "${baseName}_diff.$extension"
         val diffFile = if (screenshotsDir != null) {
             screenshotsDir.resolve(diffFileName).toFile()
         } else {
@@ -591,7 +603,7 @@ class Orchestra(
         }
 
         val comparison =
-            ImageComparison(oldPhoto, photoNow, diffFile)
+            ImageComparison(expectedImage, actualImage, diffFile)
 
         comparison.apply {
             allowingPercentOfDifferentPixels = thresholdDifferencePercentage
