@@ -562,9 +562,15 @@ class Orchestra(
             val width = bounds.width.coerceAtMost(photoNow.width - x)
             val height = bounds.height.coerceAtMost(photoNow.height - y)
 
-            if (width > 0 && height > 0) {
-                photoNow = photoNow.getSubimage(x, y, width, height)
+            if (width <= 0 || height <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: $width, height: $height). The element must have positive width and height to crop the screenshot.",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+                )
             }
+
+                photoNow = photoNow.getSubimage(x, y, width, height)
         }
 
         if (!actualFile.exists()) {
