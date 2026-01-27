@@ -942,7 +942,7 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        maestro.takeScreenshot(fileSink, false)
+        maestro.takeScreenshot(fileSink, false, isFromTest = true)
         return false
     }
 

@@ -484,8 +484,8 @@ class Maestro(
         driver.close()
     }
 
-    @Deprecated("Use takeScreenshot(Sink, Boolean) instead")
-    fun takeScreenshot(outFile: File, compressed: Boolean) {
+    @Deprecated("Use takeScreenshot(Sink, Boolean, Boolean) instead")
+    fun takeScreenshot(outFile: File, compressed: Boolean, isFromTest: Boolean = false) {
         LOGGER.info("Taking screenshot to a file: $outFile")
 
         val absoluteOutFile = outFile.absoluteFile
@@ -495,7 +495,7 @@ class Maestro(
                 .sink()
                 .buffer()
                 .use {
-                    ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                    ScreenshotUtils.takeScreenshot(it, compressed, driver, isFromTest)
                 }
         } else {
             throw MaestroException.DestinationIsNotWritable(
@@ -504,13 +504,13 @@ class Maestro(
         }
     }
 
-    fun takeScreenshot(sink: Sink, compressed: Boolean) {
+    fun takeScreenshot(sink: Sink, compressed: Boolean, isFromTest: Boolean = false) {
         LOGGER.info("Taking screenshot")
 
         sink
             .buffer()
             .use {
-                ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                ScreenshotUtils.takeScreenshot(it, compressed, driver, isFromTest)
             }
     }
 

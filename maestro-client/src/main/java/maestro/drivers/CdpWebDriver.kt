@@ -473,7 +473,7 @@ class CdpWebDriver(
         return
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean, isFromTest: Boolean) {
         runBlocking {
             val target = cdpClient.listTargets().first()
             val bytes = cdpClient.captureScreenshot(target)

@@ -532,10 +532,12 @@ class AndroidDriver(
         }
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean, isFromTest: Boolean) {
         metrics.measured("operation", mapOf("command" to "takeScreenshot", "compressed" to compressed.toString())) {
             runDeviceCall {
-                val response = blockingStubWithTimeout.screenshot(screenshotRequest {})
+                val response = blockingStubWithTimeout.screenshot(screenshotRequest {
+                    this.isFromTest = isFromTest
+                })
                 out.buffer().use {
                     it.write(response.bytes.toByteArray())
                 }
