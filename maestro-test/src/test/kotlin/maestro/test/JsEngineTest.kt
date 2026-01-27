@@ -14,6 +14,7 @@ import com.google.common.net.HttpHeaders
 import com.google.common.truth.Truth.assertThat
 import maestro.js.JsEngine
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
 
 @WireMockTest
 abstract class JsEngineTest {
@@ -252,5 +253,58 @@ abstract class JsEngineTest {
 
         // Then
         assertThat(result.toString()).isEqualTo("POST endpoint")
+    }
+
+    @Test
+    fun `HTTP - Multipart form with multiple files resolves each relative to script`(wiremockInfo: WireMockRuntimeInfo) {
+        // Given: Multiple files in different locations
+        val tempDir = Files.createTempDirectory("maestro-test")
+        try {
+            val scriptsDir = tempDir.resolve("scripts").toFile().apply { mkdirs() }
+            val mediaDir = tempDir.resolve("media").toFile().apply { mkdirs() }
+            val docsDir = tempDir.resolve("docs").toFile().apply { mkdirs() }
+            
+            val imageFile = mediaDir.resolve("image.txt").apply { writeText("image content") }
+            val docFile = docsDir.resolve("doc.txt").apply { writeText("doc content") }
+            val scriptFile = scriptsDir.resolve("upload.js")
+
+            val port = wiremockInfo.httpPort
+            stubFor(
+                post("/upload")
+                    .withMultipartRequestBody(
+                        MultipartValuePatternBuilder("image")
+                            .withBody(equalTo("image content"))
+                    )
+                    .withMultipartRequestBody(
+                        MultipartValuePatternBuilder("document")
+                            .withBody(equalTo("doc content"))
+                    )
+                    .willReturn(okJson("""{"success": true}"""))
+            )
+
+            val script = """
+                var response = http.post('http://localhost:$port/upload', {
+                    multipartForm: {
+                        "image": {
+                            "filePath": "../media/image.txt",
+                            "mediaType": "text/plain"
+                        },
+                        "document": {
+                            "filePath": "../docs/doc.txt",
+                            "mediaType": "text/plain"
+                        }
+                    }
+                });
+                json(response.body).success
+            """.trimIndent()
+
+            // When: Upload multiple files
+            val result = engine.evaluateScript(script, sourceName = scriptFile.absolutePath)
+
+            // Then: All files should be resolved correctly
+            assertThat(result.toString()).isEqualTo("true")
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
     }
 }
