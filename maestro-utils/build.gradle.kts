@@ -4,10 +4,29 @@ plugins {
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.protobuf)
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.googleProtobuf.get()}"
+    }
+
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("kotlin")
+            }
+        }
+    }
 }
 
 dependencies {
+    protobuf(project(":maestro-proto"))
+    
     api(libs.square.okio)
+    api(libs.grpc.stub)
+    api(libs.google.protobuf.kotlin)
     implementation(libs.square.okhttp)
     implementation(libs.micrometer.core)
     implementation(libs.micrometer.observation)
@@ -38,6 +57,25 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 mavenPublishing {
     publishToMavenCentral(true)
     signAllPublications()
+}
+
+kotlin.sourceSets.all {
+    // Prevent build warnings for grpc's generated opt-in code
+    languageSettings.optIn("kotlin.RequiresOptIn")
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs(
+                "build/generated/source/proto/main/kotlin"
+            )
+        }
+    }
+}
+
+tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
+    dependsOn("generateProto")
 }
 
 tasks.named<Test>("test") {

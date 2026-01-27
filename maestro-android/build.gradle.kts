@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.config.JvmTarget
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -147,6 +145,8 @@ sourceSets {
 dependencies {
     protobuf(project(":maestro-proto"))
 
+    implementation(project(":maestro-utils"))
+    
     implementation(libs.grpc.kotlin.stub)
     implementation(libs.grpc.netty.shaded)
     implementation(libs.grpc.stub)

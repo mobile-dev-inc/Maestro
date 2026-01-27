@@ -45,6 +45,8 @@ import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.android.gms.location.LocationServices
 import com.google.protobuf.ByteString
 import dev.mobile.maestro.location.FusedLocationProvider
+import maestro.utils.ScreenshotProvider
+import maestro.utils.ScreenshotService
 import dev.mobile.maestro.location.LocationManagerProvider
 import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
@@ -120,6 +122,25 @@ class Service(
 
     private val mockLocationProviderList = mutableListOf<MockLocationProvider>()
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
+
+    // Override ScreenshotProvider to use UiAutomation.takeScreenshot()
+    private val screenshotService = ScreenshotService(object : ScreenshotProvider {
+        override fun takeScreenshot(): ByteArray? {
+            return try {
+                val bitmap = uiAutomation.takeScreenshot() ?: return null
+                val outputStream = ByteString.newOutput()
+                if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
+                    outputStream.toByteString().toByteArray()
+                } else {
+                    Log.e("Maestro", "Failed to compress bitmap")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("Maestro", "Error taking screenshot", e)
+                null
+            }
+        }
+    })
 
     companion object {
         private const val TAG = "Maestro"
@@ -323,17 +344,7 @@ class Service(
         request: MaestroAndroid.ScreenshotRequest,
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
-        val outputStream = ByteString.newOutput()
-        val bitmap = uiAutomation.takeScreenshot()
-        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
-            responseObserver.onNext(screenshotResponse {
-                bytes = outputStream.toByteString()
-            })
-            responseObserver.onCompleted()
-        } else {
-            Log.e("Maestro", "Failed to compress bitmap")
-            responseObserver.onError(Throwable("Failed to compress bitmap").internalError())
-        }
+        screenshotService.screenshot(request, responseObserver)
     }
 
     override fun isWindowUpdating(

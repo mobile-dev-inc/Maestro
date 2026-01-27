@@ -54,7 +54,9 @@ message DeviceInfo {
   uint32 heightPixels = 2;
 }
 
-message ScreenshotRequest {}
+message ScreenshotRequest {
+  bool isFromTest = 1;
+}
 
 message ScreenshotResponse {
   bytes bytes = 1;
