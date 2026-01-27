@@ -12,7 +12,7 @@ internal class OrchestraCommandOrderTest {
     private data class CallbackEvent(
         val type: String,
         val commandIndex: Int,
-        val sequence: Int,
+        val sequence: Int
     )
 
     @Test
@@ -45,18 +45,11 @@ internal class OrchestraCommandOrderTest {
         val commandIndexes = events.map { it.commandIndex }.distinct()
         for (cmdIndex in commandIndexes) {
             val cmdEvents = events.filter { it.commandIndex == cmdIndex }
-            val startEvent = cmdEvents.find { it.type == "onCommandStart" }
-            val metadataEvent = cmdEvents.find { it.type == "onCommandMetadataUpdate" }
-            val completeEvent = cmdEvents.find { it.type == "onCommandComplete" }
-            
-            // Verify onCommandStart comes before onCommandMetadataUpdate
-            if (startEvent != null && metadataEvent != null) {
-                assertThat(startEvent.sequence).isLessThan(metadataEvent.sequence)
-            }
-            // Verify onCommandMetadataUpdate comes before onCommandComplete
-            if (metadataEvent != null && completeEvent != null) {
-                assertThat(metadataEvent.sequence).isLessThan(completeEvent.sequence)
-            }
+            assertThat(cmdEvents.map { it.type }).containsExactly(
+                "onCommandStart",
+                "onCommandMetadataUpdate",
+                "onCommandComplete"
+            ).inOrder()
         }
     }
 
@@ -131,33 +124,47 @@ internal class OrchestraCommandOrderTest {
         driver.setLayout(FakeLayoutElement())
         driver.open()
         val maestro = Maestro(driver)
-        
-        // Track current command index for metadata updates (which don't receive index)
-        var currentCommandIndex = 0
+
+        // Track unique command index that increments for each command start
+        // This ensures subflow commands get different indices than parent flow commands
+        var uniqueCommandIndex = -1
+        // Use a stack to track active commands (handles nested commands that reuse Orchestra indices)
+        val activeCommandStack = mutableListOf<Int>()
 
         return Orchestra(
             maestro = maestro,
             lookupTimeoutMs = 0L,
             optionalLookupTimeoutMs = 0L,
-            onCommandStart = { index, _ ->
-                currentCommandIndex = index
-                events.add(CallbackEvent("onCommandStart", index, getSequence()))
+            onCommandStart = { _, _ ->
+                uniqueCommandIndex++
+                activeCommandStack.add(uniqueCommandIndex)
+                events.add(CallbackEvent("onCommandStart", uniqueCommandIndex, getSequence()))
             },
             onCommandMetadataUpdate = { _, _ ->
-                events.add(CallbackEvent("onCommandMetadataUpdate", currentCommandIndex, getSequence()))
+                // Use the most recent active command (top of stack)
+                val uniqueIndex = activeCommandStack.lastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandMetadataUpdate", uniqueIndex, getSequence()))
             },
-            onCommandComplete = { index, _ ->
-                events.add(CallbackEvent("onCommandComplete", index, getSequence()))
+            onCommandComplete = { _, _ ->
+                // Pop the most recent command from the stack (LIFO for nested commands)
+                val uniqueIndex = activeCommandStack.removeLastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandComplete", uniqueIndex, getSequence()))
             },
-            onCommandFailed = { index, _, _ ->
-                events.add(CallbackEvent("onCommandFailed", index, getSequence()))
+            onCommandFailed = { _, _, _ ->
+                // Pop the most recent command from the stack (LIFO for nested commands)
+                val uniqueIndex = activeCommandStack.removeLastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandFailed", uniqueIndex, getSequence()))
                 Orchestra.ErrorResolution.FAIL
             },
-            onCommandWarned = { index, _ ->
-                events.add(CallbackEvent("onCommandWarned", index, getSequence()))
+            onCommandWarned = { _, _ ->
+                // Use the most recent active command (top of stack)
+                val uniqueIndex = activeCommandStack.lastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandWarned", uniqueIndex, getSequence()))
             },
-            onCommandSkipped = { index, _ ->
-                events.add(CallbackEvent("onCommandSkipped", index, getSequence()))
+            onCommandSkipped = { _, _ ->
+                // Pop the most recent command from the stack (LIFO for nested commands)
+                val uniqueIndex = activeCommandStack.removeLastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandSkipped", uniqueIndex, getSequence()))
             },
         )
     }
