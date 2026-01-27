@@ -25,7 +25,6 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     testImplementation(libs.google.truth)
-    testImplementation(project(":maestro-test"))
 }
 
 java {
