@@ -327,7 +327,7 @@ class Orchestra(
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: false)
             is TapOnPointV2Command -> tapOnPointV2Command(command)
             is BackPressCommand -> backPressCommand()
-            is HideKeyboardCommand -> hideKeyboardCommand(command, config)
+            is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
             is SetClipboardCommand -> setClipboardCommand(command)
@@ -672,35 +672,8 @@ class Orchestra(
         )
     }
 
-    private suspend fun hideKeyboardCommand(command: HideKeyboardCommand, config: MaestroConfig?): Boolean {
-        val hideKeyboardCommand = command.commands
-        if (hideKeyboardCommand != null && hideKeyboardCommand.isNotEmpty()) {
-            // Execute custom commands instead of default behavior (works for both iOS and Android)
-            runSubFlow(hideKeyboardCommand, config, null)
-
-            // Verify that the keyboard was actually hidden (works for both iOS and Android)
-            if (maestro.isKeyboardVisible()) {
-                throw MaestroException.HideKeyboardFailure("Failed to hide keyboard, commands provided didn't hide keyboard. Please review your commands and ensure they target the correct element.")
-            }
-        } else {
-            // Use default behavior (platform-specific: swipes for iOS, back press for Android)
-            maestro.hideKeyboard()
-
-            // Verify that the keyboard was actually hidden (works for both iOS and Android)
-            if (maestro.isKeyboardVisible()) {
-                throw MaestroException.HideKeyboardFailure("""
-Couldn't hide the keyboard automatically. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.
-
-You can provide your own steps to hide the keyboard using commands, and Maestro will run those instead:
-
-- hideKeyboard:
-    commands:
-      - tapOn:
-          text: 'Cancel'
-""".trimIndent())
-            }
-        }
-        
+    private fun hideKeyboardCommand(): Boolean {
+        maestro.hideKeyboard()
         return true
     }
 

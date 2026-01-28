@@ -222,7 +222,6 @@ data class BackPressCommand(
 }
 
 data class HideKeyboardCommand(
-    val commands: List<MaestroCommand>? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {

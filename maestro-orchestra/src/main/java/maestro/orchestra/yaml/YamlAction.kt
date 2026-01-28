@@ -11,7 +11,6 @@ data class YamlActionClearKeychain(
 )
 
 data class YamlActionHideKeyboard(
-    val commands: List<YamlFluentCommand>? = null,
     val label: String? = null,
     val optional: Boolean = false,
 )

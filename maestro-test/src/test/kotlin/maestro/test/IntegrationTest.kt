@@ -4253,62 +4253,6 @@ class IntegrationTest {
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
     }
 
-    @Test
-    fun `Case 138 - Hide keyboard default behavior`() {
-        // Given
-        val commands = readCommands("138_hideKeyboard_default")
-
-        val driver = driver {
-            // No elements needed - testing default hideKeyboard behavior
-        }
-
-        // When
-        Maestro(driver).use {
-            runBlocking {
-                orchestra(it).runFlow(commands)
-            }
-        }
-
-        // Then
-        // Default hideKeyboard() should be called when no custom commands are provided
-        driver.assertEvents(
-            listOf(
-                Event.HideKeyboard,
-            )
-        )
-    }
-
-    @Test
-    fun `Case 139 - Hide keyboard with custom commands`() {
-        // Given
-        val commands = readCommands("139_hide_keyboard_with_custom_commands")
-
-        val driver = driver {
-            element {
-                text = "Done"
-                bounds = Bounds(0, 0, 10, 10)
-            }
-        }
-
-        // When
-        assertThrows<MaestroException.HideKeyboardFailure> {
-            Maestro(driver).use {
-                runBlocking {
-                    orchestra(it).runFlow(commands)
-                }
-            }
-        }
-
-        // Then
-        // Custom commands should be executed instead of default hideKeyboard
-        // The custom commands include: tapOn "Done" and then action: hideKeyboard
-        driver.assertEvents(
-            listOf(
-                Event.Tap(Point(5, 5)),
-            )
-        )
-    }
-
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(

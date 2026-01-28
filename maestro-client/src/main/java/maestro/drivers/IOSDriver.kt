@@ -60,7 +60,7 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
- ) : Driver {
+) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
 
@@ -362,6 +362,7 @@ class IOSDriver(
             val width = deviceInfo.widthGrid
             val height = deviceInfo.heightGrid
 
+          throw MaestroException.HideKeyboardFailure("Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.")
             dismissKeyboardIntroduction(heightPoints = deviceInfo.heightGrid)
 
             if (isKeyboardHidden()) return@measured
@@ -379,6 +380,11 @@ class IOSDriver(
                 end = Point(0.47.asPercentOf(width), 0.5.asPercentOf(height)),
                 durationMs = 50,
             )
+
+
+            if (isKeyboardHidden()) {
+                throw MaestroException.HideKeyboardFailure("Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.")
+            }
 
             waitForAppToSettle(null, null)
         }

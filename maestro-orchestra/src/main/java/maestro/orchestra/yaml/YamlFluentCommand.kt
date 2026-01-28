@@ -19,7 +19,6 @@
 
 package maestro.orchestra.yaml
 
-import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
 import maestro.DeviceOrientation
@@ -286,7 +285,6 @@ data class YamlFluentCommand(
             hideKeyboard != null -> listOf(
                 MaestroCommand(
                     HideKeyboardCommand(
-                        commands = hideKeyboard.commands?.flatMap { it.toCommands(flowPath, appId) },
                         label = hideKeyboard.label,
                         optional = hideKeyboard.optional
                     )
