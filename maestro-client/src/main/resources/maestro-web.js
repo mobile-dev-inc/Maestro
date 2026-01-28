@@ -193,4 +193,106 @@
         }
         return segs.length ? '/' + segs.join('/') : null;
     }
+
+    // -------------- Flutter Web Scrolling Support --------------
+    
+    maestro.isFlutterApp = () => {
+        // Detect if this is a Flutter web app by checking for Flutter-specific elements
+        const flutterView = document.querySelector('flutter-view');
+        const glassPane = document.querySelector('flt-glass-pane');
+        const fltRenderer = document.querySelector('[flt-renderer]');
+        
+        const isFlutter = !!(flutterView || glassPane || fltRenderer);
+        
+        return isFlutter;
+    }
+
+    maestro.smoothScrollFlutterByDelta = (totalDeltaX, totalDeltaY, durationMs = 500) => {
+        // Core smooth animated scrolling for Flutter web using explicit delta values
+        return new Promise((resolve) => {
+            const target = document.querySelector('flutter-view') || 
+                          document.querySelector('flt-glass-pane');
+            
+            if (!target) {
+                console.error('[Maestro] Flutter root element not found');
+                resolve(false);
+                return;
+            }
+
+            const duration = typeof durationMs === 'number' && durationMs > 0 ? durationMs : 500;
+            const x = window.innerWidth / 2;
+            const y = window.innerHeight / 2;
+            const start = performance.now();
+            let lastX = 0;
+            let lastY = 0;
+            
+            function animate(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                
+                // Cubic ease-in-out for natural animation
+                const eased = progress < 0.5 
+                    ? 4 * progress * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                
+                const nextX = eased * totalDeltaX;
+                const nextY = eased * totalDeltaY;
+                const deltaX = nextX - lastX;
+                const deltaY = nextY - lastY;
+                lastX = nextX;
+                lastY = nextY;
+                
+                if (Math.abs(deltaX) > 0.01 || Math.abs(deltaY) > 0.01) {
+                    target.dispatchEvent(new MouseEvent('mouseover', {
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true
+                    }));
+                    target.dispatchEvent(new MouseEvent('mousemove', {
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true
+                    }));
+                    target.dispatchEvent(new WheelEvent('wheel', {
+                        deltaX: deltaX,
+                        deltaY: deltaY,
+                        deltaMode: 0,
+                        clientX: x,
+                        clientY: y,
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Animation complete, wait for Flutter to update DOM
+                    setTimeout(() => resolve(true), 100);
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        });
+    };
+
+    maestro.smoothScrollFlutter = (direction, durationMs = 500) => {
+        // Direction-based scrolling - converts direction to deltas and delegates to smoothScrollFlutterByDelta
+        const normalizedDirection = (direction || 'UP').toString().toUpperCase();
+        const isVertical = normalizedDirection === 'UP' || normalizedDirection === 'DOWN';
+        const isHorizontal = normalizedDirection === 'LEFT' || normalizedDirection === 'RIGHT';
+        
+        if (!isVertical && !isHorizontal) {
+            console.error('[Maestro] Unsupported Flutter scroll direction:', direction);
+            return Promise.resolve(false);
+        }
+
+        const duration = typeof durationMs === 'number' && durationMs > 0 ? durationMs : 500;
+        const distance = Math.max(1, Math.round(duration * 2));
+        const totalX = normalizedDirection === 'LEFT' ? distance :
+            normalizedDirection === 'RIGHT' ? -distance : 0;
+        const totalY = normalizedDirection === 'UP' ? distance :
+            normalizedDirection === 'DOWN' ? -distance : 0;
+        
+        return maestro.smoothScrollFlutterByDelta(totalX, totalY, durationMs);
+    };
 }( window.maestro = window.maestro || {} ));
