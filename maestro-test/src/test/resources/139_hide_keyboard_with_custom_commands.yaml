@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- hideKeyboard:
+    commands:
+      - tapOn:
+          text: 'Done'
