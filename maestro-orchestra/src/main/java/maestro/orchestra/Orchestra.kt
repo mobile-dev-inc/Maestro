@@ -607,7 +607,7 @@ class Orchestra(
         comparison.apply {
             allowingPercentOfDifferentPixels = thresholdDifferencePercentage
             rectangleLineWidth = 10
-            pixelToleranceLevel = 50.00
+            pixelToleranceLevel = 0.1 
             minimalRectangleSize = 40
         }
 
