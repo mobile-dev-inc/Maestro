@@ -21,7 +21,7 @@ object ScreenshotUtils {
             val out = File
                 .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() } // save to another dir before exiting
-            maestro.takeScreenshot(out.sink(), false)
+            maestro.takeScreenshot(out.sink(), false, shouldFailOnError = false)
             debugOutput.screenshots.add(
                 FlowDebugOutput.Screenshot(
                     screenshot = out,
@@ -40,7 +40,7 @@ object ScreenshotUtils {
             val out = File
                 .createTempFile("screenshot-${status}-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() } // save to another dir before exiting
-            maestro.takeScreenshot(out.sink(), false)
+            maestro.takeScreenshot(out.sink(), false, shouldFailOnError = false)
             debugOutput.screenshots.add(
                 FlowDebugOutput.Screenshot(
                     screenshot = out,

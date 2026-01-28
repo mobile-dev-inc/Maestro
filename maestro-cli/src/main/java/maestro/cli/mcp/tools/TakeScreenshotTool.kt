@@ -45,7 +45,7 @@ object TakeScreenshotTool {
                     platform = null
                 ) { session ->
                     val buffer = Buffer()
-                    session.maestro.takeScreenshot(buffer, true)
+                    session.maestro.takeScreenshot(buffer, true, shouldFailOnError = false)
                     val pngBytes = buffer.readByteArray()
                     
                     // Convert PNG to JPEG

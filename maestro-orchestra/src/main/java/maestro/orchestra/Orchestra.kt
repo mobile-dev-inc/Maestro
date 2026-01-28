@@ -436,7 +436,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        maestro.takeScreenshot(imageData, compressed = false, shouldFailOnError = false)
 
         val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
@@ -473,7 +473,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        maestro.takeScreenshot(imageData, compressed = false, shouldFailOnError = false)
         val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             assertion = command.assertion,
@@ -507,7 +507,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        maestro.takeScreenshot(imageData, compressed = false, shouldFailOnError = false)
         val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
             query = command.query,
@@ -942,7 +942,22 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        maestro.takeScreenshot(fileSink, false)
+        val resolvedFile = screenshotsDir?.resolve(pathStr)?.toFile() ?: File(pathStr)
+        val absoluteFile = resolvedFile.absoluteFile
+
+        try {
+            // Use shouldFailOnError = true so screenshot failures propagate as exceptions
+            maestro.takeScreenshot(fileSink, false, shouldFailOnError = true)
+        } catch (e: Exception) {
+            // Delete the file in case there was an error
+            if (absoluteFile.exists()) {
+                absoluteFile.delete()
+            }
+            throw MaestroException.UnableToTakeScreenShot(
+                message = "Failed to take screenshot to ${absoluteFile.name}: ${e.message}",
+                cause = e
+            )
+        }
         return false
     }
 

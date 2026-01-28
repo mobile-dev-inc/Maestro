@@ -227,7 +227,7 @@ class FakeDriver : Driver {
         events += Event.HideKeyboard
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean, shouldFailOnError: Boolean) {
         ensureOpen()
 
         val deviceInfo = deviceInfo()

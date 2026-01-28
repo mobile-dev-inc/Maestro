@@ -414,7 +414,7 @@ class WebDriver(
         return
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean, shouldFailOnError: Boolean) {
         val driver = ensureOpen()
 
         val src = (driver as TakesScreenshot).getScreenshotAs(OutputType.FILE)

@@ -413,7 +413,7 @@ class IOSDriver(
         }
     }
 
-    override fun takeScreenshot(out: Sink, compressed: Boolean) {
+    override fun takeScreenshot(out: Sink, compressed: Boolean, shouldFailOnError: Boolean) {
         metrics.measured("operation", mapOf("command" to "takeScreenshot")) {
             runDeviceCall("takeScreenshot") { iosDevice.takeScreenshot(out, compressed) }
         }
