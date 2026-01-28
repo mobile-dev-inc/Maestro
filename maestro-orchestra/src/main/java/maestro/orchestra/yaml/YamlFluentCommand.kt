@@ -286,6 +286,7 @@ data class YamlFluentCommand(
             hideKeyboard != null -> listOf(
                 MaestroCommand(
                     HideKeyboardCommand(
+                        commands = hideKeyboard.commands?.flatMap { it.toCommands(flowPath, appId) },
                         label = hideKeyboard.label,
                         optional = hideKeyboard.optional
                     )

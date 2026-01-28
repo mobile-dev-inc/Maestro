@@ -327,7 +327,7 @@ class Orchestra(
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: false)
             is TapOnPointV2Command -> tapOnPointV2Command(command)
             is BackPressCommand -> backPressCommand()
-            is HideKeyboardCommand -> hideKeyboardCommand()
+            is HideKeyboardCommand -> hideKeyboardCommand(command, config)
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
             is SetClipboardCommand -> setClipboardCommand(command)
@@ -672,8 +672,26 @@ class Orchestra(
         )
     }
 
-    private fun hideKeyboardCommand(): Boolean {
-        maestro.hideKeyboard()
+    private suspend fun hideKeyboardCommand(command: HideKeyboardCommand, config: MaestroConfig?): Boolean {
+        val customCommands = command.commands
+        if (customCommands != null && customCommands.isNotEmpty()) {
+            // Execute custom commands instead of default behavior (works for both iOS and Android)
+            runSubFlow(customCommands, config, null)
+
+            // Verify that the keyboard was actually hidden (works for both iOS and Android)
+            if (maestro.isKeyboardVisible()) {
+                throw MaestroException.HideKeyboardFailure("Failed to hide keyboard, custom commands didn't hide keyboard")
+            }
+        } else {
+            // Use default behavior (platform-specific: swipes for iOS, back press for Android)
+            maestro.hideKeyboard()
+
+            // Verify that the keyboard was actually hidden (works for both iOS and Android)
+            if (maestro.isKeyboardVisible()) {
+                throw MaestroException.HideKeyboardFailure("Failed to hide keyboard, you can use 'commands' to provide custom commands to hide keyboard")
+            }
+        }
+        
         return true
     }
 
