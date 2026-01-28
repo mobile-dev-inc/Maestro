@@ -219,13 +219,6 @@ class Orchestra(
                 // Check for pause before executing each command
                 flowController.waitIfPaused()
 
-                val evaluatedCommand = command.evaluateScripts(jsEngine)
-                val metadata = getMetadata(command)
-                    .copy(
-                        evaluatedCommand = evaluatedCommand,
-                    )
-                updateMetadata(command, metadata)
-
                 onCommandStart(index, command)
 
                 jsEngine.onLogMessage { msg ->
@@ -236,6 +229,13 @@ class Orchestra(
                     )
                     logger.info("JsConsole: $msg")
                 }
+
+                val evaluatedCommand = command.evaluateScripts(jsEngine)
+                val metadata = getMetadata(command)
+                    .copy(
+                        evaluatedCommand = evaluatedCommand,
+                    )
+                updateMetadata(command, metadata)
 
                 val callback: (Insight) -> Unit = { insight ->
                     updateMetadata(
@@ -856,14 +856,14 @@ class Orchestra(
         return try {
             commands
                 .mapIndexed { index, command ->
+                    onCommandStart(index, command)
+
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
                         .copy(
                             evaluatedCommand = evaluatedCommand,
                         )
                     updateMetadata(command, metadata)
-
-                    onCommandStart(index, command)
 
                     return@mapIndexed try {
                         try {
