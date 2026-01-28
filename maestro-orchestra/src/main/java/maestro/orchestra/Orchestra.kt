@@ -680,7 +680,7 @@ class Orchestra(
 
             // Verify that the keyboard was actually hidden (works for both iOS and Android)
             if (maestro.isKeyboardVisible()) {
-                throw MaestroException.HideKeyboardFailure("Failed to hide keyboard, custom commands didn't hide keyboard")
+                throw MaestroException.HideKeyboardFailure("Failed to hide keyboard, commands provided didn't hide keyboard")
             }
         } else {
             // Use default behavior (platform-specific: swipes for iOS, back press for Android)
@@ -688,7 +688,16 @@ class Orchestra(
 
             // Verify that the keyboard was actually hidden (works for both iOS and Android)
             if (maestro.isKeyboardVisible()) {
-                throw MaestroException.HideKeyboardFailure("Failed to hide keyboard, you can use 'commands' to provide custom commands to hide keyboard")
+                throw MaestroException.HideKeyboardFailure("""
+Couldn’t hide the keyboard automatically. This can happen if the app uses a custom input or doesn’t expose a standard dismiss action.
+
+You can provide your own steps to hide the keyboard using commands, and Maestro will run those instead:
+
+- hideKeyboard:
+    commands:
+      - tapOn:
+          text: 'Cancel'
+""".trimIndent())
             }
         }
         
