@@ -25,6 +25,7 @@ import maestro.orchestra.util.Env.evaluateScripts
 data class ElementSelector(
     val textRegex: String? = null,
     val idRegex: String? = null,
+    val customIdentifiers: Map<String, String>? = null, // Map of custom identifier key-value pairs
     val size: SizeSelector? = null,
     val below: ElementSelector? = null,
     val above: ElementSelector? = null,
@@ -54,6 +55,7 @@ data class ElementSelector(
         return copy(
             textRegex = textRegex?.evaluateScripts(jsEngine),
             idRegex = idRegex?.evaluateScripts(jsEngine),
+            customIdentifiers = customIdentifiers?.mapValues { it.value.evaluateScripts(jsEngine) },
             below = below?.evaluateScripts(jsEngine),
             above = above?.evaluateScripts(jsEngine),
             leftOf = leftOf?.evaluateScripts(jsEngine),
@@ -75,6 +77,10 @@ data class ElementSelector(
 
         idRegex?.let {
             descriptions.add("id: $it")
+        }
+
+        customIdentifiers?.forEach { (key, value) ->
+            descriptions.add("$key: $value")
         }
 
         enabled?.let {
