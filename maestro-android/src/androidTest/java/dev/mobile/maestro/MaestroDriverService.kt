@@ -3,7 +3,6 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
-import android.graphics.Bitmap
 import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
@@ -18,7 +17,6 @@ import android.view.KeyEvent.KEYCODE_6
 import android.view.KeyEvent.KEYCODE_7
 import android.view.KeyEvent.KEYCODE_APOSTROPHE
 import android.view.KeyEvent.KEYCODE_AT
-import java.util.concurrent.TimeUnit
 import android.view.KeyEvent.KEYCODE_BACKSLASH
 import android.view.KeyEvent.KEYCODE_COMMA
 import android.view.KeyEvent.KEYCODE_EQUALS
@@ -43,12 +41,11 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.android.gms.location.LocationServices
-import com.google.protobuf.ByteString
 import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
 import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
-import io.grpc.Status
+import dev.mobile.maestro.screenshot.ScreenshotService
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
@@ -60,7 +57,6 @@ import maestro_android.emptyResponse
 import maestro_android.eraseAllTextResponse
 import maestro_android.inputTextResponse
 import maestro_android.launchAppResponse
-import maestro_android.screenshotResponse
 import maestro_android.setLocationResponse
 import maestro_android.tapResponse
 import maestro_android.viewHierarchyResponse
@@ -70,6 +66,7 @@ import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.util.Timer
 import java.util.TimerTask
+import java.util.concurrent.TimeUnit
 import kotlin.system.measureTimeMillis
 
 /**
@@ -323,17 +320,9 @@ class Service(
         request: MaestroAndroid.ScreenshotRequest,
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
-        val outputStream = ByteString.newOutput()
-        val bitmap = uiAutomation.takeScreenshot()
-        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
-            responseObserver.onNext(screenshotResponse {
-                bytes = outputStream.toByteString()
-            })
-            responseObserver.onCompleted()
-        } else {
-            Log.e("Maestro", "Failed to compress bitmap")
-            responseObserver.onError(Throwable("Failed to compress bitmap").internalError())
-        }
+        ScreenshotService {
+            uiAutomation.takeScreenshot()
+        }.screenshot(request, responseObserver)
     }
 
     override fun isWindowUpdating(
@@ -559,7 +548,6 @@ class Service(
         uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
     }
 
-    internal fun Throwable.internalError() = Status.INTERNAL.withDescription(message).asException()
 
     enum class FileType(val ext: String, val mimeType: String) {
         JPG("jpg", "image/jpg"),
