@@ -673,10 +673,10 @@ class Orchestra(
     }
 
     private suspend fun hideKeyboardCommand(command: HideKeyboardCommand, config: MaestroConfig?): Boolean {
-        val customCommands = command.commands
-        if (customCommands != null && customCommands.isNotEmpty()) {
+        val hideKeyboardCommand = command.commands
+        if (hideKeyboardCommand != null && hideKeyboardCommand.isNotEmpty()) {
             // Execute custom commands instead of default behavior (works for both iOS and Android)
-            runSubFlow(customCommands, config, null)
+            runSubFlow(hideKeyboardCommand, config, null)
 
             // Verify that the keyboard was actually hidden (works for both iOS and Android)
             if (maestro.isKeyboardVisible()) {
