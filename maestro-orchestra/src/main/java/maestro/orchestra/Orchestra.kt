@@ -585,17 +585,12 @@ class Orchestra(
 
         val expectedImage: BufferedImage = ImageIO.read(expectedFile)
 
-        val extension = if (path.contains('.')) {
-            path.substringAfterLast('.')
-        } else {
-            "png"
-        }
         val baseName = if (path.contains('.')) {
             path.substringBeforeLast('.')
         } else {
             path
         }
-        val diffFileName = "${baseName}_diff.$extension"
+        val diffFileName = "${baseName}_diff.png"
         val diffFile = if (screenshotsDir != null) {
             screenshotsDir.resolve(diffFileName).toFile()
         } else {
