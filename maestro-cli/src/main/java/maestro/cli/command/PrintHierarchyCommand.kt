@@ -42,8 +42,7 @@ import java.lang.StringBuilder
     name = "hierarchy",
     description = [
         "Print out the view hierarchy of the connected device"
-    ],
-    hidden = true
+    ]
 )
 class PrintHierarchyCommand : Runnable {
 
