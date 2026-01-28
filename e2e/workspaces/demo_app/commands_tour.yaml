@@ -29,6 +29,12 @@ env:
 
 - runFlow:
     when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "assertScreenshot"}
+    file: commands/assertScreenshotCropped.yaml
+    label: assertScreenshot
+
+- runFlow:
+    when:
       true: ${RUN_ONLY == "" || RUN_ONLY == "back"}
       platform: android
     file: commands/back.yaml

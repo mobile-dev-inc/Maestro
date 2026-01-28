@@ -1,0 +1,12 @@
+appId: com.example.example
+tags:
+  - failing
+---
+- launchApp
+- tapOn: "Cropped Screenshot Test"
+- waitForAnimationToEnd
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/assertScreenshotCroppedHEIC.heic
+    cropOn:
+      id: "testContainer"
