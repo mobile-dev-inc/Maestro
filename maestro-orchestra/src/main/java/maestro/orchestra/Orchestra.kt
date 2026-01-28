@@ -583,7 +583,11 @@ class Orchestra(
             )
         }
 
-        val expectedImage: BufferedImage = ImageIO.read(expectedFile)
+        val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
+            message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
+            hierarchyRoot = maestro.viewHierarchy().root,
+            debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
+        )
 
         val baseName = if (path.contains('.')) {
             path.substringBeforeLast('.')
