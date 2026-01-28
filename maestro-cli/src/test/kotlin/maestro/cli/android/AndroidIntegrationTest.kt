@@ -74,7 +74,7 @@ class AndroidIntegrationTest {
         } catch (exception: MaestroException) {
             val debugOutput =  TestDebugReporter.getDebugOutputPath()
             val screenshotFile = debugOutput.resolve(flowName + "_failure.png")
-            maestro.takeScreenshot(screenshotFile.sink(), true)
+            maestro.takeScreenshot(screenshotFile.sink(), true, shouldFailOnError = false)
 
             throw exception
         } finally {

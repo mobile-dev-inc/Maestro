@@ -495,7 +495,7 @@ class Maestro(
                 .sink()
                 .buffer()
                 .use {
-                    ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                    ScreenshotUtils.takeScreenshot(it, compressed, driver, shouldFailOnError = false)
                 }
         } else {
             throw MaestroException.DestinationIsNotWritable(
@@ -504,13 +504,13 @@ class Maestro(
         }
     }
 
-    fun takeScreenshot(sink: Sink, compressed: Boolean) {
+    fun takeScreenshot(sink: Sink, compressed: Boolean, shouldFailOnError: Boolean) {
         LOGGER.info("Taking screenshot")
 
         sink
             .buffer()
             .use {
-                ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                ScreenshotUtils.takeScreenshot(it, compressed, driver, shouldFailOnError)
             }
     }
 

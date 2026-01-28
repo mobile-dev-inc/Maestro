@@ -13,23 +13,23 @@ class ScreenshotUtils {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(ScreenshotUtils::class.java)
 
-        fun takeScreenshot(out: Sink, compressed: Boolean, driver: Driver) {
+        fun takeScreenshot(out: Sink, compressed: Boolean, driver: Driver, shouldFailOnError: Boolean) {
             LOGGER.trace("Taking screenshot to output sink")
 
-            driver.takeScreenshot(out, compressed)
+            driver.takeScreenshot(out, compressed, shouldFailOnError)
         }
 
-        fun takeScreenshot(compressed: Boolean, driver: Driver): ByteArray {
+        fun takeScreenshot(compressed: Boolean, driver: Driver, shouldFailOnError: Boolean): ByteArray {
             LOGGER.trace("Taking screenshot to byte array")
 
             val buffer = Buffer()
-            takeScreenshot(buffer, compressed, driver)
+            takeScreenshot(buffer, compressed, driver, shouldFailOnError)
 
             return buffer.readByteArray()
         }
 
         fun tryTakingScreenshot(driver: Driver) = try {
-            ImageIO.read(takeScreenshot(true, driver).inputStream())
+            ImageIO.read(takeScreenshot(true, driver, shouldFailOnError = false).inputStream())
         } catch (e: Exception) {
             LOGGER.warn("Failed to take screenshot", e)
             null
