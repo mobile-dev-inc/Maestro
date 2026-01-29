@@ -39,6 +39,7 @@ import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.util.Env.withEnv
+import maestro.plugins.PluginRegistry
 import org.intellij.lang.annotations.Language
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -325,6 +326,18 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         val commandText = parser.text
         val command = stringCommands[commandText]
         if (command != null) return command(parser.currentLocation())
+        
+        // Check if it's a plugin command
+        if (PluginRegistry.isPluginCommand(commandText)) {
+            val pluginCommand = PluginRegistry.parsePluginCommand(commandText, null, commandLocation)
+            if (pluginCommand != null) {
+                return YamlFluentCommand(
+                    _location = commandLocation,
+                    pluginCommand = pluginCommand
+                )
+            }
+        }
+        
         if (commandText in objectCommands) {
             throw ParseException(
                 location = commandLocation,
@@ -351,7 +364,42 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         val commandLocation = parser.currentLocation()
         val commandName = parser.nextFieldName()
         val commandParameter = yamlFluentCommandParameters.firstOrNull { it.name == commandName }
+        
         if (commandParameter == null) {
+            // Check if it's a plugin command
+            if (PluginRegistry.isPluginCommand(commandName)) {
+                // Move to the value token and read just the value
+                parser.nextToken()
+                val yamlContent = parser.codec.readValue(parser, Any::class.java)
+                val pluginCommand = PluginRegistry.parsePluginCommand(commandName, yamlContent, commandLocation)
+                if (pluginCommand != null) {
+                    val nextToken = parser.nextToken()
+                    if (nextToken == JsonToken.END_OBJECT) {
+                        return YamlFluentCommand(
+                            _location = commandLocation,
+                            pluginCommand = pluginCommand
+                        )
+                    }
+                    if (nextToken == JsonToken.FIELD_NAME) {
+                        val fieldName = parser.currentName()
+                        throw ParseException(
+                            location = parser.currentLocation(),
+                            title = "Invalid Command Format: $commandName",
+                            errorMessage = """
+                                |Found unexpected top-level field: `$fieldName`. Missing an indent or dash?
+                                |
+                                |Example of correctly formatted list of commands:
+                                |```yaml
+                                |- $commandName:
+                                |    param: value
+                                |- inputText: hello
+                                |```
+                            """.trimMargin("|"),
+                        )
+                    }
+                }
+            }
+            
             throw ParseException(
                 location = parser.currentLocation(),
                 title = "Invalid Command: $commandName",
@@ -459,6 +507,9 @@ object MaestroFlowParser {
     }
 
     fun parseFlow(flowPath: Path, flow: String): List<MaestroCommand> {
+        // Initialize plugin registry for parsing
+        PluginRegistry.initialize()
+        
         MAPPER.createParser(flow).use { parser ->
             try {
                 val config = parseConfig(parser)
@@ -474,6 +525,9 @@ object MaestroFlowParser {
     }
 
     fun parseCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> {
+        // Initialize plugin registry for parsing
+        PluginRegistry.initialize()
+        
         MAPPER.createParser(command).use { parser ->
             try {
                 return parser.readValueAs(YamlFluentCommand::class.java).toCommands(flowPath, appId)

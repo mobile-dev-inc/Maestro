@@ -1157,3 +1157,26 @@ internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String
         }
     } else "Tap"
 }
+
+/**
+ * Generic wrapper command for plugin-defined commands.
+ * This allows plugins to define custom commands without implementing the sealed Command interface directly.
+ */
+data class PluginCommand(
+    val pluginName: String,
+    val commandData: Any,
+    val pluginDescription: String? = null, // Description from the plugin
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    
+    override val originalDescription: String
+        get() = label ?: pluginDescription ?: "$pluginName command"
+    
+    override fun evaluateScripts(jsEngine: JsEngine): PluginCommand {
+        // Plugin-specific script evaluation should be handled by the plugin system
+        return this
+    }
+    
+    override fun visible(): Boolean = true
+}

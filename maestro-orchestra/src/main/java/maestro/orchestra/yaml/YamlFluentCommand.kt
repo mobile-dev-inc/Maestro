@@ -19,6 +19,7 @@
 
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
@@ -77,6 +78,7 @@ import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
+import maestro.plugins.PluginRegistry
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
@@ -142,8 +144,17 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
+    val pluginCommand: maestro.orchestra.Command? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
+
+    @JsonIgnore
+    private val unknownProperties = mutableMapOf<String, Any>()
+
+    @JsonAnySetter
+    fun setUnknownProperty(name: String, value: Any) {
+        unknownProperties[name] = value
+    }
 
     fun toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
         return try {
@@ -479,6 +490,27 @@ data class YamlFluentCommand(
                     )
                 )
             )
+
+            pluginCommand != null -> listOf(MaestroCommand(pluginCommand))
+
+            unknownProperties.isNotEmpty() -> {
+                // Check if any unknown property is a plugin command
+                val pluginCommands = unknownProperties.mapNotNull { (commandName, commandValue) ->
+                    try {
+                        val pluginCommand = PluginRegistry.parsePluginCommand(commandName, commandValue, _location)
+                        pluginCommand?.let { MaestroCommand(it) }
+                    } catch (e: Exception) {
+                        // If parsing fails, this might not be a plugin command
+                        null
+                    }
+                }
+                
+                if (pluginCommands.isNotEmpty()) {
+                    pluginCommands
+                } else {
+                    throw SyntaxError("Invalid command: Unknown command(s): ${unknownProperties.keys.joinToString(", ")}")
+                }
+            }
 
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
