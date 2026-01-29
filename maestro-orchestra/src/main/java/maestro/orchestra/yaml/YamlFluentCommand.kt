@@ -19,7 +19,6 @@
 
 package maestro.orchestra.yaml
 
-import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
 import maestro.DeviceOrientation
