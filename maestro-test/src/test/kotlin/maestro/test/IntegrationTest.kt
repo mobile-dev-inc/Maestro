@@ -4227,6 +4227,39 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 138 - Take cropped screenshot`() {
+        // Given
+        val commands = readCommands("138_take_cropped_screenshot")
+        val boundHeight = 100
+        val boundWidth = 100
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, boundHeight, boundWidth)
+            }
+        }
+
+        val device = driver.deviceInfo()
+        val dpr = device.heightPixels / device.heightGrid
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - takePartialScreenshot crops by bounds (grid) and outputs pixel dimensions (bounds * dpr)
+        driver.assertEvents(listOf(Event.TakeScreenshot))
+        val file = File("138_take_cropped_screenshot_with_filename.png")
+        val image = ImageIO.read(file)
+        assert(file.exists())
+        assert(image.width == (boundWidth * dpr))
+        assert(image.height == (boundHeight * dpr))
+    }
+
+    @Test
     fun `Case 137 - Shard and device env vars`() {
         // Given
         // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
@@ -4417,45 +4450,6 @@ class IntegrationTest {
                 events.add(CallbackEvent("onCommandSkipped", uniqueIndex, getSequence()))
             },
         )
-    }
-
-    @Test
-    fun `Case 122 - Take cropped screenshot`() {
-        // Given
-        val commands = readCommands("122_take_cropped_screenshot")
-        val boundHeight = 100
-        val boundWidth = 100
-
-        val driver = driver {
-            element {
-                id = "element_id"
-                bounds = Bounds(0,0,boundHeight,boundWidth)
-            }
-        }
-
-        val device = driver.deviceInfo()
-        val dpr = device.heightPixels / device.heightGrid
-
-        // When
-        Maestro(driver).use {
-            runBlocking {
-                orchestra(it).runFlow(commands)
-            }
-        }
-
-        // Then
-        // No test failure
-        driver.assertEvents(
-            listOf(
-                Event.TakeScreenshot,
-            )
-        )
-        val file = File("122_take_cropped_screenshot_with_filename.png")
-        val image = ImageIO.read(file)
-
-        assert(file.exists())
-        assert(image.width == (boundWidth * dpr))
-        assert(image.height == (boundHeight * dpr))
     }
 
     private fun orchestra(

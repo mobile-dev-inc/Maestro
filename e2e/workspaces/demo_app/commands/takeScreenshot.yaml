@@ -4,6 +4,12 @@ appId: com.example.example
 - tapOn: "Nesting Test"
 
 - takeScreenshot:
-    path: cropped_screenshot
+    path: workspaces/demo_app/screenshots/e2e_take_then_assert
+    cropOn:
+      id: "level-1"
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/e2e_take_then_assert.png
+    thresholdPercentage: 99.9
     cropOn:
       id: "level-1"

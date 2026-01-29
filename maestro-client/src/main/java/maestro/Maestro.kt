@@ -33,7 +33,6 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
-import java.util.*
 import javax.imageio.ImageIO
 import kotlin.system.measureTimeMillis
 
@@ -517,6 +516,12 @@ class Maestro(
             }
     }
 
+    /**
+     * Takes a screenshot cropped to the given bounds.
+     * Bounds are in "grid" units: on Android they match pixels (grid == pixels), on iOS they are points (logical).
+     * We convert to screenshot pixel coordinates using scale = heightPixels/heightGrid, which is 1.0 on Android
+     * and the device scale factor on iOS, so one implementation works correctly on both platforms.
+     */
     fun takePartialScreenshot(sink: Sink, bounds: Bounds, compressed: Boolean) {
         LOGGER.info("Taking partial screenshot")
         val (x, y, width, height) = bounds
@@ -527,13 +532,29 @@ class Maestro(
             buffer.inputStream().use { ImageIO.read(it) }
         }
 
-        val dpr = cachedDeviceInfo.run { heightPixels/heightGrid } // device pixel ratio
+        val info = cachedDeviceInfo
+        val scale = if (info.heightGrid > 0) {
+            info.heightPixels.toDouble() / info.heightGrid
+        } else {
+            1.0
+        }
+        val startX = (x * scale).toInt().coerceIn(0, originalImage.width)
+        val startY = (y * scale).toInt().coerceIn(0, originalImage.height)
+        val cropWidthPx = (width * scale).toInt()
+            .coerceIn(0, originalImage.width - startX)
+        val cropHeightPx = (height * scale).toInt()
+            .coerceIn(0, originalImage.height - startY)
 
-        val cropWidth = (x + width).coerceAtMost(originalImage.width) - x
-        val cropHeight = (y + height).coerceAtMost(originalImage.height) - y
+        if (cropWidthPx <= 0 || cropHeightPx <= 0) {
+            throw MaestroException.AssertionFailure(
+                message = "Cannot crop screenshot: invalid dimensions (width: $cropWidthPx, height: $cropHeightPx).",
+                hierarchyRoot = viewHierarchy(excludeKeyboardElements = false).root,
+                debugMessage = "Bounds (grid units) x=$x, y=$y, width=$width, height=$height with scale=$scale produced non-positive crop size."
+            )
+        }
 
         val croppedImage = originalImage.getSubimage(
-            x * dpr, y * dpr, cropWidth * dpr, cropHeight * dpr
+            startX, startY, cropWidthPx, cropHeightPx
         )
 
         sink

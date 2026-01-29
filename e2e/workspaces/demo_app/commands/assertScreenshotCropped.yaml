@@ -8,5 +8,6 @@ tags:
 
 - assertScreenshot:
     path: workspaces/demo_app/screenshots/assertScreenshotCropped.png
+    thresholdPercentage: 99.9
     cropOn:
       id: "testContainer"

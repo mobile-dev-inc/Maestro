@@ -670,6 +670,7 @@ data class TakeScreenshotCommand(
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            cropOn = cropOn?.evaluateScripts(jsEngine),
         )
     }
 }
