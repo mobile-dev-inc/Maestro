@@ -1,0 +1,18 @@
+appId: com.ryan.CustomCommands
+---
+- launchApp
+
+# Custom command with params
+- login:
+    email: user@email.com
+    password: pass123
+- assertVisible: Welcome back, Ryan
+
+# Custom command with an inline value
+- tapOnId: tap_me_button
+- assertVisible: Tap Button Pressed!
+
+# Custom command with an param value
+- tapOnId: 
+    value: tap_me_button
+- assertVisible: Tap Button Pressed Again!
