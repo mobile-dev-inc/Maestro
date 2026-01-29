@@ -1033,7 +1033,7 @@ class Orchestra(
         }
     }
 
-    private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
+    private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
 

@@ -2,6 +2,7 @@ appId: com.example.example
 ---
 - launchApp
 - tapOn: "Nesting Test"
+- waitForAnimationToEnd
 
 - takeScreenshot:
     path: workspaces/demo_app/screenshots/e2e_take_then_assert
