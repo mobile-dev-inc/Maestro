@@ -18,7 +18,7 @@ class DeviceCtlResponseTest {
             writeText(deviceCtlOutput)
         }
         val deviceCtlProcess = mockk<DeviceCtlProcess>()
-        every { deviceCtlProcess.devicectlDevicesOutput() } returns deviceOutput.toFile()
+        every { deviceCtlProcess.devicectlDevicesOutput } returns deviceOutput.toFile()
 
         // when
         val connectedDevices = LocalIOSDevice(deviceCtlProcess).listDeviceViaDeviceCtl()

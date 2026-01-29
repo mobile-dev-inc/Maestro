@@ -1,26 +1,47 @@
 package util
 
 import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.module.kotlin.KotlinFeature
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import java.io.File
 
-class DeviceCtlProcess {
+object DeviceCtlProcess {
 
-    fun devicectlDevicesOutput(): File {
+    val devicectlDevicesOutput: File? by lazy {
+        devicectlDevicesOutput()
+    }
+
+    /**
+     * Executes `xcrun devicectl list devices` (lists Apple devices visible to Xcode)
+     * and writes JSON output to a temp file.
+     *
+     * @return temp JSON file on success, or null if the command fails.
+     */
+    private fun devicectlDevicesOutput(): File? {
         val tempOutput = File.createTempFile("devicectl_response", ".json")
-        ProcessBuilder(listOf("xcrun", "devicectl", "--json-output", tempOutput.path, "list", "devices"))
-            .redirectError(ProcessBuilder.Redirect.PIPE).start().apply {
-                waitFor()
-            }
+
+        val process = ProcessBuilder(
+            listOf("xcrun", "devicectl", "--json-output", tempOutput.path, "list", "devices")
+        )
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+
+        val error = process.errorStream.bufferedReader().readText()
+        val exit = process.waitFor()
+
+        if (exit != 0 || error.isNotBlank()) {
+            println("[WARNING] unable to retrieve list of Apple device (devicectl failed)")
+            println("   > Make sure that `xcrun devicectl --help` command runs without an issue")
+            println("Proceeding without Apple devices...\n")
+            tempOutput.delete()
+            return null
+        }
 
         return tempOutput
     }
 }
 
-class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlProcess()) {
+class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlProcess) {
 
     fun uninstall(deviceId: String, bundleIdentifier: String) {
         CommandLineUtils.runCommand(
@@ -38,12 +59,9 @@ class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlP
     }
 
     fun listDeviceViaDeviceCtl(deviceId: String): DeviceCtlResponse.Device {
-        val tempOutput = File.createTempFile("devicectl_response", ".json")
+        val tempOutput = deviceCtlProcess.devicectlDevicesOutput
+            ?: throw java.lang.IllegalArgumentException("Unable retrieve device list")
         try {
-            ProcessBuilder(listOf("xcrun" , "devicectl", "--json-output", tempOutput.path, "list", "devices"))
-                .redirectError(ProcessBuilder.Redirect.PIPE).start().apply {
-                    waitFor()
-                }
             val bytes = tempOutput.readBytes()
             val response = String(bytes)
 
@@ -59,7 +77,8 @@ class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlP
     }
 
     fun listDeviceViaDeviceCtl(): List<DeviceCtlResponse.Device> {
-        val tempOutput = deviceCtlProcess.devicectlDevicesOutput()
+        val tempOutput = deviceCtlProcess.devicectlDevicesOutput ?: return emptyList()
+
         try {
             val bytes = tempOutput.readBytes()
             val response = String(bytes)
