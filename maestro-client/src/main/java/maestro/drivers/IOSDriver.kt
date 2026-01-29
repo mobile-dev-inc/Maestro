@@ -60,7 +60,7 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
- ) : Driver {
+) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
 
