@@ -21,6 +21,7 @@ import maestro.Point
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.DefineVariablesCommand
+import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -4251,6 +4252,58 @@ class IntegrationTest {
             )
         )
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
+    }
+
+
+    @Test
+    fun `hideKeyboard succeeds when keyboard becomes hidden`() {
+        // Given
+        val commands = listOf(
+            MaestroCommand(HideKeyboardCommand())
+        )
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - should execute hideKeyboard command successfully
+        driver.assertEvents(
+            listOf(
+                Event.HideKeyboard,
+            )
+        )
+    }
+
+    @Test
+    fun `hideKeyboard throws HideKeyboardFailure when keyboard never gets hidden`() {
+        // Given
+        val commands = listOf(
+            MaestroCommand(HideKeyboardCommand())
+        )
+
+        val driver = driver {}
+        driver.keyboardRemainsVisible = true
+
+        // When & Then
+        assertThrows<MaestroException.HideKeyboardFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify hideKeyboard was still called
+        driver.assertEvents(
+            listOf(
+                Event.HideKeyboard,
+            )
+        )
     }
 
     private fun orchestra(

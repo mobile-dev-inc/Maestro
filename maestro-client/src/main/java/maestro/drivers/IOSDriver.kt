@@ -381,10 +381,6 @@ class IOSDriver(
             )
 
             waitForAppToSettle(null, null)
-
-            if (!isKeyboardHidden()) {
-                throw MaestroException.HideKeyboardFailure("Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.")
-            }
         }
     }
 
