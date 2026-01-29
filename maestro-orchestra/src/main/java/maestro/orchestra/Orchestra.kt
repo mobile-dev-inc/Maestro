@@ -778,7 +778,7 @@ class Orchestra(
 
         // Throw error in case keyboard is still visible
         if (maestro.isKeyboardVisible()) {
-            throw MaestroException.HideKeyboardFailure("Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.")
+            throw MaestroException.HideKeyboardFailure("Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action. Instead of hideKeyboard, try tapping on interactive element to hide keyboard.")
         }
 
         return true
