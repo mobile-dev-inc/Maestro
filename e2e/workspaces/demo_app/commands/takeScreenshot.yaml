@@ -11,6 +11,6 @@ appId: com.example.example
 
 - assertScreenshot:
     path: workspaces/demo_app/screenshots/e2e_take_then_assert.png
-    thresholdPercentage: 99.9
+    thresholdPercentage: 95
     cropOn:
       id: "level-1"

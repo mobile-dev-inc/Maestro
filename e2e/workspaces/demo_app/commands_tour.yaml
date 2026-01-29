@@ -182,6 +182,12 @@ env:
     file: commands/takeScreenshot.yaml
     label: takeScreenshot
 
+- runFlow:
+    when:
+      true: ${RUN_ONLY == "" || RUN_ONLY == "takeScreenshotFullScreen"}
+    file: commands/takeScreenshotFullScreen.yaml
+    label: takeScreenshotFullScreen
+
 # TODO: tapOn
 
 # TODO: toggleAirplaneMode
