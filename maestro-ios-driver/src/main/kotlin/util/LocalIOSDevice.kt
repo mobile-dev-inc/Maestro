@@ -5,11 +5,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import java.io.File
 
-object DeviceCtlProcess {
-
-    val devicectlDevicesOutput: File? by lazy {
-        devicectlDevicesOutput()
-    }
+class DeviceCtlProcess {
 
     /**
      * Executes `xcrun devicectl list devices` (lists Apple devices visible to Xcode)
@@ -17,7 +13,7 @@ object DeviceCtlProcess {
      *
      * @return temp JSON file on success, or null if the command fails.
      */
-    private fun devicectlDevicesOutput(): File? {
+    fun devicectlDevicesOutput(): File? {
         val tempOutput = File.createTempFile("devicectl_response", ".json")
 
         val process = ProcessBuilder(
@@ -41,7 +37,7 @@ object DeviceCtlProcess {
     }
 }
 
-class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlProcess) {
+class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlProcess()) {
 
     fun uninstall(deviceId: String, bundleIdentifier: String) {
         CommandLineUtils.runCommand(
@@ -59,7 +55,7 @@ class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlP
     }
 
     fun listDeviceViaDeviceCtl(deviceId: String): DeviceCtlResponse.Device {
-        val tempOutput = deviceCtlProcess.devicectlDevicesOutput
+        val tempOutput = deviceCtlProcess.devicectlDevicesOutput()
             ?: throw java.lang.IllegalArgumentException("Unable retrieve device list")
         try {
             val bytes = tempOutput.readBytes()
@@ -77,7 +73,7 @@ class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlP
     }
 
     fun listDeviceViaDeviceCtl(): List<DeviceCtlResponse.Device> {
-        val tempOutput = deviceCtlProcess.devicectlDevicesOutput ?: return emptyList()
+        val tempOutput = deviceCtlProcess.devicectlDevicesOutput() ?: return emptyList()
 
         try {
             val bytes = tempOutput.readBytes()
