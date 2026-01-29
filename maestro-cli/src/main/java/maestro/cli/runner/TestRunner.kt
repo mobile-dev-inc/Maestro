@@ -59,16 +59,15 @@ object TestRunner {
             flowFile = flowFile,
         )
 
-        val updatedEnv = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile, deviceId)
-
         val result = runCatching(resultView, maestro) {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(updatedEnv)
-
-            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+            val flowName = YamlCommandReader.getFlowName(commands, flowFile.nameWithoutExtension)
             aiOutput = aiOutput.copy(flowName = flowName)
+
+            val updatedEnv = env
+                .withInjectedShellEnvVars()
+                .withDefaultEnvVars(flowFile, flowName, deviceId)
+            val commandsWithEnv = commands.withEnv(updatedEnv)
 
             logger.info("Running flow ${flowFile.name}...")
 
@@ -78,7 +77,7 @@ object TestRunner {
                     maestro = maestro,
                     device = device,
                     view = resultView,
-                    commands = commands,
+                    commands = commandsWithEnv,
                     debugOutput = debugOutput,
                     aiOutput = aiOutput,
                     analyze = analyze,
@@ -141,29 +140,27 @@ object TestRunner {
                     join()
                 }
 
+                val commands = YamlCommandReader.readCommands(flowFile.toPath())
+                val flowName = YamlCommandReader.getFlowName(commands, flowFile.nameWithoutExtension)
+
                 val updatedEnv = env
                     .withInjectedShellEnvVars()
-                    .withDefaultEnvVars(flowFile, deviceId)
-
-                val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
-                    .withEnv(updatedEnv)
-
-                val flowName = YamlCommandReader.getConfig(commands)?.name
+                    .withDefaultEnvVars(flowFile, flowName, deviceId)
+                val commandsWithEnv = commands.withEnv(updatedEnv)
 
                 // Restart the flow if anything has changed
-                if (commands != previousCommands) {
+                if (commandsWithEnv != previousCommands) {
                     ongoingTest = thread {
-                        previousCommands = commands
+                        previousCommands = commandsWithEnv
 
                         runCatching(resultView, maestro) {
                             runBlocking {
                                 MaestroCommandRunner.runCommands(
-                                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                                    flowName = flowName,
                                     maestro = maestro,
                                     device = device,
                                     view = resultView,
-                                    commands = commands,
+                                    commands = commandsWithEnv,
                                     debugOutput = FlowDebugOutput(),
                                     // TODO(bartekpacia): make AI outputs work in continuous mode (see #1972)
                                     aiOutput = FlowAIOutput(
