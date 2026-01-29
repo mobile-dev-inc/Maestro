@@ -4256,7 +4256,7 @@ class IntegrationTest {
 
 
     @Test
-    fun `hideKeyboard succeeds when keyboard becomes hidden`() {
+    fun `Case 138 - hideKeyboard succeeds when keyboard becomes hidden`() {
         // Given
         val commands = listOf(
             MaestroCommand(HideKeyboardCommand())
@@ -4280,7 +4280,7 @@ class IntegrationTest {
     }
 
     @Test
-    fun `hideKeyboard throws HideKeyboardFailure when keyboard never gets hidden`() {
+    fun `Case 139 - hideKeyboard throws HideKeyboardFailure when keyboard never gets hidden`() {
         // Given
         val commands = listOf(
             MaestroCommand(HideKeyboardCommand())
