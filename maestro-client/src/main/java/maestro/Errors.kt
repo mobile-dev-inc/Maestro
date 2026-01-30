@@ -56,7 +56,7 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
         cause: Throwable? = null,
     ) : MaestroException(message, cause)
 
-    class HideKeyboardFailure(message: String, cause: Throwable? = null, debugMessage: String) : MaestroException(message, cause)
+    class HideKeyboardFailure(message: String, cause: Throwable? = null, val debugMessage: String) : MaestroException(message, cause)
 
     class NoRootAccess(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
