@@ -3,7 +3,6 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
-import android.graphics.Bitmap
 import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
@@ -43,11 +42,12 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.android.gms.location.LocationServices
-import com.google.protobuf.ByteString
 import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
 import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
+import dev.mobile.maestro.screenshot.ScreenshotException
+import dev.mobile.maestro.screenshot.ScreenshotService
 import io.grpc.Status
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
@@ -118,6 +118,7 @@ class Service(
     private var locationTimerTask : TimerTask? = null
     private val locationTimer = Timer()
 
+    private val screenshotService = ScreenshotService(loggerTag = TAG)
     private val mockLocationProviderList = mutableListOf<MockLocationProvider>()
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
 
@@ -323,16 +324,14 @@ class Service(
         request: MaestroAndroid.ScreenshotRequest,
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
-        val outputStream = ByteString.newOutput()
-        val bitmap = uiAutomation.takeScreenshot()
-        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
-            responseObserver.onNext(screenshotResponse {
-                bytes = outputStream.toByteString()
-            })
+        try {
+            val bitmap = uiAutomation.takeScreenshot()
+            val bytes = screenshotService.encodePng(bitmap)
+            responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
-        } else {
-            Log.e("Maestro", "Failed to compress bitmap")
-            responseObserver.onError(Throwable("Failed to compress bitmap").internalError())
+        } catch (e: ScreenshotException) {
+            Log.e(TAG, e.message ?: "Screenshot encoding failed")
+            responseObserver.onError(e.internalError())
         }
     }
 
@@ -559,7 +558,7 @@ class Service(
         uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
     }
 
-    internal fun Throwable.internalError() = Status.INTERNAL.withDescription(message).asException()
+    internal fun Throwable.internalError() = Status.INTERNAL.withDescription(message).withCause(cause).asException()
 
     enum class FileType(val ext: String, val mimeType: String) {
         JPG("jpg", "image/jpg"),
