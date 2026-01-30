@@ -52,4 +52,17 @@ data class YamlElementSelector(
     val childOf: YamlElementSelectorUnion? = null,
     val label: String? = null,
     val css: String? = null,
-) : YamlElementSelectorUnion
+) : YamlElementSelectorUnion {
+    // Map to store custom identifier fields from YAML
+    private val customFields: MutableMap<String, String> = mutableMapOf()
+    
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    fun setCustomField(key: String, value: Any?) {
+        // Only store string values as custom identifiers
+        if (value is String) {
+            customFields[key] = value
+        }
+    }
+    
+    fun getCustomFields(): Map<String, String> = customFields.toMap()
+}
