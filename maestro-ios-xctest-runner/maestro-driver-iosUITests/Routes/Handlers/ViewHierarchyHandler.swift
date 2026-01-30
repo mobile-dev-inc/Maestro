@@ -138,7 +138,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             hierarchy.children = children
             return hierarchy
         } catch let error {
-            guard isIllegalArgumentError(error) else {
+            // We attempt to gracefully recover from known AX snapshot issues instead of failing the whole view hierarchy request.
+            // This includes both kAXErrorIllegalArgument and kAXErrorInvalidUIElement, which can occur in highly dynamic UIs
+            // (for example, React Native with the new architecture) when elements disappear or become invalid during snapshot.
+            guard isRecoverableSnapshotError(error) else {
                 NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
                 if let nsError = error as NSError?,
                    nsError.domain == "com.apple.dt.XCTest.XCTFuture",
