@@ -545,35 +545,28 @@ class Orchestra(
         }
         expectedFile.parentFile?.mkdirs()
 
-        // Temp file is always PNG since maestro.takeScreenshot() produces PNG format
-        // The extension doesn't matter as we read it into BufferedImage immediately
+        // Temp file is always PNG since maestro.takeScreenshot produces PNG
         val actualScreenshotFile = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
             .also { it.deleteOnExit() }
-
-        maestro.takeScreenshot(actualScreenshotFile.sink(), false)
-
-        var actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
 
         val cropOn = command.cropOn
         if (cropOn != null) {
             val elementResult = findElement(cropOn, optional = command.optional)
             val bounds = elementResult.element.bounds
-            val x = bounds.x.coerceAtLeast(0)
-            val y = bounds.y.coerceAtLeast(0)
-            val width = bounds.width.coerceAtMost(actualImage.width - x)
-            val height = bounds.height.coerceAtMost(actualImage.height - y)
-
-            if (width <= 0 || height <= 0) {
+            if (bounds.width <= 0 || bounds.height <= 0) {
                 throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: $width, height: $height). The element must have positive width and height to crop the screenshot.",
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
                     hierarchyRoot = maestro.viewHierarchy().root,
                     debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
                 )
             }
-
-            actualImage = actualImage.getSubimage(x, y, width, height)
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
+        } else {
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false)
         }
+
+        val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
 
         if (!expectedFile.exists()) {
             throw MaestroException.AssertionFailure(
@@ -1057,7 +1050,22 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        maestro.takeScreenshot(fileSink, false)
+
+        val cropOn = command.cropOn
+        if (cropOn == null) {
+            maestro.takeScreenshot(fileSink, false)
+        } else {
+            val elementResult = findElement(cropOn, optional = command.optional)
+            val bounds = elementResult.element.bounds
+            if (bounds.width <= 0 || bounds.height <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+                )
+            }
+            maestro.takeScreenshot(fileSink, false, bounds)
+        }
         return false
     }
 
