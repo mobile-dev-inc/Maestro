@@ -55,6 +55,9 @@ class FakeDriver : Driver {
 
     private var airplaneMode: Boolean = false
 
+    // If true, keyboard will remain visible even after hideKeyboard() is called.
+    var keyboardRemainsVisible: Boolean = false
+
     override fun name(): String {
         return "Fake Device"
     }
@@ -181,6 +184,10 @@ class FakeDriver : Driver {
 
     override fun isKeyboardVisible(): Boolean {
         ensureOpen()
+
+        if (keyboardRemainsVisible) {
+            return true
+        }
 
         return !events.contains(Event.HideKeyboard)
     }

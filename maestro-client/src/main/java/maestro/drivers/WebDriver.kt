@@ -42,15 +42,14 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 class WebDriver(
     val isStudio: Boolean,
     isHeadless: Boolean = isStudio,
-    private val deviceId: String = "chromium",
-    private val seleniumFactory: SeleniumFactory = createSeleniumFactory(isHeadless, deviceId)
+    screenSize: String?,
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless, screenSize)
 ) : Driver {
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
     private var injectedArguments: Map<String, Any> = emptyMap()
-    private var isConnectedToExistingSession = false
 
     private var webScreenRecorder: WebScreenRecorder? = null
 
@@ -67,26 +66,7 @@ class WebDriver(
     }
 
     override fun open() {
-        LOGGER.info("WebDriver.open() called for deviceId: $deviceId, isStudio: $isStudio")
-        
         seleniumDriver = seleniumFactory.create()
-
-        // Check if we connected to an existing browser session
-        // If the browser already has a current URL (not "data:" or empty), 
-        // it means we're reusing an existing session
-        isConnectedToExistingSession = try {
-            val currentUrl = seleniumDriver?.currentUrl
-            val isExisting = currentUrl != null && 
-                !currentUrl.startsWith("data:") && 
-                currentUrl != "about:blank" && 
-                currentUrl.isNotEmpty()
-            
-            LOGGER.info("Browser session detection - currentUrl: $currentUrl, isConnectedToExistingSession: $isExisting")
-            isExisting
-        } catch (e: Exception) {
-            LOGGER.warn("Failed to detect existing browser session: ${e.message}")
-            false
-        }
 
         try {
             seleniumDriver
@@ -97,18 +77,10 @@ class WebDriver(
             // Swallow the exception to avoid crashing the whole process.
             // Some implementations of Selenium do not support DevTools
             // and do not fail gracefully.
-            LOGGER.debug("DevTools initialization failed (expected for some setups): ${e.message}")
         }
 
-        // Only navigate to maestro.mobile.dev if this is Studio mode AND we're not reusing an existing session
-        // This preserves the user's current page when reusing browser sessions
-        if (isStudio && !isConnectedToExistingSession) {
-            LOGGER.info("Studio mode + new session: navigating to maestro.mobile.dev")
+        if (isStudio) {
             seleniumDriver?.get("https://maestro.mobile.dev")
-        } else if (isStudio && isConnectedToExistingSession) {
-            LOGGER.info("Studio mode + existing session: preserving current page")
-        } else {
-            LOGGER.info("Non-studio mode: no automatic navigation")
         }
     }
 
@@ -154,18 +126,6 @@ class WebDriver(
 
     private fun scroll(top: String, left: String) {
         executeJS("window.scroll({ top: $top, left: $left, behavior: 'smooth' });")
-    }
-
-    // New method for mouse wheel scrolling - more reliable for React Native web apps
-    private fun mouseWheelScroll(deltaY: Int) {
-        val driver = ensureOpen()
-        
-        // Use Selenium Actions to perform mouse wheel scrolling
-        val actions = Actions(driver)
-        actions.scrollByAmount(0, deltaY).perform()
-        
-        // Small delay to allow scroll to complete
-        sleep(500L)
     }
 
     private fun random(start: Int, end: Int): Int {
@@ -380,10 +340,7 @@ class WebDriver(
     }
 
     override fun scrollVertical() {
-        // Use mouse wheel scrolling instead of smooth JavaScript scrolling
-        // This is more compatible with React Native web apps
-        val scrollAmount = 300 // Pixels to scroll down
-        mouseWheelScroll(scrollAmount)
+        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -418,70 +375,16 @@ class WebDriver(
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         when (swipeDirection) {
-            // Use mouse wheel scrolling for vertical directions - more reliable for React Native web apps
-            SwipeDirection.UP -> mouseWheelScroll(300) // Scroll down (positive deltaY)
-            SwipeDirection.DOWN -> mouseWheelScroll(-300) // Scroll up (negative deltaY)
-            // Keep JavaScript scrolling for horizontal directions
+            SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+            SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
             SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
             SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
         }
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
-        val scrollJs = """
-            const point = { x: ${elementPoint.x}, y: ${elementPoint.y} };
-            let element = document.elementFromPoint(point.x, point.y);
-
-            let scrollableElement = element;
-            while (scrollableElement) {
-                const style = window.getComputedStyle(scrollableElement);
-                const overflowY = style.getPropertyValue('overflow-y');
-                const overflowX = style.getPropertyValue('overflow-x');
-                const isScrollableY = (overflowY === 'scroll' || overflowY === 'auto') && scrollableElement.scrollHeight > scrollableElement.clientHeight;
-                const isScrollableX = (overflowX === 'scroll' || overflowX === 'auto') && scrollableElement.scrollWidth > scrollableElement.clientWidth;
-                if (isScrollableY || isScrollableX) {
-                    break;
-                }
-                scrollableElement = scrollableElement.parentElement;
-            }
-
-            const scrollOptions = {
-                behavior: 'smooth'
-            };
-
-            if (scrollableElement) {
-                switch ('${direction.name}') {
-                    case 'UP':
-                        scrollableElement.scrollBy({ top: Math.round(scrollableElement.clientHeight / 2), ...scrollOptions });
-                        break;
-                    case 'DOWN':
-                        scrollableElement.scrollBy({ top: -Math.round(scrollableElement.clientHeight / 2), ...scrollOptions });
-                        break;
-                    case 'LEFT':
-                        scrollableElement.scrollBy({ left: Math.round(scrollableElement.clientWidth / 2), ...scrollOptions });
-                        break;
-                    case 'RIGHT':
-                        scrollableElement.scrollBy({ left: -Math.round(scrollableElement.clientWidth / 2), ...scrollOptions });
-                        break;
-                }
-            } else {
-                 switch ('${direction.name}') {
-                    case 'UP':
-                        window.scrollBy({ top: Math.round(window.innerHeight / 2), ...scrollOptions });
-                        break;
-                    case 'DOWN':
-                        window.scrollBy({ top: -Math.round(window.innerHeight / 2), ...scrollOptions });
-                        break;
-                    case 'LEFT':
-                        window.scrollBy({ left: Math.round(window.innerWidth / 2), ...scrollOptions });
-                        break;
-                    case 'RIGHT':
-                        window.scrollBy({ left: -Math.round(window.innerWidth / 2), ...scrollOptions });
-                        break;
-                }
-            }
-        """.trimIndent()
-        executeJS(scrollJs)
+        // Ignoring elementPoint to enable a rudimentary implementation of scrollUntilVisible for web
+        swipe(direction, durationMs)
     }
 
     override fun backPress() {
@@ -644,24 +547,7 @@ class WebDriver(
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
-        private const val BASE_DEBUGGING_PORT = 9222
 
         private val LOGGER = LoggerFactory.getLogger(maestro.drivers.WebDriver::class.java)
-
-        /**
-         * Creates a SeleniumFactory with instance-specific configuration
-         * Extracts instance number from deviceId (e.g., "chromium-2" -> instance 2)
-         * Uses different debugging ports for each instance to avoid conflicts
-         */
-        private fun createSeleniumFactory(isHeadless: Boolean, deviceId: String): SeleniumFactory {
-            val instanceNumber = deviceId.substringAfterLast("-", "1").toIntOrNull() ?: 1
-            val debuggingPort = BASE_DEBUGGING_PORT + instanceNumber - 1
-            
-            return ChromeSeleniumFactory(
-                isHeadless = isHeadless,
-                debuggingPort = debuggingPort,
-                instanceId = deviceId
-            )
-        }
     }
 }

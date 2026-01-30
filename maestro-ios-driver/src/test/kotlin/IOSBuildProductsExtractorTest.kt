@@ -22,8 +22,8 @@ class IOSBuildProductsExtractorTest {
         // when
         IOSBuildProductsExtractor(
             target,
+            context = Context.CLI,
             deviceType = IOSDeviceType.SIMULATOR,
-            context = Context.CLI
         ).extract("driver-iphoneSimulator")
 
         // then

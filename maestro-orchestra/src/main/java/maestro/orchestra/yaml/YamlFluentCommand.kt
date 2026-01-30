@@ -19,7 +19,6 @@
 
 package maestro.orchestra.yaml
 
-import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
 import maestro.DeviceOrientation
@@ -29,6 +28,7 @@ import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.AssertNoDefectsWithAICommand
+import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.AssertWithAICommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
@@ -95,6 +95,7 @@ data class YamlFluentCommand(
     val assertNotVisible: YamlElementSelectorUnion? = null,
     val assertTrue: YamlAssertTrue? = null,
     val assertNoDefectsWithAI: YamlAssertNoDefectsWithAI? = null,
+    val assertScreenshot: YamlAssertScreenshot? = null,
     val assertWithAI: YamlAssertWithAI? = null,
     val extractTextWithAI: YamlExtractTextWithAI? = null,
     val back: YamlActionBack? = null,
@@ -224,6 +225,17 @@ data class YamlFluentCommand(
                 )
             )
 
+            assertScreenshot != null -> listOf(
+                MaestroCommand(
+                    AssertScreenshotCommand(
+                        path = assertScreenshot.path,
+                        thresholdPercentage = assertScreenshot.thresholdPercentage,
+                        cropOn = assertScreenshot.cropOn?.let { toElementSelector(it) },
+                        optional = assertScreenshot.optional,
+                        label = assertScreenshot.label
+                    )
+                )
+            )
             addMedia != null -> listOf(
                 MaestroCommand(
                     addMediaCommand = addMediaCommand(addMedia, flowPath)

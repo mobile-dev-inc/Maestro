@@ -38,6 +38,7 @@ import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
+import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import util.XCRunnerCLIUtils
@@ -71,6 +72,7 @@ object MaestroSessionManager {
         platform: String? = null,
         isStudio: Boolean = false,
         isHeadless: Boolean = false,
+        screenSize: String? = null,
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
@@ -113,6 +115,7 @@ object MaestroSessionManager {
             },
             isStudio = isStudio,
             isHeadless = isHeadless,
+            screenSize = screenSize,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
             platformConfiguration = executionPlan?.workspaceConfig?.platform
@@ -193,12 +196,11 @@ object MaestroSessionManager {
         connectToExistingSession: Boolean,
         isStudio: Boolean,
         isHeadless: Boolean,
+        screenSize: String?,
         reinstallDriver: Boolean,
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
     ): MaestroSession {
-        logger.info("createMaestro called - platform: ${selectedDevice.platform}, connectToExistingSession: $connectToExistingSession, isStudio: $isStudio")
-        
         return when {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
@@ -218,11 +220,7 @@ object MaestroSessionManager {
                         platformConfiguration = platformConfiguration
                     )
 
-                    Platform.WEB -> {
-                        // For web, always open the driver since browser reuse is handled at Chrome connection level
-                        logger.info("Creating web device - instanceId: ${selectedDevice.device.instanceId}, openDriver: true (browser reuse handled internally)")
-                        pickWebDevice(isStudio, isHeadless, selectedDevice.device.instanceId, true)
-                    }
+                    Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize)
                 },
                 device = selectedDevice.device,
             )
@@ -249,14 +247,10 @@ object MaestroSessionManager {
                 device = null,
             )
 
-            selectedDevice.platform == Platform.WEB -> {
-                // For web, always open the driver since browser reuse is handled at Chrome connection level
-                logger.info("Creating web session - deviceId: ${selectedDevice.deviceId ?: "chromium"}, openDriver: true (browser reuse handled internally)")
-                MaestroSession(
-                    maestro = pickWebDevice(isStudio, isHeadless, selectedDevice.deviceId ?: "chromium", true),
-                    device = null
-                )
-            }
+            selectedDevice.platform == Platform.WEB -> MaestroSession(
+                maestro = pickWebDevice(isStudio, isHeadless, screenSize),
+                device = null
+            )
 
             else -> error("Unable to create Maestro session")
         }
@@ -389,6 +383,7 @@ object MaestroSessionManager {
              else -> throw UnsupportedOperationException("Unsupported device type $deviceType for iOS platform")
         }
 
+        val tempFileHandler = TempFileHandler()
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
                 val device = util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
@@ -398,6 +393,7 @@ object MaestroSessionManager {
             Device.DeviceType.SIMULATOR -> {
                 val simctlIOSDevice = SimctlIOSDevice(
                     deviceId = deviceId,
+                    tempFileHandler = tempFileHandler
                 )
                 simctlIOSDevice
             }
@@ -411,7 +407,8 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
             deviceType = iOSDeviceType,
             iOSDriverConfig = iOSDriverConfig,
-            deviceController = deviceController
+            deviceController = deviceController,
+            tempFileHandler = tempFileHandler
         )
 
         val xcTestDriverClient = XCTestDriverClient(
@@ -420,10 +417,11 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
         )
 
+        val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = tempFileHandler)
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
-            getInstalledApps = { XCRunnerCLIUtils.listApps(deviceId) },
+            getInstalledApps = { xcRunnerCLIUtils.listApps(deviceId) },
         )
 
         val iosDriver = IOSDriver(
@@ -442,8 +440,8 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean, deviceId: String = "chromium", openDriver: Boolean): Maestro {
-        return Maestro.web(isStudio, isHeadless, deviceId, openDriver)
+    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean, screenSize: String?): Maestro {
+        return Maestro.web(isStudio, isHeadless, screenSize)
     }
 
     private data class SelectedDevice(
