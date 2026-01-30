@@ -7,7 +7,7 @@
 # https://blog.gradle.org/best-practices-naming-version-catalog-entries
 
 [versions]
-androidPlugin = "8.1.4"
+androidPlugin = "8.13.2"
 androidxEspresso = "3.6.1"
 androidxTestJunit = "1.2.1"
 androidxUiautomator = "2.3.0"
