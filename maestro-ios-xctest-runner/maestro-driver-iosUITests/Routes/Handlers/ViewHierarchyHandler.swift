@@ -138,7 +138,10 @@ struct ViewHierarchyHandler: HTTPHandler {
             hierarchy.children = children
             return hierarchy
         } catch let error {
-            guard isIllegalArgumentError(error) else {
+            // We attempt to gracefully recover from known AX snapshot issues instead of failing the whole view hierarchy request.
+            // This includes both kAXErrorIllegalArgument and kAXErrorInvalidUIElement, which can occur in highly dynamic UIs
+            // (for example, React Native with the new architecture) when elements disappear or become invalid during snapshot.
+            guard isRecoverableSnapshotError(error) else {
                 NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
                 if let nsError = error as NSError?,
                    nsError.domain == "com.apple.dt.XCTest.XCTFuture",
@@ -192,8 +195,16 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    private func isIllegalArgumentError(_ error: Error) -> Bool {
-        error.localizedDescription.contains("Error kAXErrorIllegalArgument getting snapshot for element")
+    private func isRecoverableSnapshotError(_ error: Error) -> Bool {
+        let description = error.localizedDescription
+        
+        // We consider certain AX errors as recoverable and trigger the fallback logic instead of propagating a 500.
+        // - kAXErrorIllegalArgument is a known issue for large or complex view hierarchies when asking XCTest for a snapshot.
+        // - kAXErrorInvalidUIElement can happen when the underlying accessibility element has been invalidated
+        //   (for example, rapidly changing UI or concurrent layout changes such as with RN's new architecture).
+        // Treating both as recoverable allows Maestro to retry from a "recovery element" instead of failing the test run.
+        return description.contains("Error kAXErrorIllegalArgument getting snapshot for element")
+            || description.contains("kAXErrorInvalidUIElement")
     }
 
     private func keyboardHierarchy(_ element: XCUIApplication) -> AXElement? {

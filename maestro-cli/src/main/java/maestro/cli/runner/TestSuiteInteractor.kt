@@ -43,11 +43,29 @@ class TestSuiteInteractor(
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
+    // Shard tracking parameters from user's branch
+    private val statusTracker: ShardStatusTracker? = null,
+    private val totalShards: Int = 1,
+    private val testStartTime: Long? = null,
+    // Step capture parameter from upstream
     private val captureSteps: Boolean = false,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
     private val shardPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
+
+    companion object {
+        private fun formatElapsedTime(millis: Long): String {
+            val totalSeconds = millis / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return if (minutes > 0) {
+                "${minutes}m ${seconds}s"
+            } else {
+                "${seconds}s"
+            }
+        }
+    }
 
     suspend fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
@@ -151,12 +169,14 @@ class TestSuiteInteractor(
         return summary
     }
 
-    private suspend fun runFlow(
+    suspend fun runFlow(
         flowFile: File,
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
+        testOutputDir: Path? = null,
+        attemptNumber: Int = 0,
+        maxRetries: Int = 0
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -258,13 +278,49 @@ class TestSuiteInteractor(
         )
         // FIXME(bartekpacia): Save AI output as well
 
+        val displayName = if (attemptNumber > 0) {
+            "$flowName (attempt ${attemptNumber + 1})"
+        } else {
+            flowName
+        }
+
+        // Determine if we should show this as a warning (failed but retries available) or error (final failure)
+        val hasRetriesRemaining = attemptNumber < maxRetries
+        val displayStatus = if (flowStatus == FlowStatus.ERROR && hasRetriesRemaining) {
+            FlowStatus.WARNING // Show as warning if retries are available
+        } else {
+            flowStatus
+        }
+
+        // Always show the actual error message, and add retry info if applicable
+        val displayError = if (flowStatus == FlowStatus.ERROR) {
+            // Try to get the most descriptive error message
+            val actualErrorMessage = errorMessage
+                ?: debugOutput.exception?.message
+                ?: "Unknown error"
+            if (hasRetriesRemaining) {
+                "$actualErrorMessage - Will retry (${maxRetries - attemptNumber} attempts remaining)"
+            } else {
+                actualErrorMessage
+            }
+        } else {
+            null
+        }
+
+        // Calculate elapsed time if testStartTime is available
+        val elapsedTime = testStartTime?.let {
+            val elapsed = System.currentTimeMillis() - it
+            formatElapsedTime(elapsed)
+        }
+
         TestSuiteStatusView.showFlowCompletion(
             TestSuiteViewModel.FlowResult(
-                name = flowName,
-                status = flowStatus,
+                name = displayName,
+                status = displayStatus,
                 duration = flowDuration,
                 shardIndex = shardIndex,
-                error = debugOutput.exception?.message,
+                error = displayError,
+                elapsedTime = elapsedTime,
             )
         )
 
