@@ -545,7 +545,7 @@ class Orchestra(
         }
         expectedFile.parentFile?.mkdirs()
 
-        // Temp file is always PNG since maestro.takeScreenshot/takePartialScreenshot produce PNG
+        // Temp file is always PNG since maestro.takeScreenshot produces PNG
         val actualScreenshotFile = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
             .also { it.deleteOnExit() }
@@ -561,7 +561,7 @@ class Orchestra(
                     debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
                 )
             }
-            maestro.takePartialScreenshot(actualScreenshotFile.sink(), bounds, false)
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
         } else {
             maestro.takeScreenshot(actualScreenshotFile.sink(), false)
         }
@@ -1050,7 +1050,7 @@ class Orchestra(
                     debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
                 )
             }
-            maestro.takePartialScreenshot(sink = fileSink, bounds = bounds, compressed = false)
+            maestro.takeScreenshot(fileSink, false, bounds)
         }
         return false
     }

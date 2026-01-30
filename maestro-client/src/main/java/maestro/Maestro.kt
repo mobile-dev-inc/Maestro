@@ -506,62 +506,55 @@ class Maestro(
         }
     }
 
-    fun takeScreenshot(sink: Sink, compressed: Boolean) {
-        LOGGER.info("Taking screenshot")
-
-        sink
-            .buffer()
-            .use {
-                ScreenshotUtils.takeScreenshot(it, compressed, driver)
-            }
-    }
-
-    /**
-     * Takes a screenshot cropped to the given bounds.
-     * Bounds are in "grid" units: on Android they match pixels (grid == pixels), on iOS they are points (logical).
-     * We convert to screenshot pixel coordinates using scale = heightPixels/heightGrid, which is 1.0 on Android
-     * and the device scale factor on iOS, so one implementation works correctly on both platforms.
-     */
-    fun takePartialScreenshot(sink: Sink, bounds: Bounds, compressed: Boolean) {
-        LOGGER.info("Taking partial screenshot")
-        val (x, y, width, height) = bounds
-
-        val originalImage = Buffer().apply {
-            ScreenshotUtils.takeScreenshot(this, compressed, driver)
-        }.let { buffer ->
-            buffer.inputStream().use { ImageIO.read(it) }
-        }
-
-        val info = cachedDeviceInfo
-        val scale = if (info.heightGrid > 0) {
-            info.heightPixels.toDouble() / info.heightGrid
+    fun takeScreenshot(sink: Sink, compressed: Boolean, bounds: Bounds? = null) {
+        if (bounds == null) {
+            LOGGER.info("Taking screenshot")
+            sink
+                .buffer()
+                .use {
+                    ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                }
         } else {
-            1.0
-        }
-        val startX = (x * scale).toInt().coerceIn(0, originalImage.width)
-        val startY = (y * scale).toInt().coerceIn(0, originalImage.height)
-        val cropWidthPx = (width * scale).toInt()
-            .coerceIn(0, originalImage.width - startX)
-        val cropHeightPx = (height * scale).toInt()
-            .coerceIn(0, originalImage.height - startY)
+            LOGGER.info("Taking screenshot (cropped to bounds)")
+            val (x, y, width, height) = bounds
 
-        if (cropWidthPx <= 0 || cropHeightPx <= 0) {
-            throw MaestroException.AssertionFailure(
-                message = "Cannot crop screenshot: invalid dimensions (width: $cropWidthPx, height: $cropHeightPx).",
-                hierarchyRoot = viewHierarchy(excludeKeyboardElements = false).root,
-                debugMessage = "Bounds (grid units) x=$x, y=$y, width=$width, height=$height with scale=$scale produced non-positive crop size."
-            )
-        }
-
-        val croppedImage = originalImage.getSubimage(
-            startX, startY, cropWidthPx, cropHeightPx
-        )
-
-        sink
-            .buffer()
-            .use {
-                ImageIO.write(croppedImage, "png", it.outputStream())
+            val originalImage = Buffer().apply {
+                ScreenshotUtils.takeScreenshot(this, compressed, driver)
+            }.let { buffer ->
+                buffer.inputStream().use { ImageIO.read(it) }
             }
+
+            val info = cachedDeviceInfo
+            val scale = if (info.heightGrid > 0) {
+                info.heightPixels.toDouble() / info.heightGrid
+            } else {
+                1.0
+            }
+            val startX = (x * scale).toInt().coerceIn(0, originalImage.width)
+            val startY = (y * scale).toInt().coerceIn(0, originalImage.height)
+            val cropWidthPx = (width * scale).toInt()
+                .coerceIn(0, originalImage.width - startX)
+            val cropHeightPx = (height * scale).toInt()
+                .coerceIn(0, originalImage.height - startY)
+
+            if (cropWidthPx <= 0 || cropHeightPx <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: invalid dimensions (width: $cropWidthPx, height: $cropHeightPx).",
+                    hierarchyRoot = viewHierarchy(excludeKeyboardElements = false).root,
+                    debugMessage = "Bounds (grid units) x=$x, y=$y, width=$width, height=$height with scale=$scale produced non-positive crop size."
+                )
+            }
+
+            val croppedImage = originalImage.getSubimage(
+                startX, startY, cropWidthPx, cropHeightPx
+            )
+
+            sink
+                .buffer()
+                .use {
+                    ImageIO.write(croppedImage, "png", it.outputStream())
+                }
+        }
     }
 
     fun startScreenRecording(out: Sink): ScreenRecording {

@@ -4250,7 +4250,7 @@ class IntegrationTest {
             }
         }
 
-        // Then - takePartialScreenshot crops by bounds (grid) and outputs pixel dimensions (bounds * dpr)
+        // Then - takeScreenshot with bounds crops by bounds (grid) and outputs pixel dimensions (bounds * dpr)
         driver.assertEvents(listOf(Event.TakeScreenshot))
         val file = File("138_take_cropped_screenshot_with_filename.png")
         val image = ImageIO.read(file)
