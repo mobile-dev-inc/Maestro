@@ -1074,7 +1074,6 @@ class Orchestra(
             )
         }
 
-        maestro.takeScreenshot(fileSink, false)
         return false
     }
 
