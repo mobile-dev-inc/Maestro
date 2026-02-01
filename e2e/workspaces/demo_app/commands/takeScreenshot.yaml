@@ -1,0 +1,16 @@
+appId: com.example.example
+---
+- launchApp
+- tapOn: "Nesting Test"
+- waitForAnimationToEnd
+
+- takeScreenshot:
+    path: workspaces/demo_app/screenshots/e2e_take_then_assert
+    cropOn:
+      id: "level-1"
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/e2e_take_then_assert.png
+    thresholdPercentage: 95
+    cropOn:
+      id: "level-1"

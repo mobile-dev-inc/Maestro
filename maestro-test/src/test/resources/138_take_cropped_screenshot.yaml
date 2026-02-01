@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- takeScreenshot:
+    path: 138_take_cropped_screenshot_with_filename
+    cropOn:
+      id: "element_id"

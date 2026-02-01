@@ -651,6 +651,7 @@ data class EraseTextCommand(
 
 data class TakeScreenshotCommand(
     val path: String,
+    val cropOn: ElementSelector? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -658,9 +659,18 @@ data class TakeScreenshotCommand(
     override val originalDescription: String
         get() = "Take screenshot $path"
 
+    override fun description(): String {
+        return label ?: if (cropOn != null) {
+            "Take screenshot $path, cropped to ${cropOn.description()}"
+        } else {
+            "Take screenshot $path"
+        }
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            cropOn = cropOn?.evaluateScripts(jsEngine),
         )
     }
 }
