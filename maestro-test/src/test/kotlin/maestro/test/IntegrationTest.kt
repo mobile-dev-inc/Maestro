@@ -51,6 +51,7 @@ import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
+import javax.imageio.ImageIO
 
 class IntegrationTest {
 
@@ -4224,6 +4225,39 @@ class IntegrationTest {
                 orchestra(it).runFlow(commands)
             }
         }
+    }
+
+    @Test
+    fun `Case 138 - Take cropped screenshot`() {
+        // Given
+        val commands = readCommands("138_take_cropped_screenshot")
+        val boundHeight = 100
+        val boundWidth = 100
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, boundHeight, boundWidth)
+            }
+        }
+
+        val device = driver.deviceInfo()
+        val dpr = device.heightPixels / device.heightGrid
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - takeScreenshot with bounds crops by bounds (grid) and outputs pixel dimensions (bounds * dpr)
+        driver.assertEvents(listOf(Event.TakeScreenshot))
+        val file = File("138_take_cropped_screenshot_with_filename.png")
+        val image = ImageIO.read(file)
+        assert(file.exists())
+        assert(image.width == (boundWidth * dpr))
+        assert(image.height == (boundHeight * dpr))
     }
 
     @Test

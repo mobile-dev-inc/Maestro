@@ -319,7 +319,8 @@ data class YamlFluentCommand(
                     TakeScreenshotCommand(
                         path = takeScreenshot.path,
                         label = takeScreenshot.label,
-                        optional = takeScreenshot.optional
+                        optional = takeScreenshot.optional,
+                        cropOn = takeScreenshot.cropOn?.let { toElementSelector(selectorUnion = it) },
                     )
                 )
             )
