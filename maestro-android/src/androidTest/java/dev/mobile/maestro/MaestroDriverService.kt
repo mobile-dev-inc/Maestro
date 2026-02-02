@@ -330,7 +330,7 @@ class Service(
             responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
         } catch (e: ScreenshotException) {
-            Log.e(TAG, e.message ?: "Screenshot encoding failed")
+            Log.e(TAG, "Screenshot encoding failed with ${e.message}", e)
             responseObserver.onError(e.internalError())
         }
     }
