@@ -1,11 +1,8 @@
 import XCTest
 
 final class SystemPermissionHelper {
-    private static let notificationsPermissionLabel = "Would Like to Send You Notifications"
-    
-    static func handleSystemPermissionAlertIfNeeded(foregroundApp: XCUIApplication) {
-        let predicate = NSPredicate(format: "label CONTAINS[c] %@", notificationsPermissionLabel)
 
+    static func handleSystemPermissionAlertIfNeeded(appHierarchy: AXElement, foregroundApp: XCUIApplication) {
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
               let permissions = try? JSONDecoder().decode([String : PermissionValue].self, from: data),
               let notificationsPermission = permissions.first(where: { $0.key == "notifications" }) else {
@@ -16,26 +13,70 @@ final class SystemPermissionHelper {
             NSLog("Foreground app is not springboard skipping auto tapping on permissions")
             return
         }
-        
+
         NSLog("[Start] Foreground app is springboard attempting to tap on permissions dialog")
-        let alert = foregroundApp.alerts.matching(predicate).element
-        if alert.exists {
-            switch notificationsPermission.value {
-            case .allow:
-                let allowButton = alert.buttons.element(boundBy: 1)
-                if allowButton.exists {
-                    allowButton.tap()
-                }
-            case .deny:
-                let dontAllowButton = alert.buttons.element(boundBy: 0)
-                if dontAllowButton.exists {
-                    dontAllowButton.tap()
-                }
-            case .unset, .unknown:
-                // do nothing
-                break
+
+        // Find buttons in the app hierarchy
+        let buttons = findButtons(in: appHierarchy)
+        NSLog("Found \(buttons.count) buttons in hierarchy")
+
+        guard buttons.count > 0 else {
+            NSLog("No buttons found in hierarchy")
+            return
+        }
+
+        switch notificationsPermission.value {
+        case .allow:
+            // Find Allow button - typically has label "Allow"
+            if let allowButton = buttons.first(where: { $0.label.lowercased() == "allow" }) {
+                tapAtCenter(of: allowButton.frame, in: foregroundApp)
+            } else if buttons.count >= 2 {
+                // Fallback: Allow is typically the second button (index 1)
+                tapAtCenter(of: buttons[1].frame, in: foregroundApp)
+            }
+        case .deny:
+            // Find Don't Allow button - typically has label containing "Don't Allow"
+            if let denyButton = buttons.first(where: { $0.label.lowercased().contains("don't allow") || $0.label.lowercased().contains("dont allow") }) {
+                tapAtCenter(of: denyButton.frame, in: foregroundApp)
+            } else if buttons.count >= 1 {
+                // Fallback: Don't Allow is typically the first button (index 0)
+                tapAtCenter(of: buttons[0].frame, in: foregroundApp)
+            }
+        case .unset, .unknown:
+            // do nothing
+            break
+        }
+
+        NSLog("[Done] Foreground app is springboard attempting to tap on permissions dialog")
+    }
+
+    /// Recursively find all button elements in the hierarchy
+    private static func findButtons(in element: AXElement) -> [AXElement] {
+        var buttons: [AXElement] = []
+
+        // XCUIElement.ElementType.button.rawValue == 9
+        if element.elementType == 9 {
+            buttons.append(element)
+        }
+
+        if let children = element.children {
+            for child in children {
+                buttons.append(contentsOf: findButtons(in: child))
             }
         }
-        NSLog("[Done] Foreground app is springboard attempting to tap on permissions dialog")
+
+        return buttons
+    }
+
+    /// Tap at the center of an element's frame
+    private static func tapAtCenter(of frame: AXFrame, in app: XCUIApplication) {
+        let x = (frame["X"] ?? 0) + (frame["Width"] ?? 0) / 2
+        let y = (frame["Y"] ?? 0) + (frame["Height"] ?? 0) / 2
+
+        NSLog("Tapping at coordinates: (\(x), \(y))")
+
+        let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+            .withOffset(CGVector(dx: x, dy: y))
+        coordinate.tap()
     }
 }
