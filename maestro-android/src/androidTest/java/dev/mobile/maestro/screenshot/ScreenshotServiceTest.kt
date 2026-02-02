@@ -2,7 +2,6 @@ package dev.mobile.maestro.screenshot
 
 import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -11,8 +10,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ScreenshotServiceTest {
-
-    private val screenshotService = ScreenshotService(loggerTag = "ScreenshotServiceTest")
+    private val screenshotService = ScreenshotService()
 
     @Test
     fun encodePng_withValidBitmap_returnsBytes() {
@@ -69,30 +67,6 @@ class ScreenshotServiceTest {
                 "Message should mention quality",
                 e.message?.contains("quality") == true
             )
-        } finally {
-            bitmap.recycle()
-        }
-    }
-
-    @Test
-    fun encode_withOutputExceedingMaxSize_throwsOutputTooLarge() {
-        // Create a service with a very small max size limit
-        val smallLimitService = ScreenshotService(
-            loggerTag = "ScreenshotServiceTest",
-            maxEncodedBytes = 10 // 10 bytes - impossibly small for any image
-        )
-
-        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-        try {
-            smallLimitService.encodePng(bitmap)
-            fail("Expected ScreenshotException.OutputTooLarge to be thrown")
-        } catch (e: ScreenshotException.OutputTooLarge) {
-            assertTrue(
-                "Message should mention size exceeds limit",
-                e.message?.contains("exceeds") == true
-            )
-            assertTrue("sizeBytes should be greater than limit", e.sizeBytes > e.limitBytes)
-            assertEquals("limitBytes should match configured max", 10, e.limitBytes)
         } finally {
             bitmap.recycle()
         }

@@ -118,7 +118,7 @@ class Service(
     private var locationTimerTask : TimerTask? = null
     private val locationTimer = Timer()
 
-    private val screenshotService = ScreenshotService(loggerTag = TAG)
+    private val screenshotService = ScreenshotService()
     private val mockLocationProviderList = mutableListOf<MockLocationProvider>()
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
 

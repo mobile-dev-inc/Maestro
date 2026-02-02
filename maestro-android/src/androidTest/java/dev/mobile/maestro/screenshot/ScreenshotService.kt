@@ -39,10 +39,7 @@ sealed class ScreenshotException(
 /**
  * Encodes screenshots to PNG (or other formats) with validation and size limits.
  */
-class ScreenshotService(
-    private val loggerTag: String = "Maestro",
-    private val maxEncodedBytes: Int = 25 * 1024 * 1024, // 25MB safety limit
-) {
+class ScreenshotService() {
 
     /**
      * Encodes a screenshot bitmap to PNG bytes.
@@ -85,13 +82,6 @@ class ScreenshotService(
         if (bytes.isEmpty()) {
             throw ScreenshotException.EmptyOutput(
                 message = "Bitmap compressed but produced empty output (${format.name})"
-            )
-        }
-        if (bytes.size > maxEncodedBytes) {
-            throw ScreenshotException.OutputTooLarge(
-                message = "Screenshot size ${bytes.size} exceeds limit $maxEncodedBytes (${format.name})",
-                sizeBytes = bytes.size,
-                limitBytes = maxEncodedBytes
             )
         }
         return ByteString.copyFrom(bytes)
