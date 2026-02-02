@@ -26,6 +26,7 @@ import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import maestro.*
@@ -1276,6 +1277,14 @@ class AndroidDriver(
                         throw throwable
                     }
                 }
+                Status.Code.INTERNAL -> {
+                    val trailers = Status.trailersFromThrowable(throwable)
+                    val errorType = trailers?.get(ERROR_TYPE_KEY)
+                    val errorMsg = trailers?.get(ERROR_MSG_KEY)
+                    val errorCause = trailers?.get(ERROR_CAUSE_KEY)
+                    LOGGER.error("Device call failed: type=$errorType, message=$errorMsg, cause=$errorCause", throwable)
+                    throw throwable.cause ?: throwable
+                }
                 else -> {
                     LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} and cause ${throwable.cause} while doing android device call", throwable)
                     throw throwable
@@ -1292,6 +1301,13 @@ class AndroidDriver(
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
+
+        private val ERROR_TYPE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_MSG_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-message", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_CAUSE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-cause", Metadata.ASCII_STRING_MARSHALLER)
 
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 

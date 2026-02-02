@@ -1058,21 +1058,8 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        val resolvedFile = screenshotsDir?.resolve(pathStr)?.toFile() ?: File(pathStr)
-        val absoluteFile = resolvedFile.absoluteFile
-
-        try {
-            maestro.takeScreenshot(fileSink, false)
-        } catch (e: Exception) {
-            // Delete the file in case there was an error
-            if (absoluteFile.exists()) {
-                absoluteFile.delete()
-            }
-            val status = Status.fromThrowable(e)
-            throw MaestroException.TakeScreenshotFailure(
-                status.description ?: e.message ?: "Failed to take screenshot", e.cause
-            )
-        }
+        
+        maestro.takeScreenshot(fileSink, false)
 
         return false
     }

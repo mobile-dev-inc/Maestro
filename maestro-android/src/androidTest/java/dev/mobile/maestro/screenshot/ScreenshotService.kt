@@ -35,7 +35,6 @@ class ScreenshotService() {
         format: Bitmap.CompressFormat,
         quality: Int = 100,
     ): ByteString {
-        validateBitmap(bitmap)
         validateQuality(format, quality)
 
         val outputStream = ByteArrayOutputStream()
@@ -43,28 +42,24 @@ class ScreenshotService() {
             bitmap.compress(format, quality, outputStream)
         } catch (t: Throwable) {
             throw ScreenshotException(
-                message = "Bitmap compression failed (${format.name})",
+                message = "Bitmap compression failed: format=${format.name}, width=${bitmap.width}, height=${bitmap.height}, config=${bitmap.config}",
                 cause = t
             )
         }
 
         if (!ok) {
-            throw ScreenshotException(message = "Failed to compress bitmap (${format.name})")
+            throw ScreenshotException(
+                message = "Bitmap.compress returned false: format=${format.name}, quality=$quality, width=${bitmap.width}, height=${bitmap.height}, config=${bitmap.config}"
+            )
         }
 
         val bytes = outputStream.toByteArray()
         if (bytes.isEmpty()) {
             throw ScreenshotException(
-                message = "Bitmap compressed but produced empty output (${format.name})"
+                message = "Bitmap compressed but produced empty output: format=${format.name}, quality=$quality, width=${bitmap.width}, height=${bitmap.height}, config=${bitmap.config}"
             )
         }
         return ByteString.copyFrom(bytes)
-    }
-
-    private fun validateBitmap(bitmap: Bitmap) {
-        if (bitmap.isRecycled) {
-            throw ScreenshotException(message = "Bitmap is recycled and cannot be compressed")
-        }
     }
 
     private fun validateQuality(format: Bitmap.CompressFormat, quality: Int) {
