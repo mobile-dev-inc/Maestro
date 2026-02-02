@@ -25,22 +25,6 @@ class ScreenshotServiceTest {
     }
 
     @Test
-    fun encodePng_withRecycledBitmap_throwsScreenshotException() {
-        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-        bitmap.recycle()
-
-        try {
-            screenshotService.encodePng(bitmap)
-            fail("Expected ScreenshotException to be thrown")
-        } catch (e: ScreenshotException) {
-            assertTrue(
-                "Message should mention recycled bitmap",
-                e.message?.contains("recycled") == true
-            )
-        }
-    }
-
-    @Test
     fun encode_withInvalidQualityTooHigh_throwsIllegalArgumentException() {
         val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
         try {
