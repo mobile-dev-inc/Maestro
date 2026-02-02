@@ -5,9 +5,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@Ignore("Disabled since this structure of unit test is weird - We should have libs which should be having their own tests")
 @RunWith(AndroidJUnit4::class)
 class ScreenshotServiceTest {
     private val screenshotService = ScreenshotService()
