@@ -1276,12 +1276,8 @@ class AndroidDriver(
                         throw throwable
                     }
                 }
-                Status.Code.INTERNAL -> {
-                    LOGGER.error("Device call failed: ${status.description ?: throwable.message}", throwable)
-                    throw throwable
-                }
                 else -> {
-                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} while doing android device call", throwable)
+                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} and cause ${throwable.cause} while doing android device call", throwable)
                     throw throwable
                 }
             }
