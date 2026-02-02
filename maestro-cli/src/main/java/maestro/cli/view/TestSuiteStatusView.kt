@@ -13,7 +13,18 @@ import kotlin.time.Duration.Companion.seconds
 
 object TestSuiteStatusView {
 
+    fun showShardStatus(statusLine: String) {
+        // Clear the current line and print the status
+        print("\r\u001B[K") // Clear line
+        print(Ansi.ansi().fgBrightBlack().render(statusLine).fgDefault())
+        println()
+    }
+
     fun showFlowCompletion(result: FlowResult) {
+        // Show elapsed time if available
+        val elapsedTimePrefix = result.elapsedTime?.let { "[$it] " } ?: ""
+        print(Ansi.ansi().fgBrightBlack().render(elapsedTimePrefix).fgDefault())
+
         val shardPrefix = result.shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
         print(Ansi.ansi().fgCyan().render(shardPrefix).fgDefault())
 
@@ -21,16 +32,21 @@ object TestSuiteStatusView {
 
         val durationString = result.duration?.let { " ($it)" }.orEmpty()
         print(" ${result.name}$durationString")
-
-        if (result.status == FlowStatus.ERROR && result.error != null) {
-            val error = " (${result.error})"
-            print(Ansi.ansi().fgRed().render(error).fgDefault())
-        }
-        else if (result.status == FlowStatus.WARNING) {
-            val warning = " (Warning)"
-            print(Ansi.ansi().fgYellow().render(warning).fgDefault())
-        }
         println()
+
+        // Print error/warning message on a new line for better readability
+        if (result.status == FlowStatus.ERROR && result.error != null) {
+            val indent = "  " // Indent the error message
+            print(indent)
+            print(Ansi.ansi().fgRed().render("↳ ${result.error}").fgDefault())
+            println()
+        }
+        else if (result.status == FlowStatus.WARNING && result.error != null) {
+            val indent = "  " // Indent the warning message
+            print(indent)
+            print(Ansi.ansi().fgYellow().render("↳ ${result.error}").fgDefault())
+            println()
+        }
     }
 
     fun showSuiteResult(
@@ -85,15 +101,15 @@ object TestSuiteStatusView {
 
     private fun printStatus(status: FlowStatus, cancellationReason: UploadStatus.CancellationReason?) {
         val color = when (status) {
-            FlowStatus.SUCCESS,
-            FlowStatus.WARNING -> Ansi.Color.GREEN
+            FlowStatus.SUCCESS -> Ansi.Color.GREEN
+            FlowStatus.WARNING -> Ansi.Color.YELLOW
             FlowStatus.ERROR -> Ansi.Color.RED
             FlowStatus.STOPPED -> Ansi.Color.RED
             else -> Ansi.Color.DEFAULT
         }
         val title = when (status) {
-            FlowStatus.SUCCESS,
-            FlowStatus.WARNING -> "Passed"
+            FlowStatus.SUCCESS -> "Passed"
+            FlowStatus.WARNING -> "Failed"
             FlowStatus.ERROR -> "Failed"
             FlowStatus.PENDING -> "Pending"
             FlowStatus.RUNNING -> "Running"
@@ -147,7 +163,8 @@ object TestSuiteStatusView {
             val duration: Duration? = null,
             val error: String? = null,
             val shardIndex: Int? = null,
-            val cancellationReason: UploadStatus.CancellationReason? = null
+            val cancellationReason: UploadStatus.CancellationReason? = null,
+            val elapsedTime: String? = null
         )
 
         data class UploadDetails(

@@ -67,27 +67,25 @@ class AndroidDriver(
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
-    private var portForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
+    // Track the actual port used (might differ from hostPort if there's a conflict)
+    private var actualPort: Int = hostPort ?: DefaultDriverHostPort
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
-    private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
-        .usePlaintext()
-        .keepAliveTime(2, TimeUnit.MINUTES)
-        .keepAliveTimeout(20, TimeUnit.SECONDS)
-        .keepAliveWithoutCalls(true)
-        .build()
-    private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
+    // Initialize channel lazily after we know the actual port
+    private lateinit var channel: io.grpc.ManagedChannel
+    private val blockingStub get() = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
-    private val asyncStub = MaestroDriverGrpc.newStub(channel)
+    private val asyncStub get() = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
     private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
 
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
+    private var closed = false
 
     private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
@@ -97,9 +95,20 @@ class AndroidDriver(
     }
 
     override fun open() {
+        // Allocate port forwarder first
         allocateForwarder()
+        
+        // Get the actual port used (might have been changed during allocation)
+        actualPort = PORT_TO_FORWARDER.entries.find { it.value is AutoCloseable }?.key ?: hostPort
+        
+        // Initialize the channel with the actual port
+        channel = ManagedChannelBuilder.forAddress("localhost", actualPort)
+            .usePlaintext()
+            .build()
+        
+        // Install APKs and start instrumentation using the actual allocated port
         installMaestroApks()
-        startInstrumentationSession(hostPort)
+        startInstrumentationSession(actualPort)
 
         try {
             awaitLaunch()
@@ -146,12 +155,65 @@ class AndroidDriver(
 
 
     private fun allocateForwarder() {
-        portForwarder?.close()
+        // Close existing forwarder on this port if it exists
+        PORT_TO_FORWARDER[hostPort]?.close()
 
-        portForwarder = dadb.tcpForward(
-            hostPort,
-            hostPort
-        )
+        // Try to find an available port, starting with the preferred hostPort
+        val portToUse = findAvailablePort(hostPort)
+
+        if (portToUse != hostPort) {
+            LOGGER.info("Original port $hostPort was unavailable, using port $portToUse instead")
+        }
+
+        try {
+            PORT_TO_FORWARDER[portToUse] = dadb.tcpForward(
+                portToUse,
+                portToUse
+            )
+            PORT_TO_ALLOCATION_POINT[portToUse] = Exception().stackTraceToString()
+        } catch (e: Exception) {
+            LOGGER.error("Failed to allocate forwarder on port $portToUse: ${e.message}")
+            throw e
+        }
+    }
+
+    /**
+     * Attempts to find an available port, starting with the preferred port.
+     * If that port is unavailable, tries ports in the range 7001-7128.
+     *
+     * @param preferredPort The port to try first
+     * @return An available port or the original port if no alternatives found
+     */
+    private fun findAvailablePort(preferredPort: Int): Int {
+        // First try the preferred port
+        try {
+            // Quick check if we can bind to this port
+            val socket = java.net.ServerSocket(preferredPort)
+            socket.close()
+            return preferredPort
+        } catch (e: Exception) {
+            LOGGER.warn("Port $preferredPort is already in use, looking for alternative port")
+        }
+
+        // Try alternative ports in the range
+        for (port in (7001..7128).shuffled()) {
+            // Don't try the original port again
+            if (port == preferredPort) continue
+
+            try {
+                val socket = java.net.ServerSocket(port)
+                socket.close()
+                return port
+            } catch (e: Exception) {
+                // Port is in use, try next one
+                continue
+            }
+        }
+
+        // If we couldn't find an available port, return the original and let the
+        // operation fail, which will give a more descriptive error
+        LOGGER.warn("Could not find an available port in range 7001-7128, will try with original port $preferredPort")
+        return preferredPort
     }
 
     private fun awaitLaunch() {
@@ -159,13 +221,13 @@ class AndroidDriver(
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             runCatching {
-                dadb.open("tcp:$hostPort").close()
+                dadb.open("tcp:$actualPort").close()
                 return
             }
             Thread.sleep(100)
         }
 
-        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time  ---  emulator [ ${emulatorName} ] & port  [ dadb.open( tcp:${hostPort} ) ]")
+        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time  ---  emulator [ ${emulatorName} ] & port  [ dadb.open( tcp:${actualPort} ) ]")
     }
 
     override fun close() {
@@ -178,8 +240,17 @@ class AndroidDriver(
         }
 
         LOGGER.info("[Start] close port forwarder")
-        portForwarder?.close()
+        PORT_TO_FORWARDER[actualPort]?.close()
         LOGGER.info("[Done] close port forwarder")
+
+        LOGGER.info("[Start] Remove host port from port forwarder map")
+        PORT_TO_FORWARDER.remove(actualPort)
+        LOGGER.info("[Done] Remove host port from port forwarder map")
+
+        LOGGER.info("[Start] Remove host port from port to allocation map")
+        PORT_TO_ALLOCATION_POINT.remove(actualPort)
+        LOGGER.info("[Done] Remove host port from port to allocation map")
+
 
         LOGGER.info("[Start] Uninstall driver from device")
         if (reinstallDriver) {
@@ -207,6 +278,10 @@ class AndroidDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
+        if (!open) {
+            LOGGER.info("AndroidDriver.deviceInfo() called, but driver is not open. Calling open() first.")
+            open()
+        }
         return runDeviceCall {
             val response = blockingStubWithTimeout.deviceInfo(deviceInfoRequest {})
 
@@ -1296,6 +1371,8 @@ class AndroidDriver(
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
+        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
+        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }
