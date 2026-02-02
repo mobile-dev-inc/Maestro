@@ -7,8 +7,12 @@ import maestro.utils.chunkStringByWordCount
 
 class PlainTextResultView: ResultView {
 
-    private var currentStep = 0
-    private var renderStepCount = 0
+    private val printedStartItems = mutableSetOf<String>()
+    private val printedCompleteItems = mutableSetOf<String>()
+    private var devicePrinted = false
+    private var flowNamePrinted: String? = null
+    private var onFlowStartPrinted = false
+    private var onFlowCompletePrinted = false
 
     override fun setState(state: UiState) {
         when (state) {
@@ -22,106 +26,109 @@ class PlainTextResultView: ResultView {
     }
 
     private fun renderRunningState(state: UiState.Running) {
-        renderStepCount = 0
         renderRunningStatePlainText(state)
     }
 
-    private fun shouldPrintStep(): Boolean {
-        if (currentStep == renderStepCount) {
-            renderStepCount++
-            currentStep++
-            return true
-        }
-        renderStepCount++
-        return false
-    }
-
-    private fun registerStep(count: Int = 1) {
-        renderStepCount += count
-    }
-
     private fun renderRunningStatePlainText(state: UiState.Running) {
-        if (shouldPrintStep()) {
+        if (!devicePrinted) {
             state.device?.let {
                 println("Running on ${state.device.description}")
+                devicePrinted = true
             }
         }
 
         if (state.onFlowStartCommands.isNotEmpty()) {
-            if (shouldPrintStep()) {
+            if (!onFlowStartPrinted) {
                 println("  > On Flow Start")
+                onFlowStartPrinted = true
             }
-
-            renderCommandsPlainText(state.onFlowStartCommands)
+            renderCommandsPlainText(state.onFlowStartCommands, prefix = "onFlowStart")
         }
 
-        if (shouldPrintStep()) {
+        if (flowNamePrinted != state.flowName) {
             println(" > Flow ${state.flowName}")
+            flowNamePrinted = state.flowName
         }
 
-        renderCommandsPlainText(state.commands)
+        renderCommandsPlainText(state.commands, prefix = "main")
 
         if (state.onFlowCompleteCommands.isNotEmpty()) {
-            if (shouldPrintStep()) {
+            if (!onFlowCompletePrinted) {
                 println("  > On Flow Complete")
+                onFlowCompletePrinted = true
             }
-
-            renderCommandsPlainText(state.onFlowCompleteCommands)
+            renderCommandsPlainText(state.onFlowCompleteCommands, prefix = "onFlowComplete")
         }
     }
 
-    private fun renderCommandsPlainText(commands: List<CommandState>, indent: Int = 0) {
-        for (command in commands) {
-            renderCommandPlainText(command, indent)
+    private fun renderCommandsPlainText(commands: List<CommandState>, indent: Int = 0, prefix: String = "") {
+        for ((index, command) in commands.withIndex()) {
+            renderCommandPlainText(command, indent, "$prefix:$index")
         }
     }
 
-    private fun renderCommandPlainText(command: CommandState, indent: Int) {
+    private fun renderCommandPlainText(command: CommandState, indent: Int, commandKey: String) {
         val c = command.command.asCommand()
         if (c?.visible() == false) { return }
 
-        if (command.subCommands != null) {
+        val description = c?.description() ?: "Unknown command"
+        val startKey = "$commandKey:$description:start"
+        val completeKey = "$commandKey:$description:complete"
 
-            if (shouldPrintStep()) {
-                println("  ".repeat(indent) + "${c?.description()}...")
+        if (command.subCommands != null) {
+            // Command with subCommands
+            if (startKey !in printedStartItems && command.status != CommandStatus.PENDING) {
+                println("  ".repeat(indent) + "$description...")
+                printedStartItems.add(startKey)
             }
 
             if (command.subOnStartCommands != null) {
-                if (shouldPrintStep()) {
-                    println("  > On Flow Start")
+                val onStartKey = "$commandKey:onStart"
+                if (onStartKey !in printedStartItems) {
+                    println("  ".repeat(indent + 1) + "> On Flow Start")
+                    printedStartItems.add(onStartKey)
                 }
-                renderCommandsPlainText(command.subOnStartCommands, indent = indent + 1)
+                renderCommandsPlainText(command.subOnStartCommands, indent = indent + 1, prefix = "$commandKey:subOnStart")
             }
 
-            renderCommandsPlainText(command.subCommands, indent = indent + 1)
+            renderCommandsPlainText(command.subCommands, indent = indent + 1, prefix = "$commandKey:sub")
 
             if (command.subOnCompleteCommands != null) {
-                if (shouldPrintStep()) {
-                    println("  > On Flow Complete")
+                val onCompleteKey = "$commandKey:onComplete"
+                if (onCompleteKey !in printedStartItems) {
+                    println("  ".repeat(indent + 1) + "> On Flow Complete")
+                    printedStartItems.add(onCompleteKey)
                 }
-                renderCommandsPlainText(command.subOnCompleteCommands, indent = indent + 1)
+                renderCommandsPlainText(command.subOnCompleteCommands, indent = indent + 1, prefix = "$commandKey:subOnComplete")
             }
 
-            if (shouldPrintStep()) {
-                println("  ".repeat(indent) + "${c?.description()}... " + status(command.status))
+            if (completeKey !in printedCompleteItems && command.status in setOf(CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED)) {
+                println("  ".repeat(indent) + "$description... " + status(command.status))
+                printedCompleteItems.add(completeKey)
             }
         } else {
+            // Simple command without subCommands
             when (command.status) {
                 CommandStatus.PENDING -> {
-                    registerStep(2)
+                    // Don't print pending commands
                 }
 
                 CommandStatus.RUNNING -> {
-                    if (shouldPrintStep()) {
-                        print("  ".repeat(indent) + "${c?.description()}...")
+                    if (startKey !in printedStartItems) {
+                        print("  ".repeat(indent) + "$description...")
+                        printedStartItems.add(startKey)
                     }
                 }
 
                 CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED -> {
-                    registerStep()
-                    if (shouldPrintStep()) {
+                    if (startKey !in printedStartItems) {
+                        print("  ".repeat(indent) + "$description...")
+                        printedStartItems.add(startKey)
+                    }
+                    if (completeKey !in printedCompleteItems) {
                         println(" " + status(command.status))
                         renderInsight(command.insight, indent + 1)
+                        printedCompleteItems.add(completeKey)
                     }
                 }
             }
