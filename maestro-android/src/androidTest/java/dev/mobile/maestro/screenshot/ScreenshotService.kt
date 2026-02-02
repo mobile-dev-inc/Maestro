@@ -5,29 +5,12 @@ import com.google.protobuf.ByteString
 import java.io.ByteArrayOutputStream
 
 /**
- * Categorised failures during screenshot encoding.
+ * Thrown when screenshot encoding fails (e.g. [Bitmap.compress] throws or returns false).
  */
-sealed class ScreenshotException(
+class ScreenshotException(
     message: String,
     cause: Throwable? = null
-) : Exception(message, cause) {
-
-    /** [Bitmap.compress] threw an exception. */
-    data class CompressCrashed(
-        override val message: String,
-        override val cause: Throwable? = null
-    ) : ScreenshotException(message, cause)
-
-    /** [Bitmap.compress] returned false. */
-    data class CompressFailed(
-        override val message: String
-    ) : ScreenshotException(message)
-
-    /** Compression produced no bytes. */
-    data class EmptyOutput(
-        override val message: String
-    ) : ScreenshotException(message)
-}
+) : Exception(message, cause)
 
 /**
  * Encodes screenshots to PNG (or other formats) with validation and size limits.
@@ -59,21 +42,19 @@ class ScreenshotService() {
         val ok = try {
             bitmap.compress(format, quality, outputStream)
         } catch (t: Throwable) {
-            throw ScreenshotException.CompressCrashed(
-                message = "Bitmap compression crashed (${format.name})",
+            throw ScreenshotException(
+                message = "Bitmap compression failed (${format.name})",
                 cause = t
             )
         }
 
         if (!ok) {
-            throw ScreenshotException.CompressFailed(
-                message = "Failed to compress bitmap (${format.name})"
-            )
+            throw ScreenshotException(message = "Failed to compress bitmap (${format.name})")
         }
 
         val bytes = outputStream.toByteArray()
         if (bytes.isEmpty()) {
-            throw ScreenshotException.EmptyOutput(
+            throw ScreenshotException(
                 message = "Bitmap compressed but produced empty output (${format.name})"
             )
         }
@@ -82,9 +63,7 @@ class ScreenshotService() {
 
     private fun validateBitmap(bitmap: Bitmap) {
         if (bitmap.isRecycled) {
-            throw ScreenshotException.CompressFailed(
-                message = "Bitmap is recycled and cannot be compressed"
-            )
+            throw ScreenshotException(message = "Bitmap is recycled and cannot be compressed")
         }
     }
 
