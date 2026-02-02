@@ -27,13 +27,6 @@ sealed class ScreenshotException(
     data class EmptyOutput(
         override val message: String
     ) : ScreenshotException(message)
-
-    /** Encoded size exceeded [ScreenshotService.maxEncodedBytes]. */
-    data class OutputTooLarge(
-        override val message: String,
-        val sizeBytes: Int,
-        val limitBytes: Int
-    ) : ScreenshotException(message)
 }
 
 /**
