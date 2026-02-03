@@ -781,6 +781,31 @@ internal class YamlCommandReaderTest {
     }
 
 
+    /**
+     * Verifies that nested runFlow with relative paths produces normalized media paths.
+     *
+     * Workspace structure (031_nested_path_normalization/):
+     *   tests/freemium/main.yaml  ->  runFlow: ../../setup/startup.yaml
+     *   setup/startup.yaml        ->  onFlowStart: addMedia: ../media/image.png
+     *   media/image.png
+     *
+     * Without normalize(), the media path accumulates redundant segments:
+     *   tests/freemium/../../setup/../media/image.png
+     * With normalize(), it becomes a clean path ending in media/image.png
+     */
+    @Test
+    fun nestedRunFlowPathsAreNormalized(
+        @YamlFile("031_nested_path_normalization/tests/freemium/main.yaml") commands: List<Command>,
+    ) {
+        val runFlowCommand = commands[1] as RunFlowCommand
+        val onFlowStartCommands = runFlowCommand.config!!.onFlowStart!!.commands
+        val addMediaCommand = onFlowStartCommands[0].addMediaCommand!!
+
+        val expectedPath = Paths.get("build/resources/test/YamlCommandReaderTest/031_nested_path_normalization/media/image.png")
+            .toAbsolutePath().toString()
+        assertThat(addMediaCommand.mediaPaths.first()).isEqualTo(expectedPath)
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }

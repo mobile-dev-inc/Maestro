@@ -495,8 +495,10 @@ data class YamlFluentCommand(
             val resolvedPath = if (path.isAbsolute) {
                 path
             } else {
-                flowPath.resolveSibling(path).toAbsolutePath()
+                // normalize() resolves redundant /../ segments that accumulate from nested runFlow references
+                flowPath.resolveSibling(path).toAbsolutePath().normalize()
             }
+
             if (!resolvedPath.exists()) {
                 throw MediaFileNotFound("Media file at $path in flow file: $flowPath not found", path)
             }
@@ -683,7 +685,8 @@ data class YamlFluentCommand(
         val resolvedPath = if (path.isAbsolute) {
             path
         } else {
-            flowPath.resolveSibling(path).toAbsolutePath()
+            // normalize() resolves redundant /../ segments that accumulate from nested runFlow references
+            flowPath.resolveSibling(path).toAbsolutePath().normalize()
         }
         if (resolvedPath.equals(flowPath.toAbsolutePath())) {
             throw InvalidFlowFile(

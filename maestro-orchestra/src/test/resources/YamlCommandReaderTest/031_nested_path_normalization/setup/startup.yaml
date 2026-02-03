@@ -1,0 +1,6 @@
+appId: com.example.app
+onFlowStart:
+  - addMedia:
+      - ../media/image.png
+---
+- launchApp
