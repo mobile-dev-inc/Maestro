@@ -28,17 +28,17 @@ final class SystemPermissionHelper {
         switch notificationsPermission.value {
         case .allow:
             // Find Allow button - typically has label "Allow"
-            if let allowButton = buttons.first(where: { $0.label.lowercased() == "allow" }) {
+            if let allowButton = buttons.first(where: { $0.label.lowercased() == "allow" || $0.label.lowercased() == "continue" }) {
                 tapAtCenter(of: allowButton.frame, in: foregroundApp)
-            } else if buttons.count >= 2 {
+            } else {
                 // Fallback: Allow is typically the second button (index 1)
                 tapAtCenter(of: buttons[1].frame, in: foregroundApp)
             }
         case .deny:
             // Find Don't Allow button - typically has label containing "Don't Allow"
-            if let denyButton = buttons.first(where: { $0.label.lowercased().contains("don't allow") || $0.label.lowercased().contains("dont allow") }) {
+            if let denyButton = buttons.first(where: { $0.label.lowercased().contains("don't allow") || $0.label.lowercased() == "cancel" }) {
                 tapAtCenter(of: denyButton.frame, in: foregroundApp)
-            } else if buttons.count >= 1 {
+            } else {
                 // Fallback: Don't Allow is typically the first button (index 0)
                 tapAtCenter(of: buttons[0].frame, in: foregroundApp)
             }
@@ -74,9 +74,26 @@ final class SystemPermissionHelper {
         let y = (frame["Y"] ?? 0) + (frame["Height"] ?? 0) / 2
 
         NSLog("Tapping at coordinates: (\(x), \(y))")
+        
+        let (width, height) = ScreenSizeHelper.physicalScreenSize()
+        let point = ScreenSizeHelper.orientationAwarePoint(
+            width: width,
+            height: height,
+            point: CGPoint(x: CGFloat(x), y: CGFloat(y))
+        )
 
-        let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-            .withOffset(CGVector(dx: x, dy: y))
-        coordinate.tap()
+        let eventRecord = EventRecord(orientation: .portrait)
+        _ = eventRecord.addPointerTouchEvent(
+            at: point,
+            touchUpAfter: nil
+        )
+
+        Task {
+            do {
+                try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+            } catch {
+                NSLog("Error tapping permission button: \(error)")
+            }
+        }
     }
 }
