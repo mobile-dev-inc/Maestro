@@ -341,6 +341,9 @@ class Service(
         } catch (e: ScreenshotException) {
             Log.e(TAG, "Screenshot encoding failed with ${e.message}" , e)
             responseObserver.onError(e.internalError())
+        } catch (e: Exception) {
+            Log.e(TAG, "Screenshot encoding failed with unknown exception ${e.message}" , e)
+            responseObserver.onError(e.internalError())
         }
     }
 
