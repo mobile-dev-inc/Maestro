@@ -26,6 +26,7 @@ import maestro.ElementFilter
 import maestro.Filters
 import com.github.romankh3.image.comparison.ImageComparison
 import com.github.romankh3.image.comparison.model.ImageComparisonState
+import io.grpc.Status
 import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
