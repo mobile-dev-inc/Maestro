@@ -102,9 +102,9 @@ class LocalIOSDevice(
 
     override fun launch(
         id: String,
-        launchArguments: Map<String, Any>,
+        launchArguments: Map<String, Any>
     ) {
-        deviceController.launch(id, launchArguments)
+        xcTestDevice.launch(id, launchArguments)
     }
 
     override fun stop(id: String) {

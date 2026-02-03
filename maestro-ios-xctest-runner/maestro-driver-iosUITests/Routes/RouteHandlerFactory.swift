@@ -39,7 +39,7 @@ class RouteHandlerFactory {
         case .terminateApp:
             return TerminateAppHandler()
         case .launchApp:
-             return LaunchAppHandler()
+            return LaunchAppHandler()
         }
     }
 }
