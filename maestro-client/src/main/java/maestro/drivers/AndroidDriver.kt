@@ -432,9 +432,6 @@ class AndroidDriver(
 
     override fun drag(start: Point, end: Point, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "drag")) {
-            // UIAutomator drag uses steps instead of duration
-            // A typical value is duration / 5 ms per step
-            val steps = (durationMs / 5).coerceIn(1, 1000).toInt()
             dadb.shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
         }
     }
