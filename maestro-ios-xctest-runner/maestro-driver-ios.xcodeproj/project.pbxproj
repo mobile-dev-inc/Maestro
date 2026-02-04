@@ -7,6 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BBBB00012DF24A0000000001 /* AXElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00112DF24A0000000011 /* AXElement.swift */; };
+		BBBB00022DF24A0000000002 /* AXFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00122DF24A0000000012 /* AXFrame.swift */; };
+		BBBB00032DF24A0000000003 /* ElementType.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00132DF24A0000000013 /* ElementType.swift */; };
+		BBBB00042DF24A0000000004 /* PermissionValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00142DF24A0000000014 /* PermissionValue.swift */; };
+		BBBB00052DF24A0000000005 /* PermissionButtonFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */; };
+		BBBB00062DF24A0000000006 /* MaestroDriverLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */; };
+		BBBB00072DF24A0000000007 /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
+		BBBB00082DF24A0000000008 /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
+		BBBB00092DF24A0000000009 /* MaestroDriverLib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BBBB000A2DF24A000000000A /* PermissionButtonFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */; };
+		BBBB000B2DF24A000000000B /* AXElementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00182DF24A0000000018 /* AXElementTests.swift */; };
+		BBBB000C2DF24A000000000C /* AXFrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00192DF24A0000000019 /* AXFrameTests.swift */; };
 		320979632970925500340282 /* InputTextRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320979622970925500340282 /* InputTextRouteHandler.swift */; };
 		32097965297092A800340282 /* InputTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32097964297092A800340282 /* InputTextRequest.swift */; };
 		32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
@@ -106,9 +118,49 @@
 			remoteGlobalIDString = 52049BD22935039F00807AA3;
 			remoteInfo = "maestro-driver-ios";
 		};
+		BBBB00812DF24A0000000081 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 52049BCB2935039F00807AA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BBBB00A02DF24A00000000A0;
+			remoteInfo = MaestroDriverLib;
+		};
+		BBBB00832DF24A0000000083 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 52049BCB2935039F00807AA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BBBB00A02DF24A00000000A0;
+			remoteInfo = MaestroDriverLib;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		BBBB00302DF24A0000000030 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				BBBB00092DF24A0000000009 /* MaestroDriverLib.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		BBBB00112DF24A0000000011 /* AXElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElement.swift; sourceTree = "<group>"; };
+		BBBB00122DF24A0000000012 /* AXFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXFrame.swift; sourceTree = "<group>"; };
+		BBBB00132DF24A0000000013 /* ElementType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementType.swift; sourceTree = "<group>"; };
+		BBBB00142DF24A0000000014 /* PermissionValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionValue.swift; sourceTree = "<group>"; };
+		BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionButtonFinder.swift; sourceTree = "<group>"; };
+		BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaestroDriverLib.swift; sourceTree = "<group>"; };
+		BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionButtonFinderTests.swift; sourceTree = "<group>"; };
+		BBBB00182DF24A0000000018 /* AXElementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElementTests.swift; sourceTree = "<group>"; };
+		BBBB00192DF24A0000000019 /* AXFrameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXFrameTests.swift; sourceTree = "<group>"; };
+		BBBB001A2DF24A000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MaestroDriverLib.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		BBBB00212DF24A0000000021 /* MaestroDriverLibTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaestroDriverLibTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		320979622970925500340282 /* InputTextRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRouteHandler.swift; sourceTree = "<group>"; };
 		32097964297092A800340282 /* InputTextRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRequest.swift; sourceTree = "<group>"; };
 		32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandler.swift; sourceTree = "<group>"; };
@@ -310,6 +362,22 @@
 			files = (
 				612DE40229801F71003C2BE0 /* XCTest.framework in Frameworks */,
 				5279BFD62935ECE20056C609 /* FlyingFox in Frameworks */,
+				BBBB00082DF24A0000000008 /* MaestroDriverLib.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BBBB00602DF24A0000000060 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BBBB00612DF24A0000000061 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BBBB00072DF24A0000000007 /* MaestroDriverLib.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -321,6 +389,8 @@
 			children = (
 				52049BD52935039F00807AA3 /* maestro-driver-ios */,
 				52049BF6293503A200807AA3 /* maestro-driver-iosUITests */,
+				BBBB00402DF24A0000000040 /* MaestroDriverLib */,
+				BBBB00502DF24A0000000050 /* MaestroDriverLibTests */,
 				52049BD42935039F00807AA3 /* Products */,
 				5279BFD42935ECE20056C609 /* Frameworks */,
 			);
@@ -331,8 +401,58 @@
 			children = (
 				52049BD32935039F00807AA3 /* maestro-driver-ios.app */,
 				52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */,
+				BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */,
+				BBBB00212DF24A0000000021 /* MaestroDriverLibTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BBBB00402DF24A0000000040 /* MaestroDriverLib */ = {
+			isa = PBXGroup;
+			children = (
+				BBBB00412DF24A0000000041 /* Sources */,
+				BBBB001A2DF24A000000001A /* Info.plist */,
+			);
+			path = "MaestroDriverLib";
+			sourceTree = "<group>";
+		};
+		BBBB00412DF24A0000000041 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				BBBB00422DF24A0000000042 /* Models */,
+				BBBB00432DF24A0000000043 /* Helpers */,
+				BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */,
+			);
+			path = "Sources/MaestroDriverLib";
+			sourceTree = "<group>";
+		};
+		BBBB00422DF24A0000000042 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				BBBB00112DF24A0000000011 /* AXElement.swift */,
+				BBBB00122DF24A0000000012 /* AXFrame.swift */,
+				BBBB00132DF24A0000000013 /* ElementType.swift */,
+				BBBB00142DF24A0000000014 /* PermissionValue.swift */,
+			);
+			path = "Models";
+			sourceTree = "<group>";
+		};
+		BBBB00432DF24A0000000043 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */,
+			);
+			path = "Helpers";
+			sourceTree = "<group>";
+		};
+		BBBB00502DF24A0000000050 /* MaestroDriverLibTests */ = {
+			isa = PBXGroup;
+			children = (
+				BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */,
+				BBBB00182DF24A0000000018 /* AXElementTests.swift */,
+				BBBB00192DF24A0000000019 /* AXFrameTests.swift */,
+			);
+			path = "MaestroDriverLib/Tests/MaestroDriverLibTests";
 			sourceTree = "<group>";
 		};
 		52049BD52935039F00807AA3 /* maestro-driver-ios */ = {
@@ -678,11 +798,13 @@
 				52049BEF293503A200807AA3 /* Sources */,
 				52049BF0293503A200807AA3 /* Frameworks */,
 				52049BF1293503A200807AA3 /* Resources */,
+				BBBB00302DF24A0000000030 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				52049BF5293503A200807AA3 /* PBXTargetDependency */,
+				BBBB00802DF24A0000000080 /* PBXTargetDependency */,
 			);
 			name = "maestro-driver-iosUITests";
 			packageProductDependencies = (
@@ -691,6 +813,39 @@
 			productName = "maestro-driver-iosUITests";
 			productReference = 52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		BBBB00A02DF24A00000000A0 /* MaestroDriverLib */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BBBB00B02DF24A00000000B0 /* Build configuration list for PBXNativeTarget "MaestroDriverLib" */;
+			buildPhases = (
+				BBBB00702DF24A0000000070 /* Sources */,
+				BBBB00602DF24A0000000060 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MaestroDriverLib;
+			productName = MaestroDriverLib;
+			productReference = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		BBBB00A12DF24A00000000A1 /* MaestroDriverLibTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BBBB00B12DF24A00000000B1 /* Build configuration list for PBXNativeTarget "MaestroDriverLibTests" */;
+			buildPhases = (
+				BBBB00712DF24A0000000071 /* Sources */,
+				BBBB00612DF24A0000000061 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BBBB00822DF24A0000000082 /* PBXTargetDependency */,
+			);
+			name = MaestroDriverLibTests;
+			productName = MaestroDriverLibTests;
+			productReference = BBBB00212DF24A0000000021 /* MaestroDriverLibTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -709,6 +864,13 @@
 						CreatedOnToolsVersion = 13.4.1;
 						LastSwiftMigration = 1620;
 						TestTargetID = 52049BD22935039F00807AA3;
+					};
+					BBBB00A02DF24A00000000A0 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					BBBB00A12DF24A00000000A1 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = BBBB00A02DF24A00000000A0;
 					};
 				};
 			};
@@ -730,6 +892,8 @@
 			targets = (
 				52049BD22935039F00807AA3 /* maestro-driver-ios */,
 				52049BF2293503A200807AA3 /* maestro-driver-iosUITests */,
+				BBBB00A02DF24A00000000A0 /* MaestroDriverLib */,
+				BBBB00A12DF24A00000000A1 /* MaestroDriverLibTests */,
 			);
 		};
 /* End PBXProject section */
@@ -834,6 +998,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BBBB00702DF24A0000000070 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BBBB00012DF24A0000000001 /* AXElement.swift in Sources */,
+				BBBB00022DF24A0000000002 /* AXFrame.swift in Sources */,
+				BBBB00032DF24A0000000003 /* ElementType.swift in Sources */,
+				BBBB00042DF24A0000000004 /* PermissionValue.swift in Sources */,
+				BBBB00052DF24A0000000005 /* PermissionButtonFinder.swift in Sources */,
+				BBBB00062DF24A0000000006 /* MaestroDriverLib.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BBBB00712DF24A0000000071 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BBBB000A2DF24A000000000A /* PermissionButtonFinderTests.swift in Sources */,
+				BBBB000B2DF24A000000000B /* AXElementTests.swift in Sources */,
+				BBBB000C2DF24A000000000C /* AXFrameTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -841,6 +1028,16 @@
 			isa = PBXTargetDependency;
 			target = 52049BD22935039F00807AA3 /* maestro-driver-ios */;
 			targetProxy = 52049BF4293503A200807AA3 /* PBXContainerItemProxy */;
+		};
+		BBBB00802DF24A0000000080 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BBBB00A02DF24A00000000A0 /* MaestroDriverLib */;
+			targetProxy = BBBB00812DF24A0000000081 /* PBXContainerItemProxy */;
+		};
+		BBBB00822DF24A0000000082 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BBBB00A02DF24A00000000A0 /* MaestroDriverLib */;
+			targetProxy = BBBB00832DF24A0000000083 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1086,6 +1283,110 @@
 			};
 			name = Release;
 		};
+		BBBB00C02DF24A00000000C0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MaestroDriverLib/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mobile.MaestroDriverLib;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BBBB00C12DF24A00000000C1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MaestroDriverLib/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mobile.MaestroDriverLib;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BBBB00C22DF24A00000000C2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mobile.MaestroDriverLibTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BBBB00C32DF24A00000000C3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mobile.MaestroDriverLibTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1112,6 +1413,24 @@
 			buildConfigurations = (
 				52049C04293503A200807AA3 /* Debug */,
 				52049C05293503A200807AA3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BBBB00B02DF24A00000000B0 /* Build configuration list for PBXNativeTarget "MaestroDriverLib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBBB00C02DF24A00000000C0 /* Debug */,
+				BBBB00C12DF24A00000000C1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BBBB00B12DF24A00000000B1 /* Build configuration list for PBXNativeTarget "MaestroDriverLibTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBBB00C22DF24A00000000C2 /* Debug */,
+				BBBB00C32DF24A00000000C3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

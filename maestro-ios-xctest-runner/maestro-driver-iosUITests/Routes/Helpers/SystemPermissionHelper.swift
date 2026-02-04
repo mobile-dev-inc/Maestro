@@ -1,6 +1,9 @@
 import XCTest
+import MaestroDriverLib
 
 final class SystemPermissionHelper {
+
+    private static let buttonFinder = PermissionButtonFinder()
 
     static func handleSystemPermissionAlertIfNeeded(appHierarchy: AXElement, foregroundApp: XCUIApplication) {
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
@@ -16,65 +19,35 @@ final class SystemPermissionHelper {
 
         NSLog("[Start] Foreground app is springboard attempting to tap on permissions dialog")
 
-        // Find buttons in the app hierarchy
-        let buttons = findButtons(in: appHierarchy)
-        NSLog("Found \(buttons.count) buttons in hierarchy")
+        // Convert local AXElement to MaestroDriverLib.AXElement
+        let libHierarchy = appHierarchy.toLibraryElement()
 
-        guard buttons.count > 0 else {
+        // Convert local PermissionValue to library PermissionValue
+        let libPermission = notificationsPermission.value.toLibraryPermission()
+
+        // Use the library's button finder
+        let result = buttonFinder.findButtonToTap(for: libPermission, in: libHierarchy)
+
+        switch result {
+        case .found(let frame):
+            NSLog("Found button at frame: \(frame)")
+            tapAtCenter(of: frame, in: foregroundApp)
+        case .noButtonsFound:
             NSLog("No buttons found in hierarchy")
-            return
-        }
-
-        switch notificationsPermission.value {
-        case .allow:
-            // Find Allow button - typically has label "Allow"
-            if let allowButton = buttons.first(where: { $0.label.lowercased() == "allow" || $0.label.lowercased() == "continue" }) {
-                tapAtCenter(of: allowButton.frame, in: foregroundApp)
-            } else {
-                // Fallback: Allow is typically the second button (index 1)
-                tapAtCenter(of: buttons[1].frame, in: foregroundApp)
-            }
-        case .deny:
-            // Find Don't Allow button - typically has label containing "Don't Allow"
-            if let denyButton = buttons.first(where: { $0.label.lowercased().contains("don't allow") || $0.label.lowercased() == "cancel" }) {
-                tapAtCenter(of: denyButton.frame, in: foregroundApp)
-            } else {
-                // Fallback: Don't Allow is typically the first button (index 0)
-                tapAtCenter(of: buttons[0].frame, in: foregroundApp)
-            }
-        case .unset, .unknown:
-            // do nothing
-            break
+        case .noActionRequired:
+            NSLog("No action required for permission value")
         }
 
         NSLog("[Done] Foreground app is springboard attempting to tap on permissions dialog")
     }
 
-    /// Recursively find all button elements in the hierarchy
-    private static func findButtons(in element: AXElement) -> [AXElement] {
-        var buttons: [AXElement] = []
-
-        // XCUIElement.ElementType.button.rawValue == 9
-        if element.elementType == 9 {
-            buttons.append(element)
-        }
-
-        if let children = element.children {
-            for child in children {
-                buttons.append(contentsOf: findButtons(in: child))
-            }
-        }
-
-        return buttons
-    }
-
     /// Tap at the center of an element's frame
-    private static func tapAtCenter(of frame: AXFrame, in app: XCUIApplication) {
-        let x = (frame["X"] ?? 0) + (frame["Width"] ?? 0) / 2
-        let y = (frame["Y"] ?? 0) + (frame["Height"] ?? 0) / 2
+    private static func tapAtCenter(of frame: MaestroDriverLib.AXFrame, in app: XCUIApplication) {
+        let x = frame.centerX
+        let y = frame.centerY
 
         NSLog("Tapping at coordinates: (\(x), \(y))")
-        
+
         let (width, height) = ScreenSizeHelper.physicalScreenSize()
         let point = ScreenSizeHelper.orientationAwarePoint(
             width: width,
@@ -94,6 +67,43 @@ final class SystemPermissionHelper {
             } catch {
                 NSLog("Error tapping permission button: \(error)")
             }
+        }
+    }
+}
+
+// MARK: - Conversion Extensions
+
+extension AXElement {
+    /// Converts the local XCTest-aware AXElement to MaestroDriverLib.AXElement
+    func toLibraryElement() -> MaestroDriverLib.AXElement {
+        MaestroDriverLib.AXElement(
+            identifier: identifier,
+            frame: frame,
+            value: value,
+            title: title,
+            label: label,
+            elementType: elementType,
+            enabled: enabled,
+            horizontalSizeClass: horizontalSizeClass,
+            verticalSizeClass: verticalSizeClass,
+            placeholderValue: placeholderValue,
+            selected: selected,
+            hasFocus: hasFocus,
+            displayID: displayID,
+            windowContextID: windowContextID,
+            children: children?.map { $0.toLibraryElement() }
+        )
+    }
+}
+
+extension PermissionValue {
+    /// Converts the local PermissionValue to MaestroDriverLib.PermissionValue
+    func toLibraryPermission() -> MaestroDriverLib.PermissionValue {
+        switch self {
+        case .allow: return .allow
+        case .deny: return .deny
+        case .unset: return .unset
+        case .unknown: return .unknown
         }
     }
 }
