@@ -1079,6 +1079,21 @@ class AndroidDriver(
                 attributesBuilder["error"] = node.getAttribute("error")
             }
 
+            // Add package attribute for filtering by app, fix current package attribute content is null
+            if (node.hasAttribute("package")) {
+                attributesBuilder["package"] = node.getAttribute("package")
+            }
+
+            // Add long-clickable attribute
+            if (node.hasAttribute("long-clickable")) {
+                attributesBuilder["long-clickable"] = node.getAttribute("long-clickable")
+            }
+
+            // Add focusable attribute
+            if (node.hasAttribute("focusable")) {
+                attributesBuilder["focusable"] = node.getAttribute("focusable")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
