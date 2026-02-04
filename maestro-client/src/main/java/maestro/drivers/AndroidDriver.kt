@@ -430,6 +430,15 @@ class AndroidDriver(
         dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
     }
 
+    override fun drag(start: Point, end: Point, durationMs: Long) {
+        metrics.measured("operation", mapOf("command" to "drag")) {
+            // UIAutomator drag uses steps instead of duration
+            // A typical value is duration / 5 ms per step
+            val steps = (durationMs / 5).coerceIn(1, 1000).toInt()
+            dadb.shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+        }
+    }
+
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "swipeWithDirection", "direction" to swipeDirection.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()

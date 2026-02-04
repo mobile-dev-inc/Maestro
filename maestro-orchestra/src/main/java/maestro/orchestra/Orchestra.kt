@@ -35,6 +35,7 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -297,7 +298,7 @@ class Orchestra(
             jsEngine.close()
         }
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
-                
+
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         jsEngine = if (isRhinoExplicitlyRequested) {
             httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
@@ -345,6 +346,7 @@ class Orchestra(
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
+            is DragCommand -> dragCommand(command)
             is AssertCommand -> assertCommand(command)
             is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
@@ -420,7 +422,7 @@ class Orchestra(
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
-            
+
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state
@@ -601,7 +603,7 @@ class Orchestra(
         comparison.apply {
             allowingPercentOfDifferentPixels = thresholdDifferencePercentage
             rectangleLineWidth = 10
-            pixelToleranceLevel = 0.1 
+            pixelToleranceLevel = 0.1
             minimalRectangleSize = 40
         }
 
@@ -776,8 +778,8 @@ class Orchestra(
                 "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
                 debugMessage = """
                     Instead of hideKeyboard, try tapping on non-interactive element to hide keyboard. Example:
- 
-                    - tapOn: 
+
+                    - tapOn:
                         text: 'Static Text on your screen'
                 """.trimIndent()
             )
@@ -1193,8 +1195,8 @@ class Orchestra(
         // Handle element-relative tap if specified
         val relativePoint = command.relativePoint
         if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
-                  
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
+
             maestro.tap(
                 x = tapPoint.x,
                 y = tapPoint.y,
@@ -1292,7 +1294,7 @@ class Orchestra(
         val (description, filterFunc) = buildFilter(selector = selector)
         val debugMessage = """
             Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
+
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state.
@@ -1317,7 +1319,7 @@ class Orchestra(
 
         val exceptionDebugMessage = """
             Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
+
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state.
@@ -1344,7 +1346,7 @@ class Orchestra(
         val (description, filterFunc) = buildFilter(selector = selector)
         val debugMessage = """
             Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
+
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state.
@@ -1487,7 +1489,7 @@ class Orchestra(
         } else {
             { nodes -> nodes } // Identity filter if no basic filters
         }
-        
+
         val allFilters = listOf(basicFilter) + relativeFilters
         var resultFilter = Filters.intersect(allFilters)
 
@@ -1553,6 +1555,112 @@ class Orchestra(
             else -> error("Illegal arguments for swiping")
         }
         return true
+    }
+
+    private fun dragCommand(command: DragCommand): Boolean {
+        val fromElement = command.fromElement
+        val toElement = command.toElement
+        val fromPoint = command.fromPoint
+        val toPoint = command.toPoint
+        val offset = command.offset
+        val deviceInfo = maestro.deviceInfo()
+
+        // TEMPORARILY DISABLED: iOS text-based drag path to test coordinate-based path
+        // On iOS, prefer using text-based drag when element selectors with text are provided
+        // This uses XCUIElement's native drag API which handles coordinates internally
+        // val fromTextRegex = fromElement?.textRegex
+        // val toTextRegex = toElement?.textRegex
+        // if (deviceInfo.platform == Platform.IOS &&
+        //     fromTextRegex != null &&
+        //     toTextRegex != null &&
+        //     fromPoint == null && toPoint == null) {
+        //     // Parse offset for text-based drag (in pixels, applied to target element center)
+        //     var toOffsetX = 0
+        //     var toOffsetY = 0
+        //     if (offset != null) {
+        //         val offsetParts = offset.replace("%", "").split(",").map { it.trim().toInt() }
+        //         toOffsetX = deviceInfo.widthGrid * offsetParts[0] / 100
+        //         toOffsetY = deviceInfo.heightGrid * offsetParts[1] / 100
+        //     }
+        //     try {
+        //         maestro.dragByText(
+        //             fromText = fromTextRegex,
+        //             toText = toTextRegex,
+        //             toOffsetX = toOffsetX,
+        //             toOffsetY = toOffsetY,
+        //             duration = command.duration,
+        //             waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+        //         )
+        //         return true
+        //     } catch (e: UnsupportedOperationException) {
+        //         // Fall back to coordinate-based drag if text-based is not supported
+        //     }
+        // }
+
+        // Resolve start point
+        // Like tap, we need to: 1) find the element, 2) get a FRESH hierarchy via waitForAppToSettle,
+        // 3) use refreshElement on the fresh hierarchy to get updated coordinates.
+        // This fixes issues where element coordinates become stale after UI changes like reordering.
+        val startPoint: Point = when {
+            fromElement != null -> {
+                val result = findElement(fromElement, optional = command.optional)
+                // Get fresh hierarchy (like tap does) to ensure we have current coordinates
+                val freshHierarchy = maestro.waitForAppToSettle(result.hierarchy, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                val hierarchyToUse = freshHierarchy ?: result.hierarchy
+                val refreshedNode = hierarchyToUse.refreshElement(result.element.treeNode)
+                val refreshedElement = refreshedNode?.toUiElementOrNull() ?: result.element
+                val bounds = refreshedElement.bounds
+                val center = bounds.center()
+                center
+            }
+            fromPoint != null -> {
+                parsePercentagePoint(fromPoint, deviceInfo)
+            }
+            else -> error("Drag command requires 'from' field")
+        }
+
+        // Resolve end point
+        val endPoint: Point = when {
+            toElement != null -> {
+                val result = findElement(toElement, optional = command.optional)
+                // Get fresh hierarchy (like tap does) to ensure we have current coordinates
+                val freshHierarchy = maestro.waitForAppToSettle(result.hierarchy, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                    ?: result.hierarchy
+                val refreshedElement = freshHierarchy
+                    .refreshElement(result.element.treeNode)
+                    ?.toUiElementOrNull()
+                    ?: result.element
+                val bounds = refreshedElement.bounds
+                val center = bounds.center()
+                center
+            }
+            toPoint != null -> {
+                parsePercentagePoint(toPoint, deviceInfo)
+            }
+            offset != null -> {
+                val offsetParts = offset.replace("%", "").split(",").map { it.trim().toInt() }
+                val offsetX = deviceInfo.widthGrid * offsetParts[0] / 100
+                val offsetY = deviceInfo.heightGrid * offsetParts[1] / 100
+                Point(startPoint.x + offsetX, startPoint.y + offsetY)
+            }
+            else -> error("Drag command requires either 'to' or 'offset' field")
+        }
+
+        maestro.drag(
+            startPoint = startPoint,
+            endPoint = endPoint,
+            duration = command.duration,
+            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+        )
+
+        return true
+    }
+
+    private fun parsePercentagePoint(point: String, deviceInfo: DeviceInfo): Point {
+        val parts = point.replace("%", "").split(",").map { it.trim().toInt() }
+        val x = deviceInfo.widthGrid * parts[0] / 100
+        val y = deviceInfo.heightGrid * parts[1] / 100
+        return Point(x, y)
     }
 
     private fun adjustedToLatestInteraction(timeMs: Long) = max(
@@ -1657,4 +1765,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-

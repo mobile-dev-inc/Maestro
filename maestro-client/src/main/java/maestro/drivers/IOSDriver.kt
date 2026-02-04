@@ -266,6 +266,40 @@ class IOSDriver(
         }
     }
 
+    override fun drag(start: Point, end: Point, durationMs: Long) {
+        metrics.measured("operation", mapOf("command" to "drag", "durationMs" to durationMs.toString())) {
+            val deviceInfo = deviceInfo()
+            val startPoint = start.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
+            val endPoint = end.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
+
+            runDeviceCall("drag") {
+                waitForAppToSettle(null, null)
+                iosDevice.drag(
+                    xStart = startPoint.x.toDouble(),
+                    yStart = startPoint.y.toDouble(),
+                    xEnd = endPoint.x.toDouble(),
+                    yEnd = endPoint.y.toDouble(),
+                    duration = durationMs.toDouble() / 1000
+                )
+            }
+        }
+    }
+
+    override fun dragByText(fromText: String, toText: String, toOffsetX: Int, toOffsetY: Int, durationMs: Long) {
+        metrics.measured("operation", mapOf("command" to "dragByText", "durationMs" to durationMs.toString())) {
+            runDeviceCall("dragByText") {
+                waitForAppToSettle(null, null)
+                iosDevice.dragByText(
+                    fromText = fromText,
+                    toText = toText,
+                    toOffsetX = toOffsetX.toDouble(),
+                    toOffsetY = toOffsetY.toDouble(),
+                    duration = durationMs.toDouble() / 1000
+                )
+            }
+        }
+    }
+
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "swipeWithDirection", "direction" to swipeDirection.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()
@@ -558,7 +592,7 @@ class IOSDriver(
                 timeoutException.errorMessage.contains("Timed out while evaluating UI query") -> {
                     """
                         Your app screen might be too complex.
-                                            
+
                         * This usually happens when the screen has very large view hierarchies, such as table views loading with large amount of data.
                         * Try loading fewer cells initially or implementing lazy loading to reduce the load during tests.
                     """.trimIndent()
@@ -566,7 +600,7 @@ class IOSDriver(
                 timeoutException.errorMessage.contains("Unable to perform work on main run loop, process main thread busy") -> {
                     """
                         Your app is doing heavy work on the main/UI thread.
-                        
+
                         * Move any heavy computation or blocking work off the main thread.
                         * This ensures the UI stays responsive and Maestro can take snapshot of the screen.
                     """.trimIndent()

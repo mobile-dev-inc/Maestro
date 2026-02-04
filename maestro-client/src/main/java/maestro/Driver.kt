@@ -63,6 +63,13 @@ interface Driver {
 
     fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long)
 
+    fun drag(start: Point, end: Point, durationMs: Long)
+
+    fun dragByText(fromText: String, toText: String, toOffsetX: Int, toOffsetY: Int, durationMs: Long) {
+        // Default implementation falls back to coordinate-based drag
+        throw UnsupportedOperationException("dragByText not supported on this platform")
+    }
+
     fun backPress()
 
     fun inputText(text: String)

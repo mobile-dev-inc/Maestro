@@ -96,6 +96,51 @@ data class SwipeCommand(
     }
 }
 
+data class DragCommand(
+    val fromElement: ElementSelector? = null,
+    val fromPoint: String? = null,
+    val toElement: ElementSelector? = null,
+    val toPoint: String? = null,
+    val offset: String? = null,
+    val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    val waitToSettleTimeoutMs: Int? = null,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = when {
+            fromElement != null && toElement != null -> {
+                "Drag from ${fromElement.description()} to ${toElement.description()} in $duration ms"
+            }
+            fromElement != null && offset != null -> {
+                "Drag from ${fromElement.description()} with offset ($offset) in $duration ms"
+            }
+            fromPoint != null && toPoint != null -> {
+                "Drag from ($fromPoint) to ($toPoint) in $duration ms"
+            }
+            fromPoint != null && offset != null -> {
+                "Drag from ($fromPoint) with offset ($offset) in $duration ms"
+            }
+            else -> "Invalid input to drag command"
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): DragCommand {
+        return copy(
+            fromElement = fromElement?.evaluateScripts(jsEngine),
+            fromPoint = fromPoint?.evaluateScripts(jsEngine),
+            toElement = toElement?.evaluateScripts(jsEngine),
+            toPoint = toPoint?.evaluateScripts(jsEngine),
+            offset = offset?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+
+    companion object {
+        private const val DEFAULT_DURATION_IN_MILLIS = 3000L
+    }
+}
+
 /**
  * @param visibilityPercentage 0-1 Visibility within viewport bounds. 0 not within viewport and 1 fully visible within viewport.
  */
