@@ -5,6 +5,7 @@ enum Route: String, CaseIterable {
     case runningApp
     case swipe
     case swipeV2
+    case drag
     case inputText
     case touch
     case screenshot
@@ -30,12 +31,12 @@ struct XCTestHTTPServer {
     func start() async throws {
         let port = ProcessInfo.processInfo.environment["PORT"]?.toUInt16()
         let server = HTTPServer(address: try .inet(ip4: "127.0.0.1", port: port ?? 22087), timeout: 100)
-        
+
         for route in Route.allCases {
             let handler = await RouteHandlerFactory.createRouteHandler(route: route)
             await server.appendRoute(route.toHTTPRoute(), to: handler)
         }
-        
+
         try await server.run()
     }
 }

@@ -80,6 +80,26 @@ class LocalIOSDevice(
         xcTestDevice.scrollV2(xStart, yStart, xEnd, yEnd, duration)
     }
 
+    override fun drag(
+        xStart: Double,
+        yStart: Double,
+        xEnd: Double,
+        yEnd: Double,
+        duration: Double
+    ) {
+        xcTestDevice.drag(xStart, yStart, xEnd, yEnd, duration)
+    }
+
+    override fun dragByText(
+        fromText: String,
+        toText: String,
+        toOffsetX: Double,
+        toOffsetY: Double,
+        duration: Double
+    ) {
+        xcTestDevice.dragByText(fromText, toText, toOffsetX, toOffsetY, duration)
+    }
+
     override fun input(text: String) {
         xcTestDevice.input(text)
     }

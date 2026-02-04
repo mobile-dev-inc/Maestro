@@ -1,0 +1,42 @@
+appId: com.example.example
+---
+# Test drag command with the demo app's drag screen
+- launchApp
+
+# Navigate to the Drag Test screen
+- tapOn: "Drag Test"
+
+# Verify we're on the drag screen
+- assertVisible:
+    text: "Reorder items to.*"
+
+# The initial order is: 1, 2, 3, 4, 5
+# Target order is: 3, 1, 4, 5, 2
+
+# Step 1: Drag Item 3 to top (before Item 1)
+# After: 3, 1, 2, 4, 5
+- drag:
+    from:
+      text: ".*Item 3.*"
+    to:
+      text: ".*Item 1.*"
+    duration: 3000
+
+# Re-assert visibility to force hierarchy refresh and wait for settle
+- assertVisible:
+    text: ".*Item 2.*"
+
+# DEBUG: Try tapping Item 2 to see if tap gets correct coords
+- tapOn: "Item 2"
+
+# Step 2: Drag Item 2 to below Item 5
+# After: 3, 1, 4, 5, 2
+- drag:
+    from:
+      text: ".*Item 2.*"
+    to:
+      text: ".*Item 5.*"
+    duration: 3000
+
+# Verify the success message appears
+- assertVisible: "Drag Success"
