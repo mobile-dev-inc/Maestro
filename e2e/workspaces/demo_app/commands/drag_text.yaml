@@ -1,7 +1,8 @@
 appId: com.example.example
 ---
 # Test drag command with the demo app's drag screen
-- launchApp
+- launchApp:
+    clearState: true
 
 # Navigate to the Drag Test screen
 - tapOn: "Drag Test"
