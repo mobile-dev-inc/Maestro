@@ -399,7 +399,16 @@ class CdpWebDriver(
     }
 
     override fun scrollVertical() {
-        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        // Check if this is a Flutter web app
+        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Use Flutter-specific smooth animated scrolling
+            executeJS("window.maestro.smoothScrollFlutter('UP', 500)")
+        } else {
+            // Use standard scroll for regular web pages
+            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -433,11 +442,19 @@ class CdpWebDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        when (swipeDirection) {
-            SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-            SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Use smooth animated scrolling with easing
+            executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
+        } else {
+            // HTML web: Use standard window scrolling
+            when (swipeDirection) {
+                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+            }
         }
     }
 
