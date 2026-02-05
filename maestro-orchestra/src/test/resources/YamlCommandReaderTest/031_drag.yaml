@@ -1,0 +1,45 @@
+appId: com.example.app
+---
+# Drag by percentage coordinates
+- drag:
+    from: "50%, 30%"
+    to: "50%, 70%"
+
+# Drag by percentage coordinates with duration
+- drag:
+    from: "50%, 30%"
+    to: "50%, 70%"
+    duration: 5000
+
+# Drag with offset
+- drag:
+    from: "50%, 30%"
+    offset: "0%, 40%"
+
+# Drag by element text
+- drag:
+    from:
+      text: ".*Item 3.*"
+    to:
+      text: ".*Item 1.*"
+    duration: 3000
+
+# Drag by element id
+- drag:
+    from:
+      id: "drag-handle-3"
+    to:
+      id: "drop-zone-1"
+
+# Drag with label and optional
+- drag:
+    from: "50%, 30%"
+    to: "50%, 70%"
+    label: "Drag item down"
+    optional: true
+
+# Drag with waitToSettleTimeoutMs
+- drag:
+    from: "50%, 30%"
+    to: "50%, 70%"
+    waitToSettleTimeoutMs: 100
