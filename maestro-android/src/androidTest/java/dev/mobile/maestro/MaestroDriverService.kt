@@ -1,6 +1,7 @@
 package dev.mobile.maestro
 
 import android.app.UiAutomation
+import android.graphics.Bitmap
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
 import android.location.Criteria
@@ -334,15 +335,33 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
         try {
-            val bitmap = uiAutomation.takeScreenshot()
+            val maxAttempts = 3
+            val delayBetweenAttempts = 100L
+
+            var bitmap: Bitmap? = null
+            for (attempt in 1..maxAttempts) {
+                bitmap = uiAutomation.takeScreenshot()
+                if (bitmap != null) break
+
+                if (attempt < maxAttempts) {
+                    Log.w(TAG, "Screenshot attempt $attempt returned null, retrying...")
+                    Thread.sleep(delayBetweenAttempts)
+                }
+            }
+
+            if (bitmap == null) {
+                throw ScreenshotException("Screenshot returned null after $maxAttempts attempts. " +
+                    "Window may not be laid out or SurfaceControl may be invalid.")
+            }
+
             val bytes = screenshotService.encodePng(bitmap)
             responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
         } catch (e: ScreenshotException) {
-            Log.e(TAG, "Screenshot encoding failed with ${e.message}" , e)
+            Log.e(TAG, "Screenshot failed: ${e.message}", e)
             responseObserver.onError(e.internalError())
         } catch (e: Exception) {
-            Log.e(TAG, "Screenshot encoding failed with unknown exception ${e.message}" , e)
+            Log.e(TAG, "Screenshot failed with unknown exception: ${e.message}", e)
             responseObserver.onError(e.internalError())
         }
     }
