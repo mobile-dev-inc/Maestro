@@ -64,15 +64,18 @@ struct ScreenSizeHelper {
         return orientation
     }
 
-    /// Converts device orientation to interface orientation for use with EventRecord.
-    /// Note: UIDeviceOrientation and UIInterfaceOrientation landscape values are inverted
-    /// per Apple's convention (UIInterfaceOrientationLandscapeLeft = UIDeviceOrientationLandscapeRight).
+    /// Returns the current UIInterfaceOrientation derived from the device's UIDeviceOrientation.
+    ///
+    /// Per Apple convention, landscape values are swapped between the two enums:
+    /// - UIDeviceOrientation describes the hardware tilt (e.g. `.landscapeLeft` = device rotated left)
+    /// - UIInterfaceOrientation describes the UI's compensating rotation (`.landscapeRight` = UI rotated right)
+    /// The UI always rotates opposite to the device to keep content upright.
     static func currentInterfaceOrientation() -> UIInterfaceOrientation {
         let orientation = actualOrientation()
         return switch orientation {
-        case .portrait:           .portrait
         case .landscapeLeft:      .landscapeRight
         case .landscapeRight:     .landscapeLeft
+        case .portrait:           .portrait
         case .portraitUpsideDown: .portraitUpsideDown
         default:                  .portrait
         }
