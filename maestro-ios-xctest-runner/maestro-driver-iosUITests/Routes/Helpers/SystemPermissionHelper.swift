@@ -29,6 +29,8 @@ final class SystemPermissionHelper {
             NSLog("No buttons found in hierarchy")
         case .noActionRequired:
             NSLog("No action required for permission value")
+        @unknown default:
+            NSLog("Unknown permission button result: \(result)")
         }
 
         NSLog("[Done] Foreground app is springboard attempting to tap on permissions dialog")
