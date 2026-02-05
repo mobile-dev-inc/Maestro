@@ -75,15 +75,29 @@ struct ViewHierarchyHandler: HTTPHandler {
             else {
                 return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
             }
-            
+
+            // When the device (springboard) and app have the same dimensions
+            // but swapped (portrait vs landscape), skip the offset adjustment.
+            // This happens because springboard reports portrait frame while the
+            // app reports landscape frame on modern iOS.
+            let isSameAreaDifferentOrientation =
+                abs(deviceWidth * deviceHeight - appWidth * appHeight) < 1.0
+                && abs(deviceWidth - appHeight) < 1.0
+                && abs(deviceHeight - appWidth) < 1.0
+
+            if isSameAreaDifferentOrientation {
+                NSLog("Skipping offset adjustment: device and app frames are same size but different orientation")
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            }
+
             let offsetX = deviceWidth - appWidth
             let offsetY = deviceHeight - appHeight
             let offset = WindowOffset(offsetX: offsetX, offsetY: offsetY)
-            
+
             NSLog("Adjusting view hierarchy with offset: \(offset)")
-            
+
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
-            
+
             return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
         } else {
             return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })

@@ -36,7 +36,7 @@ struct SwipeRouteHandler: HTTPHandler {
     func swipePrivateAPI(start: CGPoint, end: CGPoint, duration: Double) async throws {
         logger.info("Swipe (v1) from \(start.debugDescription) to \(end.debugDescription) with \(duration) duration")
 
-        let eventRecord = EventRecord(orientation: .portrait)
+        let eventRecord = EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
         _ = eventRecord.addSwipeEvent(start: start, end: end, duration: duration)
 
         try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
