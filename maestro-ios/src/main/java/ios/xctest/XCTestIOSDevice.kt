@@ -113,25 +113,6 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun dragByText(
-        fromText: String,
-        toText: String,
-        toOffsetX: Double,
-        toOffsetY: Double,
-        duration: Double,
-    ) {
-        execute {
-            client.dragByText(
-                appId = activeAppId(),
-                fromText = fromText,
-                toText = toText,
-                toOffsetX = toOffsetX,
-                toOffsetY = toOffsetY,
-                duration = duration
-            )
-        }
-    }
-
     fun scrollV2(
         xStart: Double,
         yStart: Double,

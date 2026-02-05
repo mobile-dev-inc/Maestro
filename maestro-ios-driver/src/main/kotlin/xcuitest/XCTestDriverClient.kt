@@ -148,26 +148,6 @@ class XCTestDriverClient(
         )
     }
 
-    fun dragByText(
-        appId: String,
-        fromText: String,
-        toText: String,
-        toOffsetX: Double,
-        toOffsetY: Double,
-        duration: Double,
-    ) {
-        executeJsonRequest("drag",
-            DragRequest(
-                appId = appId,
-                fromText = fromText,
-                toText = toText,
-                toOffsetX = toOffsetX,
-                toOffsetY = toOffsetY,
-                duration = duration
-            )
-        )
-    }
-
     fun inputText(
         text: String,
         appIds: Set<String>,
