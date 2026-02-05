@@ -60,18 +60,6 @@ interface IOSDevice : AutoCloseable {
     )
 
     /**
-     * Performs a drag gesture using element text/labels.
-     * More reliable for dynamic UIs where element positions change.
-     */
-    fun dragByText(
-        fromText: String,
-        toText: String,
-        toOffsetX: Double,
-        toOffsetY: Double,
-        duration: Double,
-    )
-
-    /**
      * Inputs text into the currently focused element.
      */
     fun input(text: String)
