@@ -205,20 +205,6 @@ class Maestro(
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun dragByText(
-        fromText: String,
-        toText: String,
-        toOffsetX: Int = 0,
-        toOffsetY: Int = 0,
-        duration: Long,
-        waitToSettleTimeoutMs: Int? = null
-    ) {
-        LOGGER.info("Dragging by text from '$fromText' to '$toText' with offset ($toOffsetX, $toOffsetY) over ${duration}ms")
-        driver.dragByText(fromText, toText, toOffsetX, toOffsetY, duration)
-
-        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
-    }
-
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 
@@ -240,10 +226,14 @@ class Maestro(
 
         val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs) ?: initialHierarchy
 
-        val refreshedNode = hierarchyBeforeTap.refreshElement(element.treeNode)
-        val refreshedElement = refreshedNode?.toUiElementOrNull()
-
-        val center = (refreshedElement ?: element).bounds.center()
+        val center = (
+                hierarchyBeforeTap
+                    .refreshElement(element.treeNode)
+                    ?.also { LOGGER.info("Refreshed element") }
+                    ?.toUiElementOrNull()
+                    ?: element
+                ).bounds
+            .center()
         performTap(
             x = center.x,
             y = center.y,

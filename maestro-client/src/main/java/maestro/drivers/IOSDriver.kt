@@ -285,21 +285,6 @@ class IOSDriver(
         }
     }
 
-    override fun dragByText(fromText: String, toText: String, toOffsetX: Int, toOffsetY: Int, durationMs: Long) {
-        metrics.measured("operation", mapOf("command" to "dragByText", "durationMs" to durationMs.toString())) {
-            runDeviceCall("dragByText") {
-                waitForAppToSettle(null, null)
-                iosDevice.dragByText(
-                    fromText = fromText,
-                    toText = toText,
-                    toOffsetX = toOffsetX.toDouble(),
-                    toOffsetY = toOffsetY.toDouble(),
-                    duration = durationMs.toDouble() / 1000
-                )
-            }
-        }
-    }
-
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "swipeWithDirection", "direction" to swipeDirection.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()
