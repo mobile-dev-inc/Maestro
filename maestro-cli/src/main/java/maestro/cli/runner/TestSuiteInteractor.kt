@@ -72,10 +72,7 @@ class TestSuiteInteractor(
         val flowSequence = executionPlan.sequence
         for (flow in flowSequence.flows) {
             val flowFile = flow.toFile()
-            val updatedEnv = env
-                .withInjectedShellEnvVars()
-                .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, env.withInjectedShellEnvVars(), maestro, debugOutputPath, testOutputDir, deviceId, shardIndex)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -92,10 +89,7 @@ class TestSuiteInteractor(
         // proceed to run all other Flows
         executionPlan.flowsToRun.forEach { flow ->
             val flowFile = flow.toFile()
-            val updatedEnv = env
-                .withInjectedShellEnvVars()
-                .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, env.withInjectedShellEnvVars(), maestro, debugOutputPath, testOutputDir, deviceId, shardIndex)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -156,7 +150,9 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
+        testOutputDir: Path? = null,
+        deviceId: String? = null,
+        shardIndex: Int? = null,
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -166,16 +162,16 @@ class TestSuiteInteractor(
         var errorMessage: String? = null
 
         val debugOutput = FlowDebugOutput()
+        val commands = YamlCommandReader.readCommands(flowFile.toPath())
+        val maestroConfig = YamlCommandReader.getConfig(commands)
+        val flowName = YamlCommandReader.getFlowName(commands, flowFile.nameWithoutExtension)
+
         val aiOutput = FlowAIOutput(
-            flowName = flowFile.nameWithoutExtension,
+            flowName = flowName,
             flowFile = flowFile,
         )
-        val commands = YamlCommandReader
-            .readCommands(flowFile.toPath())
-            .withEnv(env)
-
-        val maestroConfig = YamlCommandReader.getConfig(commands)
-        val flowName: String = maestroConfig?.name ?: flowFile.nameWithoutExtension
+        val updatedEnv = env.withDefaultEnvVars(flowFile, flowName, deviceId, shardIndex)
+        val commandsWithEnv = commands.withEnv(updatedEnv)
 
         logger.info("$shardPrefix Running flow $flowName")
 
@@ -240,7 +236,7 @@ class TestSuiteInteractor(
                     }
                 )
 
-                val flowSuccess = orchestra.runFlow(commands)
+                val flowSuccess = orchestra.runFlow(commandsWithEnv)
                 flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
             } catch (e: Exception) {
                 logger.error("${shardPrefix}Failed to complete flow", e)
