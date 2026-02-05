@@ -193,6 +193,32 @@ This confirms the bug is **specifically Flutter + iOS**, not a Maestro or iOS is
 
 ## Possible Next Steps
 
+### 1. Use XCUICoordinate Without Element Resolution (Appium's Approach)
+
+A comment on GitHub issue #1203 pointed to how Appium's WebDriverAgent handles this - using `XCUICoordinate` APIs that operate purely on coordinates without resolving `XCUIElement` objects:
+
+```objc
+// From XCUICoordinate.h (Xcode 12+)
+- (void)pressForDuration:(double)duration
+    thenDragToCoordinate:(XCUICoordinate *)otherCoordinate
+    withVelocity:(CGFloat)velocity
+    thenHoldForDuration:(double)holdDuration;
+```
+
+Reference: https://github.com/appium/WebDriverAgent/blob/67c8d73a08cb7fdf04a7db64f62ec2bd258eed64/PrivateHeaders/XCTest/XCUICoordinate.h#L38
+
+**We already have this infrastructure** in `DragRouteHandler.swift`:
+
+```swift
+// dragWithXCUICoordinate() creates coordinates from app, not elements:
+let startCoord = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    .withOffset(CGVector(dx: start.x, dy: start.y))
+```
+
+**The problem**: This approach works if you have correct screen coordinates. But Maestro's Kotlin layer resolves coordinates by querying the accessibility hierarchy *before* calling Swift - and that hierarchy is corrupted. The Swift-side element queries (`dragByText`) also get the same bad data.
+
+**To make this work**, we'd need to calculate expected element positions mathematically (based on list structure, item heights, reorder history) rather than querying them. This is a significant design change - essentially tracking list state instead of querying it.
+
 ### 2. Check if This is a Known Flutter/iOS Issue
 
 Search for Flutter issues related to:
