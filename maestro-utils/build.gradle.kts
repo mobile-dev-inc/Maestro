@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.square.okhttp)
     implementation(libs.micrometer.core)
     implementation(libs.micrometer.observation)
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.mockk)
     testImplementation(libs.junit.jupiter.api)
