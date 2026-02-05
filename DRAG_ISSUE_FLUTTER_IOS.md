@@ -34,7 +34,7 @@ The problem is NOT in our code - it's in what iOS returns to us:
 
 1. **Maestro's view hierarchy fetch** - Correctly queries iOS and returns what iOS gives us
 2. **XCUIElement queries** - Also return the same bad frames (tried `staticTexts`, `descendants`, `firstMatch`, iterating through `allElementsBoundByIndex`)
-3. **XCUIElement.frame** - Returns `(0.0, 0.0, 134.0, 21.33)` for the "corrupted" element
+3. **XCUIElement.frame** - Returns `(0.0, 0.0, 134.0, 21.33)` for the affected element (incorrect bounds)
 4. **XCUICoordinate.screenPoint** - Also wrong (derived from bad frame)
 5. **app.snapshot()** - Forcing accessibility refresh doesn't help
 6. **Re-querying after delay** - Same bad coordinates
@@ -76,7 +76,7 @@ This is purely an accessibility metadata problem, not a UI problem.
 ### What's Working
 
 - **Android drag**: Fully functional using `input draganddrop` shell command
-- **iOS first drag**: Works because accessibility tree hasn't been corrupted yet
+- **iOS first drag**: Works because the accessibility tree still has correct element bounds
 - **YAML parsing**: All drag command variants parse correctly
 - **Driver layer**: All plumbing in place for both platforms
 
@@ -156,7 +156,7 @@ There is no shadow/duplicate element. The hierarchy itself contains only bad dat
 ### What This Means
 
 1. **Both tap AND drag get the same bad coordinates** from `findElement()`
-2. **The hierarchy returned by iOS is corrupted** - contains garbage bounds
+2. **The hierarchy returned by iOS contains incorrect/stale element bounds** after a reorder operation
 3. **`refreshElement()` doesn't help** because it refreshes against the same bad hierarchy
 4. **`waitForAppToSettle()` returns NULL** (screen settles quickly), so we fallback to the initial bad hierarchy
 5. **Tap "succeeds" only because tapping the wrong location doesn't throw an error**
@@ -215,7 +215,7 @@ let startCoord = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     .withOffset(CGVector(dx: start.x, dy: start.y))
 ```
 
-**The problem**: This approach works if you have correct screen coordinates. But Maestro's Kotlin layer resolves coordinates by querying the accessibility hierarchy *before* calling Swift - and that hierarchy is corrupted. The Swift-side element queries (`dragByText`) also get the same bad data.
+**The problem**: This approach works if you have correct screen coordinates. But Maestro's Kotlin layer resolves coordinates by querying the accessibility hierarchy *before* calling Swift — and after a reorder, that hierarchy returns incorrect/stale element bounds. The Swift-side element queries also get the same bad data.
 
 **To make this work**, we'd need to calculate expected element positions mathematically (based on list structure, item heights, reorder history) rather than querying them. This is a significant design change - essentially tracking list state instead of querying it.
 
