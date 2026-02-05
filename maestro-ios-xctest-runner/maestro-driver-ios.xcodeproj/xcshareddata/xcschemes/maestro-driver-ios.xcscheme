@@ -29,16 +29,6 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
          <TestableReference
-            skipped = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "85861EAEA94A3C855AED94AD"
-               BuildableName = "maestro-driver-iosTests.xctest"
-               BlueprintName = "maestro-driver-iosTests"
-               ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
