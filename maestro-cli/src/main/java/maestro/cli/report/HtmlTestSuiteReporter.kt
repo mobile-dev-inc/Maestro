@@ -118,8 +118,44 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                     br {}
                                                     if (flow.fileName != null) {
                                                         +"File Name: ${flow.fileName}"
+                                                        br {}
+                                                    }
+                                                    
+                                                    // Display tags if present
+                                                    if (!flow.tags.isNullOrEmpty()) {
+                                                        +"Tags: "
+                                                        flow.tags.forEach { tag ->
+                                                            span(classes = "badge bg-primary me-1") {
+                                                                +tag
+                                                            }
+                                                        }
+                                                        br {}
                                                     }
                                                 }
+                                                
+                                                // Display properties if present
+                                                if (!flow.properties.isNullOrEmpty()) {
+                                                    h6(classes = "mt-3 mb-2") { +"Properties" }
+                                                    div(classes = "table-responsive") {
+                                                        table(classes = "table table-sm table-bordered") {
+                                                            thead {
+                                                                tr {
+                                                                    th { +"Property" }
+                                                                    th { +"Value" }
+                                                                }
+                                                            }
+                                                            tbody {
+                                                                flow.properties.forEach { (key, value) ->
+                                                                    tr {
+                                                                        td { +key }
+                                                                        td { +value }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                
                                                 if (flow.failure != null) {
                                                     p(classes = "card-text text-danger") {
                                                         +flow.failure.message
