@@ -240,20 +240,6 @@ class Maestro(
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    suspend fun dragByText(
-        fromText: String,
-        toText: String,
-        toOffsetX: Int = 0,
-        toOffsetY: Int = 0,
-        duration: Long,
-        waitToSettleTimeoutMs: Int? = null
-    ) {
-        LOGGER.info("Dragging by text from '$fromText' to '$toText' with offset ($toOffsetX, $toOffsetY) over ${duration}ms")
-        driver.dragByText(fromText, toText, toOffsetX, toOffsetY, duration)
-
-        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
-    }
-
     suspend fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 
