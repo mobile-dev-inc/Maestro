@@ -19,7 +19,7 @@ struct TextInputHelper {
         logger.info("first character: \(firstCharacter)")
         var eventPath = PointerEventPath.pathForTextInput()
         eventPath.type(text: firstCharacter, typingSpeed: 1)
-        let eventRecord = EventRecord(orientation: .portrait)
+        let eventRecord = EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
         _ = eventRecord.add(eventPath)
         try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
         
@@ -31,7 +31,7 @@ struct TextInputHelper {
             logger.info("remaining text: \(remainingText)")
             var eventPath2 = PointerEventPath.pathForTextInput()
             eventPath2.type(text: remainingText, typingSpeed: Constants.typingFrequency)
-            let eventRecord2 = EventRecord(orientation: .portrait)
+            let eventRecord2 = EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
             _ = eventRecord2.add(eventPath2)
             try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord2)
         }

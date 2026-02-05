@@ -64,16 +64,34 @@ struct ScreenSizeHelper {
         return orientation
     }
 
+    /// Converts device orientation to interface orientation for use with EventRecord.
+    /// Note: UIDeviceOrientation and UIInterfaceOrientation landscape values are inverted
+    /// per Apple's convention (UIInterfaceOrientationLandscapeLeft = UIDeviceOrientationLandscapeRight).
+    static func currentInterfaceOrientation() -> UIInterfaceOrientation {
+        let orientation = actualOrientation()
+        return switch orientation {
+        case .portrait:           .portrait
+        case .landscapeLeft:      .landscapeRight
+        case .landscapeRight:     .landscapeLeft
+        case .portraitUpsideDown: .portraitUpsideDown
+        default:                  .portrait
+        }
+    }
+
     /// Takes device orientation into account.
     static func actualScreenSize() throws -> (Float, Float, UIDeviceOrientation)
     {
         let orientation = actualOrientation()
 
         let (width, height) = physicalScreenSize()
+        let isLandscape = orientation == .landscapeLeft || orientation == .landscapeRight
+        let dimsAlreadyMatchOrientation = isLandscape ? (width > height) : (width <= height)
+
         let (actualWidth, actualHeight) =
             switch orientation {
             case .portrait, .portraitUpsideDown: (width, height)
-            case .landscapeLeft, .landscapeRight: (height, width)
+            case .landscapeLeft, .landscapeRight:
+                dimsAlreadyMatchOrientation ? (width, height) : (height, width)
             case .faceDown, .faceUp: (width, height)
             case .unknown:
                 throw AppError(
@@ -90,13 +108,20 @@ struct ScreenSizeHelper {
         width: Float, height: Float, point: CGPoint
     ) -> CGPoint {
         let orientation = actualOrientation()
+        let isLandscape = orientation == .landscapeLeft || orientation == .landscapeRight
+        let dimsAlreadyMatchOrientation = isLandscape && (width > height)
+
+        // When physicalScreenSize() already returns landscape-correct dims,
+        // use the short side as height for the rotation transform.
+        let effectiveWidth = dimsAlreadyMatchOrientation ? height : width
+        let effectiveHeight = dimsAlreadyMatchOrientation ? width : height
 
         return switch orientation {
         case .portrait: point
         case .landscapeLeft:
-            CGPoint(x: CGFloat(width) - point.y, y: CGFloat(point.x))
+            CGPoint(x: CGFloat(effectiveWidth) - point.y, y: CGFloat(point.x))
         case .landscapeRight:
-            CGPoint(x: CGFloat(point.y), y: CGFloat(height) - point.x)
+            CGPoint(x: CGFloat(point.y), y: CGFloat(effectiveHeight) - point.x)
         default: fatalError("Not implemented yet")
         }
     }
