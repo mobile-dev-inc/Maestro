@@ -19,14 +19,7 @@ final class SystemPermissionHelper {
 
         NSLog("[Start] Foreground app is springboard attempting to tap on permissions dialog")
 
-        // Convert local AXElement to MaestroDriverLib.AXElement
-        let libHierarchy = appHierarchy.toLibraryElement()
-
-        // Convert local PermissionValue to library PermissionValue
-        let libPermission = notificationsPermission.value.toLibraryPermission()
-
-        // Use the library's button finder
-        let result = buttonFinder.findButtonToTap(for: libPermission, in: libHierarchy)
+        let result = buttonFinder.findButtonToTap(for: notificationsPermission.value, in: appHierarchy)
 
         switch result {
         case .found(let frame):
@@ -42,7 +35,7 @@ final class SystemPermissionHelper {
     }
 
     /// Tap at the center of an element's frame
-    private static func tapAtCenter(of frame: MaestroDriverLib.AXFrame, in app: XCUIApplication) {
+    private static func tapAtCenter(of frame: AXFrame, in app: XCUIApplication) {
         let x = frame.centerX
         let y = frame.centerY
 
@@ -67,43 +60,6 @@ final class SystemPermissionHelper {
             } catch {
                 NSLog("Error tapping permission button: \(error)")
             }
-        }
-    }
-}
-
-// MARK: - Conversion Extensions
-
-extension AXElement {
-    /// Converts the local XCTest-aware AXElement to MaestroDriverLib.AXElement
-    func toLibraryElement() -> MaestroDriverLib.AXElement {
-        MaestroDriverLib.AXElement(
-            identifier: identifier,
-            frame: frame,
-            value: value,
-            title: title,
-            label: label,
-            elementType: elementType,
-            enabled: enabled,
-            horizontalSizeClass: horizontalSizeClass,
-            verticalSizeClass: verticalSizeClass,
-            placeholderValue: placeholderValue,
-            selected: selected,
-            hasFocus: hasFocus,
-            displayID: displayID,
-            windowContextID: windowContextID,
-            children: children?.map { $0.toLibraryElement() }
-        )
-    }
-}
-
-extension PermissionValue {
-    /// Converts the local PermissionValue to MaestroDriverLib.PermissionValue
-    func toLibraryPermission() -> MaestroDriverLib.PermissionValue {
-        switch self {
-        case .allow: return .allow
-        case .deny: return .deny
-        case .unset: return .unset
-        case .unknown: return .unknown
         }
     }
 }

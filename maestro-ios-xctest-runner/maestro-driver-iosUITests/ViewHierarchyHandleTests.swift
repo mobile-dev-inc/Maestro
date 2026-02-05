@@ -1,5 +1,6 @@
 import XCTest
 import FlyingFox
+import MaestroDriverLib
 
 final class ViewHierarchyHandlerTests: XCTestCase {
     

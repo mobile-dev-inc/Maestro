@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// Represents an accessibility element in the view hierarchy.
 /// This is a pure domain model without XCUITest dependencies.
@@ -94,5 +95,32 @@ public struct AXElement: Codable, Equatable {
         guard let children = children else { return 1 }
         let max = children.map { $0.depth() + 1 }.max()
         return max ?? 1
+    }
+
+    public func filterAllChildrenNotInKeyboardBounds(_ keyboardFrame: CGRect) -> [AXElement] {
+        var filteredChildren = [AXElement]()
+
+        func filterChildrenRecursively(_ element: AXElement, _ ancestorAdded: Bool) {
+            let childFrame = CGRect(
+                x: element.frame["X"] ?? 0,
+                y: element.frame["Y"] ?? 0,
+                width: element.frame["Width"] ?? 0,
+                height: element.frame["Height"] ?? 0
+            )
+
+            var currentAncestorAdded = ancestorAdded
+
+            if !keyboardFrame.intersects(childFrame) && !ancestorAdded {
+                filteredChildren.append(element)
+                currentAncestorAdded = true
+            }
+
+            element.children?.forEach { child in
+                filterChildrenRecursively(child, currentAncestorAdded)
+            }
+        }
+
+        filterChildrenRecursively(self, false)
+        return filteredChildren
     }
 }
