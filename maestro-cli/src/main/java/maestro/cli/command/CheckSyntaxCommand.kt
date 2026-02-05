@@ -11,8 +11,7 @@ import java.util.concurrent.Callable
     name = "check-syntax",
     description = [
         "Check syntax of Maestro code"
-    ],
-    hidden = true
+    ]
 )
 class CheckSyntaxCommand : Callable<Int> {
 
