@@ -1,11 +1,12 @@
 import XCTest
 import MaestroDriverLib
 
+@MainActor
 final class SystemPermissionHelper {
 
     private static let buttonFinder = PermissionButtonFinder()
 
-    static func handleSystemPermissionAlertIfNeeded(appHierarchy: AXElement, foregroundApp: XCUIApplication) {
+    static func handleSystemPermissionAlertIfNeeded(appHierarchy: AXElement, foregroundApp: XCUIApplication) async {
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
               let permissions = try? JSONDecoder().decode([String : PermissionValue].self, from: data),
               let notificationsPermission = permissions.first(where: { $0.key == "notifications" }) else {
@@ -24,7 +25,7 @@ final class SystemPermissionHelper {
         switch result {
         case .found(let frame):
             NSLog("Found button at frame: \(frame)")
-            tapAtCenter(of: frame, in: foregroundApp)
+            await tapAtCenter(of: frame, in: foregroundApp)
         case .noButtonsFound:
             NSLog("No buttons found in hierarchy")
         case .noActionRequired:
@@ -37,7 +38,7 @@ final class SystemPermissionHelper {
     }
 
     /// Tap at the center of an element's frame
-    private static func tapAtCenter(of frame: AXFrame, in app: XCUIApplication) {
+    private static func tapAtCenter(of frame: AXFrame, in app: XCUIApplication) async {
         let x = frame.centerX
         let y = frame.centerY
 
@@ -56,12 +57,10 @@ final class SystemPermissionHelper {
             touchUpAfter: nil
         )
 
-        Task {
-            do {
-                try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
-            } catch {
-                NSLog("Error tapping permission button: \(error)")
-            }
+        do {
+            try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
+        } catch {
+            NSLog("Error tapping permission button: \(error)")
         }
     }
 }
