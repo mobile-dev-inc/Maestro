@@ -1,0 +1,45 @@
+appId: com.example.example
+---
+# Test drag command using percentage coordinates
+# Works with the demo app's drag screen
+#
+# WARNING: Percentage-based coordinates are inherently fragile!
+# These values were calibrated on a Pixel 8 Pro and will likely fail
+# on devices with different screen sizes, aspect ratios, or pixel densities.
+# For reliable cross-device tests, use element selectors (see drag_text.yaml).
+- launchApp:
+    clearState: true
+
+# Navigate to the Drag Test screen
+- tapOn: "Drag Test"
+
+# Verify we're on the drag screen
+- assertVisible:
+    text: "Reorder items to.*"
+
+# The initial order is: 1, 2, 3, 4, 5
+# Target order is: 3, 1, 4, 5, 2
+#
+# Approximate Y positions (percentage from top):
+# Item 1: ~29%
+# Item 2: ~32%
+# Item 3: ~36%
+# Item 4: ~40%
+# Item 5: ~50%
+
+# Step 1: Drag Item 3 (~36%) to above Item 1 (~26%)
+# After: 3, 1, 2, 4, 5
+- drag:
+    from: "50%, 36%"
+    to: "50%, 26%"
+    duration: 3000
+
+# Step 2: Drag Item 2 (now at ~36%) to below Item 5 (~50%)
+# After: 3, 1, 4, 5, 2
+- drag:
+    from: "50%, 36%"
+    to: "50%, 50%"
+    duration: 3000
+
+# Verify the success message appears
+- assertVisible: "Drag Success"
