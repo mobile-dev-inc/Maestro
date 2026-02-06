@@ -84,24 +84,26 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                         }
                                     }
                                 }
-                                suite.flows.forEach { flow ->
+                                suite.flows.forEachIndexed { index, flow ->
                                     val buttonClass =
                                         if (flow.status.toString() == "ERROR") "btn btn-danger" else "btn btn-success"
+                                    // Create a valid HTML ID by sanitizing the flow name
+                                    val flowId = "flow-$index-${flow.name.replace(Regex("[^a-zA-Z0-9_-]"), "-")}"
                                     div(classes = "card mb-4") {
                                         div(classes = "card-header") {
                                             h5(classes = "mb-0") {
                                                 button(classes = buttonClass) {
                                                     attributes["type"] = "button"
                                                     attributes["data-bs-toggle"] = "collapse"
-                                                    attributes["data-bs-target"] = "#${flow.name}"
+                                                    attributes["data-bs-target"] = "#$flowId"
                                                     attributes["aria-expanded"] = "false"
-                                                    attributes["aria-controls"] = flow.name
+                                                    attributes["aria-controls"] = flowId
                                                     +"${flow.name} : ${flow.status}"
                                                 }
                                             }
                                         }
                                         div(classes = "collapse") {
-                                            id = flow.name
+                                            id = flowId
                                             div(classes = "card-body") {
                                                 p(classes = "card-text") {
                                                     +"Status: ${flow.status}"
