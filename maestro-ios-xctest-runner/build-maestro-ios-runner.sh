@@ -23,11 +23,15 @@ else
 	DEVELOPMENT_TEAM_OPT="DEVELOPMENT_TEAM=${DEVELOPMENT_TEAM}"
 fi
 
-if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
-  ARCHS="$(ARCHS_STANDARD)" # Build for all current standard simulator architectures
-else
-  ARCHS="arm64" # Build only for arm64 on device builds
+if [[ -z "${ARCHS:-}" ]]; then
+  if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
+    ARCHS="x86_64 arm64" # Build for all standard simulator architectures
+  else
+    ARCHS="arm64" # Build only for arm64 on device builds
+  fi
 fi
+
+echo "Building iOS driver for arch: $ARCHS for $DESTINATION"
 
 rm -rf "$PWD/$DERIVED_DATA_PATH"
 rm -rf "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"

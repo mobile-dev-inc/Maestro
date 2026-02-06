@@ -1,6 +1,7 @@
 import FlyingFox
 import XCTest
 import os
+import MaestroDriverLib
 
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
@@ -28,9 +29,7 @@ struct ViewHierarchyHandler: HTTPHandler {
                 return HTTPResponse(statusCode: .ok, body: body)
             }
             NSLog("[Start] View hierarchy snapshot for \(foregroundApp)")
-            let appViewHierarchy = try logger.measure(message: "View hierarchy snapshot for \(foregroundApp)") {
-                try getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
-            }
+            let appViewHierarchy = try await getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
             let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
             
             NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
@@ -45,9 +44,9 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
-        SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(foregroundApp: foregroundApp)
+    func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) async throws -> AXElement {
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
+        await SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(appHierarchy: appHierarchy, foregroundApp: foregroundApp)
                 
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
             fullStatusBars(springboardApplication)

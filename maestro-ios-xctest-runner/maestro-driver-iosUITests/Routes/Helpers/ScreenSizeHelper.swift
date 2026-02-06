@@ -1,4 +1,5 @@
 import XCTest
+import MaestroDriverLib
 
 struct ScreenSizeHelper {
 
