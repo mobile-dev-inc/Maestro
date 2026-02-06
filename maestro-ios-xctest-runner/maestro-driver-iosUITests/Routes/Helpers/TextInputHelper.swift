@@ -1,6 +1,8 @@
 import Foundation
 import os
+import XCTest
 
+@MainActor
 struct TextInputHelper {
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
