@@ -334,15 +334,18 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
         try {
-            val bitmap = uiAutomation.takeScreenshot()
+            val bitmap = screenshotService.takeScreenshotWithRetry { uiAutomation.takeScreenshot() }
             val bytes = screenshotService.encodePng(bitmap)
             responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
+        } catch (e: NullPointerException) {
+            Log.e(TAG, "Screenshot failed with NullPointerException: ${e.message}", e)
+            responseObserver.onError(e.internalError())
         } catch (e: ScreenshotException) {
-            Log.e(TAG, "Screenshot encoding failed with ${e.message}" , e)
+            Log.e(TAG, "Screenshot failed with ScreenshotException: ${e.message}", e)
             responseObserver.onError(e.internalError())
         } catch (e: Exception) {
-            Log.e(TAG, "Screenshot encoding failed with unknown exception ${e.message}" , e)
+            Log.e(TAG, "Screenshot failed with: ${e.message}", e)
             responseObserver.onError(e.internalError())
         }
     }
