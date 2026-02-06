@@ -343,7 +343,6 @@ class Service(
     ) {
         try {
             // Retry on IO failures and when screenshot returns null (window not ready / SurfaceControl invalid).
-            // Operation is idempotent so retrying the full capture is safe.
             val bitmap = runBlocking {
                 val retryOnIOExceptionOrNull = continueIf<Throwable> {
                     it.failure is IOException || it.failure is ScreenshotException
