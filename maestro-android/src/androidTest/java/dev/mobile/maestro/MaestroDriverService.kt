@@ -18,7 +18,6 @@ import android.view.KeyEvent.KEYCODE_7
 import android.view.KeyEvent.KEYCODE_APOSTROPHE
 import android.view.KeyEvent.KEYCODE_AT
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.runBlocking
 import android.view.KeyEvent.KEYCODE_BACKSLASH
 import android.view.KeyEvent.KEYCODE_COMMA
 import android.view.KeyEvent.KEYCODE_EQUALS
@@ -47,11 +46,6 @@ import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
 import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
-import com.github.michaelbull.retry.policy.binaryExponentialBackoff
-import com.github.michaelbull.retry.policy.continueIf
-import com.github.michaelbull.retry.policy.plus
-import com.github.michaelbull.retry.policy.stopAtAttempts
-import com.github.michaelbull.retry.retry
 import dev.mobile.maestro.screenshot.ScreenshotException
 import dev.mobile.maestro.screenshot.ScreenshotService
 import io.grpc.Metadata
@@ -340,17 +334,7 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
         try {
-            // Retry when screenshot returns null (window not ready / SurfaceControl invalid).
-            val bitmap = runBlocking {
-                retry(
-                    stopAtAttempts<Throwable>(3)
-                        + continueIf { it.failure is NullPointerException }
-                        + binaryExponentialBackoff(min = 500L, max = 5000L)
-                ) {
-                    uiAutomation.takeScreenshot()
-                }
-            }
-
+            val bitmap = screenshotService.takeScreenshotWithRetry { uiAutomation.takeScreenshot() }
             val bytes = screenshotService.encodePng(bitmap)
             responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
