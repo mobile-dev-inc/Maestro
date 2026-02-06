@@ -54,9 +54,9 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#Flow A" aria-expanded="false" aria-controls="Flow A">Flow A : SUCCESS</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#flow-0-Flow-A" aria-expanded="false" aria-controls="flow-0-Flow-A">Flow A : SUCCESS</button></h5>
                       </div>
-                      <div class="collapse" id="Flow A">
+                      <div class="collapse" id="flow-0-Flow-A">
                         <div class="card-body">
                           <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a<br></p>
                         </div>
@@ -64,9 +64,9 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#Flow B" aria-expanded="false" aria-controls="Flow B">Flow B : WARNING</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#flow-1-Flow-B" aria-expanded="false" aria-controls="flow-1-Flow-B">Flow B : WARNING</button></h5>
                       </div>
-                      <div class="collapse" id="Flow B">
+                      <div class="collapse" id="flow-1-Flow-B">
                         <div class="card-body">
                           <p class="card-text">Status: WARNING<br>Duration: 24m 54.749s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b<br></p>
                         </div>
@@ -135,9 +135,9 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#Flow A" aria-expanded="false" aria-controls="Flow A">Flow A : SUCCESS</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#flow-0-Flow-A" aria-expanded="false" aria-controls="flow-0-Flow-A">Flow A : SUCCESS</button></h5>
                       </div>
-                      <div class="collapse" id="Flow A">
+                      <div class="collapse" id="flow-0-Flow-A">
                         <div class="card-body">
                           <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a<br></p>
                         </div>
@@ -145,9 +145,9 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-danger" type="button" data-bs-toggle="collapse" data-bs-target="#Flow B" aria-expanded="false" aria-controls="Flow B">Flow B : ERROR</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-danger" type="button" data-bs-toggle="collapse" data-bs-target="#flow-1-Flow-B" aria-expanded="false" aria-controls="flow-1-Flow-B">Flow B : ERROR</button></h5>
                       </div>
-                      <div class="collapse" id="Flow B">
+                      <div class="collapse" id="flow-1-Flow-B">
                         <div class="card-body">
                           <p class="card-text">Status: ERROR<br>Duration: 2m 11.846s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b<br></p>
                           <p class="card-text text-danger">Error message</p>
