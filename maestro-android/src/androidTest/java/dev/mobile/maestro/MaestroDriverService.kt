@@ -49,6 +49,7 @@ import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
 import dev.mobile.maestro.screenshot.ScreenshotException
 import dev.mobile.maestro.screenshot.ScreenshotService
+import dev.mobile.maestro.utils.Retry
 import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -336,17 +337,13 @@ class Service(
     ) {
         try {
             val maxAttempts = 3
-            val delayBetweenAttempts = 100L
 
-            var bitmap: Bitmap? = null
-            for (attempt in 1..maxAttempts) {
-                bitmap = uiAutomation.takeScreenshot()
-                if (bitmap != null) break
-
-                if (attempt < maxAttempts) {
-                    Log.w(TAG, "Screenshot attempt $attempt returned null, retrying...")
-                    Thread.sleep(delayBetweenAttempts)
-                }
+            val bitmap = Retry.withExponentialBackoff(
+                maxAttempts = maxAttempts,
+                baseDelayMs = 200L,
+                operationName = "Screenshot"
+            ) {
+                uiAutomation.takeScreenshot()
             }
 
             if (bitmap == null) {
