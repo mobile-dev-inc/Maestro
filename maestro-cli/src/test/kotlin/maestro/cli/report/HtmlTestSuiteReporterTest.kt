@@ -54,21 +54,21 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#Flow A" aria-expanded="false" aria-controls="Flow A">Flow A : SUCCESS</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#flow-0-Flow-A" aria-expanded="false" aria-controls="flow-0-Flow-A">Flow A : SUCCESS</button></h5>
                       </div>
-                      <div class="collapse" id="Flow A">
+                      <div class="collapse" id="flow-0-Flow-A">
                         <div class="card-body">
-                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a</p>
+                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a<br></p>
                         </div>
                       </div>
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#Flow B" aria-expanded="false" aria-controls="Flow B">Flow B : WARNING</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#flow-1-Flow-B" aria-expanded="false" aria-controls="flow-1-Flow-B">Flow B : WARNING</button></h5>
                       </div>
-                      <div class="collapse" id="Flow B">
+                      <div class="collapse" id="flow-1-Flow-B">
                         <div class="card-body">
-                          <p class="card-text">Status: WARNING<br>Duration: 24m 54.749s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b</p>
+                          <p class="card-text">Status: WARNING<br>Duration: 24m 54.749s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b<br></p>
                         </div>
                       </div>
                     </div>
@@ -135,21 +135,21 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#Flow A" aria-expanded="false" aria-controls="Flow A">Flow A : SUCCESS</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#flow-0-Flow-A" aria-expanded="false" aria-controls="flow-0-Flow-A">Flow A : SUCCESS</button></h5>
                       </div>
-                      <div class="collapse" id="Flow A">
+                      <div class="collapse" id="flow-0-Flow-A">
                         <div class="card-body">
-                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a</p>
+                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a<br></p>
                         </div>
                       </div>
                     </div>
                     <div class="card mb-4">
                       <div class="card-header">
-                        <h5 class="mb-0"><button class="btn btn-danger" type="button" data-bs-toggle="collapse" data-bs-target="#Flow B" aria-expanded="false" aria-controls="Flow B">Flow B : ERROR</button></h5>
+                        <h5 class="mb-0"><button class="btn btn-danger" type="button" data-bs-toggle="collapse" data-bs-target="#flow-1-Flow-B" aria-expanded="false" aria-controls="flow-1-Flow-B">Flow B : ERROR</button></h5>
                       </div>
-                      <div class="collapse" id="Flow B">
+                      <div class="collapse" id="flow-1-Flow-B">
                         <div class="card-body">
-                          <p class="card-text">Status: ERROR<br>Duration: 2m 11.846s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b</p>
+                          <p class="card-text">Status: ERROR<br>Duration: 2m 11.846s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b<br></p>
                           <p class="card-text text-danger">Error message</p>
                         </div>
                       </div>
@@ -259,5 +259,46 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
         assertThat(resultStr).contains("Flow A")
         assertThat(resultStr).contains("Status: SUCCESS")
         assertThat(resultStr).contains("File Name: flow_a")
+    }
+
+    @Test
+    fun `HTML - Tags and properties are displayed`() {
+        // Given
+        val testee = HtmlTestSuiteReporter(detailed = false)
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testWithTagsAndProperties,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then
+        // Verify tags are displayed
+        assertThat(resultStr).contains("Tags:")
+        assertThat(resultStr).contains("smoke")
+        assertThat(resultStr).contains("critical")
+        assertThat(resultStr).contains("auth")
+        assertThat(resultStr).contains("regression")
+        assertThat(resultStr).contains("e2e")
+        assertThat(resultStr).contains("badge bg-primary")
+
+        // Verify properties section and table
+        assertThat(resultStr).contains("Properties")
+        assertThat(resultStr).contains("testCaseId")
+        assertThat(resultStr).contains("TC-001")
+        assertThat(resultStr).contains("xray-test-key")
+        assertThat(resultStr).contains("PROJ-123")
+        assertThat(resultStr).contains("priority")
+        assertThat(resultStr).contains("P0")
+        assertThat(resultStr).contains("TC-002")
+        assertThat(resultStr).contains("testrail-case-id")
+        assertThat(resultStr).contains("C456")
+        assertThat(resultStr).contains("table table-sm table-bordered")
+
+        // Verify flow names
+        assertThat(resultStr).contains("Login Flow")
+        assertThat(resultStr).contains("Checkout Flow")
     }
 }
