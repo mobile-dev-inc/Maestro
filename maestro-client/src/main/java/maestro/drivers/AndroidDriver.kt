@@ -74,15 +74,16 @@ class AndroidDriver(
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
-    private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
+    // Mutable channel and stub to support recreation after connection loss
+    private var channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
-        .keepAliveTime(2, TimeUnit.MINUTES)
+        .keepAliveTime(45, TimeUnit.SECONDS)  // Reduced from 2 min; server permits 30s minimum
         .keepAliveTimeout(20, TimeUnit.SECONDS)
         .keepAliveWithoutCalls(true)
         .build()
-    private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
+    private var blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
-    private val asyncStub = MaestroDriverGrpc.newStub(channel)
+    private var asyncStub = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
     private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
@@ -218,6 +219,22 @@ class AndroidDriver(
                 widthGrid = response.widthPixels,
                 heightGrid = response.heightPixels,
             )
+        }
+    }
+
+    /**
+     * Validates that the gRPC connection to the Android driver is healthy.
+     * This can be used to check if a session is still usable before reusing it.
+     *
+     * @return true if the connection is healthy, false otherwise
+     */
+    fun healthCheck(): Boolean {
+        return try {
+            deviceInfo()
+            true
+        } catch (e: StatusRuntimeException) {
+            LOGGER.warn("Health check failed: ${e.message}")
+            false
         }
     }
 
@@ -372,37 +389,48 @@ class AndroidDriver(
         )
     }
 
-    private fun callViewHierarchy(attempt: Int = 1): MaestroAndroid.ViewHierarchyResponse {
+    private fun callViewHierarchy(): MaestroAndroid.ViewHierarchyResponse {
+        return callViewHierarchyWithRetry(remainingAttempts = 3)
+    }
+
+    private fun callViewHierarchyWithRetry(remainingAttempts: Int): MaestroAndroid.ViewHierarchyResponse {
         return try {
             blockingStubWithTimeout.viewHierarchy(viewHierarchyRequest {})
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
+            val attemptNumber = 4 - remainingAttempts
+
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
                     throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
-                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                    } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
+                    if (remainingAttempts > 0) {
+                        LOGGER.warn("gRPC UNAVAILABLE fetching view hierarchy (attempt $attemptNumber/3): ${throwable.message}")
+                        // Try to recover by recreating the channel
+                        recreateChannelIfNeeded()
+                        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
+                        return callViewHierarchyWithRetry(remainingAttempts - 1)
                     }
+                    // All retries exhausted
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server after 3 attempts while fetching view hierarchy")
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} after 3 attempts")
+                    }
+                    throw throwable
                 }
                 else -> {
-                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message}")
+                    // For other errors (like NPE in UiAutomator), also retry with a delay
+                    LOGGER.error("Error fetching view hierarchy (attempt $attemptNumber/3): ${status.code} - ${throwable.message}")
+                    if (remainingAttempts > 0) {
+                        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
+                        return callViewHierarchyWithRetry(remainingAttempts - 1)
+                    }
+                    throw throwable
                 }
             }
-
-            // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
-            // Trying to recover once by giving it a bit of time to settle.
-            LOGGER.error("Failed to get view hierarchy: ${status.description}", throwable)
-
-            if (attempt > 0) {
-                MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
-                return callViewHierarchy(attempt - 1)
-            }
-            throw throwable
         }
     }
 
@@ -1258,7 +1286,40 @@ class AndroidDriver(
         }
     }
 
+    /**
+     * Recreates the gRPC channel and stubs if the channel has been shut down or terminated.
+     * This allows recovery from connection loss scenarios (e.g., device disconnect/reconnect,
+     * network interruption, or stale session reuse).
+     *
+     * @return true if the channel was recreated, false if it was still healthy
+     */
+    private fun recreateChannelIfNeeded(): Boolean {
+        if (channel.isShutdown || channel.isTerminated) {
+            LOGGER.info("Recreating gRPC channel after connection loss (shutdown=${channel.isShutdown}, terminated=${channel.isTerminated})")
+            try {
+                channel.shutdownNow()  // Force cleanup of the old channel
+            } catch (e: Exception) {
+                LOGGER.warn("Error during channel shutdown: ${e.message}")
+            }
+            channel = ManagedChannelBuilder.forAddress("localhost", hostPort)
+                .usePlaintext()
+                .keepAliveTime(45, TimeUnit.SECONDS)
+                .keepAliveTimeout(20, TimeUnit.SECONDS)
+                .keepAliveWithoutCalls(true)
+                .build()
+            blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
+            asyncStub = MaestroDriverGrpc.newStub(channel)
+            LOGGER.info("gRPC channel recreated successfully")
+            return true
+        }
+        return false
+    }
+
     private fun <T> runDeviceCall(call: () -> T): T {
+        return runDeviceCallWithRetry(call, remainingAttempts = 3)
+    }
+
+    private fun <T> runDeviceCallWithRetry(call: () -> T, remainingAttempts: Int): T {
         return try {
             call()
         } catch (throwable: StatusRuntimeException) {
@@ -1269,13 +1330,21 @@ class AndroidDriver(
                     throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
-                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while doing android device call")
-                        throw throwable
-                    } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
-                        throw throwable
+                    val attemptNumber = 4 - remainingAttempts
+                    if (remainingAttempts > 0) {
+                        LOGGER.warn("gRPC UNAVAILABLE (attempt $attemptNumber/3): ${throwable.message}")
+                        // Try to recover by recreating the channel
+                        recreateChannelIfNeeded()
+                        MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
+                        return runDeviceCallWithRetry(call, remainingAttempts - 1)
                     }
+                    // All retries exhausted
+                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
+                        LOGGER.error("Not able to reach the gRPC server after 3 attempts while doing android device call")
+                    } else {
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} after 3 attempts while doing android device call", throwable)
+                    }
+                    throw throwable
                 }
                 Status.Code.INTERNAL -> {
                     val trailers = Status.trailersFromThrowable(throwable)
