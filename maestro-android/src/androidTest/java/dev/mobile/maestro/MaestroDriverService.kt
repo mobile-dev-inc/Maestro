@@ -18,7 +18,9 @@ import android.view.KeyEvent.KEYCODE_6
 import android.view.KeyEvent.KEYCODE_7
 import android.view.KeyEvent.KEYCODE_APOSTROPHE
 import android.view.KeyEvent.KEYCODE_AT
+import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.runBlocking
 import android.view.KeyEvent.KEYCODE_BACKSLASH
 import android.view.KeyEvent.KEYCODE_COMMA
 import android.view.KeyEvent.KEYCODE_EQUALS
@@ -47,9 +49,13 @@ import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
 import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
+import com.github.michaelbull.retry.policy.binaryExponentialBackoff
+import com.github.michaelbull.retry.policy.continueIf
+import com.github.michaelbull.retry.policy.plus
+import com.github.michaelbull.retry.policy.stopAtAttempts
+import com.github.michaelbull.retry.retry
 import dev.mobile.maestro.screenshot.ScreenshotException
 import dev.mobile.maestro.screenshot.ScreenshotService
-import dev.mobile.maestro.utils.Retry
 import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -336,19 +342,23 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
         try {
-            val maxAttempts = 3
-
-            val bitmap = Retry.withExponentialBackoff(
-                maxAttempts = maxAttempts,
-                baseDelayMs = 200L,
-                operationName = "Screenshot"
-            ) {
-                uiAutomation.takeScreenshot()
-            }
-
-            if (bitmap == null) {
-                throw ScreenshotException("Screenshot returned null after $maxAttempts attempts. " +
-                    "Window may not be laid out or SurfaceControl may be invalid.")
+            // Retry on IO failures and when screenshot returns null (window not ready / SurfaceControl invalid).
+            // Operation is idempotent so retrying the full capture is safe.
+            val bitmap = runBlocking {
+                val retryOnIOExceptionOrNull = continueIf<Throwable> {
+                    it.failure is IOException || it.failure is ScreenshotException
+                }
+                retry(
+                    stopAtAttempts<Throwable>(3) + retryOnIOExceptionOrNull + binaryExponentialBackoff(min = 500L, max = 5000L)
+                ) {
+                    val result = uiAutomation.takeScreenshot()
+                    if (result == null) {
+                        throw ScreenshotException(
+                            "Screenshot returned null. Window may not be laid out or SurfaceControl may be invalid."
+                        )
+                    }
+                    result
+                }
             }
 
             val bytes = screenshotService.encodePng(bitmap)
