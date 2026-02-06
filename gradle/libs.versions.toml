@@ -36,6 +36,7 @@ jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "2.2.0"
+kotlinRetry = "2.0.1"
 kotlinResult = "2.0.1"
 kotlinx-serialization-json = "1.5.0"
 ktor = "2.3.6"
@@ -107,6 +108,7 @@ junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.re
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
 kotlin-result = { module = "com.michael-bull.kotlin-result:kotlin-result", version.ref = "kotlinResult" }
+kotlin-retry = { module = "com.michael-bull.kotlin-retry:kotlin-retry", version.ref = "kotlinRetry" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

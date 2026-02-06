@@ -168,4 +168,5 @@ dependencies {
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.uiautomator)
+    androidTestImplementation(libs.kotlin.retry)
 }
