@@ -1,7 +1,6 @@
 package dev.mobile.maestro
 
 import android.app.UiAutomation
-import android.graphics.Bitmap
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
 import android.location.Criteria
@@ -18,7 +17,6 @@ import android.view.KeyEvent.KEYCODE_6
 import android.view.KeyEvent.KEYCODE_7
 import android.view.KeyEvent.KEYCODE_APOSTROPHE
 import android.view.KeyEvent.KEYCODE_AT
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import android.view.KeyEvent.KEYCODE_BACKSLASH
@@ -342,32 +340,28 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
         try {
-            // Retry on IO failures and when screenshot returns null (window not ready / SurfaceControl invalid).
+            // Retry when screenshot returns null (window not ready / SurfaceControl invalid).
             val bitmap = runBlocking {
-                val retryOnIOExceptionOrNull = continueIf<Throwable> {
-                    it.failure is IOException || it.failure is ScreenshotException
-                }
                 retry(
-                    stopAtAttempts<Throwable>(3) + retryOnIOExceptionOrNull + binaryExponentialBackoff(min = 500L, max = 5000L)
+                    stopAtAttempts<Throwable>(3)
+                        + continueIf { it.failure is NullPointerException }
+                        + binaryExponentialBackoff(min = 500L, max = 5000L)
                 ) {
-                    val result = uiAutomation.takeScreenshot()
-                    if (result == null) {
-                        throw ScreenshotException(
-                            "Screenshot returned null. Window may not be laid out or SurfaceControl may be invalid."
-                        )
-                    }
-                    result
+                    uiAutomation.takeScreenshot()
                 }
             }
 
             val bytes = screenshotService.encodePng(bitmap)
             responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
+        } catch (e: NullPointerException) {
+            Log.e(TAG, "Screenshot failed with NullPointerException: ${e.message}", e)
+            responseObserver.onError(e.internalError())
         } catch (e: ScreenshotException) {
-            Log.e(TAG, "Screenshot failed: ${e.message}", e)
+            Log.e(TAG, "Screenshot failed with ScreenshotException: ${e.message}", e)
             responseObserver.onError(e.internalError())
         } catch (e: Exception) {
-            Log.e(TAG, "Screenshot failed with unknown exception: ${e.message}", e)
+            Log.e(TAG, "Screenshot failed with: ${e.message}", e)
             responseObserver.onError(e.internalError())
         }
     }
