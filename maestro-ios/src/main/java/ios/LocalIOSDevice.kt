@@ -104,7 +104,13 @@ class LocalIOSDevice(
         id: String,
         launchArguments: Map<String, Any>,
     ) {
-        deviceController.launch(id, launchArguments)
+        try {
+            // Try deviceController first (supports launch arguments for simulators)
+            deviceController.launch(id, launchArguments)
+        } catch (e: NotImplementedError) {
+            // Fall back to XCTest API for real devices (no launch arguments support)
+            xcTestDevice.launch(id, launchArguments)
+        }
     }
 
     override fun stop(id: String) {

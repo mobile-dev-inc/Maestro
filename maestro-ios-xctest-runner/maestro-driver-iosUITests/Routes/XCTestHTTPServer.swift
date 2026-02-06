@@ -29,7 +29,10 @@ enum Route: String, CaseIterable {
 struct XCTestHTTPServer {
     func start() async throws {
         let port = ProcessInfo.processInfo.environment["PORT"]?.toUInt16()
-        let server = HTTPServer(address: try .inet(ip4: "127.0.0.1", port: port ?? 22087), timeout: 100)
+        let actualPort = port ?? 22087
+        NSLog("[XCTestHTTPServer] PORT env var: %@", ProcessInfo.processInfo.environment["PORT"] ?? "nil")
+        NSLog("[XCTestHTTPServer] Using port: %d", actualPort)
+        let server = HTTPServer(address: try .inet(ip4: "0.0.0.0", port: actualPort), timeout: 100)
         
         for route in Route.allCases {
             let handler = await RouteHandlerFactory.createRouteHandler(route: route)
