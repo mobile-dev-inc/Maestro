@@ -165,6 +165,46 @@ class Maestro(
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
+    fun drag(
+        startPoint: Point? = null,
+        endPoint: Point? = null,
+        startRelative: String? = null,
+        endRelative: String? = null,
+        duration: Long,
+        waitToSettleTimeoutMs: Int? = null
+    ) {
+        val deviceInfo = deviceInfo()
+
+        val start: Point
+        val end: Point
+
+        when {
+            startPoint != null && endPoint != null -> {
+                start = startPoint
+                end = endPoint
+            }
+            startRelative != null && endRelative != null -> {
+                val startPoints = startRelative.replace("%", "")
+                    .split(",").map { it.trim().toInt() }
+                val startX = deviceInfo.widthGrid * startPoints[0] / 100
+                val startY = deviceInfo.heightGrid * startPoints[1] / 100
+                start = Point(startX, startY)
+
+                val endPoints = endRelative.replace("%", "")
+                    .split(",").map { it.trim().toInt() }
+                val endX = deviceInfo.widthGrid * endPoints[0] / 100
+                val endY = deviceInfo.heightGrid * endPoints[1] / 100
+                end = Point(endX, endY)
+            }
+            else -> throw IllegalArgumentException("Either absolute points or relative points must be provided for drag")
+        }
+
+        LOGGER.info("Dragging from $start to $end over ${duration}ms")
+        driver.drag(start, end, duration)
+
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
+    }
+
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 

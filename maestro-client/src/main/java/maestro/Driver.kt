@@ -63,6 +63,8 @@ interface Driver {
 
     fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long)
 
+    fun drag(start: Point, end: Point, durationMs: Long)
+
     fun backPress()
 
     fun inputText(text: String)

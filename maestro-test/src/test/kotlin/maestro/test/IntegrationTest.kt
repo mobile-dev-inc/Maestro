@@ -4293,7 +4293,7 @@ class IntegrationTest {
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
     }
 
-    
+
     @Test
     fun `hideKeyboard succeeds when keyboard becomes hidden`() {
         // Given
@@ -4343,6 +4343,76 @@ class IntegrationTest {
                 Event.HideKeyboard,
             )
         )
+    }
+
+    @Test
+    fun `Case 139 - Drag with percentage coordinates`() {
+        // Given
+        val commands = readCommands("139_drag_percentage")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // FakeDriver widthGrid=540, heightGrid=960
+        // 50%,30% -> Point(270,288), 50%,70% -> Point(270,672)
+        driver.assertHasEvent(Event.Drag(start = Point(270, 288), end = Point(270, 672), durationMs = 3000))
+    }
+
+    @Test
+    fun `Case 140 - Drag with offset`() {
+        // Given
+        val commands = readCommands("140_drag_offset")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // from 50%,30% -> Point(270,288), offset 0%,40% -> +Point(0,384)
+        // end = Point(270, 672)
+        driver.assertHasEvent(Event.Drag(start = Point(270, 288), end = Point(270, 672), durationMs = 3000))
+    }
+
+    @Test
+    fun `Case 141 - Drag by element text`() {
+        // Given
+        val commands = readCommands("141_drag_element")
+
+        val driver = driver {
+            element {
+                text = "Item 3"
+                bounds = Bounds(0, 200, 540, 260)
+            }
+            element {
+                text = "Item 1"
+                bounds = Bounds(0, 0, 540, 60)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // Item 3 center: (270, 230), Item 1 center: (270, 30)
+        driver.assertHasEvent(Event.Drag(start = Point(270, 230), end = Point(270, 30), durationMs = 3000))
     }
 
     @Test

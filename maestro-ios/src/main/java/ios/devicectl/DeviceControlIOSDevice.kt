@@ -43,6 +43,10 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
+    override fun drag(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double) {
+        TODO("Not yet implemented")
+    }
+
     override fun input(text: String) {
         TODO("Not yet implemented")
     }

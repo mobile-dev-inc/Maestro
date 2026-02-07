@@ -16,3 +16,9 @@ maestro-orchestra/src/test/resources/media/assets/*
 
 # Local files
 local/
+
+# jenv
+.java-version
+
+# agents
+.claude/settings.local.json

@@ -46,6 +46,7 @@ import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
+import maestro.orchestra.DragCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
@@ -224,7 +225,7 @@ internal class YamlCommandReaderTest {
         // Compute expected absolute path for runScript command
         val testResourcesPath = YamlCommandReaderTest::class.java.classLoader.getResource("YamlCommandReaderTest/023_runScript_test.js")?.toURI()
         val expectedScriptPath = testResourcesPath?.let { java.nio.file.Paths.get(it).toString() } ?: "023_runScript_test.js"
-        
+
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(
                 config=MaestroConfig(
@@ -780,6 +781,55 @@ internal class YamlCommandReaderTest {
         )
     }
 
+
+    @Test
+    fun `drag command variants`(
+        @YamlFile("031_drag.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(appId = "com.example.app")),
+            // Drag by percentage coordinates (default duration 3000)
+            DragCommand(
+                fromPoint = "50%, 30%",
+                toPoint = "50%, 70%",
+            ),
+            // Drag by percentage coordinates with explicit duration
+            DragCommand(
+                fromPoint = "50%, 30%",
+                toPoint = "50%, 70%",
+                duration = 5000,
+            ),
+            // Drag with offset
+            DragCommand(
+                fromPoint = "50%, 30%",
+                offset = "0%, 40%",
+            ),
+            // Drag by element text
+            DragCommand(
+                fromElement = ElementSelector(textRegex = ".*Item 3.*"),
+                toElement = ElementSelector(textRegex = ".*Item 1.*"),
+                duration = 3000,
+            ),
+            // Drag by element id
+            DragCommand(
+                fromElement = ElementSelector(idRegex = "drag-handle-3"),
+                toElement = ElementSelector(idRegex = "drop-zone-1"),
+            ),
+            // Drag with label and optional
+            DragCommand(
+                fromPoint = "50%, 30%",
+                toPoint = "50%, 70%",
+                label = "Drag item down",
+                optional = true,
+            ),
+            // Drag with waitToSettleTimeoutMs
+            DragCommand(
+                fromPoint = "50%, 30%",
+                toPoint = "50%, 70%",
+                waitToSettleTimeoutMs = 100,
+            ),
+        )
+    }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()

@@ -11,6 +11,8 @@
 		32097965297092A800340282 /* InputTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32097964297092A800340282 /* InputTextRequest.swift */; };
 		32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
 		32762AFA2966DC8300FB69BD /* SwipeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF92966DC8300FB69BD /* SwipeRequest.swift */; };
+		AA000001DRAG000000000001 /* DragRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000002DRAG000000000002 /* DragRouteHandler.swift */; };
+		AA000003DRAG000000000003 /* DragRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000004DRAG000000000004 /* DragRequest.swift */; };
 		32A9C73C2D7A62B500545435 /* LaunchAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */; };
 		32A9C73E2D7A631A00545435 /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */; };
 		32ECCB262980449200A1A0A0 /* TouchRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB252980449200A1A0A0 /* TouchRequest.swift */; };
@@ -163,6 +165,8 @@
 		32097964297092A800340282 /* InputTextRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTextRequest.swift; sourceTree = "<group>"; };
 		32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRouteHandler.swift; sourceTree = "<group>"; };
 		32762AF92966DC8300FB69BD /* SwipeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeRequest.swift; sourceTree = "<group>"; };
+		AA000002DRAG000000000002 /* DragRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRouteHandler.swift; sourceTree = "<group>"; };
+		AA000004DRAG000000000004 /* DragRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragRequest.swift; sourceTree = "<group>"; };
 		32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppHandler.swift; sourceTree = "<group>"; };
 		32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppRequest.swift; sourceTree = "<group>"; };
 		32ECCB252980449200A1A0A0 /* TouchRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRequest.swift; sourceTree = "<group>"; };
@@ -656,6 +660,7 @@
 				32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */,
 				9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */,
 				32762AF92966DC8300FB69BD /* SwipeRequest.swift */,
+				AA000004DRAG000000000004 /* DragRequest.swift */,
 				32097964297092A800340282 /* InputTextRequest.swift */,
 				32ECCB252980449200A1A0A0 /* TouchRequest.swift */,
 				61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */,
@@ -696,6 +701,7 @@
 				943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */,
 				32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */,
 				61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */,
+				AA000002DRAG000000000002 /* DragRouteHandler.swift */,
 				320979622970925500340282 /* InputTextRouteHandler.swift */,
 				32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */,
 				9494CBD02982F719009C987C /* ScreenshotHandler.swift */,
@@ -1054,6 +1060,8 @@
 				61C0AFE929C86378005D1FC5 /* PressButtonRequest.swift in Sources */,
 				6124329E2A4DA5BB00F5F619 /* AXElement.swift in Sources */,
 				32762AF82965E2A200FB69BD /* SwipeRouteHandler.swift in Sources */,
+				AA000001DRAG000000000001 /* DragRouteHandler.swift in Sources */,
+				AA000003DRAG000000000003 /* DragRequest.swift in Sources */,
 				522785812A54410D008DBC0A /* AppError.swift in Sources */,
 				320979632970925500340282 /* InputTextRouteHandler.swift in Sources */,
 				52E35D432A654F67001D97A8 /* RunningApp.swift in Sources */,

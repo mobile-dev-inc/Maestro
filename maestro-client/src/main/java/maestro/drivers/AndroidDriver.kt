@@ -430,6 +430,12 @@ class AndroidDriver(
         dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
     }
 
+    override fun drag(start: Point, end: Point, durationMs: Long) {
+        metrics.measured("operation", mapOf("command" to "drag")) {
+            dadb.shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+        }
+    }
+
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "swipeWithDirection", "direction" to swipeDirection.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()
