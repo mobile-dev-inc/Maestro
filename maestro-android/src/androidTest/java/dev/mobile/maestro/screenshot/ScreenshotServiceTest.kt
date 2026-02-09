@@ -2,7 +2,9 @@ package dev.mobile.maestro.screenshot
 
 import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Ignore
@@ -80,6 +82,52 @@ class ScreenshotServiceTest {
             assertTrue("Encoded bytes should not be empty", result.size() > 0)
         } finally {
             bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun takeScreenshotWithRetry_returnsOnFirstSuccess() {
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        var callCount = 0
+        try {
+            val result = screenshotService.takeScreenshotWithRetry {
+                callCount++
+                bitmap
+            }
+            assertSame(bitmap, result)
+            assertEquals(1, callCount)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun takeScreenshotWithRetry_retriesOnNull() {
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        var callCount = 0
+        try {
+            val result = screenshotService.takeScreenshotWithRetry {
+                callCount++
+                if (callCount < 3) null else bitmap
+            }
+            assertSame(bitmap, result)
+            assertEquals(3, callCount)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun takeScreenshotWithRetry_throwsAfterAllRetriesExhausted() {
+        var callCount = 0
+        try {
+            screenshotService.takeScreenshotWithRetry {
+                callCount++
+                null
+            }
+            fail("Expected NullPointerException to be thrown")
+        } catch (e: NullPointerException) {
+            assertEquals(3, callCount)
         }
     }
 }
