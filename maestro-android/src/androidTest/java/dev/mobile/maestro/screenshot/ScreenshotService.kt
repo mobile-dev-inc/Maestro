@@ -34,7 +34,8 @@ class ScreenshotService() {
                     + continueIf { it.failure is NullPointerException }
                     + binaryExponentialBackoff(min = 500L, max = 5000L)
             ) {
-                screenshotProvider()!!
+                screenshotProvider()
+                    ?: throw NullPointerException("Screenshot returned null — window may not be ready")
             }
         }
     }
