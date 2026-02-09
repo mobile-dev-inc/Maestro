@@ -59,8 +59,8 @@ class PlainTextResultView: ResultView {
         if (c?.visible() == false) { return }
 
         val description = c?.description() ?: "Unknown command"
-        val startKey = "$commandKey:$description:start"
-        val completeKey = "$commandKey:$description:complete"
+        val startKey = "$commandKey:start"
+        val completeKey = "$commandKey:complete"
 
         if (command.subCommands != null) {
             // Command with subCommands
