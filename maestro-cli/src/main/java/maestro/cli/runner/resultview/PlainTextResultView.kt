@@ -7,12 +7,11 @@ import maestro.utils.chunkStringByWordCount
 
 class PlainTextResultView: ResultView {
 
-    private val printedStartItems = mutableSetOf<String>()
-    private val printedCompleteItems = mutableSetOf<String>()
-    private var devicePrinted = false
-    private var flowNamePrinted: String? = null
-    private var onFlowStartPrinted = false
-    private var onFlowCompletePrinted = false
+    private val printed = mutableSetOf<String>()
+
+    private inline fun printOnce(key: String, block: () -> Unit) {
+        if (printed.add(key)) block()
+    }
 
     override fun setState(state: UiState) {
         when (state) {
@@ -30,33 +29,21 @@ class PlainTextResultView: ResultView {
     }
 
     private fun renderRunningStatePlainText(state: UiState.Running) {
-        if (!devicePrinted) {
-            state.device?.let {
-                println("Running on ${state.device.description}")
-                devicePrinted = true
-            }
+        state.device?.let {
+            printOnce("device") { println("Running on ${state.device.description}") }
         }
 
         if (state.onFlowStartCommands.isNotEmpty()) {
-            if (!onFlowStartPrinted) {
-                println("  > On Flow Start")
-                onFlowStartPrinted = true
-            }
+            printOnce("onFlowStart") { println("  > On Flow Start") }
             renderCommandsPlainText(state.onFlowStartCommands, prefix = "onFlowStart")
         }
 
-        if (flowNamePrinted != state.flowName) {
-            println(" > Flow ${state.flowName}")
-            flowNamePrinted = state.flowName
-        }
+        printOnce("flowName:${state.flowName}") { println(" > Flow ${state.flowName}") }
 
         renderCommandsPlainText(state.commands, prefix = "main")
 
         if (state.onFlowCompleteCommands.isNotEmpty()) {
-            if (!onFlowCompletePrinted) {
-                println("  > On Flow Complete")
-                onFlowCompletePrinted = true
-            }
+            printOnce("onFlowComplete") { println("  > On Flow Complete") }
             renderCommandsPlainText(state.onFlowCompleteCommands, prefix = "onFlowComplete")
         }
     }
@@ -77,34 +64,24 @@ class PlainTextResultView: ResultView {
 
         if (command.subCommands != null) {
             // Command with subCommands
-            if (startKey !in printedStartItems && command.status != CommandStatus.PENDING) {
-                println("  ".repeat(indent) + "$description...")
-                printedStartItems.add(startKey)
+            if (command.status != CommandStatus.PENDING) {
+                printOnce(startKey) { println("  ".repeat(indent) + "$description...") }
             }
 
             if (command.subOnStartCommands != null) {
-                val onStartKey = "$commandKey:onStart"
-                if (onStartKey !in printedStartItems) {
-                    println("  ".repeat(indent + 1) + "> On Flow Start")
-                    printedStartItems.add(onStartKey)
-                }
+                printOnce("$commandKey:onStart") { println("  ".repeat(indent + 1) + "> On Flow Start") }
                 renderCommandsPlainText(command.subOnStartCommands, indent = indent + 1, prefix = "$commandKey:subOnStart")
             }
 
             renderCommandsPlainText(command.subCommands, indent = indent + 1, prefix = "$commandKey:sub")
 
             if (command.subOnCompleteCommands != null) {
-                val onCompleteKey = "$commandKey:onComplete"
-                if (onCompleteKey !in printedStartItems) {
-                    println("  ".repeat(indent + 1) + "> On Flow Complete")
-                    printedStartItems.add(onCompleteKey)
-                }
+                printOnce("$commandKey:onComplete") { println("  ".repeat(indent + 1) + "> On Flow Complete") }
                 renderCommandsPlainText(command.subOnCompleteCommands, indent = indent + 1, prefix = "$commandKey:subOnComplete")
             }
 
-            if (completeKey !in printedCompleteItems && command.status in setOf(CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED)) {
-                println("  ".repeat(indent) + "$description... " + status(command.status))
-                printedCompleteItems.add(completeKey)
+            if (command.status in setOf(CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED)) {
+                printOnce(completeKey) { println("  ".repeat(indent) + "$description... " + status(command.status)) }
             }
         } else {
             // Simple command without subCommands
@@ -114,21 +91,14 @@ class PlainTextResultView: ResultView {
                 }
 
                 CommandStatus.RUNNING -> {
-                    if (startKey !in printedStartItems) {
-                        print("  ".repeat(indent) + "$description...")
-                        printedStartItems.add(startKey)
-                    }
+                    printOnce(startKey) { print("  ".repeat(indent) + "$description...") }
                 }
 
                 CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED -> {
-                    if (startKey !in printedStartItems) {
-                        print("  ".repeat(indent) + "$description...")
-                        printedStartItems.add(startKey)
-                    }
-                    if (completeKey !in printedCompleteItems) {
+                    printOnce(startKey) { print("  ".repeat(indent) + "$description...") }
+                    printOnce(completeKey) {
                         println(" " + status(command.status))
                         renderInsight(command.insight, indent + 1)
-                        printedCompleteItems.add(completeKey)
                     }
                 }
             }
