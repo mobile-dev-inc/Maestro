@@ -1,8 +1,14 @@
 package dev.mobile.maestro.screenshot
 
 import android.graphics.Bitmap
+import com.github.michaelbull.retry.policy.binaryExponentialBackoff
+import com.github.michaelbull.retry.policy.continueIf
+import com.github.michaelbull.retry.policy.plus
+import com.github.michaelbull.retry.policy.stopAtAttempts
+import com.github.michaelbull.retry.retry
 import com.google.protobuf.ByteString
 import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.runBlocking
 
 /**
  * Thrown when screenshot encoding fails (e.g. [Bitmap.compress] throws or returns false).
@@ -16,6 +22,23 @@ class ScreenshotException(
  * Encodes screenshots to PNG (or other formats) with validation and size limits.
  */
 class ScreenshotService() {
+
+    /**
+     * Takes a screenshot with retry logic. Retries up to 3 times with exponential backoff
+     * when the screenshot returns null (window not ready / SurfaceControl invalid).
+     */
+    fun takeScreenshotWithRetry(screenshotProvider: () -> Bitmap?): Bitmap {
+        return runBlocking {
+            retry(
+                stopAtAttempts<Throwable>(3)
+                    + continueIf { it.failure is NullPointerException }
+                    + binaryExponentialBackoff(min = 500L, max = 5000L)
+            ) {
+                screenshotProvider()
+                    ?: throw NullPointerException("Screenshot returned null — window may not be ready")
+            }
+        }
+    }
 
     /**
      * Encodes a screenshot bitmap to PNG bytes.
