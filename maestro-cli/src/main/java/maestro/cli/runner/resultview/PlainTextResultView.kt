@@ -2,12 +2,20 @@ package maestro.cli.runner.resultview
 
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
+import maestro.orchestra.CompositeCommand
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 
 class PlainTextResultView: ResultView {
 
     private val printed = mutableSetOf<String>()
+
+    private val terminalStatuses = setOf(
+        CommandStatus.COMPLETED,
+        CommandStatus.FAILED,
+        CommandStatus.SKIPPED,
+        CommandStatus.WARNED
+    )
 
     private inline fun printOnce(key: String, block: () -> Unit) {
         if (printed.add(key)) block()
@@ -54,52 +62,59 @@ class PlainTextResultView: ResultView {
         }
     }
 
-    private fun renderCommandPlainText(command: CommandState, indent: Int, commandKey: String) {
+    private fun renderCommandPlainText(command: CommandState, indent: Int, key: String) {
         val c = command.command.asCommand()
-        if (c?.visible() == false) { return }
+        if (c?.visible() == false) return
 
-        val description = c?.description() ?: "Unknown command"
-        val startKey = "$commandKey:start"
-        val completeKey = "$commandKey:complete"
+        val desc = c?.description() ?: "Unknown command"
+        val pad = "  ".repeat(indent)
 
-        if (command.subCommands != null) {
-            // Command with subCommands
-            if (command.status != CommandStatus.PENDING) {
-                printOnce(startKey) { println("  ".repeat(indent) + "$description...") }
-            }
-
-            if (command.subOnStartCommands != null) {
-                printOnce("$commandKey:onStart") { println("  ".repeat(indent + 1) + "> On Flow Start") }
-                renderCommandsPlainText(command.subOnStartCommands, indent = indent + 1, prefix = "$commandKey:subOnStart")
-            }
-
-            renderCommandsPlainText(command.subCommands, indent = indent + 1, prefix = "$commandKey:sub")
-
-            if (command.subOnCompleteCommands != null) {
-                printOnce("$commandKey:onComplete") { println("  ".repeat(indent + 1) + "> On Flow Complete") }
-                renderCommandsPlainText(command.subOnCompleteCommands, indent = indent + 1, prefix = "$commandKey:subOnComplete")
-            }
-
-            if (command.status in setOf(CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED)) {
-                printOnce(completeKey) { println("  ".repeat(indent) + "$description... " + status(command.status)) }
-            }
-        } else {
-            // Simple command without subCommands
-            when (command.status) {
-                CommandStatus.PENDING -> {
-                    // Don't print pending commands
+        when (c) {
+            is CompositeCommand -> {
+                // Print start line once when command begins
+                if (command.status != CommandStatus.PENDING) {
+                    printOnce("$key:start") { println("$pad$desc...") }
                 }
 
-                CommandStatus.RUNNING -> {
-                    printOnce(startKey) { print("  ".repeat(indent) + "$description...") }
+                // onFlowStart hooks
+                command.subOnStartCommands?.let { cmds ->
+                    printOnce("$key:onStart") { println("$pad  > On Flow Start") }
+                    renderCommandsPlainText(cmds, indent + 1, "$key:subOnStart")
                 }
 
-                CommandStatus.COMPLETED, CommandStatus.FAILED, CommandStatus.SKIPPED, CommandStatus.WARNED -> {
-                    printOnce(startKey) { print("  ".repeat(indent) + "$description...") }
-                    printOnce(completeKey) {
-                        println(" " + status(command.status))
-                        renderInsight(command.insight, indent + 1)
+                // The actual sub-commands of the composite
+                command.subCommands?.let { cmds ->
+                    renderCommandsPlainText(cmds, indent + 1, "$key:sub")
+                }
+
+                // onFlowComplete hooks
+                command.subOnCompleteCommands?.let { cmds ->
+                    printOnce("$key:onComplete") { println("$pad  > On Flow Complete") }
+                    renderCommandsPlainText(cmds, indent + 1, "$key:subOnComplete")
+                }
+
+                // Print completion line once when it reaches a terminal status
+                if (command.status in terminalStatuses) {
+                    printOnce("$key:complete") { println("$pad$desc... ${status(command.status)}") }
+                }
+            }
+
+            else -> {
+                // Simple command (tapOn, assertVisible, etc.)
+                when (command.status) {
+                    CommandStatus.RUNNING -> {
+                        printOnce("$key:start") { print("$pad$desc...") }
                     }
+
+                    in terminalStatuses -> {
+                        printOnce("$key:start") { print("$pad$desc...") }
+                        printOnce("$key:complete") {
+                            println(" ${status(command.status)}")
+                            renderInsight(command.insight, indent + 1)
+                        }
+                    }
+
+                    else -> {}
                 }
             }
         }
