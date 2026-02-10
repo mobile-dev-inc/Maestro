@@ -72,6 +72,7 @@ class IntegrationTest {
         File("135_recordings").delete()
         File("135_recordings/filename.mp4").delete()
         File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
+        File("138_take_cropped_screenshot_with_filename.png").delete()
     }
 
     @Test
