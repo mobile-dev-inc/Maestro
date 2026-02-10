@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 2.2.0
+
+- Add `--screen-size` option to test command, to specify the headless browser window size when testing web flows
+- Add `MAESTRO_DEVICE_UDID`, `MAESTRO_SHARD_ID`, and `MAESTRO_SHARD_INDEX` as default environment variables (useful for screenshot filenames when sharding)
+- Add step information to HTML test reports via a new `html-detailed` formatter
+- Add tags and custom property information to HTML and JUnit test reports
+- Add a new `assertScreenshot` command for visual regression testing
+- Add a `cropOn` property to the `takeScreenshot` command to crop screenshots to a specific element
+- Fix scrolling in Flutter Web
+- Fix output of subflows when using `--no-ansi` flag
+- Show `maestro hierarchy` and `maestro check-syntax` commands in `maestro --help`
+- Fix iOS driver app on Simulators running on Intel-based Macs
+- Fix a potential hang between Maestro and the on-device drivers when calls take too long
+- Some logging adjustments for less noise during web tests
+- Bump web support to Chrome v144
+- Bump DataFaker to v2.5.3, GraalJS engine to v24.2.0, log4j to v2.25.3
+
+Thanks to @sazquatch17, @ImL1s, @sidferreira, @SosenWiosen, @TheKohan, @Fl0p, @ff-vivek and @eldare who all contributed changes included in this release ❤️
+
 ## 2.1.0
 
 - Add `setPermissions` command, for setting app permissions outside of `launchApp`
