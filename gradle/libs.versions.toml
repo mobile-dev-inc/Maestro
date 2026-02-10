@@ -54,8 +54,7 @@ squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
 squareMockWebServer = "4.11.0"
 wiremock = "2.35.0"
-logback = "2.21.1"
-log4jCore = "2.24.3"
+log4j = "2.25.3"
 
 coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
@@ -143,10 +142,10 @@ square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-okio-jvm = { module = "com.squareup.okio:okio-jvm", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
-logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "logback" }
-logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "logback" }
-logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "logback" }
-log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4jCore" }
+logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
+logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
+logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
 
