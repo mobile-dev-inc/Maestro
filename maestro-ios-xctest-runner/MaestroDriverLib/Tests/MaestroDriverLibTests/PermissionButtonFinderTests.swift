@@ -15,6 +15,22 @@ final class PermissionButtonFinderTests: XCTestCase {
         super.tearDown()
     }
 
+    // MARK: - Helper
+
+    /// Creates a hierarchy that looks like a real notification permission dialog:
+    /// a root element containing a label with the notification text, plus buttons.
+    private func makeNotificationPermissionDialog(buttons: [AXElement]) -> AXElement {
+        let notificationLabel = AXElement(
+            label: "\u{201C}MyApp\u{201D} Would Like to Send You Notifications",
+            elementType: 0, // Static text
+            children: nil
+        )
+        return AXElement(
+            elementType: 0,
+            children: [notificationLabel] + buttons
+        )
+    }
+
     // MARK: - findButtons Tests
 
     func testFindButtons_withNoButtons_returnsEmptyArray() {
@@ -93,6 +109,70 @@ final class PermissionButtonFinderTests: XCTestCase {
         XCTAssertEqual(buttons.first?.label, "Deep Button")
     }
 
+    // MARK: - isPermissionDialog Tests
+
+    func testIsPermissionDialog_withNotificationLabel_returnsTrue() {
+        let label = AXElement(
+            label: "\u{201C}MyApp\u{201D} Would Like to Send You Notifications",
+            elementType: 0,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label])
+
+        XCTAssertTrue(sut.isPermissionDialog(hierarchy))
+    }
+
+    func testIsPermissionDialog_withNestedNotificationLabel_returnsTrue() {
+        let label = AXElement(
+            label: "App Would Like to Send You Notifications",
+            elementType: 0,
+            children: nil
+        )
+        let nested = AXElement(elementType: 0, children: [label])
+        let hierarchy = AXElement(children: [nested])
+
+        XCTAssertTrue(sut.isPermissionDialog(hierarchy))
+    }
+
+    func testIsPermissionDialog_isCaseInsensitive() {
+        let label = AXElement(
+            label: "app would like to send you notifications",
+            elementType: 0,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label])
+
+        XCTAssertTrue(sut.isPermissionDialog(hierarchy))
+    }
+
+    func testIsPermissionDialog_withOpenInDialog_returnsFalse() {
+        let label = AXElement(
+            label: "Open in \u{201C}My App Staging\u{201D}",
+            elementType: 0,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label])
+
+        XCTAssertFalse(sut.isPermissionDialog(hierarchy))
+    }
+
+    func testIsPermissionDialog_withUnrelatedDialog_returnsFalse() {
+        let label = AXElement(
+            label: "Are you sure you want to delete this?",
+            elementType: 0,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label])
+
+        XCTAssertFalse(sut.isPermissionDialog(hierarchy))
+    }
+
+    func testIsPermissionDialog_withEmptyHierarchy_returnsFalse() {
+        let hierarchy = AXElement(children: [])
+
+        XCTAssertFalse(sut.isPermissionDialog(hierarchy))
+    }
+
     // MARK: - findButtonToTap Tests (Allow Permission)
 
     func testFindButtonToTap_allowPermission_findsAllowButtonByLabel() {
@@ -108,7 +188,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [denyButton, allowButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [denyButton, allowButton])
 
         let result = sut.findButtonToTap(for: .allow, in: hierarchy)
 
@@ -127,7 +207,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [continueButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [continueButton])
 
         let result = sut.findButtonToTap(for: .allow, in: hierarchy)
 
@@ -151,7 +231,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [firstButton, secondButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [firstButton, secondButton])
 
         let result = sut.findButtonToTap(for: .allow, in: hierarchy)
 
@@ -177,7 +257,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [allowButton, denyButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [allowButton, denyButton])
 
         let result = sut.findButtonToTap(for: .deny, in: hierarchy)
 
@@ -195,7 +275,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [cancelButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [cancelButton])
 
         let result = sut.findButtonToTap(for: .deny, in: hierarchy)
 
@@ -219,7 +299,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [firstButton, secondButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [firstButton, secondButton])
 
         let result = sut.findButtonToTap(for: .deny, in: hierarchy)
 
@@ -251,15 +331,155 @@ final class PermissionButtonFinderTests: XCTestCase {
     // MARK: - findButtonToTap Tests (No Buttons Found)
 
     func testFindButtonToTap_noButtonsInHierarchy_returnsNoButtonsFound() {
+        let notificationLabel = AXElement(
+            label: "App Would Like to Send You Notifications",
+            elementType: 0,
+            children: nil
+        )
         let textElement = AXElement(
             elementType: 0,
             children: nil
         )
-        let hierarchy = AXElement(children: [textElement])
+        let hierarchy = AXElement(children: [notificationLabel, textElement])
 
         let result = sut.findButtonToTap(for: .allow, in: hierarchy)
 
         XCTAssertEqual(result, .noButtonsFound)
+    }
+
+    // MARK: - findButtonToTap Tests (Not a Permission Dialog)
+
+    func testFindButtonToTap_openInDialog_returnsNotPermissionDialog() {
+        let label = AXElement(
+            label: "Open in \u{201C}My App Staging\u{201D}",
+            elementType: 0,
+            children: nil
+        )
+        let openButton = AXElement(
+            frame: ["X": 100, "Y": 200, "Width": 80, "Height": 40],
+            label: "Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label, openButton])
+
+        let result = sut.findButtonToTap(for: .allow, in: hierarchy)
+
+        XCTAssertEqual(result, .noActionRequired)
+    }
+
+    func testFindButtonToTap_openInDialog_doesNotTapDenyButton() {
+        let label = AXElement(
+            label: "Open in \u{201C}My App Staging\u{201D}",
+            elementType: 0,
+            children: nil
+        )
+        let cancelButton = AXElement(
+            frame: ["X": 10, "Y": 200, "Width": 80, "Height": 40],
+            label: "Cancel",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let allowButton = AXElement(
+            frame: ["X": 100, "Y": 200, "Width": 80, "Height": 40],
+            label: "Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label, cancelButton, allowButton])
+
+        let result = sut.findButtonToTap(for: .deny, in: hierarchy)
+
+        XCTAssertEqual(result, .noActionRequired)
+    }
+
+    func testFindButtonToTap_genericDeleteDialog_returnsNotPermissionDialog() {
+        let label = AXElement(
+            label: "Are you sure you want to delete this?",
+            elementType: 0,
+            children: nil
+        )
+        let deleteButton = AXElement(
+            frame: ["X": 100, "Y": 200, "Width": 80, "Height": 40],
+            label: "Delete",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let cancelButton = AXElement(
+            frame: ["X": 10, "Y": 200, "Width": 80, "Height": 40],
+            label: "Cancel",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [label, deleteButton, cancelButton])
+
+        let result = sut.findButtonToTap(for: .allow, in: hierarchy)
+
+        XCTAssertEqual(result, .noActionRequired)
+    }
+
+    func testFindButtonToTap_dialogWithNoLabels_returnsNotPermissionDialog() {
+        let button = AXElement(
+            frame: ["X": 100, "Y": 200, "Width": 80, "Height": 40],
+            label: "Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let hierarchy = AXElement(children: [button])
+
+        let result = sut.findButtonToTap(for: .allow, in: hierarchy)
+
+        XCTAssertEqual(result, .noActionRequired)
+    }
+
+    // MARK: - findButtonToTap with notification dialog selects correct button
+
+    func testFindButtonToTap_notificationDialog_allowSelectsCorrectButton() {
+        let allowButton = AXElement(
+            frame: ["X": 200, "Y": 300, "Width": 80, "Height": 40],
+            label: "Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let denyButton = AXElement(
+            frame: ["X": 50, "Y": 300, "Width": 80, "Height": 40],
+            label: "Don't Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let hierarchy = makeNotificationPermissionDialog(buttons: [denyButton, allowButton])
+
+        let result = sut.findButtonToTap(for: .allow, in: hierarchy)
+
+        if case .found(let frame) = result {
+            XCTAssertEqual(frame["X"], 200, "Should select the Allow button, not Don't Allow")
+        } else {
+            XCTFail("Expected .found result for notification permission dialog")
+        }
+    }
+
+    func testFindButtonToTap_notificationDialog_denySelectsCorrectButton() {
+        let allowButton = AXElement(
+            frame: ["X": 200, "Y": 300, "Width": 80, "Height": 40],
+            label: "Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let denyButton = AXElement(
+            frame: ["X": 50, "Y": 300, "Width": 80, "Height": 40],
+            label: "Don't Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let hierarchy = makeNotificationPermissionDialog(buttons: [denyButton, allowButton])
+
+        let result = sut.findButtonToTap(for: .deny, in: hierarchy)
+
+        if case .found(let frame) = result {
+            XCTAssertEqual(frame["X"], 50, "Should select the Don't Allow button")
+        } else {
+            XCTFail("Expected .found result for notification permission dialog")
+        }
     }
 
     // MARK: - Case Insensitivity Tests
@@ -271,7 +491,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [allowButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [allowButton])
 
         let result = sut.findButtonToTap(for: .allow, in: hierarchy)
 
@@ -289,7 +509,7 @@ final class PermissionButtonFinderTests: XCTestCase {
             elementType: ElementType.button,
             children: nil
         )
-        let hierarchy = AXElement(children: [denyButton])
+        let hierarchy = makeNotificationPermissionDialog(buttons: [denyButton])
 
         let result = sut.findButtonToTap(for: .deny, in: hierarchy)
 
