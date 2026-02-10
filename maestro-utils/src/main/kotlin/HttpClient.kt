@@ -65,6 +65,7 @@ object HttpClient {
         connectTimeout: Duration = 10.seconds,
         readTimeout: Duration = 10.seconds,
         writeTimeout: Duration = 10.seconds,
+        callTimeout: Duration = 60.seconds,
         interceptors: List<Interceptor> = emptyList(),
         networkInterceptors: List<Interceptor> = emptyList(),
         protocols: List<Protocol> = listOf(Protocol.HTTP_1_1),
@@ -75,6 +76,7 @@ object HttpClient {
             .connectTimeout(connectTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             .readTimeout(readTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             .writeTimeout(writeTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+            .callTimeout(callTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             .addNetworkInterceptor(Interceptor { chain ->
                 val start = System.currentTimeMillis()
                 val response = chain.proceed(chain.request())
