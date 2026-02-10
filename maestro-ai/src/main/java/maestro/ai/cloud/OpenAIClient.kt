@@ -29,6 +29,14 @@ class OpenAIClient {
         readSchema("extractText")
     }
 
+    private val extractPointWithReasoningSchema by lazy {
+        readSchema("extractPointWithReasoning")
+    }
+
+    private val extractPointValidationSchema by lazy {
+        readSchema("extractPointValidation")
+    }
+
     /**
      * We use JSON mode/Structured Outputs to define the schema of the response we expect from the LLM.
      * - OpenAI: https://platform.openai.com/docs/guides/structured-outputs
@@ -98,26 +106,42 @@ class OpenAIClient {
         aiClient: AI,
         query: String,
         screen: ByteArray,
-    ): ExtractPointWithAiResponse {
+        viewHierarchy: String? = null,
+    ): ExtractPointWithReasoningResponse {
         val prompt = buildString {
-            append("What are the center coordinates (percentage based on image width and height) of the ui element described in this query: $query")
+            append("You are a UI element locator. Find the center coordinates of the UI element described by this query: $query")
+
+            if (!viewHierarchy.isNullOrBlank()) {
+                append(
+                    """
+                    |
+                    |VIEW HIERARCHY (use this to help identify elements):
+                    |$viewHierarchy
+                    """.trimMargin("|")
+                )
+            }
 
             append(
                 """
+                |
+                |INSTRUCTIONS:
+                |1. First, reason step-by-step about which element matches the query.
+                |2. Consider the view hierarchy data (if provided) to narrow down the element's location.
+                |3. Identify the approximate bounding region of the element.
+                |4. Determine the center point of that element.
                 |
                 |RULES:
-                |* Provide response as a valid JSON, with structure described below.
-                |* Each resulting coordinate should be smaller than 100
-                |* Resulting coordinates should be integers and have % character at the end. eg: 10%,20%
-                """.trimMargin("|")
-            )
-
-            append(
-                """
+                |* Coordinates are percentages of image width (x) and height (y), as integers 0-100.
+                |* Format coordinates as "x%,y%" (e.g., "25%,40%").
+                |* The bounding region should be formatted as "x1%,y1%,x2%,y2%" representing top-left and bottom-right corners.
+                |* Provide a brief description of the element you identified.
                 |
-                |* You must provide result as a valid JSON object, matching this structure:
+                |You must provide result as a valid JSON object matching this structure:
                 |
                 |  {
+                |      "reasoning": "<step-by-step reasoning>",
+                |      "description": "<brief description of the identified element>",
+                |      "boundingRegion": "x1%,y1%,x2%,y2%",
                 |      "text": "x%,y%"
                 |  }
                 |
@@ -132,11 +156,113 @@ class OpenAIClient {
             maxTokens = 4096,
             imageDetail = "high",
             images = listOf(screen),
-            jsonSchema = json.parseToJsonElement(extractTextSchema).jsonObject,
+            jsonSchema = json.parseToJsonElement(extractPointWithReasoningSchema).jsonObject,
         )
-        logger.info("AI response: ${aiResponse.response}")
-        val response = json.decodeFromString<ExtractPointWithAiResponse>(aiResponse.response)
-        return response
+        logger.info("AI extractPointWithAi response: ${aiResponse.response}")
+        return json.decodeFromString<ExtractPointWithReasoningResponse>(aiResponse.response)
+    }
+
+    suspend fun extractPointRefined(
+        aiClient: AI,
+        query: String,
+        croppedScreen: ByteArray,
+        contextDescription: String,
+    ): ExtractPointWithReasoningResponse {
+        val prompt = buildString {
+            append("You are a UI element locator performing a REFINEMENT pass. ")
+            append("You previously identified an element matching this query: $query")
+
+            append(
+                """
+                |
+                |CONTEXT: $contextDescription
+                |
+                |This image is a CROPPED/ZOOMED region of the full screenshot, centered around where the element was initially located.
+                |Your job is to precisely locate the center of the element within THIS cropped image.
+                |
+                |INSTRUCTIONS:
+                |1. Look carefully at this zoomed-in view.
+                |2. Identify the exact element matching the query.
+                |3. Provide precise center coordinates relative to THIS cropped image.
+                |
+                |RULES:
+                |* Coordinates are percentages of THIS cropped image's width (x) and height (y), as integers 0-100.
+                |* Format coordinates as "x%,y%" (e.g., "50%,50%").
+                |* The bounding region should be formatted as "x1%,y1%,x2%,y2%".
+                |
+                |You must provide result as a valid JSON object matching this structure:
+                |
+                |  {
+                |      "reasoning": "<reasoning about precise location in cropped view>",
+                |      "description": "<brief description of the element>",
+                |      "boundingRegion": "x1%,y1%,x2%,y2%",
+                |      "text": "x%,y%"
+                |  }
+                |
+                |DO NOT output any other information in the JSON object.
+                """.trimMargin("|")
+            )
+        }
+
+        val aiResponse = aiClient.chatCompletion(
+            prompt,
+            model = aiClient.defaultModel,
+            maxTokens = 4096,
+            imageDetail = "high",
+            images = listOf(croppedScreen),
+            jsonSchema = json.parseToJsonElement(extractPointWithReasoningSchema).jsonObject,
+        )
+        logger.info("AI extractPointRefined response: ${aiResponse.response}")
+        return json.decodeFromString<ExtractPointWithReasoningResponse>(aiResponse.response)
+    }
+
+    suspend fun validatePoint(
+        aiClient: AI,
+        query: String,
+        screen: ByteArray,
+        pointXPercent: Int,
+        pointYPercent: Int,
+    ): ExtractPointValidationResponse {
+        val prompt = buildString {
+            append("You are a UI element locator performing a VALIDATION pass. ")
+            append("We believe the UI element matching this query is located at coordinates ${pointXPercent}%,${pointYPercent}% on the screen: $query")
+
+            append(
+                """
+                |
+                |INSTRUCTIONS:
+                |1. Look at the screenshot and identify where ${pointXPercent}%,${pointYPercent}% falls.
+                |2. Determine if this point is on or very near the center of the element described by the query.
+                |3. If correct (within a reasonable tolerance), set isCorrect to true.
+                |4. If incorrect, set isCorrect to false and provide corrected coordinates.
+                |
+                |RULES:
+                |* Coordinates are percentages of image width (x) and height (y), as integers 0-100.
+                |* Format correctedText as "x%,y%" (e.g., "25%,40%"). If isCorrect is true, set correctedText to "${pointXPercent}%,${pointYPercent}%".
+                |
+                |You must provide result as a valid JSON object matching this structure:
+                |
+                |  {
+                |      "isCorrect": <true or false>,
+                |      "correctedText": "x%,y%",
+                |      "reasoning": "<reasoning about whether the point is correct>"
+                |  }
+                |
+                |DO NOT output any other information in the JSON object.
+                """.trimMargin("|")
+            )
+        }
+
+        val aiResponse = aiClient.chatCompletion(
+            prompt,
+            model = aiClient.defaultModel,
+            maxTokens = 4096,
+            imageDetail = "high",
+            images = listOf(screen),
+            jsonSchema = json.parseToJsonElement(extractPointValidationSchema).jsonObject,
+        )
+        logger.info("AI validatePoint response: ${aiResponse.response}")
+        return json.decodeFromString<ExtractPointValidationResponse>(aiResponse.response)
     }
 
     suspend fun findDefects(

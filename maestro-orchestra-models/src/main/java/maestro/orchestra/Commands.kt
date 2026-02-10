@@ -670,6 +670,7 @@ data class AssertWithAICommand(
 data class ExtractPointWithAICommand(
     val query: String,
     val outputVariable: String,
+    val passes: Int = 3,
     override val optional: Boolean = true,
     override val label: String? = null
 ) : Command {

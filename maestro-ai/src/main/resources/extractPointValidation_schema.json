@@ -1,0 +1,25 @@
+{
+  "name": "extractPointValidation",
+  "description": "Validates or corrects a proposed point location on a screenshot",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "required": [
+      "isCorrect",
+      "correctedText",
+      "reasoning"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "isCorrect": {
+        "type": "boolean"
+      },
+      "correctedText": {
+        "type": "string"
+      },
+      "reasoning": {
+        "type": "string"
+      }
+    }
+  }
+}

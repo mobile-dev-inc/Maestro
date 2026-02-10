@@ -1,0 +1,29 @@
+{
+  "name": "extractPointWithReasoning",
+  "description": "Extracts center point coordinates with reasoning from an image based on a given query",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "required": [
+      "reasoning",
+      "description",
+      "boundingRegion",
+      "text"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "reasoning": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "boundingRegion": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string"
+      }
+    }
+  }
+}
