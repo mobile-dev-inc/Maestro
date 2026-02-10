@@ -6,13 +6,15 @@ public enum PermissionButtonResult: Equatable {
     case found(frame: AXFrame)
     /// No buttons found in the hierarchy
     case noButtonsFound
-    /// Permission value doesn't require action (unset/unknown)
+    /// Permission value doesn't require action (unset/unknown/not a permission dialog)
     case noActionRequired
 }
 
 /// Pure logic for finding permission dialog buttons in the view hierarchy.
 /// This class has no XCUITest dependencies and can be unit tested.
 public final class PermissionButtonFinder {
+
+    static let notificationsPermissionLabel = "Would Like to Send You Notifications"
 
     public init() {}
 
@@ -35,6 +37,26 @@ public final class PermissionButtonFinder {
         return buttons
     }
 
+    /// Checks whether the hierarchy contains a notification permission dialog
+    /// by searching for the "Would Like to Send You Notifications" label.
+    /// - Parameter element: The root element to search from
+    /// - Returns: `true` if any element's label contains the notification permission text
+    public func isPermissionDialog(_ element: AXElement) -> Bool {
+        let label = element.label.lowercased()
+        let permissionLabel = Self.notificationsPermissionLabel.lowercased()
+        if label.contains(permissionLabel) {
+            return true
+        }
+        if let children = element.children {
+            for child in children {
+                if isPermissionDialog(child) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     /// Determines which button should be tapped based on the permission value
     /// - Parameters:
     ///   - permission: The desired permission action (allow/deny)
@@ -46,6 +68,10 @@ public final class PermissionButtonFinder {
             return .noActionRequired
         case .allow, .deny:
             break
+        }
+
+        guard isPermissionDialog(hierarchy) else {
+            return .noActionRequired
         }
 
         let buttons = findButtons(in: hierarchy)
