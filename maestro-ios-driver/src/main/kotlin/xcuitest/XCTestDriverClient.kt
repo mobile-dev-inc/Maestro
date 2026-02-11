@@ -18,7 +18,8 @@ class XCTestDriverClient(
     private val okHttpClient: OkHttpClient = HttpClient.build(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
-        connectTimeout = 1.seconds
+        connectTimeout = 1.seconds,
+        callTimeout = 200.seconds
     ),
     private val reinstallDriver: Boolean = true,
 ) {
