@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 data class YamlExtractPointWithAI(
     val query: String,
     val outputVariable: String = "aiOutput",
-    val passes: Int = 3,
+    val passes: Int = 1,
     val optional: Boolean = true,
     val label: String? = null,
 ) {
