@@ -25,7 +25,7 @@ private const val API_URL = "https://api.anthropic.com/v1/messages"
 private val logger = LoggerFactory.getLogger(Claude::class.java)
 
 class Claude(
-    defaultModel: String = "claude-3-5-sonnet-20240620",
+    defaultModel: String = "claude-sonnet-4-5-20250929",
     httpClient: HttpClient = defaultHttpClient,
     private val apiKey: String,
     private val defaultTemperature: Float = 0.2f,

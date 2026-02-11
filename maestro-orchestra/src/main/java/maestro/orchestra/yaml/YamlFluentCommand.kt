@@ -244,6 +244,7 @@ data class YamlFluentCommand(
                     ExtractPointWithAICommand(
                         query = extractPointWithAI.query,
                         outputVariable = extractPointWithAI.outputVariable,
+                        passes = extractPointWithAI.passes,
                         optional = extractPointWithAI.optional,
                         label = extractPointWithAI.label,
                     )

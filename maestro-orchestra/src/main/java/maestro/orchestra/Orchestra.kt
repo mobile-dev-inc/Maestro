@@ -50,6 +50,8 @@ import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
+import maestro.orchestra.util.ImageCropUtil
+import maestro.orchestra.util.ViewHierarchySerializer
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
@@ -579,23 +581,120 @@ class Orchestra(
     ): Boolean {
 
         val metadata = getMetadata(maestroCommand)
+        val reasoningLog = StringBuilder()
+        reasoningLog.appendLine("Query: \"${command.query}\"")
 
+        // Take screenshot
         val imageData = Buffer()
         maestro.takeScreenshot(imageData, compressed = false)
-        val point = AIPredictionEngine.extractPoint(
-            screen = imageData.copy().readByteArray(),
-            aiClient = ai,
-            query = command.query,
-        )
+        val screenshotBytes = imageData.copy().readByteArray()
+
+        // Serialize view hierarchy for context
+        val hierarchy = maestro.viewHierarchy()
+        val serializedHierarchy = ViewHierarchySerializer.serialize(hierarchy.root)
+
+        // --- PASS 1: Initial extraction with chain-of-thought + hierarchy ---
+        var bestPoint = "50%,50%"
+        reasoningLog.appendLine("\n--- Pass 1: Initial extraction ---")
+        val pass1Response = try {
+            AIPredictionEngine.extractPointWithReasoning(
+                screen = screenshotBytes,
+                aiClient = ai,
+                query = command.query,
+                viewHierarchy = serializedHierarchy,
+            )
+        } catch (e: Exception) {
+            logger.warn("Pass 1 failed, using default point", e)
+            reasoningLog.appendLine("Pass 1 FAILED: ${e.message}")
+            null
+        }
+
+        if (pass1Response != null) {
+            bestPoint = pass1Response.text
+            reasoningLog.appendLine("Reasoning: ${pass1Response.reasoning}")
+            reasoningLog.appendLine("Description: ${pass1Response.description}")
+            reasoningLog.appendLine("Bounding region: ${pass1Response.boundingRegion}")
+            reasoningLog.appendLine("Point: ${pass1Response.text}")
+        }
+
+        val (pass1X, pass1Y) = parsePercentagePoint(bestPoint)
+        val maxPasses = command.passes.coerceIn(1, 3)
+
+        // --- PASS 2: Crop refinement ---
+        if (maxPasses >= 2) {
+            reasoningLog.appendLine("\n--- Pass 2: Crop refinement ---")
+            try {
+                val cropResult = ImageCropUtil.cropAroundPoint(screenshotBytes, pass1X, pass1Y, cropPercent = 30)
+                val contextDesc = "Cropped 30% region around Pass 1 point (${pass1X}%,${pass1Y}%). Element: ${pass1Response?.description ?: command.query}"
+
+                val pass2Response = AIPredictionEngine.extractPointRefined(
+                    croppedScreen = cropResult.croppedPng,
+                    aiClient = ai,
+                    query = command.query,
+                    contextDescription = contextDesc,
+                )
+
+                if (pass2Response != null) {
+                    val (croppedX, croppedY) = parsePercentagePoint(pass2Response.text)
+                    val (mappedX, mappedY) = ImageCropUtil.mapCroppedPercentToOriginalPercent(croppedX, croppedY, cropResult)
+                    bestPoint = "${mappedX}%,${mappedY}%"
+                    reasoningLog.appendLine("Reasoning: ${pass2Response.reasoning}")
+                    reasoningLog.appendLine("Cropped point: ${pass2Response.text} -> Mapped to full: $bestPoint")
+                }
+            } catch (e: Exception) {
+                logger.warn("Pass 2 failed, using Pass 1 result", e)
+                reasoningLog.appendLine("Pass 2 FAILED: ${e.message}")
+            }
+        }
+
+        val (refinedX, refinedY) = parsePercentagePoint(bestPoint)
+
+        // --- PASS 3: Validation ---
+        if (maxPasses >= 3) {
+            reasoningLog.appendLine("\n--- Pass 3: Validation ---")
+            try {
+                val pass3Response = AIPredictionEngine.validatePoint(
+                    screen = screenshotBytes,
+                    aiClient = ai,
+                    query = command.query,
+                    pointXPercent = refinedX,
+                    pointYPercent = refinedY,
+                )
+
+                if (pass3Response != null) {
+                    reasoningLog.appendLine("Is correct: ${pass3Response.isCorrect}")
+                    reasoningLog.appendLine("Reasoning: ${pass3Response.reasoning}")
+                    if (!pass3Response.isCorrect) {
+                        bestPoint = pass3Response.correctedText
+                        reasoningLog.appendLine("Corrected point: ${pass3Response.correctedText}")
+                    }
+                }
+            } catch (e: Exception) {
+                logger.warn("Pass 3 failed, using Pass 2 result", e)
+                reasoningLog.appendLine("Pass 3 FAILED: ${e.message}")
+            }
+        }
+
+        reasoningLog.appendLine("\nFinal point: $bestPoint")
 
         updateMetadata(
             maestroCommand, metadata.copy(
-                aiReasoning = "Query: \"${command.query}\"\nExtracted point: ${point}"
+                aiReasoning = reasoningLog.toString()
             )
         )
-        jsEngine.putEnv(command.outputVariable, point)
+        jsEngine.putEnv(command.outputVariable, bestPoint)
 
         return false
+    }
+
+    private fun parsePercentagePoint(text: String): Pair<Int, Int> {
+        return try {
+            val parts = text.replace("%", "").split(",").map { it.trim().toInt() }
+            Pair(parts[0].coerceIn(0, 100), parts[1].coerceIn(0, 100))
+        } catch (e: Exception) {
+            logger.warn("Failed to parse percentage point from '$text', defaulting to 50,50", e)
+            Pair(50, 50)
+        }
     }
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
