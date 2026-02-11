@@ -28,6 +28,7 @@ class GraalJsEngine(
         name = "GraalJsEngine",
         readTimeout = 5.minutes,
         writeTimeout = 5.minutes,
+        callTimeout = 5.minutes,
         protocols = listOf(Protocol.HTTP_1_1)
     ),
     platform: String = "unknown"
