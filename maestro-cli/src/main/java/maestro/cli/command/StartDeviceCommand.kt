@@ -64,6 +64,13 @@ class StartDeviceCommand : Callable<Int> {
     )
     private var forceCreate: Boolean = false
 
+    @CommandLine.Option(
+        order = 5,
+        names = ["--shard-index"],
+        description = ["Shard index to use for the device"],
+    )
+    private var shardIndex: Int? = null
+
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
@@ -95,7 +102,7 @@ class StartDeviceCommand : Callable<Int> {
         try {
             val (deviceLanguage, deviceCountry) = LocaleUtils.parseLocaleParams(locale, maestroPlatform)
 
-            DeviceCreateUtil.getOrCreateDevice(p, o, deviceLanguage, deviceCountry, forceCreate).let { device ->
+            DeviceCreateUtil.getOrCreateDevice(p, o, deviceLanguage, deviceCountry, forceCreate, shardIndex).let { device ->
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,
