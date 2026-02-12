@@ -149,10 +149,14 @@ class AndroidDriver(
     private fun allocateForwarder() {
         portForwarder?.close()
 
-        portForwarder = dadb.tcpForward(
-            hostPort,
-            hostPort
-        )
+        try {
+            portForwarder = dadb.tcpForward(
+                hostPort,
+                hostPort
+            )
+        } catch (e: Throwable) {
+            LOGGER.warn("Unable to forward $hostPort, assume another instance of maestro is active")
+        }
     }
 
     private fun awaitLaunch() {
