@@ -146,6 +146,8 @@ class Orchestra(
 
     private var copiedText: String? = null
 
+    private var currentConfig: MaestroConfig? = null
+
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
     private var screenRecording: ScreenRecording? = null
@@ -209,6 +211,9 @@ class Orchestra(
         config: MaestroConfig? = null,
         shouldReinitJsEngine: Boolean = true,
     ): Boolean {
+        // Store config for use in filtering
+        currentConfig = config
+        
         if (shouldReinitJsEngine) {
             initJsEngine(config)
         }
@@ -1379,6 +1384,15 @@ class Orchestra(
                 descriptions += "Id matching regex: $it"
                 basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
+
+        selector.customIdentifiers
+            ?.forEach { (yamlKey, value) ->
+                // Custom identifiers use the YAML key directly - the browser-side JS
+                // handles mapping from HTML attributes based on workspace identifierConfig
+                descriptions += "Custom $yamlKey: $value"
+                basicFilters += Filters.customIdentifierMatches(yamlKey, value)
+            }
+
         selector.size
             ?.let {
                 descriptions += "Size: $it"
