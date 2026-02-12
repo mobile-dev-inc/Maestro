@@ -627,6 +627,7 @@ class IntegrationTest {
                     DefineVariablesCommand(
                         env = mapOf(
                             "MAESTRO_FILENAME" to "020_parse_config",
+                            "MAESTRO_FLOW_NAME" to "020_parse_config",
                             "MAESTRO_SHARD_ID" to "1",
                             "MAESTRO_SHARD_INDEX" to "0",
                         )
@@ -4550,7 +4551,8 @@ class IntegrationTest {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
-        return YamlCommandReader.readCommands(flowPath)
-            .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
+        val commands = YamlCommandReader.readCommands(flowPath)
+        val flowName = YamlCommandReader.getFlowName(commands, flowPath.toFile().nameWithoutExtension)
+        return commands.withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), flowName, deviceId, shardIndex))
     }
 }
