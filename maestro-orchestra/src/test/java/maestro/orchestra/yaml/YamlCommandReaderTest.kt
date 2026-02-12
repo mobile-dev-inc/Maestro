@@ -418,7 +418,7 @@ internal class YamlCommandReaderTest {
                 label = "Run around the north pole"
             ),
             WaitForAnimationToEndCommand(
-                timeout = 4000,
+                timeout = "4000",
                 label = "Wait for the thing to stop spinning"
             ),
             SwipeCommand(
