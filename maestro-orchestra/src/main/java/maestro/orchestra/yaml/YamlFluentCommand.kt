@@ -41,6 +41,7 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.EvalScriptCommand
+import maestro.orchestra.ExtractComponentWithAICommand
 import maestro.orchestra.ExtractPointWithAICommand
 import maestro.orchestra.ExtractTextWithAICommand
 import maestro.orchestra.HideKeyboardCommand
@@ -101,6 +102,7 @@ data class YamlFluentCommand(
     val assertWithAI: YamlAssertWithAI? = null,
     val extractTextWithAI: YamlExtractTextWithAI? = null,
     val extractPointWithAI: YamlExtractPointWithAI? = null,
+    val extractComponentWithAI: YamlExtractComponentWithAI? = null,
     val back: YamlActionBack? = null,
     val clearKeychain: YamlActionClearKeychain? = null,
     val hideKeyboard: YamlActionHideKeyboard? = null,
@@ -250,6 +252,20 @@ data class YamlFluentCommand(
                     )
                 )
             )
+
+            extractComponentWithAI != null -> {
+                val resolvedImagePath = resolveImagePath(flowPath, extractComponentWithAI.image)
+                listOf(
+                    MaestroCommand(
+                        ExtractComponentWithAICommand(
+                            imagePath = resolvedImagePath,
+                            outputVariable = extractComponentWithAI.outputVariable,
+                            optional = extractComponentWithAI.optional,
+                            label = extractComponentWithAI.label,
+                        )
+                    )
+                )
+            }
 
             addMedia != null -> listOf(
                 MaestroCommand(
@@ -720,6 +736,19 @@ data class YamlFluentCommand(
             throw InvalidFlowFile("Flow file can't be a directory: ${resolvedPath.toUri()}", resolvedPath)
         }
         return resolvedPath
+    }
+
+    private fun resolveImagePath(flowPath: Path, imagePath: String): String {
+        val path = flowPath.fileSystem.getPath(imagePath)
+        val resolvedPath = if (path.isAbsolute) {
+            path
+        } else {
+            flowPath.resolveSibling(path).toAbsolutePath()
+        }
+        if (!resolvedPath.exists()) {
+            throw MediaFileNotFound("Image file at $imagePath in flow file: $flowPath not found", path)
+        }
+        return resolvedPath.absolutePathString()
     }
 
     private fun extendedWait(command: YamlExtendedWaitUntil): MaestroCommand {

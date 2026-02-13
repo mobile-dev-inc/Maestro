@@ -80,6 +80,18 @@ object Prediction {
         return null
     }
 
+    suspend fun extractComponentPoint(
+        aiClient: AI?,
+        componentImage: ByteArray,
+        screen: ByteArray,
+        viewHierarchy: String? = null,
+    ): ExtractPointWithReasoningResponse? {
+        if(aiClient !== null){
+            return openApi.extractComponentPoint(aiClient, componentImage, screen, viewHierarchy)
+        }
+        return null
+    }
+
     suspend fun validatePoint(
         aiClient: AI?,
         query: String,
