@@ -26,7 +26,7 @@ import org.openqa.selenium.Keys
 import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v141.emulation.Emulation
+import org.openqa.selenium.devtools.v144.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
@@ -103,6 +103,35 @@ class WebDriver(
         } catch (e: Exception) {
             if (e.message?.contains("getContentDescription") == true) {
                 return executeJS(js)
+            }
+            return null
+        }
+    }
+
+    private fun executeAsyncJS(js: String, timeoutMs: Long): Any? {
+        val executor = seleniumDriver as JavascriptExecutor
+
+        try {
+            executor.executeScript("$maestroWebScript")
+
+            injectedArguments.forEach { (key, value) ->
+                executor.executeScript("$key = '$value'")
+            }
+
+            Thread.sleep(100)
+            seleniumDriver?.manage()?.timeouts()?.scriptTimeout(Duration.ofMillis(timeoutMs))
+
+            val wrapped = """
+                const callback = arguments[arguments.length - 1];
+                Promise.resolve((function() { return $js; })())
+                    .then((result) => callback(result))
+                    .catch(() => callback(null));
+            """.trimIndent()
+
+            return executor.executeAsyncScript(wrapped)
+        } catch (e: Exception) {
+            if (e.message?.contains("getContentDescription") == true) {
+                return executeAsyncJS(js, timeoutMs)
             }
             return null
         }
@@ -340,7 +369,16 @@ class WebDriver(
     }
 
     override fun scrollVertical() {
-        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        // Check if this is a Flutter web app
+        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Use Flutter-specific smooth animated scrolling
+            executeAsyncJS("window.maestro.smoothScrollFlutter('UP', 500)", 1500L)
+        } else {
+            // Use standard scroll for regular web pages
+            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -350,35 +388,64 @@ class WebDriver(
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         val driver = ensureOpen()
 
-        val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
-        val swipe = org.openqa.selenium.interactions.Sequence(finger, 1)
-        swipe.addAction(
-            finger.createPointerMove(
-                Duration.ofMillis(0),
-                PointerInput.Origin.viewport(),
-                start.x,
-                start.y
+        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Convert coordinate-based swipe to wheel events
+            // Calculate the scroll delta from start to end points
+            val deltaX = start.x - end.x  // Swipe left = scroll right (positive deltaX)
+            val deltaY = start.y - end.y  // Swipe up = scroll down (positive deltaY)
+            
+            // Dispatch wheel events at the center of the viewport for Flutter
+            val waitMs = (durationMs + 500).coerceAtLeast(1000L)
+            executeAsyncJS(
+                "window.maestro.smoothScrollFlutterByDelta($deltaX, $deltaY, $durationMs)",
+                waitMs
             )
-        )
-        swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        swipe.addAction(
-            finger.createPointerMove(
-                Duration.ofMillis(durationMs),
-                PointerInput.Origin.viewport(),
-                end.x,
-                end.y
+        } else {
+            // Standard web: Use touch pointer drag
+            val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
+            val swipe = org.openqa.selenium.interactions.Sequence(finger, 1)
+            swipe.addAction(
+                finger.createPointerMove(
+                    Duration.ofMillis(0),
+                    PointerInput.Origin.viewport(),
+                    start.x,
+                    start.y
+                )
             )
-        )
-        swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
-        (driver as RemoteWebDriver).perform(listOf(swipe))
+            swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+            swipe.addAction(
+                finger.createPointerMove(
+                    Duration.ofMillis(durationMs),
+                    PointerInput.Origin.viewport(),
+                    end.x,
+                    end.y
+                )
+            )
+            swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
+            (driver as RemoteWebDriver).perform(listOf(swipe))
+        }
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        when (swipeDirection) {
-            SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-            SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Use smooth animated scrolling with easing
+            val waitMs = (durationMs + 1000).coerceAtLeast(1000L)
+            executeAsyncJS(
+                "window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)",
+                waitMs
+            )
+        } else {
+            // HTML web: Use standard window scrolling
+            when (swipeDirection) {
+                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+            }
         }
     }
 

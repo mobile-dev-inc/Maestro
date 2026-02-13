@@ -24,6 +24,7 @@
 		<string>maestro-driver-ios.xcodeproj</string>
 		<key>BundleIdentifiersForCrashReportEmphasis</key>
 		<array>
+			<string>dev.mobile.MaestroDriverLib</string>
 			<string>dev.mobile.maestro-driver-ios</string>
 			<string>dev.mobile.maestro-driver-iosUITests</string>
 		</array>
@@ -33,6 +34,7 @@
 		<integer>600</integer>
 		<key>DependentProductPaths</key>
 		<array>
+			<string>__TESTROOT__/Debug-iphonesimulator/MaestroDriverLib.framework</string>
 			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-ios.app</string>
 			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app</string>
 			<string>__TESTROOT__/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app/PlugIns/maestro-driver-iosUITests.xctest</string>

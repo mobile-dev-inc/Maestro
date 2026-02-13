@@ -155,4 +155,42 @@ abstract class TestSuiteReporterTest {
             )
         )
     )
+
+    val testWithTagsAndProperties = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Login Flow",
+                        fileName = "login_flow",
+                        status = FlowStatus.SUCCESS,
+                        duration = 2500.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli(),
+                        tags = listOf("smoke", "critical", "auth"),
+                        properties = mapOf(
+                            "testCaseId" to "TC-001",
+                            "xray-test-key" to "PROJ-123",
+                            "priority" to "P0"
+                        )
+                    ),
+                    TestExecutionSummary.FlowResult(
+                        name = "Checkout Flow",
+                        fileName = "checkout_flow",
+                        status = FlowStatus.SUCCESS,
+                        duration = 3500.milliseconds,
+                        startTime = nowPlus2.toInstant().toEpochMilli(),
+                        tags = listOf("regression", "e2e"),
+                        properties = mapOf(
+                            "testCaseId" to "TC-002",
+                            "testrail-case-id" to "C456"
+                        )
+                    ),
+                ),
+                duration = 6000.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
 }
