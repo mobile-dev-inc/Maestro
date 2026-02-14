@@ -59,8 +59,6 @@ import kotlin.io.use
 
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
-private const val DefaultDriverHostPort = 7001
-
 class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
@@ -70,7 +68,7 @@ class AndroidDriver(
     ) : Driver {
     private var portForwarder: AutoCloseable? = null
     private var open = false
-    private val hostPort: Int = hostPort ?: DefaultDriverHostPort
+    private val hostPort: Int = hostPort ?: maestro.utils.SocketUtils.freePort()
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
@@ -110,7 +108,7 @@ class AndroidDriver(
         }
     }
 
-    private fun startInstrumentationSession(port: Int = 7001) {
+    private fun startInstrumentationSession(port: Int = hostPort) {
         val startTime = System.currentTimeMillis()
         val apiLevel = getDeviceApiLevel()
 

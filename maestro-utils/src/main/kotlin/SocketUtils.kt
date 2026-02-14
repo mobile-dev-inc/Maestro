@@ -27,6 +27,10 @@ import kotlin.random.Random
 
 object SocketUtils {
 
+    fun freePort(): Int {
+        ServerSocket(0).use { return it.localPort }
+    }
+
     fun nextFreePort(from: Int, to: Int): Int {
         val mid = (to - from) / 2 + from
         val range = Random.nextInt(from, mid)..Random.nextInt(mid, to)

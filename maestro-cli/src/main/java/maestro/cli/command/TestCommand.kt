@@ -532,11 +532,7 @@ class TestCommand : Callable<Int> {
         }
     }
 
-    private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) 7001
-        else (7001..7128).shuffled().find { port ->
-            usedPorts.putIfAbsent(port, true) == null
-        } ?: error("No available ports found")
+    private fun selectPort(effectiveShards: Int): Int = maestro.utils.SocketUtils.freePort()
 
     private fun runSingleFlow(
         maestro: Maestro,
