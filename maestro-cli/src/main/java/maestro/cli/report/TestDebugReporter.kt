@@ -196,12 +196,13 @@ object TestDebugReporter {
 
     private fun buildDefaultDebugOutputPath(debugRootPath: String): Path {
         // If testOutputDir is configured, use it as the base path instead of ~/.maestro/tests
+        val pid = ProcessHandle.current().pid()
         return if (testOutputDir != null) {
-            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now()) + "_$pid"
             testOutputDir!!.resolve(foldername)
         } else {
             val preamble = arrayOf(".maestro", "tests")
-            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now()) + "_$pid"
             Paths.get(debugRootPath, *preamble, foldername)
         }
     }
