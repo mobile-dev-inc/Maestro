@@ -63,7 +63,7 @@ class AllureTestSuiteReporter(
                 val testResult = TestResult()
                     .setUuid(uuid)
                     .setName(flow.name)
-                    .setFullName(buildFullName(suite, flow))
+                    .setFullName(buildFullName(flow))
                     .setHistoryId(buildHistoryId(flow))
                     .setStatus(mapFlowStatus(flow.status))
                     .setLabels(buildLabels(suite, flow))
@@ -120,11 +120,8 @@ class AllureTestSuiteReporter(
         }
     }
 
-    private fun buildFullName(
-        suite: TestExecutionSummary.SuiteResult,
-        flow: TestExecutionSummary.FlowResult,
-    ): String {
-        val suitePart = testSuiteName ?: suite.deviceName ?: "maestro"
+    private fun buildFullName(flow: TestExecutionSummary.FlowResult): String {
+        val suitePart = testSuiteName ?: "maestro"
         return "$suitePart#${flow.name}"
     }
 
@@ -141,7 +138,6 @@ class AllureTestSuiteReporter(
         val labels = mutableListOf<Label>()
 
         labels.add(Label().setName("framework").setValue("maestro"))
-
         if (testSuiteName != null) {
             labels.add(Label().setName("suite").setValue(testSuiteName))
         }

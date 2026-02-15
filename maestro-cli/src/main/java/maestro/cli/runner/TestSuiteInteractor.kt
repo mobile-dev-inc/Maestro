@@ -28,6 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import java.util.Locale
 
 /**
  * Similar to [TestRunner], but:
@@ -170,6 +171,7 @@ class TestSuiteInteractor(
 
         val flowStartTime = System.currentTimeMillis()
         var commandSequenceNumber = 0
+        val artifactAttachments = mutableListOf<TestExecutionSummary.Attachment>()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
@@ -185,6 +187,15 @@ class TestSuiteInteractor(
                     },
                     onCommandMetadataUpdate = { command, metadata ->
                         debugOutput.commands[command]?.evaluatedCommand = metadata.evaluatedCommand
+                    },
+                    onArtifactCreated = { artifact ->
+                        artifactAttachments.add(
+                            TestExecutionSummary.Attachment(
+                                file = artifact.file,
+                                label = artifact.label,
+                                mimeType = artifact.mimeType,
+                            ),
+                        )
                     },
                     onCommandComplete = { _, command ->
                         logger.info("${shardPrefix}${command.description()} COMPLETED")
@@ -281,12 +292,15 @@ class TestSuiteInteractor(
         } else {
             emptyList()
         }
-        val attachments = debugOutput.screenshots.map { screenshot ->
-            TestExecutionSummary.Attachment(
-                file = screenshot.screenshot,
-                label = "screenshot-${screenshot.timestamp}",
-                mimeType = "image/png",
-            )
+        val attachments = buildList {
+            addAll(debugOutput.screenshots.map { screenshot ->
+                TestExecutionSummary.Attachment(
+                    file = screenshot.screenshot,
+                    label = "screenshot-${screenshot.timestamp}",
+                    mimeType = "image/png",
+                )
+            })
+            addAll(artifactAttachments)
         }
 
         return Pair(
