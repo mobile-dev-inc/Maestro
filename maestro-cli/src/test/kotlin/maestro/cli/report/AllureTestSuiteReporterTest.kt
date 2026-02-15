@@ -211,12 +211,60 @@ class AllureTestSuiteReporterTest : TestSuiteReporterTest() {
     }
 
     @Test
-    fun `null suite name uses device as full name and no suite label`(@TempDir outputDir: File) {
+    fun `null suite name uses maestro in full name and no suite label`(@TempDir outputDir: File) {
         reporter(outputDir, null).report(testSuccessWithWarning)
 
         val result = readResultByName(outputDir, "Flow A")
-        assertThat(result.fullName).isEqualTo("iPhone 15#Flow A")
+        assertThat(result.fullName).isEqualTo("maestro#Flow A")
+        assertThat(labelValues(result, "host")).contains("iPhone 15")
         assertThat(labelValues(result, "suite")).isEmpty()
+    }
+
+    @Test
+    fun `multiple attachment types are copied and registered in result JSON`(@TempDir outputDir: File) {
+        val imageFile = File(outputDir, "attachment.png").apply { writeBytes(ByteArray(100)) }
+        val videoFile = File(outputDir, "recording.mp4").apply { writeBytes(ByteArray(200)) }
+
+        val summary = TestExecutionSummary(
+            passed = true,
+            suites = listOf(
+                TestExecutionSummary.SuiteResult(
+                    passed = true,
+                    flows = listOf(
+                        TestExecutionSummary.FlowResult(
+                            name = "Flow With Mixed Attachments",
+                            fileName = "flow_mixed_attachments",
+                            status = FlowStatus.SUCCESS,
+                            duration = 1000.milliseconds,
+                            startTime = now.toInstant().toEpochMilli(),
+                            attachments = listOf(
+                                TestExecutionSummary.Attachment(
+                                    file = imageFile,
+                                    label = "screenshot-diff",
+                                    mimeType = "image/png",
+                                ),
+                                TestExecutionSummary.Attachment(
+                                    file = videoFile,
+                                    label = "screen-recording",
+                                    mimeType = "video/mp4",
+                                ),
+                            ),
+                        ),
+                    ),
+                    duration = 1000.milliseconds,
+                    startTime = now.toInstant().toEpochMilli(),
+                )
+            )
+        )
+
+        reporter(outputDir).report(summary)
+
+        val result = readResultByName(outputDir, "Flow With Mixed Attachments")
+        assertThat(result.attachments).hasSize(2)
+        assertThat(result.attachments.map { it.type }).containsAtLeast("image/png", "video/mp4")
+        result.attachments.forEach { attachment ->
+            assertThat(File(outputDir, attachment.source).exists()).isTrue()
+        }
     }
 
     @Test

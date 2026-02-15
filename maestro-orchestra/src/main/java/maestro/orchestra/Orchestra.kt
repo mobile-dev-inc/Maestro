@@ -136,6 +136,7 @@ class Orchestra(
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
+    private val onArtifactCreated: (artifact: FlowArtifact) -> Unit = {},
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
@@ -149,6 +150,7 @@ class Orchestra(
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
     private var screenRecording: ScreenRecording? = null
+    private var screenRecordingOutputFile: File? = null
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
@@ -608,6 +610,13 @@ class Orchestra(
         val comparisonState = comparison.compareImages()
 
         if (ImageComparisonState.MISMATCH === comparisonState.imageComparisonState) {
+            onArtifactCreated(
+                FlowArtifact(
+                    file = diffFile,
+                    label = "screenshot-diff",
+                    mimeType = "image/png",
+                )
+            )
             throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
                 hierarchyRoot = maestro.viewHierarchy().root,
@@ -1050,6 +1059,7 @@ class Orchestra(
 
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
+        val screenshotFile = screenshotsDir?.resolve(pathStr)?.toFile() ?: File(pathStr)
         val fileSink = getFileSink(screenshotsDir, pathStr)
 
         val cropOn = command.cropOn
@@ -1067,11 +1077,19 @@ class Orchestra(
             }
             maestro.takeScreenshot(fileSink, false, bounds)
         }
+        onArtifactCreated(
+            FlowArtifact(
+                file = screenshotFile,
+                label = "take-screenshot",
+                mimeType = "image/png",
+            )
+        )
         return false
     }
 
     private fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = command.path + ".mp4"
+        screenRecordingOutputFile = screenshotsDir?.resolve(pathStr)?.toFile() ?: File(pathStr)
         val fileSink = getFileSink(screenshotsDir, pathStr)
         screenRecording = maestro.startScreenRecording(fileSink)
         return false
@@ -1079,6 +1097,18 @@ class Orchestra(
 
     private fun stopRecordingCommand(): Boolean {
         screenRecording?.close()
+        screenRecordingOutputFile?.let { outputFile ->
+            if (outputFile.exists()) {
+                onArtifactCreated(
+                    FlowArtifact(
+                        file = outputFile,
+                        label = "screen-recording",
+                        mimeType = "video/mp4",
+                    )
+                )
+            }
+        }
+        screenRecordingOutputFile = null
         return false
     }
 
@@ -1645,6 +1675,12 @@ class Orchestra(
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
     }
 
+    data class FlowArtifact(
+        val file: File,
+        val label: String,
+        val mimeType: String,
+    )
+
     // Remove pause/resume functions that were storing/restoring engine
     fun pause() {
         flowController.pause()
@@ -1657,4 +1693,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-
