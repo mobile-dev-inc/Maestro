@@ -92,17 +92,20 @@ abstract class TestSuiteReporterTest {
                             TestExecutionSummary.StepResult(
                                 description = "1. Launch app",
                                 status = "COMPLETED",
-                                duration = "1.2s"
+                                durationMs = 1200,
+                                startTime = nowPlus1.toInstant().toEpochMilli(),
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "2. Tap on button",
                                 status = "COMPLETED",
-                                duration = "500ms"
+                                durationMs = 500,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 1200,
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "3. Assert visible",
                                 status = "COMPLETED",
-                                duration = "100ms"
+                                durationMs = 100,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 1700,
                             ),
                         )
                     ),
@@ -130,22 +133,26 @@ abstract class TestSuiteReporterTest {
                             TestExecutionSummary.StepResult(
                                 description = "1. Launch app",
                                 status = "COMPLETED",
-                                duration = "1.5s"
+                                durationMs = 1500,
+                                startTime = nowPlus1.toInstant().toEpochMilli(),
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "2. Tap on optional element",
                                 status = "WARNED",
-                                duration = "<1ms"
+                                durationMs = null,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 1500,
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "3. Tap on button",
                                 status = "FAILED",
-                                duration = "2.0s"
+                                durationMs = 2000,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 3500,
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "4. Assert visible",
                                 status = "SKIPPED",
-                                duration = "0ms"
+                                durationMs = 0,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 5500,
                             ),
                         )
                     ),

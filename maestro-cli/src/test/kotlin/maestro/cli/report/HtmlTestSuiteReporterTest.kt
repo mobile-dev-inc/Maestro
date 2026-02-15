@@ -9,13 +9,12 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Test passed`() {
         // Given
-        val testee = HtmlTestSuiteReporter()
         val sink = Buffer()
+        val testee = HtmlTestSuiteReporter(out = sink)
 
         // When
         testee.report(
             summary = testSuccessWithWarning,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -85,13 +84,12 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Test failed`() {
         // Given
-        val testee = HtmlTestSuiteReporter()
         val sink = Buffer()
+        val testee = HtmlTestSuiteReporter(out = sink)
 
         // When
         testee.report(
             summary = testSuccessWithError,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -167,13 +165,12 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Pretty mode with successful test and steps`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = true)
         val sink = Buffer()
+        val testee = HtmlTestSuiteReporter(out = sink, detailed = true)
 
         // When
         testee.report(
             summary = testSuccessWithSteps,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -201,13 +198,12 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Pretty mode with failed test and steps with various statuses`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = true)
         val sink = Buffer()
+        val testee = HtmlTestSuiteReporter(out = sink, detailed = true)
 
         // When
         testee.report(
             summary = testErrorWithSteps,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -222,6 +218,8 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
         assertThat(resultStr).contains("2. Tap on optional element")
         assertThat(resultStr).contains("3. Tap on button")
         assertThat(resultStr).contains("4. Assert visible")
+        assertThat(resultStr).contains("&lt;1ms")
+        assertThat(resultStr).contains("0ms")
         assertThat(resultStr).contains("Element not found")
         assertThat(resultStr).contains(".step-item")
         assertThat(resultStr).contains(".step-header")
@@ -238,13 +236,12 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Basic mode does not show steps even when present`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = false)
         val sink = Buffer()
+        val testee = HtmlTestSuiteReporter(out = sink, detailed = false)
 
         // When
         testee.report(
             summary = testSuccessWithSteps,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -264,13 +261,12 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Tags and properties are displayed`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = false)
         val sink = Buffer()
+        val testee = HtmlTestSuiteReporter(out = sink, detailed = false)
 
         // When
         testee.report(
             summary = testWithTagsAndProperties,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 

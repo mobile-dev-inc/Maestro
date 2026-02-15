@@ -141,7 +141,7 @@ class CloudCommand : Callable<Int> {
     @Option(
         order = 16,
         names = ["--output"],
-        description = ["File to write report into (default=report.xml)"],
+        description = ["Path to write report into. JUNIT/HTML: file (default=report.xml/report.html), ALLURE: directory (default=allure-results)"],
     )
     private var output: File? = null
 
