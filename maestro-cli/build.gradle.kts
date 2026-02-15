@@ -197,6 +197,7 @@ dependencies {
     implementation(libs.logging.layout.template)
     implementation(libs.log4j.core)
     implementation(libs.mordant)
+    implementation(libs.allure.java.commons)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)

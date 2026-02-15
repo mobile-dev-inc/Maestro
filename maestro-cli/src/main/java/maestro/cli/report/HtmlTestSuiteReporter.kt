@@ -6,7 +6,10 @@ import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
 
-class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteReporter {
+class HtmlTestSuiteReporter(
+    private val out: Sink,
+    private val detailed: Boolean = false,
+) : TestSuiteReporter {
 
     companion object {
         private fun loadPrettyCss(): String {
@@ -18,11 +21,19 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
         }
     }
 
-    override fun report(summary: TestExecutionSummary, out: Sink) {
+    override fun report(summary: TestExecutionSummary) {
         val bufferedOut = out.buffer()
         val htmlContent = buildHtmlReport(summary)
         bufferedOut.writeUtf8(htmlContent)
         bufferedOut.close()
+    }
+
+    private fun formatStepDuration(durationMs: Long?): String {
+        return when {
+            durationMs == null -> "<1ms"
+            durationMs >= 1000L -> "%.1fs".format(durationMs / 1000.0)
+            else -> "${durationMs}ms"
+        }
     }
 
     private fun buildHtmlReport(summary: TestExecutionSummary): String {
@@ -184,7 +195,7 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                                     span(classes = "step-name") { +step.description }
                                                                 }
                                                                 span(classes = "badge bg-light text-dark") {
-                                                                    +step.duration
+                                                                    +formatStepDuration(step.durationMs)
                                                                 }
                                                             }
                                                         }
