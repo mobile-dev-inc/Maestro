@@ -694,6 +694,32 @@ data class ExtractPointWithAICommand(
     }
 }
 
+data class ExtractComponentWithAICommand(
+    val imagePath: String,
+    val outputVariable: String,
+    override val optional: Boolean = true,
+    override val label: String? = null
+) : Command {
+    override val originalDescription: String
+        get() = "Extract component with AI: $imagePath"
+    override fun yamlString(): String {
+        val yamlString = buildString {
+            appendLine(
+                """
+                |extractComponentWithAI
+                """
+            )
+        }
+        return yamlString
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            imagePath = imagePath.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class ExtractTextWithAICommand(
     val query: String,
     val outputVariable: String,

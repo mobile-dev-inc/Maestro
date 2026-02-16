@@ -41,6 +41,7 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.ElementTrait
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.EvalScriptCommand
+import maestro.orchestra.ExtractComponentWithAICommand
 import maestro.orchestra.ExtractPointWithAICommand
 import maestro.orchestra.ExtractTextWithAICommand
 import maestro.orchestra.HideKeyboardCommand
@@ -101,6 +102,7 @@ data class YamlFluentCommand(
     val assertWithAI: YamlAssertWithAI? = null,
     val extractTextWithAI: YamlExtractTextWithAI? = null,
     val extractPointWithAI: YamlExtractPointWithAI? = null,
+    val extractComponentWithAI: YamlExtractComponentWithAI? = null,
     val back: YamlActionBack? = null,
     val clearKeychain: YamlActionClearKeychain? = null,
     val hideKeyboard: YamlActionHideKeyboard? = null,
@@ -250,6 +252,19 @@ data class YamlFluentCommand(
                     )
                 )
             )
+
+            extractComponentWithAI != null -> {
+                listOf(
+                    MaestroCommand(
+                        ExtractComponentWithAICommand(
+                            imagePath = extractComponentWithAI.image,
+                            outputVariable = extractComponentWithAI.outputVariable,
+                            optional = extractComponentWithAI.optional,
+                            label = extractComponentWithAI.label,
+                        )
+                    )
+                )
+            }
 
             addMedia != null -> listOf(
                 MaestroCommand(

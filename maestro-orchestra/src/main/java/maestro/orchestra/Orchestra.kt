@@ -397,6 +397,7 @@ class Orchestra(
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
             is ExtractPointWithAICommand -> extractPointWithAICommand(command, maestroCommand)
+            is ExtractComponentWithAICommand -> extractComponentWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
@@ -695,6 +696,71 @@ class Orchestra(
             logger.warn("Failed to parse percentage point from '$text', defaulting to 50,50", e)
             Pair(50, 50)
         }
+    }
+
+    private suspend fun extractComponentWithAICommand(
+        command: ExtractComponentWithAICommand,
+        maestroCommand: MaestroCommand
+    ): Boolean {
+
+        val metadata = getMetadata(maestroCommand)
+        val reasoningLog = StringBuilder()
+        reasoningLog.appendLine("Image: \"${command.imagePath}\"")
+
+        // Resolve image path: if relative and APP_ROOT is set, resolve against it
+        val imageFile = File(command.imagePath).let { file ->
+            if (file.isAbsolute) file
+            else {
+                val appRoot = System.getenv("APP_ROOT")
+                if (appRoot != null) File(appRoot, command.imagePath)
+                else file
+            }
+        }
+        val componentImageBytes = imageFile.readBytes()
+
+        // Take screenshot
+        val imageData = Buffer()
+        maestro.takeScreenshot(imageData, compressed = false)
+        val screenshotBytes = imageData.copy().readByteArray()
+
+        // Serialize view hierarchy for context
+        val hierarchy = maestro.viewHierarchy()
+        val serializedHierarchy = ViewHierarchySerializer.serialize(hierarchy.root)
+
+        // --- PASS 1: Initial extraction with component image + screenshot + hierarchy ---
+        var bestPoint = "50%,50%"
+        reasoningLog.appendLine("\n--- Pass 1: Initial extraction ---")
+        val pass1Response = try {
+            AIPredictionEngine.extractComponentPoint(
+                componentImage = componentImageBytes,
+                screen = screenshotBytes,
+                aiClient = ai,
+                viewHierarchy = serializedHierarchy,
+            )
+        } catch (e: Exception) {
+            logger.warn("Pass 1 failed, using default point", e)
+            reasoningLog.appendLine("Pass 1 FAILED: ${e.message}")
+            null
+        }
+
+        if (pass1Response != null) {
+            bestPoint = pass1Response.text
+            reasoningLog.appendLine("Reasoning: ${pass1Response.reasoning}")
+            reasoningLog.appendLine("Description: ${pass1Response.description}")
+            reasoningLog.appendLine("Bounding region: ${pass1Response.boundingRegion}")
+            reasoningLog.appendLine("Point: ${pass1Response.text}")
+        }
+
+        reasoningLog.appendLine("\nFinal point: $bestPoint")
+
+        updateMetadata(
+            maestroCommand, metadata.copy(
+                aiReasoning = reasoningLog.toString()
+            )
+        )
+        jsEngine.putEnv(command.outputVariable, bestPoint)
+
+        return false
     }
 
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {

@@ -12,4 +12,5 @@ interface AIPredictionEngine {
     suspend fun extractPointWithReasoning(screen: ByteArray, aiClient: AI, query: String, viewHierarchy: String? = null): ExtractPointWithReasoningResponse?
     suspend fun extractPointRefined(croppedScreen: ByteArray, aiClient: AI, query: String, contextDescription: String): ExtractPointWithReasoningResponse?
     suspend fun validatePoint(screen: ByteArray, aiClient: AI, query: String, pointXPercent: Int, pointYPercent: Int): ExtractPointValidationResponse?
+    suspend fun extractComponentPoint(componentImage: ByteArray, screen: ByteArray, aiClient: AI, viewHierarchy: String? = null): ExtractPointWithReasoningResponse?
 }

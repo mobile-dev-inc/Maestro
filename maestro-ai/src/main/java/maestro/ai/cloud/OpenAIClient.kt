@@ -265,6 +265,67 @@ class OpenAIClient {
         return json.decodeFromString<ExtractPointValidationResponse>(aiResponse.response)
     }
 
+    suspend fun extractComponentPoint(
+        aiClient: AI,
+        componentImage: ByteArray,
+        screen: ByteArray,
+        viewHierarchy: String? = null,
+    ): ExtractPointWithReasoningResponse {
+        val prompt = buildString {
+            append("You are a UI element locator. The FIRST image is a reference UI component (e.g., a Storybook snapshot). The SECOND image is the current device screen.")
+            append(" Find where this component appears on the screen and return the center coordinates of the matching area.")
+
+            if (!viewHierarchy.isNullOrBlank()) {
+                append(
+                    """
+                    |
+                    |VIEW HIERARCHY (use this to help identify elements):
+                    |$viewHierarchy
+                    """.trimMargin("|")
+                )
+            }
+
+            append(
+                """
+                |
+                |INSTRUCTIONS:
+                |1. Study the reference component in the first image carefully - note its visual appearance, text, icons, layout.
+                |2. Scan the device screenshot (second image) to find where this component appears.
+                |3. Identify the approximate bounding region of the matching component on the screen.
+                |4. Determine the center point of that component.
+                |
+                |RULES:
+                |* Coordinates are percentages of the SECOND image's width (x) and height (y), as integers 0-100.
+                |* Format coordinates as "x%,y%" (e.g., "25%,40%").
+                |* The bounding region should be formatted as "x1%,y1%,x2%,y2%" representing top-left and bottom-right corners.
+                |* Provide a brief description of the component you matched.
+                |
+                |You must provide result as a valid JSON object matching this structure:
+                |
+                |  {
+                |      "reasoning": "<step-by-step reasoning>",
+                |      "description": "<brief description of the matched component>",
+                |      "boundingRegion": "x1%,y1%,x2%,y2%",
+                |      "text": "x%,y%"
+                |  }
+                |
+                |DO NOT output any other information in the JSON object.
+                """.trimMargin("|")
+            )
+        }
+
+        val aiResponse = aiClient.chatCompletion(
+            prompt,
+            model = aiClient.defaultModel,
+            maxTokens = 4096,
+            imageDetail = "high",
+            images = listOf(componentImage, screen),
+            jsonSchema = json.parseToJsonElement(extractPointWithReasoningSchema).jsonObject,
+        )
+        logger.info("AI extractComponentPoint response: ${aiResponse.response}")
+        return json.decodeFromString<ExtractPointWithReasoningResponse>(aiResponse.response)
+    }
+
     suspend fun findDefects(
         aiClient: AI,
         screen: ByteArray,

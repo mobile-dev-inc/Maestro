@@ -33,4 +33,8 @@ class CloudAIPredictionEngine() : AIPredictionEngine {
     override suspend fun validatePoint(screen: ByteArray, aiClient: AI, query: String, pointXPercent: Int, pointYPercent: Int): ExtractPointValidationResponse? {
         return Prediction.validatePoint(aiClient, query, screen, pointXPercent, pointYPercent)
     }
+
+    override suspend fun extractComponentPoint(componentImage: ByteArray, screen: ByteArray, aiClient: AI, viewHierarchy: String?): ExtractPointWithReasoningResponse? {
+        return Prediction.extractComponentPoint(aiClient, componentImage, screen, viewHierarchy)
+    }
 }
