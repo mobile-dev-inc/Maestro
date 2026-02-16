@@ -108,12 +108,11 @@ appId: ${APP_ID}
     timeout: 10000
 ```
 
-**Option 4: Retry pattern for flaky elements**
+**Option 4: Retry pattern with implicit waits**
 ```yaml
 - repeat:
     times: 3
     commands:
-      - assertVisible: "Login Button"
       - tapOn: "Login Button"
 ```
 
