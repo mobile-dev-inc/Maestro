@@ -707,8 +707,16 @@ class Orchestra(
         val reasoningLog = StringBuilder()
         reasoningLog.appendLine("Image: \"${command.imagePath}\"")
 
-        // Read component image bytes
-        val componentImageBytes = File(command.imagePath).readBytes()
+        // Resolve image path: if relative and APP_ROOT is set, resolve against it
+        val imageFile = File(command.imagePath).let { file ->
+            if (file.isAbsolute) file
+            else {
+                val appRoot = System.getenv("APP_ROOT")
+                if (appRoot != null) File(appRoot, command.imagePath)
+                else file
+            }
+        }
+        val componentImageBytes = imageFile.readBytes()
 
         // Take screenshot
         val imageData = Buffer()
