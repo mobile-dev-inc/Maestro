@@ -1,0 +1,21 @@
+{
+  "name": "maestro-skill",
+  "owner": {
+    "name": "ThalesMMS",
+    "email": "thalesmmsradio@gmail.com"
+  },
+  "metadata": {
+    "description": "Maestro mobile automation skill for Claude Code",
+    "version": "1.1.0"
+  },
+  "plugins": [
+    {
+      "name": "maestro-skill",
+      "source": "./",
+      "description": "Claude Code Skill for mobile automation. Writes and executes Maestro YAML flows on Android Emulators and iOS Simulators.",
+      "version": "1.1.0",
+      "category": "testing",
+      "tags": ["mobile", "automation", "android", "ios", "testing"]
+    }
+  ]
+}

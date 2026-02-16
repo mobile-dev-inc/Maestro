@@ -1,0 +1,19 @@
+{
+  "name": "maestro-skill",
+  "version": "1.0.0",
+  "description": "Claude Code Skill for mobile automation (Android/iOS) using Maestro. Writes YAML flows and executes them on connected devices/emulators.",
+  "author": {
+    "name": "ThalesMMS"
+  },
+  "license": "MIT",
+  "repository": "",
+  "keywords": [
+    "claude-skill",
+    "mobile-automation",
+    "android",
+    "ios",
+    "maestro",
+    "testing",
+    "e2e"
+  ]
+}
