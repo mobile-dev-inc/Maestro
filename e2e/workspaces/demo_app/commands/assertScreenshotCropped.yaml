@@ -1,0 +1,13 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp
+- tapOn: "Cropped Screenshot Test"
+- waitForAnimationToEnd
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/assertScreenshotCropped.png
+    thresholdPercentage: 99.9
+    cropOn:
+      id: "testContainer"

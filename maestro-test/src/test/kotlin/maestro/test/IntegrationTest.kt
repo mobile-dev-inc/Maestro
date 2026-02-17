@@ -20,11 +20,17 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.BackPressCommand
+import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
+import maestro.orchestra.HideKeyboardCommand
+import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
+import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
@@ -45,6 +51,7 @@ import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
+import javax.imageio.ImageIO
 
 class IntegrationTest {
 
@@ -65,6 +72,7 @@ class IntegrationTest {
         File("135_recordings").delete()
         File("135_recordings/filename.mp4").delete()
         File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
+        File("138_take_cropped_screenshot_with_filename.png").delete()
     }
 
     @Test
@@ -4221,6 +4229,39 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 138 - Take cropped screenshot`() {
+        // Given
+        val commands = readCommands("138_take_cropped_screenshot")
+        val boundHeight = 100
+        val boundWidth = 100
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, boundHeight, boundWidth)
+            }
+        }
+
+        val device = driver.deviceInfo()
+        val dpr = device.heightPixels / device.heightGrid
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - takeScreenshot with bounds crops by bounds (grid) and outputs pixel dimensions (bounds * dpr)
+        driver.assertEvents(listOf(Event.TakeScreenshot))
+        val file = File("138_take_cropped_screenshot_with_filename.png")
+        val image = ImageIO.read(file)
+        assert(file.exists())
+        assert(image.width == (boundWidth * dpr))
+        assert(image.height == (boundHeight * dpr))
+    }
+
+    @Test
     fun `Case 137 - Shard and device env vars`() {
         // Given
         // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
@@ -4251,6 +4292,218 @@ class IntegrationTest {
             )
         )
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
+    }
+
+    
+    @Test
+    fun `hideKeyboard succeeds when keyboard becomes hidden`() {
+        // Given
+        val commands = listOf(
+            MaestroCommand(HideKeyboardCommand())
+        )
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - should execute hideKeyboard command successfully
+        driver.assertEvents(
+            listOf(
+                Event.HideKeyboard,
+            )
+        )
+    }
+
+    @Test
+    fun `hideKeyboard throws HideKeyboardFailure when keyboard never gets hidden`() {
+        // Given
+        val commands = listOf(
+            MaestroCommand(HideKeyboardCommand())
+        )
+
+        val driver = driver {}
+        driver.keyboardRemainsVisible = true
+
+        // When & Then
+        assertThrows<MaestroException.HideKeyboardFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Verify hideKeyboard was still called
+        driver.assertEvents(
+            listOf(
+                Event.HideKeyboard,
+            )
+        )
+    }
+
+    @Test
+    fun `callback order should be correct for successful command in subflow`() {
+        // Given
+        val events = mutableListOf<CallbackEvent>()
+        var sequence = 0
+        val subflowCommand = MaestroCommand(BackPressCommand())
+        val runFlowCommand = RunFlowCommand(
+            commands = listOf(subflowCommand),
+            condition = null,
+            sourceDescription = null,
+            config = null,
+            label = null,
+            optional = false,
+        )
+        val commands = listOf(MaestroCommand(runFlowCommand))
+
+        val orchestra = createOrchestraWithCallbacks(events) { sequence++ }
+
+        // When
+        runBlocking {
+            orchestra.runFlow(commands)
+        }
+
+        // Then
+        // Expected order: onCommandStart -> onCommandMetadataUpdate -> onCommandComplete
+        // For subflow, verify the critical ordering is maintained for each command
+        // (subflow execution includes both RunFlowCommand and subflow command events)
+        val commandIndexes = events.map { it.commandIndex }.distinct()
+        for (cmdIndex in commandIndexes) {
+            val cmdEvents = events.filter { it.commandIndex == cmdIndex }
+            assertThat(cmdEvents.map { it.type }).containsExactly(
+                "onCommandStart",
+                "onCommandMetadataUpdate",
+                "onCommandComplete"
+            ).inOrder()
+        }
+    }
+
+    @Test
+    fun `callback order should be correct for successful command in main flow`() {
+        // Given
+        val events = mutableListOf<CallbackEvent>()
+        var sequence = 0
+        val command = MaestroCommand(BackPressCommand())
+        val commands = listOf(command)
+
+        val orchestra = createOrchestraWithCallbacks(events) { sequence++ }
+
+        // When
+        runBlocking {
+          orchestra.runFlow(commands)
+        }
+
+        // Then
+        // Expected order: onCommandStart -> onCommandMetadataUpdate -> onCommandComplete
+        val commandEvents = events.filter { it.commandIndex == 0 }
+        assertThat(commandEvents.map { it.type }).containsExactly(
+            "onCommandStart",
+            "onCommandMetadataUpdate",
+            "onCommandComplete"
+        ).inOrder()
+    }
+
+    @Test
+    fun `callback order should be correct for failed command in main flow`() {
+        // Given
+        val events = mutableListOf<CallbackEvent>()
+        var sequence = 0
+        // Use an assertion that will fail (element doesn't exist)
+        val command = MaestroCommand(
+            AssertConditionCommand(
+                condition = Condition(
+                    visible = ElementSelector(
+                        idRegex = "non_existent_element"
+                    )
+                )
+            )
+        )
+        val commands = listOf(command)
+
+        val orchestra = createOrchestraWithCallbacks(events) { sequence++ }
+
+        // When
+        runBlocking {
+            try {
+                orchestra.runFlow(commands)
+            } catch (e: Throwable) {
+                // Expected to fail, ignore the exception
+            }
+        }
+
+        // Then
+        // Expected order: onCommandStart -> onCommandMetadataUpdate -> onCommandFailed
+        val commandEvents = events.filter { it.commandIndex == 0 }
+        assertThat(commandEvents.map { it.type }).containsExactly(
+            "onCommandStart",
+            "onCommandMetadataUpdate",
+            "onCommandFailed"
+        ).inOrder()
+    }
+
+    private data class CallbackEvent(
+        val type: String,
+        val commandIndex: Int,
+        val sequence: Int
+    )
+
+    private fun createOrchestraWithCallbacks(
+        events: MutableList<CallbackEvent>,
+        getSequence: () -> Int,
+    ): Orchestra {
+        val driver = FakeDriver()
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+        val maestro = Maestro(driver)
+
+        // Track unique command index that increments for each command start
+        // This ensures subflow commands get different indices than parent flow commands
+        var uniqueCommandIndex = -1
+        // Use a stack to track active commands (handles nested commands that reuse Orchestra indices)
+        val activeCommandStack = mutableListOf<Int>()
+
+        return Orchestra(
+            maestro = maestro,
+            lookupTimeoutMs = 0L,
+            optionalLookupTimeoutMs = 0L,
+            onCommandStart = { _, _ ->
+                uniqueCommandIndex++
+                activeCommandStack.add(uniqueCommandIndex)
+                events.add(CallbackEvent("onCommandStart", uniqueCommandIndex, getSequence()))
+            },
+            onCommandMetadataUpdate = { _, _ ->
+                // Use the most recent active command (top of stack)
+                val uniqueIndex = activeCommandStack.lastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandMetadataUpdate", uniqueIndex, getSequence()))
+            },
+            onCommandComplete = { _, _ ->
+                // Pop the most recent command from the stack (LIFO for nested commands)
+                val uniqueIndex = activeCommandStack.removeLastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandComplete", uniqueIndex, getSequence()))
+            },
+            onCommandFailed = { _, _, _ ->
+                // Pop the most recent command from the stack (LIFO for nested commands)
+                val uniqueIndex = activeCommandStack.removeLastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandFailed", uniqueIndex, getSequence()))
+                Orchestra.ErrorResolution.FAIL
+            },
+            onCommandWarned = { _, _ ->
+                // Use the most recent active command (top of stack)
+                val uniqueIndex = activeCommandStack.lastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandWarned", uniqueIndex, getSequence()))
+            },
+            onCommandSkipped = { _, _ ->
+                // Pop the most recent command from the stack (LIFO for nested commands)
+                val uniqueIndex = activeCommandStack.removeLastOrNull() ?: 0
+                events.add(CallbackEvent("onCommandSkipped", uniqueIndex, getSequence()))
+            },
+        )
     }
 
     private fun orchestra(

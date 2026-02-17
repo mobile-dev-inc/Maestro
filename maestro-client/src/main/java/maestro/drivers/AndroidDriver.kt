@@ -26,6 +26,7 @@ import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import maestro.*
@@ -207,7 +208,7 @@ class AndroidDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
-        return runDeviceCall {
+        return runDeviceCall("deviceInfo") {
             val response = blockingStubWithTimeout.deviceInfo(deviceInfoRequest {})
 
             DeviceInfo(
@@ -233,7 +234,7 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            runDeviceCall {
+            runDeviceCall("launchApp") {
                 blockingStubWithTimeout.launchApp(
                     launchAppRequest {
                         this.packageName = appId
@@ -274,7 +275,7 @@ class AndroidDriver(
 
     override fun tap(point: Point) {
         metrics.measured("operation", mapOf("command" to "tap")) {
-            runDeviceCall {
+            runDeviceCall("tap") {
                 blockingStubWithTimeout.tap(
                     tapRequest {
                         x = point.x
@@ -534,7 +535,7 @@ class AndroidDriver(
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
         metrics.measured("operation", mapOf("command" to "takeScreenshot", "compressed" to compressed.toString())) {
-            runDeviceCall {
+            runDeviceCall("takeScreenshot") {
                 val response = blockingStubWithTimeout.screenshot(screenshotRequest {})
                 out.buffer().use {
                     it.write(response.bytes.toByteArray())
@@ -574,7 +575,7 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            runDeviceCall {
+            runDeviceCall("inputText") {
                 blockingStubWithTimeout.inputText(inputTextRequest {
                     this.text = text
                 }) ?: throw IllegalStateException("Input Response can't be null")
@@ -677,7 +678,7 @@ class AndroidDriver(
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
                 shell("appops set dev.mobile.maestro android:mock_location allow")
-                runDeviceCall {
+                runDeviceCall("enableMockLocationProviders") {
                     blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
                 }
                 LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
@@ -685,7 +686,7 @@ class AndroidDriver(
                 isLocationMocked = true
             }
 
-            runDeviceCall {
+            runDeviceCall("setLocation") {
                 blockingStubWithTimeout.setLocation(
                     setLocationRequest {
                         this.latitude = latitude
@@ -710,7 +711,7 @@ class AndroidDriver(
 
     override fun eraseText(charactersToErase: Int) {
         metrics.measured("operation", mapOf("command" to "eraseText", "charactersToErase" to charactersToErase.toString())) {
-            runDeviceCall {
+            runDeviceCall("eraseText") {
                 blockingStubWithTimeout.eraseAllText(
                     eraseAllTextRequest {
                         this.charactersToErase = charactersToErase
@@ -761,7 +762,7 @@ class AndroidDriver(
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
         var hierarchy: ViewHierarchy? = null
         do {
-            runDeviceCall {
+            runDeviceCall("isWindowUpdating") {
                 val windowUpdating = blockingStubWithTimeout.isWindowUpdating(checkWindowUpdatingRequest {
                     this.appId = appId
                 }).isWindowUpdating
@@ -1257,27 +1258,35 @@ class AndroidDriver(
         }
     }
 
-    private fun <T> runDeviceCall(call: () -> T): T {
+    private fun <T> runDeviceCall(callName: String, call: () -> T): T {
         return try {
             call()
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
-                    LOGGER.error("Device call failed on android with $status", throwable)
+                    LOGGER.error("$callName call failed on android with $status", throwable)
                     throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while doing android device call")
+                        LOGGER.error("Not able to reach the gRPC server while processing $callName command")
                         throw throwable
                     } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
                         throw throwable
                     }
                 }
+                Status.Code.INTERNAL -> {
+                    val trailers = Status.trailersFromThrowable(throwable)
+                    val errorType = trailers?.get(ERROR_TYPE_KEY)
+                    val errorMsg = trailers?.get(ERROR_MSG_KEY)
+                    val errorCause = trailers?.get(ERROR_CAUSE_KEY)
+                    LOGGER.error("$callName call failed: type=$errorType, message=$errorMsg, cause=$errorCause", throwable)
+                    throw throwable.cause ?: throwable
+                }
                 else -> {
-                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} and cause ${throwable.cause} while doing android device call", throwable)
+                    LOGGER.error("Unexpected error during $callName: ${status.code} - ${throwable.message} and cause ${throwable.cause}", throwable)
                     throw throwable
                 }
             }
@@ -1292,6 +1301,13 @@ class AndroidDriver(
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
+
+        private val ERROR_TYPE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_MSG_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-message", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_CAUSE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-cause", Metadata.ASCII_STRING_MARSHALLER)
 
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 

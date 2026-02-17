@@ -422,6 +422,7 @@ class TestSuiteInteractor(
                 } else null,
                 duration = flowDuration,
                 properties = maestroConfig?.properties,
+                tags = maestroConfig?.tags,
                 steps = steps,
             ),
             second = aiOutput,

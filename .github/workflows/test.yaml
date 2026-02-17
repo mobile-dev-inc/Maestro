@@ -100,64 +100,40 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
-  ios-integration-test:
-    name: iOS Integration Test on Java ${{ matrix.java-version }}
+  ios-driver-lib-test:
+    name: MaestroDriverLib Unit Tests
     runs-on: macos-latest
-    timeout-minutes: 50
-
-    strategy:
-      fail-fast: false
-      matrix:
-        java-version: [17]
+    timeout-minutes: 10
 
     steps:
-      - name: Clone repository (only needed for the e2e directory)
+      - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: zulu
-          java-version: ${{ matrix.java-version }}
-          cache: gradle
+      - name: Run MaestroDriverLib Tests
+        working-directory: ${{ github.workspace }}/maestro-ios-xctest-runner/MaestroDriverLib
+        run: swift test
 
-      - name: Set permission to scripts
-        run: chmod +x .github/scripts/boot_simulator.sh
+  ios-xctest-runner-test:
+    name: iOS XCTest Runner Unit Tests
+    runs-on: macos-latest
+    timeout-minutes: 15
 
-      - name: Boot Simulator
-        run: ./.github/scripts/boot_simulator.sh
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
 
-      - name: Set Simulator
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Run iOS Unit Tests
+        working-directory: ${{ github.workspace }}/maestro-ios-xctest-runner
         run: |
-          SIMULATOR_ID=$(xcrun simctl list -j | jq -r '.devices | to_entries[] | .value[] | select(.isAvailable==true and .state=="Booted") | .udid' | head -n 1)
-          echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
-
-      - name: Download apps
-        working-directory: ${{ github.workspace }}/e2e
-        run: ./download_apps iOS
-
-      - name: Install apps
-        working-directory: ${{ github.workspace }}/e2e
-        run: |
-          unzip apps/wikipedia.zip
-          xcrun simctl install $SIMULATOR_ID ./Wikipedia.app
-
-      - name: Build for Testing
-        working-directory: ${{ github.workspace }}
-        run: |
-          xcodebuild clean build-for-testing \
-          -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
-          -derivedDataPath "./driver-verification" \
-          -scheme driver-verification-tests \
-          -destination "generic/platform=iOS Simulator"
-
-      - name: Run Integration tests
-        run: |
-          XCTESTRUN_FILE=$(find ./driver-verification/Build/Products -name "driver-verification-tests*.xctestrun" | head -n 1)
-          echo "Running tests on $SIMULATOR_ID"
-          xcodebuild test-without-building \
-            -xctestrun "$XCTESTRUN_FILE" \
-            -destination "id=$SIMULATOR_ID"
+          xcodebuild test \
+            -project maestro-driver-ios.xcodeproj \
+            -scheme maestro-driver-iosTests \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:maestro-driver-iosTests \
+            | xcpretty --color || exit ${PIPESTATUS[0]}
 
   validate-gradle-wrapper:
     runs-on: ubuntu-latest
@@ -167,4 +143,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/actions/wrapper-validation@v4

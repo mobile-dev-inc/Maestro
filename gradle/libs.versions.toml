@@ -7,7 +7,7 @@
 # https://blog.gradle.org/best-practices-naming-version-catalog-entries
 
 [versions]
-androidPlugin = "8.1.4"
+androidPlugin = "8.13.2"
 androidxEspresso = "3.6.1"
 androidxTestJunit = "1.2.1"
 androidxUiautomator = "2.3.0"
@@ -18,7 +18,7 @@ commons-codec = "1.17.0"
 commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
 commons-io = "2.16.1"
 dadb = "1.2.10"
-datafaker = "2.4.4"
+datafaker = "2.5.3"
 detekt = "1.23.8"
 googleCloudStorage = "2.30.1"
 googleFindbugs = "3.0.2"
@@ -26,7 +26,7 @@ googleGson = "2.11.0"
 googleProtobuf = "3.21.9"
 googleProtobufPlugin = "0.9.4"
 googleTruth = "1.4.2"
-graaljs = "24.1.2"
+graaljs = "24.2.0"
 grpc = "1.50.2"
 grpcKotlinStub = "1.4.1"
 imageComparison = "4.4.0"
@@ -37,6 +37,7 @@ jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "2.2.0"
+kotlinRetry = "2.0.1"
 kotlinResult = "2.0.1"
 kotlinx-serialization-json = "1.5.0"
 ktor = "2.3.6"
@@ -47,15 +48,14 @@ mordant = "3.0.2"
 mozillaRhino = "1.7.14"
 picocli = "4.6.3"
 posthog = "1.0.3"
-selenium = "4.38.0"
-selenium-devtools = "4.38.0"
+selenium = "4.40.0"
+selenium-devtools = "4.40.0"
 skiko = "0.8.18"
 squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
 squareMockWebServer = "4.11.0"
 wiremock = "2.35.0"
-logback = "2.21.1"
-log4jCore = "2.24.3"
+log4j = "2.25.3"
 
 coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
@@ -109,6 +109,7 @@ junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.re
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
 kotlin-result = { module = "com.michael-bull.kotlin-result:kotlin-result", version.ref = "kotlinResult" }
+kotlin-retry = { module = "com.michael-bull.kotlin-retry:kotlin-retry", version.ref = "kotlinRetry" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -143,10 +144,10 @@ square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-okio-jvm = { module = "com.squareup.okio:okio-jvm", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
-logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "logback" }
-logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "logback" }
-logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "logback" }
-log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4jCore" }
+logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
+logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
+logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
 

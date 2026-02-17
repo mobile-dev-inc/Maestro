@@ -25,6 +25,7 @@ import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
+import okio.Buffer
 import okio.Sink
 import okio.buffer
 import okio.sink
@@ -32,6 +33,7 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import javax.imageio.ImageIO
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -521,14 +523,55 @@ class Maestro(
         }
     }
 
-    fun takeScreenshot(sink: Sink, compressed: Boolean) {
-        LOGGER.info("Taking screenshot")
+    fun takeScreenshot(sink: Sink, compressed: Boolean, bounds: Bounds? = null) {
+        if (bounds == null) {
+            LOGGER.info("Taking screenshot")
+            sink
+                .buffer()
+                .use {
+                    ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                }
+        } else {
+            LOGGER.info("Taking screenshot (cropped to bounds)")
+            val (x, y, width, height) = bounds
 
-        sink
-            .buffer()
-            .use {
-                ScreenshotUtils.takeScreenshot(it, compressed, driver)
+            val originalImage = Buffer().apply {
+                ScreenshotUtils.takeScreenshot(this, compressed, driver)
+            }.let { buffer ->
+                buffer.inputStream().use { ImageIO.read(it) }
             }
+
+            val info = cachedDeviceInfo
+            val scale = if (info.heightGrid > 0) {
+                info.heightPixels.toDouble() / info.heightGrid
+            } else {
+                1.0
+            }
+            val startX = (x * scale).toInt().coerceIn(0, originalImage.width)
+            val startY = (y * scale).toInt().coerceIn(0, originalImage.height)
+            val cropWidthPx = (width * scale).toInt()
+                .coerceIn(0, originalImage.width - startX)
+            val cropHeightPx = (height * scale).toInt()
+                .coerceIn(0, originalImage.height - startY)
+
+            if (cropWidthPx <= 0 || cropHeightPx <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: invalid dimensions (width: $cropWidthPx, height: $cropHeightPx).",
+                    hierarchyRoot = viewHierarchy(excludeKeyboardElements = false).root,
+                    debugMessage = "Bounds (grid units) x=$x, y=$y, width=$width, height=$height with scale=$scale produced non-positive crop size."
+                )
+            }
+
+            val croppedImage = originalImage.getSubimage(
+                startX, startY, cropWidthPx, cropHeightPx
+            )
+
+            sink
+                .buffer()
+                .use {
+                    ImageIO.write(croppedImage, "png", it.outputStream())
+                }
+        }
     }
 
     fun startScreenRecording(out: Sink): ScreenRecording {

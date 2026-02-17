@@ -3,34 +3,50 @@
    LastUpgradeVersion = "1620"
    version = "1.7">
    <BuildAction
-      parallelizeBuildables = "YES"
+      parallelizeBuildables = "NO"
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "52049BD22935039F00807AA3"
+               BuildableName = "maestro-driver-ios.app"
+               BlueprintName = "maestro-driver-ios"
+               ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
    </BuildAction>
    <TestAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES"
+      shouldUseLaunchSchemeArgsEnv = "NO"
       shouldAutocreateTestPlan = "YES">
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "snapshotKeyHonorModalViews"
+            value = "false"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
       <Testables>
          <TestableReference
-            skipped = "NO">
+            skipped = "NO"
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "52049BF2293503A200807AA3"
-               BuildableName = "maestro-driver-iosUITests.xctest"
-               BlueprintName = "maestro-driver-iosUITests"
+               BlueprintIdentifier = "85861EAEA94A3C855AED94AD"
+               BuildableName = "maestro-driver-iosTests.xctest"
+               BlueprintName = "maestro-driver-iosTests"
                ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
             </BuildableReference>
-            <SkippedTests>
-               <Test
-                  Identifier = "maestro_driver_iosUITests">
-               </Test>
-               <Test
-                  Identifier = "maestro_driver_iosUITests/testHttpServer()">
-               </Test>
-            </SkippedTests>
          </TestableReference>
       </Testables>
    </TestAction>
@@ -61,7 +77,8 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "52049BD22935039F00807AA3"
@@ -69,7 +86,7 @@
             BlueprintName = "maestro-driver-ios"
             ReferencedContainer = "container:maestro-driver-ios.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
