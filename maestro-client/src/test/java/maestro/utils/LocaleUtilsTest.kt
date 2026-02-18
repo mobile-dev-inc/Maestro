@@ -1,6 +1,5 @@
 package maestro.utils
 
-import maestro.Platform
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import com.google.common.truth.Truth.assertThat
