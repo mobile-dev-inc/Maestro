@@ -1,15 +1,44 @@
 package maestro.utils
 
+import kotlin.DeprecationLevel
 import maestro.Platform
 
 open class LocaleValidationException(message: String): Exception(message)
 
+@Deprecated(
+  message = "LocaleValidationIosException is deprecated and will be removed in a future version. Please migrate to DeviceLocale (maestro.locale.LocaleValidationException) for locale handling.",
+  level = DeprecationLevel.WARNING
+)
 class LocaleValidationIosException : LocaleValidationException("Failed to validate iOS device locale")
+
+@Deprecated(
+  message = "LocaleValidationAndroidLanguageException is deprecated and will be removed in a future version. Please migrate to DeviceLocale (maestro.locale.LocaleValidationException) for locale handling.",
+  level = DeprecationLevel.WARNING
+)
 class LocaleValidationAndroidLanguageException(val language: String) : LocaleValidationException("Failed to validate Android device language")
+
+@Deprecated(
+  message = "LocaleValidationAndroidCountryException is deprecated and will be removed in a future version. Please migrate to DeviceLocale (maestro.locale.LocaleValidationException) for locale handling.",
+  level = DeprecationLevel.WARNING
+)
 class LocaleValidationAndroidCountryException(val country: String) : LocaleValidationException("Failed to validate Android device country")
+
+@Deprecated(
+  message = "LocaleValidationNotSupportedPlatformException is deprecated and will be removed in a future version. Please migrate to DeviceLocale (maestro.locale.LocaleValidationException) for locale handling.",
+  level = DeprecationLevel.WARNING
+)
 class LocaleValidationNotSupportedPlatformException : LocaleValidationException("Failed to validate device locale - not supported platform provided")
+
+@Deprecated(
+  message = "LocaleValidationWrongLocaleFormatException is deprecated and will be removed in a future version. Please migrate to DeviceLocale (maestro.locale.LocaleValidationException) for locale handling.",
+  level = DeprecationLevel.WARNING
+)
 class LocaleValidationWrongLocaleFormatException : LocaleValidationException("Failed to validate device locale - wrong locale format is used")
 
+@Deprecated(
+    message = "LocaleUtils is deprecated and will be removed in a future version. Please migrate to DeviceLocale (maestro.locale.DeviceLocale) for locale handling.",
+    level = DeprecationLevel.WARNING
+)
 object LocaleUtils {
     val ANDROID_SUPPORTED_LANGUAGES = listOf(
         "ar" to "Arabic",
