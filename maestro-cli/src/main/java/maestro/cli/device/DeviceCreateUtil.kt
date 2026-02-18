@@ -142,6 +142,8 @@ object DeviceCreateUtil {
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
+            language = language,
+            country = country,
             deviceType = Device.DeviceType.EMULATOR,
             deviceSpec = deviceSpec,
         )
