@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.device.DeviceCatalog
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
@@ -7,11 +8,8 @@ import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.device.Platform
 import maestro.cli.report.TestDebugReporter
-import maestro.cli.util.DeviceConfigAndroid
-import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
-import maestro.locale.DeviceLocale
 import maestro.locale.LocaleValidationException
 import picocli.CommandLine
 import java.util.concurrent.Callable
@@ -70,26 +68,32 @@ class StartDeviceCommand : Callable<Int> {
         val p = Platform.fromString(platform)
             ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
 
-        // default OS version
-        if (!::osVersion.isInitialized) {
-            osVersion = when (p) {
-                Platform.IOS -> DeviceConfigIos.defaultVersion.toString()
-                Platform.ANDROID -> DeviceConfigAndroid.defaultVersion.toString()
-                else -> ""
-            }
-        }
+      // TODO: Move this default to DeviceCatog
+//        // default OS version
+//        if (!::osVersion.isInitialized) {
+//            osVersion = when (p) {
+//                Platform.IOS -> DeviceConfigIos.defaultVersion.toString()
+//                Platform.ANDROID -> DeviceConfigAndroid.defaultVersion.toString()
+//                else -> ""
+//            }
+//        }
         val o = osVersion.toIntOrNull()
 
-        val maestroPlatform = when(p) {
-            Platform.ANDROID -> maestro.Platform.ANDROID
-            Platform.IOS -> maestro.Platform.IOS
-            Platform.WEB -> maestro.Platform.WEB
-        }
-
         try {
-            val locale = DeviceLocale.fromString(deviceLocale ?: "en_US", maestroPlatform)
+            val maestroDeviceConfiguration = try {
+                DeviceCatalog.resolve(
+                    platform = p,
+                    os = o.toString(),
+                    locale = deviceLocale,
+                )
+            } catch (e: Exception) {
+                throw CliError(e.message.toString())
+            }
 
-            DeviceCreateUtil.getOrCreateDevice(p, o, locale.languageCode, locale.countryCode, forceCreate).let { device ->
+            DeviceCreateUtil.getOrCreateDevice(
+                maestroDeviceConfiguration,
+                forceCreate
+            ).let { device ->
                 PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,

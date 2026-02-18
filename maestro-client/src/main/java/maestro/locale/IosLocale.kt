@@ -1,6 +1,6 @@
 package maestro.locale
 
-import maestro.Platform
+import maestro.device.Platform
 
 /**
  * iOS device locale - fixed enum of supported locale combinations.

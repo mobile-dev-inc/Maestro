@@ -7,6 +7,7 @@ import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.device.DeviceCatalog
 
 object PickDeviceInteractor {
 
@@ -94,7 +95,11 @@ object PickDeviceInteractor {
                         deviceType = Device.DeviceType.BROWSER
                     )
                 }
-                return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, null, null, options.forceCreate)
+                val maestroDeviceConfiguration = DeviceCatalog.resolve(
+                    platform = options.platform,
+                    os = options.osVersion.toString(),
+                )
+                return DeviceCreateUtil.getOrCreateDevice(maestroDeviceConfiguration, options.forceCreate)
             }
             "2" -> {
                 PrintUtils.clearConsole()
