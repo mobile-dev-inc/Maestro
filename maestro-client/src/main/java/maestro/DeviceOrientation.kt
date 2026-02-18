@@ -19,7 +19,7 @@ enum class DeviceOrientation {
         // Support lookup of enum value by name, ignoring underscores and case. This allow inputs like
         // "LANDSCAPE_LEFT" or "landscapeLeft" to both be matched to the LANDSCAPE_LEFT enum value.
         fun getByName(name: String): DeviceOrientation? {
-            return values().find { 
+            return values().find {
                 comparableName(it.name) == comparableName(name)
             }
         }
