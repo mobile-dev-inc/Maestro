@@ -1,6 +1,5 @@
 package maestro.locale
-
-import maestro.Platform
+import maestro.device.Platform
 
 /**
  * Web device locale - fixed enum of supported locale combinations.

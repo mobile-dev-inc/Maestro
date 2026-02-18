@@ -1,6 +1,6 @@
 package maestro.locale
 
-import maestro.Platform
+import maestro.device.Platform
 import java.util.Locale
 
 /**
@@ -95,7 +95,7 @@ sealed interface DeviceLocale {
      * @return A human-readable display name (e.g., "en_US" -> "English (United States)"), or the original code if parsing fails
      */
     internal fun getDisplayNameFromCode(localeCode: String): String {
-      return try {
+      try {
         val parts = localeCode.split("_", "-")
         if (parts.size == 2) {
           val javaLocale = Locale(parts[0], parts[1])
@@ -107,7 +107,7 @@ sealed interface DeviceLocale {
       } catch (e: Exception) {
         // Fall through to return locale string
       }
-      localeCode
+      return localeCode
     }
   }
 }
