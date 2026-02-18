@@ -1,5 +1,3 @@
-package maestro.cli.device
-
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
@@ -130,6 +128,7 @@ object DeviceCreateUtil {
                 tag = deviceSpec.tag,
                 abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
+                shardIndex = shardIndex,
             )
         } catch (e: IllegalStateException) {
             throw CliError("${e.message}")
