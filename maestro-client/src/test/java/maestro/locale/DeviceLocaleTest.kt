@@ -3,6 +3,7 @@ package maestro.locale
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import com.google.common.truth.Truth.assertThat
+import maestro.device.Platform
 
 internal class DeviceLocaleTest {
   @Test
