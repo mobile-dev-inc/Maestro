@@ -781,6 +781,37 @@ internal class YamlCommandReaderTest {
     }
 
 
+    @Test
+    fun scrollUntilVisibleWithOrigin(
+        @YamlFile("031_scrollUntilVisible_origin.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Target"),
+                direction = ScrollDirection.DOWN,
+                centerElement = false,
+                visibilityPercentage = 100,
+                origin = "30%, 60%",
+            ),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Target2"),
+                direction = ScrollDirection.UP,
+                centerElement = false,
+                visibilityPercentage = 100,
+                origin = "100, 400",
+            ),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Target3"),
+                direction = ScrollDirection.DOWN,
+                centerElement = false,
+                visibilityPercentage = 100,
+            ),
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }
