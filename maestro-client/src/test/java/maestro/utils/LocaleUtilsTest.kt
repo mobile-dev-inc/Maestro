@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import com.google.common.truth.Truth.assertThat
 import kotlin.DeprecationLevel
+import maestro.device.Platform
 
 @Deprecated(
     message = "LocaleUtilsTest is deprecated. LocaleUtils is deprecated and will be removed in a future version. Please use DeviceLocaleTest (maestro.locale.DeviceLocaleTest) instead.",
