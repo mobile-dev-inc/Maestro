@@ -124,6 +124,7 @@ data class ScrollUntilVisibleCommand(
     val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
     val originalSpeedValue: String? = scrollDuration,
+    val origin: String = DEFAULT_ORIGIN,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -144,6 +145,9 @@ data class ScrollUntilVisibleCommand(
                 additionalDescription.add("with centering enabled")
             } else {
                 additionalDescription.add("with centering disabled")
+            }
+            if (origin != DEFAULT_ORIGIN) {
+                additionalDescription.add("from origin $origin")
             }
             return "$baseDescription ${additionalDescription.joinToString(", ")}"
         }
@@ -168,6 +172,7 @@ data class ScrollUntilVisibleCommand(
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            origin = origin.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -177,6 +182,7 @@ data class ScrollUntilVisibleCommand(
         const val DEFAULT_SCROLL_DURATION = "40"
         const val DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE = 100
         const val DEFAULT_CENTER_ELEMENT = false
+        const val DEFAULT_ORIGIN = "50%, 50%"
     }
 }
 
