@@ -86,6 +86,15 @@ sealed interface DeviceLocale {
       }
     }
 
+    // Gets the default locale value
+    fun getDefault(platform: Platform): DeviceLocale {
+      return when(platform) {
+        Platform.ANDROID -> AndroidLocale.fromString("en_US")
+        Platform.IOS -> IosLocale.fromString("en_US")
+        Platform.WEB -> WebLocale.fromString("en_US")
+      }
+    }
+
     /**
      * Generates a display name for a locale code using Java's Locale API.
      * Parses locale codes in both underscore (en_US) and hyphen (en-US) formats.
