@@ -12,7 +12,7 @@ data class MaestroDeviceConfiguration(
 ) {
   // Generates the device name based on the model and OS version and sharding
   fun generateDeviceName(shardIndex: Int? = null): String {
-    val baseName = "Maestro_${model}_${os}_${platform}"
+    val baseName = "Maestro_${platform}_${model}_${os}"
     return if (shardIndex != null) "${baseName}_${shardIndex + 1}" else baseName
   }
 }
@@ -24,7 +24,7 @@ object DeviceCatalog {
   private const val DEFAULT_LOCALE = "en_US"
   private val DEFAULT_ORIENTATION = DeviceOrientation.PORTRAIT
   private const val DEFAULT_IOS_MODEL = "iPhone-11"
-  private const val DEFAULT_IOS_OS = "17"
+  private const val DEFAULT_IOS_OS = "iOS-17-0"
   private const val DEFAULT_ANDROID_MODEL = "pixel_6"
   private const val DEFAULT_ANDROID_OS = "30"
   private const val DEFAULT_WEB_MODEL = "chromium"
@@ -47,7 +47,7 @@ object DeviceCatalog {
 
     // iOS - iPhone 11
     cloudDevice(Platform.IOS, "iPhone-11", "iOS-16-2"),
-    cloudDevice(Platform.IOS, "iPhone-11", "iOS-17-0"),
+    cloudDevice(Platform.IOS, "iPhone-11", "iOS-17-5"),
     cloudDevice(Platform.IOS, "iPhone-11", "iOS-18-2"),
 
     // iOS - iPhone 13 mini
