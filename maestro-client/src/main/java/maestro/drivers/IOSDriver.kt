@@ -193,6 +193,7 @@ class IOSDriver(
 
     private fun mapViewHierarchy(element: AXElement): TreeNode {
         val attributes = mutableMapOf<String, String>()
+        attributes["elementType"] = element.elementType.toString()
         attributes["accessibilityText"] = element.label
         attributes["title"] = element.title ?: ""
         attributes["value"] = element.value ?: ""
