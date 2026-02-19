@@ -1,11 +1,11 @@
 package maestro.cli.device
 
 import maestro.cli.CliError
-import maestro.cli.model.DeviceStartOptions
-import maestro.cli.util.DeviceConfigAndroid
-import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.PrintUtils
+import maestro.device.CloudCompatibilityException
 import maestro.device.Device
+import maestro.device.DeviceCatalog
+import maestro.device.MaestroDeviceConfiguration
 import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
 
@@ -24,7 +24,7 @@ object PickDeviceView {
         return pickIndex(devices)
     }
 
-    fun requestDeviceOptions(platform: Platform? = null): DeviceStartOptions {
+    fun requestDeviceOptions(platform: Platform? = null): MaestroDeviceConfiguration {
         val selectedPlatform = if (platform == null) {
             PrintUtils.message("Please specify a device platform [android, ios, web]:")
             readlnOrNull()?.lowercase()?.let {
@@ -37,27 +37,26 @@ object PickDeviceView {
             } ?: throw CliError("Please specify a platform")
         } else platform
 
-        val version = selectedPlatform.let {
-            when (it) {
-                Platform.IOS -> {
-                    PrintUtils.message("Please specify iOS version ${DeviceConfigIos.versions}: Press ENTER for default (${DeviceConfigIos.defaultVersion})")
-                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigIos.defaultVersion
-                }
-
-                Platform.ANDROID -> {
-                    PrintUtils.message("Please specify Android version ${DeviceConfigAndroid.versions}: Press ENTER for default (${DeviceConfigAndroid.defaultVersion})")
-                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigAndroid.defaultVersion
-                }
-
-                Platform.WEB -> 0
-            }
+        val available = DeviceCatalog.allCloudAvailableOs(selectedPlatform)
+        val default = DeviceCatalog.defaultOs(selectedPlatform)
+        val os: String = if (available.size <= 1) {
+            default
+        } else {
+            PrintUtils.message("Please specify ${selectedPlatform.description} version $available: Press ENTER for default ($default)")
+            readlnOrNull() ?: default
         }
 
-        return DeviceStartOptions(
-            platform = selectedPlatform,
-            osVersion = version,
-            forceCreate = false
-        )
+        val maestroDeviceConfiguration = try {
+            DeviceCatalog.resolve(
+                platform = selectedPlatform,
+                os = os,
+            )
+        } catch (e: CloudCompatibilityException) {
+            PrintUtils.warn(e.message.toString())
+            e.config
+        }
+
+        return maestroDeviceConfiguration
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {

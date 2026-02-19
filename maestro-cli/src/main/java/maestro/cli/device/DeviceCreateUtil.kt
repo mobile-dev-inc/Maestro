@@ -6,7 +6,6 @@ import maestro.device.Platform
 import maestro.cli.CliError
 import maestro.cli.util.*
 import maestro.device.MaestroDeviceConfiguration
-import maestro.device.util.AvdDevice
 
 object DeviceCreateUtil {
 
@@ -17,29 +16,21 @@ object DeviceCreateUtil {
     ): Device.AvailableForLaunch = when (maestroDeviceConfiguration.platform) {
         Platform.ANDROID -> getOrCreateAndroidDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
         Platform.IOS -> getOrCreateIosDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
-        else -> throw CliError("Unsupported platform $maestroDeviceConfiguration.platform. Please specify one of: android, ios")
+        Platform.WEB -> Device.AvailableForLaunch(
+            platform = Platform.WEB,
+            description = "Chromium Desktop Browser (Experimental)",
+            modelId = maestroDeviceConfiguration.model,
+            language = null,
+            country = null,
+            deviceType = Device.DeviceType.BROWSER,
+        )
     }
 
     fun getOrCreateIosDevice(
         maestroDeviceConfiguration: MaestroDeviceConfiguration, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-//        @Suppress("NAME_SHADOWING") val version = maestroDeviceConfiguration.os ?: DeviceConfigIos.defaultVersion
-        // TODO: Change this to warning on Device config side
-//        if (version !in DeviceConfigIos.versions) {
-//            throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
-//        }
-
-      // TODO: Change this to warning on Device config side
-//        val runtime = DeviceConfigIos.runtimes[version]
-//        if (runtime == null) {
-//            throw CliError("Provided iOS runtime is not supported $runtime")
-//        }
-
         val deviceName = maestroDeviceConfiguration.generateDeviceName()
-        // Removed this as default devive will be provided from maestroDeviceConfig
-//        val device = DeviceConfigIos.device
 
-        // TODO Us catalog function to get list of device and whether this device belongs there
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
             throw CliError("A device with name $deviceName is already connected")
@@ -100,24 +91,13 @@ object DeviceCreateUtil {
     fun getOrCreateAndroidDevice(
         maestroDeviceConfiguration: MaestroDeviceConfiguration, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-//        @Suppress("NAME_SHADOWING") val version = maestroDeviceConfiguration.os ?: DeviceConfigAndroid.defaultVersion
-//
-//        // TODO: Move this validation on DeviceCatalog
-//        if (version !in DeviceConfigAndroid.versions) {
-//            throw CliError("Provided Android version is not supported. Please use one of ${DeviceConfigAndroid.versions}")
-//        }
-
-        val architecture = EnvUtils.getMacOSArchitecture()
-        val pixels = DeviceService.getAvailablePixelDevices()
-        val pixel = DeviceConfigAndroid.choosePixelDevice(pixels) ?: AvdDevice("-1", "Pixel 6", "pixel_6")
-
-        val config = try {
-            DeviceConfigAndroid.createConfig(maestroDeviceConfiguration.os.toInt(), pixel, architecture)
-        } catch (e: IllegalStateException) {
-            throw CliError(e.message ?: "Unable to create android device config")
+        val abi = when (val architecture = EnvUtils.getMacOSArchitecture()) {
+            CPU_ARCHITECTURE.x86_64 -> "x86_64"
+            CPU_ARCHITECTURE.ARM64 -> "arm64-v8a"
+            else -> throw CliError("Unsupported architecture: $architecture")
         }
-
-        val systemImage = config.systemImage
+        val tag = "google_apis"
+        val systemImage = "system-images;android-${maestroDeviceConfiguration.os};$tag;$abi"
         val deviceName = maestroDeviceConfiguration.generateDeviceName()
 
         // check connected device
@@ -158,11 +138,11 @@ object DeviceCreateUtil {
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = config.deviceName,
-                device = config.device,
-                systemImage = config.systemImage,
-                tag = config.tag,
-                abi = config.abi,
+                deviceName = maestroDeviceConfiguration.generateDeviceName(shardIndex),
+                device = maestroDeviceConfiguration.model,
+                systemImage = systemImage,
+                tag = tag,
+                abi = abi,
                 force = forceCreate,
                 shardIndex = shardIndex,
             )

@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import maestro.device.CloudCompatibilityException
 import maestro.device.DeviceCatalog
 import maestro.cli.App
 import maestro.cli.CliError
@@ -10,7 +11,6 @@ import maestro.device.Platform
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
-import maestro.locale.LocaleValidationException
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
@@ -65,44 +65,35 @@ class StartDeviceCommand : Callable<Int> {
             throw CliError("This command is not supported in Windows WSL. You can launch your emulator manually.")
         }
 
-        val p = Platform.fromString(platform)
-            ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+        val p = Platform.fromString(platform) ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
 
-      // TODO: Move this default to DeviceCatog
-//        // default OS version
-//        if (!::osVersion.isInitialized) {
-//            osVersion = when (p) {
-//                Platform.IOS -> DeviceConfigIos.defaultVersion.toString()
-//                Platform.ANDROID -> DeviceConfigAndroid.defaultVersion.toString()
-//                else -> ""
-//            }
-//        }
-        val o = osVersion.toIntOrNull()
-
-        try {
-            val maestroDeviceConfiguration = try {
-                DeviceCatalog.resolve(
-                    platform = p,
-                    os = o.toString(),
-                    locale = deviceLocale,
-                )
-            } catch (e: Exception) {
-                throw CliError(e.message.toString())
-            }
-
-            DeviceCreateUtil.getOrCreateDevice(
-                maestroDeviceConfiguration,
-                forceCreate
-            ).let { device ->
-                PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
-                DeviceService.startDevice(
-                    device = device,
-                    driverHostPort = parent?.port
-                )
-            }
-        } catch (e: LocaleValidationException) {
+        // Get the device configuration
+        val maestroDeviceConfiguration = try {
+            DeviceCatalog.resolve(
+                platform = p,
+                os = osVersion,
+                locale = deviceLocale,
+            )
+        } catch (e: CloudCompatibilityException) {
+            // Local execution — warn but proceed with the resolved config
+            PrintUtils.warn(e.message.toString())
+            e.config
+        } catch (e: Exception) {
             throw CliError(e.message.toString())
         }
+
+        // Get/Create the device
+        val device = DeviceCreateUtil.getOrCreateDevice(
+            maestroDeviceConfiguration,
+            forceCreate
+        )
+
+        // Launch the device
+        PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
+        DeviceService.startDevice(
+          device = device,
+          driverHostPort = parent?.port
+        )
 
         return 0
     }
