@@ -3,7 +3,12 @@ package maestro.utils
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import com.google.common.truth.Truth.assertThat
+import kotlin.DeprecationLevel
 
+@Deprecated(
+    message = "LocaleUtilsTest is deprecated. LocaleUtils is deprecated and will be removed in a future version. Please use DeviceLocaleTest (maestro.locale.DeviceLocaleTest) instead.",
+    level = DeprecationLevel.WARNING
+)
 internal class LocaleUtilsTest {
     @Test
     internal fun `parseLocaleParams when invalid locale is received throws WrongLocaleFormat exception`() {
