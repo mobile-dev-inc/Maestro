@@ -24,7 +24,7 @@ object DeviceCatalog {
   private const val DEFAULT_LOCALE = "en_US"
   private val DEFAULT_ORIENTATION = DeviceOrientation.PORTRAIT
   private const val DEFAULT_IOS_MODEL = "iPhone-11"
-  private const val DEFAULT_IOS_OS = "iOS-17-0"
+  private const val DEFAULT_IOS_OS = "iOS-17-5"
   private const val DEFAULT_ANDROID_MODEL = "pixel_6"
   private const val DEFAULT_ANDROID_OS = "30"
   private const val DEFAULT_WEB_MODEL = "chromium"
