@@ -69,26 +69,31 @@ class AllureTestSuiteReporterTest : TestSuiteReporterTest() {
         reporter(outputDir).report(testErrorWithSteps)
 
         val result = readResultByName(outputDir, "Flow B")
+        val sourceSteps = testErrorWithSteps.suites.single().flows.single().steps
+        val (firstSourceStep, warnedSourceStep, failedSourceStep, skippedSourceStep) = sourceSteps
 
         assertThat(result.steps).hasSize(4)
+        assertThat(result.steps.map { it.start }).containsExactlyElementsIn(sourceSteps.map { it.startTime }).inOrder()
 
-        val firstStep = result.steps[0]
+        val (firstStep, warnedStep, failedStep, skippedStep) = result.steps
+
         assertThat(firstStep.name).isEqualTo("1. Launch app")
         assertThat(firstStep.status).isEqualTo(Status.PASSED)
+        assertThat(firstStep.stop).isEqualTo(firstSourceStep.startTime!! + firstSourceStep.durationMs!!)
 
-        val warnedStep = result.steps[1]
         assertThat(warnedStep.name).isEqualTo("2. Tap on optional element")
         assertThat(warnedStep.status).isEqualTo(Status.BROKEN)
         assertThat(warnedStep.stop).isEqualTo(warnedStep.start)
+        assertThat(warnedStep.start).isEqualTo(warnedSourceStep.startTime)
 
-        val failedStep = result.steps[2]
         assertThat(failedStep.name).isEqualTo("3. Tap on button")
         assertThat(failedStep.status).isEqualTo(Status.FAILED)
+        assertThat(failedStep.stop).isEqualTo(failedSourceStep.startTime!! + failedSourceStep.durationMs!!)
 
-        val skippedStep = result.steps[3]
         assertThat(skippedStep.name).isEqualTo("4. Assert visible")
         assertThat(skippedStep.status).isEqualTo(Status.SKIPPED)
         assertThat(skippedStep.stop).isEqualTo(skippedStep.start)
+        assertThat(skippedStep.start).isEqualTo(skippedSourceStep.startTime)
 
         assertThat(result.steps.mapNotNull { it.start }).isInStrictOrder()
     }

@@ -28,7 +28,6 @@ import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
-import java.util.Locale
 
 /**
  * Similar to [TestRunner], but:
