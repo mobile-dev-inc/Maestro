@@ -258,6 +258,7 @@ tasks.named<Tar>("distTar") {
 
 tasks.shadowJar {
     setProperty("zip64", true)
+    mergeServiceFiles()
 }
 
 mavenPublishing {
