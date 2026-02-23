@@ -1,0 +1,113 @@
+appId: com.apple.TVSettings
+tags:
+  - tvos
+  - passing
+---
+- launchApp
+
+# Verify main settings screen
+- assertVisible: "Settings"
+- assertVisible:
+    text: "General"
+    focused: true
+
+# Navigate into General and back
+- pressKey: "Remote Dpad Center"
+- waitForAnimationToEnd
+
+- assertVisible: "General"
+
+- assertVisible:
+    text: "About"
+    focused: true
+
+- pressKey: "Remote Dpad Down"
+
+- pressKey: "Remote Dpad Down"
+
+- assertVisible:
+    text: "Sleep After"
+    focused: true
+
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+
+- assertVisible: "Settings"
+- assertVisible:
+    text: "General"
+    focused: true
+
+# Navigate to Video and Audio
+- pressKey: "Remote Dpad Down"
+
+- pressKey: "Remote Dpad Down"
+
+- assertVisible:
+    text: "Video and Audio"
+    focused: true
+
+- pressKey: "Remote Dpad Center"
+- waitForAnimationToEnd
+
+- assertVisible: "Video and Audio"
+- assertVisible:
+    text: "Format"
+    focused: true
+
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+
+- assertVisible: "Settings"
+- assertVisible:
+    text: "Video and Audio"
+    focused: true
+
+# Navigate into General
+- pressKey: "Remote Dpad Up"
+
+- pressKey: "Remote Dpad Up"
+
+- assertVisible:
+    text: "General"
+    focused: true
+
+- pressKey: "Remote Dpad Center"
+- waitForAnimationToEnd
+
+# Navigate into About
+- assertVisible:
+    text: "About"
+    focused: true
+- pressKey: "Remote Dpad Center"
+- waitForAnimationToEnd
+
+# Select Name field
+- assertVisible:
+    text: "Name"
+    focused: true
+- pressKey: "Remote Dpad Center"
+
+# Clear existing name and type a new one
+- eraseText
+
+- inputText: "Maestro TV"
+
+- assertVisible: "Maestro TV"
+
+# Go back
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+
+- assertVisible: "About"
+
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+
+- assertVisible: "General"
+
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+
+- assertVisible: "Settings"
+
+- pressKey: "Home"

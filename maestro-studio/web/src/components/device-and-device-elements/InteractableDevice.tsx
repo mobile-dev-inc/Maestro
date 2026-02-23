@@ -18,10 +18,15 @@ export default function InteractableDevice({
   const { deviceScreen } = useDeviceContext();
   const { runCommandYaml } = useRepl();
   const metaKeyDown = useMetaKeyDown();
+  const isTvOS = deviceScreen?.platform?.toUpperCase() === "TVOS";
 
   const onTapGesture = async (x: number, y: number) => {
-    await runCommandYaml(`- tapOn:
+    if (isTvOS) {
+      await runCommandYaml('- pressKey: "Remote Dpad Center"');
+    } else {
+      await runCommandYaml(`- tapOn:
     point: "${Math.round(100 * x)}%,${Math.round(100 * y)}%"`);
+    }
   };
 
   const onSwipeGesture = async (
@@ -31,16 +36,30 @@ export default function InteractableDevice({
     endY: number,
     duration: number
   ) => {
-    const startXPercent = Math.round(startX * 100);
-    const startYPercent = Math.round(startY * 100);
-    const endXPercent = Math.round(endX * 100);
-    const endYPercent = Math.round(endY * 100);
-    await runCommandYaml(`
+    if (isTvOS) {
+      const deltaX = endX - startX;
+      const deltaY = endY - startY;
+      const key =
+        Math.abs(deltaY) > Math.abs(deltaX)
+          ? deltaY < 0
+            ? "Remote Dpad Up"
+            : "Remote Dpad Down"
+          : deltaX > 0
+            ? "Remote Dpad Right"
+            : "Remote Dpad Left";
+      await runCommandYaml(`- pressKey: "${key}"`);
+    } else {
+      const startXPercent = Math.round(startX * 100);
+      const startYPercent = Math.round(startY * 100);
+      const endXPercent = Math.round(endX * 100);
+      const endYPercent = Math.round(endY * 100);
+      await runCommandYaml(`
       swipe:
         start: "${startXPercent}%,${startYPercent}%"
         end: "${endXPercent}%,${endYPercent}%"
         duration: ${Math.round(duration)}
     `);
+    }
   };
 
   return (

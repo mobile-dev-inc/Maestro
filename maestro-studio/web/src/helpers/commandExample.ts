@@ -190,6 +190,51 @@ const toConditionalExample = (selector: Selector): CommandExample => {
   };
 };
 
+const TVOS_PRESS_KEY_EXAMPLES: CommandExample[] = [
+  {
+    status: "available",
+    title: "PressKey > Select",
+    content: stringifyYaml([{ pressKey: "Remote Dpad Center" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+  {
+    status: "available",
+    title: "PressKey > Remote Dpad Up",
+    content: stringifyYaml([{ pressKey: "Remote Dpad Up" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+  {
+    status: "available",
+    title: "PressKey > Remote Dpad Down",
+    content: stringifyYaml([{ pressKey: "Remote Dpad Down" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+  {
+    status: "available",
+    title: "PressKey > Remote Dpad Left",
+    content: stringifyYaml([{ pressKey: "Remote Dpad Left" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+  {
+    status: "available",
+    title: "PressKey > Remote Dpad Right",
+    content: stringifyYaml([{ pressKey: "Remote Dpad Right" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+  {
+    status: "available",
+    title: "PressKey > Remote Menu",
+    content: stringifyYaml([{ pressKey: "Remote Menu" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+  {
+    status: "available",
+    title: "PressKey > Home",
+    content: stringifyYaml([{ pressKey: "Home" }]),
+    documentation: "https://maestro.mobile.dev/api-reference/commands/presskey",
+  },
+];
+
 export const getCommandExamples = (
   deviceScreen?: DeviceScreen,
   uiElement?: UIElement | null
@@ -197,15 +242,17 @@ export const getCommandExamples = (
   if (!deviceScreen || !uiElement) {
     return [];
   }
+  const isTvOS = deviceScreen.platform?.toUpperCase() === "TVOS";
   const selectors = getSelectors(uiElement, deviceScreen);
+
   const commands: CommandExample[] = [
-    ...selectors.map(toTapExample),
-    toTapExample(
-      getCoordinatesSelector(deviceScreen.width, deviceScreen.height, uiElement)
-    ),
+    ...(isTvOS ? TVOS_PRESS_KEY_EXAMPLES : []),
+    ...(isTvOS ? [] : selectors.map(toTapExample)),
+    ...(isTvOS ? [] : [toTapExample(getCoordinatesSelector(deviceScreen.width, deviceScreen.height, uiElement))]),
     ...selectors.map(toAssertExample),
     ...selectors.map(toConditionalExample),
   ];
+
   return [
     ...commands.filter((c) => c.status === "available"),
     ...commands.filter((c) => c.status === "unavailable"),

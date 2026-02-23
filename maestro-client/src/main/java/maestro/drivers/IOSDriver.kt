@@ -155,12 +155,26 @@ class IOSDriver(
                 KeyCode.LOCK to "lock",
             )
 
+            val remoteButtonMap = mapOf(
+                KeyCode.REMOTE_UP to "up",
+                KeyCode.REMOTE_DOWN to "down",
+                KeyCode.REMOTE_LEFT to "left",
+                KeyCode.REMOTE_RIGHT to "right",
+                KeyCode.REMOTE_CENTER to "select",
+                KeyCode.REMOTE_MENU to "menu",
+                KeyCode.REMOTE_PLAY_PAUSE to "playPause",
+            )
+
             runDeviceCall("pressKey") {
                 keyCodeNameMap[code]?.let { name ->
                     iosDevice.pressKey(name)
                 }
 
                 buttonNameMap[code]?.let { name ->
+                    iosDevice.pressButton(name)
+                }
+
+                remoteButtonMap[code]?.let { name ->
                     iosDevice.pressButton(name)
                 }
             }

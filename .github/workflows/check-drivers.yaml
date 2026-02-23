@@ -64,9 +64,10 @@ jobs:
         run: |
           git diff --exit-code \
             maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/ \
-            maestro-ios-driver/src/main/resources/driver-iphoneos/ || {
+            maestro-ios-driver/src/main/resources/driver-iphoneos/ \
+            maestro-ios-driver/src/main/resources/driver-appletvSimulator/ || {
             echo ""
-            echo "ERROR: iOS drivers are out of date."
+            echo "ERROR: iOS/tvOS drivers are out of date."
             echo "Run the following and commit the updated drivers:"
             echo "  ./gradlew :maestro-cli:installDist"
             exit 1

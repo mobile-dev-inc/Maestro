@@ -34,6 +34,7 @@ enum class CPU_ARCHITECTURE(val value: String) {
 @JsonSubTypes(
   JsonSubTypes.Type(DeviceSpec.Android::class, name = "ANDROID"),
   JsonSubTypes.Type(DeviceSpec.Ios::class, name = "IOS"),
+  JsonSubTypes.Type(DeviceSpec.Tvos::class, name = "TVOS"),
   JsonSubTypes.Type(DeviceSpec.Web::class, name = "WEB"),
 )
 sealed class DeviceSpec {
@@ -82,6 +83,25 @@ sealed class DeviceSpec {
 
         companion object {
             val DEFAULT: Ios = Ios(model = "iPhone-11", os = "iOS-17-5")
+        }
+    }
+
+    data class Tvos(
+        override val model: String,
+        override val os: String,
+        override val locale: IosLocale = IosLocale.EN_US,
+    ) : DeviceSpec() {
+        init {
+            require(model.isNotBlank()) { "DeviceSpec.Tvos: model cannot be blank" }
+            require(os.isNotBlank()) { "DeviceSpec.Tvos: os cannot be blank" }
+        }
+
+        override val platform = Platform.TVOS
+        override val osVersion: Int get() = os.removePrefix("tvOS-").substringBefore("-").toIntOrNull() ?: 0
+        override val deviceName: String get() = "Maestro_TVOS_${model}_${os}"
+
+        companion object {
+            val DEFAULT: Tvos = Tvos(model = "Apple-TV-4K-3rd-generation-4K", os = "tvOS-18-5")
         }
     }
 

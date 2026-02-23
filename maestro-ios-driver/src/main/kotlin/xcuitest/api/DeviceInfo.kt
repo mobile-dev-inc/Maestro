@@ -24,4 +24,5 @@ data class DeviceInfo(
     val heightPixels: Int,
     val widthPoints: Int,
     val heightPoints: Int,
+    val platform: String? = null,
 )
