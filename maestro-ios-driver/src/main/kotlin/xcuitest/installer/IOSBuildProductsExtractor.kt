@@ -35,29 +35,52 @@ class IOSBuildProductsExtractor(
     }
 
     fun extract(sourceDirectory: String): BuildProducts {
+        val productNames = driverProductNames(sourceDirectory)
+
         LOGGER.info("[Start] Writing build products")
         writeBuildProducts(sourceDirectory)
         LOGGER.info("[Done] Writing build products")
 
-        LOGGER.info("[Start] Writing maestro-driver-iosUITests-Runner app")
-        extractZipToApp("maestro-driver-iosUITests-Runner.zip")
-        LOGGER.info("[Done] Writing maestro-driver-iosUITests-Runner app")
+        LOGGER.info("[Start] Writing ${productNames.runnerZip} app")
+        extractZipToApp(productNames.runnerZip)
+        LOGGER.info("[Done] Writing ${productNames.runnerZip} app")
 
-        LOGGER.info("[Start] Writing maestro-driver-ios app")
-        extractZipToApp("maestro-driver-ios.zip")
-        LOGGER.info("[Done] Writing maestro-driver-ios app")
+        LOGGER.info("[Start] Writing ${productNames.hostZip} app")
+        extractZipToApp(productNames.hostZip)
+        LOGGER.info("[Done] Writing ${productNames.hostZip} app")
 
         val targetFile = target.toFile()
         val xctestRun = targetFile.walkTopDown().firstOrNull { it.extension == "xctestrun" }
             ?: throw FileNotFoundException("xctestrun config does not exist")
-        val uiRunner = targetFile.walkTopDown().firstOrNull { it.name == "maestro-driver-iosUITests-Runner.app" }
-            ?: throw FileNotFoundException("ui test runner does not exist")
+        val uiRunner = targetFile.walkTopDown().firstOrNull { it.name == productNames.runnerAppName }
+            ?: throw FileNotFoundException("ui test runner does not exist: ${productNames.runnerAppName}")
 
         return BuildProducts(
             xctestRunPath = xctestRun,
             uiRunnerPath = uiRunner
         )
     }
+
+    private fun driverProductNames(sourceDirectory: String): DriverProductNames {
+        return when (sourceDirectory) {
+            "driver-appletvSimulator" -> DriverProductNames(
+                hostZip = "maestro-driver-tvos.zip",
+                runnerZip = "maestro-driver-tvosUITests-Runner.zip",
+                runnerAppName = "maestro-driver-tvosUITests-Runner.app",
+            )
+            else -> DriverProductNames(
+                hostZip = "maestro-driver-ios.zip",
+                runnerZip = "maestro-driver-iosUITests-Runner.zip",
+                runnerAppName = "maestro-driver-iosUITests-Runner.app",
+            )
+        }
+    }
+
+    private data class DriverProductNames(
+        val hostZip: String,
+        val runnerZip: String,
+        val runnerAppName: String,
+    )
 
     private fun extractZipToApp(appFileName: String) {
         val appZip = target.toFile().walk().firstOrNull { it.name == appFileName && it.extension == "zip" }
