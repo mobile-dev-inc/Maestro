@@ -9,6 +9,7 @@ import maestro.device.Platform
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos
+import maestro.cli.util.DeviceConfigTvos
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.utils.LocaleUtils
@@ -72,13 +73,14 @@ class StartDeviceCommand : Callable<Int> {
         }
 
         val p = Platform.fromString(platform)
-            ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+            ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios, tvos")
 
         // default OS version
         if (!::osVersion.isInitialized) {
             osVersion = when (p) {
                 Platform.IOS -> DeviceConfigIos.defaultVersion.toString()
                 Platform.ANDROID -> DeviceConfigAndroid.defaultVersion.toString()
+                Platform.TVOS -> DeviceConfigTvos.defaultVersion.toString()
                 else -> ""
             }
         }
@@ -87,6 +89,7 @@ class StartDeviceCommand : Callable<Int> {
         val maestroPlatform = when(p) {
             Platform.ANDROID -> maestro.Platform.ANDROID
             Platform.IOS -> maestro.Platform.IOS
+            Platform.TVOS -> maestro.Platform.TVOS
             Platform.WEB -> maestro.Platform.WEB
         }
 
@@ -96,7 +99,7 @@ class StartDeviceCommand : Callable<Int> {
             val (deviceLanguage, deviceCountry) = LocaleUtils.parseLocaleParams(locale, maestroPlatform)
 
             DeviceCreateUtil.getOrCreateDevice(p, o, deviceLanguage, deviceCountry, forceCreate).let { device ->
-                PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
+                PrintUtils.message(if (p == Platform.IOS || p == Platform.TVOS) "Launching simulator..." else "Launching emulator...")
                 DeviceService.startDevice(
                     device = device,
                     driverHostPort = parent?.port

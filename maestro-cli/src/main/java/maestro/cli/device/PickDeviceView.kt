@@ -4,6 +4,7 @@ import maestro.cli.CliError
 import maestro.cli.model.DeviceStartOptions
 import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos
+import maestro.cli.util.DeviceConfigTvos
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
 import maestro.device.Platform
@@ -26,11 +27,12 @@ object PickDeviceView {
 
     fun requestDeviceOptions(platform: Platform? = null): DeviceStartOptions {
         val selectedPlatform = if (platform == null) {
-            PrintUtils.message("Please specify a device platform [android, ios, web]:")
+            PrintUtils.message("Please specify a device platform [android, ios, tvos, web]:")
             readlnOrNull()?.lowercase()?.let {
                 when (it) {
                     "android" -> Platform.ANDROID
                     "ios" -> Platform.IOS
+                    "tvos" -> Platform.TVOS
                     "web" -> Platform.WEB
                     else -> throw CliError("Unsupported platform: $it")
                 }
@@ -42,6 +44,11 @@ object PickDeviceView {
                 Platform.IOS -> {
                     PrintUtils.message("Please specify iOS version ${DeviceConfigIos.versions}: Press ENTER for default (${DeviceConfigIos.defaultVersion})")
                     readlnOrNull()?.toIntOrNull() ?: DeviceConfigIos.defaultVersion
+                }
+
+                Platform.TVOS -> {
+                    PrintUtils.message("Please specify tvOS version ${DeviceConfigTvos.versions}: Press ENTER for default (${DeviceConfigTvos.defaultVersion})")
+                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigTvos.defaultVersion
                 }
 
                 Platform.ANDROID -> {
