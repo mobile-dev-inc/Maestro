@@ -124,7 +124,7 @@ class PluginRegistryTest {
         
         val registeredCommands = PluginRegistry.getRegisteredCommands()
         assertTrue(registeredCommands.isNotEmpty())
-        assertTrue(registeredCommands.contains("helloWorld"))
+        assertTrue(registeredCommands.contains("wait"))
     }
     
     @Test
@@ -173,10 +173,10 @@ class PluginRegistryTest {
     @Test
     fun `getPlugin should auto-initialize if not initialized`() {
         // Don't call initialize explicitly
-        val plugin = PluginRegistry.getPlugin("helloWorld")
+        val plugin = PluginRegistry.getPlugin("wait")
         
         assertNotNull(plugin)
-        assertEquals("helloWorld", plugin?.commandName)
+        assertEquals("wait", plugin?.commandName)
     }
     
     // ========== Plugin Registration Tests ==========
@@ -314,7 +314,7 @@ class PluginRegistryTest {
         
         assertTrue(commands.contains("testCommand"))
         assertTrue(commands.contains("anotherCommand"))
-        assertTrue(commands.contains("helloWorld")) // Built-in
+        assertTrue(commands.contains("wait")) // Built-in
     }
     
     // ========== Parse Plugin Command Tests ==========

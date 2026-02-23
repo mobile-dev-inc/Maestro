@@ -2,19 +2,12 @@ package maestro.plugins
 
 import maestro.orchestra.Command
 import maestro.orchestra.PluginCommand
-import maestro.plugins.commands.HelloWorldPlugin
+import maestro.plugins.commands.WaitPlugin
 import com.fasterxml.jackson.core.JsonLocation
 import org.slf4j.LoggerFactory
-import java.io.File
-import java.net.URL
-import java.net.URLClassLoader
-import java.nio.file.Path
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.io.path.exists
-import kotlin.io.path.isDirectory
-import kotlin.io.path.listDirectoryEntries
 
 /**
  * Registry for managing command plugins.
@@ -30,6 +23,10 @@ object PluginRegistry {
 
     /**
      * Initialize the plugin registry by discovering and loading all available plugins.
+     * 
+     * Initialization order:
+     * 1. Manually registered built-in plugins
+     * 2. Auto-discovered plugins from classpath via ServiceLoader
      */
     fun initialize() {
         if (!initialized.compareAndSet(false, true)) {
@@ -38,8 +35,8 @@ object PluginRegistry {
         
         logger.info("Initializing Maestro Plugin Registry...")
         
-        // Register built-in plugins
         registerBuiltInPlugins()
+        discoverPluginsFromClasspath()
         
         logger.info("Plugin Registry initialized with ${plugins.size} plugins")
     }
@@ -49,7 +46,7 @@ object PluginRegistry {
     */
     private fun registerBuiltInPlugins() {
         val builtInPlugins = listOf(
-            HelloWorldPlugin(),
+            WaitPlugin(),
             // Add more plugins here as you create them
         )
         
@@ -59,6 +56,37 @@ object PluginRegistry {
             } catch (e: Exception) {
                 logger.error("Failed to register built-in plugin: ${plugin::class.java.name}", e)
             }
+        }
+    }
+    
+    /**
+     * Discovers and registers plugins from the classpath using Java ServiceLoader.
+     * 
+     * Looks for META-INF/services/maestro.plugins.CommandPlugin files in JARs.
+     * Each file should list fully-qualified class names of plugin implementations.
+     */
+    private fun discoverPluginsFromClasspath() {
+        try {
+            val loader = ServiceLoader.load(CommandPlugin::class.java)
+            var discoveredCount = 0
+            
+            for (plugin in loader) {
+                try {
+                    registerPlugin(plugin)
+                    discoveredCount++
+                    logger.debug("Discovered plugin: ${plugin.commandName}")
+                } catch (e: PluginRegistrationException) {
+                    logger.debug("Plugin ${plugin.commandName} already registered")
+                } catch (e: Exception) {
+                    logger.warn("Failed to register plugin: ${plugin::class.java.name}", e)
+                }
+            }
+            
+            if (discoveredCount > 0) {
+                logger.info("Discovered $discoveredCount plugin(s) from classpath")
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to discover plugins from classpath", e)
         }
     }
     
