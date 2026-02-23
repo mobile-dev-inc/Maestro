@@ -49,6 +49,8 @@ import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.plugins.PluginExecutionContext
+import maestro.plugins.PluginRegistry
 import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
@@ -156,6 +158,9 @@ class Orchestra(
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
+
+        // Initialize plugin registry
+        PluginRegistry.initialize()
 
         initJsEngine(config)
         initAndroidChromeDevTools(config)
@@ -379,7 +384,15 @@ class Orchestra(
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is RetryCommand -> retryCommand(command, config)
-            else -> true
+            is PluginCommand -> executePluginCommand(command, config)
+            else -> {
+                // Check if it's a plugin command
+                if (command != null && PluginRegistry.getPlugin(command::class.java) != null) {
+                    executePluginCommand(command, config)
+                } else {
+                    true
+                }
+            }
         }.also { mutating ->
             if (mutating) {
                 timeMsOfLastInteraction = System.currentTimeMillis()
@@ -399,6 +412,23 @@ class Orchestra(
     private fun toggleAirplaneMode(): Boolean {
         maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
         return true
+    }
+
+    private suspend fun executePluginCommand(command: Command, config: MaestroConfig?): Boolean {
+        val context = PluginExecutionContext(
+            maestro = maestro,
+            jsEngine = jsEngine,
+            config = config,
+            httpClient = httpClient,
+            screenshotsDir = screenshotsDir,
+            insights = insights,
+            lookupTimeoutMs = lookupTimeoutMs,
+            optionalLookupTimeoutMs = optionalLookupTimeoutMs,
+            copiedText = copiedText,
+            setCopiedText = { text -> copiedText = text }
+        )
+
+        return PluginRegistry.executePluginCommand(command, context)
     }
 
     private fun travelCommand(command: TravelCommand): Boolean {
