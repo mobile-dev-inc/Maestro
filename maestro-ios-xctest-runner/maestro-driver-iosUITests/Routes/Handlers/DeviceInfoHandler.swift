@@ -16,11 +16,18 @@ struct DeviceInfoHandler: HTTPHandler {
             let (width, height, orientation) = try ScreenSizeHelper.actualScreenSize()
             NSLog("Device orientation is \(String(orientation.rawValue))")
 
+            #if os(tvOS)
+            let platform = "TVOS"
+            #else
+            let platform = "IOS"
+            #endif
+
             let deviceInfo = DeviceInfoResponse(
                 widthPoints: Int(width),
                 heightPoints: Int(height),
                 widthPixels: Int(CGFloat(width) * UIScreen.main.scale),
-                heightPixels: Int(CGFloat(height) * UIScreen.main.scale)
+                heightPixels: Int(CGFloat(height) * UIScreen.main.scale),
+                platform: platform
             )
 
             let responseBody = try JSONEncoder().encode(deviceInfo)

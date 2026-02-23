@@ -20,10 +20,11 @@ _h3() { printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"; }
 cloud="android_device_configuration,ios_device_configuration" # Maestro Cloud specific tests
 platform="${1:-}"
 case "$platform" in
-	android) exclude_tags="ios,web,$cloud" ;;
-	ios)     exclude_tags="android,$cloud,web" ;;
-	web)     exclude_tags="android,ios,$cloud" ;;
-	*)       echo "usage: $0 <android|ios|web>"; exit 1 ;;
+	android) exclude_tags="ios,tvos,web,$cloud" ;;
+	ios)     exclude_tags="android,tvos,$cloud,web" ;;
+	tvos)    exclude_tags="android,ios,$cloud,web" ;;
+	web)     exclude_tags="android,ios,tvos,$cloud" ;;
+	*)       echo "usage: $0 <android|ios|tvos|web>"; exit 1 ;;
 esac
 
 app_filter="${MAESTRO_APP:-}"
@@ -150,6 +151,11 @@ else
 		esac
 
 		case $app_name in
+			tvos_settings)           [ "$platform" != "tvos" ] && continue ;;
+			*)                       [ "$platform" = "tvos" ]  && continue ;;
+		esac
+
+		case $app_name in
 			# demo_app has OOM issues on GHA
 			demo_app) [ "$platform" = "ios" ]     && continue ;;
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
@@ -160,7 +166,7 @@ else
 		_run_passing "$app_name" "$workspace_dir"
 
 		case "$app_name" in
-			wikipedia|simple_web_view) ;;
+			wikipedia|simple_web_view|tvos_settings) ;;
 			*) _run_failing "$app_name" "$workspace_dir" ;;
 		esac
 	done

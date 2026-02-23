@@ -9,7 +9,11 @@ struct RunningAppRouteHandler: HTTPHandler {
         category: String(describing: Self.self)
     )
     
-    private static let springboardBundleId = "com.apple.springboard"
+    #if os(tvOS)
+    private static let homescreenBundleId = "com.apple.HeadBoard"
+    #else
+    private static let homescreenBundleId = "com.apple.springboard"
+    #endif
     
     func handleRequest(_ request: FlyingFox.HTTPRequest) async throws -> FlyingFox.HTTPResponse {
         guard let requestBody = try? await JSONDecoder().decode(RunningAppRequest.self, from: request.bodyData) else {
@@ -23,7 +27,7 @@ struct RunningAppRouteHandler: HTTPHandler {
                 return app.state == .runningForeground
             }
             
-            let response = ["runningAppBundleId": runningAppId ?? RunningAppRouteHandler.springboardBundleId]
+            let response = ["runningAppBundleId": runningAppId ?? RunningAppRouteHandler.homescreenBundleId]
             
             let responseData = try JSONSerialization.data(
                 withJSONObject: response,
