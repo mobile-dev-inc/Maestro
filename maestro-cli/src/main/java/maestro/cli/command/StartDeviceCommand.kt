@@ -34,7 +34,7 @@ class StartDeviceCommand : Callable<Int> {
         order = 0,
         names = ["--platform"],
         required = true,
-        description = ["Platforms: android, ios, web"],
+        description = ["Platforms: android, ios, tvos, web"],
     )
     private lateinit var platform: String
 
@@ -43,7 +43,7 @@ class StartDeviceCommand : Callable<Int> {
         order = 1,
         hidden = true,
         names = ["--os-version"],
-        description = ["OS version to use:", "iOS: 16, 17, 18, 26", "Android: 28, 29, 30, 31, 33, 34"],
+        description = ["OS version to use:", "iOS: 16, 17, 18, 26", "tvOS: 16, 17, 18", "Android: 28, 29, 30, 31, 33, 34"],
     )
     private var osVersion: String? = null
 
@@ -60,6 +60,7 @@ class StartDeviceCommand : Callable<Int> {
         description = [
             "Device model to run against",
             "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-devices",
+            "  tvOS: Apple-TV-4K-3rd-generation-4K, etc. Run command: maestro list-devices",
             "  Android: pixel_6, pixel_7, etc. Run command: maestro list-devices"
         ],
     )
@@ -71,6 +72,7 @@ class StartDeviceCommand : Callable<Int> {
         description = [
             "OS version to use:",
             "  iOS: iOS-18-2, iOS-26-2 etc. maestro list-devices",
+            "  tvOS: tvOS-16-4, tvOS-17-5, tvOS-18-5, etc. maestro list-devices",
             "  Android: android-33, android-34, etc. maestro list-devices"
         ],
     )
@@ -109,6 +111,14 @@ class StartDeviceCommand : Callable<Int> {
                 DeviceSpec.Ios(
                     model = deviceModel ?: default.model,
                     os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+                )
+            }
+            Platform.TVOS -> {
+                val default = DeviceSpec.Tvos.DEFAULT
+                DeviceSpec.Tvos(
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion?.let { "tvOS-$it" } ?: default.os,
                     locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
                 )
             }

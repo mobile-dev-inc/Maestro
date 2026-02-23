@@ -23,12 +23,13 @@ on:
         type: string
         default: ''
       platform:
-        description: 'Platform to test against (workflow_dispatch only; pull_request runs all three).'
+        description: 'Platform to test against (workflow_dispatch only; pull_request runs all platforms).'
         type: choice
         default: 'android'
         options:
           - 'android'
           - 'ios'
+          - 'tvos'
           - 'web'
   pull_request:
 
@@ -122,7 +123,7 @@ jobs:
             /^---/   {exit}
             flag && /^[[:space:]]*-[[:space:]]/ {gsub(/^[[:space:]]*-[[:space:]]*/, ""); print}
           ' "$FLOW_PATH")
-          platform_tags=$(printf "%s\n" "$flow_tags" | grep -E '^(android|ios|web)$' || true)
+          platform_tags=$(printf "%s\n" "$flow_tags" | grep -E '^(android|ios|tvos|web)$' || true)
 
           # No platform tags = cross-platform flow, allow.
           if [ -z "$platform_tags" ]; then
@@ -503,6 +504,89 @@ jobs:
         if: success() || failure()
         with:
           name: maestro-screenrecord-ios.mp4
+          path: ~/screenrecord.mp4
+          retention-days: 7
+
+  test-tvos:
+    name: Test on tvOS
+    runs-on: macos-26
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'tvos') && inputs.flow == '' }}
+    timeout-minutes: 30
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
+      MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Boot Apple TV Simulator
+        run: |
+          xcrun simctl list runtimes
+          export RUNTIME="tvOS26.1"
+          export DEVICE_TYPE="Apple TV 4K (3rd generation)"
+          ./.github/scripts/boot_simulator.sh
+
+      - name: Start screen recording
+        run: |
+          xcrun simctl io booted recordVideo --codec h264 ~/screenrecord.mp4 &
+          echo $! > ~/screenrecord.pid
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 20
+        run: ./run_tests tvos
+
+      - name: Stop screen recording
+        if: success() || failure()
+        run: kill -SIGINT "$(cat ~/screenrecord.pid)"
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: maestro-root-dir-tvos
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload xctest runner logs
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: xctest_runner_logs_tvos
+          path: ~/Library/Logs/maestro/xctest_runner_logs
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload screen recording of Simulator
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: maestro-screenrecord-tvos.mp4
           path: ~/screenrecord.mp4
           retention-days: 7
 
