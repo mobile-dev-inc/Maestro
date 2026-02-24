@@ -2,19 +2,56 @@ package maestro.device
 
 import com.google.common.truth.Truth.assertThat
 import maestro.DeviceOrientation
-import maestro.locale.DeviceLocale
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 internal class DeviceCatalogTest {
+
+    val cloudDevicesDummyData = SupportedDevicesResponse(
+        ios = IosSupportedDevices(
+            deviceCombinations = listOf(
+                DeviceCombination("iPhone-11", "iOS-16-2"),
+                DeviceCombination("iPhone-11", "iOS-17-5"),
+                DeviceCombination("iPhone-11", "iOS-18-2"),
+                DeviceCombination("iPhone-16", "iOS-18-2"),
+            ),
+            defaults = IosDefaults("iPhone-11", "iOS-17-5", "en_US", disableAnimations = true),
+        ),
+        android = AndroidSupportedDevices(
+            deviceCombinations = listOf(
+                DeviceCombination("pixel_6",  "system-images;android-34;google_apis;arm64-v8a"),
+                DeviceCombination("pixel_6",  "system-images;android-33;google_apis;arm64-v8a"),
+                DeviceCombination("pixel_xl", "system-images;android-34;google_apis;arm64-v8a"),
+                DeviceCombination("pixel_xl", "system-images;android-33;google_apis;arm64-v8a"),
+            ),
+            defaults = AndroidDefaults(
+                deviceModel = "pixel_6",
+                deviceOs = "system-images;android-34;google_apis;arm64-v8a",
+                locale = "en_US",
+                disableAnimations = true,
+                snapshotKeyHonorModalViews = false,
+            ),
+        ),
+        web = WebSupportedDevices(
+            deviceCombinations = listOf(DeviceCombination("chromium", "default")),
+            defaults = WebDefaults("chromium", "default", "en_US"),
+        ),
+    )
+
+    @BeforeEach
+    fun setup() {
+        DeviceCatalog.initForTest(cloudDevicesDummyData)
+    }
+
     @Test
     fun `resolve Android with no overrides uses defaults`() {
         val config = DeviceCatalog.resolve(Platform.ANDROID)
 
         assertThat(config.platform).isEqualTo(Platform.ANDROID)
-        assertThat(config.model).isEqualTo(DeviceCatalog.defaultModel(Platform.ANDROID))
-        assertThat(config.os).isEqualTo(DeviceCatalog.defaultOs(Platform.ANDROID))
-        assertThat(config.locale).isEqualTo(DeviceLocale.getDefault(Platform.ANDROID))
+        assertThat(config.model).isEqualTo(cloudDevicesDummyData.android.defaults.deviceModel)
+        assertThat(config.os).isEqualTo(cloudDevicesDummyData.android.defaults.deviceOs)
+        assertThat(config.locale.code).isEqualTo(cloudDevicesDummyData.android.defaults.locale)
         assertThat(config.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
     }
 
@@ -23,9 +60,9 @@ internal class DeviceCatalogTest {
         val config = DeviceCatalog.resolve(Platform.IOS)
 
         assertThat(config.platform).isEqualTo(Platform.IOS)
-        assertThat(config.model).isEqualTo(DeviceCatalog.defaultModel(Platform.IOS))
-        assertThat(config.os).isEqualTo(DeviceCatalog.defaultOs(Platform.IOS))
-        assertThat(config.locale).isEqualTo(DeviceLocale.getDefault(Platform.IOS))
+        assertThat(config.model).isEqualTo(cloudDevicesDummyData.ios.defaults.deviceModel)
+        assertThat(config.os).isEqualTo(cloudDevicesDummyData.ios.defaults.deviceOs)
+        assertThat(config.locale.code).isEqualTo(cloudDevicesDummyData.ios.defaults.locale)
         assertThat(config.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
     }
 
@@ -34,9 +71,9 @@ internal class DeviceCatalogTest {
         val config = DeviceCatalog.resolve(Platform.WEB)
 
         assertThat(config.platform).isEqualTo(Platform.WEB)
-        assertThat(config.model).isEqualTo(DeviceCatalog.defaultModel(Platform.WEB))
-        assertThat(config.os).isEqualTo(DeviceCatalog.defaultOs(Platform.WEB))
-        assertThat(config.locale).isEqualTo(DeviceLocale.getDefault(Platform.WEB))
+        assertThat(config.model).isEqualTo(cloudDevicesDummyData.web.defaults.deviceModel)
+        assertThat(config.os).isEqualTo(cloudDevicesDummyData.web.defaults.deviceOs)
+        assertThat(config.locale.code).isEqualTo(cloudDevicesDummyData.web.defaults.locale)
         assertThat(config.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
     }
 
@@ -45,13 +82,13 @@ internal class DeviceCatalogTest {
         val config = DeviceCatalog.resolve(
             platform = Platform.ANDROID,
             model = "pixel_xl",
-            os = "31",
+            os = "system-images;android-33;google_apis;arm64-v8a",
             locale = "de_DE",
             orientation = DeviceOrientation.LANDSCAPE_LEFT,
         )
 
         assertThat(config.model).isEqualTo("pixel_xl")
-        assertThat(config.os).isEqualTo("31")
+        assertThat(config.os).isEqualTo("system-images;android-33;google_apis;arm64-v8a")
         assertThat(config.locale.languageCode).isEqualTo("de")
         assertThat(config.locale.countryCode).isEqualTo("DE")
         assertThat(config.orientation).isEqualTo(DeviceOrientation.LANDSCAPE_LEFT)
@@ -107,20 +144,20 @@ internal class DeviceCatalogTest {
 
     @Test
     fun `resolve succeeds for valid cloud-compatible configs`() {
-        DeviceCatalog.resolve(Platform.ANDROID, model = "pixel_6", os = "34")
-        DeviceCatalog.resolve(Platform.ANDROID, model = "pixel_xl", os = "30")
-        DeviceCatalog.resolve(Platform.IOS, model = "iPhone-16-Pro-Max", os = "iOS-18-2")
-        DeviceCatalog.resolve(Platform.IOS, model = "iPad-10th-generation", os = "iOS-17-0")
-        DeviceCatalog.resolve(Platform.WEB, model = "chromium", os = "latest")
+        DeviceCatalog.resolve(Platform.ANDROID, model = "pixel_6",  os = "system-images;android-34;google_apis;arm64-v8a")
+        DeviceCatalog.resolve(Platform.ANDROID, model = "pixel_xl", os = "system-images;android-33;google_apis;arm64-v8a")
+        DeviceCatalog.resolve(Platform.IOS,     model = "iPhone-11", os = "iOS-18-2")
+        DeviceCatalog.resolve(Platform.IOS,     model = "iPhone-16", os = "iOS-18-2")
+        DeviceCatalog.resolve(Platform.WEB,     model = "chromium",  os = "default")
     }
 
     @Test
     fun `generateDeviceName should generate a new device name taking into account sharding`() {
-        val andDroidConfig = DeviceCatalog.resolve(Platform.ANDROID)
+        val androidConfig = DeviceCatalog.resolve(Platform.ANDROID)
         val iosConfig = DeviceCatalog.resolve(Platform.IOS, model = "iPhone-11", os = "iOS-18-2")
 
-        assertThat(andDroidConfig.generateDeviceName()).isEqualTo("Maestro_ANDROID_pixel_6_30")
-        assertThat(andDroidConfig.generateDeviceName(shardIndex = 1)).isEqualTo("Maestro_ANDROID_pixel_6_30_2")
+        assertThat(androidConfig.generateDeviceName()).isEqualTo("Maestro_ANDROID_pixel_6_system-images;android-34;google_apis;arm64-v8a")
+        assertThat(androidConfig.generateDeviceName(shardIndex = 1)).isEqualTo("Maestro_ANDROID_pixel_6_system-images;android-34;google_apis;arm64-v8a_2")
         assertThat(iosConfig.generateDeviceName(shardIndex = 0)).isEqualTo("Maestro_IOS_iPhone-11_iOS-18-2_1")
         assertThat(iosConfig.generateDeviceName(shardIndex = 2)).isEqualTo("Maestro_IOS_iPhone-11_iOS-18-2_3")
     }
