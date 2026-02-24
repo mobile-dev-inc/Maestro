@@ -60,8 +60,10 @@ object StartDeviceTool {
                     if (available != null) {
                         val connectedDevice = DeviceService.startDevice(
                             device = available,
-                            driverHostPort = null
+                            driverHostPort = null,
+                            installDriver = available.platform == Platform.ANDROID
                         )
+
                         return@RegisteredTool CallToolResult(content = listOf(TextContent(buildResult(connectedDevice, false))))
                     }
                     return@RegisteredTool CallToolResult(
@@ -82,8 +84,10 @@ object StartDeviceTool {
                 if (available != null) {
                     val connectedDevice = DeviceService.startDevice(
                         device = available,
-                        driverHostPort = null
+                        driverHostPort = null,
+                        installDriver = available.platform == Platform.ANDROID
                     )
+
                     return@RegisteredTool CallToolResult(content = listOf(TextContent(buildResult(connectedDevice, false))))
                 }
                 return@RegisteredTool CallToolResult(
