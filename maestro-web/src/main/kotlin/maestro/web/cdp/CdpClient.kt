@@ -174,6 +174,35 @@ class CdpClient(
             }
     }
 
+    suspend fun clearDataForOrigin(origin: String, storageTypes: String, target: CdpTarget) {
+        val messageId = idCounter.getAndIncrement()
+        val originJson = Json.encodeToString(JsonPrimitive(origin))
+        val storageTypesJson = Json.encodeToString(JsonPrimitive(storageTypes))
+        val payload = """
+            {
+                "id": $messageId,
+                "method": "Storage.clearDataForOrigin",
+                "params": {
+                    "origin": $originJson,
+                    "storageTypes": $storageTypesJson
+                }
+            }
+        """.trimIndent()
+
+        evalMutex.withLock {
+            httpClient.webSocketSession { url(target.webSocketDebuggerUrl) }
+                .use { session ->
+                    session.send(Frame.Text(payload))
+
+                    val text = session.waitForMessage(messageId)
+                    val root = json.parseToJsonElement(text).jsonObject
+                    if (root["error"] != null) {
+                        error("CDP error: ${root["error"]}")
+                    }
+                }
+        }
+    }
+
     private suspend fun DefaultClientWebSocketSession.waitForMessage(messageId: Int): String {
         for (frame in incoming) {
             if (frame is Frame.Text) {
