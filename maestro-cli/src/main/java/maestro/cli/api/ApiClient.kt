@@ -337,6 +337,8 @@ class ApiClient(
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
                 projectId = projectId,
+                deviceModel = deviceModel,
+                deviceOs = deviceOs,
             )
         }
 
@@ -399,7 +401,9 @@ class ApiClient(
                                 appBinaryId = appBinaryId,
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
-                                projectId = projectId
+                                projectId = projectId,
+                                deviceModel = deviceModel,
+                                deviceOs = deviceOs,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
