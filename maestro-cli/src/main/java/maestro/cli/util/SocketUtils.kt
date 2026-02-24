@@ -10,3 +10,11 @@ fun getFreePort(): Int {
     }
     ServerSocket(0).use { return it.localPort }
 }
+
+fun isPortAvailable(port: Int): Boolean {
+    return try {
+        ServerSocket(port).use { true }
+    } catch (e: Exception) {
+        false
+    }
+}
