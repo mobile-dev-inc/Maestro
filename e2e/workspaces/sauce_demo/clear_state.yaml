@@ -1,4 +1,5 @@
-url: https://www.saucedemo.com
+url: https://www.saucedemo.com/inventory.html
+name: ClearState command should clear state
 tags:
   - passing
   - web
@@ -15,9 +16,7 @@ tags:
 - assertVisible: Products
 
 - clearState
-
-- launchApp:
-    url: https://www.saucedemo.com/inventory.html
+- launchApp
 
 - assertVisible: Username
 - assertVisible: Password

@@ -1,4 +1,5 @@
-url: https://www.saucedemo.com
+url: https://www.saucedemo.com/inventory.html
+name: LaunchApp should clear state when clearState is true
 tags:
   - passing
   - web

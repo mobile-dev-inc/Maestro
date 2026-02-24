@@ -1,4 +1,5 @@
-url: https://www.saucedemo.com
+url: https://www.saucedemo.com/inventory.html
+name: LaunchApp should not clear state
 tags:
   - passing
   - web
@@ -14,8 +15,7 @@ tags:
 
 - assertVisible: Products
 
-- launchApp:
-    url: https://www.saucedemo.com/inventory.html
+- launchApp # Should not clear state
 
 - assertVisible: Products
 - assertVisible: Sauce Labs Backpack
