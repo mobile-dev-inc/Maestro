@@ -10,16 +10,16 @@ import maestro.device.MaestroDeviceConfiguration
 object DeviceCreateUtil {
 
     fun getOrCreateDevice(
-      maestroDeviceConfiguration: MaestroDeviceConfiguration,
-      forceCreate: Boolean = false,
-      shardIndex: Int? = null,
-    ): Device.AvailableForLaunch = when (maestroDeviceConfiguration.platform) {
-        Platform.ANDROID -> getOrCreateAndroidDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
-        Platform.IOS -> getOrCreateIosDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
-        Platform.WEB -> Device.AvailableForLaunch(
+        maestroDeviceConfiguration: MaestroDeviceConfiguration,
+        forceCreate: Boolean = false,
+        shardIndex: Int? = null,
+    ): Device.AvailableForLaunch = when (maestroDeviceConfiguration) {
+        is MaestroDeviceConfiguration.Android -> getOrCreateAndroidDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
+        is MaestroDeviceConfiguration.Ios     -> getOrCreateIosDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
+        is MaestroDeviceConfiguration.Web     -> Device.AvailableForLaunch(
             platform = Platform.WEB,
             description = "Chromium Desktop Browser (Experimental)",
-            modelId = maestroDeviceConfiguration.model,
+            modelId = maestroDeviceConfiguration.browser,
             language = null,
             country = null,
             deviceType = Device.DeviceType.BROWSER,
@@ -27,9 +27,9 @@ object DeviceCreateUtil {
     }
 
     fun getOrCreateIosDevice(
-        maestroDeviceConfiguration: MaestroDeviceConfiguration, forceCreate: Boolean, shardIndex: Int? = null
+        config: MaestroDeviceConfiguration.Ios, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        val deviceName = maestroDeviceConfiguration.generateDeviceName()
+        val deviceName = config.generateDeviceName()
 
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
@@ -47,15 +47,14 @@ object DeviceCreateUtil {
         if (existingDeviceId != null) PrintUtils.message("Using existing device $deviceName (${existingDeviceId}).")
         else PrintUtils.message("Attempting to create iOS simulator: $deviceName ")
 
-
         val deviceUUID = try {
-            existingDeviceId ?: DeviceService.createIosDevice(deviceName, maestroDeviceConfiguration.model, maestroDeviceConfiguration.os).toString()
+            existingDeviceId ?: DeviceService.createIosDevice(deviceName, config.deviceModel, config.deviceOs).toString()
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {
                 val msg = """
-                    Required runtime to create the simulator is not installed: ${maestroDeviceConfiguration.os}
-                    
+                    Required runtime to create the simulator is not installed: ${config.deviceOs}
+
                     To install additional iOS runtimes checkout this guide:
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
@@ -63,13 +62,13 @@ object DeviceCreateUtil {
             } else if (error.contains("xcrun: error: unable to find utility \"simctl\"")) {
                 val msg = """
                     The xcode-select CLI tools are not installed, install with xcode-select --install
-                    
+
                     If the xcode-select CLI tools are already installed, the path may be broken. Try
                     running sudo xcode-select -r to repair the path and re-run this command
                 """.trimIndent()
                 throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
-                throw CliError("Device type ${maestroDeviceConfiguration.model} is either not supported or not found.")
+                throw CliError("Device type ${config.deviceModel} is either not supported or not found.")
             } else {
                 throw CliError(error)
             }
@@ -81,15 +80,14 @@ object DeviceCreateUtil {
             modelId = deviceUUID,
             description = deviceName,
             platform = Platform.IOS,
-            language = maestroDeviceConfiguration.locale.languageCode,
-            country = maestroDeviceConfiguration.locale.countryCode,
+            language = config.locale.languageCode,
+            country = config.locale.countryCode,
             deviceType = Device.DeviceType.SIMULATOR
         )
-
     }
 
     fun getOrCreateAndroidDevice(
-        maestroDeviceConfiguration: MaestroDeviceConfiguration, forceCreate: Boolean, shardIndex: Int? = null
+        config: MaestroDeviceConfiguration.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
         val abi = when (val architecture = EnvUtils.getMacOSArchitecture()) {
             CPU_ARCHITECTURE.x86_64 -> "x86_64"
@@ -97,8 +95,8 @@ object DeviceCreateUtil {
             else -> throw CliError("Unsupported architecture: $architecture")
         }
         val tag = "google_apis"
-        val systemImage = "system-images;android-${maestroDeviceConfiguration.os};$tag;$abi"
-        val deviceName = maestroDeviceConfiguration.generateDeviceName()
+        val systemImage = config.emulatorImage
+        val deviceName = config.generateDeviceName()
 
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
@@ -138,8 +136,8 @@ object DeviceCreateUtil {
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = maestroDeviceConfiguration.generateDeviceName(shardIndex),
-                device = maestroDeviceConfiguration.model,
+                deviceName = config.generateDeviceName(shardIndex),
+                device = config.deviceModel,
                 systemImage = systemImage,
                 tag = tag,
                 abi = abi,
@@ -156,8 +154,8 @@ object DeviceCreateUtil {
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
-            language = maestroDeviceConfiguration.locale.languageCode,
-            country = maestroDeviceConfiguration.locale.countryCode,
+            language = config.locale.languageCode,
+            country = config.locale.countryCode,
             deviceType = Device.DeviceType.EMULATOR,
         )
     }
