@@ -54,10 +54,6 @@ for workspace_dir in ./workspaces/*; do
           continue
         fi
         ;;
-      # Skip web-only workspaces for all mobile tests - those are run by run_tests_web
-      sauce_demo)
-        continue
-        ;;
   esac
 
 	WORKSPACE_PASS=true
@@ -85,7 +81,7 @@ for workspace_dir in ./workspaces/*; do
 	###
 	# edge case: some workspaces have no failing flows
 	case $app_name in
-		wikipedia|setOrientation|no-app|simple_web_view)
+		wikipedia|setOrientation|simple_web_view)
 			continue
 			;;
 	esac
