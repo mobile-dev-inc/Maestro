@@ -43,7 +43,7 @@ for workspace_dir in ./workspaces/*; do
   case $app_name in
       # Skip workspaces with no tests for iOS
       # demo_app has OOM issues on GHA
-  		demo_app|nowinandroid|setOrientation)
+  		demo_app|setOrientation)
   			if [ "$platform" = "ios" ]; then
   			  continue
   			fi
