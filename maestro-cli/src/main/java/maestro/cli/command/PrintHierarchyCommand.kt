@@ -28,6 +28,7 @@ import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.PrintHierarchyFinishedEvent
 import maestro.cli.analytics.PrintHierarchyStartedEvent
+import maestro.cli.mcp.tools.ViewHierarchyFormatters
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.yellow
@@ -86,6 +87,63 @@ class PrintHierarchyCommand : Runnable {
     private var compact: Boolean = false
 
     @CommandLine.Option(
+        names = ["--simple"],
+        description = ["Simple flat JSON format with package names, coordinates, and abbreviated keys for easy parsing"],
+        hidden = false
+    )
+    private var simpleFormat: Boolean = false
+
+    @CommandLine.Option(
+        names = ["--app"],
+        description = ["[Android only] Filter elements by package name (e.g., com.example.myapp)"],
+        hidden = false
+    )
+    private var appFilter: String? = null
+
+    @CommandLine.Option(
+        names = ["--exclude-apps"],
+        description = ["[Android only] Comma-separated list of package names to exclude (default: com.android.systemui). If specified, the default is NOT included - add it explicitly if needed."],
+        split = ",",
+        hidden = false
+    )
+    private var excludeApps: List<String> = emptyList()
+
+    @CommandLine.Option(
+        names = ["--exclude-apps-file"],
+        description = ["[Android only] Path to file containing package names to exclude (one per line). If specified, the default is NOT included."],
+        hidden = false
+    )
+    private var excludeAppsFile: java.io.File? = null
+
+    @CommandLine.Option(
+        names = ["--clickable-only"],
+        description = ["Only show clickable/interactive elements"],
+        hidden = false
+    )
+    private var clickableOnly: Boolean = false
+
+    @CommandLine.Option(
+        names = ["--with-id"],
+        description = ["Include element_num (id), depth, and parent_num fields in the output"],
+        hidden = false
+    )
+    private var withId: Boolean = false
+
+    @CommandLine.Option(
+        names = ["--multi-line"],
+        description = ["Format output with indentation and newlines for human readability"],
+        hidden = false
+    )
+    private var multiLine: Boolean = false
+
+    @CommandLine.Option(
+        names = ["--output"],
+        description = ["Write output to a file instead of stdout"],
+        hidden = false
+    )
+    private var outputFile: java.io.File? = null
+
+    @CommandLine.Option(
         names = ["--device-index"],
         description = ["The index of the device to run the test on"],
         hidden = true
@@ -133,7 +191,32 @@ class PrintHierarchyCommand : Runnable {
 
             insights.unregisterListener(callback)
 
-            if (compact) {
+            if (simpleFormat) {
+                // Simple flat JSON output format - use pixel dimensions
+                val deviceInfo = session.maestro.deviceInfo()
+                val screenWidth = deviceInfo.widthPixels
+                val screenHeight = deviceInfo.heightPixels
+
+                // Build exclude apps set
+                val excludeAppsSet = buildExcludeAppsSet()
+
+                val output = ViewHierarchyFormatters.extractLLMOutput(
+                    node = tree,
+                    screenWidth = screenWidth,
+                    screenHeight = screenHeight,
+                    appFilter = appFilter,
+                    excludeApps = excludeAppsSet,
+                    clickableOnly = clickableOnly,
+                    prettyPrint = multiLine,
+                    withId = withId
+                )
+                
+                if (outputFile != null) {
+                    outputFile!!.writeText(output)
+                } else {
+                    println(output)
+                }
+            } else if (compact) {
                 // Output in CSV format
                 println("element_num,depth,attributes,parent_num")
                 val nodeToId = mutableMapOf<TreeNode, Int>()
@@ -229,5 +312,32 @@ class PrintHierarchyCommand : Runnable {
             focused = if(tree.focused == true) true else null,
             selected = if(tree.selected == true) true else null,
         )
+    }
+
+    /**
+     * Build the set of apps to exclude based on --exclude-apps and --exclude-apps-file options.
+     * If neither option is specified, returns default set containing "com.android.systemui".
+     * If user specifies apps, the default is NOT included - user must add it explicitly if needed.
+     */
+    private fun buildExcludeAppsSet(): Set<String> {
+        val appsFromOption = excludeApps.map { it.trim() }.filter { it.isNotEmpty() }
+
+        val appsFromFile = excludeAppsFile?.let { file ->
+            if (file.exists() && file.isFile) {
+                file.readLines()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+            } else {
+                emptyList()
+            }
+        } ?: emptyList()
+
+        // If user specified any apps (via option or file), use only those (no default)
+        // If nothing specified, use the default
+        return if (appsFromOption.isEmpty() && appsFromFile.isEmpty()) {
+            setOf("com.android.systemui")
+        } else {
+            (appsFromOption + appsFromFile).toSet()
+        }
     }
 }
