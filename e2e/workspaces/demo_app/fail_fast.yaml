@@ -1,9 +1,0 @@
-appId: com.example.example
-tags:
-    - failing
----
-- launchApp:
-    clearState: true
-- assertTrue:
-    condition: ${ false }
-    label: Fail the flow

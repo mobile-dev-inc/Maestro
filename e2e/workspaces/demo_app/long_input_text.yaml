@@ -1,9 +1,0 @@
-appId: com.example.example
-tags:
-    - passing
----
-- launchApp:
-    clearState: true
-- tapOn: Form Test
-- tapOn: Email
-- inputText: veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongemail@mobile.dev
