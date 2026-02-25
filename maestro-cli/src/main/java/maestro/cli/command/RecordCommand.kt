@@ -33,6 +33,7 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import okio.sink
@@ -146,7 +147,7 @@ class RecordCommand : Callable<Int> {
                     )
                 }
 
-                val resultView = AnsiResultView()
+                val resultView = AnsiResultView(useEmojis = !EnvUtils.isWindows())
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     maestro.startScreenRecording(out).use {
