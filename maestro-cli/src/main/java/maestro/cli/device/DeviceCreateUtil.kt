@@ -1,3 +1,5 @@
+package maestro.cli.device
+
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
