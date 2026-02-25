@@ -11,7 +11,6 @@ import maestro.cli.report.CommandDebugMetadata
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
-import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
@@ -21,7 +20,6 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
-import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -41,7 +39,6 @@ import maestro.orchestra.util.Env.withInjectedShellEnvVars
 class TestSuiteInteractor(
     private val maestro: Maestro,
     private val device: Device? = null,
-    private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
 ) {
@@ -51,7 +48,6 @@ class TestSuiteInteractor(
 
     suspend fun runTestSuite(
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan,
-        reportOut: Sink?,
         env: Map<String, String>,
         debugOutputPath: Path,
         testOutputDir: Path? = null,
@@ -138,13 +134,6 @@ class TestSuiteInteractor(
             totalTests = flowResults.size
         )
 
-        if (reportOut != null) {
-            reporter.report(
-                summary,
-                reportOut,
-            )
-        }
-
         // TODO(bartekpacia): Should it also be saving to debugOutputPath?
         TestDebugReporter.saveSuggestions(aiOutputs, debugOutputPath)
 
@@ -179,6 +168,9 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
+        val flowStartTime = System.currentTimeMillis()
+        var commandSequenceNumber = 0
+        val artifactAttachments = mutableListOf<TestExecutionSummary.Attachment>()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
@@ -188,7 +180,20 @@ class TestSuiteInteractor(
                         logger.info("${shardPrefix}${command.description()} RUNNING")
                         debugOutput.commands[command] = CommandDebugMetadata(
                             timestamp = System.currentTimeMillis(),
-                            status = CommandStatus.RUNNING
+                            status = CommandStatus.RUNNING,
+                            sequenceNumber = commandSequenceNumber++,
+                        )
+                    },
+                    onCommandMetadataUpdate = { command, metadata ->
+                        debugOutput.commands[command]?.evaluatedCommand = metadata.evaluatedCommand
+                    },
+                    onArtifactCreated = { artifact ->
+                        artifactAttachments.add(
+                            TestExecutionSummary.Attachment(
+                                file = artifact.file,
+                                label = artifact.label,
+                                mimeType = artifact.mimeType,
+                            ),
                         )
                     },
                     onCommandComplete = { _, command ->
@@ -273,25 +278,28 @@ class TestSuiteInteractor(
             debugOutput.commands.entries
                 .sortedBy { it.value.sequenceNumber }
                 .mapIndexed { index, (command, metadata) ->
-                    val durationStr = when (val duration = metadata.duration) {
-                        null -> "<1ms"
-                        else -> if (duration >= 1000) {
-                            "%.1fs".format(duration / 1000.0)
-                        } else {
-                            "${duration}ms"
-                        }
-                    }
                     val status = metadata.status?.toString() ?: "UNKNOWN"
                     // Use evaluated command for interpolated labels, fallback to original
                     val displayCommand = metadata.evaluatedCommand ?: command
                     TestExecutionSummary.StepResult(
                         description = "${index + 1}. ${displayCommand.description()}",
                         status = status,
-                        duration = durationStr,
+                        durationMs = metadata.duration,
+                        startTime = metadata.timestamp,
                     )
                 }
         } else {
             emptyList()
+        }
+        val attachments = buildList {
+            addAll(debugOutput.screenshots.map { screenshot ->
+                TestExecutionSummary.Attachment(
+                    file = screenshot.screenshot,
+                    label = "screenshot-${screenshot.timestamp}",
+                    mimeType = "image/png",
+                )
+            })
+            addAll(artifactAttachments)
         }
 
         return Pair(
@@ -305,9 +313,12 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                startTime = flowStartTime,
                 properties = maestroConfig?.properties,
                 tags = maestroConfig?.tags,
                 steps = steps,
+                attachments = attachments,
+                env = env,
             ),
             second = aiOutput,
         )

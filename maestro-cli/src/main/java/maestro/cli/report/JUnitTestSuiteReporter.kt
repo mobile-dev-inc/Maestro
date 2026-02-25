@@ -18,7 +18,8 @@ import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
     private val mapper: ObjectMapper,
-    private val testSuiteName: String?
+    private val out: Sink,
+    private val testSuiteName: String?,
 ) : TestSuiteReporter {
 
     private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
@@ -61,10 +62,7 @@ class JUnitTestSuiteReporter(
     )
 
 
-    override fun report(
-        summary: TestExecutionSummary,
-        out: Sink
-    ) {
+    override fun report(summary: TestExecutionSummary) {
         mapper
             .writerWithDefaultPrettyPrinter()
             .writeValue(
@@ -121,12 +119,13 @@ class JUnitTestSuiteReporter(
 
     companion object {
 
-        fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
+        fun xml(sink: Sink, testSuiteName: String? = null) = JUnitTestSuiteReporter(
             mapper = XmlMapper().apply {
                 registerModule(KotlinModule.Builder().build())
                 setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 configure(ToXmlGenerator.Feature.WRITE_XML_DECLARATION, true)
             },
+            out = sink,
             testSuiteName = testSuiteName
         )
 

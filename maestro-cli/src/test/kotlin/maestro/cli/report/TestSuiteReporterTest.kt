@@ -92,17 +92,20 @@ abstract class TestSuiteReporterTest {
                             TestExecutionSummary.StepResult(
                                 description = "1. Launch app",
                                 status = "COMPLETED",
-                                duration = "1.2s"
+                                durationMs = 1200,
+                                startTime = nowPlus1.toInstant().toEpochMilli(),
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "2. Tap on button",
                                 status = "COMPLETED",
-                                duration = "500ms"
+                                durationMs = 500,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 1200,
                             ),
                             TestExecutionSummary.StepResult(
                                 description = "3. Assert visible",
                                 status = "COMPLETED",
-                                duration = "100ms"
+                                durationMs = 100,
+                                startTime = nowPlus1.toInstant().toEpochMilli() + 1700,
                             ),
                         )
                     ),
@@ -119,36 +122,49 @@ abstract class TestSuiteReporterTest {
             TestExecutionSummary.SuiteResult(
                 passed = false,
                 flows = listOf(
-                    TestExecutionSummary.FlowResult(
-                        name = "Flow B",
-                        fileName = "flow_b",
-                        status = FlowStatus.ERROR,
-                        failure = TestExecutionSummary.Failure("Element not found"),
-                        duration = 3000.milliseconds,
-                        startTime = nowPlus1.toInstant().toEpochMilli(),
-                        steps = listOf(
-                            TestExecutionSummary.StepResult(
-                                description = "1. Launch app",
-                                status = "COMPLETED",
-                                duration = "1.5s"
-                            ),
-                            TestExecutionSummary.StepResult(
-                                description = "2. Tap on optional element",
-                                status = "WARNED",
-                                duration = "<1ms"
-                            ),
-                            TestExecutionSummary.StepResult(
-                                description = "3. Tap on button",
-                                status = "FAILED",
-                                duration = "2.0s"
-                            ),
-                            TestExecutionSummary.StepResult(
-                                description = "4. Assert visible",
-                                status = "SKIPPED",
-                                duration = "0ms"
-                            ),
+                    run {
+                        val flowStartMs = nowPlus1.toInstant().toEpochMilli()
+                        val launchStepStartMs = flowStartMs
+                        val warnedStepStartMs = launchStepStartMs + 1500L
+                        val warnedStepElapsedMs = 2000L // warned steps don't track duration, but time still passes
+                        val failedStepStartMs = warnedStepStartMs + warnedStepElapsedMs
+                        val skippedStepStartMs = failedStepStartMs + 2000L
+
+                        TestExecutionSummary.FlowResult(
+                            name = "Flow B",
+                            fileName = "flow_b",
+                            status = FlowStatus.ERROR,
+                            failure = TestExecutionSummary.Failure("Element not found"),
+                            duration = 3000.milliseconds,
+                            startTime = flowStartMs,
+                            steps = listOf(
+                                TestExecutionSummary.StepResult(
+                                    description = "1. Launch app",
+                                    status = "COMPLETED",
+                                    durationMs = 1500L,
+                                    startTime = launchStepStartMs,
+                                ),
+                                TestExecutionSummary.StepResult(
+                                    description = "2. Tap on optional element",
+                                    status = "WARNED",
+                                    durationMs = null,
+                                    startTime = warnedStepStartMs,
+                                ),
+                                TestExecutionSummary.StepResult(
+                                    description = "3. Tap on button",
+                                    status = "FAILED",
+                                    durationMs = 2000L,
+                                    startTime = failedStepStartMs,
+                                ),
+                                TestExecutionSummary.StepResult(
+                                    description = "4. Assert visible",
+                                    status = "SKIPPED",
+                                    durationMs = 0,
+                                    startTime = skippedStepStartMs,
+                                ),
+                            )
                         )
-                    ),
+                    },
                 ),
                 duration = 3000.milliseconds,
                 startTime = now.toInstant().toEpochMilli()
