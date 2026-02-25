@@ -3,41 +3,33 @@ package maestro.cli.device
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
-
 import maestro.cli.CliError
 import maestro.cli.util.*
-import maestro.device.util.AvdDevice
+import maestro.device.MaestroDeviceConfiguration
 
 object DeviceCreateUtil {
 
     fun getOrCreateDevice(
-        platform: Platform,
-        osVersion: Int? = null,
-        language: String? = null,
-        country: String? = null,
+        maestroDeviceConfiguration: MaestroDeviceConfiguration,
         forceCreate: Boolean = false,
         shardIndex: Int? = null,
-    ): Device.AvailableForLaunch = when (platform) {
-        Platform.ANDROID -> getOrCreateAndroidDevice(osVersion, language, country, forceCreate, shardIndex)
-        Platform.IOS -> getOrCreateIosDevice(osVersion, language, country, forceCreate, shardIndex)
-        else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+    ): Device.AvailableForLaunch = when (maestroDeviceConfiguration) {
+        is MaestroDeviceConfiguration.Android -> getOrCreateAndroidDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
+        is MaestroDeviceConfiguration.Ios     -> getOrCreateIosDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
+        is MaestroDeviceConfiguration.Web     -> Device.AvailableForLaunch(
+            platform = Platform.WEB,
+            description = "Chromium Desktop Browser (Experimental)",
+            modelId = maestroDeviceConfiguration.browser,
+            language = null,
+            country = null,
+            deviceType = Device.DeviceType.BROWSER,
+        )
     }
 
     fun getOrCreateIosDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+        config: MaestroDeviceConfiguration.Ios, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
-        if (version !in DeviceConfigIos.versions) {
-            throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
-        }
-
-        val runtime = DeviceConfigIos.runtimes[version]
-        if (runtime == null) {
-            throw CliError("Provided iOS runtime is not supported $runtime")
-        }
-
-        val deviceName = DeviceConfigIos.generateDeviceName(version) + shardIndex?.let { "_${it + 1}" }.orEmpty()
-        val device = DeviceConfigIos.device
+        val deviceName = config.generateDeviceName()
 
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
@@ -55,15 +47,14 @@ object DeviceCreateUtil {
         if (existingDeviceId != null) PrintUtils.message("Using existing device $deviceName (${existingDeviceId}).")
         else PrintUtils.message("Attempting to create iOS simulator: $deviceName ")
 
-
         val deviceUUID = try {
-            existingDeviceId ?: DeviceService.createIosDevice(deviceName, device, runtime).toString()
+            existingDeviceId ?: DeviceService.createIosDevice(deviceName, config.deviceModel, config.deviceOs).toString()
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {
                 val msg = """
-                    Required runtime to create the simulator is not installed: $runtime
-                    
+                    Required runtime to create the simulator is not installed: ${config.deviceOs}
+
                     To install additional iOS runtimes checkout this guide:
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
@@ -71,13 +62,13 @@ object DeviceCreateUtil {
             } else if (error.contains("xcrun: error: unable to find utility \"simctl\"")) {
                 val msg = """
                     The xcode-select CLI tools are not installed, install with xcode-select --install
-                    
+
                     If the xcode-select CLI tools are already installed, the path may be broken. Try
                     running sudo xcode-select -r to repair the path and re-run this command
                 """.trimIndent()
                 throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
-                throw CliError("Device type $device is either not supported or not found.")
+                throw CliError("Device type ${config.deviceModel} is either not supported or not found.")
             } else {
                 throw CliError(error)
             }
@@ -89,33 +80,23 @@ object DeviceCreateUtil {
             modelId = deviceUUID,
             description = deviceName,
             platform = Platform.IOS,
-            language = language,
-            country = country,
+            language = config.locale.languageCode,
+            country = config.locale.countryCode,
             deviceType = Device.DeviceType.SIMULATOR
         )
-
     }
 
     fun getOrCreateAndroidDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+        config: MaestroDeviceConfiguration.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigAndroid.defaultVersion
-        if (version !in DeviceConfigAndroid.versions) {
-            throw CliError("Provided Android version is not supported. Please use one of ${DeviceConfigAndroid.versions}")
+        val abi = when (val architecture = EnvUtils.getMacOSArchitecture()) {
+            CPU_ARCHITECTURE.x86_64 -> "x86_64"
+            CPU_ARCHITECTURE.ARM64 -> "arm64-v8a"
+            else -> throw CliError("Unsupported architecture: $architecture")
         }
-
-        val architecture = EnvUtils.getMacOSArchitecture()
-        val pixels = DeviceService.getAvailablePixelDevices()
-        val pixel = DeviceConfigAndroid.choosePixelDevice(pixels) ?: AvdDevice("-1", "Pixel 6", "pixel_6")
-
-        val config = try {
-            DeviceConfigAndroid.createConfig(version, pixel, architecture)
-        } catch (e: IllegalStateException) {
-            throw CliError(e.message ?: "Unable to create android device config")
-        }
-
-        val systemImage = config.systemImage
-        val deviceName = config.deviceName + shardIndex?.let { "_${it + 1}" }.orEmpty()
+        val tag = "google_apis"
+        val systemImage = config.emulatorImage
+        val deviceName = config.generateDeviceName()
 
         // check connected device
         if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
@@ -155,11 +136,11 @@ object DeviceCreateUtil {
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = config.deviceName,
-                device = config.device,
-                systemImage = config.systemImage,
-                tag = config.tag,
-                abi = config.abi,
+                deviceName = config.generateDeviceName(shardIndex),
+                device = config.deviceModel,
+                systemImage = systemImage,
+                tag = tag,
+                abi = abi,
                 force = forceCreate,
                 shardIndex = shardIndex,
             )
@@ -173,8 +154,8 @@ object DeviceCreateUtil {
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
-            language = language,
-            country = country,
+            language = config.locale.languageCode,
+            country = config.locale.countryCode,
             deviceType = Device.DeviceType.EMULATOR,
         )
     }

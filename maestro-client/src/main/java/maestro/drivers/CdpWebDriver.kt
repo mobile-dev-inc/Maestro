@@ -10,12 +10,12 @@ import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.OnDeviceElementQuery
-import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
