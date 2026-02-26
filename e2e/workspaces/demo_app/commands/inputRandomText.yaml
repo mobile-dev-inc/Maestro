@@ -2,7 +2,7 @@ appId: com.example.example
 ---
 - launchApp # For idempotence of sections
 
-- tapOn: 'Input Test'
+- tapOn: 'Input/Keyboard'
 - tapOn:
     id: 'textInput'
 - inputRandomText

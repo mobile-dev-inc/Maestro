@@ -775,7 +775,7 @@ data class InputRandomCommand(
             InputRandomType.NUMBER -> faker.number().randomNumber(finalLength).toString()
             InputRandomType.TEXT -> faker.text().text(finalLength)
             InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
-            InputRandomType.TEXT_PERSON_NAME -> faker.name().name()
+            InputRandomType.TEXT_PERSON_NAME -> faker.name().firstName() + ' ' + faker.name().lastName()
             InputRandomType.TEXT_CITY_NAME -> faker.address().cityName()
             InputRandomType.TEXT_COUNTRY_NAME -> faker.address().country()
             InputRandomType.TEXT_COLOR -> faker.color().name()
