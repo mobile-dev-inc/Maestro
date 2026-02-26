@@ -93,6 +93,24 @@
         return null;
       }
 
+      // Extract custom identifiers based on configured selector aliases
+      // Only extract attributes that are explicitly configured in selectorAliases
+      if (node.getAttribute && maestro.selectorAliases && Object.keys(maestro.selectorAliases).length > 0) {
+        for (const htmlAttr in maestro.selectorAliases) {
+          const value = node.getAttribute(htmlAttr)
+          if (value !== null) {
+            // Store with HTML attribute name for filtering
+            attributes[htmlAttr] = value
+
+            // Also store with YAML key (the alias) for selector matching
+            const yamlKey = maestro.selectorAliases[htmlAttr]
+            if (yamlKey) {
+              attributes[yamlKey] = value
+            }
+          }
+        }
+      }
+      
       if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
         const title = typeof node.title === 'string' ? node.title : null
         attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
@@ -122,6 +140,9 @@
     maestro.viewportY = 0;
     maestro.viewportWidth = 0;
     maestro.viewportHeight = 0;
+    
+    // Selector aliases configuration (set by driver, do NOT set default here)
+    // maestro.selectorAliases will be injected by WebDriver/CdpWebDriver
 
     maestro.getContentDescription = () => {
         return traverse(document.body)
