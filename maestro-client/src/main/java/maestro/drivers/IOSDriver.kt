@@ -119,6 +119,12 @@ class IOSDriver(
         }
     }
 
+    override fun shake() {
+        metrics.measured("operation", mapOf("command" to "shake")) {
+            iosDevice.shake()
+        }
+    }
+
     override fun clearAppState(appId: String) {
         metrics.measured("operation", mapOf("command" to "clearAppState", "appId" to appId)) {
             iosDevice.clearAppState(appId)

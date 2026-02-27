@@ -53,6 +53,7 @@ import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.ShakeCommand
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
@@ -588,6 +589,18 @@ internal class YamlCommandReaderTest {
                 waitToSettleTimeoutMs = 50,
                 duration = 400L
             )
+        )
+    }
+
+    @Test
+    fun `shake command`(
+        @YamlFile("028_shake.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            ShakeCommand(),
         )
     }
 

@@ -82,6 +82,12 @@ class Maestro(
         driver.killApp(appId)
     }
 
+    fun shake(){
+        LOGGER.info("Shake device")
+
+        driver.shake()
+    }
+
     fun clearAppState(appId: String) {
         LOGGER.info("Clearing app state $appId")
 

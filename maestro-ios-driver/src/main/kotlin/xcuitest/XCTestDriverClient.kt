@@ -177,6 +177,43 @@ class XCTestDriverClient(
         installer.close()
     }
 
+    fun shake(){
+        logger.trace("Executing shake gesture on iOS simulator")
+
+        try {
+            // Create ProcessBuilder for executing AppleScript
+            val processBuilder = ProcessBuilder(
+                "osascript",
+                "-e", """
+                tell application "Simulator"
+                    activate
+                    delay 0.5 -- Give simulator time to come to foreground
+                    tell application "System Events"
+                        tell process "Simulator"
+                            -- Access the Hardware menu and click Shake Gesture
+                            click menu item "Shake" of menu "Device" of menu bar 1
+                        end tell
+                    end tell
+                end tell
+            """.trimIndent()
+            )
+
+            // Execute the command
+            val process = processBuilder.start()
+            val exitCode = process.waitFor()
+
+            if (exitCode != 0) {
+                val errorStream = process.errorStream.bufferedReader().readText()
+                logger.error("Failed to execute shake gesture. Exit code: $exitCode, Error: $errorStream")
+            }
+
+            logger.trace("Successfully executed shake gesture")
+        } catch (e: Exception) {
+            logger.error("Error executing shake gesture", e)
+            throw XCUITestServerError.UnknownFailure("Failed to execute shake gesture on simulator: ${e.message}")
+        }
+    }
+
     fun setPermissions(permissions: Map<String, String>) {
         executeJsonRequest("setPermissions", SetPermissionsRequest(permissions))
     }

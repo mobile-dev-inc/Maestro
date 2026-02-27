@@ -221,6 +221,10 @@ class XCTestIOSDevice(
         execute { client.eraseText(charactersToErase, appIds = emptySet()) }
     }
 
+    override fun shake(){
+      execute { client.shake() }
+   }
+
     private fun activeAppId(): String {
         return execute {
             val appIds = getInstalledApps()
