@@ -607,6 +607,13 @@ class Orchestra(
 
         val comparisonState = comparison.compareImages()
 
+        if (ImageComparisonState.SIZE_MISMATCH === comparisonState.imageComparisonState) {
+            throw MaestroException.AssertionFailure(
+                message = "Screenshot size mismatch: ${command.description()} - expected ${expectedImage.width}x${expectedImage.height}, actual ${actualImage.width}x${actualImage.height}. Screenshots must have the same dimensions to compare.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${expectedImage.width}x${expectedImage.height}, got: ${actualImage.width}x${actualImage.height}. Use the same device/emulator or cropOn to align dimensions."
+            )
+        }
         if (ImageComparisonState.MISMATCH === comparisonState.imageComparisonState) {
             throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
