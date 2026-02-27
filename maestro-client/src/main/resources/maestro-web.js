@@ -15,6 +15,9 @@
             case 'input':
                 return node.value || node.placeholder || node.ariaLabel || ''
 
+            case 'textarea':
+                return node.value || node.placeholder || node.ariaLabel || ''
+
             case 'select':
                 return Array.from(node.selectedOptions).map((option) => option.text).join(', ')
 
