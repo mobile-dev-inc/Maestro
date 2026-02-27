@@ -4,7 +4,7 @@ import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.EnvUtils.BASE_API_URL
-import org.fusesource.jansi.Ansi.ansi
+import org.jline.jansi.Ansi.ansi
 import picocli.CommandLine
 import java.util.*
 import java.util.concurrent.Callable

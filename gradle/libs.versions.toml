@@ -31,7 +31,7 @@ grpcKotlinStub = "1.4.1"
 imageComparison = "4.4.0"
 hiddenapibypass = "4.3"
 jackson = "2.17.1"
-jansi = "2.4.1"
+jansi = "3.30.6"
 jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
@@ -99,7 +99,8 @@ jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-da
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
-jansi = { module = "org.fusesource.jansi:jansi", version.ref = "jansi" }
+jansi = { module = "org.jline:jansi", version.ref = "jansi" }
+jansinative = { module = "org.jline:jline-native", version.ref = "jansi" }
 jarchivelib = { module = "org.rauschig:jarchivelib", version.ref = "jarchivelib" }
 jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec" }
 jcodec-awt = { module = "org.jcodec:jcodec-javase", version.ref = "jcodec" }
