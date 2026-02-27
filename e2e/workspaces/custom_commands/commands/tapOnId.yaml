@@ -1,0 +1,6 @@
+appId: com.ryan.CustomCommands
+params:
+  value: { required: true }
+---
+- tapOn:
+    id: ${value}

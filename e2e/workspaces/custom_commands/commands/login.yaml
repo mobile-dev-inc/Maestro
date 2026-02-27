@@ -1,0 +1,10 @@
+appId: com.ryan.CustomCommands
+params:
+  email: { required: true }
+  password: { required: true }
+---
+- tapOn: "email"
+- inputText: ${email}
+- tapOn: "password"
+- inputText: ${password}
+- tapOn: "Submit"

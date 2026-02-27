@@ -39,6 +39,7 @@ import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.yaml.YamlCustomCommand
 import org.intellij.lang.annotations.Language
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -335,15 +336,10 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
                 // TODO: Add docs link
             )
         }
-        throw ParseException(
-            location = commandLocation,
-            title = "Invalid Command: $commandText",
-            errorMessage = """
-                |`$commandText` is not a valid command.
-                |
-                |${suggestCommandMessage(commandText)}
-            """.trimMargin("|").trim(),
-            docs = DOCS_COMMANDS,
+
+        return YamlFluentCommand(
+            customCommand = YamlCustomCommand(commandName = commandText, params = emptyMap()),
+            _location = commandLocation
         )
     }
 
@@ -351,17 +347,11 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         val commandLocation = parser.currentLocation()
         val commandName = parser.nextFieldName()
         val commandParameter = yamlFluentCommandParameters.firstOrNull { it.name == commandName }
+        
         if (commandParameter == null) {
-            throw ParseException(
-                location = parser.currentLocation(),
-                title = "Invalid Command: $commandName",
-                errorMessage = """
-                    |`$commandName` is not a valid command.
-                    |
-                    |${suggestCommandMessage(commandName)}
-                """.trimMargin("|").trim(),
-            )
+            return parseCustomCommand(parser, commandName, commandLocation)
         }
+
         if (parser.nextToken() == JsonToken.VALUE_NULL) {
             throw ParseException(
                 location = parser.currentLocation(),
@@ -416,16 +406,49 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         )
     }
 
-    private fun suggestCommandMessage(invalidCommand: String): String {
-        val prefixCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.startsWith(invalidCommand) || invalidCommand.startsWith(it) }
-        val substringCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
-        val similarCommands = invalidCommand.findSimilar(allCommands, threshold = 3)
-        val suggestions = (prefixCommands + similarCommands + substringCommands).distinct()
-        return when {
-            suggestions.isEmpty() -> ""
-            suggestions.size == 1 -> "Did you mean `${suggestions.first()}`?"
-            else -> "Did you mean one of: ${suggestions.joinToString(", ")}"
+    private fun parseCustomCommand(
+        parser: JsonParser,
+        commandName: String,
+        commandLocation: JsonLocation
+    ): YamlFluentCommand {
+
+        // Read the value of the command (string or object)
+        parser.nextToken()
+        val value = parser.codec.readValue<Any?>(parser, Any::class.java)
+
+        // Move the parser along for the next command
+        parser.nextToken()
+
+        // Parse the possible types of the value field (e.g. scalar, map, null)
+        // If not an object map, it'll map the value to "value" e.g. ${value} in the flow file
+        // If you don't declare params in the flow file, you lose parse time failures.
+        val params: Map<String, Any> = when (value) {
+            null -> emptyMap()
+            is Map<*, *> -> value.filterKeys { it is String }.mapKeys { it.key as String }.mapValues { it.value as Any }
+            else -> mapOf("value" to value)
         }
+
+        return YamlFluentCommand(
+            customCommand = YamlCustomCommand(
+                commandName = commandName,
+                params = params.filterKeys { it != "label" && it != "optional" },
+                label = params["label"] as? String,
+                optional = params["optional"] as? Boolean ?: false,
+            ),
+            _location = commandLocation
+        )
+    }
+}
+
+internal fun suggestCommandMessage(invalidCommand: String): String {
+    val prefixCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.startsWith(invalidCommand) || invalidCommand.startsWith(it) }
+    val substringCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
+    val similarCommands = invalidCommand.findSimilar(allCommands, threshold = 3)
+    val suggestions = (prefixCommands + similarCommands + substringCommands).distinct()
+    return when {
+        suggestions.isEmpty() -> ""
+        suggestions.size == 1 -> " Did you mean `${suggestions.first()}`?"
+        else -> " Did you mean one of: ${suggestions.joinToString(", ")}?"
     }
 }
 
