@@ -610,9 +610,9 @@ class Maestro(
         driver.eraseText(charactersToErase)
     }
 
-    fun waitForAnimationToEnd(timeout: Long?) {
+    fun waitForAnimationToEnd(timeout: String?) {
         @Suppress("NAME_SHADOWING")
-        val timeout = timeout ?: ANIMATION_TIMEOUT_MS
+        val timeout = timeout?.toLong() ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")
 
         ScreenshotUtils.waitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD, driver)
