@@ -84,14 +84,21 @@ class MaestroDriverService {
 
     @Test
     fun grpcServer() {
+        // CRITICAL: Set Configurator flags BEFORE any UiDevice/UiAutomation usage
+        // This follows the proven Appium/UiAutomator2 pattern
         Configurator.getInstance()
             .setActionAcknowledgmentTimeout(0L)
             .setWaitForIdleTimeout(0L)
             .setWaitForSelectorTimeout(0L)
+            .uiAutomationFlags = UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
 
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        
+        // Get UiDevice AFTER setting Configurator flags
         val uiDevice = UiDevice.getInstance(instrumentation)
-        val uiAutomation = instrumentation.uiAutomation
+        
+        val uiAutomation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+
 
         val port = InstrumentationRegistry.getArguments().getString("port", "7001").toInt()
 
@@ -242,7 +249,7 @@ class Service(
     private fun refreshAccessibilityCache() {
         try {
             uiDevice.waitForIdle(500)
-            uiAutomation.serviceInfo = null
+            // uiAutomation.serviceInfo = null  // COMMENTED OUT: This resets UiAutomation and re-suppresses accessibility services
         } catch (nullExp: NullPointerException) {
             /* no-op */
         }
