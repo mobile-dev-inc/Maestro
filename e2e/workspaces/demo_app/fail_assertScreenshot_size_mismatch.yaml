@@ -1,0 +1,7 @@
+appId: com.example.example
+tags:
+  - failing
+---
+- launchApp
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/assertScreenshotSizeMismatch.png
