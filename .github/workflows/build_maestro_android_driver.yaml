@@ -1,0 +1,32 @@
+name: Build Maestro Android driver
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'maestro-android/**'
+
+permissions:
+  contents: write  # allow committing back to the repo
+
+jobs:
+  build_android_driver:
+    name: Build & Commit Android Driver
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Android driver
+        run: |
+          ./gradlew clean :maestro-android:assemble
+          ./gradlew clean :maestro-android:assembleAndroidTest
+
+      - name: Commit updated driver
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore(android-driver): update built Maestro android runner"
+          file_pattern: |
+            maestro-android/**
