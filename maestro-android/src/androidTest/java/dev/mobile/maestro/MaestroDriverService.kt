@@ -88,6 +88,7 @@ class MaestroDriverService {
             .setActionAcknowledgmentTimeout(0L)
             .setWaitForIdleTimeout(0L)
             .setWaitForSelectorTimeout(0L)
+            .setUiAutomationFlags(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
 
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val uiDevice = UiDevice.getInstance(instrumentation)
