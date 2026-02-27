@@ -69,6 +69,10 @@ object YamlCommandReader {
         return configurationCommand?.config
     }
 
+    fun getFlowName(commands: List<MaestroCommand>, fallbackName: String): String {
+        return getConfig(commands)?.name ?: fallbackName
+    }
+
     fun formatCommands(commands: List<String>): String = MaestroFlowParser.formatCommands(commands)
 
     fun checkSyntax(maestroCode: String) = mapParsingErrors(Paths.get("/syntax-checker/")) {

@@ -91,13 +91,13 @@ object RunFlowFilesTool {
                     for (fileObj in resolvedFiles) {
                         try {
                             val commands = YamlCommandReader.readCommands(fileObj.toPath())
+                            val flowName = YamlCommandReader.getFlowName(commands, fileObj.nameWithoutExtension)
                             val finalEnv = env
                                 .withInjectedShellEnvVars()
-                                .withDefaultEnvVars(fileObj, deviceId)
-                            val commandsWithEnv = commands.withEnv(finalEnv)
+                                .withDefaultEnvVars(fileObj, flowName, deviceId)
                             
                             runBlocking {
-                                orchestra.runFlow(commandsWithEnv)
+                                orchestra.runFlow(commands.withEnv(finalEnv))
                             }
                             results.add(mapOf(
                                 "file" to fileObj.absolutePath,
