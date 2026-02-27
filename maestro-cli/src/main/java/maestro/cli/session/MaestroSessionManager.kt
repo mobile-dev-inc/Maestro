@@ -94,6 +94,8 @@ object MaestroSessionManager {
                 try {
                     Thread.sleep(1000) // Add a 1-second delay here for fixing race condition
                     SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                } catch (interruptedException: InterruptedException) {
+                    // noop if a test session was cancelled manually
                 } catch (e: Exception) {
                     logger.error("Failed to record heartbeat", e)
                 }
