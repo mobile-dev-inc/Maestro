@@ -17,12 +17,12 @@ object PickDeviceView {
     }
 
     fun pickDeviceToStart(devices: List<Device>): Device {
-        printIndexedDevices(devices)
+        val orderedDevices = printIndexedDevices(devices)
 
         println("Choose a device to boot and run on.")
         printEnterNumberPrompt()
 
-        return pickIndex(devices)
+        return pickIndex(orderedDevices)
     }
 
     fun requestDeviceOptions(platform: Platform? = null): DeviceStartOptions {
@@ -68,12 +68,12 @@ object PickDeviceView {
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {
-        printIndexedDevices(devices)
+        val orderedDevices = printIndexedDevices(devices)
 
         println("Multiple running devices detected. Choose a device to run on.")
         printEnterNumberPrompt()
 
-        return pickIndex(devices)
+        return pickIndex(orderedDevices)
     }
 
     private fun <T> pickIndex(data: List<T>): T {
@@ -97,17 +97,16 @@ object PickDeviceView {
         println("Enter a number from the list above:")
     }
 
-    private fun printIndexedDevices(devices: List<Device>) {
-        val devicesByPlatform = devices.groupBy {
-            it.platform
-        }
-
+    private fun printIndexedDevices(devices: List<Device>): List<Device> {
+        val devicesByPlatform = devices.groupBy { it.platform }
+        val orderedDevices = mutableListOf<Device>()
         var index = 0
 
-        devicesByPlatform.forEach { (platform, devices) ->
+        devicesByPlatform.forEach { (platform, platformDevices) ->
             println(platform.description)
             println()
-            devices.forEach { device ->
+            platformDevices.forEach { device ->
+                orderedDevices.add(device)
                 println(
                     ansi()
                         .render("[")
@@ -119,6 +118,8 @@ object PickDeviceView {
             }
             println()
         }
+
+        return orderedDevices
     }
 
 }
