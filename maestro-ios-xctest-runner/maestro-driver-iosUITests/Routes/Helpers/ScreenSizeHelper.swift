@@ -1,20 +1,39 @@
 import XCTest
 import MaestroDriverLib
 
+// UIKit doesn't include UIDeviceOrientation on tvOS
+public enum DeviceOrientation: Int, @unchecked Sendable {
+    case unknown = 0
+    case portrait = 1 // Device oriented vertically, home button on the bottom
+    case portraitUpsideDown = 2 // Device oriented vertically, home button on the top
+    case landscapeLeft = 3 // Device oriented horizontally, home button on the right
+    case landscapeRight = 4 // Device oriented horizontally, home button on the left
+    case faceUp = 5 // Device oriented flat, face up
+    case faceDown = 6 // Device oriented flat, face down
+}
+
 struct ScreenSizeHelper {
 
     private static var cachedSize: (Float, Float)?
     private static var lastAppBundleId: String?
-    private static var lastOrientation: UIDeviceOrientation?
+    private static var lastOrientation: DeviceOrientation?
 
     static func physicalScreenSize() -> (Float, Float) {
-        let springboardBundleId = "com.apple.springboard"
+        #if os(tvOS)
+        let homescreenBundleId = "com.apple.HeadBoard"
+        #else
+        let homescreenBundleId = "com.apple.springboard"
+        #endif
 
-        let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: springboardBundleId)
+        let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: homescreenBundleId)
 
         do {
             let currentAppBundleId = app.bundleID
-            let currentOrientation = XCUIDevice.shared.orientation
+            #if os(tvOS)
+            let currentOrientation = Optional(DeviceOrientation.unknown)
+            #else
+            let currentOrientation = DeviceOrientation(rawValue: XCUIDevice.shared.orientation.rawValue)
+            #endif
 
             if let cached = cachedSize,
                 currentAppBundleId == lastAppBundleId,
@@ -30,8 +49,8 @@ struct ScreenSizeHelper {
             // Safely unwrap width/height
             guard let width = axFrame["Width"], let height = axFrame["Height"] else {
                 NSLog("Frame keys missing, falling back to SpringBoard.")
-                let springboard = XCUIApplication(bundleIdentifier: springboardBundleId)
-                let size = springboard.frame.size
+                let homescreen = XCUIApplication(bundleIdentifier: homescreenBundleId)
+                let size = homescreen.frame.size
                 return (Float(size.width), Float(size.height))
             }
 
@@ -46,27 +65,30 @@ struct ScreenSizeHelper {
             return size
         } catch let error {
             NSLog("Failure while getting screen size: \(error), falling back to get springboard size.")
-            let application = XCUIApplication(
-                bundleIdentifier: springboardBundleId)
+            let application = XCUIApplication(bundleIdentifier: homescreenBundleId)
             let screenSize = application.frame.size
             return (Float(screenSize.width), Float(screenSize.height))
         }
     }
 
-    private static func actualOrientation() -> UIDeviceOrientation {
-        let orientation = XCUIDevice.shared.orientation
-        if orientation == .unknown {
+    private static func actualOrientation() -> DeviceOrientation {
+        #if os(tvOS)
+        let orientation = Optional(DeviceOrientation.unknown)
+        #else
+        let orientation = DeviceOrientation(rawValue: XCUIDevice.shared.orientation.rawValue)
+        #endif
+
+        guard let unwrappedOrientation = orientation, orientation != .unknown else {
             // If orientation is "unknown", we assume it is "portrait" to
             // work around https://stackoverflow.com/q/78932288/7009800
-            return UIDeviceOrientation.portrait
+            return DeviceOrientation.portrait
         }
-
-        return orientation
+        
+        return unwrappedOrientation
     }
 
     /// Takes device orientation into account.
-    static func actualScreenSize() throws -> (Float, Float, UIDeviceOrientation)
-    {
+    static func actualScreenSize() throws -> (Float, Float, DeviceOrientation) {
         let orientation = actualOrientation()
 
         let (width, height) = physicalScreenSize()

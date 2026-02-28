@@ -30,7 +30,7 @@ object PickDeviceInteractor {
                 if (result is Device.AvailableForLaunch) {
                     when (result.platform) {
                         Platform.ANDROID -> PrintUtils.message("Launching Android emulator...")
-                        Platform.IOS -> PrintUtils.message("Launching iOS simulator...")
+                        Platform.IOS, Platform.TVOS -> PrintUtils.message("Launching ${result.platform.description} simulator...")
                         Platform.WEB -> PrintUtils.message("Launching ${result.description}")
                     }
 

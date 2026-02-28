@@ -4,6 +4,7 @@ import maestro.cli.CliError
 import maestro.cli.model.DeviceStartOptions
 import maestro.cli.util.DeviceConfigAndroid
 import maestro.cli.util.DeviceConfigIos
+import maestro.cli.util.DeviceConfigTvos
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
 import maestro.device.Platform
@@ -16,21 +17,22 @@ object PickDeviceView {
     }
 
     fun pickDeviceToStart(devices: List<Device>): Device {
-        printIndexedDevices(devices)
+        val orderedDevices = printIndexedDevices(devices)
 
         println("Choose a device to boot and run on.")
         printEnterNumberPrompt()
 
-        return pickIndex(devices)
+        return pickIndex(orderedDevices)
     }
 
     fun requestDeviceOptions(platform: Platform? = null): DeviceStartOptions {
         val selectedPlatform = if (platform == null) {
-            PrintUtils.message("Please specify a device platform [android, ios, web]:")
+            PrintUtils.message("Please specify a device platform [android, ios, tvos, web]:")
             readlnOrNull()?.lowercase()?.let {
                 when (it) {
                     "android" -> Platform.ANDROID
                     "ios" -> Platform.IOS
+                    "tvos" -> Platform.TVOS
                     "web" -> Platform.WEB
                     else -> throw CliError("Unsupported platform: $it")
                 }
@@ -42,6 +44,11 @@ object PickDeviceView {
                 Platform.IOS -> {
                     PrintUtils.message("Please specify iOS version ${DeviceConfigIos.versions}: Press ENTER for default (${DeviceConfigIos.defaultVersion})")
                     readlnOrNull()?.toIntOrNull() ?: DeviceConfigIos.defaultVersion
+                }
+
+                Platform.TVOS -> {
+                    PrintUtils.message("Please specify tvOS version ${DeviceConfigTvos.versions}: Press ENTER for default (${DeviceConfigTvos.defaultVersion})")
+                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigTvos.defaultVersion
                 }
 
                 Platform.ANDROID -> {
@@ -61,12 +68,12 @@ object PickDeviceView {
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {
-        printIndexedDevices(devices)
+        val orderedDevices = printIndexedDevices(devices)
 
         println("Multiple running devices detected. Choose a device to run on.")
         printEnterNumberPrompt()
 
-        return pickIndex(devices)
+        return pickIndex(orderedDevices)
     }
 
     private fun <T> pickIndex(data: List<T>): T {
@@ -90,17 +97,16 @@ object PickDeviceView {
         println("Enter a number from the list above:")
     }
 
-    private fun printIndexedDevices(devices: List<Device>) {
-        val devicesByPlatform = devices.groupBy {
-            it.platform
-        }
-
+    private fun printIndexedDevices(devices: List<Device>): List<Device> {
+        val devicesByPlatform = devices.groupBy { it.platform }
+        val orderedDevices = mutableListOf<Device>()
         var index = 0
 
-        devicesByPlatform.forEach { (platform, devices) ->
+        devicesByPlatform.forEach { (platform, platformDevices) ->
             println(platform.description)
             println()
-            devices.forEach { device ->
+            platformDevices.forEach { device ->
+                orderedDevices.add(device)
                 println(
                     ansi()
                         .render("[")
@@ -112,6 +118,8 @@ object PickDeviceView {
             }
             println()
         }
+
+        return orderedDevices
     }
 
 }

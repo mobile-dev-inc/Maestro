@@ -99,7 +99,9 @@ const InteractPageLayout = () => {
           <InteractableDevice />
         </DeviceWrapperAspectRatio>
         <p className="text-xs text-center">
-          Hold CMD (⌘) down to freely tap and swipe on the device screen
+          {deviceScreen?.platform?.toUpperCase() === "TVOS"
+            ? "Hold CMD (⌘) down to use D-pad commands (tap = select, swipe = navigate)"
+            : "Hold CMD (⌘) down to freely tap and swipe on the device screen"}
         </p>
         {footerHint && (
           <div className="absolute bottom-0 left-0 right-0 text-xs text-center bg-slate-100 dark:bg-slate-800 dark:text-white h-auto text-slate-800 overflow-hidden">

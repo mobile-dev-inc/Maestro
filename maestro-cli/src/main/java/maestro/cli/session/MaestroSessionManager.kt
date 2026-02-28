@@ -41,6 +41,7 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
+import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import xcuitest.XCTestDriverClient
@@ -125,6 +126,9 @@ object MaestroSessionManager {
             SessionStore.delete(sessionId, selectedDevice.platform)
             runCatching { ScreenReporter.reportMaxDepth() }
             if (SessionStore.activeSessions().isEmpty()) {
+                if (selectedDevice.platform == Platform.IOS || selectedDevice.platform == Platform.TVOS) {
+                    PrintUtils.message("Uninstalling driver...")
+                }
                 session.close()
             }
         })
@@ -211,7 +215,7 @@ object MaestroSessionManager {
                         reinstallDriver,
                     )
 
-                    Platform.IOS -> createIOS(
+                    Platform.IOS, Platform.TVOS -> createIOS(
                         selectedDevice.device.instanceId,
                         !connectToExistingSession,
                         driverHostPort,
@@ -237,7 +241,7 @@ object MaestroSessionManager {
                 device = null,
             )
 
-            selectedDevice.platform == Platform.IOS -> MaestroSession(
+            selectedDevice.platform == Platform.IOS || selectedDevice.platform == Platform.TVOS -> MaestroSession(
                 maestro = pickIOSDevice(
                     deviceId = selectedDevice.deviceId,
                     openDriver = !connectToExistingSession,
@@ -378,9 +382,14 @@ object MaestroSessionManager {
                 )
             }
             Device.DeviceType.SIMULATOR -> {
+                val sourceDirectory = if (LocalSimulatorUtils.isTV(deviceId)) {
+                    "driver-appletvSimulator"
+                } else {
+                    "driver-iPhoneSimulator"
+                }
                 IOSDriverConfig(
                     prebuiltRunner = false,
-                    sourceDirectory =  "driver-iPhoneSimulator",
+                    sourceDirectory = sourceDirectory,
                     context = Context.CLI,
                     snapshotKeyHonorModalViews = platformConfiguration?.ios?.snapshotKeyHonorModalViews
                 )
@@ -439,9 +448,14 @@ object MaestroSessionManager {
             insights = CliInsights
         )
 
+        val shouldOpenDriver = openDriver || xcTestDevice.isShutdown()
+        if (shouldOpenDriver) {
+            PrintUtils.message("Installing driver...")
+        }
+
         return Maestro.ios(
             driver = iosDriver,
-            openDriver = openDriver || xcTestDevice.isShutdown(),
+            openDriver = shouldOpenDriver,
         )
     }
 

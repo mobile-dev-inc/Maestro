@@ -2,11 +2,19 @@ package maestro.cli.util
 
 import maestro.device.util.AvdDevice
 
-internal object DeviceConfigIos {
+interface AppleDeviceConfig {
+    val device: String
+    val versions: List<Int>
+    val runtimes: Map<Int, String>
+    val defaultVersion: Int
+    fun generateDeviceName(version: Int): String
+}
 
-    val device: String = "iPhone-11"
-    val versions = listOf(15, 16, 17, 18, 26)
-    val runtimes = mapOf(
+internal object DeviceConfigIos : AppleDeviceConfig {
+
+    override val device: String = "iPhone-11"
+    override val versions = listOf(15, 16, 17, 18, 26)
+    override val runtimes = mapOf(
         15 to "iOS-15-5",
         16 to "iOS-16-2",
         17 to "iOS-17-0",
@@ -14,9 +22,25 @@ internal object DeviceConfigIos {
         26 to "iOS-26-0"
     )
 
-    val defaultVersion = 16
+    override val defaultVersion = 16
 
-    fun generateDeviceName(version: Int) = "Maestro_iPhone11_$version"
+    override fun generateDeviceName(version: Int) = "Maestro_iPhone11_$version"
+}
+
+internal object DeviceConfigTvos : AppleDeviceConfig {
+
+    override val device: String = "Apple-TV-4K-3rd-generation-4K"
+    override val versions = listOf(16, 17, 18, 26)
+    override val runtimes = mapOf(
+        16 to "tvOS-16-4",
+        17 to "tvOS-17-5",
+        18 to "tvOS-18-5",
+        26 to "tvOS-26-2"
+    )
+
+    override val defaultVersion = 16
+
+    override fun generateDeviceName(version: Int) = "Maestro_AppleTV4K3rdGen_$version"
 }
 
 data class DeviceConfigAndroid(

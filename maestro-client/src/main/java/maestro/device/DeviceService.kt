@@ -30,7 +30,7 @@ object DeviceService {
         connectedDevices: Set<String> = setOf()
     ): Device.Connected {
         when (device.platform) {
-            Platform.IOS -> {
+            Platform.IOS, Platform.TVOS -> {
                 try {
                     localSimulatorUtils.bootSimulator(device.modelId)
                     if (device.language != null && device.country != null) {
@@ -298,18 +298,20 @@ object DeviceService {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
 
+        val platform = if (device.deviceTypeIdentifier?.contains("Apple-TV") == true) Platform.TVOS else Platform.IOS
+
         return if (device.state == "Booted") {
             Device.Connected(
                 instanceId = device.udid,
                 description = description,
-                platform = Platform.IOS,
+                platform = platform,
                 deviceType = Device.DeviceType.SIMULATOR
             )
         } else {
             Device.AvailableForLaunch(
                 modelId = device.udid,
                 description = description,
-                platform = Platform.IOS,
+                platform = platform,
                 language = null,
                 country = null,
                 deviceType =  Device.DeviceType.SIMULATOR
@@ -322,7 +324,7 @@ object DeviceService {
      */
     fun isDeviceConnected(deviceName: String, platform: Platform): Device.Connected? {
         return when (platform) {
-            Platform.IOS -> listIOSDevices()
+            Platform.IOS, Platform.TVOS -> listIOSDevices()
                 .filterIsInstance<Device.Connected>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
 
@@ -346,7 +348,7 @@ object DeviceService {
      * @return true if ios simulator or android emulator is available to launch
      */
     fun isDeviceAvailableToLaunch(deviceName: String, platform: Platform): Device.AvailableForLaunch? {
-        return if (platform == Platform.IOS) {
+        return if (platform == Platform.IOS || platform == Platform.TVOS) {
             listIOSDevices()
                 .filterIsInstance<Device.AvailableForLaunch>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }

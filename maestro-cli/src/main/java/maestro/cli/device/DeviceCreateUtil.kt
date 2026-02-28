@@ -19,33 +19,44 @@ object DeviceCreateUtil {
         shardIndex: Int? = null,
     ): Device.AvailableForLaunch = when (platform) {
         Platform.ANDROID -> getOrCreateAndroidDevice(osVersion, language, country, forceCreate, shardIndex)
-        Platform.IOS -> getOrCreateIosDevice(osVersion, language, country, forceCreate, shardIndex)
-        else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+        Platform.IOS, Platform.TVOS -> getOrCreateAppleDevice(platform, osVersion, language, country, forceCreate, shardIndex)
+        else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios, tvos")
     }
 
-    fun getOrCreateIosDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+    fun getOrCreateAppleDevice(
+        platform: Platform, 
+        version: Int?,
+        language: String?,
+        country: String?, 
+        forceCreate: Boolean, 
+        shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
-        if (version !in DeviceConfigIos.versions) {
-            throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
+        val deviceConfig: AppleDeviceConfig = when (platform) {
+            Platform.IOS -> DeviceConfigIos
+            Platform.TVOS -> DeviceConfigTvos
+            else -> throw CliError("Unsupported platform $platform. Please specify one of: ios, tvos")
         }
 
-        val runtime = DeviceConfigIos.runtimes[version]
+        @Suppress("NAME_SHADOWING") val version = version ?: deviceConfig.defaultVersion
+        if (version !in deviceConfig.versions) {
+            throw CliError("Provided ${platform.description} version is not supported. Please use one of ${deviceConfig.versions}")
+        }
+
+        val runtime = deviceConfig.runtimes[version]
         if (runtime == null) {
-            throw CliError("Provided iOS runtime is not supported $runtime")
+            throw CliError("Provided ${platform.description} runtime is not supported $runtime")
         }
 
-        val deviceName = DeviceConfigIos.generateDeviceName(version) + shardIndex?.let { "_${it + 1}" }.orEmpty()
-        val device = DeviceConfigIos.device
+        val deviceName = deviceConfig.generateDeviceName(version) + shardIndex?.let { "_${it + 1}" }.orEmpty()
+        val device = deviceConfig.device
 
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
+        if (DeviceService.isDeviceConnected(deviceName, platform) != null && shardIndex == null && !forceCreate) {
             throw CliError("A device with name $deviceName is already connected")
         }
 
         // check existing device
-        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.IOS)?.let {
+        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceName, platform)?.let {
             if (forceCreate) {
                 DeviceService.deleteIosDevice(it.modelId)
                 null
@@ -53,7 +64,7 @@ object DeviceCreateUtil {
         }
 
         if (existingDeviceId != null) PrintUtils.message("Using existing device $deviceName (${existingDeviceId}).")
-        else PrintUtils.message("Attempting to create iOS simulator: $deviceName ")
+        else PrintUtils.message("Attempting to create ${platform.description} simulator: $deviceName ")
 
 
         val deviceUUID = try {
@@ -64,7 +75,7 @@ object DeviceCreateUtil {
                 val msg = """
                     Required runtime to create the simulator is not installed: $runtime
                     
-                    To install additional iOS runtimes checkout this guide:
+                    To install additional ${platform.description} runtimes checkout this guide:
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
                 throw CliError(msg)
@@ -88,12 +99,11 @@ object DeviceCreateUtil {
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
             description = deviceName,
-            platform = Platform.IOS,
+            platform = platform,
             language = language,
             country = country,
             deviceType = Device.DeviceType.SIMULATOR
         )
-
     }
 
     fun getOrCreateAndroidDevice(

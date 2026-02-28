@@ -7,8 +7,10 @@ import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.TempFileHandler
 import okhttp3.HttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import util.LocalIOSDeviceController
@@ -125,7 +127,13 @@ class LocalXCTestInstaller(
 
             while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
                 runCatching {
-                    if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
+                    if (isChannelAlive()) {
+                        if (iOSDriverConfig.sourceDirectory == TVOS_SIMULATOR_SOURCE_DIRECTORY && deviceType == IOSDeviceType.SIMULATOR) {
+                            runCatching { pressButtonHome() }
+                                .onFailure { logger.warn("Could not navigate to tvOS home screen", it) }
+                        }
+                        return@measured XCTestClient(host, defaultPort)
+                    }
                 }
                 Thread.sleep(500)
             }
@@ -154,6 +162,24 @@ class LocalXCTestInstaller(
         }) { isChannelAlive() }
         logger.info("ensureOpen() finished, is channel alive?: $result")
         return result
+    }
+
+    private fun pressButtonHome() {
+        val url = HttpUrl.Builder()
+            .scheme("http")
+            .host("127.0.0.1")
+            .port(defaultPort)
+            .addPathSegment("pressButton")
+            .build()
+
+        val body = """{"button":"home"}""".toRequestBody("application/json; charset=utf-8".toMediaType())
+
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .build()
+
+        httpClient.newCall(request).execute().close()
     }
 
     private fun xcTestDriverStatusCheck(): Boolean {
@@ -260,6 +286,7 @@ class LocalXCTestInstaller(
 
     companion object {
         const val UI_TEST_RUNNER_APP_BUNDLE_ID = "dev.mobile.maestro-driver-iosUITests.xctrunner"
+        const val TVOS_SIMULATOR_SOURCE_DIRECTORY = "driver-appletvSimulator"
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 120000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
