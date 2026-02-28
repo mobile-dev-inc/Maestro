@@ -126,6 +126,9 @@ object MaestroSessionManager {
             SessionStore.delete(sessionId, selectedDevice.platform)
             runCatching { ScreenReporter.reportMaxDepth() }
             if (SessionStore.activeSessions().isEmpty()) {
+                if (selectedDevice.platform == Platform.IOS || selectedDevice.platform == Platform.TVOS) {
+                    PrintUtils.message("Uninstalling driver...")
+                }
                 session.close()
             }
         })
@@ -445,9 +448,14 @@ object MaestroSessionManager {
             insights = CliInsights
         )
 
+        val shouldOpenDriver = openDriver || xcTestDevice.isShutdown()
+        if (shouldOpenDriver) {
+            PrintUtils.message("Installing driver...")
+        }
+
         return Maestro.ios(
             driver = iosDriver,
-            openDriver = openDriver || xcTestDevice.isShutdown(),
+            openDriver = shouldOpenDriver,
         )
     }
 
