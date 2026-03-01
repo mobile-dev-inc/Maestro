@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonLocation
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroOnAllFlowsComplete
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
 import java.nio.file.Path
@@ -25,6 +26,7 @@ data class YamlConfig(
     val env: Map<String, String> = emptyMap(),
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
+    val onAllFlowsComplete: YamlOnAllFlowsComplete?,
     val properties: Map<String, String> = emptyMap(),
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
@@ -53,6 +55,7 @@ data class YamlConfig(
             ext = ext.toMap(),
             onFlowStart = onFlowStart(flowPath),
             onFlowComplete = onFlowComplete(flowPath),
+            onAllFlowsComplete = onAllFlowsComplete(flowPath),
             properties = properties
         )
         return MaestroCommand(ApplyConfigurationCommand(config))
@@ -68,5 +71,11 @@ data class YamlConfig(
         if (onFlowStart == null) return null
 
         return MaestroOnFlowStart(onFlowStart.commands.flatMap { it.toCommands(flowPath, appId) })
+    }
+
+    private fun onAllFlowsComplete(flowPath: Path): MaestroOnAllFlowsComplete? {
+        if (onAllFlowsComplete == null) return null
+
+        return MaestroOnAllFlowsComplete(onAllFlowsComplete.commands.flatMap { it.toCommands(flowPath, appId) })
     }
 }

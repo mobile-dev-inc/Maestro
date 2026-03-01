@@ -4262,6 +4262,53 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 139 - onAllFlowsComplete in subflow runs after parent flow completes`() {
+        // Given
+        val commands = readCommands("139_on_all_flows_complete")
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - cleanup from subflow's onAllFlowsComplete runs after the main flow body
+        driver.assertEvents(
+            listOf(
+                Event.InputText("subflow"),
+                Event.InputText("main"),
+                Event.InputText("cleanup"),
+            )
+        )
+    }
+
+    @Test
+    fun `Case 140 - onAllFlowsComplete fires even if parent flow fails`() {
+        // Given
+        val commands = readCommands("140_on_all_flows_complete_flow_failed")
+        val driver = driver {}
+
+        // When & Then
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Then - cleanup still runs despite the parent flow failing
+        driver.assertEvents(
+            listOf(
+                Event.InputText("subflow"),
+                Event.InputText("cleanup"),
+            )
+        )
+    }
+
+    @Test
     fun `Case 137 - Shard and device env vars`() {
         // Given
         // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
