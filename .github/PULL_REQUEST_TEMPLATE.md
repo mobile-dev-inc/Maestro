@@ -6,4 +6,6 @@ copilot:summary
 
 <!--- Please describe how you tested your changes. -->
 
+> **Adding new e2e tests?** Please consider contributing them to the [demo app](https://github.com/mobile-dev-inc/demo_app) repository.
+
 ## Issues fixed
