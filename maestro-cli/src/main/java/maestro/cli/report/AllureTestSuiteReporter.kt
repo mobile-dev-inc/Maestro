@@ -159,8 +159,21 @@ class AllureTestSuiteReporter(
 
     private fun buildParameters(env: Map<String, String>): List<Parameter> {
         return env.map { (key, value) ->
-            Parameter().setName(key).setValue(value)
+            Parameter().setName(key).setValue(maskSensitiveValue(key, value))
         }
+    }
+
+    private fun maskSensitiveValue(key: String, value: String): String {
+        val sensitiveKeywords = listOf(
+            "password", "pwd", "secret", "token", "key", "auth",
+            "credential", "apikey", "api_key", "private"
+        )
+
+        val isSensitive = sensitiveKeywords.any { keyword ->
+            key.lowercase().contains(keyword)
+        }
+
+        return if (isSensitive) "***MASKED***" else value
     }
 
     private fun copyAttachments(flow: TestExecutionSummary.FlowResult, outputDir: File): List<Attachment> {
