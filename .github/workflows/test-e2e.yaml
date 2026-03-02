@@ -57,7 +57,7 @@ jobs:
 
       - name: Set up demo_app workspace
         run: |
-          git clone --depth 1 --branch fix-demo-app https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
+          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
           mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
           cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
@@ -126,7 +126,7 @@ jobs:
 
       - name: Set up demo_app workspace
         run: |
-          git clone --depth 1 --branch fix-demo-app https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
+          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
           mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
           cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
@@ -282,7 +282,7 @@ jobs:
 
       - name: Set up demo_app workspace
         run: |
-          git clone --depth 1 --branch fix-demo-app https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
+          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
           mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
           cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
