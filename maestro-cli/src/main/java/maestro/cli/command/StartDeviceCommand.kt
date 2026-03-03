@@ -37,8 +37,10 @@ class StartDeviceCommand : Callable<Int> {
     )
     private lateinit var platform: String
 
+    @Deprecated("Use --device-os instead")
     @CommandLine.Option(
         order = 1,
+        hidden = true,
         names = ["--os-version"],
         description = [
             "OS version to use:",
@@ -56,7 +58,29 @@ class StartDeviceCommand : Callable<Int> {
     private var deviceLocale: String? = null
 
     @CommandLine.Option(
+        order = 3,
+        names = ["--device-model"],
+        description = [
+            "Device model to run against",
+            "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: xcrun simctl list devicetypes --json | jq -r '.devicetypes[].identifier | split(\".\") | last'\n",
+            "Android: pixel_6, pixel_7, etc. Run command: avdmanager list device -c"
+        ],
+    )
+    private var deviceModel: String? = null
+
+    @CommandLine.Option(
         order = 4,
+        names = ["--device-os"],
+        description = [
+            "OS version to use:",
+            "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. xcrun simctl list runtimes --json | jq -r '.runtimes[].identifier | split(\".\") | last'\n",
+            "Android: android-33, android-34, etc. Run command: sdkmanager --list | grep \"system-images\" | awk -F';' '{print \$2}' | sort -u\n"
+        ],
+    )
+    private var deviceOs: String? = null
+
+    @CommandLine.Option(
+        order = 5,
         names = ["--force-create"],
         description = ["Will override existing device if it already exists"],
     )
@@ -72,7 +96,8 @@ class StartDeviceCommand : Callable<Int> {
         // Get the device configuration
         val maestroDeviceConfiguration = DeviceCatalog.resolve(
             platform = platform,
-            os = osVersion,
+            model = deviceModel,
+            os = deviceOs ?: osVersion,
             locale = deviceLocale,
         )
 

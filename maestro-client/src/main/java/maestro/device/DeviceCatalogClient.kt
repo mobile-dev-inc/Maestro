@@ -2,8 +2,12 @@ package maestro.device
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import maestro.DeviceOrientation
+import maestro.device.util.CPU_ARCHITECTURE
+import maestro.locale.DeviceLocale
 import maestro.utils.HttpClient
 import okhttp3.Request
+import org.slf4j.LoggerFactory
 
 data class SupportedDevicesResponse(
     val ios: PlatformSupportedDevices.Ios,
@@ -38,6 +42,8 @@ sealed class PlatformSupportedDevices {
 }
 
 internal object DeviceCatalogClient {
+    private val logger = LoggerFactory.getLogger(DeviceCatalogClient::class.java)
+
     private val baseUrl: String
         get() = System.getenv("MAESTRO_API_URL") ?: "https://api.copilot.mobile.dev"
 
@@ -47,20 +53,67 @@ internal object DeviceCatalogClient {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
+    private val FALLBACK_RESPONSE = SupportedDevicesResponse(
+        ios = PlatformSupportedDevices.Ios(
+            deviceCombinations = listOf(
+                MaestroDeviceConfiguration.Ios("iPhone-16", "iOS-18-2", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
+                MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-17-5", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
+                MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-16-4", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
+            ),
+            defaults = MaestroDeviceConfiguration.Ios(
+                deviceModel = "iPhone-16",
+                deviceOs = "iOS-18-2",
+                locale = DeviceLocale.fromString("en_US", Platform.IOS),
+                orientation = DeviceOrientation.PORTRAIT,
+                disableAnimations = true,
+            ),
+        ),
+        android = PlatformSupportedDevices.Android(
+            deviceCombinations = listOf(
+                MaestroDeviceConfiguration.Android("pixel_6", "android-34", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+                MaestroDeviceConfiguration.Android("pixel_6", "android-33", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+                MaestroDeviceConfiguration.Android("pixel_6", "android-30", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+            ),
+            defaults = MaestroDeviceConfiguration.Android(
+                deviceModel = "pixel_6",
+                deviceOs = "android-34",
+                locale = DeviceLocale.fromString("en_US", Platform.ANDROID),
+                orientation = DeviceOrientation.PORTRAIT,
+                disableAnimations = true,
+                snapshotKeyHonorModalViews = false,
+                cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+            ),
+        ),
+        web = PlatformSupportedDevices.Web(
+            deviceCombinations = listOf(
+                MaestroDeviceConfiguration.Web("chromium", "default"),
+            ),
+            defaults = MaestroDeviceConfiguration.Web(
+                deviceModel = "chromium",
+                deviceOs = "default",
+            ),
+        ),
+    )
+
     fun fetchSupportedDevices(): SupportedDevicesResponse {
-        val request = Request.Builder()
-            .url("$baseUrl/v2/device/list")
-            .get()
-            .build()
+        return try {
+            val request = Request.Builder()
+                .url("$baseUrl/v2/device/list")
+                .get()
+                .build()
 
-        val payload = client.newCall(request).execute().use { response ->
-            json.readValue(response.body?.bytes(), SupportedDevicesResponse::class.java)
+            val payload = client.newCall(request).execute().use { response ->
+                json.readValue(response.body?.bytes(), SupportedDevicesResponse::class.java)
+            }
+
+            SupportedDevicesResponse(
+                ios = requireNotNull(payload.ios) { "API response missing iOS device configuration" },
+                android = requireNotNull(payload.android) { "API response missing Android device configuration" },
+                web = requireNotNull(payload.web) { "API response missing Web device configuration" },
+            )
+        } catch (e: Exception) {
+            logger.warn("Failed to fetch device catalog from API: ${e.message}. Using built-in defaults.")
+            FALLBACK_RESPONSE
         }
-
-        return SupportedDevicesResponse(
-            ios = requireNotNull(payload.ios) { "API response missing iOS device configuration" },
-            android = requireNotNull(payload.android) { "API response missing Android device configuration" },
-            web = requireNotNull(payload.web) { "API response missing Web device configuration" },
-        )
     }
 }
