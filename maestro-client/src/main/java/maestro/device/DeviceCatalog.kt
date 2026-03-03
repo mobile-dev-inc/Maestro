@@ -107,7 +107,7 @@ object DeviceCatalog {
         }
     }
 
-    private fun checkCloudCompatibility(config: MaestroDeviceConfiguration) {
+     fun checkCloudCompatibility(config: MaestroDeviceConfiguration) {
         val combinations = cloudDevice().forPlatform(config.platform).deviceCombinations
 
         val modelsForPlatform = combinations.map { it.deviceModel }.distinct()
