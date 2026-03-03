@@ -74,13 +74,16 @@ object DeviceCatalog {
      * Throws [CloudCompatibilityException] if the resolved config is not cloud-compatible.
      */
     fun resolve(
-        platform: Platform,
+        platform: String,
         model: String? = null,
         os: String? = null,
         locale: String? = null,
         orientation: DeviceOrientation? = null,
         systemArchitecture: CPU_ARCHITECTURE? = null,
     ): MaestroDeviceConfiguration {
+        val platform = Platform.fromString(platform)
+            ?: throw IllegalArgumentException("Unsupported platform $platform. Please specify one of: android, ios, web")
+
         return when (platform) {
             Platform.ANDROID -> {
                 val defaults = cloudDevice().android.defaults

@@ -28,12 +28,7 @@ object PickDeviceView {
         val selectedPlatform = if (platform == null) {
             PrintUtils.message("Please specify a device platform [android, ios, web]:")
             readlnOrNull()?.lowercase()?.let {
-                when (it) {
-                    "android" -> Platform.ANDROID
-                    "ios" -> Platform.IOS
-                    "web" -> Platform.WEB
-                    else -> throw CliError("Unsupported platform: $it")
-                }
+                Platform.fromString(it)
             } ?: throw CliError("Please specify a platform")
         } else platform
 
@@ -48,7 +43,7 @@ object PickDeviceView {
 
         val maestroDeviceConfiguration = try {
             DeviceCatalog.resolve(
-                platform = selectedPlatform,
+                platform = selectedPlatform.toString(),
                 os = os,
             )
         } catch (e: CloudCompatibilityException) {
