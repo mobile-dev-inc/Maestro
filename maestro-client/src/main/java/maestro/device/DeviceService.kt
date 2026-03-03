@@ -46,7 +46,6 @@ object DeviceService {
                 } catch (e: util.LocalSimulatorUtils.SimctlError) {
                     logger.error("Failed to launch simulator", e)
                     throw DeviceError(e.message)
-
                 }
 
                 return Device.Connected(
@@ -68,13 +67,13 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start().waitFor(10,TimeUnit.SECONDS)
+                ).start().waitFor(10, TimeUnit.SECONDS)
 
                 var lastException: Exception? = null
 
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
-                        Dadb.list().lastOrNull{ dadb ->
+                        Dadb.list().lastOrNull { dadb ->
                             !connectedDevices.contains(dadb.toString())
                         }
                     } catch (ignored: Exception) {
@@ -412,10 +411,9 @@ object DeviceService {
         tag: String,
         abi: String,
         force: Boolean = false,
-        shardIndex: Int? = null,
     ): String {
         val avd = requireAvdManagerBinary()
-        val name = "${deviceName}${"_${(shardIndex ?: 0) + 1}"}"
+        val name = deviceName
         val command = mutableListOf(
             avd.absolutePath,
             "create", "avd",
