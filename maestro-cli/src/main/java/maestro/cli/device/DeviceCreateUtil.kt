@@ -65,35 +65,44 @@ object DeviceCreateUtil {
                 """.trimIndent()
                 throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
-                throw CliError("Device type ${deviceSpec.model} is either not supported or not found.")
+                throw CliError("Device type ${config.deviceModel} is either not supported or not found.")
             } else {
                 throw CliError(error)
             }
         }
 
-        if (existingDeviceId == null) PrintUtils.message("Created simulator with name ${deviceSpec.deviceName} and UUID $deviceUUID")
+        if (existingDeviceId == null) PrintUtils.message("Created simulator with name $deviceName and UUID $deviceUUID")
 
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
-            description = deviceSpec.deviceName,
+            description = deviceName,
             platform = Platform.IOS,
-            deviceType = Device.DeviceType.SIMULATOR,
-            deviceSpec = deviceSpec,
+            language = config.locale.languageCode,
+            country = config.locale.countryCode,
+            deviceType = Device.DeviceType.SIMULATOR
         )
     }
 
     fun getOrCreateAndroidDevice(
-        deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
+        config: MaestroDeviceConfiguration.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        val systemImage = deviceSpec.emulatorImage
+        val abi = when (val architecture = EnvUtils.getMacOSArchitecture()) {
+            CPU_ARCHITECTURE.x86_64 -> "x86_64"
+            CPU_ARCHITECTURE.ARM64 -> "arm64-v8a"
+            else -> throw CliError("Unsupported architecture: $architecture")
+        }
+        val tag = "google_apis"
+        val systemImage = config.emulatorImage
+        val deviceName = config.generateDeviceName()
+
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
-            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
+        if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
+            throw CliError("A device with name $deviceName is already connected")
 
         // existing device
         val existingDevice =
             if (forceCreate) null
-            else DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.ANDROID)?.modelId
+            else DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.ANDROID)?.modelId
 
         // dependencies
         if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {

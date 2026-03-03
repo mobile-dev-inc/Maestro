@@ -408,7 +408,6 @@ object DeviceService {
         tag: String,
         abi: String,
         force: Boolean = false,
-        shardIndex: Int? = null,
     ): String {
         val avd = requireAvdManagerBinary()
         val name = deviceName
