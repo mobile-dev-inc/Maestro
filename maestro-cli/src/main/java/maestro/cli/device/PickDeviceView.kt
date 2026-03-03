@@ -31,12 +31,8 @@ object PickDeviceView {
                 Platform.fromString(it)
             } ?: throw CliError("Please specify a platform"))
 
-        PrintUtils.message("Please specify ${selectedPlatform.description} version. Press ENTER for default")
-        val os: String? = readlnOrNull()
-
         val maestroDeviceConfiguration = DeviceCatalog.resolve(
             platform = selectedPlatform.toString(),
-            os = os,
         )
 
         return maestroDeviceConfiguration
