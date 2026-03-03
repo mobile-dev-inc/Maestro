@@ -52,7 +52,6 @@ class CloudCompatibilityException(
 ) : Exception(message)
 
 object DeviceCatalog {
-    private val DEFAULT_ORIENTATION = DeviceOrientation.PORTRAIT
     private var cachedResponse: SupportedDevicesResponse? = null
 
     /** For tests only — injects a response without hitting the network. */
@@ -62,12 +61,6 @@ object DeviceCatalog {
 
     private fun cloudDevice(): SupportedDevicesResponse =
         cachedResponse ?: DeviceCatalogClient.fetchSupportedDevices().also { cachedResponse = it }
-
-    private fun platformCloudDeviceData(platform: Platform): PlatformSupportedDevices = when (platform) {
-        Platform.IOS     -> cloudDevice().ios
-        Platform.ANDROID -> cloudDevice().android
-        Platform.WEB     -> cloudDevice().web
-    }
 
     /**
      * Resolves device specifications with platform-aware defaults.
@@ -86,30 +79,27 @@ object DeviceCatalog {
 
         return when (platform) {
             Platform.ANDROID -> {
-                val defaults = cloudDevice().android.defaults
-                MaestroDeviceConfiguration.Android(
+                val defaults: MaestroDeviceConfiguration.Android = cloudDevice().android.defaults
+                defaults.copy(
                     deviceModel = model ?: defaults.deviceModel,
                     deviceOs = os ?: defaults.deviceOs,
-                    locale = DeviceLocale.fromString(locale ?: defaults.locale, platform),
-                    orientation = orientation ?: DEFAULT_ORIENTATION,
-                    disableAnimations = defaults.disableAnimations,
-                    snapshotKeyHonorModalViews = defaults.snapshotKeyHonorModalViews,
-                    cpuArchitecture = systemArchitecture ?: EnvUtils.getMacOSArchitecture()
+                    locale = locale?.let { DeviceLocale.fromString(it, platform) } ?: defaults.locale,
+                    orientation = orientation ?: defaults.orientation,
+                    cpuArchitecture = systemArchitecture ?: EnvUtils.getMacOSArchitecture(),
                 )
             }
             Platform.IOS -> {
-                val defaults = cloudDevice().ios.defaults
-                MaestroDeviceConfiguration.Ios(
+                val defaults: MaestroDeviceConfiguration.Ios = cloudDevice().ios.defaults
+                defaults.copy(
                     deviceModel = model ?: defaults.deviceModel,
                     deviceOs = os ?: defaults.deviceOs,
-                    locale = DeviceLocale.fromString(locale ?: defaults.locale, platform),
-                    orientation = orientation ?: DEFAULT_ORIENTATION,
-                    disableAnimations = defaults.disableAnimations,
+                    locale = locale?.let { DeviceLocale.fromString(it, platform) } ?: defaults.locale,
+                    orientation = orientation ?: defaults.orientation,
                 )
             }
             Platform.WEB -> {
-                val defaults = cloudDevice().web.defaults
-                MaestroDeviceConfiguration.Web(
+                val defaults: MaestroDeviceConfiguration.Web = cloudDevice().web.defaults
+                defaults.copy(
                     deviceModel = model ?: defaults.deviceModel,
                     deviceOs = os ?: defaults.deviceOs,
                 )
@@ -118,7 +108,7 @@ object DeviceCatalog {
     }
 
     private fun checkCloudCompatibility(config: MaestroDeviceConfiguration) {
-        val combinations = platformCloudDeviceData(config.platform).deviceCombinations
+        val combinations = cloudDevice().forPlatform(config.platform).deviceCombinations
 
         val modelsForPlatform = combinations.map { it.deviceModel }.distinct()
         if (config.deviceModel !in modelsForPlatform) {
@@ -137,9 +127,4 @@ object DeviceCatalog {
             )
         }
     }
-
-    fun defaultOs(platform: Platform): String = platformCloudDeviceData(platform).defaults.deviceOs
-
-    fun allCloudAvailableOs(platform: Platform): List<String> =
-        platformCloudDeviceData(platform).deviceCombinations.map { it.deviceOs }.distinct()
 }
