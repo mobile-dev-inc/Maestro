@@ -6,6 +6,7 @@ import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
+import maestro.drivers.CdpWebDriver
 import maestro.locale.IosLocale
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
@@ -31,6 +32,7 @@ object DeviceService {
     ): Device.Connected {
         when (device.platform) {
             Platform.IOS -> {
+                PrintUtils.message("Launching Simulator...")
                 try {
                     localSimulatorUtils.bootSimulator(device.modelId)
                     if (device.language != null && device.country != null) {
@@ -57,6 +59,7 @@ object DeviceService {
             }
 
             Platform.ANDROID -> {
+                PrintUtils.message("Launching Emulator...")
                 val emulatorBinary = requireEmulatorBinary()
 
                 ProcessBuilder(
@@ -115,8 +118,11 @@ object DeviceService {
             }
 
             Platform.WEB -> {
+                PrintUtils.message("Launching Web...")
+                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
+
                 return Device.Connected(
-                    instanceId = "",
+                    instanceId = "chromium",
                     description = "Chromium Web Browser",
                     platform = device.platform,
                     deviceType = device.deviceType,

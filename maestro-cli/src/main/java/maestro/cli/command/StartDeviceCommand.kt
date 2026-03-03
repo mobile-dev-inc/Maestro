@@ -46,7 +46,7 @@ class StartDeviceCommand : Callable<Int> {
             "Android: android-28, android-29, android-30, android-31, android-33, android-34",
         ],
     )
-    private lateinit var osVersion: String
+    private var osVersion: String? = null
 
     @CommandLine.Option(
         order = 2,
@@ -69,7 +69,7 @@ class StartDeviceCommand : Callable<Int> {
             throw CliError("This command is not supported in Windows WSL. You can launch your emulator manually.")
         }
 
-        val p = Platform.fromString(platform) ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+        val p = Platform.fromString(platform) ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios, web")
 
         // Get the device configuration
         val maestroDeviceConfiguration = try {
@@ -88,8 +88,6 @@ class StartDeviceCommand : Callable<Int> {
             forceCreate
         )
 
-        // Launch the device
-        PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
         DeviceService.startDevice(
             device = device,
             driverHostPort = parent?.port
