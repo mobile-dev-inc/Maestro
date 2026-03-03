@@ -480,7 +480,6 @@ class IOSDriver(
              MaestroTimer.retryUntilTrue(timeoutMs) {
                 val isScreenStatic = isScreenStatic()
 
-                LOGGER.info("screen static = $isScreenStatic")
                 return@retryUntilTrue isScreenStatic
             }
         }
