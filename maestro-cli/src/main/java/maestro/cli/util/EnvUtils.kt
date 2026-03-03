@@ -5,7 +5,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.cli.api.CliVersion
 import maestro.cli.update.Updates
 import maestro.cli.view.red
-import maestro.device.CPU_ARCHITECTURE
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -156,7 +155,7 @@ sealed interface ArchitectureDetectionStrategy {
             val isX86_64 = runSysctl("hw.optional.x86_64")
             return when {
                 isArm64 -> CPU_ARCHITECTURE.ARM64
-                isX86_64 -> CPU_ARCHITECTURE.X86_64
+                isX86_64 -> CPU_ARCHITECTURE.x86_64
                 else -> CPU_ARCHITECTURE.UNKNOWN
             }
         }
@@ -165,18 +164,25 @@ sealed interface ArchitectureDetectionStrategy {
     object LinuxArchitectureDetection : ArchitectureDetectionStrategy {
         override fun detectArchitecture(): CPU_ARCHITECTURE {
             return when (runProcess("uname", "-m").first()) {
-              "x86_64" -> CPU_ARCHITECTURE.X86_64
-              "arm64" -> CPU_ARCHITECTURE.ARM64
-              else -> CPU_ARCHITECTURE.UNKNOWN
+                "x86_64" -> CPU_ARCHITECTURE.x86_64
+                "arm64" -> CPU_ARCHITECTURE.ARM64
+                else -> CPU_ARCHITECTURE.UNKNOWN
             }
         }
+
     }
 
     object WindowsArchitectureDetection: ArchitectureDetectionStrategy {
         override fun detectArchitecture(): CPU_ARCHITECTURE {
-            return CPU_ARCHITECTURE.X86_64
+            return CPU_ARCHITECTURE.x86_64
         }
     }
+}
+
+enum class CPU_ARCHITECTURE {
+    x86_64,
+    ARM64,
+    UNKNOWN
 }
 
 internal fun runProcess(program: String, vararg arguments: String): List<String> {

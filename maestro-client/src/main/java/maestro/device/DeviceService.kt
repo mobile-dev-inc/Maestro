@@ -43,7 +43,6 @@ object DeviceService {
                 } catch (e: util.LocalSimulatorUtils.SimctlError) {
                     logger.error("Failed to launch simulator", e)
                     throw DeviceError(e.message)
-
                 }
 
                 return Device.Connected(
@@ -408,7 +407,6 @@ object DeviceService {
         tag: String,
         abi: String,
         force: Boolean = false,
-        shardIndex: Int? = null,
     ): String {
         val avd = requireAvdManagerBinary()
         val name = deviceName
