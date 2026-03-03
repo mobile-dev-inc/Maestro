@@ -39,7 +39,11 @@ class StartDeviceCommand : Callable<Int> {
         order = 1,
         hidden = true,
         names = ["--os-version"],
-        description = ["OS version to use:", "iOS: 16, 17, 18", "Android: 28, 29, 30, 31, 33"],
+        description = [
+            "OS version to use:",
+            "iOS: iOS-16-2, iOS-17-5, iOS-18-2",
+            "Android: android-28, android-29, android-30, android-31, android-33, android-34",
+        ],
     )
     private var osVersion: String? = null
 
