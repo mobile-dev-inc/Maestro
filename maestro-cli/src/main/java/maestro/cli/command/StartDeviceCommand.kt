@@ -30,7 +30,7 @@ class StartDeviceCommand : Callable<Int> {
         order = 0,
         names = ["--platform"],
         required = true,
-        description = ["Platforms: android, ios"],
+        description = ["Platforms: android, ios, web"],
     )
     private lateinit var platform: String
 

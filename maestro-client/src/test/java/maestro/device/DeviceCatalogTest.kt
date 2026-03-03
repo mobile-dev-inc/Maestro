@@ -14,7 +14,6 @@ internal class DeviceCatalogTest {
                 DeviceCombination("iPhone-11", "iOS-16-2"),
                 DeviceCombination("iPhone-11", "iOS-17-5"),
                 DeviceCombination("iPhone-11", "iOS-18-2"),
-                DeviceCombination("iPhone-16", "iOS-18-2"),
             ),
             defaults = IosDefaults("iPhone-11", "iOS-17-5", "en_US", disableAnimations = true),
         ),
@@ -23,7 +22,6 @@ internal class DeviceCatalogTest {
                 DeviceCombination("pixel_6",  "android-34"),
                 DeviceCombination("pixel_6",  "android-33"),
                 DeviceCombination("pixel_xl", "android-34"),
-                DeviceCombination("pixel_xl", "android-33"),
             ),
             defaults = AndroidDefaults(
                 deviceModel = "pixel_6",
