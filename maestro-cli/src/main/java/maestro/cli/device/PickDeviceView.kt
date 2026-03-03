@@ -25,31 +25,19 @@ object PickDeviceView {
     }
 
     fun requestDeviceOptions(platform: Platform? = null): MaestroDeviceConfiguration {
-        val selectedPlatform = if (platform == null) {
-            PrintUtils.message("Please specify a device platform [android, ios, web]:")
-            readlnOrNull()?.lowercase()?.let {
+        PrintUtils.message("Please specify a device platform [android, ios, web]:")
+        val selectedPlatform = platform
+            ?: (readlnOrNull()?.lowercase()?.let {
                 Platform.fromString(it)
-            } ?: throw CliError("Please specify a platform")
-        } else platform
+            } ?: throw CliError("Please specify a platform"))
 
-        val available = DeviceCatalog.allCloudAvailableOs(selectedPlatform)
-        val default = DeviceCatalog.defaultOs(selectedPlatform)
-        val os: String = if (available.size <= 1) {
-            default
-        } else {
-            PrintUtils.message("Please specify ${selectedPlatform.description} version $available: Press ENTER for default ($default)")
-            readlnOrNull() ?: default
-        }
+        PrintUtils.message("Please specify ${selectedPlatform.description} version. Press ENTER for default")
+        val os: String? = readlnOrNull()
 
-        val maestroDeviceConfiguration = try {
-            DeviceCatalog.resolve(
-                platform = selectedPlatform.toString(),
-                os = os,
-            )
-        } catch (e: CloudCompatibilityException) {
-            PrintUtils.warn(e.message.toString())
-            e.config
-        }
+        val maestroDeviceConfiguration = DeviceCatalog.resolve(
+            platform = selectedPlatform.toString(),
+            os = os,
+        )
 
         return maestroDeviceConfiguration
     }
