@@ -33,14 +33,18 @@ class StartDeviceCommand : Callable<Int> {
         order = 0,
         names = ["--platform"],
         required = true,
-        description = ["Platforms: android, ios"],
+        description = ["Platforms: android, ios, web"],
     )
     private lateinit var platform: String
 
     @CommandLine.Option(
         order = 1,
         names = ["--os-version"],
-        description = ["OS version to use:", "iOS: 16, 17, 18", "Android: 28, 29, 30, 31, 33"],
+        description = [
+            "OS version to use:",
+            "iOS: iOS-16-2, iOS-17-5, iOS-18-2",
+            "Android: android-28, android-29, android-30, android-31, android-33, android-34",
+        ],
     )
     private lateinit var osVersion: String
 
@@ -87,8 +91,8 @@ class StartDeviceCommand : Callable<Int> {
         // Launch the device
         PrintUtils.message(if (p == Platform.IOS) "Launching simulator..." else "Launching emulator...")
         DeviceService.startDevice(
-          device = device,
-          driverHostPort = parent?.port
+            device = device,
+            driverHostPort = parent?.port
         )
 
         return 0
