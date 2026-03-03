@@ -1,6 +1,8 @@
 package maestro.device
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import maestro.DeviceOrientation
+import maestro.device.util.CPU_ARCHITECTURE
+import maestro.locale.DeviceLocale
 //import com.fasterxml.jackson.databind.DeserializationFeature
 //import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 //import maestro.utils.HttpClient
@@ -9,67 +11,36 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 // --- Response types ---
 
 data class SupportedDevicesResponse(
-    val ios: IosSupportedDevices,
-    val android: AndroidSupportedDevices,
-    val web: WebSupportedDevices,
-)
-
-/** Common interface — lets DeviceCatalog access deviceCombinations and defaults without platform-casting. */
-interface PlatformSupportedDevices {
-    val deviceCombinations: List<DeviceCombination>
-    val defaults: PlatformDefaults
+    val ios: PlatformSupportedDevices.Ios,
+    val android: PlatformSupportedDevices.Android,
+    val web: PlatformSupportedDevices.Web,
+) {
+    fun forPlatform(platform: Platform): PlatformSupportedDevices = when (platform) {
+        Platform.IOS     -> ios
+        Platform.ANDROID -> android
+        Platform.WEB     -> web
+    }
 }
 
-/** Common defaults fields shared by all platforms. */
-interface PlatformDefaults {
-    val deviceModel: String
-    val deviceOs: String
-    val locale: String
+sealed class PlatformSupportedDevices {
+    abstract val deviceCombinations: List<MaestroDeviceConfiguration>
+    abstract val defaults: MaestroDeviceConfiguration
+
+    data class Android(
+        override val deviceCombinations: List<MaestroDeviceConfiguration.Android>,
+        override val defaults: MaestroDeviceConfiguration.Android,
+    ) : PlatformSupportedDevices()
+
+    data class Ios(
+        override val deviceCombinations: List<MaestroDeviceConfiguration.Ios>,
+        override val defaults: MaestroDeviceConfiguration.Ios,
+    ) : PlatformSupportedDevices()
+
+    data class Web(
+        override val deviceCombinations: List<MaestroDeviceConfiguration.Web>,
+        override val defaults: MaestroDeviceConfiguration.Web,
+    ) : PlatformSupportedDevices()
 }
-
-// iOS
-data class IosSupportedDevices(
-    override val deviceCombinations: List<DeviceCombination>,
-    override val defaults: IosDefaults,
-) : PlatformSupportedDevices
-
-data class IosDefaults(
-    override val deviceModel: String,
-    override val deviceOs: String,
-    override val locale: String,
-    val disableAnimations: Boolean = true,
-) : PlatformDefaults
-
-// Android
-data class AndroidSupportedDevices(
-    override val deviceCombinations: List<DeviceCombination>,
-    override val defaults: AndroidDefaults,
-) : PlatformSupportedDevices
-
-data class AndroidDefaults(
-    override val deviceModel: String,
-    override val deviceOs: String,
-    override val locale: String,
-    val disableAnimations: Boolean = true,
-    val snapshotKeyHonorModalViews: Boolean = false,
-) : PlatformDefaults
-
-// Web
-data class WebSupportedDevices(
-    override val deviceCombinations: List<DeviceCombination>,
-    override val defaults: WebDefaults,
-) : PlatformSupportedDevices
-
-data class WebDefaults(
-    override val deviceModel: String,
-    override val deviceOs: String,
-    override val locale: String,
-) : PlatformDefaults
-
-data class DeviceCombination(
-    val deviceModel: String,
-    val deviceOs: String,
-)
 
 // --- Client ---
 
@@ -91,7 +62,7 @@ internal object DeviceCatalogClient {
 //            .build()
 
 //        val payload = client.newCall(request).execute().use { response ->
-//            json.readValue(response.body?.bytes(), ApiDevicesPayload::class.java)
+//            json.readValue(response.body?.bytes(), SupportedDevicesResponse::class.java)
 //        }
 //
 //        return SupportedDevicesResponse(
@@ -99,55 +70,49 @@ internal object DeviceCatalogClient {
 //            android = requireNotNull(payload.android) { "API response missing Android device configuration" },
 //            web = requireNotNull(payload.web) { "API response missing Web device configuration" },
 //        )
-
         return SupportedDevicesResponse(
-            ios = IosSupportedDevices(
+            ios = PlatformSupportedDevices.Ios(
                 deviceCombinations = listOf(
-                    DeviceCombination("iPhone-16-Pro", "iOS-18-2"),
-                    DeviceCombination("iPhone-16",     "iOS-18-2"),
-                    DeviceCombination("iPhone-11",     "iOS-17-5"),
-                    DeviceCombination("iPhone-11",     "iOS-16-4"),
+                    MaestroDeviceConfiguration.Ios("iPhone-16-Pro", "iOS-18-2", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
+                    MaestroDeviceConfiguration.Ios("iPhone-16", "iOS-18-2", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
+                    MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-17-5", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
+                    MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-16-4", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
                 ),
-                defaults = IosDefaults(
+                defaults = MaestroDeviceConfiguration.Ios(
                     deviceModel = "iPhone-16",
                     deviceOs = "iOS-18-2",
-                    locale = "en_US",
+                    locale = DeviceLocale.fromString("en_US", Platform.IOS),
+                    orientation = DeviceOrientation.PORTRAIT,
                     disableAnimations = true,
                 ),
             ),
-            android = AndroidSupportedDevices(
+            android = PlatformSupportedDevices.Android(
                 deviceCombinations = listOf(
-                    DeviceCombination("pixel_6", "system-images;android-34;google_apis;arm64-v8a"),
-                    DeviceCombination("pixel_6", "system-images;android-34;google_apis_playstore;arm64-v8a"),
-                    DeviceCombination("pixel_6", "system-images;android-33;google_apis;arm64-v8a"),
-                    DeviceCombination("pixel_6", "system-images;android-31;google_apis;arm64-v8a"),
-                    DeviceCombination("pixel_6", "system-images;android-30;google_apis;arm64-v8a"),
+                    MaestroDeviceConfiguration.Android("pixel_6", "android-34", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+                    MaestroDeviceConfiguration.Android("pixel_6", "android-33", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+                    MaestroDeviceConfiguration.Android("pixel_6", "android-32", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+                    MaestroDeviceConfiguration.Android("pixel_6", "android-31", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
+                    MaestroDeviceConfiguration.Android("pixel_6", "android-30", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
                 ),
-                defaults = AndroidDefaults(
+                defaults = MaestroDeviceConfiguration.Android(
                     deviceModel = "pixel_6",
-                    deviceOs = "system-images;android-34;google_apis;arm64-v8a",
-                    locale = "en_US",
+                    deviceOs = "android-34",
+                    locale = DeviceLocale.fromString("en_US", Platform.ANDROID),
+                    orientation = DeviceOrientation.PORTRAIT,
                     disableAnimations = true,
                     snapshotKeyHonorModalViews = false,
+                    cpuArchitecture = CPU_ARCHITECTURE.ARM64,
                 ),
             ),
-            web = WebSupportedDevices(
+            web = PlatformSupportedDevices.Web(
                 deviceCombinations = listOf(
-                    DeviceCombination("chromium", "default"),
+                    MaestroDeviceConfiguration.Web("chromium", "default"),
                 ),
-                defaults = WebDefaults(
+                defaults = MaestroDeviceConfiguration.Web(
                     deviceModel = "chromium",
                     deviceOs = "default",
-                    locale = "en_US",
                 ),
             ),
         )
     }
-
-//    @JsonIgnoreProperties(ignoreUnknown = true)
-//    private data class ApiDevicesPayload(
-//        val ios: IosSupportedDevices? = null,
-//        val android: AndroidSupportedDevices? = null,
-//        val web: WebSupportedDevices? = null,
-//    )
 }
