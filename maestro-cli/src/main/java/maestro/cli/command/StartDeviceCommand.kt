@@ -69,18 +69,12 @@ class StartDeviceCommand : Callable<Int> {
             throw CliError("This command is not supported in Windows WSL. You can launch your emulator manually.")
         }
 
-        val p = Platform.fromString(platform) ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios, web")
-
         // Get the device configuration
-        val maestroDeviceConfiguration = try {
-            DeviceCatalog.resolve(
-                platform = p,
-                os = osVersion,
-                locale = deviceLocale,
-            )
-        } catch (e: Exception) {
-            throw CliError(e.message.toString())
-        }
+        val maestroDeviceConfiguration = DeviceCatalog.resolve(
+            platform = platform,
+            os = osVersion,
+            locale = deviceLocale,
+        )
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(
@@ -88,6 +82,7 @@ class StartDeviceCommand : Callable<Int> {
             forceCreate
         )
 
+        // Start Device
         DeviceService.startDevice(
             device = device,
             driverHostPort = parent?.port
