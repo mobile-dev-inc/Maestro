@@ -117,6 +117,8 @@ class CdpWebDriver(
                 )
                 setExperimentalOption("prefs", chromePrefs)
 
+                setExperimentalOption("detach", true)
+
                 if (isHeadless) {
                     addArguments("--headless=new")
                     if(screenSize != null){
@@ -125,7 +127,6 @@ class CdpWebDriver(
                     else{
                         addArguments("--window-size=1024,768")
                     }
-                    setExperimentalOption("detach", true)
                 }
             }
         )
