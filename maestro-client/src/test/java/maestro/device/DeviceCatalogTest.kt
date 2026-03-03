@@ -102,6 +102,7 @@ internal class DeviceCatalogTest {
             os = "android-33",
             locale = "de_DE",
             orientation = DeviceOrientation.LANDSCAPE_LEFT,
+            systemArchitecture = CPU_ARCHITECTURE.ARM64,
         ) as MaestroDeviceConfiguration.Android
 
         assertThat(config.deviceModel).isEqualTo("pixel_xl")
