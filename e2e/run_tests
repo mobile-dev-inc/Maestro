@@ -13,7 +13,7 @@ _h1() { printf "=>\n=> %s\n=>\n" "$1"; }
 _h2() { printf "==> [%s] %s\n" "$1" "$2"; }
 _h3() { printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"; }
 
-cloud="android_device_configuration,ios_device_configuration"
+cloud="android_device_configuration,ios_device_configuration" # Maestro Cloud specific tests
 platform="${1:-}"
 case "$platform" in
 	android) exclude_tags="ios,web,$cloud" ;;
@@ -25,33 +25,36 @@ esac
 mkfifo pipe
 trap 'rm -f pipe' EXIT
 
-
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
-for workspace_dir in ./workspaces/*; do
-	app_name="$(basename "$workspace_dir")"
-
-	case $app_name in
-		# demo_app has OOM issues on GHA
-		demo_app|setOrientation) [ "$platform" = "ios" ]     && continue ;;
-		simple_web_view)         [ "$platform" = "android" ] && continue ;;
-	esac
+if [ "$platform" = "web" ]; then
+	###
+	### Web: run web-tagged tests for demo_app only
+	###
+	workspace_dir="./workspaces/demo_app"
+	app_name="demo_app"
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
+	_h2 "$app_name" "run web tests"
 
-	if [ "$platform" = "web" ]; then
-		###
-		### Web: run web-tagged tests only (no passing/failing distinction)
-		###
-		_h2 "$app_name" "run web tests"
+	while IFS= read -r line; do
+		_h3 "$app_name" "web" "$line"
+	done < pipe &
 
-		while IFS= read -r line; do
-			_h3 "$app_name" "web" "$line"
-		done < pipe &
+	maestro --verbose --platform "$platform" test --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
+else
+	for workspace_dir in ./workspaces/*; do
+		app_name="$(basename "$workspace_dir")"
 
-		maestro --verbose --platform "$platform" test --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
-			|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
-	else
+		case $app_name in
+			# demo_app has OOM issues on GHA
+			demo_app|setOrientation) [ "$platform" = "ios" ]     && continue ;;
+			simple_web_view)         [ "$platform" = "android" ] && continue ;;
+		esac
+
+		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
+
 		###
 		### Run passing tests
 		###
@@ -79,8 +82,8 @@ for workspace_dir in ./workspaces/*; do
 
 		maestro --verbose --platform "$platform" test --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
-	fi
-done
+	done
+fi
 
 if [ "$ALL_PASS" = "false" ]; then
 	_h1 "FAILURE: some tests failed!"

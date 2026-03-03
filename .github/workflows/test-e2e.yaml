@@ -90,7 +90,7 @@ jobs:
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
         timeout-minutes: 20
-        run: ./run_tests_web
+        run: ./run_tests web
 
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v6
