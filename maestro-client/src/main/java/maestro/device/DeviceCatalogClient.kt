@@ -55,11 +55,7 @@ internal object DeviceCatalogClient {
 
     private val FALLBACK_RESPONSE = SupportedDevicesResponse(
         ios = PlatformSupportedDevices.Ios(
-            deviceCombinations = listOf(
-                MaestroDeviceConfiguration.Ios("iPhone-16", "iOS-18-2", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-                MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-17-5", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-                MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-16-4", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-            ),
+            deviceCombinations = emptyList(),
             defaults = MaestroDeviceConfiguration.Ios(
                 deviceModel = "iPhone-16",
                 deviceOs = "iOS-18-2",
@@ -69,11 +65,7 @@ internal object DeviceCatalogClient {
             ),
         ),
         android = PlatformSupportedDevices.Android(
-            deviceCombinations = listOf(
-                MaestroDeviceConfiguration.Android("pixel_6", "android-34", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-                MaestroDeviceConfiguration.Android("pixel_6", "android-33", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-                MaestroDeviceConfiguration.Android("pixel_6", "android-30", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-            ),
+            deviceCombinations = emptyList(),
             defaults = MaestroDeviceConfiguration.Android(
                 deviceModel = "pixel_6",
                 deviceOs = "android-34",
@@ -85,9 +77,7 @@ internal object DeviceCatalogClient {
             ),
         ),
         web = PlatformSupportedDevices.Web(
-            deviceCombinations = listOf(
-                MaestroDeviceConfiguration.Web("chromium", "default"),
-            ),
+            deviceCombinations = emptyList(),
             defaults = MaestroDeviceConfiguration.Web(
                 deviceModel = "chromium",
                 deviceOs = "default",
