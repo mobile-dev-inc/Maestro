@@ -23,7 +23,7 @@ sealed class MaestroDeviceConfiguration {
         override val platform = Platform.ANDROID
         override val deviceName = "Maestro_ANDROID_${deviceModel}_${deviceOs}"
         val tag = "google_apis"
-        val emulatorImage = "system-images;android-$deviceOs;$tag;${cpuArchitecture.value}"
+        val emulatorImage = "system-images;$deviceOs;$tag;${cpuArchitecture.value}"
     }
 
     data class Ios(
@@ -84,7 +84,7 @@ object DeviceCatalog {
         return when (platform) {
             Platform.ANDROID -> {
                 val defaults = cloudDevice().android.defaults
-                val config = MaestroDeviceConfiguration.Android(
+                MaestroDeviceConfiguration.Android(
                     deviceModel = model ?: defaults.deviceModel,
                     deviceOs = os ?: defaults.deviceOs,
                     locale = DeviceLocale.fromString(locale ?: defaults.locale, platform),
@@ -93,29 +93,23 @@ object DeviceCatalog {
                     snapshotKeyHonorModalViews = defaults.snapshotKeyHonorModalViews,
                     cpuArchitecture = systemArchitecture ?: EnvUtils.getMacOSArchitecture()
                 )
-                checkCloudCompatibility(config)
-                config
             }
             Platform.IOS -> {
                 val defaults = cloudDevice().ios.defaults
-                val config = MaestroDeviceConfiguration.Ios(
+                MaestroDeviceConfiguration.Ios(
                     deviceModel = model ?: defaults.deviceModel,
                     deviceOs = os ?: defaults.deviceOs,
                     locale = DeviceLocale.fromString(locale ?: defaults.locale, platform),
                     orientation = orientation ?: DEFAULT_ORIENTATION,
                     disableAnimations = defaults.disableAnimations,
                 )
-                checkCloudCompatibility(config)
-                config
             }
             Platform.WEB -> {
                 val defaults = cloudDevice().web.defaults
-                val config = MaestroDeviceConfiguration.Web(
+                MaestroDeviceConfiguration.Web(
                     deviceModel = model ?: defaults.deviceModel,
                     deviceOs = os ?: defaults.deviceOs,
                 )
-                checkCloudCompatibility(config)
-                config
             }
         }
     }
