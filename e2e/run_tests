@@ -16,9 +16,9 @@ _h3() { printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"; }
 cloud="android_device_configuration,ios_device_configuration"
 platform="${1:-}"
 case "$platform" in
-	android) exclude_tags="ios,ai,web,$cloud" ;;
-	ios)     exclude_tags="android,ai,$cloud,web" ;;
-	web)     exclude_tags="android,ios,$cloud,ai" ;;
+	android) exclude_tags="ios,web,$cloud" ;;
+	ios)     exclude_tags="android,$cloud,web" ;;
+	web)     exclude_tags="android,ios,$cloud" ;;
 	*)       echo "usage: $0 <android|ios|web>"; exit 1 ;;
 esac
 
