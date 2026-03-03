@@ -1,49 +1,48 @@
 package maestro.device
 
 import maestro.DeviceOrientation
+import maestro.device.util.CPU_ARCHITECTURE
+import maestro.device.util.EnvUtils
 import maestro.locale.DeviceLocale
 
 sealed class MaestroDeviceConfiguration {
     abstract val platform: Platform
-    abstract fun generateDeviceName(shardIndex: Int? = null): String
+    abstract val deviceModel: String
+    abstract val deviceOs: String
+    abstract val deviceName: String
 
     data class Android(
-        val deviceModel: String,
-        val emulatorImage: String,
+        override val deviceModel: String,
+        override val deviceOs: String,
         val locale: DeviceLocale,
         val orientation: DeviceOrientation,
         val disableAnimations: Boolean,
         val snapshotKeyHonorModalViews: Boolean,
+        val cpuArchitecture: CPU_ARCHITECTURE,
     ) : MaestroDeviceConfiguration() {
         override val platform = Platform.ANDROID
-        override fun generateDeviceName(shardIndex: Int?): String {
-            val baseName = "Maestro_ANDROID_${deviceModel}_${emulatorImage}"
-            return if (shardIndex != null) "${baseName}_${shardIndex + 1}" else baseName
-        }
+        override val deviceName = "Maestro_ANDROID_${deviceModel}_${deviceOs}"
+        val tag = "google_apis"
+        val emulatorImage = "system-images;android-$deviceOs;$tag;${cpuArchitecture.value}"
     }
 
     data class Ios(
-        val deviceModel: String,
-        val deviceOs: String,
+        override val deviceModel: String,
+        override val deviceOs: String,
         val locale: DeviceLocale,
         val orientation: DeviceOrientation,
         val disableAnimations: Boolean,
     ) : MaestroDeviceConfiguration() {
         override val platform = Platform.IOS
-        override fun generateDeviceName(shardIndex: Int?): String {
-            val baseName = "Maestro_IOS_${deviceModel}_${deviceOs}"
-            return if (shardIndex != null) "${baseName}_${shardIndex + 1}" else baseName
-        }
+        override val deviceName = "Maestro_IOS_${deviceModel}_${deviceOs}"
     }
 
     data class Web(
-        val browser: String,
+      override val deviceModel: String,
+      override val deviceOs: String
     ) : MaestroDeviceConfiguration() {
         override val platform = Platform.WEB
-        override fun generateDeviceName(shardIndex: Int?): String {
-            val baseName = "Maestro_WEB_${browser}"
-            return if (shardIndex != null) "${baseName}_${shardIndex + 1}" else baseName
-        }
+        override val deviceName = "Maestro_WEB_${deviceModel}_${deviceOs}"
     }
 }
 
@@ -80,17 +79,19 @@ object DeviceCatalog {
         os: String? = null,
         locale: String? = null,
         orientation: DeviceOrientation? = null,
+        systemArchitecture: CPU_ARCHITECTURE? = null,
     ): MaestroDeviceConfiguration {
         return when (platform) {
             Platform.ANDROID -> {
                 val defaults = cloudDevice().android.defaults
                 val config = MaestroDeviceConfiguration.Android(
                     deviceModel = model ?: defaults.deviceModel,
-                    emulatorImage = os ?: defaults.deviceOs,
+                    deviceOs = os ?: defaults.deviceOs,
                     locale = DeviceLocale.fromString(locale ?: defaults.locale, platform),
                     orientation = orientation ?: DEFAULT_ORIENTATION,
                     disableAnimations = defaults.disableAnimations,
                     snapshotKeyHonorModalViews = defaults.snapshotKeyHonorModalViews,
+                    cpuArchitecture = systemArchitecture ?: EnvUtils.getMacOSArchitecture()
                 )
                 checkCloudCompatibility(config)
                 config
@@ -110,7 +111,8 @@ object DeviceCatalog {
             Platform.WEB -> {
                 val defaults = cloudDevice().web.defaults
                 val config = MaestroDeviceConfiguration.Web(
-                    browser = model ?: defaults.deviceModel,
+                    deviceModel = model ?: defaults.deviceModel,
+                    deviceOs = os ?: defaults.deviceOs,
                 )
                 checkCloudCompatibility(config)
                 config
@@ -120,27 +122,21 @@ object DeviceCatalog {
 
     private fun checkCloudCompatibility(config: MaestroDeviceConfiguration) {
         val combinations = platformCloudDeviceData(config.platform).deviceCombinations
-        val (model, os) = when (config) {
-            is MaestroDeviceConfiguration.Android -> config.deviceModel to config.emulatorImage
-            is MaestroDeviceConfiguration.Ios     -> config.deviceModel to config.deviceOs
-            is MaestroDeviceConfiguration.Web     ->
-                config.browser to (combinations.firstOrNull { it.deviceModel == config.browser }?.deviceOs ?: "")
-        }
 
         val modelsForPlatform = combinations.map { it.deviceModel }.distinct()
-        if (model !in modelsForPlatform) {
+        if (config.deviceModel !in modelsForPlatform) {
             throw CloudCompatibilityException(
                 config,
-                "Model '$model' is not available in the cloud. Available models: $modelsForPlatform"
+                "Model '${config.deviceModel}' is not available in the cloud. Available models: $modelsForPlatform"
             )
         }
 
-        val matchExists = combinations.any { it.deviceModel == model && it.deviceOs == os }
+        val matchExists = combinations.any { it.deviceModel == config.deviceModel && it.deviceOs == config.deviceOs }
         if (!matchExists) {
-            val supportedVersions = combinations.filter { it.deviceModel == model }.map { it.deviceOs }
+            val supportedVersions = combinations.filter { it.deviceModel == config.deviceModel }.map { it.deviceOs }
             throw CloudCompatibilityException(
                 config,
-                "OS version $os is not supported for '$model' in the cloud. Supported versions: $supportedVersions"
+                "OS version ${config.deviceOs} is not supported for '${config.deviceModel}' in the cloud. Supported versions: $supportedVersions"
             )
         }
     }
