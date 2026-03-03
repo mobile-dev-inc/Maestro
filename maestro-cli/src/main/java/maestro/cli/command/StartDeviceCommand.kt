@@ -74,10 +74,6 @@ class StartDeviceCommand : Callable<Int> {
                 os = osVersion,
                 locale = deviceLocale,
             )
-        } catch (e: CloudCompatibilityException) {
-            // Local execution — warn but proceed with the resolved config
-            PrintUtils.warn(e.message.toString())
-            e.config
         } catch (e: Exception) {
             throw CliError(e.message.toString())
         }
