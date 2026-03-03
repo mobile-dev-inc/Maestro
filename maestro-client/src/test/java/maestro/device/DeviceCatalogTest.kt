@@ -1,7 +1,8 @@
 package maestro.device
 
 import com.google.common.truth.Truth.assertThat
-import maestro.device.locale.LocaleValidationException
+import maestro.DeviceOrientation
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
