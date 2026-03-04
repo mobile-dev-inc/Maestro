@@ -924,7 +924,8 @@ data class YamlFluentCommand(
                 selector.checked != null ||
                 selector.focused != null ||
                 selector.childOf != null ||
-                selector.css != null
+                selector.css != null ||
+                selector.displayId != null
     }
 
     private fun toElementSelector(selector: YamlElementSelector): ElementSelector {
@@ -959,6 +960,7 @@ data class YamlFluentCommand(
             focused = selector.focused,
             childOf = selector.childOf?.let { toElementSelector(it) },
             css = selector.css,
+            displayId = selector.displayId,
         )
     }
 

@@ -131,13 +131,13 @@ class IOSDriver(
         }
     }
 
-    override fun tap(point: Point) {
+    override fun tap(point: Point, displayId: Int?) {
         metrics.measured("operation", mapOf("command" to "tap")) {
             runDeviceCall("tap") { iosDevice.tap(point.x, point.y) }
         }
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, displayId: Int?) {
         metrics.measured("operation", mapOf("command" to "longPress")) {
             runDeviceCall("longPress") { iosDevice.longPress(point.x, point.y, 3000) }
         }

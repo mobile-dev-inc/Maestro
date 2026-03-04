@@ -1193,8 +1193,9 @@ class Orchestra(
         // Handle element-relative tap if specified
         val relativePoint = command.relativePoint
         if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
-                  
+            val displayId = result.element.treeNode.attributes["display-id"]?.toIntOrNull()
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
+
             maestro.tap(
                 x = tapPoint.x,
                 y = tapPoint.y,
@@ -1202,6 +1203,7 @@ class Orchestra(
                 longPress = command.longPress ?: false,
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+                displayId = displayId,
             )
         } else {
             // Default behavior: tap at element center
@@ -1479,6 +1481,12 @@ class Orchestra(
             ?.let {
                 descriptions += "CSS: $it"
                 basicFilters += Filters.css(maestro, it)
+            }
+
+        selector.displayId
+            ?.let {
+                descriptions += "Display: $it"
+                basicFilters += Filters.displayId(it)
             }
 
         // Apply deepestMatchingElement only to basic filters, then intersect with relative filters

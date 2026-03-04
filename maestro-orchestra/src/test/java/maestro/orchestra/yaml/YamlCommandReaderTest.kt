@@ -781,6 +781,19 @@ internal class YamlCommandReaderTest {
     }
 
 
+    @Test
+    fun displayId(
+        @YamlFile("031_displayId.yaml") commands: List<Command>
+    ) {
+        val tapCommand = commands[1] as TapOnElementCommand
+        assertThat(tapCommand.selector.textRegex).isEqualTo("Pay Now")
+        assertThat(tapCommand.selector.displayId).isEqualTo(1)
+
+        val assertCommand = commands[2] as AssertConditionCommand
+        assertThat(assertCommand.condition.visible?.idRegex).isEqualTo("welcome_text")
+        assertThat(assertCommand.condition.visible?.displayId).isEqualTo(0)
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }

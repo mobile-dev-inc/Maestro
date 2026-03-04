@@ -45,9 +45,9 @@ interface Driver {
 
     fun clearKeychain()
 
-    fun tap(point: Point)
+    fun tap(point: Point, displayId: Int? = null)
 
-    fun longPress(point: Point)
+    fun longPress(point: Point, displayId: Int? = null)
 
     fun pressKey(code: KeyCode)
 

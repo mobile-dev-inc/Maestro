@@ -184,6 +184,8 @@ class Maestro(
     ) {
         LOGGER.info("Tapping on element: ${tapRepeat ?: ""} $element")
 
+        val displayId = element.treeNode.attributes["display-id"]?.toIntOrNull()
+
         val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs) ?: initialHierarchy
 
         val center = (
@@ -201,7 +203,8 @@ class Maestro(
             longPress = longPress,
             initialHierarchy = hierarchyBeforeTap,
             tapRepeat = tapRepeat,
-            waitToSettleTimeoutMs = waitToSettleTimeoutMs
+            waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+            displayId = displayId
         )
 
         if (waitUntilVisible) {
@@ -253,7 +256,8 @@ class Maestro(
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
-        waitToSettleTimeoutMs: Int? = null
+        waitToSettleTimeoutMs: Int? = null,
+        displayId: Int? = null
     ) {
         performTap(
             x = x,
@@ -261,7 +265,8 @@ class Maestro(
             retryIfNoChange = retryIfNoChange,
             longPress = longPress,
             tapRepeat = tapRepeat,
-            waitToSettleTimeoutMs = waitToSettleTimeoutMs
+            waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+            displayId = displayId
         )
     }
 
@@ -276,14 +281,15 @@ class Maestro(
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
-        waitToSettleTimeoutMs: Int? = null
+        waitToSettleTimeoutMs: Int? = null,
+        displayId: Int? = null
     ) {
         val capabilities = driver.capabilities()
 
         if (Capability.FAST_HIERARCHY in capabilities) {
-            hierarchyBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
+            hierarchyBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs, displayId)
         } else {
-            screenshotBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
+            screenshotBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs, displayId)
         }
     }
 
@@ -294,7 +300,8 @@ class Maestro(
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
-        waitToSettleTimeoutMs: Int? = null
+        waitToSettleTimeoutMs: Int? = null,
+        displayId: Int? = null
     ) {
         LOGGER.info("Tapping at ($x, $y) using hierarchy based logic for wait")
 
@@ -303,17 +310,17 @@ class Maestro(
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             if (longPress) {
-                driver.longPress(Point(x, y))
+                driver.longPress(Point(x, y), displayId)
             } else if (tapRepeat != null) {
                 for (i in 0 until tapRepeat.repeat) {
 
                     // subtract execution duration from tap delay
-                    val duration = measureTimeMillis { driver.tap(Point(x, y)) }
+                    val duration = measureTimeMillis { driver.tap(Point(x, y), displayId) }
                     val delay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
 
                     if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
                 }
-            } else driver.tap(Point(x, y))
+            } else driver.tap(Point(x, y), displayId)
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
             if (hierarchyAfterTap == null || hierarchyBeforeTap != hierarchyAfterTap) {
@@ -330,7 +337,8 @@ class Maestro(
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
-        waitToSettleTimeoutMs: Int? = null
+        waitToSettleTimeoutMs: Int? = null,
+        displayId: Int? = null
     ) {
         LOGGER.info("Try tapping at ($x, $y) using hierarchy based logic for wait")
 
@@ -340,18 +348,18 @@ class Maestro(
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             if (longPress) {
-                driver.longPress(Point(x, y))
+                driver.longPress(Point(x, y), displayId)
             } else if (tapRepeat != null) {
                 for (i in 0 until tapRepeat.repeat) {
 
                     // subtract execution duration from tap delay
-                    val duration = measureTimeMillis { driver.tap(Point(x, y)) }
+                    val duration = measureTimeMillis { driver.tap(Point(x, y), displayId) }
                     val delay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
 
                     if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
                 }
             } else {
-                driver.tap(Point(x, y))
+                driver.tap(Point(x, y), displayId)
             }
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
