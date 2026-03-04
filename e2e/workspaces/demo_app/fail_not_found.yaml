@@ -1,8 +1,0 @@
-appId: com.example.example
-tags:
-    - failing
----
-- launchApp:
-    clearState: true
-- tapOn:
-    id: non-existent-id

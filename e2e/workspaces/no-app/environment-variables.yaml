@@ -1,6 +1,0 @@
-appId: com.example.notused
-tags:
-  - passing
----
-# Relies on MAESTRO_EXAMPLE being set in the environment
-- assertTrue: ${MAESTRO_EXAMPLE == 'test-value'}
