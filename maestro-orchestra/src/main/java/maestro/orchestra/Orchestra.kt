@@ -1550,6 +1550,28 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
+            command.startPointStr != null && command.endPointStr != null -> {
+                val startStr = command.startPointStr!!
+                val endStr = command.endPointStr!!
+                if (startStr.contains("%") || endStr.contains("%")) {
+                    maestro.swipe(
+                        startRelative = startStr,
+                        endRelative = endStr,
+                        duration = command.duration,
+                        waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                    )
+                } else {
+                    val startPoints = startStr.split(",").map { it.trim().toInt() }
+                    val endPoints = endStr.split(",").map { it.trim().toInt() }
+                    maestro.swipe(
+                        startPoint = Point(startPoints[0], startPoints[1]),
+                        endPoint = Point(endPoints[0], endPoints[1]),
+                        duration = command.duration,
+                        waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                    )
+                }
+            }
+
             else -> error("Illegal arguments for swiping")
         }
         return true
