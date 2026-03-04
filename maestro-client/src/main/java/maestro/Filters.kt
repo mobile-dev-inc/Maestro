@@ -270,6 +270,12 @@ object Filters {
         }
     }
 
+    fun displayId(expected: Int): ElementFilter {
+        return { nodes ->
+            nodes.filter { it.attributes["display-id"]?.toIntOrNull() == expected }
+        }
+    }
+
     fun deepestMatchingElement(filter: ElementFilter): ElementFilter {
         return { nodes ->
             nodes.flatMap { node ->

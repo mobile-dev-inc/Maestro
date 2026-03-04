@@ -3,12 +3,15 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.graphics.Rect
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.SparseArray
 import android.util.Xml
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.GridLayout
 import android.widget.GridView
 import android.widget.ListView
@@ -31,19 +34,6 @@ object ViewHierarchy {
         out: OutputStream,
         toastNode: AccessibilityNodeInfo? = null
     ) {
-        val windowManager = InstrumentationRegistry.getInstrumentation()
-            .context
-            .getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
-        val displayRect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windowManager.currentWindowMetrics.bounds
-        } else {
-            val displayMetrics = DisplayMetrics()
-            windowManager.defaultDisplay.getRealMetrics(displayMetrics)
-            Rect(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
-        }
-
-
         val serializer = Xml.newSerializer()
         serializer.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output", true)
         serializer.setOutput(out, "UTF-8")
@@ -51,7 +41,51 @@ object ViewHierarchy {
         serializer.startTag("", "hierarchy")
         serializer.attribute("", "rotation", Integer.toString(device.displayRotation))
 
-        val roots = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            dumpAllDisplays(uiAutomation, serializer)
+        } else {
+            val displayRect = getDefaultDisplayRect()
+            val roots = getWindowRoots(device, uiAutomation)
+            roots.forEach {
+                dumpNodeRec(it, serializer, 0, displayRect)
+            }
+        }
+
+        val defaultDisplayRect = getDefaultDisplayRect()
+        addToastNode(toastNode, serializer, defaultDisplayRect)
+
+        serializer.endTag("", "hierarchy")
+        serializer.endDocument()
+    }
+
+    private fun getDefaultDisplayRect(): Rect {
+        val windowManager = InstrumentationRegistry.getInstrumentation()
+            .context
+            .getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.bounds
+        } else {
+            val displayMetrics = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+            Rect(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
+        }
+    }
+
+    private fun getDisplayRect(displayManager: DisplayManager, displayId: Int): Rect {
+        val display = displayManager.getDisplay(displayId) ?: return getDefaultDisplayRect()
+        val displayMetrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        display.getRealMetrics(displayMetrics)
+        return Rect(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
+    }
+
+    private fun getWindowRoots(
+        device: UiDevice,
+        uiAutomation: UiAutomation
+    ): List<AccessibilityNodeInfo> {
+        return try {
             device.javaClass
                 .getDeclaredMethod("getWindowRoots")
                 .apply {
@@ -63,23 +97,36 @@ object ViewHierarchy {
                 }
                 .toList()
         } catch (e: Exception) {
-            // Falling back to a public method if reflection fails
             Log.e(LOGTAG, "Unable to call getWindowRoots", e)
             listOf(uiAutomation.rootInActiveWindow)
         }
+    }
 
-        roots.forEach {
-            dumpNodeRec(
-                it,
-                serializer,
-                0,
-                displayRect
-            )
+    @Suppress("NewApi")
+    private fun dumpAllDisplays(
+        uiAutomation: UiAutomation,
+        serializer: XmlSerializer
+    ) {
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+
+        val windowsOnAllDisplays: SparseArray<List<AccessibilityWindowInfo>> = try {
+            uiAutomation.windowsOnAllDisplays
+        } catch (e: Exception) {
+            Log.e(LOGTAG, "Unable to get windowsOnAllDisplays", e)
+            SparseArray()
         }
-        addToastNode(toastNode, serializer, displayRect)
 
-        serializer.endTag("", "hierarchy")
-        serializer.endDocument()
+        for (i in 0 until windowsOnAllDisplays.size()) {
+            val displayId = windowsOnAllDisplays.keyAt(i)
+            val windows = windowsOnAllDisplays.valueAt(i)
+            val displayRect = getDisplayRect(displayManager, displayId)
+
+            for (window in windows) {
+                val root = window.root ?: continue
+                dumpNodeRec(root, serializer, 0, displayRect, displayId = displayId)
+            }
+        }
     }
 
     private fun addToastNode(
@@ -115,6 +162,7 @@ object ViewHierarchy {
         index: Int,
         displayRect: Rect,
         insideWebView: Boolean = false,
+        displayId: Int? = null,
     ) {
         serializer.startTag("", "node")
         if (!nafExcludedClass(node) && !nafCheck(node)) {
@@ -144,6 +192,9 @@ object ViewHierarchy {
         serializer.attribute(
             "", "bounds", getVisibleBoundsInScreen(node, displayRect)?.toShortString()
         )
+        displayId?.let {
+            serializer.attribute("", "display-id", it.toString())
+        }
         val count = node.childCount
         for (i in 0 until count) {
             val child = node.getChild(i)
@@ -156,7 +207,8 @@ object ViewHierarchy {
                         child,
                         serializer, i,
                         displayRect,
-                        insideWebView || child.className == "android.webkit.WebView"
+                        insideWebView || child.className == "android.webkit.WebView",
+                        displayId
                     )
                     child.recycle()
                 } else {

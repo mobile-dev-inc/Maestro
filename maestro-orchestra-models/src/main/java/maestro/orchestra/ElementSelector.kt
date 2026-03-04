@@ -42,6 +42,7 @@ data class ElementSelector(
     val focused: Boolean? = null,
     val childOf: ElementSelector? = null,
     val css: String? = null,
+    val displayId: Int? = null,
 ) {
 
     data class SizeSelector(
@@ -148,6 +149,10 @@ data class ElementSelector(
 
         css?.let {
             descriptions.add("CSS: $it")
+        }
+
+        displayId?.let {
+            descriptions.add("Display: $it")
         }
 
         return descriptions.joinToString(", ")

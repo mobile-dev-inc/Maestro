@@ -41,6 +41,44 @@ class FiltersTest {
         assertThat(result).isEmpty()
     }
 
+    @Test
+    fun `displayId matches correct display`() {
+        val nodes = listOf(
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(0, 0), "display-id" to "0")),
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(10, 10), "display-id" to "1")),
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(20, 20), "display-id" to "0")),
+        )
+
+        val result = Filters.displayId(1)(nodes)
+
+        assertThat(result).containsExactly(nodes[1])
+    }
+
+    @Test
+    fun `displayId returns empty on mismatch`() {
+        val nodes = listOf(
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(0, 0), "display-id" to "0")),
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(10, 10), "display-id" to "0")),
+        )
+
+        val result = Filters.displayId(2)(nodes)
+
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `displayId handles nodes without display-id attribute`() {
+        val nodes = listOf(
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(0, 0))),
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(10, 10), "display-id" to "1")),
+            TreeNode(attributes = mutableMapOf("bounds" to bounds(20, 20))),
+        )
+
+        val result = Filters.displayId(1)(nodes)
+
+        assertThat(result).containsExactly(nodes[1])
+    }
+
     private fun sampleNodes(): List<TreeNode> {
         return listOf(
             node(bounds(0, 0)),

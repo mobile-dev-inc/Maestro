@@ -297,7 +297,7 @@ class WebDriver(
         // Do nothing
     }
 
-    override fun tap(point: Point) {
+    override fun tap(point: Point, displayId: Int?) {
         val driver = ensureOpen()
 
         if (point.x >= SYNTHETIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETIC_COORDINATE_SPACE_OFFSET) {
@@ -340,7 +340,7 @@ class WebDriver(
         executeJS("window.maestro.tapOnSyntheticElement(${point.x}, ${point.y})")
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, displayId: Int?) {
         val driver = ensureOpen()
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
