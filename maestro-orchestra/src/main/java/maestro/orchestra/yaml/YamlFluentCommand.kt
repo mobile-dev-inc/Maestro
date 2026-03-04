@@ -255,10 +255,11 @@ data class YamlFluentCommand(
             )
 
             extractComponentWithAI != null -> {
+                val resolvedImagePath = resolveComponentImagePath(flowPath, extractComponentWithAI.image)
                 listOf(
                     MaestroCommand(
                         ExtractComponentWithAICommand(
-                            imagePath = extractComponentWithAI.image,
+                            imagePath = resolvedImagePath,
                             outputVariable = extractComponentWithAI.outputVariable,
                             optional = extractComponentWithAI.optional,
                             label = extractComponentWithAI.label,
@@ -748,6 +749,18 @@ data class YamlFluentCommand(
             throw InvalidFlowFile("Flow file can't be a directory: ${resolvedPath.toUri()}", resolvedPath)
         }
         return resolvedPath
+    }
+
+    private fun resolveComponentImagePath(flowPath: Path, imagePath: String): String {
+        val path = flowPath.fileSystem.getPath(imagePath)
+        if (path.isAbsolute) {
+            return path.toString()
+        }
+        // Derive app root from flow path (e.g., /Users/.../StudioProjects/app/packages/... -> /Users/.../StudioProjects/app)
+        val flowPathStr = flowPath.toString()
+        val appRootPrefix = flowPathStr.split("/app/")[0]
+        val resolvedPath = flowPath.fileSystem.getPath("$appRootPrefix/app/$imagePath")
+        return resolvedPath.toString()
     }
 
     private fun extendedWait(command: YamlExtendedWaitUntil): MaestroCommand {
