@@ -1,0 +1,9 @@
+appId: com.example.app
+---
+- swipe:
+    start: ${output.startPoint}
+    end: 50%,12%
+    duration: 3000
+- swipe:
+    start: ${output.startPoint}
+    end: ${output.endPoint}
