@@ -28,8 +28,12 @@ data class DeviceInfo(
 )
 
 fun xcuitest.api.DeviceInfo.toCommonDeviceInfo(): DeviceInfo {
+    val platform = when (platform?.uppercase()) {
+        "TVOS" -> Platform.TVOS
+        else -> Platform.IOS
+    }
     return DeviceInfo(
-        platform = Platform.IOS,
+        platform = platform,
         widthPixels = widthPixels,
         heightPixels = heightPixels,
         widthGrid = widthPoints,

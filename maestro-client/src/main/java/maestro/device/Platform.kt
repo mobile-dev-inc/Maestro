@@ -3,6 +3,7 @@ package maestro.device
 enum class Platform(val description: String) {
     ANDROID("Android"),
     IOS("iOS"),
+    TVOS("tvOS"),
     WEB("Web");
 
     companion object {

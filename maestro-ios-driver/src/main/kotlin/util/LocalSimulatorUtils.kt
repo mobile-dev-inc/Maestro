@@ -23,6 +23,22 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     companion object {
         private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+        private val logger = LoggerFactory.getLogger(LocalSimulatorUtils::class.java)
+
+        fun isTV(deviceId: String): Boolean {
+            val list = LocalSimulatorUtils(TempFileHandler()).list()
+            for (entry in list.devices.entries) {
+                for (device in entry.value) {
+                    if (device.udid != deviceId) continue
+                    if (device.deviceTypeIdentifier == null) continue
+                    if (device.deviceTypeIdentifier.contains("Apple-TV")) {
+                        logger.trace("Device is an Apple TV")
+                        return true
+                    }
+                }
+            }
+            return false
+        }
     }
 
     private val homedir = System.getProperty("user.home")

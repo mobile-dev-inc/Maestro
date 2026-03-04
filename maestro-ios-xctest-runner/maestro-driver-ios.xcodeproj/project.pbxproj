@@ -17,12 +17,9 @@
 		32ECCB28298044C200A1A0A0 /* TouchRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */; };
 		39F002647AA68C9B8DC39E61 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF897D5D1CB7C6C46344E543 /* Foundation.framework */; };
 		52047F782A7A638E00BF982D /* StatusHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52047F772A7A638E00BF982D /* StatusHandler.swift */; };
-		52049BD72935039F00807AA3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD62935039F00807AA3 /* AppDelegate.swift */; };
-		52049BD92935039F00807AA3 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BD82935039F00807AA3 /* SceneDelegate.swift */; };
-		52049BDB2935039F00807AA3 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BDA2935039F00807AA3 /* ViewController.swift */; };
-		52049BDE2935039F00807AA3 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52049BDC2935039F00807AA3 /* Main.storyboard */; };
+		52049BE7293503A300807AA3 /* MaestroDriverApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BE5293503A300807AA3 /* MaestroDriverApp.swift */; };
+		52049BE8293503A300807AA3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BE6293503A300807AA3 /* ContentView.swift */; };
 		52049BE0293503A200807AA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 52049BDF293503A200807AA3 /* Assets.xcassets */; };
-		52049BE3293503A200807AA3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52049BE1293503A200807AA3 /* LaunchScreen.storyboard */; };
 		52049BF8293503A200807AA3 /* maestro_driver_iosUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */; };
 		521C1F032D8014410024EE42 /* AXClientProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F022D8014340024EE42 /* AXClientProxy.h */; };
 		521C1F052D8016950024EE42 /* XCAccessibilityElement.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F042D8016950024EE42 /* XCAccessibilityElement.h */; };
@@ -110,6 +107,97 @@
 		BBBB000C2DF24A000000000C /* AXFrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00192DF24A0000000019 /* AXFrameTests.swift */; };
 		C2DB03C0028C821C6F580B2C /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
 		D2244FD4EDCE31D1BAFD0549 /* SnapshotParametersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69198CA2D2E1AAFBD06FEB38 /* SnapshotParametersTests.swift */; };
+		D9D3F0D02F49FCBC004A960A /* MaestroDriverApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BE5293503A300807AA3 /* MaestroDriverApp.swift */; };
+		D9D3F0D12F49FCBC004A960A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BE6293503A300807AA3 /* ContentView.swift */; };
+		D9D3F0512F49FCBC004A960A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 52049BDF293503A200807AA3 /* Assets.xcassets */; };
+		D9D3F0602F49FD9C004A960A /* XCUICoordinate.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA802D6DCC600015FAB3 /* XCUICoordinate.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0612F49FD9C004A960A /* XCUIApplicationImpl.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA7E2D6DCC600015FAB3 /* XCUIApplicationImpl.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0622F49FD9C004A960A /* XCUIApplication+FBQuiescence.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FAB22D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.h */; };
+		D9D3F0632F49FD9C004A960A /* XCUIApplicationProcess.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA7F2D6DCC600015FAB3 /* XCUIApplicationProcess.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0642F49FD9C004A960A /* XCUIDevice.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA812D6DCC600015FAB3 /* XCUIDevice.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0652F49FD9C004A960A /* XCUIApplication.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA7D2D6DCC600015FAB3 /* XCUIApplication.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0662F49FD9C004A960A /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */ = {isa = PBXBuildFile; fileRef = 526111772DE5E8D0007C356B /* XCAXClient_iOS+FBSnapshotReqParams.h */; };
+		D9D3F0672F49FD9C004A960A /* XCUIApplication+Helper.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F082D80184D0024EE42 /* XCUIApplication+Helper.h */; };
+		D9D3F0682F49FD9C004A960A /* _XCTestImplementation.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA2D2D6DCC600015FAB3 /* _XCTestImplementation.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0692F49FD9C004A960A /* FBLogger.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FAAA2D6DD3A20015FAB3 /* FBLogger.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F06A2F49FD9C004A960A /* XCTestManager_ManagerInterface-Protocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA622D6DCC600015FAB3 /* XCTestManager_ManagerInterface-Protocol.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F06B2F49FD9C004A960A /* FBConfiguration.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FAAE2D6DD4100015FAB3 /* FBConfiguration.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F06C2F49FD9C004A960A /* XCAXClient_iOS.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA402D6DCC600015FAB3 /* XCAXClient_iOS.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F06D2F49FD9C004A960A /* XCTestDaemonsProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F0D2D8051890024EE42 /* XCTestDaemonsProxy.h */; };
+		D9D3F06E2F49FD9C004A960A /* XCAccessibilityElement.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F042D8016950024EE42 /* XCAccessibilityElement.h */; };
+		D9D3F06F2F49FD9C004A960A /* CDStructures.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA332D6DCC600015FAB3 /* CDStructures.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D9D3F0702F49FD9C004A960A /* maestro-driver-iosUITests-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA922D6DCF2C0015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h */; };
+		D9D3F0712F49FD9C004A960A /* XCUIApplicationProcess+FBQuiescence.h in Headers */ = {isa = PBXBuildFile; fileRef = 52D8FA9B2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.h */; };
+		D9D3F0722F49FD9C004A960A /* AXClientProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = 521C1F022D8014340024EE42 /* AXClientProxy.h */; };
+		D9D3F0742F49FD9C004A960A /* ViewHierarchyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58F82A45B5DA00B4BBEB /* ViewHierarchyHandler.swift */; };
+		D9D3F0752F49FD9C004A960A /* KeyboardHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B22B3C26DF00C6471A /* KeyboardHandlerRequest.swift */; };
+		D9D3F0762F49FD9C004A960A /* RunnerDaemonProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE4112984114B003C2BE0 /* RunnerDaemonProxy.swift */; };
+		D9D3F0772F49FD9C004A960A /* PressButtonHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEA29C863BB005D1FC5 /* PressButtonHandler.swift */; };
+		D9D3F0782F49FD9C004A960A /* SystemPermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94826F4329DB082100795E9B /* SystemPermissionHelper.swift */; };
+		D9D3F0792F49FD9C004A960A /* FBLogger.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FAAB2D6DD3A20015FAB3 /* FBLogger.m */; };
+		D9D3F07A2F49FD9C004A960A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329F2A4DA72F00F5F619 /* Logger.swift */; };
+		D9D3F07B2F49FD9C004A960A /* TerminateAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F132D86D3840024EE42 /* TerminateAppRequest.swift */; };
+		D9D3F07C2F49FD9C004A960A /* GetRunningAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9407362D2940CA1600A72E99 /* GetRunningAppRequest.swift */; };
+		D9D3F07D2F49FD9C004A960A /* AXClientProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F062D8017460024EE42 /* AXClientProxy.m */; };
+		D9D3F07E2F49FD9C004A960A /* EraseTextHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEC29C88926005D1FC5 /* EraseTextHandler.swift */; };
+		D9D3F07F2F49FD9C004A960A /* TouchRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB252980449200A1A0A0 /* TouchRequest.swift */; };
+		D9D3F0802F49FD9C004A960A /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
+		D9D3F0812F49FD9C004A960A /* StatusResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F33A932AE6823100692902 /* StatusResponse.swift */; };
+		D9D3F0822F49FD9C004A960A /* LaunchAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73D2D7A631400545435 /* LaunchAppRequest.swift */; };
+		D9D3F0832F49FD9C004A960A /* LaunchAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A9C73B2D7A62AF00545435 /* LaunchAppHandler.swift */; };
+		D9D3F0842F49FD9C004A960A /* AXClientSwizzler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610D58FA2A49E3CA00B4BBEB /* AXClientSwizzler.swift */; };
+		D9D3F0852F49FD9C004A960A /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F328D3E52A2A98E7000546D3 /* StringExtensions.swift */; };
+		D9D3F0862F49FD9C004A960A /* SetOrientationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8E0ABB2CD562D000E9D439 /* SetOrientationHandler.swift */; };
+		D9D3F0872F49FD9C004A960A /* EraseTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFEE29C8961F005D1FC5 /* EraseTextRequest.swift */; };
+		D9D3F0882F49FD9C004A960A /* XCTestDaemonsProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F0F2D8051F20024EE42 /* XCTestDaemonsProxy.m */; };
+		D9D3F0892F49FD9C004A960A /* SwipeRouteHandlerV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A79B9629DF0B8A00C38882 /* SwipeRouteHandlerV2.swift */; };
+		D9D3F08A2F49FD9C004A960A /* KeyboardHandlerResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B42B3C27F700C6471A /* KeyboardHandlerResponse.swift */; };
+		D9D3F08B2F49FD9C004A960A /* StatusHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52047F772A7A638E00BF982D /* StatusHandler.swift */; };
+		D9D3F08C2F49FD9C004A960A /* SetOrientationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8E0ABD2CD562F200E9D439 /* SetOrientationRequest.swift */; };
+		D9D3F08D2F49FD9C004A960A /* SetPermissionsRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44A29D6F5D8004D8ECF /* SetPermissionsRequest.swift */; };
+		D9D3F08E2F49FD9C004A960A /* KeyModifierFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613E87DE299BE78400FF8551 /* KeyModifierFlags.swift */; };
+		D9D3F08F2F49FD9C004A960A /* TerminateAppHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F112D86CE8A0024EE42 /* TerminateAppHandler.swift */; };
+		D9D3F0902F49FD9C004A960A /* XCUIElement+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */; };
+		D9D3F0912F49FD9C004A960A /* SetPermissionsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945DD44C29D6F73B004D8ECF /* SetPermissionsHandler.swift */; };
+		D9D3F0922F49FD9C004A960A /* PressKeyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE629C7AB0C005D1FC5 /* PressKeyHandler.swift */; };
+		D9D3F0932F49FD9C004A960A /* DeviceInfoHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF029C8C01F005D1FC5 /* DeviceInfoHandler.swift */; };
+		D9D3F0942F49FD9C004A960A /* RunningAppRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9087293F5EAA00C85136 /* RunningAppRouteHandler.swift */; };
+		D9D3F0952F49FD9C004A960A /* PointerEventPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613E87D6299A64BD00FF8551 /* PointerEventPath.swift */; };
+		D9D3F0962F49FD9C004A960A /* ScreenSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */; };
+		D9D3F0972F49FD9C004A960A /* TextInputHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */; };
+		D9D3F0982F49FD9C004A960A /* EventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF629D34FEA005D1FC5 /* EventTarget.swift */; };
+		D9D3F0992F49FD9C004A960A /* EventRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612DE413298426EF003C2BE0 /* EventRecord.swift */; };
+		D9D3F09A2F49FD9C004A960A /* TouchRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */; };
+		D9D3F09B2F49FD9C004A960A /* RouteHandlerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943A9080293F5C2500C85136 /* RouteHandlerFactory.swift */; };
+		D9D3F09C2F49FD9C004A960A /* TimeoutHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941AE8EE2A77D4B20097C02A /* TimeoutHelper.swift */; };
+		D9D3F09D2F49FD9C004A960A /* ViewHierarchyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329B2A4B368100F5F619 /* ViewHierarchyRequest.swift */; };
+		D9D3F09E2F49FD9C004A960A /* PressKeyRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE429C7AAB3005D1FC5 /* PressKeyRequest.swift */; };
+		D9D3F09F2F49FD9C004A960A /* DeviceInfoResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFF229C8C040005D1FC5 /* DeviceInfoResponse.swift */; };
+		D9D3F0A02F49FD9C004A960A /* ScreenDiffHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94256BAC298D39DE00CDB55D /* ScreenDiffHandler.swift */; };
+		D9D3F0A12F49FD9C004A960A /* XCUIApplication+Helper.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F0A2D801A350024EE42 /* XCUIApplication+Helper.m */; };
+		D9D3F0A22F49FD9C004A960A /* XCTestHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */; };
+		D9D3F0A32F49FD9C004A960A /* XCUIApplicationProcess+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FA9C2D6DCFAF0015FAB3 /* XCUIApplicationProcess+FBQuiescence.m */; };
+		D9D3F0A42F49FD9C004A960A /* InputTextRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32097964297092A800340282 /* InputTextRequest.swift */; };
+		D9D3F0A52F49FD9C004A960A /* maestro_driver_iosUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */; };
+		D9D3F0A62F49FD9C004A960A /* FBConfiguration.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FAAF2D6DD4100015FAB3 /* FBConfiguration.m */; };
+		D9D3F0A72F49FD9C004A960A /* PressButtonRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C0AFE829C86378005D1FC5 /* PressButtonRequest.swift */; };
+		D9D3F0A82F49FD9C004A960A /* AXElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6124329D2A4DA5BB00F5F619 /* AXElement.swift */; };
+		D9D3F0A92F49FD9C004A960A /* SwipeRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF72965E2A200FB69BD /* SwipeRouteHandler.swift */; };
+		D9D3F0AA2F49FD9C004A960A /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522785802A54410D008DBC0A /* AppError.swift */; };
+		D9D3F0AB2F49FD9C004A960A /* InputTextRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320979622970925500340282 /* InputTextRouteHandler.swift */; };
+		D9D3F0AC2F49FD9C004A960A /* RunningApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E35D422A654F67001D97A8 /* RunningApp.swift */; };
+		D9D3F0AD2F49FD9C004A960A /* ScreenshotHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9494CBD02982F719009C987C /* ScreenshotHandler.swift */; };
+		D9D3F0AE2F49FD9C004A960A /* SwipeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32762AF92966DC8300FB69BD /* SwipeRequest.swift */; };
+		D9D3F0AF2F49FD9C004A960A /* KeyboardRouteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0B1B02B3C25BC00C6471A /* KeyboardRouteHandler.swift */; };
+		D9D3F0B02F49FD9C004A960A /* XCUIApplication+FBQuiescence.m in Sources */ = {isa = PBXBuildFile; fileRef = 52D8FAB32D6DD54F0015FAB3 /* XCUIApplication+FBQuiescence.m */; };
+		D9D3F0B22F49FD9C004A960A /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 612DE40129801F71003C2BE0 /* XCTest.framework */; };
+		D9D3F0B32F49FD9C004A960A /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = D9D3F05D2F49FD9C004A960A /* FlyingFox */; };
+		D9D3F0B42F49FD9C004A960A /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
+		D9D3F0B72F49FD9C004A960A /* MaestroDriverLib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D9D3F0C02F49FDB5004A960A /* SnapshotParametersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69198CA2D2E1AAFBD06FEB38 /* SnapshotParametersTests.swift */; };
+		D9D3F0C12F49FDB5004A960A /* AXClientProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 521C1F062D8017460024EE42 /* AXClientProxy.m */; };
+		D9D3F0C22F49FDB5004A960A /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
+		D9D3F0C42F49FDB5004A960A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF897D5D1CB7C6C46344E543 /* Foundation.framework */; };
 		F328D3E62A2A98E7000546D3 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F328D3E52A2A98E7000546D3 /* StringExtensions.swift */; };
 /* End PBXBuildFile section */
 
@@ -142,6 +230,27 @@
 			remoteGlobalIDString = BBBB00A02DF24A00000000A0;
 			remoteInfo = MaestroDriverLib;
 		};
+		D9D3F05A2F49FD9C004A960A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 52049BCB2935039F00807AA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 52049BD22935039F00807AA3;
+			remoteInfo = "maestro-driver-ios";
+		};
+		D9D3F05C2F49FD9C004A960A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 52049BCB2935039F00807AA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BBBB00A02DF24A00000000A0;
+			remoteInfo = MaestroDriverLib;
+		};
+		D9D3F0BE2F49FDB5004A960A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 52049BCB2935039F00807AA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 52049BD22935039F00807AA3;
+			remoteInfo = "maestro-driver-ios";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -152,6 +261,17 @@
 			dstSubfolderSpec = 10;
 			files = (
 				BBBB00092DF24A0000000009 /* MaestroDriverLib.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0B62F49FD9C004A960A /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D9D3F0B72F49FD9C004A960A /* MaestroDriverLib.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -169,12 +289,9 @@
 		32ECCB27298044C200A1A0A0 /* TouchRouteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchRouteHandler.swift; sourceTree = "<group>"; };
 		52047F772A7A638E00BF982D /* StatusHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusHandler.swift; sourceTree = "<group>"; };
 		52049BD32935039F00807AA3 /* maestro-driver-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "maestro-driver-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		52049BD62935039F00807AA3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		52049BD82935039F00807AA3 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
-		52049BDA2935039F00807AA3 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		52049BDD2935039F00807AA3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		52049BE5293503A300807AA3 /* MaestroDriverApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaestroDriverApp.swift; sourceTree = "<group>"; };
+		52049BE6293503A300807AA3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		52049BDF293503A200807AA3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		52049BE2293503A200807AA3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		52049BE4293503A200807AA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		52049BF3293503A200807AA3 /* maestro-driver-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52049BF7293503A200807AA3 /* maestro_driver_iosUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = maestro_driver_iosUITests.swift; sourceTree = "<group>"; };
@@ -358,6 +475,9 @@
 		BBBB001A2DF24A000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MaestroDriverLib.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBBB00212DF24A0000000021 /* MaestroDriverLibTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaestroDriverLibTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9D3F0562F49FCBC004A960A /* maestro-driver-tvos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "maestro-driver-tvos.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9D3F0BB2F49FD9C004A960A /* maestro-driver-tvosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-tvosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9D3F0C92F49FDB5004A960A /* maestro-driver-tvosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-tvosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EF8504E3A6C0E75E273B4538 /* maestro-driver-iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "maestro-driver-iosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F328D3E52A2A98E7000546D3 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -403,6 +523,31 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D9D3F04E2F49FCBC004A960A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0B12F49FD9C004A960A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0B22F49FD9C004A960A /* XCTest.framework in Frameworks */,
+				D9D3F0B32F49FD9C004A960A /* FlyingFox in Frameworks */,
+				D9D3F0B42F49FD9C004A960A /* MaestroDriverLib.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0C32F49FDB5004A960A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0C42F49FDB5004A960A /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -421,7 +566,6 @@
 				566C6ED5A08D754A03395D84 /* maestro-driver-iosTests-Bridging-Header.h */,
 				5D711D048386CB50800447DD /* Info.plist */,
 			);
-			name = "maestro-driver-iosTests";
 			path = "maestro-driver-iosTests";
 			sourceTree = "<group>";
 		};
@@ -431,7 +575,7 @@
 				52049BD52935039F00807AA3 /* maestro-driver-ios */,
 				52049BF6293503A200807AA3 /* maestro-driver-iosUITests */,
 				BBBB00402DF24A0000000040 /* MaestroDriverLib */,
-				BBBB00502DF24A0000000050 /* MaestroDriverLibTests */,
+				BBBB00502DF24A0000000050 /* MaestroDriverLib/Tests/MaestroDriverLibTests */,
 				52049BD42935039F00807AA3 /* Products */,
 				5279BFD42935ECE20056C609 /* Frameworks */,
 				1EFA22C0E42B636C243D752D /* maestro-driver-iosTests */,
@@ -446,6 +590,9 @@
 				BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */,
 				BBBB00212DF24A0000000021 /* MaestroDriverLibTests.xctest */,
 				EF8504E3A6C0E75E273B4538 /* maestro-driver-iosTests.xctest */,
+				D9D3F0562F49FCBC004A960A /* maestro-driver-tvos.app */,
+				D9D3F0BB2F49FD9C004A960A /* maestro-driver-tvosUITests.xctest */,
+				D9D3F0C92F49FDB5004A960A /* maestro-driver-tvosTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -453,12 +600,9 @@
 		52049BD52935039F00807AA3 /* maestro-driver-ios */ = {
 			isa = PBXGroup;
 			children = (
-				52049BD62935039F00807AA3 /* AppDelegate.swift */,
-				52049BD82935039F00807AA3 /* SceneDelegate.swift */,
-				52049BDA2935039F00807AA3 /* ViewController.swift */,
-				52049BDC2935039F00807AA3 /* Main.storyboard */,
+				52049BE5293503A300807AA3 /* MaestroDriverApp.swift */,
+				52049BE6293503A300807AA3 /* ContentView.swift */,
 				52049BDF293503A200807AA3 /* Assets.xcassets */,
-				52049BE1293503A200807AA3 /* LaunchScreen.storyboard */,
 				52049BE4293503A200807AA3 /* Info.plist */,
 			);
 			path = "maestro-driver-ios";
@@ -737,13 +881,13 @@
 		BBBB00402DF24A0000000040 /* MaestroDriverLib */ = {
 			isa = PBXGroup;
 			children = (
-				BBBB00412DF24A0000000041 /* MaestroDriverLib */,
+				BBBB00412DF24A0000000041 /* Sources/MaestroDriverLib */,
 				BBBB001A2DF24A000000001A /* Info.plist */,
 			);
 			path = MaestroDriverLib;
 			sourceTree = "<group>";
 		};
-		BBBB00412DF24A0000000041 /* MaestroDriverLib */ = {
+		BBBB00412DF24A0000000041 /* Sources/MaestroDriverLib */ = {
 			isa = PBXGroup;
 			children = (
 				BBBB00422DF24A0000000042 /* Models */,
@@ -772,7 +916,7 @@
 			path = Helpers;
 			sourceTree = "<group>";
 		};
-		BBBB00502DF24A0000000050 /* MaestroDriverLibTests */ = {
+		BBBB00502DF24A0000000050 /* MaestroDriverLib/Tests/MaestroDriverLibTests */ = {
 			isa = PBXGroup;
 			children = (
 				BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */,
@@ -808,6 +952,32 @@
 				52D8FAA22D6DD1580015FAB3 /* maestro-driver-iosUITests-Bridging-Header.h in Headers */,
 				52D8FA9F2D6DD0B50015FAB3 /* XCUIApplicationProcess+FBQuiescence.h in Headers */,
 				521C1F032D8014410024EE42 /* AXClientProxy.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F05F2F49FD9C004A960A /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0602F49FD9C004A960A /* XCUICoordinate.h in Headers */,
+				D9D3F0612F49FD9C004A960A /* XCUIApplicationImpl.h in Headers */,
+				D9D3F0622F49FD9C004A960A /* XCUIApplication+FBQuiescence.h in Headers */,
+				D9D3F0632F49FD9C004A960A /* XCUIApplicationProcess.h in Headers */,
+				D9D3F0642F49FD9C004A960A /* XCUIDevice.h in Headers */,
+				D9D3F0652F49FD9C004A960A /* XCUIApplication.h in Headers */,
+				D9D3F0662F49FD9C004A960A /* XCAXClient_iOS+FBSnapshotReqParams.h in Headers */,
+				D9D3F0672F49FD9C004A960A /* XCUIApplication+Helper.h in Headers */,
+				D9D3F0682F49FD9C004A960A /* _XCTestImplementation.h in Headers */,
+				D9D3F0692F49FD9C004A960A /* FBLogger.h in Headers */,
+				D9D3F06A2F49FD9C004A960A /* XCTestManager_ManagerInterface-Protocol.h in Headers */,
+				D9D3F06B2F49FD9C004A960A /* FBConfiguration.h in Headers */,
+				D9D3F06C2F49FD9C004A960A /* XCAXClient_iOS.h in Headers */,
+				D9D3F06D2F49FD9C004A960A /* XCTestDaemonsProxy.h in Headers */,
+				D9D3F06E2F49FD9C004A960A /* XCAccessibilityElement.h in Headers */,
+				D9D3F06F2F49FD9C004A960A /* CDStructures.h in Headers */,
+				D9D3F0702F49FD9C004A960A /* maestro-driver-iosUITests-Bridging-Header.h in Headers */,
+				D9D3F0712F49FD9C004A960A /* XCUIApplicationProcess+FBQuiescence.h in Headers */,
+				D9D3F0722F49FD9C004A960A /* AXClientProxy.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -906,6 +1076,65 @@
 			productReference = BBBB00212DF24A0000000021 /* MaestroDriverLibTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D9D3F0492F49FCBC004A960A /* maestro-driver-tvos */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D9D3F0532F49FCBC004A960A /* Build configuration list for PBXNativeTarget "maestro-driver-tvos" */;
+			buildPhases = (
+				D9D3F04A2F49FCBC004A960A /* Sources */,
+				D9D3F04E2F49FCBC004A960A /* Frameworks */,
+				D9D3F04F2F49FCBC004A960A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "maestro-driver-tvos";
+			productName = "maestro-driver-ios";
+			productReference = D9D3F0562F49FCBC004A960A /* maestro-driver-tvos.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D9D3F0582F49FD9C004A960A /* maestro-driver-tvosUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D9D3F0B82F49FD9C004A960A /* Build configuration list for PBXNativeTarget "maestro-driver-tvosUITests" */;
+			buildPhases = (
+				D9D3F05F2F49FD9C004A960A /* Headers */,
+				D9D3F0732F49FD9C004A960A /* Sources */,
+				D9D3F0B12F49FD9C004A960A /* Frameworks */,
+				D9D3F0B52F49FD9C004A960A /* Resources */,
+				D9D3F0B62F49FD9C004A960A /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D9D3F0592F49FD9C004A960A /* PBXTargetDependency */,
+				D9D3F05B2F49FD9C004A960A /* PBXTargetDependency */,
+			);
+			name = "maestro-driver-tvosUITests";
+			packageProductDependencies = (
+				D9D3F05D2F49FD9C004A960A /* FlyingFox */,
+			);
+			productName = "maestro-driver-iosUITests";
+			productReference = D9D3F0BB2F49FD9C004A960A /* maestro-driver-tvosUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		D9D3F0BC2F49FDB5004A960A /* maestro-driver-tvosTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D9D3F0C62F49FDB5004A960A /* Build configuration list for PBXNativeTarget "maestro-driver-tvosTests" */;
+			buildPhases = (
+				D9D3F0BF2F49FDB5004A960A /* Sources */,
+				D9D3F0C32F49FDB5004A960A /* Frameworks */,
+				D9D3F0C52F49FDB5004A960A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D9D3F0BD2F49FDB5004A960A /* PBXTargetDependency */,
+			);
+			name = "maestro-driver-tvosTests";
+			productName = "maestro-driver-iosTests";
+			productReference = D9D3F0C92F49FDB5004A960A /* maestro-driver-tvosTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -951,9 +1180,12 @@
 			targets = (
 				52049BD22935039F00807AA3 /* maestro-driver-ios */,
 				52049BF2293503A200807AA3 /* maestro-driver-iosUITests */,
+				85861EAEA94A3C855AED94AD /* maestro-driver-iosTests */,
+				D9D3F0492F49FCBC004A960A /* maestro-driver-tvos */,
+				D9D3F0582F49FD9C004A960A /* maestro-driver-tvosUITests */,
+				D9D3F0BC2F49FDB5004A960A /* maestro-driver-tvosTests */,
 				BBBB00A02DF24A00000000A0 /* MaestroDriverLib */,
 				BBBB00A12DF24A00000000A1 /* MaestroDriverLibTests */,
-				85861EAEA94A3C855AED94AD /* maestro-driver-iosTests */,
 			);
 		};
 /* End PBXProject section */
@@ -963,9 +1195,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				52049BE3293503A200807AA3 /* LaunchScreen.storyboard in Resources */,
 				52049BE0293503A200807AA3 /* Assets.xcassets in Resources */,
-				52049BDE2935039F00807AA3 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -983,6 +1213,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D9D3F04F2F49FCBC004A960A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0512F49FCBC004A960A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0B52F49FD9C004A960A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0C52F49FDB5004A960A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -990,9 +1242,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				52049BDB2935039F00807AA3 /* ViewController.swift in Sources */,
-				52049BD72935039F00807AA3 /* AppDelegate.swift in Sources */,
-				52049BD92935039F00807AA3 /* SceneDelegate.swift in Sources */,
+				52049BE7293503A300807AA3 /* MaestroDriverApp.swift in Sources */,
+				52049BE8293503A300807AA3 /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1087,6 +1338,93 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D9D3F04A2F49FCBC004A960A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0D02F49FCBC004A960A /* MaestroDriverApp.swift in Sources */,
+				D9D3F0D12F49FCBC004A960A /* ContentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0732F49FD9C004A960A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0742F49FD9C004A960A /* ViewHierarchyHandler.swift in Sources */,
+				D9D3F0752F49FD9C004A960A /* KeyboardHandlerRequest.swift in Sources */,
+				D9D3F0762F49FD9C004A960A /* RunnerDaemonProxy.swift in Sources */,
+				D9D3F0772F49FD9C004A960A /* PressButtonHandler.swift in Sources */,
+				D9D3F0782F49FD9C004A960A /* SystemPermissionHelper.swift in Sources */,
+				D9D3F0792F49FD9C004A960A /* FBLogger.m in Sources */,
+				D9D3F07A2F49FD9C004A960A /* Logger.swift in Sources */,
+				D9D3F07B2F49FD9C004A960A /* TerminateAppRequest.swift in Sources */,
+				D9D3F07C2F49FD9C004A960A /* GetRunningAppRequest.swift in Sources */,
+				D9D3F07D2F49FD9C004A960A /* AXClientProxy.m in Sources */,
+				D9D3F07E2F49FD9C004A960A /* EraseTextHandler.swift in Sources */,
+				D9D3F07F2F49FD9C004A960A /* TouchRequest.swift in Sources */,
+				D9D3F0802F49FD9C004A960A /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */,
+				D9D3F0812F49FD9C004A960A /* StatusResponse.swift in Sources */,
+				D9D3F0822F49FD9C004A960A /* LaunchAppRequest.swift in Sources */,
+				D9D3F0832F49FD9C004A960A /* LaunchAppHandler.swift in Sources */,
+				D9D3F0842F49FD9C004A960A /* AXClientSwizzler.swift in Sources */,
+				D9D3F0852F49FD9C004A960A /* StringExtensions.swift in Sources */,
+				D9D3F0862F49FD9C004A960A /* SetOrientationHandler.swift in Sources */,
+				D9D3F0872F49FD9C004A960A /* EraseTextRequest.swift in Sources */,
+				D9D3F0882F49FD9C004A960A /* XCTestDaemonsProxy.m in Sources */,
+				D9D3F0892F49FD9C004A960A /* SwipeRouteHandlerV2.swift in Sources */,
+				D9D3F08A2F49FD9C004A960A /* KeyboardHandlerResponse.swift in Sources */,
+				D9D3F08B2F49FD9C004A960A /* StatusHandler.swift in Sources */,
+				D9D3F08C2F49FD9C004A960A /* SetOrientationRequest.swift in Sources */,
+				D9D3F08D2F49FD9C004A960A /* SetPermissionsRequest.swift in Sources */,
+				D9D3F08E2F49FD9C004A960A /* KeyModifierFlags.swift in Sources */,
+				D9D3F08F2F49FD9C004A960A /* TerminateAppHandler.swift in Sources */,
+				D9D3F0902F49FD9C004A960A /* XCUIElement+Extensions.swift in Sources */,
+				D9D3F0912F49FD9C004A960A /* SetPermissionsHandler.swift in Sources */,
+				D9D3F0922F49FD9C004A960A /* PressKeyHandler.swift in Sources */,
+				D9D3F0932F49FD9C004A960A /* DeviceInfoHandler.swift in Sources */,
+				D9D3F0942F49FD9C004A960A /* RunningAppRouteHandler.swift in Sources */,
+				D9D3F0952F49FD9C004A960A /* PointerEventPath.swift in Sources */,
+				D9D3F0962F49FD9C004A960A /* ScreenSizeHelper.swift in Sources */,
+				D9D3F0972F49FD9C004A960A /* TextInputHelper.swift in Sources */,
+				D9D3F0982F49FD9C004A960A /* EventTarget.swift in Sources */,
+				D9D3F0992F49FD9C004A960A /* EventRecord.swift in Sources */,
+				D9D3F09A2F49FD9C004A960A /* TouchRouteHandler.swift in Sources */,
+				D9D3F09B2F49FD9C004A960A /* RouteHandlerFactory.swift in Sources */,
+				D9D3F09C2F49FD9C004A960A /* TimeoutHelper.swift in Sources */,
+				D9D3F09D2F49FD9C004A960A /* ViewHierarchyRequest.swift in Sources */,
+				D9D3F09E2F49FD9C004A960A /* PressKeyRequest.swift in Sources */,
+				D9D3F09F2F49FD9C004A960A /* DeviceInfoResponse.swift in Sources */,
+				D9D3F0A02F49FD9C004A960A /* ScreenDiffHandler.swift in Sources */,
+				D9D3F0A12F49FD9C004A960A /* XCUIApplication+Helper.m in Sources */,
+				D9D3F0A22F49FD9C004A960A /* XCTestHTTPServer.swift in Sources */,
+				D9D3F0A32F49FD9C004A960A /* XCUIApplicationProcess+FBQuiescence.m in Sources */,
+				D9D3F0A42F49FD9C004A960A /* InputTextRequest.swift in Sources */,
+				D9D3F0A52F49FD9C004A960A /* maestro_driver_iosUITests.swift in Sources */,
+				D9D3F0A62F49FD9C004A960A /* FBConfiguration.m in Sources */,
+				D9D3F0A72F49FD9C004A960A /* PressButtonRequest.swift in Sources */,
+				D9D3F0A82F49FD9C004A960A /* AXElement.swift in Sources */,
+				D9D3F0A92F49FD9C004A960A /* SwipeRouteHandler.swift in Sources */,
+				D9D3F0AA2F49FD9C004A960A /* AppError.swift in Sources */,
+				D9D3F0AB2F49FD9C004A960A /* InputTextRouteHandler.swift in Sources */,
+				D9D3F0AC2F49FD9C004A960A /* RunningApp.swift in Sources */,
+				D9D3F0AD2F49FD9C004A960A /* ScreenshotHandler.swift in Sources */,
+				D9D3F0AE2F49FD9C004A960A /* SwipeRequest.swift in Sources */,
+				D9D3F0AF2F49FD9C004A960A /* KeyboardRouteHandler.swift in Sources */,
+				D9D3F0B02F49FD9C004A960A /* XCUIApplication+FBQuiescence.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9D3F0BF2F49FDB5004A960A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9D3F0C02F49FDB5004A960A /* SnapshotParametersTests.swift in Sources */,
+				D9D3F0C12F49FDB5004A960A /* AXClientProxy.m in Sources */,
+				D9D3F0C22F49FDB5004A960A /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F1A2303EDBE4483B98F2B146 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1121,25 +1459,25 @@
 			target = BBBB00A02DF24A00000000A0 /* MaestroDriverLib */;
 			targetProxy = BBBB00832DF24A0000000083 /* PBXContainerItemProxy */;
 		};
+		D9D3F0592F49FD9C004A960A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 52049BD22935039F00807AA3 /* maestro-driver-ios */;
+			targetProxy = D9D3F05A2F49FD9C004A960A /* PBXContainerItemProxy */;
+		};
+		D9D3F05B2F49FD9C004A960A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BBBB00A02DF24A00000000A0 /* MaestroDriverLib */;
+			targetProxy = D9D3F05C2F49FD9C004A960A /* PBXContainerItemProxy */;
+		};
+		D9D3F0BD2F49FDB5004A960A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "maestro-driver-ios";
+			target = 52049BD22935039F00807AA3 /* maestro-driver-ios */;
+			targetProxy = D9D3F0BE2F49FDB5004A960A /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
-		52049BDC2935039F00807AA3 /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				52049BDD2935039F00807AA3 /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
-		52049BE1293503A200807AA3 /* LaunchScreen.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				52049BE2293503A200807AA3 /* Base */,
-			);
-			name = LaunchScreen.storyboard;
-			sourceTree = "<group>";
-		};
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
@@ -1267,8 +1605,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
@@ -1296,8 +1632,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
@@ -1420,10 +1754,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mobile.MaestroDriverLib;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,3";
 			};
 			name = Debug;
 		};
@@ -1451,9 +1786,10 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mobile.MaestroDriverLib;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,3";
 			};
 			name = Release;
 		};
@@ -1499,6 +1835,198 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		D9D3F0542F49FCBC004A960A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Debug;
+		};
+		D9D3F0552F49FCBC004A960A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "maestro-driver-ios/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Release;
+		};
+		D9D3F0B92F49FD9C004A960A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 25CQD4CKK3;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_TARGET_NAME = "maestro-driver-tvos";
+			};
+			name = Debug;
+		};
+		D9D3F0BA2F49FD9C004A960A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 25CQD4CKK3;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosUITests/Categories/maestro-driver-iosUITests-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_TARGET_NAME = "maestro-driver-tvos";
+			};
+			name = Release;
+		};
+		D9D3F0C72F49FDB5004A960A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/maestro-driver-iosUITests/PrivateHeaders/XCTest",
+				);
+				INFOPLIST_FILE = "maestro-driver-iosTests copy-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosTests/maestro-driver-iosTests-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/maestro-driver-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/maestro-driver-ios";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D9D3F0C82F49FDB5004A960A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/maestro-driver-iosUITests/PrivateHeaders/XCTest",
+				);
+				INFOPLIST_FILE = "maestro-driver-iosTests copy-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.mobile.maestro-driver-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "maestro-driver-iosTests/maestro-driver-iosTests-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/maestro-driver-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/maestro-driver-ios";
+			};
+			name = Debug;
 		};
 		F6BBED1CBAD34F05CA974E4C /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1589,10 +2117,45 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		D9D3F0532F49FCBC004A960A /* Build configuration list for PBXNativeTarget "maestro-driver-tvos" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D9D3F0542F49FCBC004A960A /* Debug */,
+				D9D3F0552F49FCBC004A960A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D9D3F0B82F49FD9C004A960A /* Build configuration list for PBXNativeTarget "maestro-driver-tvosUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D9D3F0B92F49FD9C004A960A /* Debug */,
+				D9D3F0BA2F49FD9C004A960A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D9D3F0C62F49FDB5004A960A /* Build configuration list for PBXNativeTarget "maestro-driver-tvosTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D9D3F0C72F49FDB5004A960A /* Release */,
+				D9D3F0C82F49FDB5004A960A /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swhitty/FlyingFox";
+			requirement = {
+				kind = exactVersion;
+				version = 0.22.0;
+			};
+		};
+		D9D3F05E2F49FD9C004A960A /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/swhitty/FlyingFox";
 			requirement = {
@@ -1606,6 +2169,11 @@
 		5279BFD52935ECE20056C609 /* FlyingFox */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 52049C062935E04D00807AA3 /* XCRemoteSwiftPackageReference "FlyingFox" */;
+			productName = FlyingFox;
+		};
+		D9D3F05D2F49FD9C004A960A /* FlyingFox */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D9D3F05E2F49FD9C004A960A /* XCRemoteSwiftPackageReference "FlyingFox" */;
 			productName = FlyingFox;
 		};
 /* End XCSwiftPackageProductDependency section */

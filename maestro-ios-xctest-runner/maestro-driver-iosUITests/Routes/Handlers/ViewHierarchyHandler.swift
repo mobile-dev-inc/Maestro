@@ -6,7 +6,12 @@ import MaestroDriverLib
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
 
-    private let springboardApplication = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    #if os(tvOS)
+    private static let homescreenBundleId = "com.apple.HeadBoard"
+    #else
+    private static let homescreenBundleId = "com.apple.springboard"
+    #endif
+    private let homescreenApplication = XCUIApplication(bundleIdentifier: ViewHierarchyHandler.homescreenBundleId)
     private let snapshotMaxDepth = 60
 
     private let logger = Logger(
@@ -22,10 +27,10 @@ struct ViewHierarchyHandler: HTTPHandler {
         do {
             let foregroundApp = RunningApp.getForegroundApp()
             guard let foregroundApp = foregroundApp else {
-                NSLog("No foreground app found returning springboard app hierarchy")
-                let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
-                let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
-                let body = try JSONEncoder().encode(springBoardViewHierarchy)
+                NSLog("No foreground app found returning homescreen app hierarchy")
+                let homescreenHierarchy = try elementHierarchy(xcuiElement: homescreenApplication)
+                let homescreenViewHierarchy = ViewHierarchy.init(axElement: homescreenHierarchy, depth: homescreenHierarchy.depth())
+                let body = try JSONEncoder().encode(homescreenViewHierarchy)
                 return HTTPResponse(statusCode: .ok, body: body)
             }
             NSLog("[Start] View hierarchy snapshot for \(foregroundApp)")
@@ -49,15 +54,19 @@ struct ViewHierarchyHandler: HTTPHandler {
         await SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(appHierarchy: appHierarchy, foregroundApp: foregroundApp)
                 
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
-            fullStatusBars(springboardApplication)
+            fullStatusBars(homescreenApplication)
         } ?? []
         
-        // Fetch Safari WebView hierarchy for iOS 26+ (runs in separate SafariViewService process)
-        let safariWebViewHierarchy = logger.measure(message: "Fetch Safari WebView hierarchy") {
+        // Fetch Safari WebView hierarchy for iOS 26+ (runs in separate SafariViewService process). Skip on tvOS.
+        #if os(tvOS)
+        let safariWebViewHierarchy: AXElement? = nil
+        #else
+        let safariWebViewHierarchy: AXElement? = logger.measure(message: "Fetch Safari WebView hierarchy") {
             getSafariWebViewHierarchy()
         }
-
-        let deviceFrame = springboardApplication.frame
+        #endif
+        
+        let deviceFrame = homescreenApplication.frame
         let deviceAxFrame = [
             "X": Double(deviceFrame.minX),
             "Y": Double(deviceFrame.minY),
