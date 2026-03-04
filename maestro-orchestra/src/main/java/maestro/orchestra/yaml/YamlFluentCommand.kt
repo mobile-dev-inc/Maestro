@@ -164,6 +164,7 @@ data class YamlFluentCommand(
                     AssertConditionCommand(
                         condition = Condition(
                             visible = toElementSelector(assertVisible),
+                            visibilityPercentage = (assertVisible as? YamlElementSelector)?.visibilityPercentage,
                         ),
                         label = (assertVisible as? YamlElementSelector)?.label,
                         optional = (assertVisible as? YamlElementSelector)?.optional ?: false,
