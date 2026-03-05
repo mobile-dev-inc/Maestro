@@ -8,6 +8,7 @@ import okio.Buffer
 import java.util.Base64
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 
 object TakeScreenshotTool {
@@ -22,6 +23,10 @@ object TakeScreenshotTool {
                             put("type", "string")
                             put("description", "The ID of the device to take a screenshot from")
                         }
+                        putJsonObject("maxDimensions") {
+                            put("type", "integer")
+                            put("description", "Maximum size (in pixels) for the longest dimension of the screenshot. The image will be scaled down proportionally if either dimension exceeds this value. Note: Claude works best with images below 2000 pixels.")
+                        }
                     },
                     required = listOf("device_id")
                 )
@@ -29,6 +34,7 @@ object TakeScreenshotTool {
         ) { request ->
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
+                val maxDimensions = request.arguments["maxDimensions"]?.jsonPrimitive?.intOrNull
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -50,8 +56,20 @@ object TakeScreenshotTool {
                     
                     // Convert PNG to JPEG
                     val pngImage = ImageIO.read(ByteArrayInputStream(pngBytes))
+                    val imageToEncode = if (maxDimensions != null && maxOf(pngImage.width, pngImage.height) > maxDimensions) {
+                        val scale = maxDimensions.toDouble() / maxOf(pngImage.width, pngImage.height)
+                        val newWidth = (pngImage.width * scale).toInt()
+                        val newHeight = (pngImage.height * scale).toInt()
+                        val scaled = BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB)
+                        val g2d = scaled.createGraphics()
+                        g2d.drawImage(pngImage.getScaledInstance(newWidth, newHeight, java.awt.Image.SCALE_SMOOTH), 0, 0, null)
+                        g2d.dispose()
+                        scaled
+                    } else {
+                        pngImage
+                    }
                     val jpegOutput = ByteArrayOutputStream()
-                    ImageIO.write(pngImage, "JPEG", jpegOutput)
+                    ImageIO.write(imageToEncode, "JPEG", jpegOutput)
                     val jpegBytes = jpegOutput.toByteArray()
                     
                     val base64 = Base64.getEncoder().encodeToString(jpegBytes)
