@@ -242,7 +242,7 @@ class ApiClient(
             .setType(MultipartBody.FORM)
             .addFormDataPart(
                 "appBinary",
-                "app.zip",
+                appFile.toFile().name,
                 appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
             )
             .addFormDataPart("agent", getAgent())

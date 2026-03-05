@@ -148,13 +148,14 @@ class CloudInteractor(
             val resolvedAppBinaryId = appBinaryUpload.appBinaryId
             val resolvedPlatform = appBinaryUpload.platform
 
-            // Step 2: Build device configuration
+            // Step 2: Build device configuration and verify its supported
             val maestroDeviceConfiguration = DeviceCatalog.resolve(
                 platform = resolvedPlatform,
                 model = deviceModel,
                 os = deviceOs,
                 locale = deviceLocale,
             )
+            DeviceCatalog.checkCloudCompatibility(maestroDeviceConfiguration)
 
             // Track cloud upload start
             Analytics.trackEvent(CloudUploadStartedEvent(
