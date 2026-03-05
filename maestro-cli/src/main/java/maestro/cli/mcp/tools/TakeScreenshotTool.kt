@@ -25,7 +25,7 @@ object TakeScreenshotTool {
                         }
                         putJsonObject("maxDimensions") {
                             put("type", "integer")
-                            put("description", "Maximum size (in pixels) for the longest dimension of the screenshot. The image will be scaled down proportionally if either dimension exceeds this value. Note: Claude works best with images below 2000 pixels.")
+                            put("description", "Maximum size (in pixels) for the longest dimension of the screenshot. The image will be scaled down proportionally if either dimension exceeds this value. Defaults to 2000. Note: Claude works best with images below 2000 pixels.")
                         }
                     },
                     required = listOf("device_id")
@@ -34,7 +34,7 @@ object TakeScreenshotTool {
         ) { request ->
             try {
                 val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val maxDimensions = request.arguments["maxDimensions"]?.jsonPrimitive?.intOrNull
+                val maxDimensions = request.arguments["maxDimensions"]?.jsonPrimitive?.intOrNull ?: 2000
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -56,7 +56,7 @@ object TakeScreenshotTool {
                     
                     // Convert PNG to JPEG
                     val pngImage = ImageIO.read(ByteArrayInputStream(pngBytes))
-                    val imageToEncode = if (maxDimensions != null && maxOf(pngImage.width, pngImage.height) > maxDimensions) {
+                    val imageToEncode = if (maxOf(pngImage.width, pngImage.height) > maxDimensions) {
                         val scale = maxDimensions.toDouble() / maxOf(pngImage.width, pngImage.height)
                         val newWidth = (pngImage.width * scale).toInt()
                         val newHeight = (pngImage.height * scale).toInt()
