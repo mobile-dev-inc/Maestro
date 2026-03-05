@@ -44,7 +44,7 @@ struct SwipeRouteHandlerV2: HTTPHandler {
 
         let eventTarget = EventTarget()
         try await eventTarget.dispatchEvent(description: description) {
-            EventRecord(orientation: .portrait)
+            EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
                 .addSwipeEvent(
                     start: startPoint,
                     end: endPoint,

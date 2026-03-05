@@ -75,15 +75,29 @@ struct ViewHierarchyHandler: HTTPHandler {
             else {
                 return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
             }
-            
+
+            // Springboard always reports its frame in portrait dimensions (e.g. 1024×1366),
+            // while a landscape app reports them swapped (1366×1024). Without this guard,
+            // the difference would be misinterpreted as a window offset, shifting every
+            // element's coordinates by hundreds of points in the wrong direction.
+            let isSameAreaDifferentOrientation =
+                abs(deviceWidth * deviceHeight - appWidth * appHeight) < 1.0
+                && abs(deviceWidth - appHeight) < 1.0
+                && abs(deviceHeight - appWidth) < 1.0
+
+            if isSameAreaDifferentOrientation {
+                NSLog("Skipping offset adjustment: device and app frames are same size but different orientation")
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            }
+
             let offsetX = deviceWidth - appWidth
             let offsetY = deviceHeight - appHeight
             let offset = WindowOffset(offsetX: offsetX, offsetY: offsetY)
-            
+
             NSLog("Adjusting view hierarchy with offset: \(offset)")
-            
+
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
-            
+
             return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
         } else {
             return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })

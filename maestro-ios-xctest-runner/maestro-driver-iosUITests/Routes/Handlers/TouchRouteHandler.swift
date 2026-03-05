@@ -32,7 +32,7 @@ struct TouchRouteHandler: HTTPHandler {
         }
 
         do {
-            let eventRecord = EventRecord(orientation: .portrait)
+            let eventRecord = EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
             _ = eventRecord.addPointerTouchEvent(
                 at: CGPoint(x: CGFloat(x), y: CGFloat(y)),
                 touchUpAfter: requestBody.duration
