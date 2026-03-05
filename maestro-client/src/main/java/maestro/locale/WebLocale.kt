@@ -16,14 +16,8 @@ enum class WebLocale(override val code: String) : DeviceLocale {
       return parts[0]
     }
 
-  override val countryCode: String?
-    get() {
-      val parts = code.split("_", "-")
-      if (parts.size == 2) {
-        return parts[1]
-      }
-      return null
-    }
+  override val countryCode: String
+    get() = code.split("_", "-")[1]
 
   override val platform: Platform = Platform.WEB
 

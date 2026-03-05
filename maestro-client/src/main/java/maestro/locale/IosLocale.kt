@@ -75,19 +75,8 @@ enum class IosLocale(override val code: String) : DeviceLocale {
       return parts[0]
     }
 
-  override val countryCode: String?
-    get() {
-      val parts = code.split("_", "-")
-      if (parts.size == 2) {
-        val country = parts[1]
-        // iOS-specific formats like "zh-Hans", "zh-Hant", "es-419" don't have standard country codes
-        if (country == "Hans" || country == "Hant" || country == "419") {
-          return null
-        }
-        return country
-      }
-      return null
-    }
+  override val countryCode: String
+    get() = code.split("_", "-")[1]
 
   override val platform: Platform = Platform.IOS
 

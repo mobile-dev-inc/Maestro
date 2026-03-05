@@ -19,8 +19,7 @@ sealed interface DeviceLocale {
   val languageCode: String
 
   // Gets the country code for this locale (e.g., "US", "FR", "CN").
-  // Returns null for locales that don't have a country code (e.g., iOS-specific formats like "zh-Hans").
-  val countryCode: String?
+  val countryCode: String
 
   // Gets the platform this locale is for.
   val platform: Platform

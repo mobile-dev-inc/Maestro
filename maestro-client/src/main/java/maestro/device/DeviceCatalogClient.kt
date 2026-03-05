@@ -81,6 +81,7 @@ internal object DeviceCatalogClient {
             defaults = MaestroDeviceConfiguration.Web(
                 deviceModel = "chromium",
                 deviceOs = "default",
+                locale = DeviceLocale.fromString("en_US", Platform.IOS),
             ),
         ),
     )
