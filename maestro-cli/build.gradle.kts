@@ -338,16 +338,3 @@ jreleaser {
         }
     }
 }
-
-tasks.register<Test>("integrationTest") {
-    group = "verification"
-    useJUnitPlatform {
-        includeTags("IntegrationTest")
-    }
-}
-
-tasks.named<Test>("test") {
-    useJUnitPlatform {
-        excludeTags("IntegrationTest")
-    }
-}
