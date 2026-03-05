@@ -5,9 +5,11 @@ import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
+import maestro.cli.api.AppBinaryUploadResponse
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
+import maestro.cli.api.RunMaestroTestRequest
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -36,6 +38,7 @@ import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.web.WebInteractor
 import maestro.cli.promotion.PromotionStateManager
+import maestro.device.DeviceCatalog
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -74,8 +77,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -84,10 +85,10 @@ class CloudInteractor(
         reportOutput: File? = null,
         testSuiteName: String? = null,
         disableNotifications: Boolean = false,
-        deviceLocale: String? = null,
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        deviceLocale: String? = null,
     ): Int {
         if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
@@ -105,71 +106,93 @@ class CloudInteractor(
         // Record cloud command usage for promotion message suppression
         PromotionStateManager().recordCloudCommandUsage()
 
-        // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
-        val triggeredPlatform = when {
-            androidApiLevel != null -> "android"
-            iOSVersion != null || deviceOs != null -> "ios"
-            flowFile.isWebFlow() -> "web"
-            else -> "unknown"
-        }
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = triggeredPlatform,
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
             deviceOs = deviceOs
         ))
-      
-        PrintUtils.message("Uploading Flow(s)...")
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
             WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
-            val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
-            // Track cloud upload start after we have the response with actual platform
+
+            // Step 1: Resolve app binary (validate existing or upload new)
+            val appBinaryUpload: AppBinaryUploadResponse =
+                if (appBinaryId != null) {
+                    PrintUtils.message("Uploading App Binary...")
+                    client.validateMaestroTestAppBinary(
+                        authToken = authToken,
+                        appBinaryId = appBinaryId,
+                        projectId = selectedProjectId,
+                    )
+                } else {
+                    val progressBar = ProgressBar(20)
+                    PrintUtils.message("Uploading App...")
+                    client.uploadMaestroTestApp(
+                        authToken = authToken,
+                        appFile = requireNotNull(appFileToSend?.toPath()) { "App file is required" },
+                        mappingFile = mapping?.toPath(),
+                        projectId = selectedProjectId,
+                        progressListener = { totalBytes, bytesWritten ->
+                            progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
+                        },
+                    )
+                }
+
+            val resolvedAppBinaryId = appBinaryUpload.appBinaryId
+            val resolvedPlatform = appBinaryUpload.platform
+
+            // Step 2: Build device configuration
+            val maestroDeviceConfiguration = DeviceCatalog.resolve(
+                platform = resolvedPlatform,
+                model = deviceModel,
+                os = deviceOs,
+                locale = deviceLocale,
+            )
+
+            // Track cloud upload start
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,
-                platform = triggeredPlatform,
+                platform = resolvedPlatform,
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
-                deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceModel = maestroDeviceConfiguration.deviceModel,
+                deviceOs = maestroDeviceConfiguration.deviceOs
             ))
 
-            val response = client.upload(
-                authToken = authToken,
-                appFile = appFileToSend?.toPath(),
-                workspaceZip = workspaceZip,
+            val runRequest = RunMaestroTestRequest(
+                appBinaryId = resolvedAppBinaryId,
+                deviceConfiguration = maestroDeviceConfiguration,
                 uploadName = uploadName,
-                mappingFile = mapping?.toPath(),
                 repoOwner = repoOwner,
                 repoName = repoName,
                 branch = branch,
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
-                env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
-                appBinaryId = appBinaryId,
+                env = env.ifEmpty { null },
+                deviceLocale = deviceLocale,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
-                deviceLocale = deviceLocale,
-                projectId = selectedProjectId,
-                progressListener = { totalBytes, bytesWritten ->
-                    progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
-                },
-                deviceModel = deviceModel,
-                deviceOs = deviceOs
             )
 
-            // Track finish after upload completion
-            val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
+            // Step 3: Run the test
+            PrintUtils.message("Running Test...")
+            val response = client.runMaestroTest(
+                authToken = authToken,
+                workspaceZip = workspaceZip,
+                request = runRequest,
+                projectId = selectedProjectId,
+            )
+
+            // Track finish after both steps complete
+            val platform = response.deviceConfiguration?.platform?.lowercase() ?: resolvedPlatform.lowercase()
             Analytics.trackEvent(CloudUploadSucceededEvent(
                 projectId = selectedProjectId,
                 platform = platform,

@@ -21,6 +21,7 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
+import maestro.device.MaestroDeviceConfiguration
 import maestro.utils.HttpClient
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -226,74 +227,25 @@ class ApiClient(
         return response.copy(downloadUrl = downloadUrl)
     }
 
-    fun upload(
+    fun uploadMaestroTestApp(
         authToken: String,
-        appFile: Path?,
-        workspaceZip: Path,
-        uploadName: String?,
-        mappingFile: Path?,
-        repoOwner: String?,
-        repoName: String?,
-        branch: String?,
-        commitSha: String?,
-        pullRequestId: String?,
-        env: Map<String, String>? = null,
-        androidApiLevel: Int?,
-        iOSVersion: String? = null,
-        appBinaryId: String? = null,
-        includeTags: List<String> = emptyList(),
-        excludeTags: List<String> = emptyList(),
+        appFile: Path,
+        mappingFile: Path? = null,
+        projectId: String,
         maxRetryCount: Int = 3,
         completedRetries: Int = 0,
-        disableNotifications: Boolean,
-        deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-        projectId: String,
-        deviceModel: String? = null,
-        deviceOs: String? = null,
-    ): UploadResponse {
-        if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
-        if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
-        if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
-
-        val requestPart = mutableMapOf<String, Any>()
-        if (uploadName != null) {
-            requestPart["benchmarkName"] = uploadName
-        }
-        repoOwner?.let { requestPart["repoOwner"] = it }
-        repoName?.let { requestPart["repoName"] = it }
-        branch?.let { requestPart["branch"] = it }
-        commitSha?.let { requestPart["commitSha"] = it }
-        pullRequestId?.let { requestPart["pullRequestId"] = it }
-        env?.let { requestPart["env"] = it }
-        requestPart["agent"] = getAgent()
-        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
-        iOSVersion?.let { requestPart["iOSVersion"] = it }
-        appBinaryId?.let { requestPart["appBinaryId"] = it }
-        deviceLocale?.let { requestPart["deviceLocale"] = it }
-        requestPart["projectId"] = projectId
-        deviceModel?.let { requestPart["deviceModel"] = it }
-        deviceOs?.let { requestPart["deviceOs"] = it }
-        if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
-        if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
-        if (disableNotifications) requestPart["disableNotifications"] = true
+    ): AppBinaryUploadResponse {
+        if (!appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
-                "workspace",
-                "workspace.zip",
-                workspaceZip.toFile().asRequestBody("application/zip".toMediaType())
-            )
-            .addFormDataPart("request", JSON.writeValueAsString(requestPart))
-
-        if (appFile != null) {
-            bodyBuilder.addFormDataPart(
-                "app_binary",
+                "appBinary",
                 "app.zip",
                 appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
             )
-        }
+            .addFormDataPart("agent", getAgent())
 
         if (mappingFile != null) {
             bodyBuilder.addFormDataPart(
@@ -305,42 +257,25 @@ class ApiClient(
 
         val body = bodyBuilder.build()
 
-        fun retry(message: String, e: Throwable? = null): UploadResponse {
+        fun retry(message: String, e: Throwable? = null): AppBinaryUploadResponse {
             if (completedRetries >= maxRetryCount) {
                 e?.printStackTrace()
                 throw CliError(message)
             }
-
             PrintUtils.message("$message, retrying (${completedRetries + 1}/$maxRetryCount)...")
             Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
-
-            return upload(
+            return uploadMaestroTestApp(
                 authToken = authToken,
                 appFile = appFile,
-                workspaceZip = workspaceZip,
-                uploadName = uploadName,
                 mappingFile = mappingFile,
-                repoOwner = repoOwner,
-                repoName = repoName,
-                branch = branch,
-                commitSha = commitSha,
-                pullRequestId = pullRequestId,
-                env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
-                includeTags = includeTags,
-                excludeTags = excludeTags,
+                projectId = projectId,
                 maxRetryCount = maxRetryCount,
                 completedRetries = completedRetries + 1,
                 progressListener = progressListener,
-                appBinaryId = appBinaryId,
-                disableNotifications = disableNotifications,
-                deviceLocale = deviceLocale,
-                projectId = projectId,
             )
         }
 
-        val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
+        val url = "$baseUrl/v2/project/$projectId/upload-maestro-test-app"
 
         val response = try {
             val request = Request.Builder()
@@ -348,81 +283,187 @@ class ApiClient(
                 .url(url)
                 .post(body)
                 .build()
-
             client.newCall(request).execute()
         } catch (e: IOException) {
-            return retry("Upload failed due to socket exception", e)
+            return retry("App binary upload failed due to socket exception", e)
         }
 
         response.use {
             if (!response.isSuccessful) {
                 val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
 
-                if (response.code == 403 && errorMessage.contains(
-                        "Your trial has not started yet",
-                        ignoreCase = true
-                    )
-                ) {
+                if (response.code == 403 && errorMessage.contains("Your trial has not started yet", ignoreCase = true)) {
                     Analytics.trackEvent(TrialStartPromptedEvent())
                     PrintUtils.info("\n[ERROR] Your trial has not started yet".brightRed())
                     PrintUtils.info("[INFO] Start your 7-day free trial with no credit card required!".green())
                     PrintUtils.info("${"[INPUT]".cyan()} Please enter your company name to start the free trial: ")
-                    
+
                     val scanner = Scanner(System.`in`)
                     val companyName = scanner.nextLine().trim()
 
                     if (companyName.isNotEmpty()) {
                         println("\u001B[33;1m[INFO]\u001B[0m Starting your trial for company: \u001B[36;1m$companyName\u001B[0m...")
-
-                        val isTrialStarted = startTrial(authToken, companyName);
+                        val isTrialStarted = startTrial(authToken, companyName)
                         if (isTrialStarted) {
                             println("\u001B[32;1m[SUCCESS]\u001B[0m Free trial successfully started! Enjoy your 7-day free trial!\n")
-                            return upload(
+                            return uploadMaestroTestApp(
                                 authToken = authToken,
                                 appFile = appFile,
-                                workspaceZip = workspaceZip,
-                                uploadName = uploadName,
                                 mappingFile = mappingFile,
-                                repoOwner = repoOwner,
-                                repoName = repoName,
-                                branch = branch,
-                                commitSha = commitSha,
-                                pullRequestId = pullRequestId,
-                                env = env,
-                                androidApiLevel = androidApiLevel,
-                                iOSVersion = iOSVersion,
-                                includeTags = includeTags,
-                                excludeTags = excludeTags,
+                                projectId = projectId,
                                 maxRetryCount = maxRetryCount,
                                 completedRetries = completedRetries + 1,
                                 progressListener = progressListener,
-                                appBinaryId = appBinaryId,
-                                disableNotifications = disableNotifications,
-                                deviceLocale = deviceLocale,
-                                projectId = projectId
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
                         }
                     } else {
                         println("\u001B[31;1m[ERROR]\u001B[0m Company name is required to start your free trial.")
-                        // Track trial start failed event for empty company name
-                        Analytics.trackEvent(TrialStartFailedEvent(
-                            companyName = "",
-                            failureReason = "EMPTY_COMPANY_NAME"
-                        ))
+                        Analytics.trackEvent(TrialStartFailedEvent(companyName = "", failureReason = "EMPTY_COMPANY_NAME"))
                     }
                 }
 
                 if (response.code >= 500) {
-                    return retry("Upload failed with status code ${response.code}: $errorMessage")
+                    return retry("App binary upload failed with status code ${response.code}: $errorMessage")
                 } else {
-                    throw CliError("Upload request failed (${response.code}): $errorMessage")
+                    throw CliError("App binary upload request failed (${response.code}): $errorMessage")
                 }
             }
 
             val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
+            return AppBinaryUploadResponse(
+                platform = responseBody["platform"].toString(),
+                appBinaryId = responseBody["appBinaryId"].toString(),
+            )
+        }
+    }
 
+    fun validateMaestroTestAppBinary(
+        authToken: String,
+        appBinaryId: String,
+        projectId: String,
+        maxRetryCount: Int = 3,
+        completedRetries: Int = 0,
+    ): AppBinaryUploadResponse {
+        val requestBody = JSON.writeValueAsBytes(
+            mapOf(
+                "appBinaryId" to appBinaryId,
+                "agent" to getAgent(),
+            )
+        ).toRequestBody("application/json".toMediaType())
+
+        fun retry(message: String, e: Throwable? = null): AppBinaryUploadResponse {
+            if (completedRetries >= maxRetryCount) {
+                e?.printStackTrace()
+                throw CliError(message)
+            }
+            PrintUtils.message("$message, retrying (${completedRetries + 1}/$maxRetryCount)...")
+            Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
+            return validateMaestroTestAppBinary(
+                authToken = authToken,
+                appBinaryId = appBinaryId,
+                projectId = projectId,
+                maxRetryCount = maxRetryCount,
+                completedRetries = completedRetries + 1,
+            )
+        }
+
+        val url = "$baseUrl/v2/project/$projectId/validate-maestro-test-app-binary"
+
+        val response = try {
+            val request = Request.Builder()
+                .header("Authorization", "Bearer $authToken")
+                .url(url)
+                .post(requestBody)
+                .build()
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            return retry("App binary validation failed due to socket exception", e)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+
+                if (response.code >= 500) {
+                    return retry("App binary validation failed with status code ${response.code}: $errorMessage")
+                } else {
+                    throw CliError("App binary validation request failed (${response.code}): $errorMessage")
+                }
+            }
+
+            val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
+            return AppBinaryUploadResponse(
+                platform = responseBody["platform"].toString(),
+                appBinaryId = responseBody["appBinaryId"].toString(),
+            )
+        }
+    }
+
+    fun runMaestroTest(
+        authToken: String,
+        workspaceZip: Path,
+        request: RunMaestroTestRequest,
+        projectId: String,
+        maxRetryCount: Int = 3,
+        completedRetries: Int = 0,
+        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
+    ): UploadResponse {
+        if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
+
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "workspace",
+                "workspace.zip",
+                workspaceZip.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
+            )
+            .addFormDataPart("request", JSON.writeValueAsString(request))
+            .build()
+
+        fun retry(message: String, e: Throwable? = null): UploadResponse {
+            if (completedRetries >= maxRetryCount) {
+                e?.printStackTrace()
+                throw CliError(message)
+            }
+            PrintUtils.message("$message, retrying (${completedRetries + 1}/$maxRetryCount)...")
+            Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
+            return runMaestroTest(
+                authToken = authToken,
+                workspaceZip = workspaceZip,
+                request = request,
+                projectId = projectId,
+                maxRetryCount = maxRetryCount,
+                completedRetries = completedRetries + 1,
+                progressListener = progressListener,
+            )
+        }
+
+        val url = "$baseUrl/v2/project/$projectId/run-maestro-test"
+
+        val response = try {
+            val httpRequest = Request.Builder()
+                .header("Authorization", "Bearer $authToken")
+                .url(url)
+                .post(body)
+                .build()
+            client.newCall(httpRequest).execute()
+        } catch (e: IOException) {
+            return retry("Run test request failed due to socket exception", e)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+                if (response.code >= 500) {
+                    return retry("Run test request failed with status code ${response.code}: $errorMessage")
+                } else {
+                    throw CliError("Run test request failed (${response.code}): $errorMessage")
+                }
+            }
+
+            val responseBody = JSON.readValue(response.body?.bytes(), Map::class.java)
             return parseUploadResponse(responseBody)
         }
     }
@@ -770,6 +811,27 @@ data class UploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
+)
+
+data class AppBinaryUploadResponse(
+    val platform: String,
+    val appBinaryId: String,
+)
+
+data class RunMaestroTestRequest(
+    val appBinaryId: String,
+    val deviceConfiguration: MaestroDeviceConfiguration,
+    val uploadName: String? = null,
+    val repoOwner: String? = null,
+    val repoName: String? = null,
+    val branch: String? = null,
+    val commitSha: String? = null,
+    val pullRequestId: String? = null,
+    val env: Map<String, String>? = null,
+    val deviceLocale: String? = null,
+    val includeTags: List<String> = emptyList(),
+    val excludeTags: List<String> = emptyList(),
+    val disableNotifications: Boolean = false,
 )
 
 data class DeviceConfiguration(
