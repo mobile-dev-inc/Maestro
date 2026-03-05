@@ -10,11 +10,12 @@ sealed class MaestroDeviceConfiguration {
     abstract val deviceModel: String
     abstract val deviceOs: String
     abstract val deviceName: String
+    abstract val locale: DeviceLocale
 
     data class Android(
         override val deviceModel: String,
         override val deviceOs: String,
-        val locale: DeviceLocale,
+        override val locale: DeviceLocale,
         val orientation: DeviceOrientation,
         val disableAnimations: Boolean,
         val snapshotKeyHonorModalViews: Boolean,
@@ -29,7 +30,7 @@ sealed class MaestroDeviceConfiguration {
     data class Ios(
         override val deviceModel: String,
         override val deviceOs: String,
-        val locale: DeviceLocale,
+        override val locale: DeviceLocale,
         val orientation: DeviceOrientation,
         val disableAnimations: Boolean,
     ) : MaestroDeviceConfiguration() {
@@ -39,7 +40,8 @@ sealed class MaestroDeviceConfiguration {
 
     data class Web(
       override val deviceModel: String,
-      override val deviceOs: String
+      override val deviceOs: String,
+      override val locale: DeviceLocale
     ) : MaestroDeviceConfiguration() {
         override val platform = Platform.WEB
         override val deviceName = "Maestro_WEB_${deviceModel}_${deviceOs}"
@@ -106,6 +108,10 @@ object DeviceCatalog {
             }
         }
     }
+
+  fun checkLocalCompatibility(config: MaestroDeviceConfiguration) {
+
+  }
 
      fun checkCloudCompatibility(config: MaestroDeviceConfiguration) {
         val combinations = cloudDevice().forPlatform(config.platform).deviceCombinations

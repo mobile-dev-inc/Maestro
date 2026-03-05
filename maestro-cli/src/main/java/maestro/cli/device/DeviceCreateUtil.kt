@@ -7,6 +7,7 @@ import maestro.cli.CliError
 import maestro.cli.util.*
 import maestro.device.MaestroDeviceConfiguration
 
+
 object DeviceCreateUtil {
 
     fun getOrCreateDevice(
@@ -20,9 +21,8 @@ object DeviceCreateUtil {
             platform = Platform.WEB,
             description = "Chromium Desktop Browser (Experimental)",
             modelId = maestroDeviceConfiguration.deviceModel,
-            language = null,
-            country = null,
             deviceType = Device.DeviceType.BROWSER,
+            deviceConfiguration = maestroDeviceConfiguration,
         )
     }
 
@@ -78,9 +78,8 @@ object DeviceCreateUtil {
             modelId = deviceUUID,
             description = config.deviceName,
             platform = Platform.IOS,
-            language = config.locale.languageCode,
-            country = config.locale.countryCode,
-            deviceType = Device.DeviceType.SIMULATOR
+            deviceType = Device.DeviceType.SIMULATOR,
+            deviceConfiguration = config,
         )
     }
 
@@ -143,9 +142,8 @@ object DeviceCreateUtil {
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
-            language = config.locale.languageCode,
-            country = config.locale.countryCode,
             deviceType = Device.DeviceType.EMULATOR,
+            deviceConfiguration = config,
         )
     }
 }

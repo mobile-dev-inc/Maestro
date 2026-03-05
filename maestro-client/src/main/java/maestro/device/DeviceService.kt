@@ -7,7 +7,6 @@ import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
 import maestro.drivers.CdpWebDriver
-import maestro.locale.IosLocale
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
@@ -30,19 +29,15 @@ object DeviceService {
         driverHostPort: Int?,
         connectedDevices: Set<String> = setOf()
     ): Device.Connected {
-        when (device.platform) {
+        when (device.deviceConfiguration.platform) {
             Platform.IOS -> {
                 PrintUtils.message("Launching Simulator...")
                 try {
                     localSimulatorUtils.bootSimulator(device.modelId)
-                    if (device.language != null && device.country != null) {
-                        PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
-                        localSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
-                        IosLocale.find(device.language, device.country)?.let {
-                            localSimulatorUtils.setDeviceLocale(device.modelId, it)
-                        }
-                        localSimulatorUtils.reboot(device.modelId)
-                    }
+                    PrintUtils.message("Setting the device locale to ${device.deviceConfiguration.locale.code}...")
+                    localSimulatorUtils.setDeviceLanguage(device.modelId, device.deviceConfiguration.locale.languageCode)
+                    localSimulatorUtils.setDeviceLocale(device.modelId, device.deviceConfiguration.locale.code)
+                    localSimulatorUtils.reboot(device.modelId)
                     localSimulatorUtils.launchSimulator(device.modelId)
                     localSimulatorUtils.awaitLaunch(device.modelId)
                 } catch (e: util.LocalSimulatorUtils.SimctlError) {
@@ -91,23 +86,21 @@ object DeviceService {
                     Thread.sleep(1000)
                 }
 
-                if (device.language != null && device.country != null) {
-                    PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
-                    val driver = AndroidDriver(dadb, driverHostPort)
-                    driver.installMaestroDriverApp()
-                    val result = driver.setDeviceLocale(
-                        country = device.country,
-                        language = device.language
-                    )
+                PrintUtils.message("Setting the device locale to ${device.deviceConfiguration.locale.code}...")
+                val driver = AndroidDriver(dadb, driverHostPort)
+                driver.installMaestroDriverApp()
+                val result = driver.setDeviceLocale(
+                    country = device.deviceConfiguration.locale.countryCode,
+                    language = device.deviceConfiguration.locale.languageCode,
+                )
 
-                    when (result) {
-                        SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.language}_${device.country}")
-                        SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.language}_${device.country}, the locale is not valid for a chosen device")
-                        SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.language}_${device.country}, exception during updating configuration occurred")
-                        else -> throw IllegalStateException("Failed to set locale ${device.language}_${device.country}, unknown exception happened")
-                    }
-                    driver.uninstallMaestroDriverApp()
+                when (result) {
+                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.deviceConfiguration.locale.code}...")
+                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.deviceConfiguration.locale.code}, the locale is not valid for a chosen device")
+                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.deviceConfiguration.locale.code}, exception during updating configuration occurred")
+                    else -> throw IllegalStateException("Failed to set locale ${device.deviceConfiguration.locale.code}, unknown exception happened")
                 }
+                driver.uninstallMaestroDriverApp()
 
                 return Device.Connected(
                     instanceId = dadb.toString(),
@@ -168,11 +161,10 @@ object DeviceService {
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
-                language = null,
-                country = null,
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
-                deviceType = Device.DeviceType.BROWSER
+                deviceType = Device.DeviceType.BROWSER,
+                deviceConfiguration = DeviceCatalog.resolve(Platform.WEB.name)
             )
         )
     }
@@ -237,9 +229,8 @@ object DeviceService {
                                 modelId = it,
                                 description = it,
                                 platform = Platform.ANDROID,
-                                language = null,
-                                country = null,
-                                deviceType = Device.DeviceType.EMULATOR
+                                deviceType = Device.DeviceType.EMULATOR,
+                                deviceConfiguration = DeviceCatalog.resolve(Platform.ANDROID.name)
                             )
                         }
                         .toList()
@@ -315,9 +306,8 @@ object DeviceService {
                 modelId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                language = null,
-                country = null,
-                deviceType =  Device.DeviceType.SIMULATOR
+                deviceType =  Device.DeviceType.SIMULATOR,
+                deviceConfiguration = DeviceCatalog.resolve(Platform.IOS.name)
             )
         }
     }
