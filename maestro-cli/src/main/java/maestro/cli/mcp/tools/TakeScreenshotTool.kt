@@ -9,10 +9,16 @@ import okio.Buffer
 import java.util.Base64
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.awt.RenderingHints
 import java.awt.image.BufferedImage
+import javax.imageio.IIOImage
 import javax.imageio.ImageIO
+import javax.imageio.ImageWriteParam
 
 object TakeScreenshotTool {
+    private const val DEFAULT_MAX_DIMENSIONS = 2000
+    private const val JPEG_QUALITY = 0.9f
+
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
@@ -27,6 +33,7 @@ object TakeScreenshotTool {
                         putJsonObject("maxDimensions") {
                             put("type", "integer")
                             put("description", "Maximum size (in pixels) for the longest dimension of the screenshot. The image will be scaled down proportionally if either dimension exceeds this value. Defaults to 2000. Note: Claude works best with images below 2000 pixels.")
+                            put("minimum", 1)
                         }
                     },
                     required = listOf("device_id")
@@ -35,7 +42,6 @@ object TakeScreenshotTool {
         ) { request ->
             try {
                 val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
-                val maxDimensions = request.arguments?.get("maxDimensions")?.jsonPrimitive?.intOrNull ?: 2000
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -43,7 +49,10 @@ object TakeScreenshotTool {
                         isError = true
                     )
                 }
-                
+
+                val maxDimensions = (request.arguments?.get("maxDimensions")?.jsonPrimitive?.intOrNull
+                    ?: DEFAULT_MAX_DIMENSIONS).coerceAtLeast(1)
+
                 val result = sessionManager.newSession(
                     host = null,
                     port = null,
@@ -54,38 +63,46 @@ object TakeScreenshotTool {
                     val buffer = Buffer()
                     runBlocking { session.maestro.takeScreenshot(buffer, true) }
                     val pngBytes = buffer.readByteArray()
-                    
-                    // Convert PNG to JPEG
+
                     val pngImage = ImageIO.read(ByteArrayInputStream(pngBytes))
-                    val imageToEncode = if (maxOf(pngImage.width, pngImage.height) > maxDimensions) {
-                        val scale = maxDimensions.toDouble() / maxOf(pngImage.width, pngImage.height)
+                        ?: error("Failed to decode screenshot image")
+
+                    val longestSide = maxOf(pngImage.width, pngImage.height)
+                    val imageToEncode = if (longestSide > maxDimensions) {
+                        val scale = maxDimensions.toDouble() / longestSide
                         val newWidth = (pngImage.width * scale).toInt()
                         val newHeight = (pngImage.height * scale).toInt()
                         val scaled = BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB)
                         val g2d = scaled.createGraphics()
-                        g2d.drawImage(pngImage.getScaledInstance(newWidth, newHeight, java.awt.Image.SCALE_SMOOTH), 0, 0, null)
+                        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+                        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+                        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                        g2d.drawImage(pngImage, 0, 0, newWidth, newHeight, null)
                         g2d.dispose()
                         scaled
                     } else {
                         pngImage
                     }
+
                     val jpegOutput = ByteArrayOutputStream()
-                    ImageIO.write(imageToEncode, "JPEG", jpegOutput)
-                    val jpegBytes = jpegOutput.toByteArray()
-                    
-                    val base64 = Base64.getEncoder().encodeToString(jpegBytes)
-                    base64
+                    val writer = ImageIO.getImageWritersByFormatName("JPEG").next()
+                    val params = writer.defaultWriteParam.apply {
+                        compressionMode = ImageWriteParam.MODE_EXPLICIT
+                        compressionQuality = JPEG_QUALITY
+                    }
+                    ImageIO.createImageOutputStream(jpegOutput).use { imageOutputStream ->
+                        writer.output = imageOutputStream
+                        writer.write(null, IIOImage(imageToEncode, null, null), params)
+                    }
+                    writer.dispose()
+
+                    Base64.getEncoder().encodeToString(jpegOutput.toByteArray())
                 }
-                
-                val imageContent = ImageContent(
-                    data = result,
-                    mimeType = "image/jpeg"
-                )
-                
-                CallToolResult(content = listOf(imageContent))
+
+                CallToolResult(content = listOf(ImageContent(data = result, mimeType = "image/jpeg")))
             } catch (e: Exception) {
                 CallToolResult(
-                    content = listOf(TextContent("Failed to take screenshot: ${e.message}")),
+                    content = listOf(TextContent("Failed to take screenshot: ${e::class.simpleName}: ${e.message}")),
                     isError = true
                 )
             }
