@@ -862,8 +862,8 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun scrollUntilVisibleWithOrigin(
-        @YamlFile("031_scrollUntilVisible_origin.yaml") commands: List<Command>
+    fun scrollUntilVisibleWithFromPoint(
+        @YamlFile("031_scrollUntilVisible_fromPoint.yaml") commands: List<Command>
     ) {
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(MaestroConfig(
@@ -874,14 +874,14 @@ internal class YamlCommandReaderTest {
                 direction = ScrollDirection.DOWN,
                 centerElement = false,
                 visibilityPercentage = 100,
-                origin = "30%, 60%",
+                fromPoint = "30%, 60%",
             ),
             ScrollUntilVisibleCommand(
                 selector = ElementSelector(textRegex = "Target2"),
                 direction = ScrollDirection.UP,
                 centerElement = false,
                 visibilityPercentage = 100,
-                origin = "100, 400",
+                fromPoint = "100, 400",
             ),
             ScrollUntilVisibleCommand(
                 selector = ElementSelector(textRegex = "Target3"),

@@ -4,12 +4,12 @@ appId: com.example.app
     element:
       text: "Target"
     direction: DOWN
-    origin: "30%, 60%"
+    fromPoint: "30%, 60%"
 - scrollUntilVisible:
     element:
       text: "Target2"
     direction: UP
-    origin: "100, 400"
+    fromPoint: "100, 400"
 - scrollUntilVisible:
     element:
       text: "Target3"

@@ -999,7 +999,7 @@ data class YamlFluentCommand(
                 optional = yaml.optional,
                 originalSpeedValue = yaml.speed,
                 waitToSettleTimeoutMs = yaml.waitToSettleTimeoutMs,
-                origin = yaml.origin,
+                fromPoint = yaml.fromPoint,
             )
         )
     }

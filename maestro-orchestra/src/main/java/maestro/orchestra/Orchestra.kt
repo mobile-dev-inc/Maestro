@@ -739,7 +739,7 @@ class Orchestra(
             } catch (ignored: MaestroException.ElementNotFound) {
                 logger.warn("Error: $ignored")
             }
-            val swipeOrigin = resolveOrigin(command.origin, deviceInfo)
+            val swipeOrigin = resolveFromPoint(command.fromPoint, deviceInfo)
             maestro.swipeFromPoint(swipeOrigin, direction, command.scrollDuration.toLong(), command.waitToSettleTimeoutMs)
         } while (System.currentTimeMillis() < endTime)
 
@@ -780,15 +780,15 @@ class Orchestra(
         )
     }
 
-    private fun resolveOrigin(origin: String, deviceInfo: DeviceInfo): Point {
-        return if (origin.contains('%')) {
-            val (pctX, pctY) = origin.split(',').map { it.trim().trimEnd('%').toDouble() }
+    private fun resolveFromPoint(fromPoint: String, deviceInfo: DeviceInfo): Point {
+        return if (fromPoint.contains('%')) {
+            val (pctX, pctY) = fromPoint.split(',').map { it.trim().trimEnd('%').toDouble() }
             Point(
                 x = (deviceInfo.widthGrid * pctX / 100).toInt(),
                 y = (deviceInfo.heightGrid * pctY / 100).toInt(),
             )
         } else {
-            val (x, y) = origin.split(',').map { it.trim().toInt() }
+            val (x, y) = fromPoint.split(',').map { it.trim().toInt() }
             Point(x = x, y = y)
         }
     }
