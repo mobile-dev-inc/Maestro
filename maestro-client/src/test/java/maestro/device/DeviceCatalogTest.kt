@@ -1,9 +1,9 @@
 package maestro.device
 
 import com.google.common.truth.Truth.assertThat
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.device.util.CPU_ARCHITECTURE
-import maestro.locale.DeviceLocale
+import maestro.device.locale.DeviceLocale
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

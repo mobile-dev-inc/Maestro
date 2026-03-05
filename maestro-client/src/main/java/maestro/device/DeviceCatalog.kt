@@ -1,9 +1,9 @@
 package maestro.device
 
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.device.util.CPU_ARCHITECTURE
 import maestro.device.util.EnvUtils
-import maestro.locale.DeviceLocale
+import maestro.device.locale.DeviceLocale
 
 sealed class MaestroDeviceConfiguration {
     abstract val platform: Platform

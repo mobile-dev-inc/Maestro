@@ -1,4 +1,4 @@
-package maestro
+package maestro.device
 
 enum class DeviceOrientation {
     PORTRAIT,

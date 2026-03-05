@@ -1,4 +1,4 @@
-package maestro.locale
+package maestro.device.locale
 
 import maestro.device.Platform
 import java.util.Locale
