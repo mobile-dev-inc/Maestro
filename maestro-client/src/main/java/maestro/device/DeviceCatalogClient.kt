@@ -2,9 +2,9 @@ package maestro.device
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.device.util.CPU_ARCHITECTURE
-import maestro.locale.DeviceLocale
+import maestro.device.locale.DeviceLocale
 import maestro.utils.HttpClient
 import okhttp3.Request
 import org.slf4j.LoggerFactory
