@@ -927,11 +927,22 @@ class Orchestra(
 
         condition.visible?.let {
             try {
-                findElement(
+                val result = findElement(
                     selector = it,
                     timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
                     optional = commandOptional,
                 )
+                condition.visibilityPercentage?.let { requiredPercentage ->
+                    val deviceInfo = maestro.cachedDeviceInfo
+                    val visibility = result.element.getVisiblePercentage(
+                        deviceInfo.widthGrid,
+                        deviceInfo.heightGrid
+                    )
+                    val requiredNormalized = requiredPercentage / 100.0
+                    if (visibility < requiredNormalized) {
+                        return false
+                    }
+                }
             } catch (_: MaestroException.ElementNotFound) {
                 return false
             }

@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- assertVisible:
+    text: "Carousel Item"
+    visibilityPercentage: 50
+- assertVisible:
+    id: "header"

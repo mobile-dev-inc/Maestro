@@ -10,6 +10,7 @@ data class Condition(
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null,
     val label: String? = null,
+    val visibilityPercentage: Int? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): Condition {
@@ -32,7 +33,8 @@ data class Condition(
         }
 
         visible?.let {
-            descriptions.add("${it.description()} is visible")
+            val percentageStr = visibilityPercentage?.let { p -> " (at least $p% visible)" } ?: ""
+            descriptions.add("${it.description()} is visible$percentageStr")
         }
 
         notVisible?.let {
