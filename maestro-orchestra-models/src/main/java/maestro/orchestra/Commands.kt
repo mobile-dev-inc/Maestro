@@ -1157,6 +1157,19 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
+data class ShakeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+    ) : Command {
+    override val originalDescription: String
+        get() = "Shakes the device"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+
 internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {
