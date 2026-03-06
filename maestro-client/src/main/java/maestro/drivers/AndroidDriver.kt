@@ -50,6 +50,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.net.ServerSocket
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -70,7 +71,7 @@ class AndroidDriver(
     ) : Driver {
     private var portForwarder: AutoCloseable? = null
     private var open = false
-    private val hostPort: Int = hostPort ?: DefaultDriverHostPort
+    private val hostPort: Int = hostPort ?: findAvailableHostPort()
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
@@ -98,6 +99,9 @@ class AndroidDriver(
     }
 
     override fun open() {
+        if (open) {
+            return
+        }
         allocateForwarder()
         installMaestroApks()
         startInstrumentationSession(hostPort)
@@ -123,11 +127,11 @@ class AndroidDriver(
             append("dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n")
         }
 
-        open = true
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             instrumentationSession = dadb.openShell(instrumentationCommand)
 
             if (instrumentationSession.successfullyStarted()) {
+                open = true
                 return
             }
 
@@ -205,6 +209,7 @@ class AndroidDriver(
         if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
             throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
         }
+        open = false
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -383,6 +388,11 @@ class AndroidDriver(
                     throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
+                    if (!open && attempt > 0) {
+                        LOGGER.info("Android driver is unavailable while fetching view hierarchy, attempting to start driver")
+                        open()
+                        return callViewHierarchy(attempt - 1)
+                    }
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
                     } else {
@@ -1080,6 +1090,21 @@ class AndroidDriver(
                 attributesBuilder["error"] = node.getAttribute("error")
             }
 
+            // Add package attribute for filtering by app, fix current package attribute content is null
+            if (node.hasAttribute("package")) {
+                attributesBuilder["package"] = node.getAttribute("package")
+            }
+
+            // Add long-clickable attribute
+            if (node.hasAttribute("long-clickable")) {
+                attributesBuilder["long-clickable"] = node.getAttribute("long-clickable")
+            }
+
+            // Add focusable attribute
+            if (node.hasAttribute("focusable")) {
+                attributesBuilder["focusable"] = node.getAttribute("focusable")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
@@ -1269,6 +1294,11 @@ class AndroidDriver(
                     throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
+                    if (!open) {
+                        LOGGER.info("Android driver is unavailable while processing $callName, attempting to start driver")
+                        open()
+                        return call()
+                    }
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while processing $callName command")
                         throw throwable
@@ -1314,5 +1344,27 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
+
+        private fun findAvailableHostPort(): Int {
+            val pidOffset = runCatching {
+                ProcessHandle.current().pid().toInt()
+            }.getOrDefault(0) % 200
+            val startPort = 17001 + pidOffset
+            val endPort = startPort + 200
+
+            for (candidate in startPort..endPort) {
+                val available = runCatching {
+                    ServerSocket(candidate).use { socket ->
+                        socket.reuseAddress = true
+                        true
+                    }
+                }.getOrDefault(false)
+                if (available) {
+                    return candidate
+                }
+            }
+
+            return DefaultDriverHostPort
+        }
     }
 }
