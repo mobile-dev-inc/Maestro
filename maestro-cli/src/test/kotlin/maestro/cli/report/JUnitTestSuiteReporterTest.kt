@@ -9,13 +9,12 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test passed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
         val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml(sink = sink)
 
         // When
         testee.report(
             summary = testSuccessWithWarning,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -37,13 +36,12 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test failed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
         val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml(sink = sink)
 
         // When
         testee.report(
             summary = testSuccessWithError,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -67,13 +65,12 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Custom test suite name is used when present`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml("Custom test suite name")
         val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml(sink = sink, "Custom test suite name")
 
         // When
         testee.report(
             summary = testSuccessWithWarning,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 
@@ -95,13 +92,12 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Tags and properties are included in output`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
         val sink = Buffer()
+        val testee = JUnitTestSuiteReporter.xml(sink = sink)
 
         // When
         testee.report(
             summary = testWithTagsAndProperties,
-            out = sink
         )
         val resultStr = sink.readUtf8()
 

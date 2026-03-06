@@ -37,9 +37,6 @@ import maestro.cli.view.render
 import maestro.cli.web.WebInteractor
 import maestro.cli.promotion.PromotionStateManager
 import maestro.utils.TemporaryDirectory
-import okio.BufferedSink
-import okio.buffer
-import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.File
@@ -558,20 +555,13 @@ class CloudInteractor(
 
         val failed = isFailure || containsFailure || isCancelled && failOnCancellation
 
-        val reportOutputSink = reportFormat.fileExtension
-            ?.let { extension ->
-                (reportOutput ?: File("report$extension"))
-                    .sink()
-                    .buffer()
-            }
-
-        if (reportOutputSink != null) {
+        if (reportFormat != ReportFormat.NOOP) {
             saveReport(
-                reportFormat,
-                !failed,
-                createSuiteResult(!failed, upload, runningFlows),
-                reportOutputSink,
-                testSuiteName
+                reportFormat = reportFormat,
+                passed = !failed,
+                suiteResult = createSuiteResult(!failed, upload, runningFlows),
+                reportOutput = reportOutput,
+                testSuiteName = testSuiteName,
             )
         }
 
@@ -595,17 +585,20 @@ class CloudInteractor(
         reportFormat: ReportFormat,
         passed: Boolean,
         suiteResult: TestExecutionSummary.SuiteResult,
-        reportOutputSink: BufferedSink,
+        reportOutput: File?,
         testSuiteName: String?
     ) {
-        ReporterFactory.buildReporter(reportFormat, testSuiteName)
-            .report(
-                TestExecutionSummary(
-                    passed = passed,
-                    suites = listOf(suiteResult)
-                ),
-                reportOutputSink,
-            )
+        val reporter = ReporterFactory.buildReporter(
+            format = reportFormat,
+            output = reportOutput,
+            testSuiteName = testSuiteName,
+        )
+        reporter.report(
+            TestExecutionSummary(
+                passed = passed,
+                suites = listOf(suiteResult)
+            ),
+        )
     }
 
     private fun createSuiteResult(

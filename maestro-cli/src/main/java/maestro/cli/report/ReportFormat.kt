@@ -3,14 +3,14 @@ package maestro.cli.report
 import picocli.CommandLine
 
 enum class ReportFormat(
-    val fileExtension: String?,
     private val displayName: String? = null
 ) {
 
-    JUNIT(".xml"),
-    HTML(".html"),
-    HTML_DETAILED(".html", "HTML-DETAILED"),
-    NOOP(null);
+    JUNIT,
+    HTML,
+    HTML_DETAILED("HTML-DETAILED"),
+    ALLURE,
+    NOOP;
 
     override fun toString(): String {
         return displayName ?: name

@@ -64,7 +64,6 @@ import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
-import okio.sink
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -614,12 +613,10 @@ class TestCommand : Callable<Int> {
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
-            reporter = ReporterFactory.buildReporter(format, testSuiteName),
-            captureSteps = format == ReportFormat.HTML_DETAILED,
+            captureSteps = format == ReportFormat.HTML_DETAILED || format == ReportFormat.ALLURE,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
-            reportOut = null,
             debugOutputPath = debugOutputPath,
             testOutputDir = testOutputDir,
             deviceId = deviceId,
@@ -686,13 +683,13 @@ class TestCommand : Callable<Int> {
     }
 
     private fun TestExecutionSummary.saveReport() {
-        val reporter = ReporterFactory.buildReporter(format, testSuiteName)
-
-        format.fileExtension?.let { extension ->
-            (output ?: File("report$extension")).sink()
-        }?.also { sink ->
-            reporter.report(this, sink)
-        }
+        if (format == ReportFormat.NOOP) return
+        val reporter = ReporterFactory.buildReporter(
+            format = format,
+            output = output,
+            testSuiteName = testSuiteName,
+        )
+        reporter.report(this)
     }
 
     private fun List<TestExecutionSummary>.mergeSummaries(): TestExecutionSummary? = reduceOrNull { acc, summary ->
