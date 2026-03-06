@@ -69,6 +69,11 @@ object DependencyResolver {
             resolveDependencyFile(currentFile, retry.sourceDescription)?.let { commandDependencies.add(it) }
         }
         
+        // Check for assertScreenshot commands and add the reference image as a dependency
+        maestroCommand.assertScreenshotCommand?.let { assertScreenshot ->
+            resolveDependencyFile(currentFile, assertScreenshot.path)?.let { commandDependencies.add(it) }
+        }
+
         // Check for addMedia commands and add the dependency if it exists (mediaPaths is not null)
         maestroCommand.addMediaCommand?.let { addMedia ->
             addMedia.mediaPaths.forEach { mediaPath ->

@@ -645,6 +645,47 @@ class DependencyResolverTest {
     }
 
     @Test
+    fun `test assertScreenshot reference image is discovered as a dependency`(@TempDir tempDir: Path) {
+        val referenceImage = tempDir.resolve("reference.png")
+        referenceImage.writeText("fake png content")
+
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - assertScreenshot: reference.png
+        """.trimIndent())
+
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(referenceImage)
+    }
+
+    @Test
+    fun `test assertScreenshot inside repeat block is discovered as a dependency`(@TempDir tempDir: Path) {
+        val referenceImage = tempDir.resolve("reference.png")
+        referenceImage.writeText("fake png content")
+
+        val mainFlow = tempDir.resolve("main_flow.yaml")
+        mainFlow.writeText("""
+            appId: com.example.app
+            ---
+            - repeat:
+                times: 3
+                commands:
+                  - assertScreenshot: reference.png
+        """.trimIndent())
+
+        val dependencies = DependencyResolver.discoverAllDependencies(mainFlow)
+
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies).contains(mainFlow)
+        assertThat(dependencies).contains(referenceImage)
+    }
+
+    @Test
     fun `treats files with same name but different real paths as different dependencies`(@TempDir tempDir: Path) {
         // Directory layout:
         // tempDir/
