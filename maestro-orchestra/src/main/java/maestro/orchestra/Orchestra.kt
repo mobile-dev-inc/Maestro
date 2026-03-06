@@ -612,14 +612,24 @@ class Orchestra(
 
         val comparisonState = comparison.compareImages()
 
-        if (ImageComparisonState.MISMATCH === comparisonState.imageComparisonState) {
-            throw MaestroException.AssertionFailure(
+        when (comparisonState.imageComparisonState) {
+            ImageComparisonState.MATCH -> return true
+            ImageComparisonState.SIZE_MISMATCH -> throw MaestroException.AssertionFailure(
+                message = "Screenshot size mismatch: ${command.description()} - expected ${expectedImage.width}x${expectedImage.height}, actual ${actualImage.width}x${actualImage.height}. Screenshots must have the same dimensions to compare.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${expectedImage.width}x${expectedImage.height}, got: ${actualImage.width}x${actualImage.height}. Use the same device/emulator or cropOn to align dimensions."
+            )
+            ImageComparisonState.MISMATCH -> throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
+            else -> throw MaestroException.AssertionFailure(
+                message = "Screenshot comparison failed: ${command.description()} - unexpected comparison state ${comparisonState.imageComparisonState}.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command encountered an unexpected result from the image comparison. State: ${comparisonState.imageComparisonState}"
+            )
         }
-        return true
     }
 
 
