@@ -165,6 +165,12 @@ class Maestro(
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
+    fun swipeFromPoint(point: Point, swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+        LOGGER.info("Swiping ${swipeDirection.name} from point $point")
+        driver.swipe(point, swipeDirection, durationMs)
+        waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
+    }
+
     fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 

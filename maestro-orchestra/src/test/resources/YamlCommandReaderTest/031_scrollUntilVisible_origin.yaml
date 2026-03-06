@@ -1,0 +1,16 @@
+appId: com.example.app
+---
+- scrollUntilVisible:
+    element:
+      text: "Target"
+    direction: DOWN
+    origin: "30%, 60%"
+- scrollUntilVisible:
+    element:
+      text: "Target2"
+    direction: UP
+    origin: "100, 400"
+- scrollUntilVisible:
+    element:
+      text: "Target3"
+    direction: DOWN
