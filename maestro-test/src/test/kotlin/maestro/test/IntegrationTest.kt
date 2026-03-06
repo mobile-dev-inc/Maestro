@@ -13,7 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException

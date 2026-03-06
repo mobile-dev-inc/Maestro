@@ -21,6 +21,7 @@ package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
