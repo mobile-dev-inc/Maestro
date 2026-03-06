@@ -1,8 +1,19 @@
 package maestro.device
 
-import maestro.device.util.CPU_ARCHITECTURE
-import maestro.device.util.EnvUtils
 import maestro.device.locale.DeviceLocale
+
+enum class CPU_ARCHITECTURE(val value: String) {
+  X86_64("x86_64"),
+  ARM64("arm64-v8a"),
+  UNKNOWN("unknown");
+
+  companion object {
+    fun fromString(p: String?): Platform? {
+      return Platform.entries.firstOrNull { it.description.equals(p, ignoreCase = true) }
+    }
+  }
+}
+
 
 sealed class DeviceSpec {
     abstract val platform: Platform
@@ -62,9 +73,11 @@ object DeviceCatalog {
         platform: String,
         model: String? = null,
         os: String? = null,
-        locale: String? = null,
-        orientation: DeviceOrientation? = null,
-        systemArchitecture: CPU_ARCHITECTURE? = null,
+        locale: String = "en_US",
+        orientation: DeviceOrientation = DeviceOrientation.PORTRAIT,
+        disableAnimations: Boolean = false,
+        snapshotKeyHonorModalViews: Boolean = false,
+        systemArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
     ): DeviceSpec {
         val platform = Platform.fromString(platform)
             ?: throw IllegalArgumentException("Unsupported platform $platform. Please specify one of: android, ios, web")
@@ -72,19 +85,19 @@ object DeviceCatalog {
         return when (platform) {
             Platform.ANDROID -> {
                 DeviceSpec.Android(
-                    model = model ?: "pixel_5",
+                    model = model ?: "pixel_6",
                     os = os ?: "android-34",
-                    locale = DeviceLocale.fromString(locale ?: "en_US", platform),
-                    orientation = orientation ?: DeviceOrientation.PORTRAIT,
-                    disableAnimations = false,
-                    snapshotKeyHonorModalViews = false,
-                    cpuArchitecture = systemArchitecture ?: EnvUtils.getMacOSArchitecture(),
+                    locale = DeviceLocale.fromString(locale, platform),
+                    orientation = orientation,
+                    disableAnimations = disableAnimations,
+                    snapshotKeyHonorModalViews = snapshotKeyHonorModalViews,
+                    cpuArchitecture = systemArchitecture,
                 )
             }
             Platform.IOS -> {
                 DeviceSpec.Ios(
-                    model = model ?: "iphone_11",
-                    os = os ?: "ios_26",
+                    model = model ?: "iPhone-11",
+                    os = os ?: "iOS-18-2",
                     locale = DeviceLocale.fromString(locale ?: "en_US", platform),
                     orientation = orientation ?: DeviceOrientation.PORTRAIT,
                     disableAnimations = false,
@@ -92,8 +105,8 @@ object DeviceCatalog {
             }
             Platform.WEB -> {
                 DeviceSpec.Web(
-                    model = model ?: "pixel_11",
-                    os = os ?: "web_26",
+                    model = model ?: "chromium",
+                    os = os ?: "default",
                     locale = DeviceLocale.fromString(locale ?: "en_US", platform),
                 )
             }

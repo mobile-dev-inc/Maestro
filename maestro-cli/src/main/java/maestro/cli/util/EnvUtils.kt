@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.cli.api.CliVersion
 import maestro.cli.update.Updates
 import maestro.cli.view.red
+import maestro.device.CPU_ARCHITECTURE
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -113,6 +114,20 @@ object EnvUtils {
         return Pair(first = version.getOrNull(), second = channel.getOrNull())
     }
 
+    fun getMacOSArchitecture(): CPU_ARCHITECTURE {
+        return determineArchitectureDetectionStrategy().detectArchitecture()
+    }
+
+    private fun determineArchitectureDetectionStrategy(): ArchitectureDetectionStrategy {
+        return if (isWindows()) {
+            ArchitectureDetectionStrategy.WindowsArchitectureDetection
+        } else if (runProcess("uname").contains("Linux")) {
+            ArchitectureDetectionStrategy.LinuxArchitectureDetection
+        } else {
+            ArchitectureDetectionStrategy.MacOsArchitectureDetection
+        }
+    }
+
     fun getCLIVersion(): CliVersion? {
         val props = try {
             Updates::class.java.classLoader.getResourceAsStream("version.properties").use {
@@ -125,6 +140,42 @@ object EnvUtils {
         val versionString = props["version"] as? String ?: return null
 
         return CliVersion.parse(versionString)
+    }
+}
+
+sealed interface ArchitectureDetectionStrategy {
+
+    fun detectArchitecture(): CPU_ARCHITECTURE
+
+    object MacOsArchitectureDetection : ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): CPU_ARCHITECTURE {
+            fun runSysctl(property: String) = runProcess("sysctl", property).any { it.endsWith(": 1") }
+
+            // Prefer sysctl over 'uname -m' due to Rosetta making it unreliable
+            val isArm64 = runSysctl("hw.optional.arm64")
+            val isX86_64 = runSysctl("hw.optional.x86_64")
+            return when {
+                isArm64 -> CPU_ARCHITECTURE.ARM64
+                isX86_64 -> CPU_ARCHITECTURE.X86_64
+                else -> CPU_ARCHITECTURE.UNKNOWN
+            }
+        }
+    }
+
+    object LinuxArchitectureDetection : ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): CPU_ARCHITECTURE {
+            return when (runProcess("uname", "-m").first()) {
+              "x86_64" -> CPU_ARCHITECTURE.X86_64
+              "arm64" -> CPU_ARCHITECTURE.ARM64
+              else -> CPU_ARCHITECTURE.UNKNOWN
+            }
+        }
+    }
+
+    object WindowsArchitectureDetection: ArchitectureDetectionStrategy {
+        override fun detectArchitecture(): CPU_ARCHITECTURE {
+            return CPU_ARCHITECTURE.X86_64
+        }
     }
 }
 

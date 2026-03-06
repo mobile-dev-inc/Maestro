@@ -92,6 +92,7 @@ class StartDeviceCommand : Callable<Int> {
             model = deviceModel,
             os = deviceOs ?: osVersion,
             locale = deviceLocale,
+            systemArchitecture = EnvUtils.getMacOSArchitecture()
         )
 
         // Get/Create the device
