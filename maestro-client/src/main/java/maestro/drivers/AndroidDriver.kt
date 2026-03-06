@@ -273,22 +273,30 @@ class AndroidDriver(
         // No op
     }
 
-    override fun tap(point: Point) {
+    override fun tap(point: Point, displayId: Int?) {
         metrics.measured("operation", mapOf("command" to "tap")) {
-            runDeviceCall("tap") {
-                blockingStubWithTimeout.tap(
-                    tapRequest {
-                        x = point.x
-                        y = point.y
-                    }
-                ) ?: throw IllegalStateException("Response can't be null")
+            if (displayId != null && displayId > 0) {
+                dadb.shell("input -d $displayId tap ${point.x} ${point.y}")
+            } else {
+                runDeviceCall("tap") {
+                    blockingStubWithTimeout.tap(
+                        tapRequest {
+                            x = point.x
+                            y = point.y
+                        }
+                    ) ?: throw IllegalStateException("Response can't be null")
+                }
             }
         }
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, displayId: Int?) {
         metrics.measured("operation", mapOf("command" to "longPress")) {
-            dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+            if (displayId != null && displayId > 0) {
+                dadb.shell("input -d $displayId swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+            } else {
+                dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+            }
         }
     }
 
@@ -1078,6 +1086,10 @@ class AndroidDriver(
 
             if (node.hasAttribute("error")) {
                 attributesBuilder["error"] = node.getAttribute("error")
+            }
+
+            if (node.hasAttribute("display-id")) {
+                attributesBuilder["display-id"] = node.getAttribute("display-id")
             }
 
             attributesBuilder

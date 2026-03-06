@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- tapOn:
+    text: "Pay Now"
+    displayId: 1
+- assertVisible:
+    id: "welcome_text"
+    displayId: 0
