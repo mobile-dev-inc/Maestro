@@ -540,15 +540,25 @@ class Orchestra(
         return if (imageExtensions.any { path.endsWith(it, ignoreCase = true) }) path else "$path.png"
     }
 
-    private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+    private fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
         val path = normalizeScreenshotPath(command.path)
         val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
 
-        val expectedFile = if (screenshotsDir != null) {
-            screenshotsDir.resolve(path).toFile()
-        } else {
-            File(path)
-        }
+        val candidates = buildList {
+            command.flowPath?.let { add(it.resolve(path).toFile()) }
+            screenshotsDir?.let { add(it.resolve(path).toFile()) }
+            add(File(path))
+        }.distinctBy { it.canonicalPath }
+
+        val expectedFile = candidates.firstOrNull { it.exists() }
+            ?: throw MaestroException.AssertionFailure(
+                message = "Screenshot file not found: $path. Searched in:\n" +
+                    candidates.joinToString("\n") { "  - ${it.absolutePath}" },
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
+                    "Create it at one of the searched locations above."
+            )
+
         expectedFile.parentFile?.mkdirs()
 
         // Temp file is always PNG since maestro.takeScreenshot produces PNG
@@ -574,14 +584,6 @@ class Orchestra(
 
         val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
 
-        if (!expectedFile.exists()) {
-            throw MaestroException.AssertionFailure(
-                message = "Screenshot file not found: ${expectedFile.absolutePath}. Expected screenshot file does not exist. Please create the reference screenshot first.",
-                hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot file. The file was expected at: ${expectedFile.absolutePath}"
-            )
-        }
-
         val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
             message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
             hierarchyRoot = maestro.viewHierarchy().root,
@@ -594,11 +596,7 @@ class Orchestra(
             path
         }
         val diffFileName = "${baseName}_diff.png"
-        val diffFile = if (screenshotsDir != null) {
-            screenshotsDir.resolve(diffFileName).toFile()
-        } else {
-            File(diffFileName)
-        }
+        val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
 
         val comparison =
             ImageComparison(expectedImage, actualImage, diffFile)
