@@ -12,6 +12,7 @@ sealed class UiState {
         val device: Device? = null,
         val onFlowStartCommands: List<CommandState> = emptyList(),
         val onFlowCompleteCommands: List<CommandState> = emptyList(),
+        val onAllFlowsCompleteCommands: List<CommandState> = emptyList(),
         val commands: List<CommandState>,
     ) : UiState()
 

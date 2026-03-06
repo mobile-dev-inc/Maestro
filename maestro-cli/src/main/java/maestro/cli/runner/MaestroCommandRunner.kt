@@ -67,6 +67,12 @@ object MaestroCommandRunner {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
         val onFlowStart = config?.onFlowStart
+        
+        val allFlowsCompleteCommands =
+            collectAllFlowsCompleteCommands(onFlowStart?.commands ?: emptyList()) +
+            collectAllFlowsCompleteCommands(commands) +
+            collectAllFlowsCompleteCommands(onFlowComplete?.commands ?: emptyList()) +
+            (config?.onAllFlowsComplete?.commands ?: emptyList())
 
         val commandStatuses = IdentityHashMap<MaestroCommand, CommandStatus>()
         val commandMetadata = IdentityHashMap<MaestroCommand, Orchestra.CommandMetadata>()
@@ -83,6 +89,11 @@ object MaestroCommandRunner {
                     ),
                     onFlowCompleteCommands = toCommandStates(
                         onFlowComplete?.commands ?: emptyList(),
+                        commandStatuses,
+                        commandMetadata
+                    ),
+                    onAllFlowsCompleteCommands = toCommandStates(
+                        allFlowsCompleteCommands,
                         commandStatuses,
                         commandMetadata
                     ),
@@ -207,6 +218,16 @@ object MaestroCommandRunner {
         }        
 
         return flowSuccess
+    }
+
+    private fun collectAllFlowsCompleteCommands(commands: List<MaestroCommand>): List<MaestroCommand> {
+        val result = mutableListOf<MaestroCommand>()
+        for (command in commands) {
+            val composite = command.asCommand() as? CompositeCommand ?: continue
+            composite.config()?.onAllFlowsComplete?.commands?.let { result.addAll(it) }
+            result.addAll(collectAllFlowsCompleteCommands(composite.subCommands()))
+        }
+        return result
     }
 
     private fun toCommandStates(

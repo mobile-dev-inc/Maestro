@@ -54,6 +54,11 @@ class PlainTextResultView: ResultView {
             printOnce("onFlowComplete") { println("  > On Flow Complete") }
             renderCommandsPlainText(state.onFlowCompleteCommands, prefix = "onFlowComplete")
         }
+
+        if (state.onAllFlowsCompleteCommands.isNotEmpty()) {
+            printOnce("onAllFlowsComplete") { println("  > On All Flows Complete") }
+            renderCommandsPlainText(state.onAllFlowsCompleteCommands, prefix = "onAllFlowsComplete")
+        }
     }
 
     private fun renderCommandsPlainText(commands: List<CommandState>, indent: Int = 0, prefix: String = "") {

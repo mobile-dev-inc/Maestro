@@ -152,8 +152,11 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
+    private val allFlowsCompleteQueue = mutableListOf<MaestroCommand>()
+
     suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
+        allFlowsCompleteQueue.clear()
 
         val config = YamlCommandReader.getConfig(commands)
 
@@ -198,9 +201,18 @@ class Orchestra(
                 )
             } ?: true
 
+            config?.onAllFlowsComplete?.commands?.let { allFlowsCompleteQueue.addAll(it) }
+            val allFlowsCompleteSuccess = if (allFlowsCompleteQueue.isNotEmpty()) {
+                executeCommands(
+                    commands = allFlowsCompleteQueue.toList(),
+                    config = config,
+                    shouldReinitJsEngine = false,
+                )
+            } else true
+
             exception?.let { throw it }
 
-            return onCompleteSuccess && flowSuccess
+            return onCompleteSuccess && allFlowsCompleteSuccess && flowSuccess
         }
     }
 
@@ -1046,6 +1058,8 @@ class Orchestra(
                 onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
                     executeSubflowCommands(it, config)
                 } ?: true
+
+                subflowConfig?.onAllFlowsComplete?.commands?.let { allFlowsCompleteQueue.addAll(it) }
             }
             onCompleteSuccess && flowSuccess
         } finally {
