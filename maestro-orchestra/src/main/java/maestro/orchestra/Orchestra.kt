@@ -535,8 +535,13 @@ class Orchestra(
         return false
     }
 
+    private fun normalizeScreenshotPath(path: String): String {
+        val imageExtensions = listOf(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".wbmp")
+        return if (imageExtensions.any { path.endsWith(it, ignoreCase = true) }) path else "$path.png"
+    }
+
     private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
-        val path = command.path
+        val path = normalizeScreenshotPath(command.path)
         val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
 
         val expectedFile = if (screenshotsDir != null) {
