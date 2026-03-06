@@ -161,11 +161,10 @@ object DeviceService {
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
-                language = null,
-                country = null,
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
-                deviceType = Device.DeviceType.BROWSER
+                deviceType = Device.DeviceType.BROWSER,
+                deviceSpec = DeviceCatalog.resolve(Platform.WEB.name)
             )
         )
     }
