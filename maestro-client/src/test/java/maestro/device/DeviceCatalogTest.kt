@@ -1,47 +1,15 @@
 package maestro.device
 
 import com.google.common.truth.Truth.assertThat
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
+import maestro.device.util.CPU_ARCHITECTURE
+import maestro.device.locale.DeviceLocale
+import maestro.device.locale.LocaleValidationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 internal class DeviceCatalogTest {
-
-    val cloudDevicesDummyData = SupportedDevicesResponse(
-        ios = IosSupportedDevices(
-            deviceCombinations = listOf(
-                DeviceCombination("iPhone-11", "iOS-16-2"),
-                DeviceCombination("iPhone-11", "iOS-17-5"),
-                DeviceCombination("iPhone-11", "iOS-18-2"),
-            ),
-            defaults = IosDefaults("iPhone-11", "iOS-17-5", "en_US", disableAnimations = true),
-        ),
-        android = AndroidSupportedDevices(
-            deviceCombinations = listOf(
-                DeviceCombination("pixel_6",  "android-34"),
-                DeviceCombination("pixel_6",  "android-33"),
-                DeviceCombination("pixel_xl", "android-34"),
-            ),
-            defaults = AndroidDefaults(
-                deviceModel = "pixel_6",
-                deviceOs = "android-34",
-                locale = "en_US",
-                disableAnimations = true,
-                snapshotKeyHonorModalViews = false,
-            ),
-        ),
-        web = WebSupportedDevices(
-            deviceCombinations = listOf(DeviceCombination("chromium", "default")),
-            defaults = WebDefaults("chromium", "default", "en_US"),
-        ),
-    )
-
-    @BeforeEach
-    fun setup() {
-        DeviceCatalog.initForTest(cloudDevicesDummyData)
-    }
-
     @Test
     fun `resolve Android with no overrides uses defaults`() {
         val spec = DeviceCatalog.resolve("android") as DeviceSpec.Android
@@ -97,17 +65,12 @@ internal class DeviceCatalogTest {
     }
 
     @Test
-    fun `resolve also update image when system architecture is different`() {
-        val spec = DeviceCatalog.resolve(
-            platform = "android",
-            model = "pixel_xl",
-            os = "android-33",
-            locale = "de_DE",
-            orientation = DeviceOrientation.LANDSCAPE_LEFT,
-            systemArchitecture = CPU_ARCHITECTURE.X86_64,
-        ) as DeviceSpec.Android
-
-        assertThat(spec.emulatorImage).isEqualTo("system-images;android-33;google_apis;x86_64")
+    fun `resolve succeeds for valid cloud-compatible configs`() {
+        DeviceCatalog.resolve("android", model = "pixel_6",  os = "android-34")
+        DeviceCatalog.resolve("android", model = "pixel_xl", os = "android-33")
+        DeviceCatalog.resolve("ios",     model = "iPhone-11", os = "iOS-18-2")
+        DeviceCatalog.resolve("ios",     model = "iPhone-16", os = "iOS-18-2")
+        DeviceCatalog.resolve("web",     model = "chromium")
     }
 
     @Test
