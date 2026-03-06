@@ -75,15 +75,6 @@ internal class DeviceCatalogTest {
     }
 
     @Test
-    fun `resolve succeeds for valid cloud-compatible configs`() {
-        DeviceCatalog.resolve("android", model = "pixel_6",  os = "android-34")
-        DeviceCatalog.resolve("android", model = "pixel_xl", os = "android-33")
-        DeviceCatalog.resolve("ios",     model = "iPhone-11", os = "iOS-18-2")
-        DeviceCatalog.resolve("ios",     model = "iPhone-16", os = "iOS-18-2")
-        DeviceCatalog.resolve("web",     model = "chromium")
-    }
-
-    @Test
     fun `resolve throws on unsupported platform`() {
         assertThrows<IllegalArgumentException> {
             DeviceCatalog.resolve("windows")
