@@ -30,11 +30,11 @@ object PickDeviceView {
                 Platform.fromString(it)
             } ?: throw CliError("Please specify a platform"))
 
-        val maestroDeviceConfiguration = DeviceCatalog.resolve(
+        val spec = DeviceCatalog.resolve(
             platform = selectedPlatform.toString(),
         )
 
-        return maestroDeviceConfiguration
+        return spec
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {
