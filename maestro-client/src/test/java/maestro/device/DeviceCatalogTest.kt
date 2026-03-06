@@ -4,159 +4,64 @@ import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceOrientation
 import maestro.device.util.CPU_ARCHITECTURE
 import maestro.device.locale.DeviceLocale
+import maestro.device.locale.LocaleValidationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 internal class DeviceCatalogTest {
-
-    val cloudDevicesDummyData = SupportedDevicesResponse(
-        ios = PlatformSupportedDevices.Ios(
-            deviceCombinations = listOf(
-                MaestroDeviceConfiguration.Ios("iPhone-16-Pro", "iOS-18-2", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-                MaestroDeviceConfiguration.Ios("iPhone-16", "iOS-18-2", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-                MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-17-5", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-                MaestroDeviceConfiguration.Ios("iPhone-11", "iOS-16-4", DeviceLocale.fromString("en_US", Platform.IOS), DeviceOrientation.PORTRAIT, false),
-            ),
-            defaults = MaestroDeviceConfiguration.Ios(
-                deviceModel = "iPhone-16",
-                deviceOs = "iOS-18-2",
-                locale = DeviceLocale.fromString("en_US", Platform.IOS),
-                orientation = DeviceOrientation.PORTRAIT,
-                disableAnimations = true,
-            ),
-        ),
-        android = PlatformSupportedDevices.Android(
-            deviceCombinations = listOf(
-                MaestroDeviceConfiguration.Android("pixel_6", "android-34", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-                MaestroDeviceConfiguration.Android("pixel_6", "android-33", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-                MaestroDeviceConfiguration.Android("pixel_6", "android-32", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-                MaestroDeviceConfiguration.Android("pixel_6", "android-31", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-                MaestroDeviceConfiguration.Android("pixel_6", "android-30", DeviceLocale.fromString("en_US", Platform.ANDROID), DeviceOrientation.PORTRAIT, false, false, CPU_ARCHITECTURE.ARM64),
-            ),
-            defaults = MaestroDeviceConfiguration.Android(
-                deviceModel = "pixel_6",
-                deviceOs = "android-34",
-                locale = DeviceLocale.fromString("en_US", Platform.ANDROID),
-                orientation = DeviceOrientation.PORTRAIT,
-                disableAnimations = true,
-                snapshotKeyHonorModalViews = false,
-                cpuArchitecture = CPU_ARCHITECTURE.ARM64,
-            ),
-        ),
-        web = PlatformSupportedDevices.Web(
-            deviceCombinations = listOf(
-                MaestroDeviceConfiguration.Web("chromium", "default"),
-            ),
-            defaults = MaestroDeviceConfiguration.Web(
-                deviceModel = "chromium",
-                deviceOs = "default",
-            ),
-        ),
-    )
-
-    @BeforeEach
-    fun setup() {
-        DeviceCatalog.initForTest(cloudDevicesDummyData)
-    }
-
     @Test
     fun `resolve Android with no overrides uses defaults`() {
-        val config = DeviceCatalog.resolve("android") as MaestroDeviceConfiguration.Android
+        val spec = DeviceCatalog.resolve("android") as DeviceSpec.Android
 
-        assertThat(config.platform).isEqualTo(Platform.ANDROID)
-        assertThat(config.deviceModel).isEqualTo(cloudDevicesDummyData.android.defaults.deviceModel)
-        assertThat(config.deviceOs).isEqualTo(cloudDevicesDummyData.android.defaults.deviceOs)
-        assertThat(config.locale.code).isEqualTo(cloudDevicesDummyData.android.defaults.locale.code)
-        assertThat(config.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
-        assertThat(config.disableAnimations).isEqualTo(cloudDevicesDummyData.android.defaults.disableAnimations)
-        assertThat(config.snapshotKeyHonorModalViews).isEqualTo(cloudDevicesDummyData.android.defaults.snapshotKeyHonorModalViews)
+        assertThat(spec.platform).isEqualTo(Platform.ANDROID)
+        assertThat(spec.model).isEqualTo("pixel_6")
+        assertThat(spec.os).isEqualTo("android-34")
+        assertThat(spec.locale.code).isEqualTo("en_US")
+        assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
+        assertThat(spec.disableAnimations).isEqualTo(false)
+        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(false)
     }
 
     @Test
     fun `resolve iOS with no overrides uses defaults`() {
-        val config = DeviceCatalog.resolve("ios") as MaestroDeviceConfiguration.Ios
+        val spec = DeviceCatalog.resolve("ios") as DeviceSpec.Ios
 
-        assertThat(config.platform).isEqualTo(Platform.IOS)
-        assertThat(config.deviceModel).isEqualTo(cloudDevicesDummyData.ios.defaults.deviceModel)
-        assertThat(config.deviceOs).isEqualTo(cloudDevicesDummyData.ios.defaults.deviceOs)
-        assertThat(config.locale.code).isEqualTo(cloudDevicesDummyData.ios.defaults.locale.code)
-        assertThat(config.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
-        assertThat(config.disableAnimations).isEqualTo(cloudDevicesDummyData.ios.defaults.disableAnimations)
+        assertThat(spec.platform).isEqualTo(Platform.IOS)
+        assertThat(spec.model).isEqualTo("iPhone-11")
+        assertThat(spec.os).isEqualTo("iOS-18-2")
+        assertThat(spec.locale.code).isEqualTo("en_US")
+        assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
+        assertThat(spec.disableAnimations).isEqualTo(false)
     }
 
     @Test
     fun `resolve Web with no overrides uses defaults`() {
-        val config = DeviceCatalog.resolve("web") as MaestroDeviceConfiguration.Web
+        val spec = DeviceCatalog.resolve("web") as DeviceSpec.Web
 
-        assertThat(config.platform).isEqualTo(Platform.WEB)
-        assertThat(config.deviceModel).isEqualTo(cloudDevicesDummyData.web.defaults.deviceModel)
-        assertThat(config.deviceOs).isEqualTo(cloudDevicesDummyData.web.defaults.deviceOs)
+        assertThat(spec.platform).isEqualTo(Platform.WEB)
+        assertThat(spec.model).isEqualTo("chromium")
+        assertThat(spec.os).isEqualTo("default")
+        assertThat(spec.locale.code).isEqualTo("en_US")
     }
 
     @Test
     fun `resolve uses explicit values when provided`() {
-        val config = DeviceCatalog.resolve(
+        val spec = DeviceCatalog.resolve(
             platform = "android",
             model = "pixel_xl",
             os = "android-33",
             locale = "de_DE",
             orientation = DeviceOrientation.LANDSCAPE_LEFT,
             systemArchitecture = CPU_ARCHITECTURE.ARM64,
-        ) as MaestroDeviceConfiguration.Android
+        ) as DeviceSpec.Android
 
-        assertThat(config.deviceModel).isEqualTo("pixel_xl")
-        assertThat(config.deviceOs).isEqualTo("android-33")
-        assertThat(config.emulatorImage).isEqualTo("system-images;android-33;google_apis;arm64-v8a")
-        assertThat(config.locale.languageCode).isEqualTo("de")
-        assertThat(config.locale.countryCode).isEqualTo("DE")
-        assertThat(config.orientation).isEqualTo(DeviceOrientation.LANDSCAPE_LEFT)
-    }
-
-    @Test
-    fun `resolve throws for unsupported Android`() {
-        val wrongDeviceModel = DeviceCatalog.resolve("android", model = "galaxy_s21")
-        val wrongDeviceOs = DeviceCatalog.resolve("android", model = "pixel_6", os = "android-99")
-
-        val exceptionDevice = assertThrows<CloudCompatibilityException> {
-            DeviceCatalog.checkCloudCompatibility(wrongDeviceModel)
-        }
-        val exceptionOs = assertThrows<CloudCompatibilityException> {
-            DeviceCatalog.checkCloudCompatibility(wrongDeviceOs)
-        }
-
-        assertThat(exceptionDevice.message).contains("galaxy_s21")
-        assertThat(exceptionDevice.message).contains("not available in the cloud")
-        assertThat((exceptionDevice.config as MaestroDeviceConfiguration.Android).deviceModel).isEqualTo("galaxy_s21")
-        assertThat(exceptionOs.message).contains("android-99")
-        assertThat(exceptionOs.message).contains("not supported")
-    }
-
-    @Test
-    fun `resolve throws for unsupported iOS`() {
-        val wrongDeviceModel = DeviceCatalog.resolve("ios", model = "iPhone-99")
-        val wrongDeviceOs = DeviceCatalog.resolve("ios", model = "iPhone-11", os = "iOS-99-0")
-
-        val exceptionModel = assertThrows<CloudCompatibilityException> {
-            DeviceCatalog.checkCloudCompatibility(wrongDeviceModel)
-        }
-        val exceptionOs = assertThrows<CloudCompatibilityException> {
-            DeviceCatalog.checkCloudCompatibility(wrongDeviceOs)
-        }
-
-        assertThat(exceptionModel.message).contains("iPhone-99")
-        assertThat(exceptionOs.message).contains("iOS-99-0")
-    }
-
-    @Test
-    fun `checkCloudCompatibility throws for unsupported Web browser`() {
-        val maestroConfig = DeviceCatalog.resolve("web", model = "firefox")
-
-        val exception = assertThrows<CloudCompatibilityException> {
-            DeviceCatalog.checkCloudCompatibility(maestroConfig)
-        }
-
-        assertThat(exception.message).contains("firefox")
+        assertThat(spec.model).isEqualTo("pixel_xl")
+        assertThat(spec.os).isEqualTo("android-33")
+        assertThat(spec.emulatorImage).isEqualTo("system-images;android-33;google_apis;arm64-v8a")
+        assertThat(spec.locale.languageCode).isEqualTo("de")
+        assertThat(spec.locale.countryCode).isEqualTo("DE")
+        assertThat(spec.orientation).isEqualTo(DeviceOrientation.LANDSCAPE_LEFT)
     }
 
     @Test
@@ -166,5 +71,35 @@ internal class DeviceCatalogTest {
         DeviceCatalog.resolve("ios",     model = "iPhone-11", os = "iOS-18-2")
         DeviceCatalog.resolve("ios",     model = "iPhone-16", os = "iOS-18-2")
         DeviceCatalog.resolve("web",     model = "chromium")
+    }
+
+    @Test
+    fun `resolve throws on unsupported platform`() {
+        assertThrows<IllegalArgumentException> {
+            DeviceCatalog.resolve("windows")
+        }
+    }
+
+    @Test
+    fun `resolve Android throws on invalid locale combination like ar_US`() {
+        // Arabic is a supported language, US is a supported country,
+        // but ar_US is not a valid Java locale combination
+        assertThrows<LocaleValidationException> {
+            DeviceCatalog.resolve("android", locale = "ar_US")
+        }
+    }
+
+    @Test
+    fun `resolve Android throws on unsupported language code`() {
+        assertThrows<LocaleValidationException> {
+            DeviceCatalog.resolve("android", locale = "xx_US")
+        }
+    }
+
+    @Test
+    fun `resolve Android throws on malformed locale missing country`() {
+        assertThrows<LocaleValidationException> {
+            DeviceCatalog.resolve("android", locale = "en")
+        }
     }
 }
