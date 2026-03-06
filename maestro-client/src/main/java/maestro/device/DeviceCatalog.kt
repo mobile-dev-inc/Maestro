@@ -14,7 +14,6 @@ enum class CPU_ARCHITECTURE(val value: String) {
   }
 }
 
-
 sealed class DeviceSpec {
     abstract val platform: Platform
     abstract val model: String
@@ -58,11 +57,6 @@ sealed class DeviceSpec {
     }
 }
 
-class CloudCompatibilityException(
-    val config: DeviceSpec,
-    message: String,
-) : Exception(message)
-
 object DeviceCatalog {
     /**
      * Resolves device specifications with platform-aware defaults
@@ -73,12 +67,13 @@ object DeviceCatalog {
         platform: String,
         model: String? = null,
         os: String? = null,
-        locale: String = "en_US",
+        locale: String? = "en_US",
         orientation: DeviceOrientation = DeviceOrientation.PORTRAIT,
         disableAnimations: Boolean = false,
         snapshotKeyHonorModalViews: Boolean = false,
         systemArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
     ): DeviceSpec {
+        val resolvedLocale = locale ?: "en_US"
         val platform = Platform.fromString(platform)
             ?: throw IllegalArgumentException("Unsupported platform $platform. Please specify one of: android, ios, web")
 
@@ -87,7 +82,7 @@ object DeviceCatalog {
                 DeviceSpec.Android(
                     model = model ?: "pixel_6",
                     os = os ?: "android-34",
-                    locale = DeviceLocale.fromString(locale, platform),
+                    locale = DeviceLocale.fromString(resolvedLocale, platform),
                     orientation = orientation,
                     disableAnimations = disableAnimations,
                     snapshotKeyHonorModalViews = snapshotKeyHonorModalViews,
@@ -98,16 +93,16 @@ object DeviceCatalog {
                 DeviceSpec.Ios(
                     model = model ?: "iPhone-11",
                     os = os ?: "iOS-18-2",
-                    locale = DeviceLocale.fromString(locale ?: "en_US", platform),
-                    orientation = orientation ?: DeviceOrientation.PORTRAIT,
-                    disableAnimations = false,
+                    locale = DeviceLocale.fromString(resolvedLocale, platform),
+                    orientation = orientation,
+                    disableAnimations = disableAnimations,
                 )
             }
             Platform.WEB -> {
                 DeviceSpec.Web(
                     model = model ?: "chromium",
                     os = os ?: "default",
-                    locale = DeviceLocale.fromString(locale ?: "en_US", platform),
+                    locale = DeviceLocale.fromString(resolvedLocale, platform),
                 )
             }
         }
