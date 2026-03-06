@@ -1,11 +1,7 @@
 package maestro.device
 
 import com.google.common.truth.Truth.assertThat
-import maestro.device.DeviceOrientation
-import maestro.device.util.CPU_ARCHITECTURE
-import maestro.device.locale.DeviceLocale
 import maestro.device.locale.LocaleValidationException
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -62,6 +58,20 @@ internal class DeviceCatalogTest {
         assertThat(spec.locale.languageCode).isEqualTo("de")
         assertThat(spec.locale.countryCode).isEqualTo("DE")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.LANDSCAPE_LEFT)
+    }
+
+    @Test
+    fun `resolve also update image when system architecture is different`() {
+        val spec = DeviceCatalog.resolve(
+            platform = "android",
+            model = "pixel_xl",
+            os = "android-33",
+            locale = "de_DE",
+            orientation = DeviceOrientation.LANDSCAPE_LEFT,
+            systemArchitecture = CPU_ARCHITECTURE.X86_64,
+        ) as DeviceSpec.Android
+
+        assertThat(spec.emulatorImage).isEqualTo("system-images;android-33;google_apis;x86_64")
     }
 
     @Test
