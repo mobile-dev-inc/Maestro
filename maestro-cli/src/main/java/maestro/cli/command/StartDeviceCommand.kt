@@ -1,16 +1,13 @@
 package maestro.cli.command
 
-import maestro.device.CloudCompatibilityException
 import maestro.device.DeviceCatalog
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
-import maestro.device.Platform
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
-import maestro.cli.util.PrintUtils
 import picocli.CommandLine
 import java.util.concurrent.Callable
 

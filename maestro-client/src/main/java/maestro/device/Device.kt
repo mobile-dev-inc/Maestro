@@ -22,7 +22,7 @@ sealed class Device(
 
     data class AvailableForLaunch(
         val modelId: String,
-        val deviceConfiguration: MaestroDeviceConfiguration,
+        val deviceSpec: DeviceSpec,
         override val description: String,
         override val platform: Platform,
         override val deviceType: DeviceType,

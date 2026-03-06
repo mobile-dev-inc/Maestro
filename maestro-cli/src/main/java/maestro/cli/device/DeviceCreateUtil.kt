@@ -5,53 +5,52 @@ import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.CliError
 import maestro.cli.util.*
-import maestro.device.MaestroDeviceConfiguration
-
+import maestro.device.DeviceSpec
 
 object DeviceCreateUtil {
 
     fun getOrCreateDevice(
-        maestroDeviceConfiguration: MaestroDeviceConfiguration,
+        deviceSpec: DeviceSpec,
         forceCreate: Boolean = false,
         shardIndex: Int? = null,
-    ): Device.AvailableForLaunch = when (maestroDeviceConfiguration) {
-        is MaestroDeviceConfiguration.Android -> getOrCreateAndroidDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
-        is MaestroDeviceConfiguration.Ios     -> getOrCreateIosDevice(maestroDeviceConfiguration, forceCreate, shardIndex)
-        is MaestroDeviceConfiguration.Web     -> Device.AvailableForLaunch(
+    ): Device.AvailableForLaunch = when (deviceSpec) {
+        is DeviceSpec.Android -> getOrCreateAndroidDevice(deviceSpec, forceCreate, shardIndex)
+        is DeviceSpec.Ios     -> getOrCreateIosDevice(deviceSpec, forceCreate, shardIndex)
+        is DeviceSpec.Web     -> Device.AvailableForLaunch(
             platform = Platform.WEB,
             description = "Chromium Desktop Browser (Experimental)",
-            modelId = maestroDeviceConfiguration.deviceModel,
+            modelId = deviceSpec.model,
             deviceType = Device.DeviceType.BROWSER,
-            deviceConfiguration = maestroDeviceConfiguration,
+            deviceSpec = deviceSpec,
         )
     }
 
     fun getOrCreateIosDevice(
-        config: MaestroDeviceConfiguration.Ios, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec.Ios, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
         // check connected device
-        if (DeviceService.isDeviceConnected(config.deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
-            throw CliError("A device with name ${config.deviceName} is already connected")
+        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
+            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
         }
 
         // check existing device
-        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(config.deviceName, Platform.IOS)?.let {
+        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.IOS)?.let {
             if (forceCreate) {
                 DeviceService.deleteIosDevice(it.modelId)
                 null
             } else it.modelId
         }
 
-        if (existingDeviceId != null) PrintUtils.message("Using existing device ${config.deviceName} (${existingDeviceId}).")
-        else PrintUtils.message("Attempting to create iOS simulator: ${config.deviceName} ")
+        if (existingDeviceId != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName} (${existingDeviceId}).")
+        else PrintUtils.message("Attempting to create iOS simulator: ${deviceSpec.deviceName} ")
 
         val deviceUUID = try {
-            existingDeviceId ?: DeviceService.createIosDevice(config.deviceName, config.deviceModel, config.deviceOs).toString()
+            existingDeviceId ?: DeviceService.createIosDevice(deviceSpec.deviceName, deviceSpec.model, deviceSpec.os).toString()
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {
                 val msg = """
-                    Required runtime to create the simulator is not installed: ${config.deviceOs}
+                    Required runtime to create the simulator is not installed: ${deviceSpec.os}
 
                     To install additional iOS runtimes checkout this guide:
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
@@ -66,35 +65,35 @@ object DeviceCreateUtil {
                 """.trimIndent()
                 throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
-                throw CliError("Device type ${config.deviceModel} is either not supported or not found.")
+                throw CliError("Device type ${deviceSpec.model} is either not supported or not found.")
             } else {
                 throw CliError(error)
             }
         }
 
-        if (existingDeviceId == null) PrintUtils.message("Created simulator with name ${config.deviceName} and UUID $deviceUUID")
+        if (existingDeviceId == null) PrintUtils.message("Created simulator with name ${deviceSpec.deviceName} and UUID $deviceUUID")
 
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
-            description = config.deviceName,
+            description = deviceSpec.deviceName,
             platform = Platform.IOS,
             deviceType = Device.DeviceType.SIMULATOR,
-            deviceConfiguration = config,
+            deviceSpec = deviceSpec,
         )
     }
 
     fun getOrCreateAndroidDevice(
-        config: MaestroDeviceConfiguration.Android, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        val systemImage = config.emulatorImage
+        val systemImage = deviceSpec.emulatorImage
         // check connected device
-        if (DeviceService.isDeviceConnected(config.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
-            throw CliError("A device with name ${config.deviceName} is already connected")
+        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
+            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
 
         // existing device
         val existingDevice =
             if (forceCreate) null
-            else DeviceService.isDeviceAvailableToLaunch(config.deviceName, Platform.ANDROID)?.modelId
+            else DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.ANDROID)?.modelId
 
         // dependencies
         if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {
@@ -120,30 +119,30 @@ object DeviceCreateUtil {
             }
         }
 
-        if (existingDevice != null) PrintUtils.message("Using existing device ${config.deviceName}.")
-        else PrintUtils.message("Attempting to create Android emulator: ${config.deviceName} ")
+        if (existingDevice != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName}.")
+        else PrintUtils.message("Attempting to create Android emulator: ${deviceSpec.deviceName} ")
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = config.deviceName,
-                device = config.deviceModel,
+                deviceName = deviceSpec.deviceName,
+                device = deviceSpec.model,
                 systemImage = systemImage,
-                tag = config.tag,
-                abi = config.cpuArchitecture.value,
+                tag = deviceSpec.tag,
+                abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
             )
         } catch (e: IllegalStateException) {
             throw CliError("${e.message}")
         }
 
-        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${config.deviceName} ($systemImage)")
+        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} ($systemImage)")
 
         return Device.AvailableForLaunch(
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
             deviceType = Device.DeviceType.EMULATOR,
-            deviceConfiguration = config,
+            deviceSpec = deviceSpec,
         )
     }
 }

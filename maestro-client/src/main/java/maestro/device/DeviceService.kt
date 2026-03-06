@@ -29,14 +29,14 @@ object DeviceService {
         driverHostPort: Int?,
         connectedDevices: Set<String> = setOf()
     ): Device.Connected {
-        when (device.deviceConfiguration.platform) {
+        when (device.deviceSpec.platform) {
             Platform.IOS -> {
                 PrintUtils.message("Launching Simulator...")
                 try {
                     localSimulatorUtils.bootSimulator(device.modelId)
-                    PrintUtils.message("Setting the device locale to ${device.deviceConfiguration.locale.code}...")
-                    localSimulatorUtils.setDeviceLanguage(device.modelId, device.deviceConfiguration.locale.languageCode)
-                    localSimulatorUtils.setDeviceLocale(device.modelId, device.deviceConfiguration.locale.code)
+                    PrintUtils.message("Setting the device locale to ${device.deviceSpec.locale.code}...")
+                    localSimulatorUtils.setDeviceLanguage(device.modelId, device.deviceSpec.locale.languageCode)
+                    localSimulatorUtils.setDeviceLocale(device.modelId, device.deviceSpec.locale.code)
                     localSimulatorUtils.reboot(device.modelId)
                     localSimulatorUtils.launchSimulator(device.modelId)
                     localSimulatorUtils.awaitLaunch(device.modelId)
@@ -86,19 +86,19 @@ object DeviceService {
                     Thread.sleep(1000)
                 }
 
-                PrintUtils.message("Setting the device locale to ${device.deviceConfiguration.locale.code}...")
+                PrintUtils.message("Setting the device locale to ${device.deviceSpec.locale.code}...")
                 val driver = AndroidDriver(dadb, driverHostPort)
                 driver.installMaestroDriverApp()
                 val result = driver.setDeviceLocale(
-                    country = device.deviceConfiguration.locale.countryCode,
-                    language = device.deviceConfiguration.locale.languageCode,
+                    country = device.deviceSpec.locale.countryCode,
+                    language = device.deviceSpec.locale.languageCode,
                 )
 
                 when (result) {
-                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.deviceConfiguration.locale.code}...")
-                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.deviceConfiguration.locale.code}, the locale is not valid for a chosen device")
-                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.deviceConfiguration.locale.code}, exception during updating configuration occurred")
-                    else -> throw IllegalStateException("Failed to set locale ${device.deviceConfiguration.locale.code}, unknown exception happened")
+                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.deviceSpec.locale.code}...")
+                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, the locale is not valid for a chosen device")
+                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, exception during updating configuration occurred")
+                    else -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, unknown exception happened")
                 }
                 driver.uninstallMaestroDriverApp()
 
@@ -164,7 +164,7 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER,
-                deviceConfiguration = DeviceCatalog.resolve(Platform.WEB.name)
+                deviceSpec = DeviceCatalog.resolve(Platform.WEB.name)
             )
         )
     }
@@ -230,7 +230,7 @@ object DeviceService {
                                 description = it,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceConfiguration = DeviceCatalog.resolve(Platform.ANDROID.name)
+                                deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name)
                             )
                         }
                         .toList()
@@ -307,7 +307,7 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType =  Device.DeviceType.SIMULATOR,
-                deviceConfiguration = DeviceCatalog.resolve(Platform.IOS.name)
+                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name)
             )
         }
     }

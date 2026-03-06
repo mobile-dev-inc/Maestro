@@ -2,10 +2,9 @@ package maestro.cli.device
 
 import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
-import maestro.device.CloudCompatibilityException
 import maestro.device.Device
 import maestro.device.DeviceCatalog
-import maestro.device.MaestroDeviceConfiguration
+import maestro.device.DeviceSpec
 import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
 
@@ -24,7 +23,7 @@ object PickDeviceView {
         return pickIndex(devices)
     }
 
-    fun requestDeviceOptions(platform: Platform? = null): MaestroDeviceConfiguration {
+    fun requestDeviceOptions(platform: Platform? = null): DeviceSpec {
         PrintUtils.message("Please specify a device platform [android, ios, web]:")
         val selectedPlatform = platform
             ?: (readlnOrNull()?.lowercase()?.let {
