@@ -70,8 +70,8 @@ object TakeScreenshotTool {
                     val longestSide = maxOf(pngImage.width, pngImage.height)
                     val imageToEncode = if (longestSide > maxDimensions) {
                         val scale = maxDimensions.toDouble() / longestSide
-                        val newWidth = (pngImage.width * scale).toInt()
-                        val newHeight = (pngImage.height * scale).toInt()
+                        val newWidth = (pngImage.width * scale).toInt().coerceAtLeast(1)
+                        val newHeight = (pngImage.height * scale).toInt().coerceAtLeast(1)
                         val scaled = BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB)
                         val g2d = scaled.createGraphics()
                         g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
