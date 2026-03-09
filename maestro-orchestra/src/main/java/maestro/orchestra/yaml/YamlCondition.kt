@@ -9,6 +9,7 @@ data class YamlCondition(
     val visible: YamlElementSelectorUnion? = null,
     val notVisible: YamlElementSelectorUnion? = null,
     val `true`: String? = null,
+    val conditionsMetWithAI: String? = null,
     val label: String? = null,
     val optional: Boolean = false,
 )
