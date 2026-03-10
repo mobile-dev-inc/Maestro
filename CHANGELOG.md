@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 2.3.0
+
+- Add web support for `clearState` command
+- Fix `assertScreenshot` not failing when screenshot dimensions are mismatched
+- Make `assertScreenshot` work more like `takeScreenshot` by not requiring file extension
+- Fix path resolution for `assertScreenshot` to allow relative paths from flows for reference images
+- Fix `inputRandomPersonName` to generate a predictable "FirstName LastName" format
+- Fix iPad landscape orientation support
+- Fix specifying `--device` when also specifying `--host`
+- Fix cloud uploads to always use requested device specifications on retries
+
+Thanks to @SosenWiosen, @leggomuhgreggo and @jkronborg who contributed changes included in this release ❤️
+
 ## 2.2.0
 
 - Add `--screen-size` option to test command, to specify the headless browser window size when testing web flows
