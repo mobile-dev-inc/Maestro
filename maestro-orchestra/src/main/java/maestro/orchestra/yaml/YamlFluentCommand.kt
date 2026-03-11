@@ -232,7 +232,8 @@ data class YamlFluentCommand(
                         thresholdPercentage = assertScreenshot.thresholdPercentage,
                         cropOn = assertScreenshot.cropOn?.let { toElementSelector(it) },
                         optional = assertScreenshot.optional,
-                        label = assertScreenshot.label
+                        label = assertScreenshot.label,
+                        flowPath = flowPath.parent,
                     )
                 )
             )
