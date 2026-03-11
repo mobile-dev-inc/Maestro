@@ -7,7 +7,7 @@ enum class Platform(val description: String) {
 
     companion object {
         fun fromString(p: String?): Platform? {
-            return values().firstOrNull { it.description.lowercase() == p?.lowercase() }
+            return entries.firstOrNull { it.description.equals(p, ignoreCase = true) }
         }
     }
 }

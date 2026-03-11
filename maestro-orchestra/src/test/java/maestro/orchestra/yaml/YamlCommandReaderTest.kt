@@ -1,7 +1,7 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection

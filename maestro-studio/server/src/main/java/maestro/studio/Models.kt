@@ -1,7 +1,7 @@
 package maestro.studio
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import maestro.Platform
+import maestro.device.Platform
 import java.util.UUID
 
 data class DeviceScreen(

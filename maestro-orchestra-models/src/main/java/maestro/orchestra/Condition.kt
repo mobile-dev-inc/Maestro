@@ -1,6 +1,6 @@
 package maestro.orchestra
 
-import maestro.Platform
+import maestro.device.Platform
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 

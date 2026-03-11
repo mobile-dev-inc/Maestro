@@ -5,17 +5,17 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
 import maestro.DeviceInfo
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.OnDeviceElementQuery
-import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
@@ -117,6 +117,8 @@ class CdpWebDriver(
                 )
                 setExperimentalOption("prefs", chromePrefs)
 
+                setExperimentalOption("detach", true)
+
                 if (isHeadless) {
                     addArguments("--headless=new")
                     if(screenSize != null){
@@ -125,7 +127,6 @@ class CdpWebDriver(
                     else{
                         addArguments("--window-size=1024,768")
                     }
-                    setExperimentalOption("detach", true)
                 }
             }
         )

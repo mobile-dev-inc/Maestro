@@ -22,8 +22,7 @@ sealed class Device(
 
     data class AvailableForLaunch(
         val modelId: String,
-        val language: String?,
-        val country: String?,
+        val deviceSpec: DeviceSpec,
         override val description: String,
         override val platform: Platform,
         override val deviceType: DeviceType,

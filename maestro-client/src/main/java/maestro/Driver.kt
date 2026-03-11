@@ -19,6 +19,7 @@
 
 package maestro
 
+import maestro.device.DeviceOrientation
 import okio.Sink
 import java.io.File
 

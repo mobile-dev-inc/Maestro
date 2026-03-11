@@ -19,7 +19,7 @@
 
 package maestro.orchestra
 
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
