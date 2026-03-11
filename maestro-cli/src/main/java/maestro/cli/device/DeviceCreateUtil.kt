@@ -5,6 +5,7 @@ import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.CliError
 import maestro.cli.util.*
+import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 
 object DeviceCreateUtil {
@@ -65,64 +66,54 @@ object DeviceCreateUtil {
                 """.trimIndent()
                 throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
-                throw CliError("Device type ${config.deviceModel} is either not supported or not found.")
+                throw CliError("Device type ${deviceSpec.model} is either not supported or not found.")
             } else {
                 throw CliError(error)
             }
         }
 
-        if (existingDeviceId == null) PrintUtils.message("Created simulator with name $deviceName and UUID $deviceUUID")
+        if (existingDeviceId == null) PrintUtils.message("Created simulator with name ${deviceSpec.deviceName} and UUID $deviceUUID")
 
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
-            description = deviceName,
+            description = deviceSpec.deviceName,
             platform = Platform.IOS,
-            language = config.locale.languageCode,
-            country = config.locale.countryCode,
-            deviceType = Device.DeviceType.SIMULATOR
+            deviceType = Device.DeviceType.SIMULATOR,
+            deviceSpec = deviceSpec,
         )
     }
 
     fun getOrCreateAndroidDevice(
-        config: MaestroDeviceConfiguration.Android, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        val abi = when (val architecture = EnvUtils.getMacOSArchitecture()) {
-            CPU_ARCHITECTURE.x86_64 -> "x86_64"
-            CPU_ARCHITECTURE.ARM64 -> "arm64-v8a"
-            else -> throw CliError("Unsupported architecture: $architecture")
-        }
-        val tag = "google_apis"
-        val systemImage = config.emulatorImage
-        val deviceName = config.generateDeviceName()
-
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
-            throw CliError("A device with name $deviceName is already connected")
+        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
+            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
 
         // existing device
         val existingDevice =
             if (forceCreate) null
-            else DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.ANDROID)?.modelId
+            else DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.ANDROID)?.modelId
 
         // dependencies
-        if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {
-            PrintUtils.err("The required system image $systemImage is not installed.")
+        if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(deviceSpec.emulatorImage)) {
+            PrintUtils.err("The required system image ${deviceSpec.emulatorImage} is not installed.")
 
             PrintUtils.message("Would you like to install it? y/n")
             val r = readlnOrNull()?.lowercase()
             if (r == "y" || r == "yes") {
-                PrintUtils.message("Attempting to install $systemImage via Android SDK Manager...\n")
-                if (!DeviceService.installAndroidSystemImage(systemImage)) {
+                PrintUtils.message("Attempting to install ${deviceSpec.emulatorImage} via Android SDK Manager...\n")
+                if (!DeviceService.installAndroidSystemImage(deviceSpec.emulatorImage)) {
                     val message = """
                         Unable to install required dependencies. You can install the system image manually by running this command:
-                        ${DeviceService.getAndroidSystemImageInstallCommand(systemImage)}
+                        ${DeviceService.getAndroidSystemImageInstallCommand(deviceSpec.emulatorImage)}
                     """.trimIndent()
                     throw CliError(message)
                 }
             } else {
                 val message = """
                     To install the system image manually, you can run this command:
-                    ${DeviceService.getAndroidSystemImageInstallCommand(systemImage)}
+                    ${DeviceService.getAndroidSystemImageInstallCommand(deviceSpec.emulatorImage)}
                 """.trimIndent()
                 throw CliError(message)
             }
@@ -135,24 +126,21 @@ object DeviceCreateUtil {
             existingDevice ?: DeviceService.createAndroidDevice(
                 deviceName = deviceSpec.deviceName,
                 device = deviceSpec.model,
-                systemImage = systemImage,
+                systemImage = deviceSpec.emulatorImage,
                 tag = deviceSpec.tag,
                 abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
-                shardIndex = shardIndex,
             )
         } catch (e: IllegalStateException) {
             throw CliError("${e.message}")
         }
 
-        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} ($systemImage)")
+        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} (${deviceSpec.emulatorImage})")
 
         return Device.AvailableForLaunch(
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
-            language = language,
-            country = country,
             deviceType = Device.DeviceType.EMULATOR,
             deviceSpec = deviceSpec,
         )
