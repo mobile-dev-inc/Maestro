@@ -1,7 +1,7 @@
 package maestro.utils
 
-import kotlin.DeprecationLevel
 import maestro.device.Platform
+import kotlin.DeprecationLevel
 
 open class LocaleValidationException(message: String): Exception(message)
 
