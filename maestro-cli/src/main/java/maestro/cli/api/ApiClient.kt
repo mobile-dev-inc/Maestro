@@ -564,6 +564,25 @@ class ApiClient(
         }
     }
 
+    fun listCloudDevices(authToken: String): Map<String, Map<String, List<String>>> {
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url("$baseUrl/v2/device/list")
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) throw ApiException(statusCode = response.code)
+            return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
+        }
+    }
+
     fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
         val body = JSON.writeValueAsString(
             MessageRequest(

@@ -14,7 +14,7 @@ import okio.source
 import org.slf4j.LoggerFactory
 import util.DeviceCtlResponse
 import java.io.File
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -50,6 +50,7 @@ object DeviceService {
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
 
@@ -107,6 +108,7 @@ object DeviceService {
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
 
@@ -119,6 +121,7 @@ object DeviceService {
                     description = "Chromium Web Browser",
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
         }
@@ -157,7 +160,8 @@ object DeviceService {
                 platform = Platform.WEB,
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
-                deviceType = Device.DeviceType.BROWSER
+                deviceType = Device.DeviceType.BROWSER,
+                deviceSpec = DeviceCatalog.resolve(Platform.WEB.name)
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
@@ -178,10 +182,15 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = Device.DeviceType.EMULATOR
+                    deviceType = Device.DeviceType.EMULATOR,
+                    deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name)
                 )
             )
         }
+
+        // Fetch AVD info once (model + os) to avoid repeated avdmanager calls
+        val avdInfoMap = fetchAndroidAvdInfoMap()
+
         val connected = runCatching {
             Dadb.list(host = host).map { dadb ->
                 val avdName = runCatching {
@@ -201,15 +210,17 @@ object DeviceService {
                 }.getOrNull()
 
                 val instanceId = dadb.toString()
-                val deviceType = when  {
+                val deviceType = when {
                     instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
                     else -> Device.DeviceType.REAL
                 }
+                val (model, os) = if (avdName != null) avdInfoMap[avdName] ?: ("" to "") else ("" to "")
                 Device.Connected(
                     instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = deviceType
+                    deviceType = deviceType,
+                    deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name, model, os),
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -224,13 +235,14 @@ object DeviceService {
                 .bufferedReader()
                 .useLines { lines ->
                     lines
-                        .map {
+                        .map { avdName ->
+                            val (model, os) = avdInfoMap[avdName] ?: ("" to "")
                             Device.AvailableForLaunch(
-                                modelId = it,
-                                description = it,
+                                modelId = avdName,
+                                description = avdName,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name)
+                                deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name, model, os),
                             )
                         }
                         .toList()
@@ -240,6 +252,66 @@ object DeviceService {
         }
 
         return connected + avds
+    }
+
+    /**
+     * Runs `avdmanager list avd` and returns a map of AVD name → (model, os).
+     * - model: the canonical device ID from avdmanager, e.g. "pixel_6"
+     * - os:    "android-XX" derived from the API level, e.g. "android-34"
+     *
+     * Falls back to config.ini for the OS if avdmanager output lacks it.
+     * Returns empty map on any failure.
+     */
+    private fun fetchAndroidAvdInfoMap(): Map<String, Pair<String, String>> {
+        return try {
+            val avd = requireAvdManagerBinary()
+            val output = ProcessBuilder(avd.absolutePath, "list", "avd")
+                .redirectErrorStream(true)
+                .start()
+                .apply { waitFor(30, TimeUnit.SECONDS) }
+                .inputStream.bufferedReader().readText()
+
+            val result = mutableMapOf<String, Pair<String, String>>()
+            var currentName: String? = null
+            var currentModel: String? = null
+            var currentOs: String? = null
+
+            for (line in output.lines()) {
+                val trimmed = line.trim()
+                when {
+                    trimmed.startsWith("Name:") -> {
+                        // Save previous block
+                        if (currentName != null) {
+                            result[currentName] = (currentModel ?: "") to (currentOs ?: "")
+                        }
+                        currentName = trimmed.removePrefix("Name:").trim()
+                        currentModel = null
+                        currentOs = null
+                    }
+                    trimmed.startsWith("Device:") -> {
+                        // "pixel_6 (Google Pixel 6)" → "pixel_6"
+                        currentModel = trimmed.removePrefix("Device:").trim().substringBefore(" ")
+                    }
+                    currentOs == null && currentName != null -> {
+                        // Read OS from config.ini once we have the AVD name
+                        val configFile = File(AndroidEnvUtils.androidAvdHome, "$currentName.avd/config.ini")
+                        if (configFile.exists()) {
+                            val sysdir = configFile.readLines()
+                                .firstOrNull { it.startsWith("image.sysdir.1=") }
+                                ?.substringAfter("=")
+                            currentOs = sysdir?.split("/")?.firstOrNull { it.startsWith("android-") }
+                        }
+                    }
+                }
+            }
+            // Save last block
+            if (currentName != null) {
+                result[currentName] = (currentModel ?: "") to (currentOs ?: "")
+            }
+            result
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 
     private fun listIOSDevices(): List<Device> {
@@ -281,7 +353,8 @@ object DeviceService {
                 instanceId = udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.REAL
+                deviceType = Device.DeviceType.REAL,
+                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name)
             )
         }
     }
@@ -294,20 +367,26 @@ object DeviceService {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
 
+        // "com.apple.CoreSimulator.SimDeviceType.iPhone-XS" → "iPhone-XS"
+        val model = device.deviceTypeIdentifier?.substringAfterLast(".") ?: ""
+        // "com.apple.CoreSimulator.SimRuntime.iOS-17-5" → "iOS-17-5"
+        val os = runtime.key.substringAfterLast(".")
+
         return if (device.state == "Booted") {
             Device.Connected(
                 instanceId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.SIMULATOR
+                deviceType = Device.DeviceType.SIMULATOR,
+                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name)
             )
         } else {
             Device.AvailableForLaunch(
                 modelId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType =  Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name)
+                deviceType = Device.DeviceType.SIMULATOR,
+                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name, model, os),
             )
         }
     }
@@ -329,7 +408,8 @@ object DeviceService {
                             instanceId = output,
                             description = output,
                             platform = Platform.ANDROID,
-                            deviceType = Device.DeviceType.EMULATOR
+                            deviceType = Device.DeviceType.EMULATOR,
+                            deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name)
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
