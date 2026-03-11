@@ -1,11 +1,10 @@
 package maestro.cli.device
 
 import maestro.cli.CliError
-import maestro.cli.model.DeviceStartOptions
-import maestro.cli.util.DeviceConfigAndroid
-import maestro.cli.util.DeviceConfigIos
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
+import maestro.device.DeviceCatalog
+import maestro.device.DeviceSpec
 import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
 
@@ -24,40 +23,18 @@ object PickDeviceView {
         return pickIndex(devices)
     }
 
-    fun requestDeviceOptions(platform: Platform? = null): DeviceStartOptions {
-        val selectedPlatform = if (platform == null) {
-            PrintUtils.message("Please specify a device platform [android, ios, web]:")
-            readlnOrNull()?.lowercase()?.let {
-                when (it) {
-                    "android" -> Platform.ANDROID
-                    "ios" -> Platform.IOS
-                    "web" -> Platform.WEB
-                    else -> throw CliError("Unsupported platform: $it")
-                }
-            } ?: throw CliError("Please specify a platform")
-        } else platform
+    fun requestDeviceOptions(platform: Platform? = null): DeviceSpec {
+        PrintUtils.message("Please specify a device platform [android, ios, web]:")
+        val selectedPlatform = platform
+            ?: (readlnOrNull()?.lowercase()?.let {
+                Platform.fromString(it)
+            } ?: throw CliError("Please specify a platform"))
 
-        val version = selectedPlatform.let {
-            when (it) {
-                Platform.IOS -> {
-                    PrintUtils.message("Please specify iOS version ${DeviceConfigIos.versions}: Press ENTER for default (${DeviceConfigIos.defaultVersion})")
-                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigIos.defaultVersion
-                }
-
-                Platform.ANDROID -> {
-                    PrintUtils.message("Please specify Android version ${DeviceConfigAndroid.versions}: Press ENTER for default (${DeviceConfigAndroid.defaultVersion})")
-                    readlnOrNull()?.toIntOrNull() ?: DeviceConfigAndroid.defaultVersion
-                }
-
-                Platform.WEB -> 0
-            }
-        }
-
-        return DeviceStartOptions(
-            platform = selectedPlatform,
-            osVersion = version,
-            forceCreate = false
+        val spec = DeviceCatalog.resolve(
+            platform = selectedPlatform.toString(),
         )
+
+        return spec
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {

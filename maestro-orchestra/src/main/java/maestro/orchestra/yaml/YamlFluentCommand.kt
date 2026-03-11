@@ -21,7 +21,7 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
