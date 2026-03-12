@@ -32,6 +32,13 @@ object PickDeviceView {
 
         val spec = DeviceCatalog.resolve(
             platform = selectedPlatform.toString(),
+            model = null,
+            os = null,
+            locale = null,
+            orientation = null,
+            disableAnimations = null,
+            snapshotKeyHonorModalViews = null,
+            systemArchitecture = null,
         )
 
         return spec

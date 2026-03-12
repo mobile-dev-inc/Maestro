@@ -18,6 +18,7 @@ sealed class DeviceSpec {
     abstract val platform: Platform
     abstract val model: String
     abstract val os: String
+    abstract val osVersion: Int
     abstract val deviceName: String
     abstract val locale: DeviceLocale
 
@@ -32,6 +33,7 @@ sealed class DeviceSpec {
     ) : DeviceSpec() {
         override val platform = Platform.ANDROID
         override val deviceName = "Maestro_ANDROID_${model}_${os}"
+        override val osVersion: Int = os.removePrefix("android-").toIntOrNull() ?: 0
         val tag = "google_apis"
         val emulatorImage = "system-images;$os;$tag;${cpuArchitecture.value}"
     }
@@ -45,6 +47,7 @@ sealed class DeviceSpec {
     ) : DeviceSpec() {
         override val platform = Platform.IOS
         override val deviceName = "Maestro_IOS_${model}_${os}"
+        override val osVersion: Int = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
     }
 
     data class Web(
@@ -54,6 +57,7 @@ sealed class DeviceSpec {
     ) : DeviceSpec() {
         override val platform = Platform.WEB
         override val deviceName = "Maestro_WEB_${model}_${os}"
+        override val osVersion: Int = 0
     }
 }
 
@@ -65,15 +69,20 @@ object DeviceCatalog {
      */
     fun resolve(
         platform: String,
-        model: String? = null,
-        os: String? = null,
-        locale: String? = "en_US",
-        orientation: DeviceOrientation = DeviceOrientation.PORTRAIT,
-        disableAnimations: Boolean = false,
-        snapshotKeyHonorModalViews: Boolean = false,
-        systemArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
+        model: String?,
+        os: String?,
+        locale: String?,
+        orientation: DeviceOrientation?,
+        disableAnimations: Boolean?,
+        snapshotKeyHonorModalViews: Boolean?,
+        systemArchitecture: CPU_ARCHITECTURE?,
     ): DeviceSpec {
         val resolvedLocale = locale ?: "en_US"
+        val resolvedOrientation = orientation ?: DeviceOrientation.PORTRAIT
+        val resolvedDisableAnimation = disableAnimations ?: false
+        val resolvedSnapshotKeyHonorModalViews = snapshotKeyHonorModalViews ?: false
+        val resolvedSystemArchitecture = systemArchitecture ?: CPU_ARCHITECTURE.ARM64
+
         val platform = Platform.fromString(platform)
             ?: throw IllegalArgumentException("Unsupported platform $platform. Please specify one of: android, ios, web")
 
@@ -83,10 +92,10 @@ object DeviceCatalog {
                     model = model ?: "pixel_6",
                     os = os ?: "android-34",
                     locale = DeviceLocale.fromString(resolvedLocale, platform),
-                    orientation = orientation,
-                    disableAnimations = disableAnimations,
-                    snapshotKeyHonorModalViews = snapshotKeyHonorModalViews,
-                    cpuArchitecture = systemArchitecture,
+                    orientation = resolvedOrientation,
+                    disableAnimations = resolvedDisableAnimation,
+                    snapshotKeyHonorModalViews = resolvedSnapshotKeyHonorModalViews,
+                    cpuArchitecture = resolvedSystemArchitecture,
                 )
             }
             Platform.IOS -> {
@@ -94,8 +103,8 @@ object DeviceCatalog {
                     model = model ?: "iPhone-11",
                     os = os ?: "iOS-18-2",
                     locale = DeviceLocale.fromString(resolvedLocale, platform),
-                    orientation = orientation,
-                    disableAnimations = disableAnimations,
+                    orientation = resolvedOrientation,
+                    disableAnimations = resolvedDisableAnimation,
                 )
             }
             Platform.WEB -> {
