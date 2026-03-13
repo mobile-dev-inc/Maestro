@@ -91,7 +91,12 @@ class ListDevicesCommand : Callable<Int> {
         PrintUtils.info("Cloud Devices", bold = true)
         println("─".repeat(SEPARATOR_WIDTH))
 
-        val cloudDevices = apiClient.listCloudDevices(authToken)
+        val cloudDevices = try {
+            apiClient.listCloudDevices(authToken)
+        } catch (e: ApiClient.ApiException) {
+            if (e.statusCode == null) PrintUtils.err("Unable to reach Maestro Cloud. Please check your network connection and try again.")
+            throw e
+        }
 
         val platformOrder = listOf(Platform.IOS, Platform.ANDROID, Platform.WEB)
         val platforms = if (platformFilter != null) listOf(platformFilter) else platformOrder
