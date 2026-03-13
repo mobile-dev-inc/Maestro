@@ -84,15 +84,12 @@ class ListDevicesCommand : Callable<Int> {
 
     private fun showCloudDevices(platformFilter: Platform?): Int {
         val apiClient = ApiClient(EnvUtils.BASE_API_URL)
-        val authToken = Auth(apiClient).getAuthToken(apiKey = null)
-            ?: throw CliError("Not logged in. Please run 'maestro login'.")
-
         println()
         PrintUtils.info("Cloud Devices", bold = true)
         println("─".repeat(SEPARATOR_WIDTH))
 
         val cloudDevices = try {
-            apiClient.listCloudDevices(authToken)
+            apiClient.listCloudDevices()
         } catch (e: ApiClient.ApiException) {
             if (e.statusCode == null) PrintUtils.err("Unable to reach Maestro Cloud. Please check your network connection and try again.")
             throw e
