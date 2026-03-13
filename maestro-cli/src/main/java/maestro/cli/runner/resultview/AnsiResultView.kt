@@ -284,7 +284,16 @@ fun main() {
             flowName = "Flow for playing around",
             device = Device.Connected(
                 instanceId = "device",
-                deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name),
+                deviceSpec = DeviceCatalog.resolve(
+                    platform = Platform.ANDROID.name,
+                    model = null,
+                    os = null,
+                    locale = null,
+                    orientation = null,
+                    disableAnimations = null,
+                    snapshotKeyHonorModalViews = null,
+                    systemArchitecture = null,
+                ),
                 description = "description",
                 platform = Platform.ANDROID,
                 deviceType = Device.DeviceType.EMULATOR

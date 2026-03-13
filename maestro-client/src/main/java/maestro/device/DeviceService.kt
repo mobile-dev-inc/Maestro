@@ -164,7 +164,16 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceCatalog.resolve(Platform.WEB.name)
+                deviceSpec = DeviceCatalog.resolve(
+                    Platform.WEB.name,
+                    model = null,
+                    os = null,
+                    locale = null,
+                    orientation = null,
+                    disableAnimations = null,
+                    snapshotKeyHonorModalViews = null,
+                    systemArchitecture = null
+                )
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
@@ -195,7 +204,16 @@ object DeviceService {
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = Device.DeviceType.EMULATOR,
-                    deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name)
+                    deviceSpec = DeviceCatalog.resolve(
+                        Platform.ANDROID.name,
+                        model = null,
+                        os = null,
+                        locale = null,
+                        orientation = null,
+                        disableAnimations = null,
+                        snapshotKeyHonorModalViews = null,
+                        systemArchitecture = null
+                    )
                 )
             )
         }
@@ -232,7 +250,16 @@ object DeviceService {
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = deviceType,
-                    deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name, model, os),
+                    deviceSpec = DeviceCatalog.resolve(
+                        platform = Platform.ANDROID.name,
+                        model = model,
+                        os = os,
+                        locale = null,
+                        orientation = null,
+                        disableAnimations = null,
+                        snapshotKeyHonorModalViews = null,
+                        systemArchitecture = null
+                    ),
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -375,7 +402,16 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL,
-                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name)
+                deviceSpec = DeviceCatalog.resolve(
+                    platform = Platform.IOS.name,
+                    model = null,
+                    os = null,
+                    locale = null,
+                    orientation = null,
+                    disableAnimations = null,
+                    snapshotKeyHonorModalViews = null,
+                    systemArchitecture = null
+                )
             )
         }
     }
@@ -399,7 +435,16 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name)
+                deviceSpec = DeviceCatalog.resolve(
+                    platform = Platform.IOS.name,
+                    model = null,
+                    os = null,
+                    locale = null,
+                    orientation = null,
+                    disableAnimations = null,
+                    snapshotKeyHonorModalViews = null,
+                    systemArchitecture = null
+                )
             )
         } else {
             Device.AvailableForLaunch(
@@ -439,7 +484,16 @@ object DeviceService {
                             description = output,
                             platform = Platform.ANDROID,
                             deviceType = Device.DeviceType.EMULATOR,
-                            deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name)
+                            deviceSpec = DeviceCatalog.resolve(
+                                platform =Platform.ANDROID.name,
+                                model = null,
+                                os = null,
+                                locale = null,
+                                orientation = null,
+                                disableAnimations = null,
+                                snapshotKeyHonorModalViews = null,
+                                systemArchitecture = null
+                            )
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
