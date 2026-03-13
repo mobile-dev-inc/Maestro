@@ -13,6 +13,9 @@ import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
 import util.DeviceCtlResponse
+import util.LocalIOSDevice
+import util.LocalSimulatorUtils
+import util.SimctlList
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -22,7 +25,7 @@ object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
 
     private val tempFileHandler = TempFileHandler()
-    private val localSimulatorUtils = util.LocalSimulatorUtils(tempFileHandler)
+    private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
 
     fun startDevice(
         device: Device.AvailableForLaunch,
@@ -40,7 +43,7 @@ object DeviceService {
                     localSimulatorUtils.reboot(device.modelId)
                     localSimulatorUtils.launchSimulator(device.modelId)
                     localSimulatorUtils.awaitLaunch(device.modelId)
-                } catch (e: util.LocalSimulatorUtils.SimctlError) {
+                } catch (e: LocalSimulatorUtils.SimctlError) {
                     logger.error("Failed to launch simulator", e)
                     throw DeviceError(e.message)
                 }
@@ -168,7 +171,16 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceCatalog.resolve(Platform.WEB.name)
+                deviceSpec = DeviceCatalog.resolve(
+                    Platform.WEB.name,
+                    model = null,
+                    os = null,
+                    locale = null,
+                    orientation = null,
+                    disableAnimations = null,
+                    snapshotKeyHonorModalViews = null,
+                    systemArchitecture = null
+                )
             )
         )
     }
@@ -242,7 +254,16 @@ object DeviceService {
                                 description = avdName,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceSpec = DeviceCatalog.resolve(Platform.ANDROID.name, model, os),
+                                deviceSpec = DeviceCatalog.resolve(
+                                    Platform.ANDROID.name,
+                                    model = model,
+                                    os = os,
+                                    locale = null,
+                                    orientation = null,
+                                    disableAnimations = null,
+                                    snapshotKeyHonorModalViews = null,
+                                    systemArchitecture = null
+                                )
                             )
                         }
                         .toList()
@@ -335,7 +356,7 @@ object DeviceService {
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = util.LocalIOSDevice().listDeviceViaDeviceCtl()
+        val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
@@ -360,9 +381,9 @@ object DeviceService {
     }
 
     private fun device(
-        runtimeNameByIdentifier: Map<String, String>,
-        runtime: Map.Entry<String, List<util.SimctlList.Device>>,
-        device: util.SimctlList.Device,
+      runtimeNameByIdentifier: Map<String, String>,
+      runtime: Map.Entry<String, List<SimctlList.Device>>,
+      device: SimctlList.Device,
     ): Device {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
@@ -385,8 +406,17 @@ object DeviceService {
                 modelId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceCatalog.resolve(Platform.IOS.name, model, os),
+                deviceType =  Device.DeviceType.SIMULATOR,
+                deviceSpec = DeviceCatalog.resolve(
+                    Platform.IOS.name,
+                    model = model,
+                    os = os,
+                    locale = null,
+                    orientation = null,
+                    disableAnimations = null,
+                    snapshotKeyHonorModalViews = null,
+                    systemArchitecture = null
+                )
             )
         }
     }
