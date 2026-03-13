@@ -21,6 +21,8 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
+data class AvdInfo(val name: String, val model: String, val os: String)
+
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
 
@@ -219,7 +221,7 @@ object DeviceService {
         }
 
         // Fetch AVD info once (model + os) to avoid repeated avdmanager calls
-        val avdInfoMap = fetchAndroidAvdInfoMap()
+        val avdInfoList = fetchAndroidAvdInfo()
 
         val connected = runCatching {
             Dadb.list(host = host).map { dadb ->
@@ -244,7 +246,7 @@ object DeviceService {
                     instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
                     else -> Device.DeviceType.REAL
                 }
-                val (model, os) = if (avdName != null) avdInfoMap[avdName] ?: ("" to "") else ("" to "")
+                val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName ?: "", model = "", os = "")
                 Device.Connected(
                     instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
@@ -252,8 +254,8 @@ object DeviceService {
                     deviceType = deviceType,
                     deviceSpec = DeviceCatalog.resolve(
                         platform = Platform.ANDROID.name,
-                        model = model,
-                        os = os,
+                        model = avdInfo.model,
+                        os = avdInfo.os,
                         locale = null,
                         orientation = null,
                         disableAnimations = null,
@@ -275,7 +277,7 @@ object DeviceService {
                 .useLines { lines ->
                     lines
                         .map { avdName ->
-                            val (model, os) = avdInfoMap[avdName] ?: ("" to "")
+                            val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName, model = "", os = "")
                             Device.AvailableForLaunch(
                                 modelId = avdName,
                                 description = avdName,
@@ -283,8 +285,8 @@ object DeviceService {
                                 deviceType = Device.DeviceType.EMULATOR,
                                 deviceSpec = DeviceCatalog.resolve(
                                     Platform.ANDROID.name,
-                                    model = model,
-                                    os = os,
+                                    model = avdInfo.model,
+                                    os = avdInfo.os,
                                     locale = null,
                                     orientation = null,
                                     disableAnimations = null,
@@ -303,14 +305,15 @@ object DeviceService {
     }
 
     /**
-     * Runs `avdmanager list avd` and returns a map of AVD name → (model, os).
+     * Runs `avdmanager list avd` and returns a list of AvdInfo
+     * - name
      * - model: the canonical device ID from avdmanager, e.g. "pixel_6"
-     * - os:    "android-XX" derived from the API level, e.g. "android-34"
+     * - os: "android-XX" derived from the API level, e.g. "android-34"
      *
      * Falls back to config.ini for the OS if avdmanager output lacks it.
-     * Returns empty map on any failure.
+     * Returns empty string on any failure
      */
-    private fun fetchAndroidAvdInfoMap(): Map<String, Pair<String, String>> {
+    private fun fetchAndroidAvdInfo(): List<AvdInfo> {
         return try {
             val avd = requireAvdManagerBinary()
             val output = ProcessBuilder(avd.absolutePath, "list", "avd")
@@ -318,48 +321,51 @@ object DeviceService {
                 .start()
                 .apply { waitFor(30, TimeUnit.SECONDS) }
                 .inputStream.bufferedReader().readText()
+            parseAvdInfo(output, AndroidEnvUtils.androidAvdHome)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-            val result = mutableMapOf<String, Pair<String, String>>()
-            var currentName: String? = null
-            var currentModel: String? = null
-            var currentOs: String? = null
+    internal fun parseAvdInfo(output: String, avdHome: File): List<AvdInfo> {
+        val result = mutableListOf<AvdInfo>()
+        var currentName: String? = null
+        var currentModel: String? = null
+        var currentOs: String? = null
 
-            for (line in output.lines()) {
-                val trimmed = line.trim()
-                when {
-                    trimmed.startsWith("Name:") -> {
-                        // Save previous block
-                        if (currentName != null) {
-                            result[currentName] = (currentModel ?: "") to (currentOs ?: "")
-                        }
-                        currentName = trimmed.removePrefix("Name:").trim()
-                        currentModel = null
-                        currentOs = null
+        for (line in output.lines()) {
+            val trimmed = line.trim()
+            when {
+                trimmed.startsWith("Name:") -> {
+                    // Save previous block
+                    if (currentName != null) {
+                        result += AvdInfo(name = currentName, model = currentModel ?: "", os = currentOs ?: "")
                     }
-                    trimmed.startsWith("Device:") -> {
-                        // "pixel_6 (Google Pixel 6)" → "pixel_6"
-                        currentModel = trimmed.removePrefix("Device:").trim().substringBefore(" ")
-                    }
-                    currentOs == null && currentName != null -> {
-                        // Read OS from config.ini once we have the AVD name
-                        val configFile = File(AndroidEnvUtils.androidAvdHome, "$currentName.avd/config.ini")
-                        if (configFile.exists()) {
-                            val sysdir = configFile.readLines()
-                                .firstOrNull { it.startsWith("image.sysdir.1=") }
-                                ?.substringAfter("=")
-                            currentOs = sysdir?.split("/")?.firstOrNull { it.startsWith("android-") }
-                        }
+                    currentName = trimmed.removePrefix("Name:").trim()
+                    currentModel = null
+                    currentOs = null
+                }
+                trimmed.startsWith("Device:") -> {
+                    // "pixel_6 (Google Pixel 6)" → "pixel_6"
+                    currentModel = trimmed.removePrefix("Device:").trim().substringBefore(" ")
+                }
+                currentOs == null && currentName != null -> {
+                    // Read OS from config.ini once we have the AVD name
+                    val configFile = File(avdHome, "$currentName.avd/config.ini")
+                    if (configFile.exists()) {
+                        val sysdir = configFile.readLines()
+                            .firstOrNull { it.startsWith("image.sysdir.1=") }
+                            ?.substringAfter("=")
+                        currentOs = sysdir?.split("/")?.firstOrNull { it.startsWith("android-") }
                     }
                 }
             }
-            // Save last block
-            if (currentName != null) {
-                result[currentName] = (currentModel ?: "") to (currentOs ?: "")
-            }
-            result
-        } catch (e: Exception) {
-            emptyMap()
         }
+        // Save last block
+        if (currentName != null) {
+            result += AvdInfo(name = currentName, model = currentModel ?: "", os = currentOs ?: "")
+        }
+        return result
     }
 
     private fun listIOSDevices(): List<Device> {
