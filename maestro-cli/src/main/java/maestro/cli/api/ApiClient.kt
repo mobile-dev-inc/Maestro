@@ -564,9 +564,8 @@ class ApiClient(
         }
     }
 
-    fun listCloudDevices(authToken: String): Map<String, Map<String, List<String>>> {
+    fun listCloudDevices(): Map<String, Map<String, List<String>>> {
         val request = Request.Builder()
-            .header("Authorization", "Bearer $authToken")
             .url("$baseUrl/v2/device/list")
             .get()
             .build()
