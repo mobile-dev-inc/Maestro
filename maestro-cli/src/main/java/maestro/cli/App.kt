@@ -28,6 +28,7 @@ import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.DriverCommand
+import maestro.cli.command.ListCloudDevicesCommand
 import maestro.cli.command.ListDevicesCommand
 import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
@@ -66,6 +67,7 @@ import kotlin.system.exitProcess
         StudioCommand::class,
         StartDeviceCommand::class,
         ListDevicesCommand::class,
+        ListCloudDevicesCommand::class,
         GenerateCompletion::class,
         ChatCommand::class,
         CheckSyntaxCommand::class,

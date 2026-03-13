@@ -3,22 +3,21 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
+import maestro.cli.api.ApiClient
 import maestro.cli.report.TestDebugReporter
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.bold
 import maestro.cli.view.cyan
-import maestro.cli.view.faint
-import maestro.device.Device
-import maestro.device.DeviceService
 import maestro.device.Platform
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
-    name = "list-device",
-    description = ["List local devices available, grouped by platform"],
+    name = "list-cloud-device",
+    description = ["List devices available on Maestro Cloud, grouped by platform"],
 )
-class ListDevicesCommand : Callable<Int> {
+class ListCloudDevicesCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
@@ -41,19 +40,31 @@ class ListDevicesCommand : Callable<Int> {
             )
         }
 
-        println("Showing local devices. Use 'maestro list-cloud-device' to list devices available on Maestro Cloud.".faint())
-        println()
+        val apiClient = ApiClient(EnvUtils.BASE_API_URL)
 
-        PrintUtils.info("Local Devices", bold = true)
+        println()
+        PrintUtils.info("Cloud Devices", bold = true)
         println("─".repeat(SEPARATOR_WIDTH))
 
-        val devices = DeviceService.listDevices(includeWeb = true)
-        val platforms = if (platformFilter != null) listOf(platformFilter) else Platform.entries
-        val sections = platforms.map { p -> p to devices.filter { it.platform == p }.groupedByModel() }
-            .filter { it.second.isNotEmpty() }
+        val cloudDevices = try {
+            apiClient.listCloudDevices()
+        } catch (e: ApiClient.ApiException) {
+            if (e.statusCode == null) PrintUtils.err("Unable to reach Maestro Cloud. Please check your network connection and try again.")
+            throw e
+        }
+
+        val platformOrder = listOf(Platform.IOS, Platform.ANDROID, Platform.WEB)
+        val platforms = if (platformFilter != null) listOf(platformFilter) else platformOrder
+
+        val sections = platforms.mapNotNull { p ->
+            val key = p.name.lowercase()
+            val raw = cloudDevices[key] ?: return@mapNotNull null
+            val groups = raw.map { (model, osList) -> DeviceGroup(model, osList) }
+            p to groups
+        }.filter { it.second.isNotEmpty() }
 
         if (sections.isEmpty()) {
-            println("No devices found")
+            println("No cloud devices found")
             return 0
         }
 
@@ -69,18 +80,6 @@ class ListDevicesCommand : Callable<Int> {
         val model: String,
         val osList: List<String>,
     )
-
-    private fun List<Device>.groupedByModel(): List<DeviceGroup> {
-        val groups = LinkedHashMap<String, MutableList<String>>()
-        for (device in this) {
-            if (device.deviceSpec.model.isEmpty()) continue
-            val osList = groups.getOrPut(device.deviceSpec.model) { mutableListOf() }
-            if (device.deviceSpec.os.isNotEmpty() && device.deviceSpec.os !in osList) {
-                osList.add(device.deviceSpec.os)
-            }
-        }
-        return groups.map { (model, osList) -> DeviceGroup(model, osList) }
-    }
 
     private fun printSection(platform: Platform, groups: List<DeviceGroup>) {
         println(platform.description.bold())

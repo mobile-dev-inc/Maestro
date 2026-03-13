@@ -55,8 +55,8 @@ class StartDeviceCommand : Callable<Int> {
         names = ["--device-model"],
         description = [
             "Device model to run against",
-            "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: xcrun simctl list devicetypes --json | jq -r '.devicetypes[].identifier | split(\".\") | last'\n",
-            "Android: pixel_6, pixel_7, etc. Run command: avdmanager list device -c"
+            "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: maestro list-device",
+            "Android: pixel_6, pixel_7, etc. Run command: maestro list-device"
         ],
     )
     private var deviceModel: String? = null
@@ -66,8 +66,8 @@ class StartDeviceCommand : Callable<Int> {
         names = ["--device-os"],
         description = [
             "OS version to use:",
-            "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. xcrun simctl list runtimes --json | jq -r '.runtimes[].identifier | split(\".\") | last'\n",
-            "Android: android-33, android-34, etc. Run command: sdkmanager --list | grep \"system-images\" | awk -F';' '{print \$2}' | sort -u\n"
+            "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. maestro list-device",
+            "Android: android-33, android-34, etc. maestro list-device"
         ],
     )
     private var deviceOs: String? = null
