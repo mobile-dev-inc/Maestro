@@ -1,0 +1,52 @@
+pipeline {
+    agent any
+    stages {
+        stage('Notify Pending') {
+            steps {
+                githubNotify(
+                    credentialsId: 'github-goeuro-bot-pat',
+                    status: 'PENDING',
+                    description: 'Build in progress...',
+                    context: 'ci/jenkins'
+                )
+            }
+        }
+        stage('Build Project') {
+            steps {
+                sh './gradlew assemble'
+            }
+        }
+        stage('Build Maestro CLI') {
+            steps {
+                sh './gradlew :maestro-cli:installDist -q'
+            }
+        }
+        stage('Package Maestro CLI') {
+            steps {
+                sh '''
+                cd maestro-cli/build/install
+                zip -r maestro.zip *
+                mv -f maestro.zip ../../../
+                '''
+            }
+        }
+    }
+    post {
+        success {
+            githubNotify(
+                credentialsId: 'github-goeuro-bot-pat',
+                description: 'Build passed!',
+                context: 'ci/jenkins'
+            )
+            echo 'Build successful'
+        }
+        failure {
+            githubNotify(
+                credentialsId: 'github-goeuro-bot-pat',
+                description: 'Build failed.',
+                context: 'ci/jenkins'
+            )
+            echo 'Build failed'
+        }
+    }
+}
