@@ -205,4 +205,29 @@ class GraalJsEngineTest : JsEngineTest() {
         assertThat(age.toString()).isEqualTo("30")
     }
 
+    @Test
+    fun `env var should not override static bindings`() {
+        // Static bindings (http, faker, output, maestro) must never be overridden
+        // by environment variables with the same name. The old code set static
+        // bindings after env vars, so this was never possible. The new single-context
+        // approach must preserve this guarantee.
+
+        val graalEngine = engine as GraalJsEngine
+
+        // Store a value in output to verify it survives
+        graalEngine.evaluateScript("output.myValue = 'preserved'")
+
+        // Set env vars that collide with static binding names
+        graalEngine.putEnv("output", "should_not_override")
+        graalEngine.putEnv("maestro", "should_not_override")
+
+        // output should still be the real binding, not the env var string
+        val result = graalEngine.evaluateScript("output.myValue")
+        assertThat(result.toString()).isEqualTo("preserved")
+
+        // maestro should still be the real binding with platform info
+        val platform = graalEngine.evaluateScript("maestro.platform")
+        assertThat(platform.toString()).isNotEqualTo("should_not_override")
+    }
+
 }

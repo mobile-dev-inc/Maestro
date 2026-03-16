@@ -153,7 +153,8 @@ class GraalJsEngine(
         bindings.memberKeys
             .filter { it !in permanentBindingKeys }
             .forEach { bindings.removeMember(it) }
-        envBinding.forEach { (k, v) -> bindings.putMember(k, v) }
+        envBinding.filterKeys { it !in permanentBindingKeys }
+            .forEach { (k, v) -> bindings.putMember(k, v) }
     }
 
     val hostAccess = HostAccess.newBuilder()
