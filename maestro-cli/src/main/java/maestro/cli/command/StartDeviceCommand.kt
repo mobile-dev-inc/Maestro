@@ -8,6 +8,8 @@ import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
 import maestro.device.DeviceCatalog
+import maestro.device.DeviceRequest
+import maestro.device.Platform
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
@@ -87,15 +89,27 @@ class StartDeviceCommand : Callable<Int> {
         }
 
         // Get the device configuration
+        val parsedPlatform = Platform.fromString(platform)
+            ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios, web")
         val maestroDeviceConfiguration = DeviceCatalog.resolve(
-            platform = platform,
-            model = deviceModel,
-            os = deviceOs ?: osVersion,
-            locale = deviceLocale,
-            systemArchitecture = EnvUtils.getMacOSArchitecture(),
-            orientation = null,
-            disableAnimations = null,
-            snapshotKeyHonorModalViews = null
+            when (parsedPlatform) {
+                Platform.ANDROID -> DeviceRequest.Android(
+                    model = deviceModel,
+                    os = deviceOs ?: osVersion,
+                    locale = deviceLocale,
+                    systemArchitecture = EnvUtils.getMacOSArchitecture(),
+                )
+                Platform.IOS -> DeviceRequest.Ios(
+                    model = deviceModel,
+                    os = deviceOs ?: osVersion,
+                    locale = deviceLocale,
+                )
+                Platform.WEB -> DeviceRequest.Web(
+                    model = deviceModel,
+                    os = deviceOs ?: osVersion,
+                    locale = deviceLocale,
+                )
+            }
         )
 
         // Get/Create the device
