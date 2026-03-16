@@ -31,7 +31,6 @@ sealed class DeviceSpec {
         override val locale: DeviceLocale,
         val orientation: DeviceOrientation,
         val disableAnimations: Boolean,
-        val snapshotKeyHonorModalViews: Boolean,
         val cpuArchitecture: CPU_ARCHITECTURE,
     ) : DeviceSpec() {
         override val platform = Platform.ANDROID
@@ -47,6 +46,7 @@ sealed class DeviceSpec {
         override val locale: DeviceLocale,
         val orientation: DeviceOrientation,
         val disableAnimations: Boolean,
+        val snapshotKeyHonorModalViews: Boolean,
     ) : DeviceSpec() {
         override val platform = Platform.IOS
         override val deviceName = "Maestro_IOS_${model}_${os}"
@@ -76,7 +76,6 @@ sealed class DeviceRequest {
         val locale: String? = null,
         val orientation: DeviceOrientation? = null,
         val disableAnimations: Boolean? = null,
-        val snapshotKeyHonorModalViews: Boolean? = null,
         val systemArchitecture: CPU_ARCHITECTURE? = null,
     ) : DeviceRequest() {
         override val platform = Platform.ANDROID
@@ -88,6 +87,7 @@ sealed class DeviceRequest {
         val locale: String? = null,
         val orientation: DeviceOrientation? = null,
         val disableAnimations: Boolean? = null,
+        val snapshotKeyHonorModalViews: Boolean? = null,
     ) : DeviceRequest() {
         override val platform = Platform.IOS
     }
@@ -111,11 +111,10 @@ object DeviceCatalog {
         return when (request) {
             is DeviceRequest.Android -> DeviceSpec.Android(
                 model = request.model ?: "pixel_6",
-                os = request.os ?: "android-34",
+                os = request.os ?: "android-33",
                 locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.ANDROID),
                 orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
                 disableAnimations = request.disableAnimations ?: false,
-                snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
                 cpuArchitecture = request.systemArchitecture ?: CPU_ARCHITECTURE.ARM64,
             )
             is DeviceRequest.Ios -> DeviceSpec.Ios(
@@ -124,6 +123,7 @@ object DeviceCatalog {
                 locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.IOS),
                 orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
                 disableAnimations = request.disableAnimations ?: false,
+                snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
             )
             is DeviceRequest.Web -> DeviceSpec.Web(
                 model = request.model ?: "chromium",
