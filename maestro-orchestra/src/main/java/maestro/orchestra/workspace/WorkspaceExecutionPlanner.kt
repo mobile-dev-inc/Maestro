@@ -33,7 +33,9 @@ object WorkspaceExecutionPlanner {
             val workspaceConfig = if (config != null) {
                 YamlCommandReader.readWorkspaceConfig(config.absolute())
             } else {
-                WorkspaceConfig()
+                findConfigFileUpwards(input.first().absolute().parent)
+                    ?.let { YamlCommandReader.readWorkspaceConfig(it) }
+                    ?: WorkspaceConfig()
             }
             return ExecutionPlan(
                 flowsToRun = input.toList(),
@@ -167,6 +169,15 @@ object WorkspaceExecutionPlanner {
             .takeIf { it.exists() }
             ?: input.resolve("config.yml")
                 .takeIf { it.exists() }
+    }
+
+    private fun findConfigFileUpwards(start: Path): Path? {
+        var dir: Path? = start
+        while (dir != null) {
+            findConfigFile(dir)?.let { return it }
+            dir = dir.parent
+        }
+        return null
     }
 
     private fun toYamlListString(strings: List<String>): String {

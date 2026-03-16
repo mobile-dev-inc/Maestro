@@ -359,6 +359,42 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `016 - Single flow file discovers config from parent directory`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/016_single_flow_with_config/flow.yaml"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.workspaceConfig.platform).isEqualTo(
+            PlatformConfiguration(
+                ios = PlatformConfiguration.IOSConfiguration(snapshotKeyHonorModalViews = false)
+            )
+        )
+    }
+
+    @Test
+    internal fun `016 - Single flow file in subdirectory discovers config from ancestor directory`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/016_single_flow_with_config/subdir/nested_flow.yaml"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.workspaceConfig.platform).isEqualTo(
+            PlatformConfiguration(
+                ios = PlatformConfiguration.IOSConfiguration(snapshotKeyHonorModalViews = false)
+            )
+        )
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()
