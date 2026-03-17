@@ -29,6 +29,12 @@ object AndroidEnvUtils {
             return Paths.get(System.getProperty("user.home"), ".android")
         }
 
+    val androidAvdHome: File
+        get() {
+            System.getenv("ANDROID_AVD_HOME")?.let { return File(it) }
+            return androidUserHome.resolve("avd").toFile()
+        }
+
     /**
      * Returns SDK versions that are used by AVDs present in the system.
      */
