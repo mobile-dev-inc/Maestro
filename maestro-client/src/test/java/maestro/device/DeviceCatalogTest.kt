@@ -12,11 +12,10 @@ internal class DeviceCatalogTest {
 
         assertThat(spec.platform).isEqualTo(Platform.ANDROID)
         assertThat(spec.model).isEqualTo("pixel_6")
-        assertThat(spec.os).isEqualTo("android-34")
+        assertThat(spec.os).isEqualTo("android-33")
         assertThat(spec.locale.code).isEqualTo("en_US")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
         assertThat(spec.disableAnimations).isEqualTo(false)
-        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(false)
     }
 
     @Test
@@ -29,6 +28,7 @@ internal class DeviceCatalogTest {
         assertThat(spec.locale.code).isEqualTo("en_US")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
         assertThat(spec.disableAnimations).isEqualTo(false)
+        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(false)
     }
 
     @Test
