@@ -117,6 +117,15 @@ object TestDebugReporter {
 
             it.screenshot.copyTo(file)
         }
+
+        // hierarchy
+        debugOutput.commands.values
+            .filter { it.status == CommandStatus.FAILED && it.hierarchy != null }
+            .forEach { metadata ->
+                val filename = "hierarchy-$shardPrefix❌-${metadata.timestamp}-(${flowName.replace("/", "_")}).json"
+                val file = File(path.absolutePathString(), filename)
+                mapper.writeValue(file, metadata.hierarchy)
+            }
     }
 
     fun deleteOldFiles(days: Long = 14) {
