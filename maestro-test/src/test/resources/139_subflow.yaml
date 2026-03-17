@@ -1,0 +1,5 @@
+appId: com.example.app
+onAllFlowsComplete:
+  - inputText: "cleanup"
+---
+- inputText: "subflow"

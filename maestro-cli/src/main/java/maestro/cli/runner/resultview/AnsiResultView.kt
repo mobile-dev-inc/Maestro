@@ -91,6 +91,12 @@ class AnsiResultView(
             render(" ║\n")
             renderCommands(state.onFlowCompleteCommands)
         }
+        if (state.onAllFlowsCompleteCommands.isNotEmpty()) {
+            render(" ║\n")
+            render(" ║  > On All Flows Complete\n")
+            render(" ║\n")
+            renderCommands(state.onAllFlowsCompleteCommands)
+        }
         renderPrompt()
     }
 

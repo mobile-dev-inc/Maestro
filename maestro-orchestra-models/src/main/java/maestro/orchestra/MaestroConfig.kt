@@ -12,6 +12,7 @@ data class MaestroConfig(
     val ext: Map<String, Any?> = emptyMap(),
     val onFlowStart: MaestroOnFlowStart? = null,
     val onFlowComplete: MaestroOnFlowComplete? = null,
+    val onAllFlowsComplete: MaestroOnAllFlowsComplete? = null,
     val properties: Map<String, String> = emptyMap(),
 ) {
 
@@ -21,6 +22,7 @@ data class MaestroConfig(
             name = name?.evaluateScripts(jsEngine),
             onFlowComplete = onFlowComplete?.evaluateScripts(jsEngine),
             onFlowStart = onFlowStart?.evaluateScripts(jsEngine),
+            onAllFlowsComplete = onAllFlowsComplete?.evaluateScripts(jsEngine),
         )
     }
 
@@ -34,6 +36,12 @@ data class MaestroOnFlowComplete(val commands: List<MaestroCommand>) {
 
 data class MaestroOnFlowStart(val commands: List<MaestroCommand>) {
     fun evaluateScripts(jsEngine: JsEngine): MaestroOnFlowStart {
+        return this
+    }
+}
+
+data class MaestroOnAllFlowsComplete(val commands: List<MaestroCommand>) {
+    fun evaluateScripts(jsEngine: JsEngine): MaestroOnAllFlowsComplete {
         return this
     }
 }
