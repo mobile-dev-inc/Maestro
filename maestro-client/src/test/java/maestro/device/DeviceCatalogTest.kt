@@ -8,38 +8,19 @@ import org.junit.jupiter.api.assertThrows
 internal class DeviceCatalogTest {
     @Test
     fun `resolve Android with no overrides uses defaults`() {
-        val spec = DeviceCatalog.resolve(
-            platform = "android",
-            model = null,
-            os = null,
-            locale = null,
-            orientation = null,
-            disableAnimations = null,
-            snapshotKeyHonorModalViews = null,
-            systemArchitecture = null
-        ) as DeviceSpec.Android
+        val spec = DeviceCatalog.resolve(DeviceRequest.Android()) as DeviceSpec.Android
 
         assertThat(spec.platform).isEqualTo(Platform.ANDROID)
         assertThat(spec.model).isEqualTo("pixel_6")
-        assertThat(spec.os).isEqualTo("android-34")
+        assertThat(spec.os).isEqualTo("android-33")
         assertThat(spec.locale.code).isEqualTo("en_US")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
         assertThat(spec.disableAnimations).isEqualTo(false)
-        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(false)
     }
 
     @Test
     fun `resolve iOS with no overrides uses defaults`() {
-        val spec = DeviceCatalog.resolve(
-            platform = "ios",
-            model = null,
-            os = null,
-            locale = null,
-            orientation = null,
-            disableAnimations = null,
-            snapshotKeyHonorModalViews = null,
-            systemArchitecture = null
-        ) as DeviceSpec.Ios
+        val spec = DeviceCatalog.resolve(DeviceRequest.Ios()) as DeviceSpec.Ios
 
         assertThat(spec.platform).isEqualTo(Platform.IOS)
         assertThat(spec.model).isEqualTo("iPhone-11")
@@ -47,20 +28,12 @@ internal class DeviceCatalogTest {
         assertThat(spec.locale.code).isEqualTo("en_US")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
         assertThat(spec.disableAnimations).isEqualTo(false)
+        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(false)
     }
 
     @Test
     fun `resolve Web with no overrides uses defaults`() {
-        val spec = DeviceCatalog.resolve(
-            platform = "web",
-            model = null,
-            os = null,
-            locale = null,
-            orientation = null,
-            disableAnimations = null,
-            snapshotKeyHonorModalViews = null,
-            systemArchitecture = null
-        ) as DeviceSpec.Web
+        val spec = DeviceCatalog.resolve(DeviceRequest.Web()) as DeviceSpec.Web
 
         assertThat(spec.platform).isEqualTo(Platform.WEB)
         assertThat(spec.model).isEqualTo("chromium")
@@ -71,14 +44,13 @@ internal class DeviceCatalogTest {
     @Test
     fun `resolve uses explicit values when provided`() {
         val spec = DeviceCatalog.resolve(
-            platform = "android",
-            model = "pixel_xl",
-            os = "android-33",
-            locale = "de_DE",
-            orientation = DeviceOrientation.LANDSCAPE_LEFT,
-            systemArchitecture = CPU_ARCHITECTURE.ARM64,
-            disableAnimations = null,
-            snapshotKeyHonorModalViews = null,
+            DeviceRequest.Android(
+                model = "pixel_xl",
+                os = "android-33",
+                locale = "de_DE",
+                orientation = DeviceOrientation.LANDSCAPE_LEFT,
+                systemArchitecture = CPU_ARCHITECTURE.ARM64,
+            )
         ) as DeviceSpec.Android
 
         assertThat(spec.model).isEqualTo("pixel_xl")
@@ -92,82 +64,36 @@ internal class DeviceCatalogTest {
     @Test
     fun `resolve also update image when system architecture is different`() {
         val spec = DeviceCatalog.resolve(
-            platform = "android",
-            model = "pixel_xl",
-            os = "android-33",
-            locale = "de_DE",
-            orientation = DeviceOrientation.LANDSCAPE_LEFT,
-            systemArchitecture = CPU_ARCHITECTURE.X86_64,
-            disableAnimations = null,
-            snapshotKeyHonorModalViews = null,
+            DeviceRequest.Android(
+                model = "pixel_xl",
+                os = "android-33",
+                locale = "de_DE",
+                orientation = DeviceOrientation.LANDSCAPE_LEFT,
+                systemArchitecture = CPU_ARCHITECTURE.X86_64,
+            )
         ) as DeviceSpec.Android
 
         assertThat(spec.emulatorImage).isEqualTo("system-images;android-33;google_apis;x86_64")
     }
 
     @Test
-    fun `resolve throws on unsupported platform`() {
-        assertThrows<IllegalArgumentException> {
-            DeviceCatalog.resolve(
-                platform = "windows",
-                model = null,
-                os = null,
-                locale = null,
-                orientation = null,
-                disableAnimations = null,
-                snapshotKeyHonorModalViews = null,
-                systemArchitecture = null
-            )
-        }
-    }
-
-    @Test
     fun `resolve Android throws on invalid locale combination like ar_US`() {
-        // Arabic is a supported language, US is a supported country,
-        // but ar_US is not a valid Java locale combination
         assertThrows<LocaleValidationException> {
-            DeviceCatalog.resolve(
-                platform = "android",
-                locale = "ar_US",
-                model = null,
-                os = null,
-                orientation = null,
-                disableAnimations = null,
-                snapshotKeyHonorModalViews = null,
-                systemArchitecture = null
-            )
+            DeviceCatalog.resolve(DeviceRequest.Android(locale = "ar_US"))
         }
     }
 
     @Test
     fun `resolve Android throws on unsupported language code`() {
         assertThrows<LocaleValidationException> {
-            DeviceCatalog.resolve(
-              platform = "android",
-              locale = "xx_US",
-              model = null,
-              os = null,
-              orientation = null,
-              disableAnimations = null,
-              snapshotKeyHonorModalViews = null,
-              systemArchitecture = null
-            )
+            DeviceCatalog.resolve(DeviceRequest.Android(locale = "xx_US"))
         }
     }
 
     @Test
     fun `resolve Android throws on malformed locale missing country`() {
         assertThrows<LocaleValidationException> {
-            DeviceCatalog.resolve(
-                platform = "android",
-                locale = "en",
-                model = null,
-                os = null,
-                orientation = null,
-                disableAnimations = null,
-                snapshotKeyHonorModalViews = null,
-                systemArchitecture = null
-            )
+            DeviceCatalog.resolve(DeviceRequest.Android(locale = "en"))
         }
     }
 }

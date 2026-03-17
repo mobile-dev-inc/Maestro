@@ -25,6 +25,7 @@ import maestro.device.Platform
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
 import maestro.device.DeviceCatalog
+import maestro.device.DeviceRequest
 import maestro.orchestra.AssertWithAICommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
@@ -285,14 +286,7 @@ fun main() {
             device = Device.Connected(
                 instanceId = "device",
                 deviceSpec = DeviceCatalog.resolve(
-                    platform = Platform.ANDROID.name,
-                    model = null,
-                    os = null,
-                    locale = null,
-                    orientation = null,
-                    disableAnimations = null,
-                    snapshotKeyHonorModalViews = null,
-                    systemArchitecture = null,
+                    DeviceRequest.Android()
                 ),
                 description = "description",
                 platform = Platform.ANDROID,

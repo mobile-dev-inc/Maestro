@@ -166,32 +166,14 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceCatalog.resolve(
-                    Platform.WEB.name,
-                    model = null,
-                    os = null,
-                    locale = null,
-                    orientation = null,
-                    disableAnimations = null,
-                    snapshotKeyHonorModalViews = null,
-                    systemArchitecture = null
-                )
+                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Web())
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceCatalog.resolve(
-                    Platform.WEB.name,
-                    model = null,
-                    os = null,
-                    locale = null,
-                    orientation = null,
-                    disableAnimations = null,
-                    snapshotKeyHonorModalViews = null,
-                    systemArchitecture = null
-                )
+                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Web())
             )
         )
     }
@@ -207,14 +189,7 @@ object DeviceService {
                     platform = Platform.ANDROID,
                     deviceType = Device.DeviceType.EMULATOR,
                     deviceSpec = DeviceCatalog.resolve(
-                        Platform.ANDROID.name,
-                        model = null,
-                        os = null,
-                        locale = null,
-                        orientation = null,
-                        disableAnimations = null,
-                        snapshotKeyHonorModalViews = null,
-                        systemArchitecture = null
+                        DeviceRequest.Android()
                     )
                 )
             )
@@ -253,14 +228,7 @@ object DeviceService {
                     platform = Platform.ANDROID,
                     deviceType = deviceType,
                     deviceSpec = DeviceCatalog.resolve(
-                        platform = Platform.ANDROID.name,
-                        model = avdInfo.model,
-                        os = avdInfo.os,
-                        locale = null,
-                        orientation = null,
-                        disableAnimations = null,
-                        snapshotKeyHonorModalViews = null,
-                        systemArchitecture = null
+                        DeviceRequest.Android()
                     ),
                 )
             }
@@ -284,14 +252,7 @@ object DeviceService {
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
                                 deviceSpec = DeviceCatalog.resolve(
-                                    Platform.ANDROID.name,
-                                    model = avdInfo.model,
-                                    os = avdInfo.os,
-                                    locale = null,
-                                    orientation = null,
-                                    disableAnimations = null,
-                                    snapshotKeyHonorModalViews = null,
-                                    systemArchitecture = null
+                                    DeviceRequest.Android(avdInfo.model, avdInfo.os)
                                 )
                             )
                         }
@@ -409,14 +370,7 @@ object DeviceService {
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL,
                 deviceSpec = DeviceCatalog.resolve(
-                    platform = Platform.IOS.name,
-                    model = null,
-                    os = null,
-                    locale = null,
-                    orientation = null,
-                    disableAnimations = null,
-                    snapshotKeyHonorModalViews = null,
-                    systemArchitecture = null
+                    DeviceRequest.Ios()
                 )
             )
         }
@@ -442,14 +396,7 @@ object DeviceService {
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.SIMULATOR,
                 deviceSpec = DeviceCatalog.resolve(
-                    platform = Platform.IOS.name,
-                    model = null,
-                    os = null,
-                    locale = null,
-                    orientation = null,
-                    disableAnimations = null,
-                    snapshotKeyHonorModalViews = null,
-                    systemArchitecture = null
+                    DeviceRequest.Ios(model, os)
                 )
             )
         } else {
@@ -459,14 +406,7 @@ object DeviceService {
                 platform = Platform.IOS,
                 deviceType =  Device.DeviceType.SIMULATOR,
                 deviceSpec = DeviceCatalog.resolve(
-                    Platform.IOS.name,
-                    model = model,
-                    os = os,
-                    locale = null,
-                    orientation = null,
-                    disableAnimations = null,
-                    snapshotKeyHonorModalViews = null,
-                    systemArchitecture = null
+                    DeviceRequest.Ios(model, os)
                 )
             )
         }
@@ -491,14 +431,7 @@ object DeviceService {
                             platform = Platform.ANDROID,
                             deviceType = Device.DeviceType.EMULATOR,
                             deviceSpec = DeviceCatalog.resolve(
-                                platform =Platform.ANDROID.name,
-                                model = null,
-                                os = null,
-                                locale = null,
-                                orientation = null,
-                                disableAnimations = null,
-                                snapshotKeyHonorModalViews = null,
-                                systemArchitecture = null
+                                DeviceRequest.Android()
                             )
                         )
                     }
