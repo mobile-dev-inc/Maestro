@@ -140,6 +140,15 @@ class Orchestra(
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
+    internal val jsEngineFactory: (MaestroConfig?) -> JsEngine = { config ->
+        val isRhino = config?.ext?.get("jsEngine") == "rhino"
+        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
+        if (isRhino) {
+            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
+        } else {
+            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        }
+    },
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -198,13 +207,15 @@ class Orchestra(
                 )
             } ?: true
 
+            jsEngine.close()
+
             exception?.let { throw it }
 
             return onCompleteSuccess && flowSuccess
         }
     }
 
-    suspend fun executeCommands(
+    private suspend fun executeCommands(
         commands: List<MaestroCommand>,
         config: MaestroConfig? = null,
         shouldReinitJsEngine: Boolean = true,
@@ -296,15 +307,7 @@ class Orchestra(
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
-                
-        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        jsEngine = if (isRhinoExplicitlyRequested) {
-            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
-        } else {
-            // Default to GraalJS for better performance and compatibility
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
-        }
+        jsEngine = jsEngineFactory(config)
     }
 
     private fun initAndroidChromeDevTools(config: MaestroConfig?) {
