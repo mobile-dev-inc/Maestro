@@ -1053,6 +1053,7 @@ data class YamlFluentCommand(
             visible = visible?.let { toElementSelector(it) },
             notVisible = notVisible?.let { toElementSelector(it) },
             scriptCondition = `true`?.trim(),
+            conditionsMetWithAI = conditionsMetWithAI?.trim(),
             label = label
         )
     }

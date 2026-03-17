@@ -9,6 +9,7 @@ data class Condition(
     val visible: ElementSelector? = null,
     val notVisible: ElementSelector? = null,
     val scriptCondition: String? = null,
+    val conditionsMetWithAI: String? = null,
     val label: String? = null,
 ) {
 
@@ -17,6 +18,7 @@ data class Condition(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
             scriptCondition = scriptCondition?.evaluateScripts(jsEngine),
+            conditionsMetWithAI = conditionsMetWithAI?.evaluateScripts(jsEngine),
         )
     }
 
@@ -41,6 +43,10 @@ data class Condition(
 
         scriptCondition?.let {
             descriptions.add("$it is true")
+        }
+
+        conditionsMetWithAI?.let {
+            descriptions.add("AI conditions: $it are met")
         }
 
         return if (descriptions.isEmpty()) {

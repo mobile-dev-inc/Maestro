@@ -460,7 +460,7 @@ class Orchestra(
         return true
     }
 
-    private fun assertConditionCommand(command: AssertConditionCommand): Boolean {
+    private suspend fun assertConditionCommand(command: AssertConditionCommand): Boolean {
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
@@ -842,7 +842,7 @@ class Orchestra(
         return true
     }
 
-    private fun runScriptCommand(command: RunScriptCommand): Boolean {
+    private suspend fun runScriptCommand(command: RunScriptCommand): Boolean {
         return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
             jsEngine.evaluateScript(
                 script = command.script,
@@ -1019,7 +1019,7 @@ class Orchestra(
 
         var mutating = false
 
-        val checkCondition: () -> Boolean = {
+        val checkCondition: suspend () -> Boolean = {
             command.condition
                 ?.evaluateScripts(jsEngine)
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
@@ -1098,7 +1098,7 @@ class Orchestra(
         }
     }
 
-    private fun evaluateCondition(
+    private suspend fun evaluateCondition(
         condition: Condition?,
         commandOptional: Boolean,
         timeoutMs: Long? = null,
@@ -1135,6 +1135,17 @@ class Orchestra(
             if (value.toDoubleOrNull() == 0.0) {
                 return false
             }
+        }
+
+        condition.conditionsMetWithAI?.let { assertion ->
+            val imageData = Buffer()
+            maestro.takeScreenshot(imageData, compressed = false)
+            val defect = AIPredictionEngine.performAssertion(
+                screen = imageData.readByteArray(),
+                aiClient = ai,
+                assertion = assertion,
+            )
+            if (defect != null) return false
         }
 
         condition.visible?.let {
@@ -1392,7 +1403,7 @@ class Orchestra(
         return true
     }
 
-    private fun assertCommand(command: AssertCommand): Boolean {
+    private suspend fun assertCommand(command: AssertCommand): Boolean {
         return assertConditionCommand(
             command.toAssertConditionCommand()
         )
