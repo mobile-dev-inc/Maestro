@@ -17,9 +17,11 @@ import util.LocalIOSDevice
 import util.LocalSimulatorUtils
 import util.SimctlList
 import java.io.File
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+
+data class AvdInfo(val name: String, val model: String, val os: String)
 
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
@@ -53,6 +55,7 @@ object DeviceService {
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
 
@@ -110,6 +113,7 @@ object DeviceService {
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
 
@@ -122,6 +126,7 @@ object DeviceService {
                     description = "Chromium Web Browser",
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
         }
@@ -160,7 +165,8 @@ object DeviceService {
                 platform = Platform.WEB,
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
-                deviceType = Device.DeviceType.BROWSER
+                deviceType = Device.DeviceType.BROWSER,
+                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Web())
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
@@ -181,10 +187,17 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = Device.DeviceType.EMULATOR
+                    deviceType = Device.DeviceType.EMULATOR,
+                    deviceSpec = DeviceCatalog.resolve(
+                        DeviceRequest.Android()
+                    )
                 )
             )
         }
+
+        // Fetch AVD info once (model + os) to avoid repeated avdmanager calls
+        val avdInfoList = fetchAndroidAvdInfo()
+
         val connected = runCatching {
             Dadb.list(host = host).map { dadb ->
                 val avdName = runCatching {
@@ -204,15 +217,19 @@ object DeviceService {
                 }.getOrNull()
 
                 val instanceId = dadb.toString()
-                val deviceType = when  {
+                val deviceType = when {
                     instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
                     else -> Device.DeviceType.REAL
                 }
+                val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName ?: "", model = "", os = "")
                 Device.Connected(
                     instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = deviceType
+                    deviceType = deviceType,
+                    deviceSpec = DeviceCatalog.resolve(
+                        DeviceRequest.Android()
+                    ),
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -227,13 +244,16 @@ object DeviceService {
                 .bufferedReader()
                 .useLines { lines ->
                     lines
-                        .map {
+                        .map { avdName ->
+                            val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName, model = "", os = "")
                             Device.AvailableForLaunch(
-                                modelId = it,
-                                description = it,
+                                modelId = avdName,
+                                description = avdName,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Android())
+                                deviceSpec = DeviceCatalog.resolve(
+                                    DeviceRequest.Android(avdInfo.model, avdInfo.os)
+                                )
                             )
                         }
                         .toList()
@@ -243,6 +263,70 @@ object DeviceService {
         }
 
         return connected + avds
+    }
+
+    /**
+     * Runs `avdmanager list avd` and returns a list of AvdInfo
+     * - name
+     * - model: the canonical device ID from avdmanager, e.g. "pixel_6"
+     * - os: "android-XX" derived from the API level, e.g. "android-34"
+     *
+     * Falls back to config.ini for the OS if avdmanager output lacks it.
+     * Returns empty string on any failure
+     */
+    private fun fetchAndroidAvdInfo(): List<AvdInfo> {
+        return try {
+            val avd = requireAvdManagerBinary()
+            val output = ProcessBuilder(avd.absolutePath, "list", "avd")
+                .redirectErrorStream(true)
+                .start()
+                .apply { waitFor(30, TimeUnit.SECONDS) }
+                .inputStream.bufferedReader().readText()
+            parseAvdInfo(output, AndroidEnvUtils.androidAvdHome)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    internal fun parseAvdInfo(output: String, avdHome: File): List<AvdInfo> {
+        val result = mutableListOf<AvdInfo>()
+        var currentName: String? = null
+        var currentModel: String? = null
+        var currentOs: String? = null
+
+        for (line in output.lines()) {
+            val trimmed = line.trim()
+            when {
+                trimmed.startsWith("Name:") -> {
+                    // Save previous block
+                    if (currentName != null) {
+                        result += AvdInfo(name = currentName, model = currentModel ?: "", os = currentOs ?: "")
+                    }
+                    currentName = trimmed.removePrefix("Name:").trim()
+                    currentModel = null
+                    currentOs = null
+                }
+                trimmed.startsWith("Device:") -> {
+                    // "pixel_6 (Google Pixel 6)" → "pixel_6"
+                    currentModel = trimmed.removePrefix("Device:").trim().substringBefore(" ")
+                }
+                currentOs == null && currentName != null -> {
+                    // Read OS from config.ini once we have the AVD name
+                    val configFile = File(avdHome, "$currentName.avd/config.ini")
+                    if (configFile.exists()) {
+                        val sysdir = configFile.readLines()
+                            .firstOrNull { it.startsWith("image.sysdir.1=") }
+                            ?.substringAfter("=")
+                        currentOs = sysdir?.split("/")?.firstOrNull { it.startsWith("android-") }
+                    }
+                }
+            }
+        }
+        // Save last block
+        if (currentName != null) {
+            result += AvdInfo(name = currentName, model = currentModel ?: "", os = currentOs ?: "")
+        }
+        return result
     }
 
     private fun listIOSDevices(): List<Device> {
@@ -284,7 +368,10 @@ object DeviceService {
                 instanceId = udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.REAL
+                deviceType = Device.DeviceType.REAL,
+                deviceSpec = DeviceCatalog.resolve(
+                    DeviceRequest.Ios()
+                )
             )
         }
     }
@@ -297,12 +384,20 @@ object DeviceService {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
 
+        // "com.apple.CoreSimulator.SimDeviceType.iPhone-XS" → "iPhone-XS"
+        val model = device.deviceTypeIdentifier?.substringAfterLast(".") ?: ""
+        // "com.apple.CoreSimulator.SimRuntime.iOS-17-5" → "iOS-17-5"
+        val os = runtime.key.substringAfterLast(".")
+
         return if (device.state == "Booted") {
             Device.Connected(
                 instanceId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.SIMULATOR
+                deviceType = Device.DeviceType.SIMULATOR,
+                deviceSpec = DeviceCatalog.resolve(
+                    DeviceRequest.Ios(model, os)
+                )
             )
         } else {
             Device.AvailableForLaunch(
@@ -310,7 +405,9 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType =  Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Ios())
+                deviceSpec = DeviceCatalog.resolve(
+                    DeviceRequest.Ios(model, os)
+                )
             )
         }
     }
@@ -332,7 +429,10 @@ object DeviceService {
                             instanceId = output,
                             description = output,
                             platform = Platform.ANDROID,
-                            deviceType = Device.DeviceType.EMULATOR
+                            deviceType = Device.DeviceType.EMULATOR,
+                            deviceSpec = DeviceCatalog.resolve(
+                                DeviceRequest.Android()
+                            )
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
