@@ -1,6 +1,0 @@
-appId: com.example.app
----
-- assertVisible:
-    id: "element_id"
-    visibilityPercentage: 50
-    optional: true
