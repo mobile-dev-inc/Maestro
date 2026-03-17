@@ -931,6 +931,10 @@ data class YamlFluentCommand(
     }
 
     private fun toElementSelector(selector: YamlElementSelector): ElementSelector {
+        if (selector.displayId != null && selector.displayId < 0) {
+            throw SyntaxError("displayId must be non-negative, got: ${selector.displayId}")
+        }
+
         val size = if (selector.width != null || selector.height != null) {
             ElementSelector.SizeSelector(
                 width = selector.width,

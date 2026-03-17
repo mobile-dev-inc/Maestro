@@ -53,10 +53,13 @@ import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
+import maestro.orchestra.yaml.junit.YamlResourceFile
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.FileSystems
 import java.nio.file.Paths
@@ -828,7 +831,7 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun displayId(
-        @YamlFile("031_displayId.yaml") commands: List<Command>
+        @YamlFile("033_displayId.yaml") commands: List<Command>
     ) {
         val tapCommand = commands[1] as TapOnElementCommand
         assertThat(tapCommand.selector.textRegex).isEqualTo("Pay Now")
@@ -837,6 +840,13 @@ internal class YamlCommandReaderTest {
         val assertCommand = commands[2] as AssertConditionCommand
         assertThat(assertCommand.condition.visible?.idRegex).isEqualTo("welcome_text")
         assertThat(assertCommand.condition.visible?.displayId).isEqualTo(0)
+    }
+
+    @Test
+    fun `displayId negative value throws SyntaxError`() {
+        assertThrows<SyntaxError> {
+            YamlCommandReader.readCommands(YamlResourceFile("034_displayId_negative.yaml").path)
+        }
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
