@@ -10,5 +10,6 @@ object PrintUtils {
 
     fun message(message: String) {
         logger.info(message)
+        println(message)
     }
 }

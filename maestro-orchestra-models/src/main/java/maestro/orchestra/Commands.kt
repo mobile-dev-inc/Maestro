@@ -19,7 +19,7 @@
 
 package maestro.orchestra
 
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -28,6 +28,7 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import com.fasterxml.jackson.annotation.JsonIgnore
+import java.nio.file.Path
 import net.datafaker.Faker
 
 sealed interface Command {
@@ -481,6 +482,7 @@ data class AssertScreenshotCommand(
     val cropOn: ElementSelector? = null,
     override val optional: Boolean = false,
     override val label: String? = null,
+    @field:JsonIgnore val flowPath: Path? = null,
 ) : Command {
     override val originalDescription: String
         get() {
