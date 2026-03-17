@@ -366,10 +366,10 @@ internal class YamlCommandReaderTest {
                 label = "Check that five is still what we think it is"
             ),
             RunScriptCommand(
-                script = "const myNumber = 1 + 1;",
+                script = "",
                 condition = null,
-                sourceDescription = expectedScriptPath,
-                label = "Run some special calculations"
+                sourceDescription = "023_runScript_test.js",
+                label = "Run some special calculations",
             ),
             SetOrientationCommand(
                 orientation = DeviceOrientation.LANDSCAPE_LEFT,

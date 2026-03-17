@@ -1,0 +1,5 @@
+appId: com.example
+---
+# Test normal paths without JS interpolation load files immediately
+- runScript: ../scripts/dynamic.js
+- runFlow: ../subflows/login.yaml
