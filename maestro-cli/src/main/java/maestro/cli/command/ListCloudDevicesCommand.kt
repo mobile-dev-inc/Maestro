@@ -14,7 +14,7 @@ import picocli.CommandLine
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
-    name = "list-cloud-device",
+    name = "list-cloud-devices",
     description = ["List devices available on Maestro Cloud, grouped by platform"],
 )
 class ListCloudDevicesCommand : Callable<Int> {

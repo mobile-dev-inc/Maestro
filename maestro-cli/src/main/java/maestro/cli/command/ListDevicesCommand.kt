@@ -15,7 +15,7 @@ import picocli.CommandLine
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
-    name = "list-device",
+    name = "list-devices",
     description = ["List local devices available, grouped by platform"],
 )
 class ListDevicesCommand : Callable<Int> {
