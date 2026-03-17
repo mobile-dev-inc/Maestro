@@ -29,6 +29,7 @@ data class TestExecutionSummary(
         val duration: Duration? = null,
         val startTime: Long? = null,
         val properties: Map<String, String>? = null,
+        val tags: List<String>? = null,
         val steps: List<StepResult> = emptyList(),
     )
 

@@ -24,6 +24,10 @@ import kotlinx.coroutines.isActive
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
+import com.github.romankh3.image.comparison.ImageComparison
+import com.github.romankh3.image.comparison.model.ImageComparisonState
+import io.grpc.Status
+import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
@@ -58,11 +62,18 @@ import okio.Sink
 import okio.buffer
 import okio.sink
 import org.slf4j.LoggerFactory
+import java.awt.image.BufferedImage
 import java.io.File
+import java.io.IOException
 import java.lang.Long.max
 import java.nio.file.Path
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import javax.imageio.ImageIO
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -219,13 +230,6 @@ class Orchestra(
                 // Check for pause before executing each command
                 flowController.waitIfPaused()
 
-                val evaluatedCommand = command.evaluateScripts(jsEngine)
-                val metadata = getMetadata(command)
-                    .copy(
-                        evaluatedCommand = evaluatedCommand,
-                    )
-                updateMetadata(command, metadata)
-
                 onCommandStart(index, command)
 
                 jsEngine.onLogMessage { msg ->
@@ -236,6 +240,13 @@ class Orchestra(
                     )
                     logger.info("JsConsole: $msg")
                 }
+
+                val evaluatedCommand = command.evaluateScripts(jsEngine)
+                val metadata = getMetadata(command)
+                    .copy(
+                        evaluatedCommand = evaluatedCommand,
+                    )
+                updateMetadata(command, metadata)
 
                 val callback: (Insight) -> Unit = { insight ->
                     updateMetadata(
@@ -335,6 +346,7 @@ class Orchestra(
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
+            is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
@@ -524,6 +536,102 @@ class Orchestra(
         return false
     }
 
+    private fun normalizeScreenshotPath(path: String): String {
+        val imageExtensions = listOf(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".wbmp")
+        return if (imageExtensions.any { path.endsWith(it, ignoreCase = true) }) path else "$path.png"
+    }
+
+    private fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+        val path = normalizeScreenshotPath(command.path)
+        val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
+
+        val candidates = buildList {
+            command.flowPath?.let { add(it.resolve(path).toFile()) }
+            screenshotsDir?.let { add(it.resolve(path).toFile()) }
+            add(File(path))
+        }.distinctBy { it.canonicalPath }
+
+        val expectedFile = candidates.firstOrNull { it.exists() }
+            ?: throw MaestroException.AssertionFailure(
+                message = "Screenshot file not found: $path. Searched in:\n" +
+                    candidates.joinToString("\n") { "  - ${it.absolutePath}" },
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
+                    "Create it at one of the searched locations above."
+            )
+
+        expectedFile.parentFile?.mkdirs()
+
+        // Temp file is always PNG since maestro.takeScreenshot produces PNG
+        val actualScreenshotFile = File
+            .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
+            .also { it.deleteOnExit() }
+
+        val cropOn = command.cropOn
+        if (cropOn != null) {
+            val elementResult = findElement(cropOn, optional = command.optional)
+            val bounds = elementResult.element.bounds
+            if (bounds.width <= 0 || bounds.height <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+                )
+            }
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
+        } else {
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false)
+        }
+
+        val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
+
+        val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
+            message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
+            hierarchyRoot = maestro.viewHierarchy().root,
+            debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
+        )
+
+        val baseName = if (path.contains('.')) {
+            path.substringBeforeLast('.')
+        } else {
+            path
+        }
+        val diffFileName = "${baseName}_diff.png"
+        val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
+
+        val comparison =
+            ImageComparison(expectedImage, actualImage, diffFile)
+
+        comparison.apply {
+            allowingPercentOfDifferentPixels = thresholdDifferencePercentage
+            rectangleLineWidth = 10
+            pixelToleranceLevel = 0.1 
+            minimalRectangleSize = 40
+        }
+
+        val comparisonState = comparison.compareImages()
+
+        when (comparisonState.imageComparisonState) {
+            ImageComparisonState.MATCH -> return true
+            ImageComparisonState.SIZE_MISMATCH -> throw MaestroException.AssertionFailure(
+                message = "Screenshot size mismatch: ${command.description()} - expected ${expectedImage.width}x${expectedImage.height}, actual ${actualImage.width}x${actualImage.height}. Screenshots must have the same dimensions to compare.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${expectedImage.width}x${expectedImage.height}, got: ${actualImage.width}x${actualImage.height}. Use the same device/emulator or cropOn to align dimensions."
+            )
+            ImageComparisonState.MISMATCH -> throw MaestroException.AssertionFailure(
+                message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
+            )
+            else -> throw MaestroException.AssertionFailure(
+                message = "Screenshot comparison failed: ${command.description()} - unexpected comparison state ${comparisonState.imageComparisonState}.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command encountered an unexpected result from the image comparison. State: ${comparisonState.imageComparisonState}"
+            )
+        }
+    }
+
+
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
         command.scriptString.evaluateScripts(jsEngine)
 
@@ -685,6 +793,20 @@ class Orchestra(
 
     private fun hideKeyboardCommand(): Boolean {
         maestro.hideKeyboard()
+
+        // Throw error in case keyboard is still visible
+        if (maestro.isKeyboardVisible()) {
+            throw MaestroException.HideKeyboardFailure(
+                "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
+                debugMessage = """
+                    Instead of hideKeyboard, try tapping on non-interactive element to hide keyboard. Example:
+ 
+                    - tapOn: 
+                        text: 'Static Text on your screen'
+                """.trimIndent()
+            )
+        }
+
         return true
     }
 
@@ -867,14 +989,14 @@ class Orchestra(
         return try {
             commands
                 .mapIndexed { index, command ->
+                    onCommandStart(index, command)
+
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
                         .copy(
                             evaluatedCommand = evaluatedCommand,
                         )
                     updateMetadata(command, metadata)
-
-                    onCommandStart(index, command)
 
                     return@mapIndexed try {
                         try {
@@ -953,7 +1075,22 @@ class Orchestra(
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
         val fileSink = getFileSink(screenshotsDir, pathStr)
-        maestro.takeScreenshot(fileSink, false)
+
+        val cropOn = command.cropOn
+        if (cropOn == null) {
+            maestro.takeScreenshot(fileSink, false)
+        } else {
+            val elementResult = findElement(cropOn, optional = command.optional)
+            val bounds = elementResult.element.bounds
+            if (bounds.width <= 0 || bounds.height <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+                )
+            }
+            maestro.takeScreenshot(fileSink, false, bounds)
+        }
         return false
     }
 

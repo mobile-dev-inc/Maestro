@@ -3,7 +3,6 @@ package dev.mobile.maestro
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
-import android.graphics.Bitmap
 import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
@@ -43,12 +42,15 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.android.gms.location.LocationServices
-import com.google.protobuf.ByteString
 import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
 import dev.mobile.maestro.location.MockLocationProvider
 import dev.mobile.maestro.location.PlayServices
+import dev.mobile.maestro.screenshot.ScreenshotException
+import dev.mobile.maestro.screenshot.ScreenshotService
+import io.grpc.Metadata
 import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
 import maestro_android.MaestroAndroid
@@ -118,12 +120,20 @@ class Service(
     private var locationTimerTask : TimerTask? = null
     private val locationTimer = Timer()
 
+    private val screenshotService = ScreenshotService()
     private val mockLocationProviderList = mutableListOf<MockLocationProvider>()
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
 
     companion object {
         private const val TAG = "Maestro"
         private const val UPDATE_INTERVAL_IN_MILLIS = 2000L
+
+        private val ERROR_TYPE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_MSG_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-message", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_CAUSE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-cause", Metadata.ASCII_STRING_MARSHALLER)
     }
 
     override fun launchApp(
@@ -323,16 +333,20 @@ class Service(
         request: MaestroAndroid.ScreenshotRequest,
         responseObserver: StreamObserver<MaestroAndroid.ScreenshotResponse>
     ) {
-        val outputStream = ByteString.newOutput()
-        val bitmap = uiAutomation.takeScreenshot()
-        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
-            responseObserver.onNext(screenshotResponse {
-                bytes = outputStream.toByteString()
-            })
+        try {
+            val bitmap = screenshotService.takeScreenshotWithRetry { uiAutomation.takeScreenshot() }
+            val bytes = screenshotService.encodePng(bitmap)
+            responseObserver.onNext(screenshotResponse { this.bytes = bytes })
             responseObserver.onCompleted()
-        } else {
-            Log.e("Maestro", "Failed to compress bitmap")
-            responseObserver.onError(Throwable("Failed to compress bitmap").internalError())
+        } catch (e: NullPointerException) {
+            Log.e(TAG, "Screenshot failed with NullPointerException: ${e.message}", e)
+            responseObserver.onError(e.internalError())
+        } catch (e: ScreenshotException) {
+            Log.e(TAG, "Screenshot failed with ScreenshotException: ${e.message}", e)
+            responseObserver.onError(e.internalError())
+        } catch (e: Exception) {
+            Log.e(TAG, "Screenshot failed with: ${e.message}", e)
+            responseObserver.onError(e.internalError())
         }
     }
 
@@ -559,7 +573,14 @@ class Service(
         uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
     }
 
-    internal fun Throwable.internalError() = Status.INTERNAL.withDescription(message).asException()
+    internal fun Throwable.internalError(): StatusRuntimeException {
+        val trailers = Metadata().apply {
+            put(ERROR_TYPE_KEY, this@internalError::class.java.name)
+            this@internalError.message?.let { put(ERROR_MSG_KEY, it) }
+            this@internalError.cause?.let { put(ERROR_CAUSE_KEY, it.toString()) }
+        }
+        return Status.INTERNAL.withDescription(message).asRuntimeException(trailers)
+    }
 
     enum class FileType(val ext: String, val mimeType: String) {
         JPG("jpg", "image/jpg"),

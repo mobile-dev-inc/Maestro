@@ -71,15 +71,42 @@ static id swizzledSnapshotParameters(id self, SEL _cmd) {
         NSLog(@"Disabling snapshotKeyHonorModalViews to make elements behind modals visible");
         FBSetCustomParameterForElementSnapshot(@"snapshotKeyHonorModalViews", @0);
 
+        // Swizzle defaultParameters on XCAXClient_iOS
         Method original_defaultParametersMethod =
             class_getInstanceMethod(self.class, @selector(defaultParameters));
-        IMP swizzledDefaultParametersImp = (IMP)swizzledDefaultParameters;
-        original_defaultParameters = (id(*)(id, SEL))method_setImplementation(
-            original_defaultParametersMethod, swizzledDefaultParametersImp);
+        if (original_defaultParametersMethod == NULL) {
+            NSLog(@"[ERROR] Swizzling failed: Could not find method 'defaultParameters' on XCAXClient_iOS. "
+                  "Apple may have changed the private API in this OS version.");
+        } else {
+            IMP swizzledDefaultParametersImp = (IMP)swizzledDefaultParameters;
+            original_defaultParameters = (id(*)(id, SEL))method_setImplementation(original_defaultParametersMethod, swizzledDefaultParametersImp);
+            if (original_defaultParameters == NULL) {
+                NSLog(@"[ERROR] Swizzling failed: method_setImplementation returned NULL for 'defaultParameters'.");
+            } else {
+                NSLog(@"Successfully swizzled 'defaultParameters' on XCAXClient_iOS");
+            }
+        }
 
-        Method original_snapshotParametersMethod = class_getInstanceMethod(NSClassFromString(@"XCTElementQuery"), NSSelectorFromString(@"snapshotParameters"));
-        IMP swizzledSnapshotParametersImp = (IMP)swizzledSnapshotParameters;
-        original_snapshotParameters = (id(*)(id, SEL))method_setImplementation(original_snapshotParametersMethod, swizzledSnapshotParametersImp);
+        // Swizzle snapshotParameters on XCTElementQuery
+        Class elementQueryClass = NSClassFromString(@"XCTElementQuery");
+        if (elementQueryClass == nil) {
+            NSLog(@"[ERROR] Swizzling failed: Could not find class 'XCTElementQuery'. "
+                  "Apple may have changed the private API in this OS version.");
+        } else {
+            Method original_snapshotParametersMethod = class_getInstanceMethod(elementQueryClass, NSSelectorFromString(@"snapshotParameters"));
+            if (original_snapshotParametersMethod == NULL) {
+                NSLog(@"[ERROR] Swizzling failed: Could not find method 'snapshotParameters' on XCTElementQuery. "
+                      "Apple may have changed the private API in this OS version.");
+            } else {
+                IMP swizzledSnapshotParametersImp = (IMP)swizzledSnapshotParameters;
+                original_snapshotParameters = (id(*)(id, SEL))method_setImplementation(original_snapshotParametersMethod, swizzledSnapshotParametersImp);
+                if (original_snapshotParameters == NULL) {
+                    NSLog(@"[ERROR] Swizzling failed: method_setImplementation returned NULL for 'snapshotParameters'.");
+                } else {
+                    NSLog(@"Successfully swizzled 'snapshotParameters' on XCTElementQuery");
+                }
+            }
+        }
     }
 }
 

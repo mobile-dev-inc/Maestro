@@ -25,7 +25,7 @@ import hierarchy.AXElement
 import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
@@ -60,7 +60,7 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
- ) : Driver {
+) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
 
@@ -174,9 +174,7 @@ class IOSDriver(
     }
 
     private fun viewHierarchy(excludeKeyboardElements: Boolean): TreeNode {
-        LOGGER.info("Requesting view hierarchy of the screen")
         val hierarchyResult = iosDevice.viewHierarchy(excludeKeyboardElements)
-        LOGGER.info("Depth of the screen is ${hierarchyResult.depth}")
         if (hierarchyResult.depth > WARNING_MAX_DEPTH) {
             val message = "The view hierarchy has been calculated. The current depth of the hierarchy " +
                     "is ${hierarchyResult.depth}. This might affect the execution time of your test. " +
@@ -480,7 +478,6 @@ class IOSDriver(
              MaestroTimer.retryUntilTrue(timeoutMs) {
                 val isScreenStatic = isScreenStatic()
 
-                LOGGER.info("screen static = $isScreenStatic")
                 return@retryUntilTrue isScreenStatic
             }
         }

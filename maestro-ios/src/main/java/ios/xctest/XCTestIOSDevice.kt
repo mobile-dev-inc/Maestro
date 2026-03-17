@@ -29,7 +29,6 @@ class XCTestIOSDevice(
     override fun deviceInfo(): DeviceInfo {
         return execute {
             val deviceInfo = client.deviceInfo()
-            logger.info("Device info $deviceInfo")
             deviceInfo
         }
     }
@@ -39,7 +38,6 @@ class XCTestIOSDevice(
             // TODO(as): remove this list of apps from here once tested on cloud, we are not using this appIds now on server.
             val viewHierarchy = client.viewHierarchy(installedApps = emptySet(), excludeKeyboardElements)
             DepthTracker.trackDepth(viewHierarchy.depth)
-            logger.trace("Depth received: ${viewHierarchy.depth}")
             viewHierarchy
         }
     }
@@ -194,7 +192,6 @@ class XCTestIOSDevice(
     override fun isScreenStatic(): Boolean {
         return execute {
             val isScreenStatic = client.isScreenStatic().isScreenStatic
-            logger.info("Screen diff request finished with isScreenStatic = $isScreenStatic")
             isScreenStatic
         }
     }
