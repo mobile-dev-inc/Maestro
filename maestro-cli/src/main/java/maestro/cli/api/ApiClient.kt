@@ -337,6 +337,8 @@ class ApiClient(
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
                 projectId = projectId,
+                deviceModel = deviceModel,
+                deviceOs = deviceOs,
             )
         }
 
@@ -399,7 +401,9 @@ class ApiClient(
                                 appBinaryId = appBinaryId,
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
-                                projectId = projectId
+                                projectId = projectId,
+                                deviceModel = deviceModel,
+                                deviceOs = deviceOs,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -557,6 +561,24 @@ class ApiClient(
             val parsed = JSON.readValue(response.body?.bytes(), AnalyzeResponse::class.java)
 
             return parsed;
+        }
+    }
+
+    fun listCloudDevices(): Map<String, Map<String, List<String>>> {
+        val request = Request.Builder()
+            .url("$baseUrl/v2/device/list")
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) throw ApiException(statusCode = response.code)
+            return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         }
     }
 
