@@ -6,8 +6,8 @@ enum class Platform(val description: String) {
     WEB("Web");
 
     companion object {
-        fun fromString(p: String?): Platform? {
-            return entries.firstOrNull { it.description.equals(p, ignoreCase = true) }
+        fun fromString(p: String): Platform {
+            return entries.first { it.description.equals(p, ignoreCase = true) }
         }
     }
 }
