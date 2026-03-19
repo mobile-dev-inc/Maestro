@@ -257,7 +257,13 @@ tasks.named<Tar>("distTar") {
 }
 
 tasks.shadowJar {
-    setProperty("zip64", true)
+    isZip64 = true
+    dependencies {
+        exclude(
+            // Exclude the transitive dependency on js-community, which can't be unzipped by the task. See https://github.com/GradleUp/shadow/issues/1716.
+            dependency("org.graalvm.js:js-community:.*"),
+        )
+    }
 }
 
 mavenPublishing {
