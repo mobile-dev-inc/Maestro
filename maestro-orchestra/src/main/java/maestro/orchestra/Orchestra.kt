@@ -539,7 +539,7 @@ class Orchestra(
     }
 
     private fun normalizeScreenshotPath(path: String): String {
-        val imageExtensions = listOf(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".wbmp")
+        val imageExtensions = listOf(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".wbmp", ".heic", ".heif")
         return if (imageExtensions.any { path.endsWith(it, ignoreCase = true) }) path else "$path.png"
     }
 

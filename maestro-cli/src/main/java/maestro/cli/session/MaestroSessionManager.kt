@@ -84,7 +84,7 @@ object MaestroSessionManager {
             driverHostPort = driverHostPort,
             deviceId = deviceId,
             teamId = teamId,
-            platform = Platform.fromString(platform),
+            platform = if(!platform.isNullOrEmpty()) Platform.fromString(platform) else null,
             deviceIndex = deviceIndex,
         )
         val sessionId = UUID.randomUUID().toString()

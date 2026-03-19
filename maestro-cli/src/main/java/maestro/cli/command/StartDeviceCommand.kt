@@ -90,7 +90,6 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-            ?: throw CliError("Unsupported platform $platform. Please specify one of: android, ios, web")
         val maestroDeviceConfiguration = DeviceCatalog.resolve(
             when (parsedPlatform) {
                 Platform.ANDROID -> DeviceRequest.Android(
