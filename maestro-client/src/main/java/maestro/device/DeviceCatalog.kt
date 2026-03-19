@@ -53,6 +53,17 @@ sealed class DeviceSpec {
         override val osVersion: Int = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
     }
 
+    data class Tvos(
+        override val model: String,
+        override val os: String,
+        override val locale: DeviceLocale,
+        val disableAnimations: Boolean,
+    ) : DeviceSpec() {
+        override val platform = Platform.TVOS
+        override val deviceName = "Maestro_TVOS_${model}_${os}"
+        override val osVersion: Int = os.removePrefix("tvOS-").substringBefore("-").toIntOrNull() ?: 0
+    }
+
     data class Web(
       override val model: String,
       override val os: String,
@@ -92,6 +103,16 @@ sealed class DeviceRequest {
         override val platform = Platform.IOS
     }
 
+    data class Tvos(
+        val model: String? = null,
+        val os: String? = null,
+        val locale: String? = null,
+        val disableAnimations: Boolean? = null,
+        val snapshotKeyHonorModalViews: Boolean? = null,
+    ) : DeviceRequest() {
+        override val platform = Platform.TVOS
+    }
+
     data class Web(
         val model: String? = null,
         val os: String? = null,
@@ -124,6 +145,12 @@ object DeviceCatalog {
                 orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
                 disableAnimations = request.disableAnimations ?: false,
                 snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
+            )
+            is DeviceRequest.Tvos -> DeviceSpec.Tvos(
+                model = request.model ?: "Apple-TV-4K-3rd-generation-4K",
+                os = request.os ?: "tvOS-18-5",
+                locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.TVOS),
+                disableAnimations = request.disableAnimations ?: false,
             )
             is DeviceRequest.Web -> DeviceSpec.Web(
                 model = request.model ?: "chromium",

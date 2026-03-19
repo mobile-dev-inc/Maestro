@@ -15,7 +15,8 @@ object DeviceCreateUtil {
         shardIndex: Int? = null,
     ): Device.AvailableForLaunch = when (deviceSpec) {
         is DeviceSpec.Android -> getOrCreateAndroidDevice(deviceSpec, forceCreate, shardIndex)
-        is DeviceSpec.Ios     -> getOrCreateIosDevice(deviceSpec, forceCreate, shardIndex)
+        is DeviceSpec.Ios     -> getOrCreateAppleDevice(deviceSpec, forceCreate, shardIndex)
+        is DeviceSpec.Tvos    -> getOrCreateAppleDevice(deviceSpec, forceCreate, shardIndex)
         is DeviceSpec.Web     -> Device.AvailableForLaunch(
             platform = Platform.WEB,
             description = "Chromium Desktop Browser (Experimental)",
@@ -25,34 +26,36 @@ object DeviceCreateUtil {
         )
     }
 
-    fun getOrCreateIosDevice(
-        deviceSpec: DeviceSpec.Ios, forceCreate: Boolean, shardIndex: Int? = null
+    fun getOrCreateAppleDevice(
+        deviceSpec: DeviceSpec, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
+        val deviceName = deviceSpec.deviceName + (shardIndex?.let { "_${it + 1}" } ?: "")
+
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
-            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
+        if (DeviceService.isDeviceConnected(deviceName, deviceSpec.platform) != null && shardIndex == null && !forceCreate) {
+            throw CliError("A device with name $deviceName is already connected")
         }
 
         // check existing device
-        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.IOS)?.let {
+        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceName, deviceSpec.platform)?.let {
             if (forceCreate) {
                 DeviceService.deleteIosDevice(it.modelId)
                 null
             } else it.modelId
         }
 
-        if (existingDeviceId != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName} (${existingDeviceId}).")
-        else PrintUtils.message("Attempting to create iOS simulator: ${deviceSpec.deviceName} ")
+        if (existingDeviceId != null) PrintUtils.message("Using existing device $deviceName (${existingDeviceId}).")
+        else PrintUtils.message("Attempting to create ${deviceSpec.platform.description} simulator: $deviceName ")
 
         val deviceUUID = try {
-            existingDeviceId ?: DeviceService.createIosDevice(deviceSpec.deviceName, deviceSpec.model, deviceSpec.os).toString()
+            existingDeviceId ?: DeviceService.createIosDevice(deviceName, deviceSpec.model, deviceSpec.os).toString()
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {
                 val msg = """
                     Required runtime to create the simulator is not installed: ${deviceSpec.os}
 
-                    To install additional iOS runtimes checkout this guide:
+                    To install additional ${deviceSpec.platform.description} runtimes checkout this guide:
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
                 throw CliError(msg)
@@ -71,12 +74,12 @@ object DeviceCreateUtil {
             }
         }
 
-        if (existingDeviceId == null) PrintUtils.message("Created simulator with name ${deviceSpec.deviceName} and UUID $deviceUUID")
+        if (existingDeviceId == null) PrintUtils.message("Created simulator with name $deviceName and UUID $deviceUUID")
 
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
-            description = deviceSpec.deviceName,
-            platform = Platform.IOS,
+            description = deviceName,
+            platform = deviceSpec.platform,
             deviceType = Device.DeviceType.SIMULATOR,
             deviceSpec = deviceSpec,
         )

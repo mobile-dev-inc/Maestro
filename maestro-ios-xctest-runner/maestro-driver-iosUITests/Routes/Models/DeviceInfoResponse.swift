@@ -5,4 +5,5 @@ struct DeviceInfoResponse: Codable {
     let heightPoints: Int
     let widthPixels: Int
     let heightPixels: Int
+    let platform: String
 }

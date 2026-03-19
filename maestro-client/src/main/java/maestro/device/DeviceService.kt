@@ -35,7 +35,7 @@ object DeviceService {
         connectedDevices: Set<String> = setOf()
     ): Device.Connected {
         when (device.deviceSpec.platform) {
-            Platform.IOS -> {
+            Platform.IOS, Platform.TVOS -> {
                 PrintUtils.message("Launching Simulator...")
                 try {
                     localSimulatorUtils.bootSimulator(device.modelId)
@@ -151,7 +151,7 @@ object DeviceService {
 
      fun listDevices(includeWeb: Boolean, host: String? = null, port: Int? = null): List<Device> {
         return listAndroidDevices(host, port) +
-                listIOSDevices() +
+                listAppleDevices() +
                 if (includeWeb) {
                     listWebDevices()
                 } else {
@@ -329,7 +329,7 @@ object DeviceService {
         return result
     }
 
-    private fun listIOSDevices(): List<Device> {
+    private fun listAppleDevices(): List<Device> {
         val simctlList = try {
             localSimulatorUtils.list()
         } catch (ignored: Exception) {
@@ -346,10 +346,10 @@ object DeviceService {
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
-            } + listIOSConnectedDevices()
+            } + listAppleConnectedDevices()
     }
 
-    fun listIOSConnectedDevices(): List<Device.Connected> {
+    fun listAppleConnectedDevices(): List<Device.Connected> {
         val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
 
         return connectedIphoneList.mapNotNull { device ->
@@ -388,25 +388,27 @@ object DeviceService {
         val model = device.deviceTypeIdentifier?.substringAfterLast(".") ?: ""
         // "com.apple.CoreSimulator.SimRuntime.iOS-17-5" → "iOS-17-5"
         val os = runtime.key.substringAfterLast(".")
+        // iPhone-XS -> iOS, Apple-TV-4K-3rd-generation-4K -> tvOS
+        val platform = if (model.contains("Apple-TV") == true) Platform.TVOS else Platform.IOS
 
         return if (device.state == "Booted") {
             Device.Connected(
                 instanceId = device.udid,
                 description = description,
-                platform = Platform.IOS,
+                platform = platform,
                 deviceType = Device.DeviceType.SIMULATOR,
                 deviceSpec = DeviceCatalog.resolve(
-                    DeviceRequest.Ios(model, os)
+                    if (platform == Platform.TVOS) DeviceRequest.Tvos(model, os) else DeviceRequest.Ios(model, os)
                 )
             )
         } else {
             Device.AvailableForLaunch(
                 modelId = device.udid,
                 description = description,
-                platform = Platform.IOS,
+                platform = platform,
                 deviceType =  Device.DeviceType.SIMULATOR,
                 deviceSpec = DeviceCatalog.resolve(
-                    DeviceRequest.Ios(model, os)
+                    if (platform == Platform.TVOS) DeviceRequest.Tvos(model, os) else DeviceRequest.Ios(model, os)
                 )
             )
         }
@@ -417,7 +419,7 @@ object DeviceService {
      */
     fun isDeviceConnected(deviceName: String, platform: Platform): Device.Connected? {
         return when (platform) {
-            Platform.IOS -> listIOSDevices()
+            Platform.IOS, Platform.TVOS -> listAppleDevices()
                 .filterIsInstance<Device.Connected>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
 
@@ -444,8 +446,8 @@ object DeviceService {
      * @return true if ios simulator or android emulator is available to launch
      */
     fun isDeviceAvailableToLaunch(deviceName: String, platform: Platform): Device.AvailableForLaunch? {
-        return if (platform == Platform.IOS) {
-            listIOSDevices()
+        return if (platform == Platform.IOS || platform == Platform.TVOS) {
+            listAppleDevices()
                 .filterIsInstance<Device.AvailableForLaunch>()
                 .find { it.description.contains(deviceName, ignoreCase = true) }
         } else {
