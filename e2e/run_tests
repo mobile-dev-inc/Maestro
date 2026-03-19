@@ -49,7 +49,7 @@ else
 
 		case $app_name in
 			# demo_app has OOM issues on GHA
-			demo_app|setOrientation) [ "$platform" = "ios" ]     && continue ;;
+			setOrientation) [ "$platform" = "ios" ]     && continue ;;
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
 		esac
 
