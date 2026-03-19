@@ -7,7 +7,10 @@ enum class Platform(val description: String) {
 
     companion object {
         fun fromString(p: String): Platform {
-            return entries.first { it.description.equals(p, ignoreCase = true) }
+            return entries.firstOrNull { it.description.equals(p, ignoreCase = true) }
+                ?: throw IllegalArgumentException(
+                    "Unknown platform: '$p'. Must be one of: ${entries.joinToString { it.description }}"
+                )
         }
     }
 }
