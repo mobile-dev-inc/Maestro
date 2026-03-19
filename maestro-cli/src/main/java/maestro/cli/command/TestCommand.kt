@@ -218,6 +218,12 @@ class TestCommand : Callable<Int> {
     )
     private var appleTeamId: String? = null
 
+    @Option(
+        names = ["--extension"],
+        description = ["(Web only) Path to unpacked Chrome extension directory. Can be specified multiple times for multiple extensions."],
+    )
+    var extensions: List<String>? = null
+
     @Option(names = ["-p", "--platform"], description = ["Select a platform to run on"])
     var platform: String? = null
 
@@ -483,7 +489,8 @@ class TestCommand : Callable<Int> {
             isHeadless = headless,
             screenSize = screenSize,
             reinstallDriver = reinstallDriver,
-            executionPlan = executionPlan
+            executionPlan = executionPlan,
+            extensionPaths = extensions,
         ) { session ->
             val maestro = session.maestro
             val device = session.device
