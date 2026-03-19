@@ -71,7 +71,7 @@ object StartDeviceTool {
                 }
 
                 // No device_id provided: use platform
-                val platform = Platform.fromString(platformStr) ?: Platform.IOS
+                val platform = Platform.fromString(platformStr)
                 // Check for a connected device matching the platform
                 val connected = connectedDevices.find { it.platform == platform }
                 if (connected != null) {
