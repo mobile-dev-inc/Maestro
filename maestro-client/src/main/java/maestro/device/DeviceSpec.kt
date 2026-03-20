@@ -62,12 +62,45 @@ sealed class DeviceSpec {
         override val osVersion: Int = 0
         override val deviceName = "Maestro_WEB_${model}_${osVersion}"
     }
+
+    companion object {
+        /**
+         * Creates a fully resolved DeviceSpec from a DeviceRequest, filling in platform-aware defaults.
+         * The returned spec is not environment-validated.
+         * Environment-specific validation for model & os can happen via SupportedDevices.validate().
+         */
+        fun fromRequest(request: DeviceSpecRequest): DeviceSpec {
+            return when (request) {
+                is DeviceSpecRequest.Android -> Android(
+                    model = request.model ?: "pixel_6",
+                    os = request.os ?: "android-33",
+                    locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.ANDROID),
+                    orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
+                    disableAnimations = request.disableAnimations ?: false,
+                    cpuArchitecture = request.cpuArchitecture ?: CPU_ARCHITECTURE.ARM64,
+                )
+                is DeviceSpecRequest.Ios -> Ios(
+                    model = request.model ?: "iPhone-11",
+                    os = request.os ?: "iOS-18-2",
+                    locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.IOS),
+                    orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
+                    disableAnimations = request.disableAnimations ?: false,
+                    snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
+                )
+                is DeviceSpecRequest.Web -> Web(
+                    model = request.model ?: "chromium",
+                    os = request.os ?: "default",
+                    locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.WEB),
+                )
+            }
+        }
+    }
 }
 
 /**
  * Request for setting up device config
  */
-sealed class DeviceRequest {
+sealed class DeviceSpecRequest {
     abstract val platform: Platform
 
     data class Android(
@@ -76,8 +109,8 @@ sealed class DeviceRequest {
         val locale: String? = null,
         val orientation: DeviceOrientation? = null,
         val disableAnimations: Boolean? = null,
-        val systemArchitecture: CPU_ARCHITECTURE? = null,
-    ) : DeviceRequest() {
+        val cpuArchitecture: CPU_ARCHITECTURE? = null,
+    ) : DeviceSpecRequest() {
         override val platform = Platform.ANDROID
     }
 
@@ -88,7 +121,7 @@ sealed class DeviceRequest {
         val orientation: DeviceOrientation? = null,
         val disableAnimations: Boolean? = null,
         val snapshotKeyHonorModalViews: Boolean? = null,
-    ) : DeviceRequest() {
+    ) : DeviceSpecRequest() {
         override val platform = Platform.IOS
     }
 
@@ -96,40 +129,7 @@ sealed class DeviceRequest {
         val model: String? = null,
         val os: String? = null,
         val locale: String? = null,
-    ) : DeviceRequest() {
+    ) : DeviceSpecRequest() {
         override val platform = Platform.WEB
-    }
-}
-
-object DeviceCatalog {
-    /**
-     * Resolves device specifications with platform-aware defaults.
-     * This returns a valid device spec which is not environment validated.
-     * Environment specific validation for model & os can happen on their respective Environment (Local, Cloud, etc.)
-     */
-    fun resolve(request: DeviceRequest): DeviceSpec {
-        return when (request) {
-            is DeviceRequest.Android -> DeviceSpec.Android(
-                model = request.model ?: "pixel_6",
-                os = request.os ?: "android-33",
-                locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.ANDROID),
-                orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
-                disableAnimations = request.disableAnimations ?: false,
-                cpuArchitecture = request.systemArchitecture ?: CPU_ARCHITECTURE.ARM64,
-            )
-            is DeviceRequest.Ios -> DeviceSpec.Ios(
-                model = request.model ?: "iPhone-11",
-                os = request.os ?: "iOS-18-2",
-                locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.IOS),
-                orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
-                disableAnimations = request.disableAnimations ?: false,
-                snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
-            )
-            is DeviceRequest.Web -> DeviceSpec.Web(
-                model = request.model ?: "chromium",
-                os = request.os ?: "default",
-                locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.WEB),
-            )
-        }
     }
 }
