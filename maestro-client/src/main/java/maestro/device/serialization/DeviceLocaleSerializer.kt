@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import maestro.device.Platform
 import maestro.device.locale.DeviceLocale
+import maestro.device.locale.LocaleValidationException
 
 class DeviceLocaleSerializer : StdSerializer<DeviceLocale>(DeviceLocale::class.java) {
   override fun serialize(value: DeviceLocale, gen: JsonGenerator, provider: SerializerProvider) {
@@ -24,6 +25,10 @@ class DeviceLocaleDeserializer : StdDeserializer<DeviceLocale>(DeviceLocale::cla
     val node = p.codec.readTree<JsonNode>(p)
     val code = node.get("code").asText()
     val platform = Platform.valueOf(node.get("platform").asText())
-    return DeviceLocale.fromString(code, platform)
+    return try {
+      DeviceLocale.fromString(code, platform)
+    } catch (e: LocaleValidationException) {
+      DeviceLocale.getDefault(platform)
+    }
   }
 }
