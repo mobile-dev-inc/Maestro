@@ -218,6 +218,10 @@ class WebDriver(
         stopApp(appId)
     }
 
+    override fun sendBroadcast(action: String, receiver: String?, extras: Map<String, Any>?) {
+        LOGGER.warn("sendBroadcast not available on web")
+    }
+
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
         ensureOpen()
 

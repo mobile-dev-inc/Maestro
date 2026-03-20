@@ -45,6 +45,7 @@ import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.InputRandomCommand
 import maestro.orchestra.InputRandomType
 import maestro.orchestra.InputTextCommand
+import maestro.orchestra.SendBroadcastCommand
 import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
@@ -140,6 +141,7 @@ data class YamlFluentCommand(
     val addMedia: YamlAddMedia? = null,
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
+    val sendBroadcast: YamlSendBroadcast? = null,
     val retry: YamlRetryCommand? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
@@ -477,6 +479,17 @@ data class YamlFluentCommand(
                     ToggleAirplaneModeCommand(
                         toggleAirplaneMode.label,
                         toggleAirplaneMode.optional
+                    )
+                )
+            )
+
+            sendBroadcast != null -> listOf(
+                MaestroCommand(
+                    SendBroadcastCommand(
+                        action = sendBroadcast.action ?: throw SyntaxError("Broadcast command requires an action"),
+                        receiver = sendBroadcast.receiver,
+                        extras = sendBroadcast.extras,
+                        label = sendBroadcast.label,
                     )
                 )
             )

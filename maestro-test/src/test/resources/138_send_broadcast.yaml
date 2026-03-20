@@ -1,0 +1,15 @@
+appId: com.example.app
+env:
+  ENV_VALUE: env_value
+---
+- sendBroadcast: android.intent.action.MAIN
+- sendBroadcast:
+    action: android.intent.action.VIEW
+    receiver: com.example.app/.MyReceiver
+- sendBroadcast:
+    action: com.example.CUSTOM_ACTION
+    extras:
+      message: "test message"
+      count: 42
+      enabled: true
+      env_param: "${ENV_VALUE}"
