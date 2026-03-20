@@ -32,13 +32,19 @@ sealed class DeviceSpec {
     abstract val osVersion: Int
     abstract val deviceName: String
     abstract val locale: DeviceLocale
+    open val orientation: DeviceOrientation get() = DeviceOrientation.PORTRAIT
+    open val disableAnimations: Boolean get() = false
+    open val snapshotKeyHonorModalViews: Boolean get() = false
+
+    /** Returns a copy with model and os replaced. Avoids per-subtype `when` blocks. */
+    abstract fun withDevice(model: String, os: String): DeviceSpec
 
     data class Android(
         override val model: String,
         override val os: String,
         override val locale: DeviceLocale,
-        val orientation: DeviceOrientation,
-        val disableAnimations: Boolean,
+        override val orientation: DeviceOrientation,
+        override val disableAnimations: Boolean,
         val cpuArchitecture: CPU_ARCHITECTURE,
     ) : DeviceSpec() {
         override val platform = Platform.ANDROID
@@ -46,29 +52,32 @@ sealed class DeviceSpec {
         override val deviceName = "Maestro_ANDROID_${model}_${os}"
         val tag = "google_apis"
         val emulatorImage = "system-images;$os;$tag;${cpuArchitecture.value}"
+        override fun withDevice(model: String, os: String) = copy(model = model, os = os)
     }
 
     data class Ios(
         override val model: String,
         override val os: String,
         override val locale: DeviceLocale,
-        val orientation: DeviceOrientation,
-        val disableAnimations: Boolean,
-        val snapshotKeyHonorModalViews: Boolean,
+        override val orientation: DeviceOrientation,
+        override val disableAnimations: Boolean,
+        override val snapshotKeyHonorModalViews: Boolean,
     ) : DeviceSpec() {
         override val platform = Platform.IOS
         override val osVersion: Int = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
         override val deviceName = "Maestro_IOS_${model}_${osVersion}"
+        override fun withDevice(model: String, os: String) = copy(model = model, os = os)
     }
 
     data class Web(
-      override val model: String,
-      override val os: String,
-      override val locale: DeviceLocale
+        override val model: String,
+        override val os: String,
+        override val locale: DeviceLocale
     ) : DeviceSpec() {
         override val platform = Platform.WEB
         override val osVersion: Int = 0
         override val deviceName = "Maestro_WEB_${model}_${osVersion}"
+        override fun withDevice(model: String, os: String) = copy(model = model, os = os)
     }
 
     companion object {
