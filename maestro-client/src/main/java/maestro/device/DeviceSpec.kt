@@ -1,5 +1,6 @@
 package maestro.device
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import maestro.device.locale.DeviceLocale
@@ -19,6 +20,7 @@ enum class CPU_ARCHITECTURE(val value: String) {
 /**
  * Returned Sealed class that has all non-nullable values
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "platform")
 @JsonSubTypes(
   JsonSubTypes.Type(DeviceSpec.Android::class, name = "ANDROID"),
