@@ -238,8 +238,6 @@ class ApiClient(
         commitSha: String?,
         pullRequestId: String?,
         env: Map<String, String>? = null,
-        androidApiLevel: Int?,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
@@ -267,8 +265,6 @@ class ApiClient(
         pullRequestId?.let { requestPart["pullRequestId"] = it }
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
-        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
-        iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
         requestPart["projectId"] = projectId
@@ -326,8 +322,6 @@ class ApiClient(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 maxRetryCount = maxRetryCount,
@@ -391,8 +385,6 @@ class ApiClient(
                                 commitSha = commitSha,
                                 pullRequestId = pullRequestId,
                                 env = env,
-                                androidApiLevel = androidApiLevel,
-                                iOSVersion = iOSVersion,
                                 includeTags = includeTags,
                                 excludeTags = excludeTags,
                                 maxRetryCount = maxRetryCount,

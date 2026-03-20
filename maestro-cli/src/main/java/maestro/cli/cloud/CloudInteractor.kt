@@ -74,8 +74,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -105,16 +103,8 @@ class CloudInteractor(
         // Record cloud command usage for promotion message suppression
         PromotionStateManager().recordCloudCommandUsage()
 
-        // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
-        val triggeredPlatform = when {
-            androidApiLevel != null -> "android"
-            iOSVersion != null || deviceOs != null -> "ios"
-            flowFile.isWebFlow() -> "web"
-            else -> "unknown"
-        }
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = triggeredPlatform,
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
@@ -134,7 +124,6 @@ class CloudInteractor(
             // Track cloud upload start after we have the response with actual platform
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,
-                platform = triggeredPlatform,
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
@@ -153,8 +142,6 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
