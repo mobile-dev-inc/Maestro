@@ -264,6 +264,9 @@ class WebDriver(
         if (attrs.containsKey("ignoreBoundsFiltering") && attrs["ignoreBoundsFiltering"] != null) {
             attributes["ignoreBoundsFiltering"] = (attrs["ignoreBoundsFiltering"] as Boolean).toString()
         }
+        if (attrs.containsKey("accessibilityText") && attrs["accessibilityText"] != null) {
+            attributes["accessibilityText"] = attrs["accessibilityText"] as String
+        }
 
         val children = domRepresentation["children"] as List<Map<String, Any>>
 

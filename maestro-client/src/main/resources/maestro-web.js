@@ -107,14 +107,18 @@
           bounds: getNodeBounds(node, iframeOffsetX, iframeOffsetY),
       }
 
+      if (node.ariaLabel) {
+          attributes['accessibilityText'] = node.ariaLabel
+      }
+
       // If this is an <option> element, we only want to include it if the parent <select> element is focused.
       if (node.tagName.toLowerCase() === 'option' && !node.parentElement.matches(':focus-within')) {
         return null;
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+      if (!!node.id || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid'] || !!node.ariaLabel) {
         const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+        attributes['resource-id'] = node.id || node.name || title || node.htmlFor || node.attributes['data-testid']?.value || node.ariaLabel
       }
 
       if (node.tagName.toLowerCase() === 'body') {
