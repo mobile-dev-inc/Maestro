@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 plugins {
     id("maven-publish")
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.protobuf)
 }
@@ -100,6 +101,7 @@ dependencies {
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)
     implementation(libs.datafaker)
+    api(libs.kotlinx.serialization.json)
 
     api(libs.logging.sl4j)
     api(libs.logging.api)
