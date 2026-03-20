@@ -34,8 +34,8 @@ sealed class DeviceSpec {
         val cpuArchitecture: CPU_ARCHITECTURE,
     ) : DeviceSpec() {
         override val platform = Platform.ANDROID
-        override val deviceName = "Maestro_ANDROID_${model}_${os}"
         override val osVersion: Int = os.removePrefix("android-").toIntOrNull() ?: 0
+        override val deviceName = "Maestro_ANDROID_${model}_${os}"
         val tag = "google_apis"
         val emulatorImage = "system-images;$os;$tag;${cpuArchitecture.value}"
     }
@@ -49,8 +49,8 @@ sealed class DeviceSpec {
         val snapshotKeyHonorModalViews: Boolean,
     ) : DeviceSpec() {
         override val platform = Platform.IOS
-        override val deviceName = "Maestro_IOS_${model}_${os}"
         override val osVersion: Int = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
+        override val deviceName = "Maestro_IOS_${model}_${osVersion}"
     }
 
     data class Web(
@@ -59,8 +59,8 @@ sealed class DeviceSpec {
       override val locale: DeviceLocale
     ) : DeviceSpec() {
         override val platform = Platform.WEB
-        override val deviceName = "Maestro_WEB_${model}_${os}"
         override val osVersion: Int = 0
+        override val deviceName = "Maestro_WEB_${model}_${osVersion}"
     }
 }
 

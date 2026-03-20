@@ -94,13 +94,13 @@ class StartDeviceCommand : Callable<Int> {
             when (parsedPlatform) {
                 Platform.ANDROID -> DeviceRequest.Android(
                     model = deviceModel,
-                    os = deviceOs ?: osVersion,
+                    os = deviceOs ?: osVersion.let { "android-$it" },
                     locale = deviceLocale,
                     systemArchitecture = EnvUtils.getMacOSArchitecture(),
                 )
                 Platform.IOS -> DeviceRequest.Ios(
                     model = deviceModel,
-                    os = deviceOs ?: osVersion,
+                    os = deviceOs ?: osVersion.let { "iOS-$it" },
                     locale = deviceLocale,
                 )
                 Platform.WEB -> DeviceRequest.Web(
