@@ -16,6 +16,12 @@ class ConfigParseError(
     val location: JsonLocation? = null
 ) : RuntimeException("Config validation error: $errorType")
 
+// Parameter definition for custom commands
+data class YamlParamDef(
+    val required: Boolean = true,
+    val default: Any? = null,
+)
+
 data class YamlConfig(
     val name: String?,
     @JsonAlias("appId") private val _appId: String?,
@@ -26,6 +32,7 @@ data class YamlConfig(
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
     val properties: Map<String, String> = emptyMap(),
+    val params: Map<String, YamlParamDef>? = null,
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
 
