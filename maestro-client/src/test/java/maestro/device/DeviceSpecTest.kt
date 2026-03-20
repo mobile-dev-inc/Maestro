@@ -5,10 +5,10 @@ import maestro.device.locale.LocaleValidationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-internal class DeviceCatalogTest {
+internal class DeviceSpecTest {
     @Test
     fun `resolve Android with no overrides uses defaults`() {
-        val spec = DeviceCatalog.resolve(DeviceRequest.Android()) as DeviceSpec.Android
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Android()) as DeviceSpec.Android
 
         assertThat(spec.platform).isEqualTo(Platform.ANDROID)
         assertThat(spec.model).isEqualTo("pixel_6")
@@ -20,7 +20,7 @@ internal class DeviceCatalogTest {
 
     @Test
     fun `resolve iOS with no overrides uses defaults`() {
-        val spec = DeviceCatalog.resolve(DeviceRequest.Ios()) as DeviceSpec.Ios
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Ios()) as DeviceSpec.Ios
 
         assertThat(spec.platform).isEqualTo(Platform.IOS)
         assertThat(spec.model).isEqualTo("iPhone-11")
@@ -33,7 +33,7 @@ internal class DeviceCatalogTest {
 
     @Test
     fun `resolve Web with no overrides uses defaults`() {
-        val spec = DeviceCatalog.resolve(DeviceRequest.Web()) as DeviceSpec.Web
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Web()) as DeviceSpec.Web
 
         assertThat(spec.platform).isEqualTo(Platform.WEB)
         assertThat(spec.model).isEqualTo("chromium")
@@ -43,13 +43,13 @@ internal class DeviceCatalogTest {
 
     @Test
     fun `resolve uses explicit values when provided`() {
-        val spec = DeviceCatalog.resolve(
-            DeviceRequest.Android(
+        val spec = DeviceSpec.fromRequest(
+            DeviceSpecRequest.Android(
                 model = "pixel_xl",
                 os = "android-33",
                 locale = "de_DE",
                 orientation = DeviceOrientation.LANDSCAPE_LEFT,
-                systemArchitecture = CPU_ARCHITECTURE.ARM64,
+                cpuArchitecture = CPU_ARCHITECTURE.ARM64,
             )
         ) as DeviceSpec.Android
 
@@ -63,13 +63,13 @@ internal class DeviceCatalogTest {
 
     @Test
     fun `resolve also update image when system architecture is different`() {
-        val spec = DeviceCatalog.resolve(
-            DeviceRequest.Android(
+        val spec = DeviceSpec.fromRequest(
+            DeviceSpecRequest.Android(
                 model = "pixel_xl",
                 os = "android-33",
                 locale = "de_DE",
                 orientation = DeviceOrientation.LANDSCAPE_LEFT,
-                systemArchitecture = CPU_ARCHITECTURE.X86_64,
+                cpuArchitecture = CPU_ARCHITECTURE.X86_64,
             )
         ) as DeviceSpec.Android
 
@@ -79,21 +79,21 @@ internal class DeviceCatalogTest {
     @Test
     fun `resolve Android throws on invalid locale combination like ar_US`() {
         assertThrows<LocaleValidationException> {
-            DeviceCatalog.resolve(DeviceRequest.Android(locale = "ar_US"))
+            DeviceSpec.fromRequest(DeviceSpecRequest.Android(locale = "ar_US"))
         }
     }
 
     @Test
     fun `resolve Android throws on unsupported language code`() {
         assertThrows<LocaleValidationException> {
-            DeviceCatalog.resolve(DeviceRequest.Android(locale = "xx_US"))
+            DeviceSpec.fromRequest(DeviceSpecRequest.Android(locale = "xx_US"))
         }
     }
 
     @Test
     fun `resolve Android throws on malformed locale missing country`() {
         assertThrows<LocaleValidationException> {
-            DeviceCatalog.resolve(DeviceRequest.Android(locale = "en"))
+            DeviceSpec.fromRequest(DeviceSpecRequest.Android(locale = "en"))
         }
     }
 }

@@ -24,8 +24,8 @@ import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
-import maestro.device.DeviceCatalog
-import maestro.device.DeviceRequest
+import maestro.device.DeviceSpecRequest
+import maestro.device.DeviceSpec
 import maestro.orchestra.AssertWithAICommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
@@ -285,8 +285,8 @@ fun main() {
             flowName = "Flow for playing around",
             device = Device.Connected(
                 instanceId = "device",
-                deviceSpec = DeviceCatalog.resolve(
-                    DeviceRequest.Android()
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Android()
                 ),
                 description = "description",
                 platform = Platform.ANDROID,
