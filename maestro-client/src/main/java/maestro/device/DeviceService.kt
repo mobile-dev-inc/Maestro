@@ -329,7 +329,7 @@ object DeviceService {
         return result
     }
 
-    private fun listIOSDevices(): List<Device> {
+    fun listIOSDevices(): List<Device> {
         val simctlList = try {
             localSimulatorUtils.list()
         } catch (ignored: Exception) {
