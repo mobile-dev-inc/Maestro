@@ -925,10 +925,15 @@ data class YamlFluentCommand(
                 selector.checked != null ||
                 selector.focused != null ||
                 selector.childOf != null ||
-                selector.css != null
+                selector.css != null ||
+                selector.displayId != null
     }
 
     private fun toElementSelector(selector: YamlElementSelector): ElementSelector {
+        if (selector.displayId != null && selector.displayId < 0) {
+            throw SyntaxError("displayId must be non-negative, got: ${selector.displayId}")
+        }
+
         val size = if (selector.width != null || selector.height != null) {
             ElementSelector.SizeSelector(
                 width = selector.width,
@@ -960,6 +965,7 @@ data class YamlFluentCommand(
             focused = selector.focused,
             childOf = selector.childOf?.let { toElementSelector(it) },
             css = selector.css,
+            displayId = selector.displayId,
         )
     }
 

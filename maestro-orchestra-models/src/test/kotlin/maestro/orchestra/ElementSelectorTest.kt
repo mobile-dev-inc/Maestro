@@ -106,4 +106,23 @@ class ElementSelectorTest {
 
         assertThat(command.description()).isEqualTo("Assert that \"Hello\", id: hello_element, disabled, Below \"World\", Above id: page_break_element, Left of \"Right\", Right of id: left_element, Contains child: id: hello_emoji_container, Contains descendants: [id: hello_emoji, id: hello_emoji_text, id: have_been_greeted], Index: 0, not selected, not focused, Child of: \"Welcome Screen\" is visible")
     }
+
+    @Test
+    fun `description with displayId`(){
+        val selector = ElementSelector(
+            textRegex = "Pay Now",
+            displayId = 1
+        )
+
+        assertThat(selector.description()).isEqualTo("\"Pay Now\", Display: 1")
+    }
+
+    @Test
+    fun `displayId null does not appear in description`(){
+        val selector = ElementSelector(
+            textRegex = "Pay Now"
+        )
+
+        assertThat(selector.description()).isEqualTo("\"Pay Now\"")
+    }
 }
