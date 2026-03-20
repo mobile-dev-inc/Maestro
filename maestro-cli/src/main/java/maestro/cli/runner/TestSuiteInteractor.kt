@@ -207,6 +207,13 @@ class TestSuiteInteractor(
                             it.status = CommandStatus.FAILED
                             it.calculateDuration()
                             it.error = e
+                            if (e is MaestroException.AssertionFailure) {
+                                it.hierarchy = e.hierarchyRoot
+                            }
+                        }
+
+                        if (e is MaestroException.AssertionFailure) {
+                            logger.info("${shardPrefix}Saving hierarchy")
                         }
 
                         ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
