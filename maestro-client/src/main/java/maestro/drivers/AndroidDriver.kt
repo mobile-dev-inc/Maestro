@@ -210,6 +210,7 @@ class AndroidDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
+        if (!open) open()
         return runDeviceCall("deviceInfo") {
             val response = blockingStubWithTimeout.deviceInfo(deviceInfoRequest {})
 
