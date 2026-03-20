@@ -1,5 +1,7 @@
 package maestro.device
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import maestro.device.locale.DeviceLocale
 
 enum class CPU_ARCHITECTURE(val value: String) {
@@ -17,6 +19,12 @@ enum class CPU_ARCHITECTURE(val value: String) {
 /**
  * Returned Sealed class that has all non-nullable values
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "platform")
+@JsonSubTypes(
+  JsonSubTypes.Type(DeviceSpec.Android::class, name = "ANDROID"),
+  JsonSubTypes.Type(DeviceSpec.Ios::class, name = "IOS"),
+  JsonSubTypes.Type(DeviceSpec.Web::class, name = "WEB"),
+)
 sealed class DeviceSpec {
     abstract val platform: Platform
     abstract val model: String
