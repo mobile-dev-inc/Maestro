@@ -39,7 +39,12 @@ object DeviceLocaleKSerializer : KSerializer<DeviceLocale> {
                     else -> break
                 }
             }
-            DeviceLocale.fromString(code, Platform.valueOf(platform))
+            val parsedPlatform = try { Platform.valueOf(platform) } catch (_: Exception) { Platform.ANDROID }
+            try {
+                DeviceLocale.fromString(code, parsedPlatform)
+            } catch (_: Exception) {
+                DeviceLocale.getDefault(parsedPlatform)
+            }
         }
     }
 }
