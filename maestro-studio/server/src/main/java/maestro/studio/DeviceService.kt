@@ -126,7 +126,7 @@ object DeviceService {
             val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
                 failure = throwable
                 Orchestra.ErrorResolution.FAIL
-            }).executeCommands(commands)
+            }).runFlow(commands)
             if (failure != null) {
                 throw RuntimeException("Command execution failed")
             }

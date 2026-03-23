@@ -28,7 +28,7 @@ object PickDeviceInteractor {
                 var result: Device = pickedDevice
 
                 if (result is Device.AvailableForLaunch) {
-                    when (result.platform) {
+                    when (result.deviceSpec.platform) {
                         Platform.ANDROID -> PrintUtils.message("Launching Android emulator...")
                         Platform.IOS -> PrintUtils.message("Launching iOS simulator...")
                         Platform.WEB -> PrintUtils.message("Launching ${result.description}")
@@ -83,18 +83,8 @@ object PickDeviceInteractor {
         when(input) {
             "1" -> {
                 PrintUtils.clearConsole()
-                val options = PickDeviceView.requestDeviceOptions(platform)
-                if (options.platform == Platform.WEB) {
-                    return Device.AvailableForLaunch(
-                        platform = Platform.WEB,
-                        description = "Chromium Desktop Browser (Experimental)",
-                        modelId = "chromium",
-                        language = null,
-                        country = null,
-                        deviceType = Device.DeviceType.BROWSER
-                    )
-                }
-                return DeviceCreateUtil.getOrCreateDevice(options.platform, options.osVersion, null, null, options.forceCreate)
+                val maestroDeviceConfiguration = PickDeviceView.requestDeviceOptions(platform)
+                return DeviceCreateUtil.getOrCreateDevice(maestroDeviceConfiguration, false)
             }
             "2" -> {
                 PrintUtils.clearConsole()

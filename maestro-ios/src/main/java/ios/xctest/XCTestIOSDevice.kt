@@ -29,7 +29,6 @@ class XCTestIOSDevice(
     override fun deviceInfo(): DeviceInfo {
         return execute {
             val deviceInfo = client.deviceInfo()
-            logger.info("Device info $deviceInfo")
             deviceInfo
         }
     }
@@ -216,7 +215,6 @@ class XCTestIOSDevice(
     override fun isScreenStatic(): Boolean {
         return execute {
             val isScreenStatic = client.isScreenStatic().isScreenStatic
-            logger.info("Screen diff request finished with isScreenStatic = $isScreenStatic")
             isScreenStatic
         }
     }

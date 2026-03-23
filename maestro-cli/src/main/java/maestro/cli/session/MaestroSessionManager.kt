@@ -84,7 +84,7 @@ object MaestroSessionManager {
             driverHostPort = driverHostPort,
             deviceId = deviceId,
             teamId = teamId,
-            platform = Platform.fromString(platform),
+            platform = if(!platform.isNullOrEmpty()) Platform.fromString(platform) else null,
             deviceIndex = deviceIndex,
         )
         val sessionId = UUID.randomUUID().toString()
@@ -232,6 +232,7 @@ object MaestroSessionManager {
                     driverHostPort,
                     !connectToExistingSession,
                     reinstallDriver,
+                    selectedDevice.deviceId,
                 ),
                 device = null,
             )
@@ -280,9 +281,13 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         openDriver: Boolean,
         reinstallDriver: Boolean,
+        deviceId: String? = null,
     ): Maestro {
         val dadb = if (port != null) {
             Dadb.create(host ?: defaultHost, port)
+        } else if (deviceId != null) {
+            Dadb.list(host = host ?: defaultHost).find { it.toString() == deviceId }
+                ?: error("No Android device found with id '$deviceId' on host '${host ?: defaultHost}'")
         } else {
             Dadb.discover(host ?: defaultHost)
                 ?: createAdbServerDadb()

@@ -5,17 +5,17 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
 import maestro.DeviceInfo
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.OnDeviceElementQuery
-import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
@@ -36,6 +36,7 @@ import org.openqa.selenium.interactions.Sequence
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
 import java.time.Duration
 import java.util.*
 import java.util.logging.Level
@@ -116,6 +117,8 @@ class CdpWebDriver(
                 )
                 setExperimentalOption("prefs", chromePrefs)
 
+                setExperimentalOption("detach", true)
+
                 if (isHeadless) {
                     addArguments("--headless=new")
                     if(screenSize != null){
@@ -124,7 +127,6 @@ class CdpWebDriver(
                     else{
                         addArguments("--window-size=1024,768")
                     }
-                    setExperimentalOption("detach", true)
                 }
             }
         )
@@ -320,7 +322,34 @@ class CdpWebDriver(
     }
 
     override fun clearAppState(appId: String) {
-        // Do nothing
+        ensureOpen()
+
+        val origin = try {
+            val uri = URI(appId)
+            if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+                null
+            } else if (uri.port == -1) {
+                "${uri.scheme}://${uri.host}"
+            } else {
+                "${uri.scheme}://${uri.host}:${uri.port}"
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to parse origin from $appId", e)
+            null
+        }
+
+        if (origin == null) {
+            return
+        }
+
+        try {
+            runBlocking {
+                val target = cdpClient.listTargets().first()
+                cdpClient.clearDataForOrigin(origin, "all", target)
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to clear browser data for $origin", e)
+        }
     }
 
     override fun clearKeychain() {
