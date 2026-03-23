@@ -21,12 +21,30 @@ const HeaderBanner = () => {
   );
 };
 
+const DeprecationBanner = () => (
+  <div className="py-3 px-7 text-sm text-center font-semibold bg-amber-100 dark:bg-amber-900">
+    <span>
+      This feature has been deprecated and will be removed in the near future. Check out{" "}
+      <a
+        href="https://maestro.dev/?utm_source=old_studio&utm_campaign=download_studio#maestro-studio"
+        target="_blank"
+        rel="noreferrer"
+        className="underline"
+      >
+        Maestro Studio Desktop
+      </a>{" "}
+      for similar, fully supported functionality.
+    </span>
+  </div>
+);
+
 const Header = () => (
   <div className="flex flex-col">
     <div className="flex py-3 px-7 items-center bg-white dark:bg-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800">
       <span className="font-bold cursor-default grow">$ maestro studio</span>
       <ThemeToggle />
     </div>
+    <DeprecationBanner />
     <HeaderBanner />
   </div>
 );
