@@ -7,8 +7,8 @@ import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
-import maestro.device.DeviceCatalog
-import maestro.device.DeviceRequest
+import maestro.device.DeviceSpec
+import maestro.device.DeviceSpecRequest
 import maestro.device.Platform
 import picocli.CommandLine
 import java.util.concurrent.Callable
@@ -90,20 +90,20 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val maestroDeviceConfiguration = DeviceCatalog.resolve(
+        val maestroDeviceConfiguration = DeviceSpec.fromRequest(
             when (parsedPlatform) {
-                Platform.ANDROID -> DeviceRequest.Android(
+                Platform.ANDROID -> DeviceSpecRequest.Android(
                     model = deviceModel,
                     os = deviceOs ?: osVersion.let { "android-$it" },
                     locale = deviceLocale,
-                    systemArchitecture = EnvUtils.getMacOSArchitecture(),
+                    cpuArchitecture = EnvUtils.getMacOSArchitecture(),
                 )
-                Platform.IOS -> DeviceRequest.Ios(
+                Platform.IOS -> DeviceSpecRequest.Ios(
                     model = deviceModel,
                     os = deviceOs ?: osVersion.let { "iOS-$it" },
                     locale = deviceLocale,
                 )
-                Platform.WEB -> DeviceRequest.Web(
+                Platform.WEB -> DeviceSpecRequest.Web(
                     model = deviceModel,
                     os = deviceOs ?: osVersion,
                     locale = deviceLocale,

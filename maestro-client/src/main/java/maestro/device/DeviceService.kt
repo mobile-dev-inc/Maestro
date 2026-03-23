@@ -166,14 +166,14 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Web())
+                deviceSpec = DeviceSpec.fromRequest(DeviceSpecRequest.Web())
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceCatalog.resolve(DeviceRequest.Web())
+                deviceSpec = DeviceSpec.fromRequest(DeviceSpecRequest.Web())
             )
         )
     }
@@ -188,8 +188,8 @@ object DeviceService {
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = Device.DeviceType.EMULATOR,
-                    deviceSpec = DeviceCatalog.resolve(
-                        DeviceRequest.Android()
+                    deviceSpec = DeviceSpec.fromRequest(
+                      DeviceSpecRequest.Android()
                     )
                 )
             )
@@ -227,8 +227,8 @@ object DeviceService {
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = deviceType,
-                    deviceSpec = DeviceCatalog.resolve(
-                        DeviceRequest.Android()
+                    deviceSpec = DeviceSpec.fromRequest(
+                        DeviceSpecRequest.Android()
                     ),
                 )
             }
@@ -251,8 +251,8 @@ object DeviceService {
                                 description = avdName,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceSpec = DeviceCatalog.resolve(
-                                    DeviceRequest.Android(avdInfo.model, avdInfo.os)
+                                deviceSpec = DeviceSpec.fromRequest(
+                                    DeviceSpecRequest.Android(avdInfo.model, avdInfo.os)
                                 )
                             )
                         }
@@ -369,8 +369,8 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL,
-                deviceSpec = DeviceCatalog.resolve(
-                    DeviceRequest.Ios()
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Ios()
                 )
             )
         }
@@ -395,8 +395,8 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceCatalog.resolve(
-                    DeviceRequest.Ios(model, os)
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Ios(model, os)
                 )
             )
         } else {
@@ -405,8 +405,8 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType =  Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceCatalog.resolve(
-                    DeviceRequest.Ios(model, os)
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Ios(model, os)
                 )
             )
         }
@@ -430,8 +430,8 @@ object DeviceService {
                             description = output,
                             platform = Platform.ANDROID,
                             deviceType = Device.DeviceType.EMULATOR,
-                            deviceSpec = DeviceCatalog.resolve(
-                                DeviceRequest.Android()
+                            deviceSpec = DeviceSpec.fromRequest(
+                                DeviceSpecRequest.Android()
                             )
                         )
                     }
