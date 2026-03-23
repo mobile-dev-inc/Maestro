@@ -22,8 +22,10 @@ import maestro.web.record.WebScreenRecorder
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
+import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
 import org.openqa.selenium.WebDriver
+import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeDriverService
 import org.openqa.selenium.chrome.ChromeOptions
@@ -269,7 +271,9 @@ class CdpWebDriver(
             }
         }
 
-        val root = parseDomAsTreeNodes(contentDesc as Map<String, Any>)
+        val rawMap = contentDesc as Map<String, Any>
+        val enrichedMap = injectCrossOriginIframes(rawMap)
+        val root = parseDomAsTreeNodes(enrichedMap)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
         }
@@ -647,6 +651,75 @@ class CdpWebDriver(
         } else {
             LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
             return emptyList()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun injectCrossOriginIframes(node: Map<String, Any>): Map<String, Any> {
+        val attrs = node["attributes"] as Map<String, Any>
+        val iframeSrc = attrs["__crossOriginIframe"] as? String
+
+        if (iframeSrc != null) {
+            val iframeContent = fetchCrossOriginIframeContent(iframeSrc)
+            if (iframeContent != null) return iframeContent
+            val cleanAttrs = attrs - "__crossOriginIframe"
+            return mapOf("attributes" to cleanAttrs, "children" to emptyList<Any>())
+        }
+
+        val children = (node["children"] as List<Map<String, Any>>)
+            .map { injectCrossOriginIframes(it) }
+        return mapOf("attributes" to attrs, "children" to children)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun fetchCrossOriginIframeContent(iframeSrc: String): Map<String, Any>? {
+        val driver = seleniumDriver ?: return null
+        val jsExecutor = driver as? JavascriptExecutor ?: return null
+
+        // Find the iframe element by its resolved src property (absolute URL)
+        val iframeElement = try {
+            jsExecutor.executeScript(
+                "return [...document.querySelectorAll('iframe')].find(f => f.src === arguments[0]);",
+                iframeSrc
+            ) as? WebElement
+        } catch (e: Exception) {
+            LOGGER.warn("Could not find iframe element with src $iframeSrc", e)
+            return null
+        } ?: run {
+            LOGGER.warn("No iframe element found with src $iframeSrc")
+            return null
+        }
+
+        // Get the iframe's position in the page for coordinate offset
+        val iframeRectJson = try {
+            jsExecutor.executeScript(
+                "const r = arguments[0].getBoundingClientRect(); return JSON.stringify({x: r.x, y: r.y});",
+                iframeElement
+            ) as? String
+        } catch (e: Exception) {
+            LOGGER.warn("Could not get bounding rect for iframe $iframeSrc", e)
+            return null
+        } ?: return null
+
+        val rect = jacksonObjectMapper().readValue(iframeRectJson, Map::class.java) as Map<String, Any>
+        val iframeX = (rect["x"] as? Number)?.toDouble() ?: 0.0
+        val iframeY = (rect["y"] as? Number)?.toDouble() ?: 0.0
+
+        // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame()
+        driver.switchTo().frame(iframeElement)
+        return try {
+            val resultJson = jsExecutor.executeScript("""
+                $maestroWebScript
+                window.maestro.viewportX = $iframeX;
+                window.maestro.viewportY = $iframeY;
+                return JSON.stringify(window.maestro.getContentDescription());
+            """.trimIndent()) as? String ?: return null
+            jacksonObjectMapper().readValue(resultJson, Map::class.java) as? Map<String, Any>
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to get content description from cross-origin iframe $iframeSrc", e)
+            null
+        } finally {
+            driver.switchTo().defaultContent()
         }
     }
 
