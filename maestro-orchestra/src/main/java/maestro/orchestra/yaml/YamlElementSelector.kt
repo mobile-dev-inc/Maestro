@@ -52,4 +52,5 @@ data class YamlElementSelector(
     val childOf: YamlElementSelectorUnion? = null,
     val label: String? = null,
     val css: String? = null,
+    val displayId: Int? = null,
 ) : YamlElementSelectorUnion

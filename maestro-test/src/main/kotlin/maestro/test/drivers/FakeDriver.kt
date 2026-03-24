@@ -146,7 +146,7 @@ class FakeDriver : Driver {
         events.add(Event.ClearKeychain)
     }
 
-    override fun tap(point: Point) {
+    override fun tap(point: Point, displayId: Int?) {
         ensureOpen()
 
         layout.dispatchClick(point.x, point.y)
@@ -154,7 +154,7 @@ class FakeDriver : Driver {
         events += Event.Tap(point)
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, displayId: Int?) {
         ensureOpen()
 
         events += Event.LongPress(point)
