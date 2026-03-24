@@ -6,7 +6,7 @@ import maestro.device.Device
 import maestro.device.DeviceSpecRequest
 import maestro.device.DeviceSpec
 import maestro.device.Platform
-import org.fusesource.jansi.Ansi.ansi
+import org.jline.jansi.Ansi.ansi
 
 object PickDeviceView {
 
