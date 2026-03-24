@@ -32,6 +32,8 @@ import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.js.JsEngine
+import maestro.js.GraalJsEngine
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
@@ -4576,6 +4578,38 @@ class IntegrationTest {
         driver.setLayout(FakeLayoutElement().apply { builder() })
         driver.open()
         return driver
+    }
+
+    @Test
+    fun `jsEngine is closed after runFlow completes`() {
+        // Given
+        val driver = driver {}
+        var closeCalled = false
+
+        Maestro(driver).use { maestro ->
+            val orchestra = Orchestra(
+                maestro,
+                lookupTimeoutMs = 0L,
+                optionalLookupTimeoutMs = 0L,
+                jsEngineFactory = { config ->
+                    val real = GraalJsEngine(platform = "android")
+                    object : JsEngine by real {
+                        override fun close() {
+                            closeCalled = true
+                            real.close()
+                        }
+                    }
+                },
+            )
+
+            // When
+            runBlocking {
+                orchestra.runFlow(listOf(MaestroCommand(BackPressCommand())))
+            }
+        }
+
+        // Then
+        assertThat(closeCalled).isTrue()
     }
 
     private fun readCommands(
