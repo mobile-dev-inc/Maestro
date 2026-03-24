@@ -1,3 +1,4 @@
+import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
@@ -54,4 +55,26 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+}
+
+tasks.register<Exec>("buildIosDriver") {
+    onlyIf {
+        OperatingSystem.current().isMacOsX &&
+            ProcessBuilder("which", "xcodebuild").start().waitFor() == 0
+    }
+
+    inputs.dir(rootProject.file("maestro-ios-xctest-runner"))
+        .withPropertyName("iosXctestRunnerSource")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(projectDir.resolve("src/main/resources/driver-iPhoneSimulator"))
+        .withPropertyName("iosSimulatorDriver")
+    outputs.dir(projectDir.resolve("src/main/resources/driver-iphoneos"))
+        .withPropertyName("iosDeviceDriver")
+
+    workingDir = rootProject.projectDir
+    commandLine("sh", "maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh")
+}
+
+tasks.named("processResources") {
+    dependsOn("buildIosDriver")
 }
