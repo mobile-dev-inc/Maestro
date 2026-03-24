@@ -26,24 +26,26 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
-      - name: Build xctest-runner
-        run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
-
       - name: Build Maestro CLI
         run: ./gradlew :maestro-cli:distZip
+
+      - name: Verify drivers are up to date
+        run: |
+          git diff --exit-code \
+            maestro-client/src/main/resources/maestro-app.apk \
+            maestro-client/src/main/resources/maestro-server.apk \
+            maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/ \
+            maestro-ios-driver/src/main/resources/driver-iphoneos/ || {
+            echo ""
+            echo "ERROR: Drivers are out of date. Run './gradlew :maestro-cli:installDist' and commit the updated drivers."
+            exit 1
+          }
 
       - name: Upload zipped Maestro CLI artifact
         uses: actions/upload-artifact@v6
         with:
           name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
-          retention-days: 1
-
-      - name: Upload build/Products to artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: build__Products-jdk${{ matrix.java-version }}
-          path: build/Products
           retention-days: 1
 
   test-web:
