@@ -781,6 +781,51 @@ internal class YamlCommandReaderTest {
     }
 
 
+    @Test
+    fun openLink_withoutConfigAppId(
+        @YamlFile("031_openLink_withoutConfigAppId.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                name = "No appId flow",
+            )),
+            OpenLinkCommand(
+                link = "https://example.com",
+                autoVerify = false,
+                browser = false,
+            ),
+        )
+    }
+
+    @Test
+    fun launchApp_withoutConfigAppId(
+        @YamlFile("031_launchApp_withoutConfigAppId.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                name = "No appId flow",
+            )),
+            LaunchAppCommand(
+                appId = "com.other.app",
+            ),
+        )
+    }
+
+    @Test
+    fun launchApp_withoutAnyAppId_throws() {
+        val e = org.junit.jupiter.api.assertThrows<SyntaxError> {
+            YamlCommandReader.readCommands(
+                Paths.get(PROJECT_DIR, "src/test/resources/YamlCommandReaderTest/031_launchApp_withoutAnyAppId.yaml")
+            )
+        }
+        assertThat(e.message).contains("No appId specified for 'launchApp'")
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
+
+    companion object {
+        private val PROJECT_DIR = System.getenv("PROJECT_DIR")
+            ?: throw RuntimeException("Unable to determine project directory")
+    }
 }

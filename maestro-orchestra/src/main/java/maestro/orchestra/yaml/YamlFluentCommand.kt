@@ -144,7 +144,7 @@ data class YamlFluentCommand(
     @JsonIgnore val _location: JsonLocation,
 ) {
 
-    fun toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
+    fun toCommands(flowPath: Path, appId: String?): List<MaestroCommand> {
         return try {
             _toCommands(flowPath, appId)
         } catch (e: Throwable) {
@@ -153,7 +153,7 @@ data class YamlFluentCommand(
     }
 
     @SuppressWarnings("ComplexMethod")
-    private fun _toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
+    private fun _toCommands(flowPath: Path, appId: String?): List<MaestroCommand> {
         return when {
             launchApp != null -> listOf(launchApp(launchApp, appId))
             setPermissions != null -> listOf(setPermissions(command = setPermissions, appId))
@@ -330,7 +330,7 @@ data class YamlFluentCommand(
             stopApp != null -> listOf(
                 MaestroCommand(
                     StopAppCommand(
-                        appId = stopApp.appId ?: appId,
+                        appId = requireAppId("stopApp", stopApp.appId, appId),
                         label = stopApp.label,
                         optional = stopApp.optional,
                     )
@@ -340,7 +340,7 @@ data class YamlFluentCommand(
             killApp != null -> listOf(
                 MaestroCommand(
                     KillAppCommand(
-                        appId = killApp.appId ?: appId,
+                        appId = requireAppId("killApp", killApp.appId, appId),
                         label = killApp.label,
                         optional = killApp.optional,
                     )
@@ -350,7 +350,7 @@ data class YamlFluentCommand(
             clearState != null -> listOf(
                 MaestroCommand(
                     ClearStateCommand(
-                        appId = clearState.appId ?: appId,
+                        appId = requireAppId("clearState", clearState.appId, appId),
                         label = clearState.label,
                         optional = clearState.optional,
                     )
@@ -508,7 +508,7 @@ data class YamlFluentCommand(
     }
 
     private fun runFlowCommand(
-        appId: String,
+        appId: String?,
         flowPath: Path,
         runFlow: YamlRunFlow
     ): MaestroCommand {
@@ -543,7 +543,7 @@ data class YamlFluentCommand(
         )
     }
 
-    private fun retryCommand(retry: YamlRetryCommand, flowPath: Path, appId: String): MaestroCommand {
+    private fun retryCommand(retry: YamlRetryCommand, flowPath: Path, appId: String?): MaestroCommand {
         if (retry.file == null && retry.commands == null) {
             throw SyntaxError("Invalid retry command: No file or commands provided")
         }
@@ -606,7 +606,7 @@ data class YamlFluentCommand(
         )
     }
 
-    private fun repeatCommand(repeat: YamlRepeatCommand, flowPath: Path, appId: String) = MaestroCommand(
+    private fun repeatCommand(repeat: YamlRepeatCommand, flowPath: Path, appId: String?) = MaestroCommand(
         RepeatCommand(
             times = repeat.times,
             condition = repeat.`while`?.toCondition(),
@@ -721,10 +721,10 @@ data class YamlFluentCommand(
         )
     }
 
-    private fun launchApp(command: YamlLaunchApp, appId: String): MaestroCommand {
+    private fun launchApp(command: YamlLaunchApp, appId: String?): MaestroCommand {
         return MaestroCommand(
             LaunchAppCommand(
-                appId = command.appId ?: appId,
+                appId = requireAppId("launchApp", command.appId, appId),
                 clearState = command.clearState,
                 clearKeychain = command.clearKeychain,
                 stopApp = command.stopApp,
@@ -736,10 +736,10 @@ data class YamlFluentCommand(
         )
     }
 
-    private fun setPermissions(command: YamlSetPermissions, appId: String): MaestroCommand {
+    private fun setPermissions(command: YamlSetPermissions, appId: String?): MaestroCommand {
         return MaestroCommand(
             SetPermissionsCommand(
-                appId = command.appId ?: appId,
+                appId = requireAppId("setPermissions", command.appId, appId),
                 permissions = command.permissions,
                 label = command.label,
                 optional = command.optional,
@@ -1000,6 +1000,17 @@ data class YamlFluentCommand(
                 waitToSettleTimeoutMs = yaml.waitToSettleTimeoutMs
             )
         )
+    }
+
+    private fun requireAppId(commandName: String, commandAppId: String?, configAppId: String?): String {
+        return commandAppId ?: configAppId
+            ?: throw SyntaxError(
+                "No appId specified for '$commandName'. " +
+                "Provide it as a parameter or in the flow config:\n" +
+                "appId: com.example.app\n" +
+                "---\n" +
+                "- $commandName"
+            )
     }
 
     private fun YamlCondition.toCondition(): Condition {
