@@ -3,10 +3,11 @@ package maestro.utils
 import java.io.Closeable
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.CopyOnWriteArrayList
 
 // creates temporary files and directories and makes sure they get disposed
 class TempFileHandler: Closeable {
-    val tempFiles = mutableListOf<File>()
+    val tempFiles = CopyOnWriteArrayList<File>()
 
     fun createTempFile(prefix: String? = null, suffix: String? = null): File {
         val file = Files.createTempFile(prefix, suffix).toFile()
