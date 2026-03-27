@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.node.TextNode
 import maestro.device.DeviceOrientation
 
 @JsonDeserialize(using = YamlSetOrientationDeserializer::class)
@@ -30,7 +31,7 @@ class YamlSetOrientationDeserializer : JsonDeserializer<YamlSetOrientation>() {
         val root: TreeNode = mapper.readTree(parser)
 
         if (root.isValueNode) {
-            val orientation = root.toString().replace("\"", "")
+            val orientation = (root as TextNode).textValue()
             validateOrientationIfLiteral(orientation)
             return YamlSetOrientation(orientation)
         }
@@ -38,9 +39,9 @@ class YamlSetOrientationDeserializer : JsonDeserializer<YamlSetOrientation>() {
         val orientationNode = root.get("orientation")
             ?: throw IllegalArgumentException("Missing required field 'orientation' in SetOrientation action")
 
-        val orientation = orientationNode.toString().replace("\"", "")
+        val orientation = (orientationNode as TextNode).textValue()
         validateOrientationIfLiteral(orientation)
-        val label = root.get("label")?.toString()?.replace("\"", "")
+        val label = (root.get("label") as? TextNode)?.textValue()
         val optional = root.get("optional")?.toString()?.toBoolean() ?: false
 
         return YamlSetOrientation(
