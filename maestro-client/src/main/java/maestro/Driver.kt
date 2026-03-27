@@ -106,6 +106,8 @@ interface Driver {
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
 
+    fun sendBroadcast(action: String, receiver: String?, extras: Map<String, Any>?) = Unit
+
     fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return listOf()
     }
