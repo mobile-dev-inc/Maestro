@@ -359,6 +359,27 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `018 - Web platform config with selectorAliases is supported`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/016_web_platform_config"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null
+        )
+
+        val platformConfiguration = plan.workspaceConfig.platform
+        assertThat(platformConfiguration).isNotNull()
+        assertThat(platformConfiguration?.web).isNotNull()
+        assertThat(platformConfiguration?.web?.selectorAliases).isEqualTo(
+            mapOf(
+                "flt-semantics-identifier" to "flutter-id",
+                "data-test-id" to "test-id"
+            )
+        )
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()

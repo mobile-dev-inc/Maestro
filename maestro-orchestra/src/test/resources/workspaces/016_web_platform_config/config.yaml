@@ -1,0 +1,5 @@
+platform:
+  web:
+    selectorAliases:
+      flt-semantics-identifier: flutter-id
+      data-test-id: test-id
