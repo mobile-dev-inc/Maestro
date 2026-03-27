@@ -678,7 +678,7 @@ class Orchestra(
     }
 
     private fun setOrientationCommand(command: SetOrientationCommand): Boolean {
-        maestro.setOrientation(command.orientation)
+        maestro.setOrientation(command.resolvedOrientation())
 
         return true
     }
