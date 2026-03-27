@@ -136,6 +136,13 @@ object MaestroCommandRunner {
                     status = CommandStatus.FAILED
                     calculateDuration()
                     error = e
+                    if (e is MaestroException.AssertionFailure) {
+                        hierarchy = e.hierarchyRoot
+                    }
+                }
+
+                if (e is MaestroException.AssertionFailure) {
+                    logger.info("Saving hierarchy")
                 }
 
                 ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
