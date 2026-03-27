@@ -878,21 +878,21 @@ data class SetOrientationCommand(
 
     fun resolvedOrientation(): DeviceOrientation {
         return DeviceOrientation.getByName(orientation)
-            ?: run {
-                val validOrientations = DeviceOrientation.entries
-                error("Unknown orientation: $orientation. Valid orientations are: $validOrientations \n" +
-                        "(case insensitive, underscores optional, e.g 'landscape_left', 'landscapeLeft', and 'LANDSCAPE_LEFT' are all valid)"
-                )
-            }
+            ?: error("Unknown orientation: $orientation")
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
+        val evaluatedOrientation = orientation.evaluateScripts(jsEngine)
+        val validOrientations = DeviceOrientation.entries
+        val resolved = DeviceOrientation.getByName(evaluatedOrientation)
+            ?: error(
+                "Unknown orientation: $evaluatedOrientation. Valid orientations are: $validOrientations \n" +
+                    "(case insensitive, underscores optional, e.g 'landscape_left', 'landscapeLeft', and 'LANDSCAPE_LEFT' are all valid)"
+            )
         return copy(
-            orientation = orientation.evaluateScripts(jsEngine),
+            orientation = resolved.name,
             label = label?.evaluateScripts(jsEngine)
-        ).also {
-            it.resolvedOrientation()
-        }
+        )
     }
 }
 
