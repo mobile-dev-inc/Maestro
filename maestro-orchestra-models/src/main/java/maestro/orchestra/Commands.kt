@@ -878,7 +878,12 @@ data class SetOrientationCommand(
 
     fun resolvedOrientation(): DeviceOrientation {
         return DeviceOrientation.getByName(orientation)
-            ?: error("Unknown orientation: $orientation")
+            ?: run {
+                val validOrientations = DeviceOrientation.entries
+                error("Unknown orientation: $orientation. Valid orientations are: $validOrientations \n" +
+                        "(case insensitive, underscores optional, e.g 'landscape_left', 'landscapeLeft', and 'LANDSCAPE_LEFT' are all valid)"
+                )
+            }
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
