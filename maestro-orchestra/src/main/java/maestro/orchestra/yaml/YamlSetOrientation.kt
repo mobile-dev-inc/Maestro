@@ -52,7 +52,7 @@ class YamlSetOrientationDeserializer : JsonDeserializer<YamlSetOrientation>() {
     }
 
     private fun validateOrientationIfLiteral(orientation: String) {
-        if (orientation.contains("$")) {
+        if (orientation.contains("\${")) {
             return
         }
 
