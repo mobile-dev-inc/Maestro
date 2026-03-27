@@ -53,11 +53,16 @@ object TestDebugReporter {
         // This mutates the output.
         outputs.forEach { output ->
             // Write AI screenshots. Paths need to be changed to the final ones.
-            val updatedOutputs = output.screenOutputs.map { newOutput ->
+            val updatedOutputs = output.screenOutputs.mapNotNull { newOutput ->
                 val screenshotFilename = newOutput.screenshotPath.name
                 val screenshotFile = File(path.absolutePathString(), screenshotFilename)
-                newOutput.screenshotPath.copyTo(screenshotFile)
-                newOutput.copy(screenshotPath = screenshotFile)
+                if (newOutput.screenshotPath.exists()) {
+                    newOutput.screenshotPath.copyTo(screenshotFile)
+                    newOutput.copy(screenshotPath = screenshotFile)
+                } else {
+                    logger.warn("AI screenshot not found, skipping: ${newOutput.screenshotPath}")
+                    null
+                }
             }
 
             output.screenOutputs.clear()
