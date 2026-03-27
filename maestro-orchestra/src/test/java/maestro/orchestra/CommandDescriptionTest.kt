@@ -167,6 +167,7 @@ internal class CommandDescriptionTest {
         assertThat(command.description()).isEqualTo("Tap sized element at specific position")
     }
 
+    @Test
     fun `description evaluates scripts in labels - GraalJS`(
         @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
@@ -198,6 +199,25 @@ internal class CommandDescriptionTest {
         assertThat(evaluatedAssert.label).isEqualTo("Check that true is still true")
         assertThat(evaluatedAssert.description()).isEqualTo("Check that true is still true")
         assertThat(evaluatedAssert.originalDescription).isEqualTo("Assert that true is true")
+
+        jsEngine.close()
+    }
+
+    @Test
+    fun `setOrientation description evaluates script values`() {
+        // given
+        val jsEngine = GraalJsEngine(platform = "ios")
+        jsEngine.putEnv("orientation", "LANDSCAPE_LEFT")
+
+        val command = SetOrientationCommand(
+            orientation = $$"${orientation}"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo($$"Set orientation ${orientation}")
+        val evaluatedCommand = command.evaluateScripts(jsEngine)
+        assertThat(evaluatedCommand.description()).isEqualTo("Set orientation LANDSCAPE_LEFT")
+        assertThat(evaluatedCommand.originalDescription).isEqualTo("Set orientation LANDSCAPE_LEFT")
 
         jsEngine.close()
     }

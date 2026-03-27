@@ -1,4 +1,9 @@
 appId: com.example.maestro.orientation
+env:
+  orientationLandscapeLeft: LANDSCAPE_LEFT
+  orientationLandscapeRight: LANDSCAPE_RIGHT
+  orientationUpsideDown: UPSIDE_DOWN
+  orientationPortrait: PORTRAIT
 tags:
   - android
   - passing
@@ -11,4 +16,12 @@ tags:
 - setOrientation: UPSIDE_DOWN
 - assertVisible: "UPSIDE_DOWN"
 - setOrientation: PORTRAIT
+- assertVisible: "PORTRAIT"
+- setOrientation: ${orientationLandscapeLeft}
+- assertVisible: "LANDSCAPE_LEFT"
+- setOrientation: ${orientationLandscapeRight}
+- assertVisible: "LANDSCAPE_RIGHT"
+- setOrientation: ${orientationUpsideDown}
+- assertVisible: "UPSIDE_DOWN"
+- setOrientation: ${orientationPortrait}
 - assertVisible: "PORTRAIT"
