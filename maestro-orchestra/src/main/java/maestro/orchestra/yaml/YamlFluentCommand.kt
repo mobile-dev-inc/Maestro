@@ -372,7 +372,8 @@ data class YamlFluentCommand(
             setOrientation != null -> listOf(
                 MaestroCommand(
                     SetOrientationCommand(
-                        orientation = DeviceOrientation.getByName(setOrientation.orientation) ?: throw SyntaxError("Unknown orientation: $setOrientation"),
+                        orientation = DeviceOrientation.getByName(setOrientation.orientation)?.name
+                            ?: setOrientation.orientation,
                         label = setOrientation.label,
                         optional = setOrientation.optional,
                     )
