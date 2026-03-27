@@ -854,10 +854,20 @@ data class SetLocationCommand(
 }
 
 data class SetOrientationCommand(
-    val orientation: DeviceOrientation,
+    val orientation: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    constructor(
+        orientation: DeviceOrientation,
+        label: String? = null,
+        optional: Boolean = false,
+    ) : this(
+        orientation = orientation.name,
+        label = label,
+        optional = optional
+    )
 
     override val originalDescription: String
         get() = "Set orientation ${orientation}"
@@ -866,8 +876,18 @@ data class SetOrientationCommand(
         return label ?: "Set orientation ${orientation}"
     }
 
+    fun resolvedOrientation(): DeviceOrientation {
+        return DeviceOrientation.getByName(orientation)
+            ?: error("Unknown orientation: $orientation")
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
-        return this
+        return copy(
+            orientation = orientation.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
+        ).also {
+            it.resolvedOrientation()
+        }
     }
 }
 
