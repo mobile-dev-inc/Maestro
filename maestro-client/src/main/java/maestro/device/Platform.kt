@@ -1,5 +1,8 @@
 package maestro.device
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class Platform(val description: String) {
     ANDROID("Android"),
     IOS("iOS"),

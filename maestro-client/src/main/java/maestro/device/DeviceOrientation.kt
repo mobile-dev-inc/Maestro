@@ -1,5 +1,8 @@
 package maestro.device
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class DeviceOrientation {
     PORTRAIT,
     LANDSCAPE_LEFT,
