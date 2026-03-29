@@ -24,10 +24,10 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
-import maestro.cli.api.UploadStatus
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.TestDebugReporter
+import maestro.cli.util.EnvFileParser
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -99,6 +99,13 @@ class CloudCommand : Callable<Int> {
 
     @Option(order = 9, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
     private var env: Map<String, String> = emptyMap()
+
+    @Option(
+        order = 9,
+        names = ["--env-file"],
+        description = ["Load environment variables from a .env file. Variables defined with -e take precedence over values in the file."],
+    )
+    private var envFile: File? = null
 
     @Option(order = 10, names = ["--name"], description = ["Name of the upload"])
     private var uploadName: String? = null
@@ -176,6 +183,8 @@ class CloudCommand : Callable<Int> {
     private val parent: App? = null
 
     override fun call(): Int {
+        env = EnvFileParser.resolveEnv(envFile, env)
+
         TestDebugReporter.install(
             debugOutputPathAsString = null,
             flattenDebugOutput = false,
