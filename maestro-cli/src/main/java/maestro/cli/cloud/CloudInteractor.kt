@@ -36,6 +36,9 @@ import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.web.WebInteractor
 import maestro.cli.promotion.PromotionStateManager
+import maestro.cli.util.AppMetadataAnalyzer
+import maestro.device.AppValidationResult
+import maestro.device.AppValidator
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -130,6 +133,26 @@ class CloudInteractor(
 
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
+
+            // Infer platform and validate app binary
+            val appValidation: AppValidationResult? = appFileToSend?.let { f ->
+                when {
+                    AppMetadataAnalyzer.getWebMetadata(f) != null ->
+                        AppValidator.fromWebMetadata(AppMetadataAnalyzer.getWebMetadata(f)!!.url)
+
+                    AppMetadataAnalyzer.getIosAppMetadata(f) != null -> {
+                        val meta = AppMetadataAnalyzer.getIosAppMetadata(f)!!
+                        AppValidator.fromIosMetadata(meta.bundleId)
+                    }
+
+                    AppMetadataAnalyzer.getAndroidAppMetadata(f) != null -> {
+                        val meta = AppMetadataAnalyzer.getAndroidAppMetadata(f)!!
+                        AppValidator.fromAndroidMetadata(meta.packageId, meta.supportedArchitectures)
+                    }
+
+                    else -> null
+                }
+            }
 
             // Track cloud upload start after we have the response with actual platform
             Analytics.trackEvent(CloudUploadStartedEvent(
