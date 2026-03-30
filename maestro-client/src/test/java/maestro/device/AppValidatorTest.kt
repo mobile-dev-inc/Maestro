@@ -1,8 +1,8 @@
 package maestro.device
 
+import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 
 class AppValidatorTest {
 
@@ -24,7 +24,7 @@ class AppValidatorTest {
             packageId = "com.example.app",
             supportedArchitectures = listOf("arm64-v8a", "x86_64"),
         )
-        assertEquals("com.example.app", result.appIdentifier)
+        assertThat(result.appIdentifier).isEqualTo("com.example.app")
     }
 
     @Test
@@ -34,7 +34,7 @@ class AppValidatorTest {
             packageId = "com.example.app",
             supportedArchitectures = emptyList(),
         )
-        assertEquals(Platform.ANDROID, result.platform)
+        assertThat(result.platform).isEqualTo(Platform.ANDROID)
     }
 
     // ---- iOS ----
@@ -46,8 +46,8 @@ class AppValidatorTest {
             platformName = "iphonesimulator",
             minimumOSVersion = "16.0",
         )
-        assertEquals("com.example.app", result.appIdentifier)
-        assertEquals(Platform.IOS, result.platform)
+        assertThat(result.appIdentifier).isEqualTo("com.example.app")
+        assertThat(result.platform).isEqualTo(Platform.IOS)
     }
 
     @Test
