@@ -156,6 +156,8 @@ dependencies {
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-ios-driver"))
     implementation(project(":maestro-studio:server"))
+    implementation(libs.apk.parser)
+    implementation(libs.dd.plist)
     implementation(libs.posthog)
     implementation(libs.dadb)
     implementation(libs.picocli)
