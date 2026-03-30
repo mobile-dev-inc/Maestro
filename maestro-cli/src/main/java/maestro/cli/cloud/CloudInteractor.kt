@@ -39,6 +39,8 @@ import maestro.cli.promotion.PromotionStateManager
 import maestro.cli.util.AppMetadataAnalyzer
 import maestro.device.AppValidationResult
 import maestro.device.AppValidator
+import maestro.orchestra.workspace.WorkspaceValidationError
+import maestro.orchestra.workspace.WorkspaceValidator
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -108,17 +110,10 @@ class CloudInteractor(
         // Record cloud command usage for promotion message suppression
         PromotionStateManager().recordCloudCommandUsage()
 
-        // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
-        // Platform is inferred from binary after getAppFile; use flag hints for the pre-upload event
-        val triggeredPlatform = when {
-            androidApiLevel != null -> "android"
-            iOSVersion != null || deviceOs != null -> "ios"
-            flowFile.isWebFlow() -> "web"
-            else -> "unknown"
-        }
+        // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = triggeredPlatform,
+            platform = if (flowFile.isWebFlow()) "web" else "unknown",
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
@@ -158,10 +153,33 @@ class CloudInteractor(
             // Platform inferred from the app binary — authoritative source for Phase 2B DeviceSpec creation
             val inferredPlatform: Platform? = appValidation?.platform
 
-            // Track cloud upload start after we have the response with actual platform
+            // Validate workspace against appId before uploading to catch errors early
+            appValidation?.let { validation ->
+                val workspaceResult = WorkspaceValidator.validate(
+                    workspace = workspaceZip.toFile(),
+                    appId = validation.appIdentifier,
+                    envParameters = env,
+                    includeTags = includeTags,
+                    excludeTags = excludeTags,
+                )
+                if (workspaceResult.isErr) {
+                    throw CliError(when (val err = workspaceResult.error) {
+                        is WorkspaceValidationError.NoFlowsMatchingAppId ->
+                            "No flows in workspace match app ID '${err.appId}'. Found app IDs: ${err.foundIds.ifEmpty { setOf("none") }.joinToString()}"
+                        is WorkspaceValidationError.NameConflict ->
+                            "Duplicate flow name '${err.name}' in workspace. Each flow must have a unique name."
+                        is WorkspaceValidationError.SyntaxError -> "Workspace syntax error: ${err.detail}"
+                        is WorkspaceValidationError.InvalidFlowFile -> err.detail
+                        WorkspaceValidationError.EmptyWorkspace -> "Workspace contains no flows."
+                        WorkspaceValidationError.InvalidWorkspaceFile -> "Workspace is not a valid zip archive."
+                        is WorkspaceValidationError.GenericError -> err.detail
+                    })
+                }
+            }
+
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,
-                platform = triggeredPlatform,
+                platform = inferredPlatform?.name?.lowercase() ?: "unknown",
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
