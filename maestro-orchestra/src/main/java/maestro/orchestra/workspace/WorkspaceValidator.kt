@@ -106,7 +106,12 @@ object WorkspaceValidator {
         } catch (e: maestro.orchestra.error.InvalidFlowFile) {
             Err(WorkspaceValidationError.InvalidFlowFile(e.message ?: ""))
         } catch (e: ValidationError) {
-            Err(WorkspaceValidationError.GenericError(e.message ?: ""))
+            // WorkspaceExecutionPlanner throws ValidationError when the workspace has no flow files
+            if (e.message?.contains("do not contain any Flow files") == true) {
+                Err(WorkspaceValidationError.EmptyWorkspace)
+            } else {
+                Err(WorkspaceValidationError.GenericError(e.message ?: ""))
+            }
         }
     }
 }

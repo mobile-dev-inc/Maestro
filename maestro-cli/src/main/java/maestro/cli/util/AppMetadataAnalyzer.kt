@@ -59,6 +59,7 @@ object AppMetadataAnalyzer {
                         name = name,
                         bundleId = root.objectForKey("CFBundleIdentifier")?.toString()
                             ?: throw NullPointerException("Unable to find bundleId"),
+                        platformName = root.objectForKey("DTPlatformName")?.toString(),
                         minimumOSVersion = root.objectForKey("MinimumOSVersion")?.toString(),
                     )
                 }
@@ -106,6 +107,7 @@ object AppMetadataAnalyzer {
 data class IosAppMetadata(
     val name: String,
     val bundleId: String,
+    val platformName: String?,       // "iphonesimulator" for simulator builds, "iphoneos" for device builds
     val minimumOSVersion: String?,
 )
 
