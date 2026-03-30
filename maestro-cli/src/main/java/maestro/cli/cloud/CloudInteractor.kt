@@ -109,6 +109,7 @@ class CloudInteractor(
         PromotionStateManager().recordCloudCommandUsage()
 
         // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
+        // Platform is inferred from binary after getAppFile; use flag hints for the pre-upload event
         val triggeredPlatform = when {
             androidApiLevel != null -> "android"
             iOSVersion != null || deviceOs != null -> "ios"
@@ -142,7 +143,7 @@ class CloudInteractor(
 
                     AppMetadataAnalyzer.getIosAppMetadata(f) != null -> {
                         val meta = AppMetadataAnalyzer.getIosAppMetadata(f)!!
-                        AppValidator.fromIosMetadata(meta.bundleId)
+                        AppValidator.fromIosMetadata(meta.bundleId, meta.platformName, meta.minimumOSVersion)
                     }
 
                     AppMetadataAnalyzer.getAndroidAppMetadata(f) != null -> {
@@ -153,6 +154,9 @@ class CloudInteractor(
                     else -> null
                 }
             }
+
+            // Platform inferred from the app binary — authoritative source for Phase 2B DeviceSpec creation
+            val inferredPlatform: Platform? = appValidation?.platform
 
             // Track cloud upload start after we have the response with actual platform
             Analytics.trackEvent(CloudUploadStartedEvent(

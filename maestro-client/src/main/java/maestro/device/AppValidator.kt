@@ -15,7 +15,9 @@ object AppValidator {
         packageId: String,
         supportedArchitectures: List<String>,
     ): AppValidationResult {
-        require("arm64-v8a" in supportedArchitectures) {
+        // Pure Java/Kotlin APKs have no native libraries and thus no lib/ entries — always accepted.
+        // APKs with native libraries must include arm64-v8a.
+        require(supportedArchitectures.isEmpty() || "arm64-v8a" in supportedArchitectures) {
             "APK does not support arm64-v8a architecture. Found: $supportedArchitectures"
         }
         return AppValidationResult(Platform.ANDROID, packageId)
@@ -23,8 +25,19 @@ object AppValidator {
 
     /**
      * Validates an iOS app binary's metadata.
+     * Requires a simulator build (DTPlatformName = "iphonesimulator") and a non-null minimum OS version.
      */
-    fun fromIosMetadata(bundleId: String): AppValidationResult {
+    fun fromIosMetadata(
+        bundleId: String,
+        platformName: String?,
+        minimumOSVersion: String?,
+    ): AppValidationResult {
+        require(platformName == "iphonesimulator") {
+            "App build target '${platformName}' not supported, set build target to 'iphonesimulator'"
+        }
+        require(minimumOSVersion != null) {
+            "App minimum deployment target version is not set"
+        }
         return AppValidationResult(Platform.IOS, bundleId)
     }
 

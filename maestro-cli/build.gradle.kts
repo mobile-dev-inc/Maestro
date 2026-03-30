@@ -206,6 +206,10 @@ dependencies {
     testImplementation(libs.google.truth)
 }
 
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
