@@ -39,6 +39,8 @@ import maestro.cli.promotion.PromotionStateManager
 import maestro.cli.util.AppMetadataAnalyzer
 import maestro.device.AppValidationResult
 import maestro.device.AppValidator
+import maestro.device.DeviceSpec
+import maestro.device.DeviceSpecRequest
 import maestro.orchestra.workspace.WorkspaceValidationError
 import maestro.orchestra.workspace.WorkspaceValidator
 import maestro.utils.TemporaryDirectory
@@ -153,6 +155,26 @@ class CloudInteractor(
             // Platform inferred from the app binary — authoritative source for Phase 2B DeviceSpec creation
             val inferredPlatform: Platform? = appValidation?.platform
 
+            // Construct DeviceSpec from inferred platform + CLI flags; null when platform is unknown (e.g. appBinaryId)
+            val deviceSpec: DeviceSpec? = when (inferredPlatform) {
+                Platform.ANDROID -> DeviceSpec.fromRequest(DeviceSpecRequest.Android(
+                    model = deviceModel,
+                    os = deviceOs ?: androidApiLevel?.let { "android-$it" },
+                    locale = deviceLocale,
+                ))
+                Platform.IOS -> DeviceSpec.fromRequest(DeviceSpecRequest.Ios(
+                    model = deviceModel,
+                    os = deviceOs ?: iOSVersion?.let { "iOS-${it.replace('.', '-')}" },
+                    locale = deviceLocale,
+                ))
+                Platform.WEB -> DeviceSpec.fromRequest(DeviceSpecRequest.Web(
+                    model = deviceModel,
+                    os = deviceOs,
+                    locale = deviceLocale,
+                ))
+                null -> null
+            }
+
             // Validate workspace against appId before uploading to catch errors early
             appValidation?.let { validation ->
                 val workspaceResult = WorkspaceValidator.validate(
@@ -210,7 +232,8 @@ class CloudInteractor(
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
                 deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceOs = deviceOs,
+                deviceSpec = deviceSpec,
             )
 
             // Track finish after upload completion
