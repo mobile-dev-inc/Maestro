@@ -219,8 +219,6 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
@@ -230,8 +228,6 @@ class CloudInteractor(
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
-                deviceModel = deviceModel,
-                deviceOs = deviceOs,
                 deviceSpec = deviceSpec,
             )
 
