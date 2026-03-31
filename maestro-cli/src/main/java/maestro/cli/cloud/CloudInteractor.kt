@@ -175,7 +175,7 @@ class CloudInteractor(
             }
 
             // Validate workspace against appId before uploading to catch errors early
-            resolvedAppValidation?.let { validation ->
+            resolvedAppValidation.let { validation ->
                 val workspaceResult = WorkspaceValidator.validate(
                     workspace = workspaceZip.toFile(),
                     appId = validation.appIdentifier,

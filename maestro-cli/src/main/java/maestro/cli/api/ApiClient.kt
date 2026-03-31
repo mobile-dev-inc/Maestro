@@ -238,8 +238,6 @@ class ApiClient(
         commitSha: String?,
         pullRequestId: String?,
         env: Map<String, String>? = null,
-        androidApiLevel: Int?,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
@@ -249,8 +247,6 @@ class ApiClient(
         deviceLocale: String? = null,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
         projectId: String,
-        deviceModel: String? = null,
-        deviceOs: String? = null,
         deviceSpec: maestro.device.DeviceSpec? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
@@ -268,13 +264,9 @@ class ApiClient(
         pullRequestId?.let { requestPart["pullRequestId"] = it }
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
-        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
-        iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
         requestPart["projectId"] = projectId
-        deviceModel?.let { requestPart["deviceModel"] = it }
-        deviceOs?.let { requestPart["deviceOs"] = it }
         deviceSpec?.let { requestPart["deviceSpec"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
@@ -328,8 +320,6 @@ class ApiClient(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 maxRetryCount = maxRetryCount,
@@ -339,8 +329,6 @@ class ApiClient(
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
                 projectId = projectId,
-                deviceModel = deviceModel,
-                deviceOs = deviceOs,
                 deviceSpec = deviceSpec,
             )
         }
@@ -394,8 +382,6 @@ class ApiClient(
                                 commitSha = commitSha,
                                 pullRequestId = pullRequestId,
                                 env = env,
-                                androidApiLevel = androidApiLevel,
-                                iOSVersion = iOSVersion,
                                 includeTags = includeTags,
                                 excludeTags = excludeTags,
                                 maxRetryCount = maxRetryCount,
@@ -405,8 +391,6 @@ class ApiClient(
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
                                 projectId = projectId,
-                                deviceModel = deviceModel,
-                                deviceOs = deviceOs,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
