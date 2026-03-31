@@ -114,7 +114,6 @@ class CloudInteractor(
         // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = if (flowFile.isWebFlow()) "web" else "unknown",
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,

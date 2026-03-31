@@ -234,7 +234,6 @@ sealed interface CloudUploadEvent : PostHogEvent
 data class CloudUploadTriggeredEvent(
     override val name: String = "cloud_upload_triggered",
     val projectId: String,
-    val platform: String,
     val isBinaryUpload: Boolean = false,
     val usesEnvironment: Boolean = false,
     val deviceModel: String? = null,
