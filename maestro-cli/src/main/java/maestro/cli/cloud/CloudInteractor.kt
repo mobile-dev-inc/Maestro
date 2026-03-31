@@ -38,7 +38,6 @@ import maestro.cli.web.WebInteractor
 import maestro.cli.promotion.PromotionStateManager
 import maestro.cli.util.AppMetadataAnalyzer
 import maestro.device.AppValidationResult
-import maestro.device.AppValidator
 import maestro.device.DeviceSpec
 import maestro.device.DeviceSpecRequest
 import maestro.orchestra.workspace.WorkspaceValidationError
@@ -133,30 +132,33 @@ class CloudInteractor(
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
             // Infer platform and validate app binary
-            val appValidation: AppValidationResult? = appFileToSend?.let { f ->
-                when {
-                    AppMetadataAnalyzer.getWebMetadata(f) != null ->
-                        AppValidator.fromWebMetadata(AppMetadataAnalyzer.getWebMetadata(f)!!.url)
+            val appValidation: AppValidationResult? = appFileToSend?.let { AppMetadataAnalyzer.validateAppFile(it) }
 
-                    AppMetadataAnalyzer.getIosAppMetadata(f) != null -> {
-                        val meta = AppMetadataAnalyzer.getIosAppMetadata(f)!!
-                        AppValidator.fromIosMetadata(meta.bundleId, meta.platformName, meta.minimumOSVersion)
+            // Resolve platform: from local binary analysis, or from backend when using --app-binary-id
+            val resolvedAppValidation: AppValidationResult? = appValidation
+                ?: appBinaryId?.let { binaryId ->
+                    try {
+                        val info = client.getAppBinaryInfo(authToken, binaryId)
+                        val platform = try {
+                            Platform.fromString(info.platform)
+                        } catch (e: IllegalArgumentException) {
+                            throw CliError("Unsupported platform '${info.platform}' returned by server. Please update your CLI.")
+                        }
+                        AppValidationResult(
+                            platform = platform,
+                            appIdentifier = info.appId,
+                        )
+                    } catch (e: ApiClient.ApiException) {
+                        if (e.statusCode == 404) throw CliError("App binary '$binaryId' not found. Check your --app-binary-id.")
+                        throw CliError("Failed to fetch app binary info. Status code: ${e.statusCode}")
                     }
-
-                    AppMetadataAnalyzer.getAndroidAppMetadata(f) != null -> {
-                        val meta = AppMetadataAnalyzer.getAndroidAppMetadata(f)!!
-                        AppValidator.fromAndroidMetadata(meta.packageId, meta.supportedArchitectures)
-                    }
-
-                    else -> null
                 }
-            }
 
-            // Platform inferred from the app binary — authoritative source for Phase 2B DeviceSpec creation
-            val inferredPlatform: Platform? = appValidation?.platform
+            val inferredPlatform: Platform = resolvedAppValidation?.platform
+                ?: error("Could not determine platform. Provide --app-file or a valid --app-binary-id.")
 
-            // Construct DeviceSpec from inferred platform + CLI flags; null when platform is unknown (e.g. appBinaryId)
-            val deviceSpec: DeviceSpec? = when (inferredPlatform) {
+            // Construct DeviceSpec from resolved platform + CLI flags
+            val deviceSpec: DeviceSpec = when (inferredPlatform) {
                 Platform.ANDROID -> DeviceSpec.fromRequest(DeviceSpecRequest.Android(
                     model = deviceModel,
                     os = deviceOs ?: androidApiLevel?.let { "android-$it" },
@@ -172,11 +174,10 @@ class CloudInteractor(
                     os = deviceOs,
                     locale = deviceLocale,
                 ))
-                null -> null
             }
 
             // Validate workspace against appId before uploading to catch errors early
-            appValidation?.let { validation ->
+            resolvedAppValidation?.let { validation ->
                 val workspaceResult = WorkspaceValidator.validate(
                     workspace = workspaceZip.toFile(),
                     appId = validation.appIdentifier,
@@ -201,7 +202,7 @@ class CloudInteractor(
 
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,
-                platform = inferredPlatform?.name?.lowercase() ?: "unknown",
+                platform = inferredPlatform.name.lowercase(),
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,

@@ -4,6 +4,8 @@ import com.dd.plist.NSDictionary
 import com.dd.plist.PropertyListParser
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import maestro.device.AppValidationResult
+import maestro.device.AppValidator
 import net.dongliu.apk.parser.ApkFile
 import java.io.File
 import java.io.IOException
@@ -11,6 +13,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 object AppMetadataAnalyzer {
+
+    fun validateAppFile(file: File): AppValidationResult? {
+        getWebMetadata(file)?.let { return AppValidator.fromWebMetadata(it.url) }
+        getIosAppMetadata(file)?.let { return AppValidator.fromIosMetadata(it.bundleId, it.platformName, it.minimumOSVersion) }
+        getAndroidAppMetadata(file)?.let { return AppValidator.fromAndroidMetadata(it.packageId, it.supportedArchitectures) }
+        return null
+    }
 
     private val watchInfoBundleRegex = Regex(".*/Watch/.+\\.app/Info\\.plist$", RegexOption.IGNORE_CASE)
 
