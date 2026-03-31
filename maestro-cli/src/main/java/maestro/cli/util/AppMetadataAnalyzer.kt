@@ -4,36 +4,15 @@ import com.dd.plist.NSDictionary
 import com.dd.plist.PropertyListParser
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import maestro.device.Platform
 import net.dongliu.apk.parser.ApkFile
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-private val logger = LoggerFactory.getLogger(AppMetadataAnalyzer::class.java)
-
 object AppMetadataAnalyzer {
 
     private val watchInfoBundleRegex = Regex(".*/Watch/.+\\.app/Info\\.plist$", RegexOption.IGNORE_CASE)
-
-    fun inferPlatform(file: File): Platform? {
-        try {
-            if (getWebMetadata(file) != null) return Platform.WEB
-        } catch (_: Exception) {}
-
-        try {
-            if (getIosAppMetadata(file) != null) return Platform.IOS
-        } catch (_: Exception) {}
-
-        try {
-            if (getAndroidAppMetadata(file) != null) return Platform.ANDROID
-        } catch (_: Exception) {}
-
-        logger.error("Failed to infer platform for ${file.name}")
-        return null
-    }
 
     fun getIosAppMetadata(appFile: File): IosAppMetadata? {
         try {
@@ -67,8 +46,7 @@ object AppMetadataAnalyzer {
                 }
             }
         } catch (_: IOException) {
-        } catch (e: Exception) {
-            logger.error("Unexpected error reading iOS metadata: ${e.message}", e)
+            return null
         }
         return null
     }
@@ -89,20 +67,14 @@ object AppMetadataAnalyzer {
                 return AndroidAppMetadata(meta.packageName, archs)
             }
         } catch (_: IOException) {
-        } catch (e: Exception) {
-            logger.error("Unexpected error reading Android metadata: ${e.message}", e)
+            return null
         }
-        return null
     }
 
     fun getWebMetadata(appFile: File): WebAppMetadata? {
         return try {
             jacksonObjectMapper().readValue<WebAppMetadata>(appFile)
-        } catch (_: IOException) { null
-        } catch (e: Exception) {
-            logger.error("Unexpected error reading web metadata: ${e.message}", e)
-            null
-        }
+        } catch (_: IOException) { null }
     }
 }
 

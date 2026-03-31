@@ -1,7 +1,6 @@
 package maestro.cli.util
 
 import com.google.common.truth.Truth.assertThat
-import maestro.device.Platform
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -94,30 +93,6 @@ class AppMetadataAnalyzerTest {
     @Test
     fun `getWebMetadata returns null for non-JSON file`() {
         assertThat(AppMetadataAnalyzer.getWebMetadata(makeUnknownFile())).isNull()
-    }
-
-    // ---- inferPlatform ----
-
-    @Test
-    fun `inferPlatform detects iOS zip as IOS`() {
-        assertThat(AppMetadataAnalyzer.inferPlatform(makeIosZip())).isEqualTo(Platform.IOS)
-    }
-
-    @Test
-    fun `inferPlatform detects web JSON as WEB`() {
-        assertThat(AppMetadataAnalyzer.inferPlatform(makeWebJson())).isEqualTo(Platform.WEB)
-    }
-
-    @Test
-    fun `inferPlatform returns null for unrecognized file`() {
-        assertThat(AppMetadataAnalyzer.inferPlatform(makeUnknownFile())).isNull()
-    }
-
-    @Test
-    fun `inferPlatform prefers WEB over IOS when zip contains a url json`() {
-        // A zip that is valid JSON containing "url" — should be detected as WEB
-        val webJson = makeWebJson()
-        assertThat(AppMetadataAnalyzer.inferPlatform(webJson)).isEqualTo(Platform.WEB)
     }
 
     @Test
