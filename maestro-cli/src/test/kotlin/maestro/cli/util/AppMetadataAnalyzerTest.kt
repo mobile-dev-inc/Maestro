@@ -1,6 +1,7 @@
 package maestro.cli.util
 
 import com.google.common.truth.Truth.assertThat
+import maestro.device.Platform
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -46,6 +47,29 @@ class AppMetadataAnalyzerTest {
 
     private fun makeUnknownFile(): File {
         return File(tempDir, "unknown.bin").also { it.writeBytes(ByteArray(64) { i -> i.toByte() }) }
+    }
+
+    // ---- validateAppFile ----
+
+    @Test
+    fun `validateAppFile returns AppValidationResult for iOS zip`() {
+        val result = AppMetadataAnalyzer.validateAppFile(makeIosZip())
+        assertThat(result).isNotNull()
+        assertThat(result!!.platform).isEqualTo(Platform.IOS)
+        assertThat(result.appIdentifier).isEqualTo("com.example.app")
+    }
+
+    @Test
+    fun `validateAppFile returns AppValidationResult for web JSON`() {
+        val result = AppMetadataAnalyzer.validateAppFile(makeWebJson())
+        assertThat(result).isNotNull()
+        assertThat(result!!.platform).isEqualTo(Platform.WEB)
+        assertThat(result.appIdentifier).isEqualTo("https://example.com")
+    }
+
+    @Test
+    fun `validateAppFile returns null for unrecognized file`() {
+        assertThat(AppMetadataAnalyzer.validateAppFile(makeUnknownFile())).isNull()
     }
 
     // ---- getIosAppMetadata ----
