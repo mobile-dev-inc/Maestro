@@ -415,12 +415,8 @@ class CdpWebDriver(
     }
 
     override fun pressKey(code: KeyCode) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
         val key = mapToSeleniumKey(code)
-        element.sendKeys(key)
+        withActiveElement { it.sendKeys(key) }
     }
 
     private fun mapToSeleniumKey(code: KeyCode): Keys {
@@ -502,13 +498,11 @@ class CdpWebDriver(
     }
 
     override fun inputText(text: String) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
-        for (c in text.toCharArray()) {
-            element.sendKeys("$c")
-            sleep(random(20, 100).toLong())
+        withActiveElement { element ->
+            for (c in text.toCharArray()) {
+                element.sendKeys("$c")
+                sleep(random(20, 100).toLong())
+            }
         }
     }
 
@@ -570,15 +564,12 @@ class CdpWebDriver(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
-        for (i in 0 until charactersToErase) {
-            element.sendKeys(Keys.BACK_SPACE)
-            sleep(random(20, 50).toLong())
+        withActiveElement { element ->
+            for (i in 0 until charactersToErase) {
+                element.sendKeys(Keys.BACK_SPACE)
+                sleep(random(20, 50).toLong())
+            }
         }
-
         sleep(1000)
     }
 
@@ -726,6 +717,44 @@ class CdpWebDriver(
         } finally {
             try { driver.switchTo().defaultContent() }
             catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+        }
+    }
+
+    /**
+     * Locates the truly focused element, even when it lives inside a cross-origin iframe.
+     *
+     * When the user taps inside a cross-origin iframe the main frame's
+     * `document.activeElement` is the `<iframe>` element itself.  This helper
+     * detects that case, switches Selenium into the iframe, resolves the real
+     * active element there, runs [action], and switches back to the default
+     * content so subsequent commands target the main frame again.
+     */
+    private fun withActiveElement(action: (WebElement) -> Unit) {
+        val driver = ensureOpen()
+        val jsExecutor = driver as JavascriptExecutor
+
+        val isIframeFocused = jsExecutor.executeScript(
+            "return document.activeElement && document.activeElement.tagName.toLowerCase() === 'iframe'"
+        ) as? Boolean ?: false
+
+        if (isIframeFocused) {
+            val iframe = jsExecutor.executeScript("return document.activeElement") as WebElement
+            driver.switchTo().frame(iframe)
+            try {
+                jsExecutor.executeScript("$maestroWebScript")
+                val xPath = jsExecutor.executeScript(
+                    "return window.maestro.createXPathFromElement(document.activeElement)"
+                ) as String
+                val element = driver.findElement(By.ByXPath(xPath))
+                action(element)
+            } finally {
+                try { driver.switchTo().defaultContent() }
+                catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+            }
+        } else {
+            val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
+            val element = driver.findElement(By.ByXPath(xPath))
+            action(element)
         }
     }
 
