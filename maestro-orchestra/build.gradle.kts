@@ -26,6 +26,7 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     testImplementation(libs.google.truth)
+    testImplementation(libs.mockk)
 }
 
 java {

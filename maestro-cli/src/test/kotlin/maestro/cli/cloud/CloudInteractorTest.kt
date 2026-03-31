@@ -2,14 +2,23 @@ package maestro.cli.cloud
 
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
+import maestro.cli.CliError
 import maestro.cli.api.ApiClient
+import maestro.cli.api.AppBinaryInfo
+import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.UploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
+import maestro.cli.util.AppMetadataAnalyzer
+import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
@@ -19,35 +28,425 @@ class CloudInteractorTest {
 
     private lateinit var mockApiClient: ApiClient
     private lateinit var mockAuth: Auth
-    private lateinit var cloudInteractor: CloudInteractor
-    
+
     private lateinit var originalOut: PrintStream
     private lateinit var outputStream: ByteArrayOutputStream
+
+    @TempDir
+    lateinit var tempDir: File
 
     @BeforeEach
     fun setUp() {
         mockApiClient = mockk(relaxed = true)
         mockAuth = mockk(relaxed = true)
-        cloudInteractor = CloudInteractor(
-            client = mockApiClient,
-            auth = mockAuth,
-            waitTimeoutMs = TimeUnit.SECONDS.toMillis(1), // Short timeout for testing
-            minPollIntervalMs = TimeUnit.MILLISECONDS.toMillis(10), // Short polling for testing
-            maxPollingRetries = 2,
-            failOnTimeout = true
+        every { mockAuth.getAuthToken(any(), any()) } returns "test-token"
+        every { mockApiClient.getProjects(any()) } returns listOf(
+            maestro.cli.api.ProjectResponse(id = "proj_1", name = "Test Project")
         )
-        
+
         // Capture console output
         originalOut = System.out
         outputStream = ByteArrayOutputStream()
         System.setOut(PrintStream(outputStream))
     }
-    
+
     @AfterEach
     fun tearDown() {
-        // Restore original console output
         System.setOut(originalOut)
     }
+
+    // ---- Fixtures from test resources ----
+
+    private fun resourceFile(path: String): File =
+        File(javaClass.getResource(path)!!.toURI())
+
+    private fun androidFlowFile(): File = resourceFile("/workspaces/cloud_test/android/flow.yaml")
+    private fun iosFlowFile(): File = resourceFile("/workspaces/cloud_test/ios/flow.yaml")
+    private fun webFlowFile(): File = resourceFile("/workspaces/cloud_test/web/flow.yaml")
+    private fun taggedFlowDir(): File = resourceFile("/workspaces/cloud_test/tagged")
+    private fun iosApp(): File = resourceFile("/apps/test-ios.zip")
+    private fun webManifest(): File = resourceFile("/apps/web-manifest.json")
+
+    /** Creates a flow file with a custom appId in tempDir (for mismatch / error tests). */
+    private fun createFlowFile(appId: String): File {
+        return File(tempDir, "flow.yaml").also {
+            it.writeText("appId: $appId\n---\n- launchApp\n")
+        }
+    }
+
+    private fun stubUploadResponse(
+        platform: String = "Android",
+        appBinaryId: String? = null,
+    ) {
+        every {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), androidApiLevel = any(),
+                iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = any(),
+            )
+        } returns UploadResponse(
+            orgId = "org_1",
+            uploadId = "upload_1",
+            appId = "app_1",
+            deviceConfiguration = DeviceConfiguration(
+                platform = platform,
+                deviceName = "Test Device",
+                orientation = "portrait",
+                osVersion = "33",
+                displayInfo = "Test Device",
+                deviceLocale = "en_US",
+            ),
+            appBinaryId = appBinaryId,
+        )
+
+        // Stub the upload status for async=true (not polled)
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns UploadStatus(
+            uploadId = "upload_1",
+            status = UploadStatus.Status.SUCCESS,
+            completed = true,
+            totalTime = 30L,
+            startTime = 0L,
+            flows = emptyList(),
+            appPackageId = null,
+            wasAppLaunched = false,
+        )
+    }
+
+    private fun createCloudInteractor(
+        webManifestProvider: (() -> File?)? = null,
+    ): CloudInteractor {
+        return CloudInteractor(
+            client = mockApiClient,
+            appFileValidator = { AppMetadataAnalyzer.validateAppFile(it) },
+            workspaceValidator = WorkspaceValidator(),
+            webManifestProvider = webManifestProvider,
+            auth = mockAuth,
+            waitTimeoutMs = TimeUnit.SECONDS.toMillis(1),
+            minPollIntervalMs = TimeUnit.MILLISECONDS.toMillis(10),
+            maxPollingRetries = 2,
+            failOnTimeout = true,
+        )
+    }
+
+    // ---- 1. iOS .app + matching workspace (happy path) ----
+
+    @Test
+    fun `upload with iOS app file and matching workspace succeeds`() {
+        stubUploadResponse(platform = "IOS")
+
+        val result = createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = iosApp(),
+            async = true,
+            projectId = "proj_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify { mockApiClient.upload(
+            authToken = "test-token",
+            appFile = any(),
+            workspaceZip = any(),
+            uploadName = any(),
+            mappingFile = any(),
+            repoOwner = any(),
+            repoName = any(),
+            branch = any(),
+            commitSha = any(),
+            pullRequestId = any(),
+            env = any(),
+            androidApiLevel = any(),
+            iOSVersion = any(),
+            appBinaryId = isNull(),
+            includeTags = any(),
+            excludeTags = any(),
+            disableNotifications = any(),
+            deviceLocale = any(),
+            progressListener = any(),
+            projectId = "proj_1",
+            deviceModel = any(),
+            deviceOs = any(),
+        ) }
+    }
+
+    // ---- 2. Web flow (no app file) ----
+
+    @Test
+    fun `upload with web flow and no app file succeeds`() {
+        stubUploadResponse(platform = "WEB")
+
+        val result = createCloudInteractor(webManifestProvider = { webManifest() }).upload(
+            flowFile = webFlowFile(),
+            appFile = null,
+            async = true,
+            projectId = "proj_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+    }
+
+    // ---- 3. --app-binary-id Android ----
+
+    @Test
+    fun `upload with Android appBinaryId resolves platform from server`() {
+        stubUploadResponse(platform = "Android", appBinaryId = "bin_android_1")
+
+        every { mockApiClient.getAppBinaryInfo("test-token", "bin_android_1") } returns AppBinaryInfo(
+            appBinaryId = "bin_android_1",
+            platform = "Android",
+            appId = "com.example.maestro.orientation",
+        )
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(),
+            appFile = null,
+            async = true,
+            appBinaryId = "bin_android_1",
+            projectId = "proj_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", "bin_android_1") }
+    }
+
+    // ---- 4. --app-binary-id iOS ----
+
+    @Test
+    fun `upload with iOS appBinaryId resolves platform from server`() {
+        stubUploadResponse(platform = "IOS", appBinaryId = "bin_ios_1")
+
+        every { mockApiClient.getAppBinaryInfo("test-token", "bin_ios_1") } returns AppBinaryInfo(
+            appBinaryId = "bin_ios_1",
+            platform = "iOS",
+            appId = "com.example.SimpleWebViewApp",
+        )
+
+        val result = createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = null,
+            async = true,
+            appBinaryId = "bin_ios_1",
+            projectId = "proj_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", "bin_ios_1") }
+    }
+
+    // ---- 5. Missing app file + no binary ID + not web ----
+
+    @Test
+    fun `upload throws CliError when no app file, no binary id, and not web flow`() {
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = androidFlowFile(),
+                appFile = null,
+                async = true,
+                projectId = "proj_1",
+            )
+        }
+
+        assertThat(error.message).contains("Missing required parameter")
+    }
+
+    // ---- 6. Workspace with no matching flows ----
+
+    @Test
+    fun `upload throws CliError when workspace flows do not match app id`() {
+        // Flow has appId=com.example.SimpleWebViewApp but we tell the server the app is "com.different.app"
+        val flowFile = createFlowFile("com.nonexistent.app")
+
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = flowFile,
+                appFile = iosApp(),
+                async = true,
+                projectId = "proj_1",
+            )
+        }
+
+        assertThat(error.message).contains("No flows in workspace match app ID")
+    }
+
+    // ---- 7. --app-binary-id not found (404) ----
+
+    @Test
+    fun `upload throws CliError when appBinaryId not found on server`() {
+        every { mockApiClient.getAppBinaryInfo("test-token", "nonexistent") } throws ApiClient.ApiException(404)
+
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = androidFlowFile(),
+                appFile = null,
+                async = true,
+                appBinaryId = "nonexistent",
+                projectId = "proj_1",
+            )
+        }
+
+        assertThat(error.message).contains("not found")
+    }
+
+    // ---- 8. --app-binary-id server error ----
+
+    @Test
+    fun `upload throws CliError when server returns error for appBinaryId`() {
+        every { mockApiClient.getAppBinaryInfo("test-token", "bin_err") } throws ApiClient.ApiException(500)
+
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = androidFlowFile(),
+                appFile = null,
+                async = true,
+                appBinaryId = "bin_err",
+                projectId = "proj_1",
+            )
+        }
+
+        assertThat(error.message).contains("Failed to fetch app binary info")
+    }
+
+    // ---- 9. --device-locale passed through ----
+
+    @Test
+    fun `upload passes device locale to api client`() {
+        stubUploadResponse(platform = "IOS")
+
+        createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = iosApp(),
+            async = true,
+            deviceLocale = "fr_FR",
+            projectId = "proj_1",
+        )
+
+        verify { mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(), repoOwner = any(),
+            repoName = any(), branch = any(), commitSha = any(),
+            pullRequestId = any(), env = any(), androidApiLevel = any(),
+            iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+            excludeTags = any(), disableNotifications = any(),
+            deviceLocale = eq("fr_FR"), progressListener = any(),
+            projectId = any(), deviceModel = any(), deviceOs = any(),
+        ) }
+    }
+
+    // ---- 10. --include-tags passed through ----
+
+    @Test
+    fun `upload passes include tags to workspace validation and api client`() {
+        stubUploadResponse(platform = "IOS")
+
+        createCloudInteractor().upload(
+            flowFile = taggedFlowDir(),
+            appFile = iosApp(),
+            async = true,
+            includeTags = listOf("smoke"),
+            projectId = "proj_1",
+        )
+
+        verify { mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(), repoOwner = any(),
+            repoName = any(), branch = any(), commitSha = any(),
+            pullRequestId = any(), env = any(), androidApiLevel = any(),
+            iOSVersion = any(), appBinaryId = any(),
+            includeTags = eq(listOf("smoke")),
+            excludeTags = any(), disableNotifications = any(),
+            deviceLocale = any(), progressListener = any(),
+            projectId = any(), deviceModel = any(), deviceOs = any(),
+        ) }
+    }
+
+    // ---- 11. Unsupported platform from server ----
+
+    @Test
+    fun `upload throws CliError when server returns unsupported platform for appBinaryId`() {
+        every { mockApiClient.getAppBinaryInfo("test-token", "bin_symbian") } returns AppBinaryInfo(
+            appBinaryId = "bin_symbian",
+            platform = "Symbian",
+            appId = "com.example.app",
+        )
+
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = androidFlowFile(),
+                appFile = null,
+                async = true,
+                appBinaryId = "bin_symbian",
+                projectId = "proj_1",
+            )
+        }
+
+        assertThat(error.message).contains("Unsupported platform")
+    }
+
+    // ---- 12. CI metadata passed through ----
+
+    @Test
+    fun `upload passes CI metadata to api client`() {
+        stubUploadResponse(platform = "IOS")
+
+        createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = iosApp(),
+            async = true,
+            repoOwner = "acme",
+            repoName = "app",
+            branch = "feature/x",
+            commitSha = "abc123",
+            pullRequestId = "42",
+            projectId = "proj_1",
+        )
+
+        verify { mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(),
+            repoOwner = eq("acme"), repoName = eq("app"),
+            branch = eq("feature/x"), commitSha = eq("abc123"),
+            pullRequestId = eq("42"),
+            env = any(), androidApiLevel = any(),
+            iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+            excludeTags = any(), disableNotifications = any(),
+            deviceLocale = any(), progressListener = any(),
+            projectId = any(), deviceModel = any(), deviceOs = any(),
+        ) }
+    }
+
+    // ---- 13. Env vars passed through ----
+
+    @Test
+    fun `upload passes env vars to api client`() {
+        stubUploadResponse(platform = "IOS")
+
+        createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = iosApp(),
+            async = true,
+            env = mapOf("API_KEY" to "secret"),
+            projectId = "proj_1",
+        )
+
+        verify { mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(), repoOwner = any(),
+            repoName = any(), branch = any(), commitSha = any(),
+            pullRequestId = any(),
+            env = eq(mapOf("API_KEY" to "secret")),
+            androidApiLevel = any(), iOSVersion = any(), appBinaryId = any(),
+            includeTags = any(), excludeTags = any(),
+            disableNotifications = any(), deviceLocale = any(),
+            progressListener = any(), projectId = any(),
+            deviceModel = any(), deviceOs = any(),
+        ) }
+    }
+
+    // ---- waitForCompletion tests (existing) ----
 
     @Test
     fun `waitForCompletion should return 0 when upload completes successfully`() {
@@ -62,7 +461,7 @@ class CloudInteractorTest {
           )
         )
         every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
-        val result = cloudInteractor.waitForCompletion(
+        val result = createCloudInteractor().waitForCompletion(
             authToken = "token",
             uploadId = "upload123",
             appId = "app123",
@@ -74,22 +473,17 @@ class CloudInteractorTest {
             projectId = "project123"
         )
 
-        // then
         assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
         verify(exactly = 1) { mockApiClient.uploadStatus("token", "upload123", "project123") }
-        
-        // Verify console output
+
         val output = outputStream.toString()
-        // Strip ANSI color codes to get clean text for comparison
         val cleanOutput = output.replace(Regex("\\u001B\\[[;\\d]*m"), "")
-        // Now we can check the complete lines as they appear
         assertThat(cleanOutput).contains("[Passed] flow1 (50ms)")
         assertThat(cleanOutput).contains("[Passed] flow2 (50ms)")
         assertThat(cleanOutput).contains("2/2 Flows Passed")
         assertThat(cleanOutput).contains("Process will exit with code 0 (SUCCESS)")
         assertThat(cleanOutput).contains("http://example.com")
 
-        // Verify each flow result appears only once
         val flow1Occurrences = cleanOutput.split("[Passed] flow1 (50ms)").size - 1
         val flow2Occurrences = cleanOutput.split("[Passed] flow2 (50ms)").size - 1
         assertThat(flow1Occurrences).isEqualTo(1)
@@ -98,7 +492,6 @@ class CloudInteractorTest {
 
     @Test
     fun `waitForCompletion should handle status changes and eventually complete`() {
-        // Create different upload statuses for different polling attempts
         val initialStatus = createUploadStatus(
             completed = false,
             status = UploadStatus.Status.RUNNING,
@@ -110,7 +503,7 @@ class CloudInteractorTest {
                 createFlowResult("flow3", FlowStatus.PENDING, 0L, null)
             )
         )
-        
+
         val intermediateStatus = createUploadStatus(
             completed = false,
             status = UploadStatus.Status.RUNNING,
@@ -122,7 +515,7 @@ class CloudInteractorTest {
                 createFlowResult("flow3", FlowStatus.RUNNING, 0L, null)
             )
         )
-        
+
         val finalStatus = createUploadStatus(
             completed = true,
             status = UploadStatus.Status.SUCCESS,
@@ -135,9 +528,8 @@ class CloudInteractorTest {
             )
         )
 
-        // Mock API to return different statuses on subsequent calls
         every { mockApiClient.uploadStatus(any(), any(), any()) } returnsMany listOf(
-            initialStatus,  
+            initialStatus,
             initialStatus,
             intermediateStatus,
             intermediateStatus,
@@ -145,7 +537,7 @@ class CloudInteractorTest {
             finalStatus
         )
 
-        val result = cloudInteractor.waitForCompletion(
+        val result = createCloudInteractor().waitForCompletion(
             authToken = "token",
             uploadId = "upload123",
             appId = "app123",
@@ -157,112 +549,25 @@ class CloudInteractorTest {
             projectId = "project123"
         )
 
-        // then
         assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
-        // The overall upload status is SUCCESS, but individual flows can fail
         verify(exactly = 6) { mockApiClient.uploadStatus("token", "upload123", "project123") }
-        
-        // Verify console output shows the progression
+
         val output = outputStream.toString()
-        // Strip ANSI color codes to get clean text for comparison
         val cleanOutput = output.replace(Regex("\\u001B\\[[;\\d]*m"), "")
-        // Should show final results
         assertThat(cleanOutput).contains("[Passed] flow1 (45ms)")
         assertThat(cleanOutput).contains("[Failed] flow2 (60ms)")
         assertThat(cleanOutput).contains("[Stopped] flow3")
         assertThat(cleanOutput).contains("1/3 Flow Failed")
         assertThat(cleanOutput).contains("Process will exit with code 1 (FAIL)")
         assertThat(cleanOutput).contains("http://example.com")
-        
-        // Verify each flow result appears only once
+
         val flow1Occurrences = cleanOutput.split("[Passed] flow1 (45ms)").size - 1
         val flow2Occurrences = cleanOutput.split("[Failed] flow2 (60ms)").size - 1
         assertThat(flow1Occurrences).isEqualTo(1)
         assertThat(flow2Occurrences).isEqualTo(1)
     }
 
-    @Test
-    fun `getAppBinaryInfo is called when appBinaryId is provided and result used for DeviceSpec`() {
-        val appBinaryId = "app123"
-        val binaryInfo = maestro.cli.api.AppBinaryInfo(
-            appBinaryId = appBinaryId,
-            platform = "Android",
-            appId = "com.example.app",
-        )
-        every { mockApiClient.getAppBinaryInfo(any(), appBinaryId) } returns binaryInfo
-        every { mockAuth.getAuthToken(any(), any()) } returns "test-token"
-        every { mockApiClient.getProjects(any()) } returns listOf(
-            maestro.cli.api.ProjectResponse(id = "proj_1", name = "My Project")
-        )
-        var capturedDeviceSpec: maestro.device.DeviceSpec? = null
-        // Register instance factory so MockK can create a dummy DeviceSpec for matcher signatures
-        val factory = object : io.mockk.MockKGateway.InstanceFactory {
-            override fun instantiate(cls: kotlin.reflect.KClass<*>): Any? {
-                if (cls == maestro.device.DeviceSpec::class) {
-                    return maestro.device.DeviceSpec.fromRequest(maestro.device.DeviceSpecRequest.Android())
-                }
-                return null
-            }
-        }
-        io.mockk.MockKGateway.implementation().instanceFactoryRegistry.registerFactory(factory)
-        every { mockApiClient.upload(
-            authToken = any(),
-            appFile = any(),
-            workspaceZip = any(),
-            uploadName = any(),
-            mappingFile = any(),
-            repoOwner = any(),
-            repoName = any(),
-            branch = any(),
-            commitSha = any(),
-            pullRequestId = any(),
-            env = any(),
-            androidApiLevel = any(),
-            iOSVersion = any(),
-            appBinaryId = any(),
-            includeTags = any(),
-            excludeTags = any(),
-            disableNotifications = any(),
-            deviceLocale = any(),
-            progressListener = any(),
-            projectId = any(),
-            deviceModel = any(),
-            deviceOs = any(),
-        ) } answers {
-            capturedDeviceSpec = args.last() as? maestro.device.DeviceSpec
-            maestro.cli.api.UploadResponse(
-                orgId = "org_1",
-                uploadId = "upload_1",
-                appId = "app_1",
-                deviceConfiguration = maestro.cli.api.DeviceConfiguration(
-                    platform = "Android",
-                    deviceName = "Pixel 6",
-                    orientation = "portrait",
-                    osVersion = "35",
-                    displayInfo = "Pixel 6",
-                    deviceLocale = "en_US"
-                ),
-                appBinaryId = appBinaryId,
-            )
-        }
-
-        val tempDir = createTempDir()
-        val flowFile = File(tempDir, "flow.yaml").also {
-            it.writeText("appId: com.example.app\n---\n- launchApp")
-        }
-
-        cloudInteractor.upload(
-            flowFile = flowFile,
-            appFile = null,
-            async = true,
-            appBinaryId = appBinaryId,
-            projectId = "proj_1",
-        )
-
-        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", appBinaryId) }
-
-        tempDir.deleteRecursively()
-    }
+    // ---- Helpers ----
 
     private fun createUploadStatus(completed: Boolean, status: UploadStatus.Status, flows: List<UploadStatus.FlowResult>, startTime: Long?, totalTime: Long?): UploadStatus {
         return UploadStatus(
