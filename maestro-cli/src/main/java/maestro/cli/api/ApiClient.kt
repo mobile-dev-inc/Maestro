@@ -251,6 +251,7 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        deviceSpec: maestro.device.DeviceSpec? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -274,6 +275,7 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        deviceSpec?.let { requestPart["deviceSpec"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -339,6 +341,7 @@ class ApiClient(
                 projectId = projectId,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                deviceSpec = deviceSpec,
             )
         }
 
