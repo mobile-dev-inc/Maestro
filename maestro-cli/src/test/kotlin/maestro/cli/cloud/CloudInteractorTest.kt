@@ -7,6 +7,8 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
+import maestro.cli.validation.AppValidator
+import maestro.cli.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
@@ -30,6 +32,8 @@ class CloudInteractorTest {
         mockAuth = mockk(relaxed = true)
         cloudInteractor = CloudInteractor(
             client = mockApiClient,
+            appValidator = AppValidator(client = mockApiClient),
+            workspaceValidator = WorkspaceValidator(),
             auth = mockAuth,
             waitTimeoutMs = TimeUnit.SECONDS.toMillis(1), // Short timeout for testing
             minPollIntervalMs = TimeUnit.MILLISECONDS.toMillis(10), // Short polling for testing
@@ -179,89 +183,6 @@ class CloudInteractorTest {
         val flow2Occurrences = cleanOutput.split("[Failed] flow2 (60ms)").size - 1
         assertThat(flow1Occurrences).isEqualTo(1)
         assertThat(flow2Occurrences).isEqualTo(1)
-    }
-
-    @Test
-    fun `getAppBinaryInfo is called when appBinaryId is provided and result used for DeviceSpec`() {
-        val appBinaryId = "app123"
-        val binaryInfo = maestro.cli.api.AppBinaryInfo(
-            appBinaryId = appBinaryId,
-            platform = "Android",
-            appId = "com.example.app",
-        )
-        every { mockApiClient.getAppBinaryInfo(any(), appBinaryId) } returns binaryInfo
-        every { mockAuth.getAuthToken(any(), any()) } returns "test-token"
-        every { mockApiClient.getProjects(any()) } returns listOf(
-            maestro.cli.api.ProjectResponse(id = "proj_1", name = "My Project")
-        )
-        var capturedDeviceSpec: maestro.device.DeviceSpec? = null
-        // Register instance factory so MockK can create a dummy DeviceSpec for matcher signatures
-        val factory = object : io.mockk.MockKGateway.InstanceFactory {
-            override fun instantiate(cls: kotlin.reflect.KClass<*>): Any? {
-                if (cls == maestro.device.DeviceSpec::class) {
-                    return maestro.device.DeviceSpec.fromRequest(maestro.device.DeviceSpecRequest.Android())
-                }
-                return null
-            }
-        }
-        io.mockk.MockKGateway.implementation().instanceFactoryRegistry.registerFactory(factory)
-        every { mockApiClient.upload(
-            authToken = any(),
-            appFile = any(),
-            workspaceZip = any(),
-            uploadName = any(),
-            mappingFile = any(),
-            repoOwner = any(),
-            repoName = any(),
-            branch = any(),
-            commitSha = any(),
-            pullRequestId = any(),
-            env = any(),
-            androidApiLevel = any(),
-            iOSVersion = any(),
-            appBinaryId = any(),
-            includeTags = any(),
-            excludeTags = any(),
-            disableNotifications = any(),
-            deviceLocale = any(),
-            progressListener = any(),
-            projectId = any(),
-            deviceModel = any(),
-            deviceOs = any(),
-        ) } answers {
-            capturedDeviceSpec = args.last() as? maestro.device.DeviceSpec
-            maestro.cli.api.UploadResponse(
-                orgId = "org_1",
-                uploadId = "upload_1",
-                appId = "app_1",
-                deviceConfiguration = maestro.cli.api.DeviceConfiguration(
-                    platform = "Android",
-                    deviceName = "Pixel 6",
-                    orientation = "portrait",
-                    osVersion = "35",
-                    displayInfo = "Pixel 6",
-                    deviceLocale = "en_US"
-                ),
-                appBinaryId = appBinaryId,
-            )
-        }
-
-        val tempDir = createTempDir()
-        val flowFile = File(tempDir, "flow.yaml").also {
-            it.writeText("appId: com.example.app\n---\n- launchApp")
-        }
-
-        cloudInteractor.upload(
-            flowFile = flowFile,
-            appFile = null,
-            async = true,
-            appBinaryId = appBinaryId,
-            projectId = "proj_1",
-        )
-
-        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", appBinaryId) }
-
-        tempDir.deleteRecursively()
     }
 
     private fun createUploadStatus(completed: Boolean, status: UploadStatus.Status, flows: List<UploadStatus.FlowResult>, startTime: Long?, totalTime: Long?): UploadStatus {

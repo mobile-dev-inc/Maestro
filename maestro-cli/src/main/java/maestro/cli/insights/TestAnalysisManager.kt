@@ -48,7 +48,11 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
             return 0;
         }
 
-        return CloudInteractor(apiClient).analyze(
+        return CloudInteractor(
+            client = apiClient,
+            appValidator = maestro.cli.validation.AppValidator(client = apiClient),
+            workspaceValidator = maestro.cli.validation.WorkspaceValidator(),
+        ).analyze(
             apiKey = apiKey,
             debugFiles = debugFiles,
             debugOutputPath = debugOutputPath
