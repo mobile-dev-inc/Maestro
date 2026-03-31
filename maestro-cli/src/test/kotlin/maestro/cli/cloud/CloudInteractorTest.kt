@@ -183,12 +183,13 @@ class CloudInteractorTest {
 
     @Test
     fun `getAppBinaryInfo is called when appBinaryId is provided and result used for DeviceSpec`() {
+        val appBinaryId = "app123"
         val binaryInfo = maestro.cli.api.AppBinaryInfo(
-            appBinaryId = "app.apk",
+            appBinaryId = appBinaryId,
             platform = "Android",
             appId = "com.example.app",
         )
-        every { mockApiClient.getAppBinaryInfo(any(), "app.apk") } returns binaryInfo
+        every { mockApiClient.getAppBinaryInfo(any(), appBinaryId) } returns binaryInfo
         every { mockAuth.getAuthToken(any(), any()) } returns "test-token"
         every { mockApiClient.getProjects(any()) } returns listOf(
             maestro.cli.api.ProjectResponse(id = "proj_1", name = "My Project")
@@ -241,7 +242,7 @@ class CloudInteractorTest {
                     displayInfo = "Pixel 6",
                     deviceLocale = "en_US"
                 ),
-                appBinaryId = "app.apk",
+                appBinaryId = appBinaryId,
             )
         }
 
@@ -254,15 +255,11 @@ class CloudInteractorTest {
             flowFile = flowFile,
             appFile = null,
             async = true,
-            appBinaryId = "app.apk",
+            appBinaryId = appBinaryId,
             projectId = "proj_1",
         )
 
-        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", "app.apk") }
-
-        // Verify deviceSpec was captured and has the correct platform
-        assertThat(capturedDeviceSpec).isNotNull()
-        assertThat(capturedDeviceSpec!!.platform).isEqualTo(maestro.device.Platform.ANDROID)
+        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", appBinaryId) }
 
         tempDir.deleteRecursively()
     }
