@@ -11,8 +11,9 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
-import maestro.cli.validation.AppValidator
-import maestro.cli.validation.WorkspaceValidator
+import maestro.cli.util.AppMetadataAnalyzer
+import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
@@ -117,12 +118,13 @@ class CloudInteractorTest {
     }
 
     private fun createCloudInteractor(
-        appValidator: AppValidator = AppValidator(client = mockApiClient),
+        webManifestProvider: (() -> File?)? = null,
     ): CloudInteractor {
         return CloudInteractor(
             client = mockApiClient,
-            appValidator = appValidator,
+            appFileValidator = { AppMetadataAnalyzer.validateAppFile(it) },
             workspaceValidator = WorkspaceValidator(),
+            webManifestProvider = webManifestProvider,
             auth = mockAuth,
             waitTimeoutMs = TimeUnit.SECONDS.toMillis(1),
             minPollIntervalMs = TimeUnit.MILLISECONDS.toMillis(10),
@@ -177,12 +179,7 @@ class CloudInteractorTest {
     fun `upload with web flow and no app file succeeds`() {
         stubUploadResponse(platform = "WEB")
 
-        val appValidator = AppValidator(
-            client = mockApiClient,
-            webManifestProvider = { webManifest() },
-        )
-
-        val result = createCloudInteractor(appValidator = appValidator).upload(
+        val result = createCloudInteractor(webManifestProvider = { webManifest() }).upload(
             flowFile = webFlowFile(),
             appFile = null,
             async = true,
