@@ -192,6 +192,8 @@ class CloudInteractor(
                         is WorkspaceValidationError.SyntaxError -> "Workspace syntax error: ${err.detail}"
                         is WorkspaceValidationError.InvalidFlowFile -> err.detail
                         WorkspaceValidationError.EmptyWorkspace -> "Workspace contains no flows."
+                        is WorkspaceValidationError.MissingLaunchApp ->
+                          "Flows ${err.flowNames.joinToString()} are missing a launchApp command. Each flow must start with a launchApp command."
                         WorkspaceValidationError.InvalidWorkspaceFile -> "Workspace is not a valid zip archive."
                         is WorkspaceValidationError.GenericError -> err.detail
                     })
