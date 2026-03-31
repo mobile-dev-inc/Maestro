@@ -27,8 +27,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadStatus
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
-import maestro.cli.validation.AppValidator
-import maestro.cli.validation.WorkspaceValidator
+import maestro.cli.util.AppMetadataAnalyzer
 import maestro.cli.web.WebInteractor
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.FileUtils.isWebFlow
@@ -202,11 +201,9 @@ class CloudCommand : Callable<Int> {
 
         return CloudInteractor(
             client = apiClient,
-            appValidator = AppValidator(
-                client = apiClient,
-                webManifestProvider = webManifestProvider,
-            ),
-            workspaceValidator = WorkspaceValidator(),
+            appFileValidator = { AppMetadataAnalyzer.validateAppFile(it) },
+            workspaceValidator = maestro.orchestra.validation.WorkspaceValidator(),
+            webManifestProvider = webManifestProvider,
             failOnTimeout = failOnTimeout,
             waitTimeoutMs = TimeUnit.MINUTES.toMillis(resultWaitTimeout.toLong())
         ).upload(

@@ -36,8 +36,11 @@ import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.promotion.PromotionStateManager
 import maestro.cli.web.WebInteractor
-import maestro.cli.validation.AppValidator
-import maestro.cli.validation.WorkspaceValidator
+import maestro.device.AppValidationResult
+import maestro.orchestra.validation.AppValidationException
+import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.WorkspaceValidationException
+import maestro.orchestra.validation.WorkspaceValidator
 import maestro.device.DeviceSpec
 import maestro.device.DeviceSpecRequest
 import maestro.utils.TemporaryDirectory
@@ -58,8 +61,9 @@ val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPE
 
 class CloudInteractor(
     private val client: ApiClient,
-    private val appValidator: AppValidator,
+    private val appFileValidator: (File) -> AppValidationResult?,
     private val workspaceValidator: WorkspaceValidator,
+    private val webManifestProvider: (() -> File?)? = null,
     private val auth: Auth = Auth(client),
     private val waitTimeoutMs: Long = TimeUnit.MINUTES.toMillis(30),
     private val minPollIntervalMs: Long = TimeUnit.SECONDS.toMillis(10),
@@ -131,7 +135,24 @@ class CloudInteractor(
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
             // Validate app and resolve platform
-            val resolvedAppValidation = appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId, authToken = authToken)
+            val appValidator = AppValidator(
+                appFileValidator = appFileValidator,
+                appBinaryInfoProvider = { binaryId ->
+                    try {
+                        val info = client.getAppBinaryInfo(authToken, binaryId)
+                        AppValidator.AppBinaryInfoResult(info.appBinaryId, info.platform, info.appId)
+                    } catch (e: ApiClient.ApiException) {
+                        if (e.statusCode == 404) throw AppValidationException.AppBinaryNotFound(binaryId)
+                        throw AppValidationException.AppBinaryFetchError(e.statusCode)
+                    }
+                },
+                webManifestProvider = webManifestProvider,
+            )
+            val resolvedAppValidation = try {
+                appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId)
+            } catch (e: AppValidationException) {
+                throw CliError(e.message ?: "App validation failed")
+            }
             val inferredPlatform = resolvedAppValidation.platform
 
             // Construct DeviceSpec from resolved platform + CLI flags
@@ -154,13 +175,17 @@ class CloudInteractor(
             }
 
             // Validate workspace against appId before uploading to catch errors early
-            workspaceValidator.validate(
-                workspace = workspaceZip.toFile(),
-                appId = resolvedAppValidation.appIdentifier,
-                env = env,
-                includeTags = includeTags,
-                excludeTags = excludeTags,
-            )
+            try {
+                workspaceValidator.validate(
+                    workspace = workspaceZip.toFile(),
+                    appId = resolvedAppValidation.appIdentifier,
+                    env = env,
+                    includeTags = includeTags,
+                    excludeTags = excludeTags,
+                )
+            } catch (e: WorkspaceValidationException) {
+                throw CliError(e.message ?: "Workspace validation failed")
+            }
 
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,

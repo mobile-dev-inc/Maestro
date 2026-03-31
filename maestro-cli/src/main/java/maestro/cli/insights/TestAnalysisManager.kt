@@ -50,8 +50,8 @@ class TestAnalysisManager(private val apiUrl: String, private val apiKey: String
 
         return CloudInteractor(
             client = apiClient,
-            appValidator = maestro.cli.validation.AppValidator(client = apiClient),
-            workspaceValidator = maestro.cli.validation.WorkspaceValidator(),
+            appFileValidator = { null },
+            workspaceValidator = maestro.orchestra.validation.WorkspaceValidator(),
         ).analyze(
             apiKey = apiKey,
             debugFiles = debugFiles,
