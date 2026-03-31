@@ -34,14 +34,12 @@ import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
-import maestro.cli.web.WebInteractor
 import maestro.cli.promotion.PromotionStateManager
-import maestro.cli.util.AppMetadataAnalyzer
-import maestro.device.AppValidationResult
+import maestro.cli.web.WebInteractor
+import maestro.cli.validation.AppValidator
+import maestro.cli.validation.WorkspaceValidator
 import maestro.device.DeviceSpec
 import maestro.device.DeviceSpecRequest
-import maestro.orchestra.workspace.WorkspaceValidationError
-import maestro.orchestra.workspace.WorkspaceValidator
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -60,6 +58,8 @@ val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPE
 
 class CloudInteractor(
     private val client: ApiClient,
+    private val appValidator: AppValidator,
+    private val workspaceValidator: WorkspaceValidator,
     private val auth: Auth = Auth(client),
     private val waitTimeoutMs: Long = TimeUnit.MINUTES.toMillis(30),
     private val minPollIntervalMs: Long = TimeUnit.SECONDS.toMillis(10),
@@ -95,7 +95,6 @@ class CloudInteractor(
         deviceModel: String? = null,
         deviceOs: String? = null,
     ): Int {
-        if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
@@ -131,29 +130,9 @@ class CloudInteractor(
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
-            // Resolve platform: from local binary analysis, or from backend when using --app-binary-id
-            val resolvedAppValidation: AppValidationResult? =
-                appFileToSend?.let { AppMetadataAnalyzer.validateAppFile(it) }
-                ?: appBinaryId?.let { binaryId ->
-                    try {
-                        val info = client.getAppBinaryInfo(authToken, binaryId)
-                        val platform = try {
-                            Platform.fromString(info.platform)
-                        } catch (e: IllegalArgumentException) {
-                            throw CliError("Unsupported platform '${info.platform}' returned by server. Please update your CLI.")
-                        }
-                        AppValidationResult(
-                            platform = platform,
-                            appIdentifier = info.appId,
-                        )
-                    } catch (e: ApiClient.ApiException) {
-                        if (e.statusCode == 404) throw CliError("App binary '$binaryId' not found. Check your --app-binary-id.")
-                        throw CliError("Failed to fetch app binary info. Status code: ${e.statusCode}")
-                    }
-                }
-
-            val inferredPlatform: Platform = resolvedAppValidation?.platform
-                ?: error("Could not determine platform. Provide --app-file or a valid --app-binary-id.")
+            // Validate app and resolve platform
+            val resolvedAppValidation = appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId, authToken = authToken)
+            val inferredPlatform = resolvedAppValidation.platform
 
             // Construct DeviceSpec from resolved platform + CLI flags
             val deviceSpec: DeviceSpec = when (inferredPlatform) {
@@ -175,30 +154,13 @@ class CloudInteractor(
             }
 
             // Validate workspace against appId before uploading to catch errors early
-            resolvedAppValidation.let { validation ->
-                val workspaceResult = WorkspaceValidator.validate(
-                    workspace = workspaceZip.toFile(),
-                    appId = validation.appIdentifier,
-                    envParameters = env,
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
-                )
-                if (workspaceResult.isErr) {
-                    throw CliError(when (val err = workspaceResult.error) {
-                        is WorkspaceValidationError.NoFlowsMatchingAppId ->
-                            "No flows in workspace match app ID '${err.appId}'. Found app IDs: ${err.foundIds.ifEmpty { setOf("none") }.joinToString()}"
-                        is WorkspaceValidationError.NameConflict ->
-                            "Duplicate flow name '${err.name}' in workspace. Each flow must have a unique name."
-                        is WorkspaceValidationError.SyntaxError -> "Workspace syntax error: ${err.detail}"
-                        is WorkspaceValidationError.InvalidFlowFile -> err.detail
-                        WorkspaceValidationError.EmptyWorkspace -> "Workspace contains no flows."
-                        is WorkspaceValidationError.MissingLaunchApp ->
-                          "Flows ${err.flowNames.joinToString()} are missing a launchApp command. Each flow must start with a launchApp command."
-                        WorkspaceValidationError.InvalidWorkspaceFile -> "Workspace is not a valid zip archive."
-                        is WorkspaceValidationError.GenericError -> err.detail
-                    })
-                }
-            }
+            workspaceValidator.validate(
+                workspace = workspaceZip.toFile(),
+                appId = resolvedAppValidation.appIdentifier,
+                env = env,
+                includeTags = includeTags,
+                excludeTags = excludeTags,
+            )
 
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,

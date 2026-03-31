@@ -5,7 +5,7 @@ import com.dd.plist.PropertyListParser
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.device.AppValidationResult
-import maestro.device.AppValidator
+import maestro.device.Platform
 import net.dongliu.apk.parser.ApkFile
 import java.io.File
 import java.io.IOException
@@ -15,9 +15,21 @@ import java.util.zip.ZipFile
 object AppMetadataAnalyzer {
 
     fun validateAppFile(file: File): AppValidationResult? {
-        getWebMetadata(file)?.let { return AppValidator.fromWebMetadata(it.url) }
-        getIosAppMetadata(file)?.let { return AppValidator.fromIosMetadata(it.bundleId, it.platformName, it.minimumOSVersion) }
-        getAndroidAppMetadata(file)?.let { return AppValidator.fromAndroidMetadata(it.packageId, it.supportedArchitectures) }
+        getWebMetadata(file)?.let {
+            return AppValidationResult(Platform.WEB, it.url)
+        }
+        getIosAppMetadata(file)?.let {
+            require(it.platformName == "iphonesimulator") {
+                "App build target '${it.platformName}' not supported, set build target to 'iphonesimulator'"
+            }
+            return AppValidationResult(Platform.IOS, it.bundleId)
+        }
+        getAndroidAppMetadata(file)?.let {
+            require(it.supportedArchitectures.isEmpty() || "arm64-v8a" in it.supportedArchitectures) {
+                "APK does not support arm64-v8a architecture. Found: ${it.supportedArchitectures}"
+            }
+            return AppValidationResult(Platform.ANDROID, it.packageId)
+        }
         return null
     }
 

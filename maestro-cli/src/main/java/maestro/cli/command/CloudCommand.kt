@@ -27,6 +27,9 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadStatus
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
+import maestro.cli.validation.AppValidator
+import maestro.cli.validation.WorkspaceValidator
+import maestro.cli.web.WebInteractor
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
@@ -192,8 +195,18 @@ class CloudCommand : Callable<Int> {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowsFile)
 
+        val apiClient = ApiClient(apiUrl)
+        val webManifestProvider = if (flowsFile.isWebFlow()) {
+            { WebInteractor.createManifestFromWorkspace(flowsFile) }
+        } else null
+
         return CloudInteractor(
-            client = ApiClient(apiUrl),
+            client = apiClient,
+            appValidator = AppValidator(
+                client = apiClient,
+                webManifestProvider = webManifestProvider,
+            ),
+            workspaceValidator = WorkspaceValidator(),
             failOnTimeout = failOnTimeout,
             waitTimeoutMs = TimeUnit.MINUTES.toMillis(resultWaitTimeout.toLong())
         ).upload(

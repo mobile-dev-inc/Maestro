@@ -3,6 +3,7 @@ package maestro.cli.util
 import com.google.common.truth.Truth.assertThat
 import maestro.device.Platform
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.util.zip.ZipEntry
@@ -117,6 +118,19 @@ class AppMetadataAnalyzerTest {
     @Test
     fun `getWebMetadata returns null for non-JSON file`() {
         assertThat(AppMetadataAnalyzer.getWebMetadata(makeUnknownFile())).isNull()
+    }
+
+    @Test
+    fun `validateAppFile rejects iOS app with iphoneos platform name`() {
+        val zip = File(tempDir, "device.ipa")
+        ZipOutputStream(zip.outputStream()).use { zos ->
+            zos.putNextEntry(ZipEntry("Payload/App.app/Info.plist"))
+            zos.write(iosPlistXml(platformName = "iphoneos"))
+            zos.closeEntry()
+        }
+        assertThrows<IllegalArgumentException> {
+            AppMetadataAnalyzer.validateAppFile(zip)
+        }
     }
 
     @Test
