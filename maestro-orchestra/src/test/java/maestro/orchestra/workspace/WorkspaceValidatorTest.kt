@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import java.nio.file.Paths
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -13,8 +12,9 @@ class WorkspaceValidatorTest {
     @TempDir
     lateinit var tempDir: File
 
-    private val baseFlowContent = Paths.get("src/test/resources/workspaces/workspace_validator_flow.yaml")
-        .toFile().readText()
+    private val baseFlowContent = WorkspaceValidatorTest::class.java
+        .getResource("/workspaces/workspace_validator_flow.yaml")!!
+        .readText()
 
     private fun makeWorkspaceZip(vararg entries: Pair<String, String>): File {
         val zip = File(tempDir, "workspace_${System.nanoTime()}.zip")
