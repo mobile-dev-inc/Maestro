@@ -131,11 +131,9 @@ class CloudInteractor(
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
-            // Infer platform and validate app binary
-            val appValidation: AppValidationResult? = appFileToSend?.let { AppMetadataAnalyzer.validateAppFile(it) }
-
             // Resolve platform: from local binary analysis, or from backend when using --app-binary-id
-            val resolvedAppValidation: AppValidationResult? = appValidation
+            val resolvedAppValidation: AppValidationResult? =
+                appFileToSend?.let { AppMetadataAnalyzer.validateAppFile(it) }
                 ?: appBinaryId?.let { binaryId ->
                     try {
                         val info = client.getAppBinaryInfo(authToken, binaryId)
