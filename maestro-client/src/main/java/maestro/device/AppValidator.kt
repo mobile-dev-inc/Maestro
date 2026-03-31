@@ -29,14 +29,11 @@ object AppValidator {
      */
     fun fromIosMetadata(
         bundleId: String,
-        platformName: String?,
-        minimumOSVersion: String?,
+        platformName: String,
+        minimumOSVersion: String,
     ): AppValidationResult {
         require(platformName == "iphonesimulator") {
             "App build target '${platformName}' not supported, set build target to 'iphonesimulator'"
-        }
-        require(minimumOSVersion != null) {
-            "App minimum deployment target version is not set"
         }
         return AppValidationResult(Platform.IOS, bundleId)
     }

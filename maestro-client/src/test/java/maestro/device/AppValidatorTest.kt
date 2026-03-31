@@ -61,25 +61,4 @@ class AppValidatorTest {
         }
     }
 
-    @Test
-    fun `ios validation rejects null platform name`() {
-        assertThrows<IllegalArgumentException> {
-            AppValidator.fromIosMetadata(
-                bundleId = "com.example.app",
-                platformName = null,
-                minimumOSVersion = "16.0",
-            )
-        }
-    }
-
-    @Test
-    fun `ios validation rejects null minimum OS version`() {
-        assertThrows<IllegalArgumentException> {
-            AppValidator.fromIosMetadata(
-                bundleId = "com.example.app",
-                platformName = "iphonesimulator",
-                minimumOSVersion = null,
-            )
-        }
-    }
 }
