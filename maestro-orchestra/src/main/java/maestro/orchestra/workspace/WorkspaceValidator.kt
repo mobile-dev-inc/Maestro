@@ -5,6 +5,8 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
+import maestro.js.GraalJsEngine
+import maestro.js.RhinoJsEngine
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError as OrchestraSyntaxError
 import maestro.orchestra.error.ValidationError
@@ -37,6 +39,8 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
     data class NameConflict(val name: String) : WorkspaceValidationError("Duplicate flow name: $name")
     data class SyntaxError(val detail: String) : WorkspaceValidationError("Syntax error: $detail")
     data class InvalidFlowFile(val detail: String) : WorkspaceValidationError(detail)
+    data class MissingLaunchApp(val flowNames: List<String>) :
+        WorkspaceValidationError("Flows missing launchApp: ${flowNames.joinToString(", ")}")
     data class GenericError(val detail: String) : WorkspaceValidationError(detail)
 }
 
@@ -78,7 +82,20 @@ object WorkspaceValidator {
                     } catch (e: InvalidFlowFile) {
                         throw OrchestraSyntaxError("Invalid flow file: ${e.message}")
                     }
-                    val config = YamlCommandReader.getConfig(commands)
+                    val applyConfigurationCommand = commands
+                        .find { it.applyConfigurationCommand != null }
+                        ?.applyConfigurationCommand
+                    val isRhinoExplicitlyRequested = applyConfigurationCommand?.config?.ext?.get("jsEngine") == "rhino"
+                    val jsEngine = if (isRhinoExplicitlyRequested) {
+                        RhinoJsEngine()
+                    } else {
+                        GraalJsEngine()
+                    }.also { engine ->
+                        envParameters.forEach { (key, value) -> engine.putEnv(key, value) }
+                    }
+                    val config = applyConfigurationCommand
+                        ?.evaluateScripts(jsEngine)
+                        ?.config
                     val flowName = config?.name ?: path.name.removeSuffix(".yaml")
                     allFlows.add(ValidatedFlow(path.toString(), flowName, commands, config?.appId))
                 }
@@ -90,6 +107,21 @@ object WorkspaceValidator {
             if (matching.isEmpty()) {
                 val found = allFlows.mapNotNull { it.appId }.toSet()
                 return Err(WorkspaceValidationError.NoFlowsMatchingAppId(appId, found))
+            }
+
+            // Validate that all flows contain at least one launchApp command
+            // or are referenced as a subflow by another flow
+            val flowsMissingLaunchApp = matching.filter { flow ->
+                flow.commands.none { it.launchAppCommand != null } &&
+                        matching.none { other ->
+                            other.commands.any { command ->
+                                command.runFlowCommand?.sourceDescription
+                                    ?.contains(flow.filePath.split("/").last()) ?: false
+                            }
+                        }
+            }.map { it.name }
+            if (flowsMissingLaunchApp.isNotEmpty()) {
+                return Err(WorkspaceValidationError.MissingLaunchApp(flowsMissingLaunchApp))
             }
 
             matching.groupBy { it.name }.entries.find { (_, v) -> v.size > 1 }?.let { (name, _) ->

@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.nio.file.Paths
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -12,37 +13,31 @@ class WorkspaceValidatorTest {
     @TempDir
     lateinit var tempDir: File
 
-    private fun makeWorkspaceZip(vararg flows: Pair<String, String>, configYaml: String? = null): File {
+    private val baseFlowContent = Paths.get("src/test/resources/workspaces/workspace_validator_flow.yaml")
+        .toFile().readText()
+
+    private fun makeWorkspaceZip(vararg entries: Pair<String, String>): File {
         val zip = File(tempDir, "workspace_${System.nanoTime()}.zip")
         ZipOutputStream(zip.outputStream()).use { zos ->
-            if (configYaml != null) {
-                zos.putNextEntry(ZipEntry("config.yaml"))
-                zos.write(configYaml.toByteArray())
-                zos.closeEntry()
-            }
-            flows.forEach { (filename, yaml) ->
-                zos.putNextEntry(ZipEntry(filename))
-                zos.write(yaml.toByteArray())
+            entries.forEach { (name, content) ->
+                zos.putNextEntry(ZipEntry(name))
+                zos.write(content.toByteArray())
                 zos.closeEntry()
             }
         }
         return zip
     }
 
-    private fun flow(appId: String, name: String? = null): String {
-        val header = buildString {
-            append("appId: $appId\n")
-            if (name != null) append("name: $name\n")
-        }
-        return "$header---\n- launchApp"
+    private fun flowWithName(name: String): String {
+        return baseFlowContent.replace("appId:", "name: $name\nappId:")
     }
 
     @Test
     fun `validate returns workspaceConfig and matching flows for appId`() {
         val result = WorkspaceValidator.validate(
-            workspace = makeWorkspaceZip("flow.yaml" to flow("com.example.app")),
+            workspace = makeWorkspaceZip("flow.yaml" to baseFlowContent),
             appId = "com.example.app",
-            envParameters = emptyMap(),
+            envParameters = mapOf("APP_ID" to "com.example.app"),
             includeTags = emptyList(),
             excludeTags = emptyList(),
         )
@@ -55,26 +50,25 @@ class WorkspaceValidatorTest {
     fun `validate only returns flows matching the given appId`() {
         val result = WorkspaceValidator.validate(
             workspace = makeWorkspaceZip(
-                "flow_a.yaml" to flow("com.example.app"),
-                "flow_b.yaml" to flow("com.other.app"),
+                "flow_a.yaml" to baseFlowContent,
+                "flow_b.yaml" to baseFlowContent,
             ),
             appId = "com.example.app",
-            envParameters = emptyMap(),
+            envParameters = mapOf("APP_ID" to "com.example.app"),
             includeTags = emptyList(),
             excludeTags = emptyList(),
         )
 
         assertThat(result.isOk).isTrue()
-        assertThat(result.value.flows).hasSize(1)
-        assertThat(result.value.flows.first().appId).isEqualTo("com.example.app")
+        assertThat(result.value.flows).hasSize(2)
     }
 
     @Test
     fun `validate returns NoFlowsMatchingAppId when no flows match`() {
         val result = WorkspaceValidator.validate(
-            workspace = makeWorkspaceZip("flow.yaml" to flow("com.other.app")),
-            appId = "com.example.app",
-            envParameters = emptyMap(),
+            workspace = makeWorkspaceZip("flow.yaml" to baseFlowContent),
+            appId = "com.nonexistent.app",
+            envParameters = mapOf("APP_ID" to "com.example.app"),
             includeTags = emptyList(),
             excludeTags = emptyList(),
         )
@@ -87,11 +81,11 @@ class WorkspaceValidatorTest {
     fun `validate returns NameConflict when two matching flows have the same name`() {
         val result = WorkspaceValidator.validate(
             workspace = makeWorkspaceZip(
-                "flow_a.yaml" to flow("com.example.app", name = "Login"),
-                "flow_b.yaml" to flow("com.example.app", name = "Login"),
+                "flow_a.yaml" to flowWithName("Login"),
+                "flow_b.yaml" to flowWithName("Login"),
             ),
             appId = "com.example.app",
-            envParameters = emptyMap(),
+            envParameters = mapOf("APP_ID" to "com.example.app"),
             includeTags = emptyList(),
             excludeTags = emptyList(),
         )
@@ -117,16 +111,32 @@ class WorkspaceValidatorTest {
     }
 
     @Test
-    fun `validate returns EmptyWorkspace when zip has no yaml flows`() {
-        val emptyZip = File(tempDir, "empty.zip")
-        ZipOutputStream(emptyZip.outputStream()).use { zos ->
-            zos.putNextEntry(ZipEntry("README.txt"))
-            zos.write("nothing here".toByteArray())
-            zos.closeEntry()
-        }
+    fun `validate resolves env variables with rhino engine when explicitly requested`() {
+        val rhinoFlow = """
+            appId: ${'$'}{APP_ID}
+            ext:
+              jsEngine: rhino
+            ---
+            - launchApp
+        """.trimIndent()
 
         val result = WorkspaceValidator.validate(
-            workspace = emptyZip,
+            workspace = makeWorkspaceZip("flow.yaml" to rhinoFlow),
+            appId = "com.example.app",
+            envParameters = mapOf("APP_ID" to "com.example.app"),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows).hasSize(1)
+        assertThat(result.value.flows.first().appId).isEqualTo("com.example.app")
+    }
+
+    @Test
+    fun `validate returns EmptyWorkspace when zip has no yaml flows`() {
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("README.txt" to "nothing here"),
             appId = "com.example.app",
             envParameters = emptyMap(),
             includeTags = emptyList(),
@@ -135,5 +145,27 @@ class WorkspaceValidatorTest {
 
         assertThat(result.isErr).isTrue()
         assertThat(result.error).isInstanceOf(WorkspaceValidationError.EmptyWorkspace::class.java)
+    }
+
+    @Test
+    fun `validate returns MissingLaunchApp when flow has no launchApp command`() {
+        val flowWithoutLaunch = """
+            appId: com.example.app
+            ---
+            - tapOn: "some button"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("flow.yaml" to flowWithoutLaunch),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error).isInstanceOf(WorkspaceValidationError.MissingLaunchApp::class.java)
+        val error = result.error as WorkspaceValidationError.MissingLaunchApp
+        assertThat(error.flowNames).containsExactly("flow")
     }
 }
