@@ -227,7 +227,6 @@ class CloudInteractorTest {
             projectId = any(),
             deviceModel = any(),
             deviceOs = any(),
-            deviceSpec = any(),
         ) } answers {
             capturedDeviceSpec = args.last() as? maestro.device.DeviceSpec
             maestro.cli.api.UploadResponse(
