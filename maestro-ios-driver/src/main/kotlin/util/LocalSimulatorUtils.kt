@@ -664,6 +664,16 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                 .redirectInput(PIPE)
                 .start()
 
+            if (!recordingProcess.isAlive) {
+                val stderr = recordingProcess.errorStream.bufferedReader().readText()
+                val stdout = recordingProcess.inputStream.bufferedReader().readText()
+                throw SimctlError(
+                    "Screen recording failed to start. " +
+                            "Exit code: ${recordingProcess.exitValue()}, " +
+                            "stderr: $stderr, stdout: $stdout"
+                )
+            }
+
             return ScreenRecording(
                 recordingProcess,
                 recording
