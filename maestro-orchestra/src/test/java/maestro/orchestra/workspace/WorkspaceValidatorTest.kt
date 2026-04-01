@@ -168,4 +168,151 @@ class WorkspaceValidatorTest {
         val error = result.error as WorkspaceValidationError.MissingLaunchApp
         assertThat(error.flowNames).containsExactly("flow")
     }
+
+    @Test
+    fun `validate returns MissingLaunchApp when root flow has no launchApp and is not referenced as subflow`() {
+        val flowWithLaunch = """
+            appId: com.example.app
+            ---
+            - launchApp
+        """.trimIndent()
+
+        val flowWithoutLaunch = """
+            appId: com.example.app
+            ---
+            - tapOn: "some button"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip(
+                "flow_a.yaml" to flowWithLaunch,
+                "flow_b.yaml" to flowWithoutLaunch,
+            ),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error).isInstanceOf(WorkspaceValidationError.MissingLaunchApp::class.java)
+        val error = result.error as WorkspaceValidationError.MissingLaunchApp
+        assertThat(error.flowNames).containsExactly("flow_b")
+    }
+
+    @Test
+    fun `validate accepts flow when runFlow references subflow containing launchApp`() {
+        val launchFlow = """
+            appId: com.example.app
+            ---
+            - launchApp
+        """.trimIndent()
+
+        val mainFlow = """
+            appId: com.example.app
+            ---
+            - runFlow:
+                file: launch.yaml
+            - tapOn: "some button"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip(
+                "main_flow.yaml" to mainFlow,
+                "launch.yaml" to launchFlow,
+            ),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows).hasSize(2)
+    }
+
+    @Test
+    fun `validate accepts flow when onFlowStart hook contains launchApp`() {
+        val flowWithOnFlowStartLaunch = """
+            appId: com.example.app
+            onFlowStart:
+              - launchApp
+            ---
+            - tapOn: "some button"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("flow.yaml" to flowWithOnFlowStartLaunch),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows).hasSize(1)
+    }
+
+    @Test
+    fun `validate accepts flow when onFlowStart hook has runFlow referencing subflow with launchApp`() {
+        val launchFlow = """
+            appId: com.example.app
+            ---
+            - launchApp
+        """.trimIndent()
+
+        val mainFlow = """
+            appId: com.example.app
+            onFlowStart:
+              - runFlow:
+                  file: launch.yaml
+            ---
+            - tapOn: "some button"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip(
+                "main_flow.yaml" to mainFlow,
+                "launch.yaml" to launchFlow,
+            ),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows).hasSize(2)
+    }
+
+    @Test
+    fun `validate accepts flow when retry references subflow containing launchApp`() {
+        val launchFlow = """
+            appId: com.example.app
+            ---
+            - launchApp
+        """.trimIndent()
+
+        val mainFlow = """
+            appId: com.example.app
+            ---
+            - retry:
+                file: launch.yaml
+            - tapOn: "some button"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip(
+                "main_flow.yaml" to mainFlow,
+                "launch.yaml" to launchFlow,
+            ),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows).hasSize(2)
+    }
 }

@@ -3,6 +3,7 @@ package maestro.orchestra.workspace
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
 import maestro.js.GraalJsEngine
@@ -110,9 +111,10 @@ object WorkspaceValidator {
             }
 
             // Validate that all flows contain at least one launchApp command
+            // (including inside onFlowStart hooks and composite commands like runFlow/retry)
             // or are referenced as a subflow by another flow
             val flowsMissingLaunchApp = matching.filter { flow ->
-                flow.commands.none { it.launchAppCommand != null } &&
+                flatten(flow.commands).none { it.launchAppCommand != null } &&
                         matching.none { other ->
                             other.commands.any { command ->
                                 command.runFlowCommand?.sourceDescription
@@ -145,5 +147,23 @@ object WorkspaceValidator {
                 Err(WorkspaceValidationError.GenericError(e.message ?: ""))
             }
         }
+    }
+
+    private fun flatten(commands: List<MaestroCommand>): List<MaestroCommand> {
+        val result = mutableListOf<MaestroCommand>()
+
+        val flowStartCommands = YamlCommandReader.getConfig(commands)?.onFlowStart?.commands
+            ?: emptyList()
+
+        (commands + flowStartCommands).forEach {
+            val command = it.asCommand()
+            if (command is CompositeCommand) {
+                result.addAll(flatten(command.subCommands()))
+            } else {
+                result.add(it)
+            }
+        }
+
+        return result
     }
 }
