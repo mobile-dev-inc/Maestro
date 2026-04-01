@@ -35,6 +35,7 @@ import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.promotion.PromotionStateManager
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.cli.web.WebInteractor
 import maestro.device.AppValidationResult
 import maestro.orchestra.validation.AppValidationException
@@ -147,6 +148,11 @@ class CloudInteractor(
                     }
                 },
                 webManifestProvider = webManifestProvider,
+                iosMinOSVersionProvider = { file ->
+                    val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
+                    val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
+                    AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
+                },
             )
             val resolvedAppValidation = try {
                 appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId)
@@ -172,6 +178,26 @@ class CloudInteractor(
                     os = deviceOs,
                     locale = deviceLocale,
                 ))
+            }
+
+            // Fetch supported devices and validate device spec
+            val supportedDevices = try {
+                client.listCloudDevices()
+            } catch (e: ApiClient.ApiException) {
+                throw CliError("Failed to fetch supported devices. Status code: ${e.statusCode}")
+            }
+
+            val validatedDeviceSpec = try {
+                DeviceSpecValidator.validate(deviceSpec, supportedDevices)
+            } catch (e: DeviceSpecValidator.InvalidDeviceConfiguration) {
+                throw CliError(e.message ?: "Invalid device configuration")
+            }
+
+            // Validate app-device compatibility
+            try {
+                appValidator.validateDeviceCompatibility(appFileToSend, validatedDeviceSpec)
+            } catch (e: AppValidationException) {
+                throw CliError(e.message ?: "App-device compatibility check failed")
             }
 
             // Validate workspace against appId before uploading to catch errors early

@@ -1,13 +1,13 @@
-package maestro.cli.util
+package maestro.orchestra.util
 
 import com.google.common.truth.Truth.assertThat
 import maestro.device.Platform
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 class AppMetadataAnalyzerTest {
@@ -129,7 +129,7 @@ class AppMetadataAnalyzerTest {
             zos.closeEntry()
         }
         assertThrows<IllegalArgumentException> {
-            AppMetadataAnalyzer.validateAppFile(zip)
+          AppMetadataAnalyzer.validateAppFile(zip)
         }
     }
 

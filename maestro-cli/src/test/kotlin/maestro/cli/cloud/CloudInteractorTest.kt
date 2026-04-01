@@ -11,8 +11,7 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
-import maestro.cli.util.AppMetadataAnalyzer
-import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -42,6 +41,14 @@ class CloudInteractorTest {
         every { mockAuth.getAuthToken(any(), any()) } returns "test-token"
         every { mockApiClient.getProjects(any()) } returns listOf(
             maestro.cli.api.ProjectResponse(id = "proj_1", name = "Test Project")
+        )
+        every { mockApiClient.listCloudDevices() } returns mapOf(
+            "android" to mapOf("pixel_6" to listOf("android-34", "android-33", "android-31", "android-30", "android-29")),
+            "ios" to mapOf(
+                "iPhone-11" to listOf("iOS-16-2", "iOS-17-5", "iOS-18-2"),
+                "iPhone-14" to listOf("iOS-16-2", "iOS-17-5", "iOS-18-2"),
+            ),
+            "web" to mapOf("chromium" to listOf("default")),
         )
 
         // Capture console output
@@ -444,6 +451,59 @@ class CloudInteractorTest {
             progressListener = any(), projectId = any(),
             deviceModel = any(), deviceOs = any(),
         ) }
+    }
+
+    // ---- 14. Device model not supported ----
+
+    @Test
+    fun `upload throws CliError when device model is not supported`() {
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = iosFlowFile(),
+                appFile = iosApp(),
+                async = true,
+                projectId = "proj_1",
+                deviceModel = "galaxy_s21",
+            )
+        }
+
+        assertThat(error.message).contains("not supported")
+        assertThat(error.message).contains("galaxy_s21")
+    }
+
+    // ---- 15. OS version not supported for device ----
+
+    @Test
+    fun `upload throws CliError when OS version is not supported for device`() {
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = iosFlowFile(),
+                appFile = iosApp(),
+                async = true,
+                projectId = "proj_1",
+                deviceOs = "iOS-15-0",
+            )
+        }
+
+        assertThat(error.message).contains("not supported")
+    }
+
+    // ---- 16. Valid device config and compatible app succeeds ----
+
+    @Test
+    fun `upload with valid device config and compatible app succeeds`() {
+        stubUploadResponse(platform = "IOS")
+
+        val result = createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = iosApp(),
+            async = true,
+            projectId = "proj_1",
+            deviceModel = "iPhone-14",
+            deviceOs = "iOS-18-2",
+        )
+
+        assertThat(result).isEqualTo(0)
     }
 
     // ---- waitForCompletion tests (existing) ----
