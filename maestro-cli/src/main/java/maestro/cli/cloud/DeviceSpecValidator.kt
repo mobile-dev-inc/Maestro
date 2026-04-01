@@ -75,20 +75,11 @@ object DeviceSpecValidator {
     /**
      * Android resolution:
      * - Exact match
-     * - Bare number "34" → "android-34"
+     * - Bare number "34" → "android-34" (deprecated)
      */
     private fun resolveAndroidOs(os: String, available: List<String>): String {
-        // 1. Exact match
         available.firstOrNull { it == os }?.let { return it }
-
-        // 2. Shorthand: bare integer → "android-<N>" (deprecated format)
-        if (os.toIntOrNull() != null) {
-            val candidate = "android-$os"
-            available.firstOrNull { it == candidate }?.let {
-                PrintUtils.warn("Numeric OS format '$os' is deprecated. Use the full format instead. Available: ${available.joinToString(", ")}")
-                return it
-            }
-        }
+        resolveDeprecatedBareIntegerAndroid(os, available)?.let { return it }
 
         throw InvalidDeviceConfiguration(
             "Android OS '$os' is not supported. Available: $available"
@@ -96,31 +87,51 @@ object DeviceSpecValidator {
     }
 
     /**
-     * iOS resolution (mirrors backend regex `(iOS|tvOS|watchOS)-$os-.*`):
+     * iOS resolution:
      * - Exact match
-     * - Bare major version "18" → first entry matching `(iOS|tvOS|watchOS)-18-.*`
+     * - Bare major version "18" → first entry matching `iOS-18-.*` (deprecated)
      * - Prefix without minor "iOS-17" → first entry starting with "iOS-17-"
      */
     private fun resolveIosOs(os: String, available: List<String>): String {
-        // 1. Exact match
         available.firstOrNull { it == os }?.let { return it }
+        resolveDeprecatedBareIntegerIos(os, available)?.let { return it }
 
-        // 2. Bare integer major version – matches first "(iOS|tvOS|watchOS)-<N>-*" (deprecated format)
-        if (os.toIntOrNull() != null) {
-            val regex = Regex("^(iOS|tvOS|watchOS)-$os-.*")
-            available.firstOrNull { regex.matches(it) }?.let {
-                PrintUtils.warn("Numeric OS format '$os' is deprecated. Use the full format instead. Available: ${available.joinToString(", ")}")
-                return it
-            }
-        }
-
-        // 3. Prefix without minor version "iOS-17" → "iOS-17-*"
+        // Prefix without minor version "iOS-17" → "iOS-17-*"
         val prefix = "$os-"
         available.firstOrNull { it.startsWith(prefix) }?.let { return it }
 
         throw InvalidDeviceConfiguration(
             "iOS OS '$os' is not supported for this model. Available: $available"
         )
+    }
+
+    // ---- Deprecated bare integer OS resolution ----
+    // TODO: Remove these once all CLI users have migrated to full OS format (e.g. "android-34", "iOS-18-2").
+
+    /**
+     * Resolves bare integer Android OS format: "34" → "android-34".
+     * @deprecated Use full format "android-34" instead of bare integer "34".
+     */
+    @Deprecated("Bare integer OS format will be removed in a future release. Use full format e.g. 'android-34'.")
+    private fun resolveDeprecatedBareIntegerAndroid(os: String, available: List<String>): String? {
+        if (os.toIntOrNull() == null) return null
+        val candidate = "android-$os"
+        return available.firstOrNull { it == candidate }?.also {
+            PrintUtils.warn("Numeric OS format '$os' is deprecated. Use the full format instead. Available: ${available.joinToString(", ")}")
+        }
+    }
+
+    /**
+     * Resolves bare integer iOS OS format: "18" → first entry matching `iOS-18-.*`.
+     * @deprecated Use full format "iOS-18-2" instead of bare integer "18".
+     */
+    @Deprecated("Bare integer OS format will be removed in a future release. Use full format e.g. 'iOS-18-2'.")
+    private fun resolveDeprecatedBareIntegerIos(os: String, available: List<String>): String? {
+        if (os.toIntOrNull() == null) return null
+        val regex = Regex("^iOS-$os-.*")
+        return available.firstOrNull { regex.matches(it) }?.also {
+            PrintUtils.warn("Numeric OS format '$os' is deprecated. Use the full format instead. Available: ${available.joinToString(", ")}")
+        }
     }
 
     /** Web (and any unknown platform): exact match only. */
