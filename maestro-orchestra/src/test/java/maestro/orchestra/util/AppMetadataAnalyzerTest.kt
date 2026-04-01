@@ -2,6 +2,7 @@ package maestro.orchestra.util
 
 import com.google.common.truth.Truth.assertThat
 import maestro.device.Platform
+import maestro.orchestra.validation.AppMetadata
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -21,6 +22,8 @@ class AppMetadataAnalyzerTest {
         platformName: String = "iphonesimulator",
         minimumOSVersion: String = "16.0",
         bundleName: String = "ExampleApp",
+        appVersion: String = "1.0.0",
+        bundleVersion: String = "42",
     ) = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -29,6 +32,8 @@ class AppMetadataAnalyzerTest {
     <key>CFBundleName</key><string>$bundleName</string>
     <key>DTPlatformName</key><string>$platformName</string>
     <key>MinimumOSVersion</key><string>$minimumOSVersion</string>
+    <key>CFBundleShortVersionString</key><string>$appVersion</string>
+    <key>CFBundleVersion</key><string>$bundleVersion</string>
 </dict>
 </plist>""".toByteArray()
 
@@ -53,7 +58,7 @@ class AppMetadataAnalyzerTest {
     // ---- validateAppFile ----
 
     @Test
-    fun `validateAppFile returns AppValidationResult for iOS zip`() {
+    fun `validateAppFile returns AppMetadata for iOS zip`() {
         val result = AppMetadataAnalyzer.validateAppFile(makeIosZip())
         assertThat(result).isNotNull()
         assertThat(result!!.platform).isEqualTo(Platform.IOS)
@@ -61,7 +66,7 @@ class AppMetadataAnalyzerTest {
     }
 
     @Test
-    fun `validateAppFile returns AppValidationResult for web JSON`() {
+    fun `validateAppFile returns AppMetadata for web JSON`() {
         val result = AppMetadataAnalyzer.validateAppFile(makeWebJson())
         assertThat(result).isNotNull()
         assertThat(result!!.platform).isEqualTo(Platform.WEB)
@@ -83,6 +88,8 @@ class AppMetadataAnalyzerTest {
         assertThat(result!!.bundleId).isEqualTo("com.example.app")
         assertThat(result.platformName).isEqualTo("iphonesimulator")
         assertThat(result.minimumOSVersion).isEqualTo("16.0")
+        assertThat(result.appVersion).isEqualTo("1.0.0")
+        assertThat(result.bundleVersion).isEqualTo("42")
     }
 
     @Test
@@ -105,6 +112,41 @@ class AppMetadataAnalyzerTest {
     @Test
     fun `getIosAppMetadata returns null for non-zip file`() {
         assertThat(AppMetadataAnalyzer.getIosAppMetadata(makeUnknownFile())).isNull()
+    }
+
+    @Test
+    fun `getIosAppMetadata populates AppMetadata base fields correctly`() {
+        val result = AppMetadataAnalyzer.getIosAppMetadata(makeIosZip())
+
+        assertThat(result).isNotNull()
+        assertThat(result!!.appIdentifier).isEqualTo("com.example.app")
+        assertThat(result.version).isEqualTo("1.0.0")
+        assertThat(result.internalVersion).isEqualTo("42")
+    }
+
+    @Test
+    fun `getIosAppMetadata defaults appVersion and bundleVersion to empty when missing`() {
+        val plistWithoutVersions = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>com.example.app</string>
+    <key>CFBundleName</key><string>ExampleApp</string>
+    <key>DTPlatformName</key><string>iphonesimulator</string>
+    <key>MinimumOSVersion</key><string>16.0</string>
+</dict>
+</plist>""".toByteArray()
+
+        val zip = File(tempDir, "no_versions.ipa")
+        java.util.zip.ZipOutputStream(zip.outputStream()).use { zos ->
+            zos.putNextEntry(java.util.zip.ZipEntry("Payload/App.app/Info.plist"))
+            zos.write(plistWithoutVersions)
+            zos.closeEntry()
+        }
+        val result = AppMetadataAnalyzer.getIosAppMetadata(zip)
+        assertThat(result).isNotNull()
+        assertThat(result!!.appVersion).isEqualTo("")
+        assertThat(result.bundleVersion).isEqualTo("")
     }
 
     // ---- getWebMetadata ----
