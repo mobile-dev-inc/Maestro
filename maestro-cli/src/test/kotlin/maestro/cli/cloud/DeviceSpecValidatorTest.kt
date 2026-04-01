@@ -39,11 +39,14 @@ class DeviceSpecValidatorTest {
     }
 
     @Test
-    fun `resolves model with underscore-to-hyphen fallback`() {
-        // "pixel_6" in supported devices, but user passes "pixel-6"
-        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Android(model = "pixel-6", os = "android-34"))
-        val result = DeviceSpecValidator.validate(spec, supportedDevices)
-        assertThat(result.model).isEqualTo("pixel_6")
+    fun `does not resolve model with underscore-to-hyphen conversion`() {
+        // "iPhone_16_Pro" should NOT match "iPhone-16-Pro" — must use exact format
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Ios(model = "iPhone_16_Pro", os = "iOS-18-2"))
+        val error = assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
+            DeviceSpecValidator.validate(spec, supportedDevices)
+        }
+        assertThat(error.message).contains("iPhone_16_Pro")
+        assertThat(error.message).contains("not supported")
     }
 
     @Test

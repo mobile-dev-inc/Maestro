@@ -45,15 +45,8 @@ object DeviceSpecValidator {
         model: String,
         platformDevices: Map<String, List<String>>
     ): String {
-        // 1. Exact match (case-insensitive)
+        // Exact match (case-insensitive)
         platformDevices.keys.firstOrNull { it.equals(model, ignoreCase = true) }?.let { return it }
-
-        // 2. Underscore ↔ hyphen backward-compatibility fallback:
-        //    Convert underscores in the *supported* key to hyphens, then compare
-        //    (handles cases where the user passes "pixel-6" but supported is "pixel_6")
-        platformDevices.keys.firstOrNull { key ->
-            key.replace('_', '-').equals(model.replace('_', '-'), ignoreCase = true)
-        }?.let { return it }
 
         throw InvalidDeviceConfiguration(
             "Device model '$model' is not supported. Supported models: ${platformDevices.keys.joinToString(", ")}"
@@ -105,8 +98,8 @@ object DeviceSpecValidator {
         )
     }
 
-    // ---- Deprecated bare integer OS resolution ----
-    // TODO: Remove these once all CLI users have migrated to full OS format (e.g. "android-34", "iOS-18-2").
+    // ---- Deprecated resolution helpers ----
+    // TODO: Remove these once all CLI users have migrated to canonical formats.
 
     /**
      * Resolves bare integer Android OS format: "34" → "android-34".
