@@ -3,6 +3,7 @@ package maestro.orchestra.validation
 import maestro.device.AppValidationResult
 import maestro.device.Platform
 import java.io.File
+import maestro.device.DeviceSpec
 
 /**
  * Validates and resolves app metadata from a local file, a remote binary ID, or a web manifest.
@@ -12,11 +13,13 @@ import java.io.File
  * @param appFileValidator validates a local app file and returns its metadata, or null if unrecognized
  * @param appBinaryInfoProvider fetches app binary info from a remote server by binary ID. Returns a Triple of (appBinaryId, platform, appId).
  * @param webManifestProvider provides a web manifest file for web flows
+ * @param iosMinOSVersionProvider extracts the minimum OS version from an iOS app binary file
  */
 class AppValidator(
     private val appFileValidator: (File) -> AppValidationResult?,
     private val appBinaryInfoProvider: ((String) -> AppBinaryInfoResult)? = null,
     private val webManifestProvider: (() -> File?)? = null,
+    private val iosMinOSVersionProvider: ((File) -> IosMinOSVersion?)? = null,
 ) {
 
     data class AppBinaryInfoResult(
@@ -24,6 +27,8 @@ class AppValidator(
         val platform: String,
         val appId: String,
     )
+
+    data class IosMinOSVersion(val major: Int, val full: String)
 
     fun validate(appFile: File?, appBinaryId: String?): AppValidationResult {
         return when {
@@ -61,5 +66,38 @@ class AppValidator(
         val manifest = webManifestProvider?.invoke()
         return manifest?.let { appFileValidator(it) }
             ?: throw AppValidationException.UnrecognizedAppFile()
+    }
+
+    fun validateDeviceCompatibility(
+      appFile: File?,
+      deviceSpec: DeviceSpec,
+      supportedDevices: Map<String, Map<String, List<String>>>,
+    ) {
+        when (deviceSpec.platform) {
+            Platform.IOS -> {
+                if (appFile == null) return
+                val minOSVersion = iosMinOSVersionProvider?.invoke(appFile) ?: return
+                if (minOSVersion.major > deviceSpec.osVersion) {
+                    throw AppValidationException.IncompatibleIOSVersion(
+                        appMinVersion = minOSVersion.full,
+                        deviceOsVersion = deviceSpec.osVersion,
+                    )
+                }
+            }
+            Platform.ANDROID -> {
+                val allSupportedOsVersions = supportedDevices["android"]
+                    ?.values
+                    ?.flatten()
+                    ?.distinct()
+                    ?: emptyList()
+                if (deviceSpec.os !in allSupportedOsVersions) {
+                    throw AppValidationException.UnsupportedAndroidApiLevel(
+                        apiLevel = deviceSpec.osVersion,
+                        supported = allSupportedOsVersions,
+                    )
+                }
+            }
+            Platform.WEB -> return
+        }
     }
 }
