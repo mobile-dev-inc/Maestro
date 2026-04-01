@@ -28,11 +28,7 @@ Once your PR is merged, it usually takes about a week until it becomes publicly 
 
 ### Requirements
 
-Maestro's minimal deployment target is Java 8, and we strive to keep it this way
-for as long possible, because our analytics indicate that (as of September 2024) many
-users still use Java 8.
-
-For development, you need to use Java 11 or newer.
+Maestro's minimal deployment target is Java 17, and for development, you need to use Java 17 or newer.
 
 If you made changes to the CLI, rebuilt it with `./gradlew :maestro-cli:installDist`. This will generate a startup shell
 script in `./maestro-cli/build/install/maestro/bin/maestro`. Use it instead of globally installed `maestro`.
@@ -121,6 +117,14 @@ curl -sSL -X GET localhost:22087/swipe -d '
 
 `maestro-cli` depends on both `maestro-ios-driver` and `maestro-client`. This is how the CLI gets these artifacts.
 
+## Linting
+
+```bash
+./gradlew detekt              # Run detekt code quality checks
+./gradlew detektMain          # Run detekt with type resolution
+./gradlew detektBaseline      # Generate baseline
+```
+
 ## Testing
 
 There are 3 ways to test your changes:
@@ -134,6 +138,31 @@ There are 3 ways to test your changes:
   - All the other tests in the projects. Run them via `./gradlew test` (or from IDE)
 
 If you made changes to the iOS XCUITest driver, rebuild it by running `./maestro-ios-xctest-runner/build-maestro-ios-runner.sh`.
+
+## Module structure
+
+| Module | Purpose |
+|--------|---------|
+| `maestro-cli` | CLI entry point and user-facing commands |
+| `maestro-client` | `Maestro` class, `Driver` interface, core API |
+| `maestro-orchestra` | Flow execution, YAML parsing, scripting |
+| `maestro-orchestra-models` | Command data classes (serializable) |
+| `maestro-android` | Android driver implementation |
+| `maestro-ios` | iOS driver implementation |
+| `maestro-ios-xctest-runner` | Swift/Xcode XCTest runner app |
+| `maestro-web` | Web/CDP driver implementation |
+| `maestro-studio` | Studio IDE server |
+| `maestro-ai` | AI-powered test capabilities |
+| `maestro-test` | `FakeDriver` and testing utilities |
+| `maestro-utils` | Shared utilities |
+| `maestro-proto` | Protocol buffer definitions |
+| `e2e` | End-to-end test suites |
+
+### Processing flow
+
+```
+YAML Flow File → YamlCommandReader → List<MaestroCommand> → Orchestra.executeFlow() → Maestro API → Driver → Device
+```
 
 ## Architectural considerations
 
@@ -150,7 +179,7 @@ Keep the following things in mind when working on a PR:
   arbitrary processes based on user's input
   - For that reason we are not allowing execution of bash scripts from Maestro commands.
   - For that reason, `MaestroCommand` class should be JSON-serializable (and is a reason we haven't moved to `sealed class`)
-- We do not use mocks. Use fakes instead (e.g. `FakeDriver`).
+- Prefer fakes over mocks (e.g. `FakeDriver`). Mocks (MockK) are used in some modules but fakes are the preferred approach for driver-level testing.
 
 This graph (generated with [`./gradlew :generateDependencyGraph`][graph_plugin] in [PR #1834][pr_1834]) may be helpful
 to visualize relations between subprojects:
