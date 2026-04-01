@@ -290,7 +290,32 @@ class WebDriver(
     }
 
     override fun clearAppState(appId: String) {
-        // Do nothing
+        val driver = ensureOpen()
+
+        try {
+            val jsExecutor = driver as JavascriptExecutor
+            jsExecutor.executeScript(
+                """
+                try { window.localStorage.clear(); } catch(e) {}
+                try { window.sessionStorage.clear(); } catch(e) {}
+                try {
+                    document.cookie.split(';').forEach(function(c) {
+                        document.cookie = c.trim().split('=')[0] +
+                            '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+                    });
+                } catch(e) {}
+                try {
+                    if (window.indexedDB && window.indexedDB.databases) {
+                        window.indexedDB.databases().then(function(dbs) {
+                            dbs.forEach(function(db) { window.indexedDB.deleteDatabase(db.name); });
+                        });
+                    }
+                } catch(e) {}
+                """.trimIndent()
+            )
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to clear browser state for $appId", e)
+        }
     }
 
     override fun clearKeychain() {
