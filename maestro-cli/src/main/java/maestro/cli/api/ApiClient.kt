@@ -27,6 +27,11 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.Protocol
 import okhttp3.Request
+import maestro.device.CPU_ARCHITECTURE
+import maestro.device.DeviceOrientation
+import maestro.device.DeviceSpec
+import maestro.device.Platform
+import maestro.device.locale.DeviceLocale
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -468,32 +473,8 @@ class ApiClient(
         }
     }
 
-    private fun parseUploadResponse(responseBody: Map<*, *>): UploadResponse {
-        @Suppress("UNCHECKED_CAST")
-        val orgId = responseBody["orgId"] as String
-        val uploadId = responseBody["uploadId"] as String
-        val appId = responseBody["appId"] as String
-        val appBinaryId = responseBody["appBinaryId"] as String
-
-        val deviceConfigMap = responseBody["deviceConfiguration"] as Map<String, Any>
-        val platform = deviceConfigMap["platform"].toString().uppercase()
-        val deviceConfiguration = DeviceConfiguration(
-            platform = platform,
-            deviceName = deviceConfigMap["deviceName"] as String,
-            orientation = deviceConfigMap["orientation"] as String,
-            osVersion = deviceConfigMap["osVersion"] as String,
-            displayInfo = deviceConfigMap["displayInfo"] as String,
-            deviceLocale = deviceConfigMap["deviceLocale"] as? String
-        )
-
-        return UploadResponse(
-            orgId = orgId,
-            uploadId = uploadId,
-            deviceConfiguration = deviceConfiguration,
-            appId = appId,
-            appBinaryId = appBinaryId
-        )
-    }
+    private fun parseUploadResponse(responseBody: Map<*, *>): UploadResponse =
+        maestro.cli.api.parseUploadResponse(responseBody)
 
 
     private inline fun <reified T> post(path: String, body: Any): Result<T, Response> {
@@ -790,26 +771,10 @@ data class UploadResponse(
     val orgId: String,
     val uploadId: String,
     val appId: String,
-    val deviceConfiguration: DeviceConfiguration?,
+    val deviceSpec: DeviceSpec?,
     val appBinaryId: String?,
 )
 
-data class DeviceConfiguration(
-    val platform: String,
-    val deviceName: String,
-    val orientation: String,
-    val osVersion: String,
-    val displayInfo: String,
-    val deviceLocale: String?
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class DeviceInfo(
-    val platform: String,
-    val displayInfo: String,
-    val isDefaultOsVersion: Boolean,
-    val deviceLocale: String,
-)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class UploadStatus(
@@ -951,6 +916,52 @@ data class StartTrialRequest(
     val companyName: String,
     val referralSource: String,
 )
+
+@Suppress("UNCHECKED_CAST")
+fun parseUploadResponse(responseBody: Map<*, *>): UploadResponse {
+    val orgId = responseBody["orgId"] as String
+    val uploadId = responseBody["uploadId"] as String
+    val appId = responseBody["appId"] as String
+    val appBinaryId = responseBody["appBinaryId"] as String
+
+    val deviceConfigMap = responseBody["deviceConfiguration"] as Map<String, Any?>
+    val platform = deviceConfigMap["platform"].toString().uppercase()
+    val model = deviceConfigMap["deviceName"] as String
+    val os = deviceConfigMap["deviceOs"] as String
+    val localeCode = deviceConfigMap["deviceLocale"] as? String ?: "en_US"
+
+    val deviceSpec = when (platform) {
+        "ANDROID" -> DeviceSpec.Android(
+            model = model,
+            os = os,
+            locale = DeviceLocale.fromString(localeCode, Platform.ANDROID),
+            orientation = DeviceOrientation.valueOf(deviceConfigMap["orientation"] as String),
+            disableAnimations = false,
+            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+        )
+        "IOS" -> DeviceSpec.Ios(
+            model = model,
+            os = os,
+            locale = DeviceLocale.fromString(localeCode, Platform.IOS),
+            orientation = DeviceOrientation.valueOf(deviceConfigMap["orientation"] as String),
+            disableAnimations = false,
+            snapshotKeyHonorModalViews = false,
+        )
+        else -> DeviceSpec.Web(
+            model = model,
+            os = os,
+            locale = DeviceLocale.fromString(localeCode, Platform.WEB),
+        )
+    }
+
+    return UploadResponse(
+        orgId = orgId,
+        uploadId = uploadId,
+        deviceSpec = deviceSpec,
+        appId = appId,
+        appBinaryId = appBinaryId
+    )
+}
 
 class AnalyzeResponse(
     val htmlReport: String?,

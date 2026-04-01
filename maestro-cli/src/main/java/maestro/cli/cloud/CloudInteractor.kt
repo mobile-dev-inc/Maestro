@@ -5,8 +5,8 @@ import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
-import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.OrgResponse
+import maestro.device.DeviceSpec
 import maestro.cli.api.ProjectResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
@@ -169,7 +169,7 @@ class CloudInteractor(
             )
 
             // Track finish after upload completion
-            val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
+            val platform = response.deviceSpec?.platform?.toString()?.lowercase() ?: "unknown"
             Analytics.trackEvent(CloudUploadSucceededEvent(
                 projectId = selectedProjectId,
                 platform = platform,
@@ -183,7 +183,7 @@ class CloudInteractor(
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
-                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+                if (response.deviceSpec != null) printDeviceInfo(response.deviceSpec) else ""
 
             val uploadResponse = printMaestroCloudResponse(
                 async,
@@ -401,19 +401,19 @@ class CloudInteractor(
         }
     }
 
-    private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
-        val platform = Platform.fromString(deviceConfiguration.platform)
+    private fun printDeviceInfo(deviceSpec: DeviceSpec): String {
+        val platform = deviceSpec.platform
         PrintUtils.info("\n")
 
-        val version = deviceConfiguration.osVersion
+        val version = deviceSpec.osVersion
         val lines = listOf(
-            "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
+            "Maestro cloud device specs:\n* @|magenta ${deviceSpec.deviceName} - ${deviceSpec.locale.code}|@\n",
             "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --os-version=$version --device-locale=${deviceSpec.locale.code}`|@"
         )
 
         return lines.joinToString("\n").render().box()
