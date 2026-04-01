@@ -43,6 +43,8 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
     data class MissingLaunchApp(val flowNames: List<String>) :
         WorkspaceValidationError("Flows missing launchApp: ${flowNames.joinToString(", ")}")
     data class GenericError(val detail: String) : WorkspaceValidationError(detail)
+    data class DuplicateFlowOrder(val duplicates: List<String>) :
+        WorkspaceValidationError("Duplicate flows in executionOrder.flowsOrder: ${duplicates.joinToString(", ")}")
 }
 
 object WorkspaceValidator {
@@ -128,6 +130,13 @@ object WorkspaceValidator {
 
             matching.groupBy { it.name }.entries.find { (_, v) -> v.size > 1 }?.let { (name, _) ->
                 return Err(WorkspaceValidationError.NameConflict(name))
+            }
+
+            // Validate executionOrder.flowsOrder has no duplicates
+            val flowsOrder = workspaceConfig.executionOrder?.flowsOrder ?: emptyList()
+            val duplicateFlows = flowsOrder.groupBy { it }.filter { it.value.size > 1 }.keys.toList()
+            if (duplicateFlows.isNotEmpty()) {
+                return Err(WorkspaceValidationError.DuplicateFlowOrder(duplicateFlows))
             }
 
             Ok(WorkspaceValidationResult(workspaceConfig, matching))

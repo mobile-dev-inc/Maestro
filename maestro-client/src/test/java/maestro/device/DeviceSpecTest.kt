@@ -15,7 +15,8 @@ internal class DeviceSpecTest {
         assertThat(spec.os).isEqualTo("android-33")
         assertThat(spec.locale.code).isEqualTo("en_US")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
-        assertThat(spec.disableAnimations).isEqualTo(false)
+        assertThat(spec.disableAnimations).isEqualTo(true)
+        assertThat(spec.cpuArchitecture).isEqualTo(CPU_ARCHITECTURE.ARM64)
     }
 
     @Test
@@ -24,11 +25,11 @@ internal class DeviceSpecTest {
 
         assertThat(spec.platform).isEqualTo(Platform.IOS)
         assertThat(spec.model).isEqualTo("iPhone-11")
-        assertThat(spec.os).isEqualTo("iOS-18-2")
+        assertThat(spec.os).isEqualTo("iOS-17-5")
         assertThat(spec.locale.code).isEqualTo("en_US")
         assertThat(spec.orientation).isEqualTo(DeviceOrientation.PORTRAIT)
-        assertThat(spec.disableAnimations).isEqualTo(false)
-        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(false)
+        assertThat(spec.disableAnimations).isEqualTo(true)
+        assertThat(spec.snapshotKeyHonorModalViews).isEqualTo(true)
     }
 
     @Test

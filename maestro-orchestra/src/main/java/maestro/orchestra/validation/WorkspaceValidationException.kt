@@ -22,6 +22,8 @@ fun WorkspaceValidationError.toException(): WorkspaceValidationException = Works
             "Workspace is not a valid zip archive."
         is WorkspaceValidationError.GenericError ->
             detail
+        is WorkspaceValidationError.DuplicateFlowOrder ->
+            "Duplicate flows in executionOrder.flowsOrder: ${duplicates.joinToString(", ")}. Each flow must appear only once."
     },
     error = this,
 )
