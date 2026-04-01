@@ -4,7 +4,6 @@ import com.dd.plist.NSDictionary
 import com.dd.plist.PropertyListParser
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import maestro.device.AppValidationResult
 import maestro.device.Platform
 import net.dongliu.apk.parser.ApkFile
 import java.io.File
@@ -14,21 +13,21 @@ import java.util.zip.ZipFile
 
 object AppMetadataAnalyzer {
 
-    fun validateAppFile(file: File): AppValidationResult? {
+    fun validateAppFile(file: File): AppMetadata? {
         getWebMetadata(file)?.let {
-            return AppValidationResult(Platform.WEB, it.url)
+            return it
         }
         getIosAppMetadata(file)?.let {
             require(it.platformName == "iphonesimulator") {
                 "App build target '${it.platformName}' not supported, set build target to 'iphonesimulator'"
             }
-            return AppValidationResult(Platform.IOS, it.bundleId)
+            return it
         }
         getAndroidAppMetadata(file)?.let {
             require(it.supportedArchitectures.isEmpty() || "arm64-v8a" in it.supportedArchitectures) {
                 "APK does not support arm64-v8a architecture. Found: ${it.supportedArchitectures}"
             }
-            return AppValidationResult(Platform.ANDROID, it.packageId)
+            return it
         }
         return null
     }
@@ -110,6 +109,7 @@ object AppMetadataAnalyzer {
 sealed class AppMetadata(
     open val name: String,
     val appIdentifier: String,
+    val platform: Platform,
     val internalVersion: String,
     val version: String,
 )
@@ -124,6 +124,7 @@ data class IosAppMetadata(
 ) : AppMetadata(
     name = name,
     appIdentifier = bundleId,
+    platform = Platform.IOS,
     internalVersion = bundleVersion,
     version = appVersion,
 )
@@ -137,6 +138,7 @@ data class AndroidAppMetadata(
 ) : AppMetadata(
     name = name,
     appIdentifier = packageId,
+    platform = Platform.ANDROID,
     internalVersion = versionCode.toString(),
     version = versionName,
 )
@@ -146,6 +148,7 @@ data class WebAppMetadata(
 ) : AppMetadata(
     name = url,
     appIdentifier = url,
+    platform = Platform.WEB,
     internalVersion = "",
     version = "",
 )

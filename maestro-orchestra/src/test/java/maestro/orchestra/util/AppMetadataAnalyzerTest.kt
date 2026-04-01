@@ -58,7 +58,7 @@ class AppMetadataAnalyzerTest {
     // ---- validateAppFile ----
 
     @Test
-    fun `validateAppFile returns AppValidationResult for iOS zip`() {
+    fun `validateAppFile returns AppMetadata for iOS zip`() {
         val result = AppMetadataAnalyzer.validateAppFile(makeIosZip())
         assertThat(result).isNotNull()
         assertThat(result!!.platform).isEqualTo(Platform.IOS)
@@ -66,7 +66,7 @@ class AppMetadataAnalyzerTest {
     }
 
     @Test
-    fun `validateAppFile returns AppValidationResult for web JSON`() {
+    fun `validateAppFile returns AppMetadata for web JSON`() {
         val result = AppMetadataAnalyzer.validateAppFile(makeWebJson())
         assertThat(result).isNotNull()
         assertThat(result!!.platform).isEqualTo(Platform.WEB)
