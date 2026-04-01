@@ -115,24 +115,22 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
-        return runCatching {
-            val screenRecording = localSimulatorUtils.startScreenRecording(deviceId)
-            this.screenRecording = screenRecording
+    override fun startScreenRecording(out: Sink): IOSScreenRecording {
+        val screenRecording = localSimulatorUtils.startScreenRecording(deviceId)
+        this.screenRecording = screenRecording
 
-            object : IOSScreenRecording {
-                override fun close() {
-                    val file = stopScreenRecording() ?: return
-                    val byteChannel = Files.newByteChannel(file.toPath())
-                    val source = Channels.newInputStream(byteChannel).source().buffer()
-                    val buffer = out.buffer()
+        return object : IOSScreenRecording {
+            override fun close() {
+                val file = stopScreenRecording() ?: return
+                val byteChannel = Files.newByteChannel(file.toPath())
+                val source = Channels.newInputStream(byteChannel).source().buffer()
+                val buffer = out.buffer()
 
-                    buffer.writeAll(source)
+                buffer.writeAll(source)
 
-                    byteChannel.close()
-                    buffer.close()
-                    file.delete()
-                }
+                byteChannel.close()
+                buffer.close()
+                file.delete()
             }
         }
     }
