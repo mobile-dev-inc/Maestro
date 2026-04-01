@@ -2,6 +2,8 @@ package maestro.orchestra.validation
 
 import com.google.common.truth.Truth.assertThat
 import maestro.device.AppValidationResult
+import maestro.device.DeviceSpec
+import maestro.device.DeviceSpecRequest
 import maestro.device.Platform
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -123,5 +125,124 @@ class AppValidatorTest {
         assertThrows<AppValidationException.UnrecognizedAppFile> {
             validator.validate(appFile = null, appBinaryId = null)
         }
+    }
+
+    // ---- validateDeviceCompatibility tests ----
+
+    private fun iosDeviceSpec(os: String = "iOS-18-2"): DeviceSpec =
+        DeviceSpec.fromRequest(DeviceSpecRequest.Ios(os = os))
+
+    private fun androidDeviceSpec(os: String = "android-33"): DeviceSpec =
+        DeviceSpec.fromRequest(DeviceSpecRequest.Android(os = os))
+
+    private fun webDeviceSpec(): DeviceSpec =
+        DeviceSpec.fromRequest(DeviceSpecRequest.Web())
+
+    private val basicSupportedDevices: Map<String, Map<String, List<String>>> = mapOf(
+        "android" to mapOf(
+            "pixel_6" to listOf("android-34", "android-33", "android-30"),
+        )
+    )
+
+    @Test
+    fun `validateDeviceCompatibility passes when iOS app min version is below device version`() {
+        val appFile = File("app.ipa")
+        val validator = AppValidator(
+            appFileValidator = { iosResult },
+            iosMinOSVersionProvider = { AppValidator.IosMinOSVersion(major = 16, full = "16.0") },
+        )
+
+        validator.validateDeviceCompatibility(
+            appFile = appFile,
+            deviceSpec = iosDeviceSpec("iOS-18-2"),
+            supportedDevices = emptyMap(),
+        )
+    }
+
+    @Test
+    fun `validateDeviceCompatibility passes when iOS app min version equals device version`() {
+        val appFile = File("app.ipa")
+        val validator = AppValidator(
+            appFileValidator = { iosResult },
+            iosMinOSVersionProvider = { AppValidator.IosMinOSVersion(major = 18, full = "18.0") },
+        )
+
+        validator.validateDeviceCompatibility(
+            appFile = appFile,
+            deviceSpec = iosDeviceSpec("iOS-18-2"),
+            supportedDevices = emptyMap(),
+        )
+    }
+
+    @Test
+    fun `validateDeviceCompatibility throws IncompatibleiOSVersion when app requires higher OS`() {
+        val appFile = File("app.ipa")
+        val validator = AppValidator(
+            appFileValidator = { iosResult },
+            iosMinOSVersionProvider = { AppValidator.IosMinOSVersion(major = 18, full = "18.0") },
+        )
+
+        val error = assertThrows<AppValidationException.IncompatibleiOSVersion> {
+            validator.validateDeviceCompatibility(
+                appFile = appFile,
+                deviceSpec = iosDeviceSpec("iOS-16-2"),
+                supportedDevices = emptyMap(),
+            )
+        }
+        assertThat(error.appMinVersion).isEqualTo("18.0")
+        assertThat(error.deviceOsVersion).isEqualTo(16)
+    }
+
+    @Test
+    fun `validateDeviceCompatibility skips iOS check when appFile is null`() {
+        val validator = AppValidator(
+            appFileValidator = { iosResult },
+            iosMinOSVersionProvider = { AppValidator.IosMinOSVersion(major = 99, full = "99.0") },
+        )
+
+        // Should not throw even though min version (99) > device version (18)
+        validator.validateDeviceCompatibility(
+            appFile = null,
+            deviceSpec = iosDeviceSpec("iOS-18-2"),
+            supportedDevices = emptyMap(),
+        )
+    }
+
+    @Test
+    fun `validateDeviceCompatibility passes for valid Android API level`() {
+        val validator = AppValidator(appFileValidator = { androidResult })
+
+        validator.validateDeviceCompatibility(
+            appFile = File("app.apk"),
+            deviceSpec = androidDeviceSpec("android-33"),
+            supportedDevices = basicSupportedDevices,
+        )
+    }
+
+    @Test
+    fun `validateDeviceCompatibility throws UnsupportedAndroidApiLevel for unsupported level`() {
+        val validator = AppValidator(appFileValidator = { androidResult })
+
+        val error = assertThrows<AppValidationException.UnsupportedAndroidApiLevel> {
+            validator.validateDeviceCompatibility(
+                appFile = File("app.apk"),
+                deviceSpec = androidDeviceSpec("android-28"),
+                supportedDevices = basicSupportedDevices,
+            )
+        }
+        assertThat(error.apiLevel).isEqualTo(28)
+        assertThat(error.supported).containsExactly("android-34", "android-33", "android-30")
+    }
+
+    @Test
+    fun `validateDeviceCompatibility is a no-op for Web`() {
+        val validator = AppValidator(appFileValidator = { webResult })
+
+        // Should not throw for any configuration
+        validator.validateDeviceCompatibility(
+            appFile = null,
+            deviceSpec = webDeviceSpec(),
+            supportedDevices = emptyMap(),
+        )
     }
 }
