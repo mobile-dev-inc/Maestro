@@ -59,6 +59,7 @@ class LocalXCTestInstaller(
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
 
     private var xcTestProcess: Process? = null
+    private var iproxyProcess: Process? = null
 
     override fun uninstall(): Boolean {
         return metrics.measured("operation", mapOf("command" to "uninstall")) {
@@ -211,6 +212,12 @@ class LocalXCTestInstaller(
                 snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
+
+            // For real devices, the XCTest HTTP server runs on the device's loopback.
+            // We need iproxy to forward the port from Mac localhost to the device over USB.
+            if (deviceType == IOSDeviceType.REAL) {
+                startIproxy(defaultPort)
+            }
         }
     }
 
@@ -236,6 +243,29 @@ class LocalXCTestInstaller(
         }
     }
 
+    /**
+     * Start iproxy to forward a local port to the same port on the connected iOS device over USB.
+     * Required for real devices because the XCTest HTTP server listens on the device's loopback
+     * and is not reachable from the Mac without port forwarding.
+     */
+    private fun startIproxy(port: Int) {
+        logger.info("[Start] Starting iproxy for port $port on device $deviceId")
+        try {
+            iproxyProcess = ProcessBuilder(
+                "iproxy", port.toString(), port.toString(), "--udid", deviceId
+            )
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+            // Give iproxy a moment to bind the port
+            Thread.sleep(1000)
+            logger.info("[Done] iproxy started for port $port (pid=${iproxyProcess?.pid()})")
+        } catch (e: Exception) {
+            logger.warn("Failed to start iproxy: ${e.message}. Install libimobiledevice (brew install libimobiledevice) for real device support.")
+            iproxyProcess = null
+        }
+    }
+
     @OptIn(ExperimentalPathApi::class)
     override fun close() {
         if (useXcodeTestRunner) {
@@ -243,6 +273,13 @@ class LocalXCTestInstaller(
         }
 
         logger.info("[Start] Cleaning up the ui test runner files")
+
+        if (iproxyProcess?.isAlive == true) {
+            logger.info("Stopping iproxy process")
+            iproxyProcess?.destroy()
+            iproxyProcess = null
+        }
+
         tempFileHandler.close()
         if(reinstallDriver) {
             uninstall()
