@@ -1,3 +1,5 @@
+package maestro.web.cdp
+
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -31,14 +33,56 @@ data class CdpTarget(
 )
 
 /**
+ * Strategy for obtaining CDP targets.
+ */
+private interface TargetProvider {
+    suspend fun listTargets(httpClient: HttpClient, json: Json): List<CdpTarget>
+}
+
+/**
+ * Discovers targets via HTTP (local Chrome).
+ */
+private class HttpTargetProvider(
+    private val host: String,
+    private val port: Int
+) : TargetProvider {
+    override suspend fun listTargets(httpClient: HttpClient, json: Json): List<CdpTarget> {
+        val endpoint = "http://$host:$port/json"
+        val response = httpClient.get(endpoint).bodyAsText()
+        return json.decodeFromString(response)
+    }
+}
+
+/**
+ * Provides a single target with a known WebSocket URL (Browserbase).
+ */
+private class DirectTargetProvider(
+    private val webSocketUrl: String
+) : TargetProvider {
+    override suspend fun listTargets(httpClient: HttpClient, json: Json): List<CdpTarget> {
+        return listOf(
+            CdpTarget(
+                id = "direct",
+                title = "Direct CDP Connection",
+                url = "",
+                webSocketDebuggerUrl = webSocketUrl
+            )
+        )
+    }
+}
+
+/**
  * A simple client for Chrome DevTools Protocol (CDP).
  *
  * Connects via HTTP to list targets and via WebSocket
  * to evaluate JS expressions with full JSON serialization.
+ *
+ * Supports two modes:
+ * - Local Chrome: discovers targets via HTTP at host:port/json
+ * - Direct WebSocket: uses a known WebSocket URL (e.g., Browserbase)
  */
-class CdpClient(
-    private val host: String = "localhost",
-    private val port: Int = 9222
+class CdpClient private constructor(
+    private val targetProvider: TargetProvider
 ) {
     private val httpClient = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -51,13 +95,25 @@ class CdpClient(
     private val evalMutex = Mutex()
 
     /**
+     * Local Chrome mode — discovers targets via HTTP.
+     */
+    constructor(host: String = "localhost", port: Int = 9222) : this(
+        targetProvider = HttpTargetProvider(host, port)
+    )
+
+    /**
+     * Direct WebSocket mode — uses a known WebSocket URL (e.g., Browserbase).
+     * No HTTP target discovery needed.
+     */
+    constructor(webSocketUrl: String) : this(
+        targetProvider = DirectTargetProvider(webSocketUrl)
+    )
+
+    /**
      * Fetches the list of open CDP targets (tabs/pages).
      */
     suspend fun listTargets(): List<CdpTarget> {
-        val endpoint = "http://$host:$port/json"
-        val response = httpClient.get(endpoint).bodyAsText()
-
-        return json.decodeFromString(response)
+        return targetProvider.listTargets(httpClient, json)
     }
 
     /**
@@ -223,20 +279,4 @@ class CdpClient(
         }
     }
 
-}
-
-suspend fun main() {
-    val client = CdpClient("localhost", 9222)
-    val targets = client.listTargets()
-    println("Available pages: $targets")
-
-    val page = targets.first()
-    val json = client.evaluate("1+1", page)
-    println("Result: $json")
-
-    val screenshot = client.captureScreenshot(page)
-    println("Screenshot captured, size: ${screenshot.size} bytes")
-
-    // Save screenshot to file or process as needed
-    File("local/screenshot.png").writeBytes(screenshot)
 }

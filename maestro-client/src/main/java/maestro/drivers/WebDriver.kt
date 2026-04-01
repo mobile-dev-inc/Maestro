@@ -1,5 +1,8 @@
 package maestro.drivers
 
+import maestro.web.cdp.CdpClient
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import kotlinx.coroutines.runBlocking
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
@@ -14,6 +17,8 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
+import maestro.web.cdp.CdpClientFactory
+import maestro.web.cdp.LocalCdpClientFactory
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
 import maestro.web.selenium.ChromeSeleniumFactory
@@ -23,16 +28,16 @@ import okio.buffer
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
-import org.openqa.selenium.OutputType
-import org.openqa.selenium.TakesScreenshot
 import org.openqa.selenium.devtools.HasDevTools
 import org.openqa.selenium.devtools.v144.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
+import org.openqa.selenium.interactions.Sequence
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.WebDriverWait
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
 import java.time.Duration
 import java.util.*
 
@@ -41,15 +46,18 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 
 class WebDriver(
     val isStudio: Boolean,
-    isHeadless: Boolean = isStudio,
-    screenSize: String?,
-    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = isHeadless, screenSize)
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = false, screenSize = null),
+    private val cdpClientFactory: CdpClientFactory = LocalCdpClientFactory(),
+    private val screenSize: String? = null
 ) : Driver {
+
+    private lateinit var cdpClient: CdpClient
 
     private var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
     private var injectedArguments: Map<String, Any> = emptyMap()
+    private var isFlutterApp: Boolean = false
 
     private var webScreenRecorder: WebScreenRecorder? = null
 
@@ -67,6 +75,7 @@ class WebDriver(
 
     override fun open() {
         seleniumDriver = seleniumFactory.create()
+        cdpClient = cdpClientFactory.create(seleniumDriver!!)
 
         try {
             seleniumDriver
@@ -82,6 +91,8 @@ class WebDriver(
         if (isStudio) {
             seleniumDriver?.get("https://maestro.mobile.dev")
         }
+
+        isFlutterApp = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
     }
 
     private fun ensureOpen(): org.openqa.selenium.WebDriver {
@@ -89,22 +100,29 @@ class WebDriver(
     }
 
     private fun executeJS(js: String): Any? {
-        val executor = seleniumDriver as JavascriptExecutor
+        return runBlocking {
+            try {
+                val target = cdpClient.listTargets().first()
 
-        try {
-            executor.executeScript("$maestroWebScript")
+                cdpClient.evaluate("$maestroWebScript", target)
 
-            injectedArguments.forEach { (key, value) ->
-                executor.executeScript("$key = '$value'")
+                injectedArguments.forEach { (key, value) ->
+                    cdpClient.evaluate("$key = '$value'", target)
+                }
+
+                Thread.sleep(100)
+
+                val resultStr = cdpClient.evaluate(js, target)
+
+                return@runBlocking jacksonObjectMapper().readValue(resultStr, Any::class.java)
+            } catch (e: Exception) {
+                if (e.message?.contains("getContentDescription") == true) {
+                    return@runBlocking executeJS(js)
+                } else {
+                    LOGGER.error("Failed to execute JS", e)
+                }
+                return@runBlocking null
             }
-
-            Thread.sleep(100)
-            return executor.executeScript(js)
-        } catch (e: Exception) {
-            if (e.message?.contains("getContentDescription") == true) {
-                return executeJS(js)
-            }
-            return null
         }
     }
 
@@ -139,14 +157,14 @@ class WebDriver(
 
     private fun scrollToPoint(point: Point): Long {
         ensureOpen()
-        val windowHeight = executeJS("return window.innerHeight") as Long
+        val windowHeight = executeJS("window.innerHeight") as Int
 
         if (point.y >= 0 && point.y.toLong() <= windowHeight) return 0L
 
         val scrolledPixels =
-            executeJS("const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta") as Long
+            executeJS("() => {const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta}()") as Int
         sleep(3000L)
-        return scrolledPixels
+        return scrolledPixels.toLong()
     }
 
     private fun sleep(ms: Long) {
@@ -154,7 +172,7 @@ class WebDriver(
     }
 
     private fun scroll(top: String, left: String) {
-        executeJS("window.scroll({ top: $top, left: $left, behavior: 'smooth' });")
+        executeJS("window.scroll({ top: $top, left: $left, behavior: 'smooth' })")
     }
 
     private fun random(start: Int, end: Int): Int {
@@ -174,20 +192,19 @@ class WebDriver(
         seleniumDriver = null
         lastSeenWindowHandles = setOf()
         webScreenRecorder = null
+        isFlutterApp = false
     }
 
     override fun deviceInfo(): DeviceInfo {
-        val driver = ensureOpen() as JavascriptExecutor
-
-        val width = driver.executeScript("return window.innerWidth;") as Long
-        val height = driver.executeScript("return window.innerHeight;") as Long
+        val width = executeJS("window.innerWidth") as Int
+        val height = executeJS("window.innerHeight") as Int
 
         return DeviceInfo(
             platform = Platform.WEB,
-            widthPixels = width.toInt(),
-            heightPixels = height.toInt(),
-            widthGrid = width.toInt(),
-            heightGrid = height.toInt(),
+            widthPixels = width,
+            heightPixels = height,
+            widthGrid = width,
+            heightGrid = height,
         )
     }
 
@@ -197,14 +214,15 @@ class WebDriver(
     ) {
         injectedArguments = injectedArguments + launchArguments
 
-        open()
+        runBlocking {
+            val target = cdpClient.listTargets().first()
+            cdpClient.openUrl(appId, target)
+        }
+
+        // Wait for page to be ready
         val driver = ensureOpen()
-
-        driver.manage().timeouts().implicitlyWait(Duration.ofMillis(5000))
-        val wait = WebDriverWait(driver, Duration.ofSeconds(30L))
-
-        driver.get(appId)
-        wait.until { (it as JavascriptExecutor).executeScript("return document.readyState") == "complete" }
+        WebDriverWait(driver, Duration.ofSeconds(30L))
+            .until { (it as JavascriptExecutor).executeScript("return document.readyState") == "complete" }
     }
 
     override fun stopApp(appId: String) {
@@ -229,7 +247,7 @@ class WebDriver(
         var contentDesc: Any? = null
         var retry = 0
         while (contentDesc == null) {
-            contentDesc = executeJS("return window.maestro.getContentDescription()")
+            contentDesc = executeJS("window.maestro.getContentDescription()")
             if (contentDesc == null) {
                 retry++
             }
@@ -279,7 +297,7 @@ class WebDriver(
             lastSeenWindowHandles = driver.windowHandles
 
             if (newHandles.isNotEmpty()) {
-                val newHandle = newHandles.first();
+                val newHandle = newHandles.first()
                 LOGGER.info("Detected a window change, switching to new window handle $newHandle")
 
                 driver.switchTo().window(newHandle)
@@ -290,31 +308,33 @@ class WebDriver(
     }
 
     override fun clearAppState(appId: String) {
-        val driver = ensureOpen()
+        ensureOpen()
+
+        val origin = try {
+            val uri = URI(appId)
+            if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+                null
+            } else if (uri.port == -1) {
+                "${uri.scheme}://${uri.host}"
+            } else {
+                "${uri.scheme}://${uri.host}:${uri.port}"
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to parse origin from $appId", e)
+            null
+        }
+
+        if (origin == null) {
+            return
+        }
 
         try {
-            val jsExecutor = driver as JavascriptExecutor
-            jsExecutor.executeScript(
-                """
-                try { window.localStorage.clear(); } catch(e) {}
-                try { window.sessionStorage.clear(); } catch(e) {}
-                try {
-                    document.cookie.split(';').forEach(function(c) {
-                        document.cookie = c.trim().split('=')[0] +
-                            '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
-                    });
-                } catch(e) {}
-                try {
-                    if (window.indexedDB && window.indexedDB.databases) {
-                        window.indexedDB.databases().then(function(dbs) {
-                            dbs.forEach(function(db) { window.indexedDB.deleteDatabase(db.name); });
-                        });
-                    }
-                } catch(e) {}
-                """.trimIndent()
-            )
+            runBlocking {
+                val target = cdpClient.listTargets().first()
+                cdpClient.clearDataForOrigin(origin, "all", target)
+            }
         } catch (e: Exception) {
-            LOGGER.warn("Failed to clear browser state for $appId", e)
+            LOGGER.warn("Failed to clear browser data for $origin", e)
         }
     }
 
@@ -333,7 +353,7 @@ class WebDriver(
         val pixelsScrolled = scrollToPoint(point)
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
-        val actions = org.openqa.selenium.interactions.Sequence(mouse, 1)
+        val actions = Sequence(mouse, 1)
             .addAction(
                 mouse.createPointerMove(
                     Duration.ofMillis(400),
@@ -369,7 +389,7 @@ class WebDriver(
         val driver = ensureOpen()
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
-        val actions = org.openqa.selenium.interactions.Sequence(mouse, 0)
+        val actions = Sequence(mouse, 0)
             .addAction(mouse.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), point.x, point.y))
         (driver as RemoteWebDriver).perform(listOf(actions))
 
@@ -379,7 +399,7 @@ class WebDriver(
     override fun pressKey(code: KeyCode) {
         val driver = ensureOpen()
 
-        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
+        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
         val element = driver.findElement(By.ByXPath(xPath))
         val key = mapToSeleniumKey(code)
         element.sendKeys(key)
@@ -394,14 +414,9 @@ class WebDriver(
     }
 
     override fun scrollVertical() {
-        // Check if this is a Flutter web app
-        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
-        
-        if (isFlutter) {
-            // Use Flutter-specific smooth animated scrolling
+        if (isFlutterApp) {
             executeAsyncJS("window.maestro.smoothScrollFlutter('UP', 500)", 1500L)
         } else {
-            // Use standard scroll for regular web pages
             scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
         }
     }
@@ -413,24 +428,17 @@ class WebDriver(
     override fun swipe(start: Point, end: Point, durationMs: Long) {
         val driver = ensureOpen()
 
-        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
-        
-        if (isFlutter) {
-            // Flutter web: Convert coordinate-based swipe to wheel events
-            // Calculate the scroll delta from start to end points
-            val deltaX = start.x - end.x  // Swipe left = scroll right (positive deltaX)
-            val deltaY = start.y - end.y  // Swipe up = scroll down (positive deltaY)
-            
-            // Dispatch wheel events at the center of the viewport for Flutter
+        if (isFlutterApp) {
+            val deltaX = start.x - end.x
+            val deltaY = start.y - end.y
             val waitMs = (durationMs + 500).coerceAtLeast(1000L)
             executeAsyncJS(
                 "window.maestro.smoothScrollFlutterByDelta($deltaX, $deltaY, $durationMs)",
                 waitMs
             )
         } else {
-            // Standard web: Use touch pointer drag
             val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
-            val swipe = org.openqa.selenium.interactions.Sequence(finger, 1)
+            val swipe = Sequence(finger, 1)
             swipe.addAction(
                 finger.createPointerMove(
                     Duration.ofMillis(0),
@@ -454,17 +462,13 @@ class WebDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
-        
-        if (isFlutter) {
-            // Flutter web: Use smooth animated scrolling with easing
+        if (isFlutterApp) {
             val waitMs = (durationMs + 1000).coerceAtLeast(1000L)
             executeAsyncJS(
                 "window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)",
                 waitMs
             )
         } else {
-            // HTML web: Use standard window scrolling
             when (swipeDirection) {
                 SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
                 SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
@@ -487,7 +491,7 @@ class WebDriver(
     override fun inputText(text: String) {
         val driver = ensureOpen()
 
-        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
+        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
         val element = driver.findElement(By.ByXPath(xPath))
         for (c in text.toCharArray()) {
             element.sendKeys("$c")
@@ -507,10 +511,12 @@ class WebDriver(
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
-        val driver = ensureOpen()
+        runBlocking {
+            val target = cdpClient.listTargets().first()
+            val bytes = cdpClient.captureScreenshot(target)
 
-        val src = (driver as TakesScreenshot).getScreenshotAs(OutputType.FILE)
-        out.buffer().use { it.write(src.readBytes()) }
+            out.buffer().use { it.write(bytes) }
+        }
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
@@ -547,13 +553,13 @@ class WebDriver(
     }
 
     override fun setOrientation(orientation: DeviceOrientation) {
-        // no-op for web
+        // No op
     }
 
     override fun eraseText(charactersToErase: Int) {
         val driver = ensureOpen()
 
-        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
+        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
         val element = driver.findElement(By.ByXPath(xPath))
         for (i in 0 until charactersToErase) {
             element.sendKeys(Keys.BACK_SPACE)
@@ -603,7 +609,7 @@ class WebDriver(
     }
 
     override fun isAirplaneModeEnabled(): Boolean {
-        return false;
+        return false
     }
 
     override fun setAirplaneMode(enabled: Boolean) {
@@ -620,7 +626,7 @@ class WebDriver(
     private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
         ensureOpen()
 
-        val jsResult: Any? = executeJS("return window.maestro.queryCss('${query.css}')")
+        val jsResult: Any? = executeJS("window.maestro.queryCss('${query.css}')")
 
         if (jsResult == null) {
             return emptyList()
@@ -640,6 +646,6 @@ class WebDriver(
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
 
-        private val LOGGER = LoggerFactory.getLogger(maestro.drivers.WebDriver::class.java)
+        private val LOGGER = LoggerFactory.getLogger(WebDriver::class.java)
     }
 }

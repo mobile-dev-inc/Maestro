@@ -22,7 +22,11 @@ package maestro
 import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.device.DeviceOrientation
-import maestro.drivers.CdpWebDriver
+import maestro.drivers.WebDriver
+import maestro.web.cdp.CdpClientFactory
+import maestro.web.cdp.LocalCdpClientFactory
+import maestro.web.selenium.ChromeSeleniumFactory
+import maestro.web.selenium.SeleniumFactory
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
@@ -679,6 +683,8 @@ class Maestro(
             isStudio: Boolean,
             isHeadless: Boolean,
             screenSize: String?,
+            seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless, screenSize),
+            cdpClientFactory: CdpClientFactory = LocalCdpClientFactory(),
         ): Maestro {
             // Check that JRE is at least 11
             val version = System.getProperty("java.version")
@@ -691,9 +697,10 @@ class Maestro(
                 }
             }
 
-            val driver = CdpWebDriver(
+            val driver = WebDriver(
                 isStudio = isStudio,
-                isHeadless = isHeadless,
+                seleniumFactory = seleniumFactory,
+                cdpClientFactory = cdpClientFactory,
                 screenSize = screenSize,
             )
             driver.open()

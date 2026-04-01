@@ -2,6 +2,11 @@ name: Test E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      demo_app_branch:
+        description: 'Branch of demo_app to use for test flows'
+        required: false
+        default: 'master'
   pull_request:
 
 jobs:
@@ -57,7 +62,7 @@ jobs:
 
       - name: Set up demo_app workspace
         run: |
-          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
+          git clone --depth 1 --branch ${{ inputs.demo_app_branch || 'master' }} https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
           mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
           cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
@@ -126,7 +131,7 @@ jobs:
 
       - name: Set up demo_app workspace
         run: |
-          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
+          git clone --depth 1 --branch ${{ inputs.demo_app_branch || 'master' }} https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
           mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
           cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
@@ -282,7 +287,7 @@ jobs:
 
       - name: Set up demo_app workspace
         run: |
-          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
+          git clone --depth 1 --branch ${{ inputs.demo_app_branch || 'master' }} https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
           mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
           cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 

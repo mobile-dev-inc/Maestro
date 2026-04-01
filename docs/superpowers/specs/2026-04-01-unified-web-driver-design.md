@@ -11,7 +11,19 @@ This split caused the `clearState` bug: PR #2996 implemented it in `CdpWebDriver
 
 ## Goal
 
-One `WebDriver` class. One code path. Every consumer (CLI, Studio, Cloud) uses it. `CdpClient` is a required dependency — no optional fallbacks.
+One `WebDriver` class. One code path. Every consumer (CLI, Studio, Cloud) uses it via `Maestro.web()`. `CdpWebDriver` is the source of truth — it already has CDP for JS eval, screenshots, navigation, and `clearState`. We enhance it with the missing features from the current `WebDriver`, rename it to `WebDriver`, and delete the old Selenium-only `WebDriver`.
+
+## Approach
+
+**`CdpWebDriver` stays as the foundation.** It gets:
+1. `SeleniumFactory` param (replace hardcoded `ChromeDriver` creation)
+2. `CdpClientFactory` interface (replace hardcoded local CDP client creation)
+3. `executeAsyncJS` (from old `WebDriver`, needed for Flutter web)
+4. Flutter-aware scroll/swipe methods (from old `WebDriver`)
+5. Page-load wait in `launchApp` (from old `WebDriver`)
+6. Cached Flutter detection in `open()` (eliminate repeated `isFlutterApp()` JS calls)
+
+Then rename `CdpWebDriver` → `WebDriver`, delete old `WebDriver.kt`.
 
 ## Architecture
 
@@ -20,8 +32,8 @@ One `WebDriver` class. One code path. Every consumer (CLI, Studio, Cloud) uses i
 ```kotlin
 class WebDriver(
     val isStudio: Boolean,
-    private val seleniumFactory: SeleniumFactory,
-    private val cdpClientFactory: CdpClientFactory,
+    private val seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless = false, screenSize = null),
+    private val cdpClientFactory: CdpClientFactory = LocalCdpClientFactory(),
     private val screenSize: String? = null
 ) : Driver
 ```
@@ -78,7 +90,7 @@ class BrowserbaseCdpClientFactory(
 
 `CdpClient` currently hardcodes `http://{host}:{port}/json` for target listing and opens a new WebSocket per command using `target.webSocketDebuggerUrl`. For Browserbase, we need to support a direct WebSocket URL where target listing isn't needed (single session = single target).
 
-Change `CdpClient` to support two modes:
+Add a second constructor to `CdpClient`:
 
 ```kotlin
 class CdpClient private constructor(
@@ -101,27 +113,67 @@ class CdpClient private constructor(
 
 `TargetProvider` is internal to `CdpClient` — not a public interface. It abstracts how the client gets a `CdpTarget` (via HTTP target list vs. a known WebSocket URL).
 
-## Method-by-Method Decisions
+### Flutter Detection — Cached in `open()`
 
-The unified driver takes the best implementation from each existing driver. The selection criteria: use CDP where it provides better reliability or correctness, use Selenium where CDP lacks capability.
+Currently every `scrollVertical`, `swipe(direction)`, and `swipe(start,end)` calls `executeJS("window.maestro.isFlutterApp()")` independently. The app type doesn't change mid-session.
 
-### JS Execution
+Detect once in `open()` after the Selenium driver and CDP client are created:
 
-**`executeJS`** — use CDP `Runtime.evaluate` (from `CdpWebDriver`).
+```kotlin
+private var isFlutterApp: Boolean = false
 
-CDP wraps expressions in `JSON.stringify` and returns strings parsed via Jackson. This gives consistent serialization across local and remote. The current `WebDriver` uses Selenium's `JavascriptExecutor` which returns Java objects with inconsistent types (Long vs Int depending on driver implementation).
+override fun open() {
+    seleniumDriver = seleniumFactory.create()
+    cdpClient = cdpClientFactory.create(seleniumDriver!!)
+    // ... DevTools setup ...
+    isFlutterApp = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+}
+```
 
-Callers that currently cast to `Long` (in `WebDriver`) will cast to `Int` (as in `CdpWebDriver`). Since all values are screen dimensions that fit in Int, this is safe.
+All scroll/swipe methods use the cached `isFlutterApp` field directly.
 
-**`executeAsyncJS`** — use Selenium `executeAsyncScript` (from `WebDriver`).
+## Features Added from Old `WebDriver`
 
-CDP's `Runtime.evaluate` has `awaitPromise: true` but `CdpClient` doesn't wire it up, and adding async support to CDP eval requires significant protocol work. Selenium's async script execution works today and is only needed for Flutter web support. Keep it as-is.
+### `executeAsyncJS`
 
-### Navigation
+Needed for Flutter web scrolling. Uses Selenium's `executeAsyncScript` which supports callback-based async execution. CDP's `Runtime.evaluate` has `awaitPromise: true` but `CdpClient` doesn't wire it up, and adding async support to CDP eval requires significant protocol work.
 
-**`launchApp`** — CDP `Page.navigate` + Selenium page-load wait.
+```kotlin
+private fun executeAsyncJS(js: String, timeoutMs: Long): Any? {
+    val executor = seleniumDriver as JavascriptExecutor
+    // ... inject maestro-web.js and arguments ...
+    seleniumDriver?.manage()?.timeouts()?.scriptTimeout(Duration.ofMillis(timeoutMs))
+    val wrapped = """
+        const callback = arguments[arguments.length - 1];
+        Promise.resolve((function() { return $js; })())
+            .then((result) => callback(result))
+            .catch(() => callback(null));
+    """.trimIndent()
+    return executor.executeAsyncScript(wrapped)
+}
+```
 
-`CdpWebDriver` fires CDP `Page.navigate` but doesn't wait for the page to load. `WebDriver` uses Selenium `driver.get()` + `WebDriverWait` until `document.readyState == "complete"`. The unified driver uses CDP for navigation and adds the readyState wait:
+### Flutter-Aware Scrolling
+
+**`scrollVertical`** — detect Flutter, use `executeAsyncJS` for `smoothScrollFlutter`:
+
+```kotlin
+override fun scrollVertical() {
+    if (isFlutterApp) {
+        executeAsyncJS("window.maestro.smoothScrollFlutter('UP', 500)", 1500L)
+    } else {
+        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+    }
+}
+```
+
+**`swipe(start, end, durationMs)`** — Flutter: wheel events via `smoothScrollFlutterByDelta`. Standard: touch pointer drag.
+
+**`swipe(swipeDirection, durationMs)`** — Flutter: `smoothScrollFlutter`. Standard: window scroll.
+
+### Page-Load Wait in `launchApp`
+
+After CDP `Page.navigate`, wait for `document.readyState == "complete"`:
 
 ```kotlin
 override fun launchApp(appId: String, launchArguments: Map<String, Any>) {
@@ -132,64 +184,45 @@ override fun launchApp(appId: String, launchArguments: Map<String, Any>) {
         cdpClient.openUrl(appId, target)
     }
 
-    // Wait for page to be ready (from WebDriver)
+    // Wait for page to be ready
     val driver = ensureOpen()
     WebDriverWait(driver, Duration.ofSeconds(30L))
         .until { (it as JavascriptExecutor).executeScript("return document.readyState") == "complete" }
 }
 ```
 
-Note: `WebDriver.launchApp` also calls `open()` which re-creates the Selenium driver on every launch. This is unnecessary and won't be carried over. The driver is opened once in `open()`.
+Note: Old `WebDriver.launchApp` also calls `open()` which re-creates the Selenium driver on every launch. This is unnecessary and won't be carried over. The driver is opened once in `open()`.
 
-### Screenshots
+## Features Kept from `CdpWebDriver` (unchanged)
 
-**`takeScreenshot`** — use CDP `Page.captureScreenshot` (from `CdpWebDriver`).
+These already work correctly and are the reason `CdpWebDriver` is the source of truth:
 
-Returns raw PNG bytes directly from the browser. More reliable than Selenium's `TakesScreenshot` which writes to a temp file. No behavioral difference for consumers.
-
-### State Management
-
-**`clearAppState`** — use CDP `Storage.clearDataForOrigin` (from `CdpWebDriver`).
-
-Origin-aware clearing of all storage types (cookies, localStorage, sessionStorage, IndexedDB, cache, service workers). This is the whole reason we're here — `WebDriver` had this as a no-op.
-
-### Scrolling and Swiping
-
-**`scrollVertical`** — use `WebDriver`'s implementation with Flutter detection.
-
-`CdpWebDriver` has no Flutter awareness. `WebDriver` detects Flutter apps and uses `executeAsyncJS` for smooth scrolling. Keep this.
-
-**`swipe(start, end, durationMs)`** — use `WebDriver`'s implementation with Flutter detection.
-
-Same reasoning. `CdpWebDriver` only has basic pointer input. `WebDriver` adds Flutter-specific wheel event scrolling via `smoothScrollFlutterByDelta`.
-
-**`swipe(swipeDirection, durationMs)`** — use `WebDriver`'s implementation.
-
-Flutter-aware direction-based scrolling.
-
-### Interactions
-
-**`tap`**, **`longPress`**, **`pressKey`**, **`inputText`**, **`eraseText`**, **`backPress`** — both drivers use identical Selenium-based implementations. No change needed. The unified driver uses these as-is from `WebDriver`.
-
-### Other Methods
-
-- **`deviceInfo`** — use CDP `executeJS` instead of Selenium. Returns `Int` (same as `CdpWebDriver`).
-- **`contentDescriptor`** — use CDP `executeJS`. Both drivers have identical logic otherwise.
-- **`openLink`** — use Selenium `driver.get()` (both are identical).
-- **`setLocation`** — use Selenium DevTools API (both are identical).
-- **`startScreenRecording`** — both are identical (Selenium-based).
-- **`queryOnDeviceElements`** — both are identical.
+- **`executeJS`** — CDP `Runtime.evaluate` with JSON.stringify serialization
+- **`takeScreenshot`** — CDP `Page.captureScreenshot`, returns raw PNG bytes
+- **`clearAppState`** — CDP `Storage.clearDataForOrigin`, origin-aware clearing
+- **`launchApp` navigation** — CDP `Page.navigate`
+- **`deviceInfo`** — CDP `executeJS` for window dimensions (returns `Int`)
+- **`contentDescriptor`** — CDP `executeJS` for DOM hierarchy
 
 ## Consumer Changes
 
-### CLI (`Maestro.kt`)
+### CLI (`Maestro.web()`)
 
 ```kotlin
-fun web(isStudio: Boolean, isHeadless: Boolean, screenSize: String?): Maestro {
+fun web(
+    isStudio: Boolean,
+    isHeadless: Boolean,
+    screenSize: String?,
+    seleniumFactory: SeleniumFactory = ChromeSeleniumFactory(isHeadless, screenSize),
+    cdpClientFactory: CdpClientFactory = LocalCdpClientFactory(),
+): Maestro {
+    // Check that JRE is at least 11
+    // ...
+
     val driver = WebDriver(
         isStudio = isStudio,
-        seleniumFactory = ChromeSeleniumFactory(isHeadless, screenSize),
-        cdpClientFactory = LocalCdpClientFactory(),
+        seleniumFactory = seleniumFactory,
+        cdpClientFactory = cdpClientFactory,
         screenSize = screenSize
     )
     driver.open()
@@ -197,12 +230,20 @@ fun web(isStudio: Boolean, isHeadless: Boolean, screenSize: String?): Maestro {
 }
 ```
 
+No change needed for existing CLI callers — defaults handle it.
+
+### `DeviceService.kt`
+
+Update the `Platform.WEB` branch to use `WebDriver` with new constructor (same behavior, just using the factory pattern now).
+
 ### Cloud (`WebDevice.kt` in maestro-worker)
 
 ```kotlin
 private fun createDefaultMaestro(): Maestro {
-    val driver = WebDriver(
+    return Maestro.web(
         isStudio = false,
+        isHeadless = false,
+        screenSize = "1920x1080",
         seleniumFactory = BrowserbaseSeleniumFactory(
             sessionId = sessionId,
             apiKey = browserbaseClient.apiKey,
@@ -211,16 +252,13 @@ private fun createDefaultMaestro(): Maestro {
             apiKey = browserbaseClient.apiKey,
             sessionId = sessionId,
         ),
-        screenSize = "1920x1080"
     )
-    driver.open()
-    return Maestro(driver)
 }
 ```
 
 ## Files to Delete
 
-- `maestro-client/src/main/java/maestro/drivers/CdpWebDriver.kt` — replaced entirely by unified `WebDriver`.
+- `maestro-client/src/main/java/maestro/drivers/WebDriver.kt` — replaced entirely by the enhanced+renamed `CdpWebDriver`.
 
 ## Migration Risks
 
@@ -241,7 +279,7 @@ If any of these fail on Browserbase, we'll discover it immediately in testing. T
 
 ### Type casting changes for Cloud
 
-Cloud's `WebDriver` currently returns `Long` from Selenium JS execution. The unified driver returns `Int` from CDP. All usages are screen dimensions and scroll offsets that fit in Int. No risk.
+Cloud's old `WebDriver` currently returns `Long` from Selenium JS execution. The unified driver returns `Int` from CDP. All usages are screen dimensions and scroll offsets that fit in Int. No risk.
 
 ## Testing Plan
 
@@ -255,26 +293,18 @@ Cloud's `WebDriver` currently returns `Long` from Selenium JS execution. The uni
 | `iframe.yaml` | Asserting visibility of content inside iframes |
 | `simple.yaml` | Login, tap, inputText, navigation, regex assertion |
 
-### Coverage mapping to unified driver capabilities
+### New test flows needed
 
-| Unified Driver Capability | Existing Coverage | Needs New Flow |
-|---|---|---|
-| CDP `executeJS` (hierarchy/assertions) | All flows | No |
-| CDP `Page.navigate` (launchApp) | All flows | No |
-| CDP `Storage.clearDataForOrigin` (clearState) | `clear_state.yaml`, `clear_state_on_launch.yaml` | No |
-| CDP `Page.captureScreenshot` | Implicit in all flows | No |
-| Selenium page-load wait (new for CDP nav) | All flows | No |
-| Selenium tap | `simple.yaml`, login flows | No |
-| Selenium inputText | All login flows | No |
-| Selenium `executeAsyncJS` (Flutter scroll) | **MISSING** | Yes — Flutter web app with scroll |
-| Selenium backPress | **MISSING** | Yes — navigate forward then back |
-| scrollVertical / swipe | **MISSING** | Yes — page with scrollable content |
-| eraseText | **MISSING** | Yes — type in field, erase, retype |
-| State retention (no clearState) | `retain_state_default.yaml` | No |
-| iframe content detection | `iframe.yaml` | No |
+| Flow | What it covers |
+|---|---|
+| `scroll.yaml` | Page with scrollable content, scroll down/up |
+| `back_press.yaml` | Navigate forward then back |
+| `erase_text.yaml` | Type in field, erase, retype |
+| Flutter web scroll | Verify `smoothScrollFlutter` works on Flutter web build of demo app |
 
 ### Execution
 
-1. **Local CLI**: Run all flows in `web_flows/` via `maestro test` — verify no regressions.
-2. **Cloud**: Upload and run all flows on Maestro Cloud — verify parity with CLI.
-3. **Browserbase CDP**: Specifically verify `Storage.clearDataForOrigin`, `Runtime.evaluate`, `Page.captureScreenshot`, and `Page.navigate` work over Browserbase's CDP WebSocket.
+1. **Build demo app for Flutter web** — ensure it can run as a web app.
+2. **Local CLI**: Run all flows in `web_flows/` via `maestro test` — verify no regressions.
+3. **E2E workflow**: Push Maestro branch, trigger `test-e2e.yaml` using demo app PR as reference.
+4. **Cloud**: Update `WebDevice.kt` with `BrowserbaseCdpClientFactory`, test on Maestro Cloud.

@@ -6,7 +6,7 @@ import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
-import maestro.drivers.CdpWebDriver
+import maestro.drivers.WebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
@@ -119,7 +119,7 @@ object DeviceService {
 
             Platform.WEB -> {
                 PrintUtils.message("Launching Web...")
-                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
+                WebDriver(isStudio = false).open()
 
                 return Device.Connected(
                     instanceId = "chromium",
