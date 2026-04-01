@@ -35,7 +35,7 @@ import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.promotion.PromotionStateManager
-import maestro.cli.util.AppMetadataAnalyzer
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.cli.web.WebInteractor
 import maestro.device.AppValidationResult
 import maestro.orchestra.validation.AppValidationException

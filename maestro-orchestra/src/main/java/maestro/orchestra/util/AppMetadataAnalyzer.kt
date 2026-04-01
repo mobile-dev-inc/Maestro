@@ -1,4 +1,4 @@
-package maestro.cli.util
+package maestro.orchestra.validation
 
 import com.dd.plist.NSDictionary
 import com.dd.plist.PropertyListParser

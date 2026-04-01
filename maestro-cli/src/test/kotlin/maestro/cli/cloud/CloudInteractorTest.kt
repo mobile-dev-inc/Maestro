@@ -11,8 +11,7 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
-import maestro.cli.util.AppMetadataAnalyzer
-import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
