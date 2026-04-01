@@ -83,7 +83,7 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
-    override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
+    override fun startScreenRecording(out: Sink): IOSScreenRecording {
         TODO("Not yet implemented")
     }
 
