@@ -63,6 +63,8 @@ object AppMetadataAnalyzer {
                             ?: throw NullPointerException("Unable to find DTPlatformName"),
                         minimumOSVersion = root.objectForKey("MinimumOSVersion")?.toString()
                             ?: throw NullPointerException("Unable to find MinimumOSVersion"),
+                        appVersion = root.objectForKey("CFBundleShortVersionString")?.toString() ?: "",
+                        bundleVersion = root.objectForKey("CFBundleVersion")?.toString() ?: "",
                     )
                 }
             }
@@ -85,7 +87,13 @@ object AppMetadataAnalyzer {
                             .distinct().toList()
                     }
                 } catch (_: Exception) { emptyList() }
-                return AndroidAppMetadata(meta.packageName, archs)
+                return AndroidAppMetadata(
+                    name = meta.name ?: "",
+                    packageId = meta.packageName,
+                    supportedArchitectures = archs,
+                    versionName = meta.versionName ?: "",
+                    versionCode = meta.versionCode ?: 0L,
+                )
             }
         } catch (_: IOException) {
             return null
@@ -99,16 +107,45 @@ object AppMetadataAnalyzer {
     }
 }
 
+sealed class AppMetadata(
+    open val name: String,
+    val appIdentifier: String,
+    val internalVersion: String,
+    val version: String,
+)
+
 data class IosAppMetadata(
-    val name: String,
+    override val name: String,
     val bundleId: String,
     val platformName: String,
     val minimumOSVersion: String,
+    val appVersion: String,
+    val bundleVersion: String,
+) : AppMetadata(
+    name = name,
+    appIdentifier = bundleId,
+    internalVersion = bundleVersion,
+    version = appVersion,
 )
 
 data class AndroidAppMetadata(
+    override val name: String,
     val packageId: String,
     val supportedArchitectures: List<String>,
+    val versionName: String,
+    val versionCode: Long,
+) : AppMetadata(
+    name = name,
+    appIdentifier = packageId,
+    internalVersion = versionCode.toString(),
+    version = versionName,
 )
 
-data class WebAppMetadata(val url: String)
+data class WebAppMetadata(
+    val url: String,
+) : AppMetadata(
+    name = url,
+    appIdentifier = url,
+    internalVersion = "",
+    version = "",
+)
