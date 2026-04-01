@@ -209,6 +209,33 @@ class AppValidatorTest {
     }
 
     @Test
+    fun `validateDeviceCompatibility skips iOS check when provider returns null`() {
+        val validator = AppValidator(
+            appFileValidator = { iosResult },
+            iosMinOSVersionProvider = { null },
+        )
+
+        // Should not throw — provider can't extract min OS version from this binary
+        validator.validateDeviceCompatibility(
+            appFile = File("app.ipa"),
+            deviceSpec = iosDeviceSpec("iOS-16-2"),
+            supportedDevices = emptyMap(),
+        )
+    }
+
+    @Test
+    fun `validateDeviceCompatibility skips iOS check when no provider injected`() {
+        val validator = AppValidator(appFileValidator = { iosResult })
+
+        // Should not throw — no iosMinOSVersionProvider
+        validator.validateDeviceCompatibility(
+            appFile = File("app.ipa"),
+            deviceSpec = iosDeviceSpec("iOS-16-2"),
+            supportedDevices = emptyMap(),
+        )
+    }
+
+    @Test
     fun `validateDeviceCompatibility passes for valid Android API level`() {
         val validator = AppValidator(appFileValidator = { androidResult })
 

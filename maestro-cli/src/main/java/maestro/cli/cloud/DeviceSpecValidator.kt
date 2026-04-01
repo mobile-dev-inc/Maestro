@@ -55,7 +55,7 @@ object DeviceSpecValidator {
         }?.let { return it }
 
         throw InvalidDeviceConfiguration(
-            "Model '$model' is not supported. Supported models: ${platformDevices.keys}"
+            "Device model '$model' is not supported. Supported models: ${platformDevices.keys.joinToString(", ")}"
         )
     }
 

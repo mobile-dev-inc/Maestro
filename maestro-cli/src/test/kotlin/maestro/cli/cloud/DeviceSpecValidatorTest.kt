@@ -3,8 +3,6 @@ package maestro.cli.cloud
 import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceSpec
 import maestro.device.DeviceSpecRequest
-import maestro.device.locale.DeviceLocale
-import maestro.device.Platform
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -50,10 +48,12 @@ class DeviceSpecValidatorTest {
 
     @Test
     fun `throws InvalidDeviceConfiguration for unsupported model`() {
-        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Android(model = "nonexistent-device", os = "android-34"))
-        assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Android(model = "galaxy_s21", os = "android-34"))
+        val error = assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
             DeviceSpecValidator.validate(spec, supportedDevices)
         }
+        assertThat(error.message).contains("galaxy_s21")
+        assertThat(error.message).contains("not supported")
     }
 
     // ---- Android OS resolution ----
@@ -74,10 +74,12 @@ class DeviceSpecValidatorTest {
 
     @Test
     fun `throws InvalidDeviceConfiguration for unsupported Android OS`() {
-        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Android(model = "pixel_6", os = "android-99"))
-        assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Android(model = "pixel_6", os = "android-28"))
+        val error = assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
             DeviceSpecValidator.validate(spec, supportedDevices)
         }
+        assertThat(error.message).contains("android-28")
+        assertThat(error.message).contains("not supported")
     }
 
     // ---- iOS OS resolution ----
@@ -107,19 +109,23 @@ class DeviceSpecValidatorTest {
 
     @Test
     fun `throws InvalidDeviceConfiguration for unsupported iOS OS`() {
-        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Ios(model = "iPhone-14", os = "iOS-99"))
-        assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Ios(model = "iPhone-14", os = "iOS-15-0"))
+        val error = assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
             DeviceSpecValidator.validate(spec, supportedDevices)
         }
+        assertThat(error.message).contains("iOS-15-0")
+        assertThat(error.message).contains("not supported")
     }
 
     @Test
     fun `throws when iOS OS not available for specific model`() {
         // iPhone-16-Pro only supports iOS-18-2, not iOS-16-2
         val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Ios(model = "iPhone-16-Pro", os = "iOS-16-2"))
-        assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
+        val error = assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
             DeviceSpecValidator.validate(spec, supportedDevices)
         }
+        assertThat(error.message).contains("iOS-16-2")
+        assertThat(error.message).contains("not supported")
     }
 
     // ---- Web device resolution ----
