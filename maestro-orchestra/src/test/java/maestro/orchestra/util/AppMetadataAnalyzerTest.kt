@@ -128,9 +128,9 @@ class AppMetadataAnalyzerTest {
             zos.write(iosPlistXml(platformName = "iphoneos"))
             zos.closeEntry()
         }
-      assertThrows<IllegalArgumentException> {
-        AppMetadataAnalyzer.validateAppFile(zip)
-      }
+        assertThrows<IllegalArgumentException> {
+          AppMetadataAnalyzer.validateAppFile(zip)
+        }
     }
 
     @Test
