@@ -419,7 +419,7 @@ class IOSDriver(
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
-            val iosScreenRecording = iosDevice.startScreenRecording(out).expect {}
+            val iosScreenRecording = iosDevice.startScreenRecording(out)
             object : ScreenRecording {
                 override fun close() = iosScreenRecording.close()
             }
