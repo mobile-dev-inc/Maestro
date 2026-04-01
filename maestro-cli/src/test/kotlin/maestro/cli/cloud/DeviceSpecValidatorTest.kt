@@ -3,8 +3,6 @@ package maestro.cli.cloud
 import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceSpec
 import maestro.device.DeviceSpecRequest
-import maestro.device.locale.DeviceLocale
-import maestro.device.Platform
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -138,6 +136,21 @@ class DeviceSpecValidatorTest {
         val result = DeviceSpecValidator.validate(spec, supportedDevices)
         assertThat(result.model).isEqualTo("chromium")
         assertThat(result.os).isEqualTo("default")
+    }
+
+    // ---- Unsupported platform ----
+
+    @Test
+    fun `throws InvalidDeviceConfiguration for unsupported platform`() {
+        val devicesWithoutWeb = mapOf(
+            "android" to mapOf("pixel_6" to listOf("android-34")),
+            "ios" to mapOf("iPhone-14" to listOf("iOS-18-2")),
+        )
+        val spec = DeviceSpec.fromRequest(DeviceSpecRequest.Web(model = "chromium", os = "default"))
+        val error = assertThrows<DeviceSpecValidator.InvalidDeviceConfiguration> {
+            DeviceSpecValidator.validate(spec, devicesWithoutWeb)
+        }
+        assertThat(error.message).contains("not supported")
     }
 
     // ---- Field preservation ----

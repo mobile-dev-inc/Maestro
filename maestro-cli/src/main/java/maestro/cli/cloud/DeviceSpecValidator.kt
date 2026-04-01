@@ -1,5 +1,6 @@
 package maestro.cli.cloud
 
+import maestro.cli.util.PrintUtils
 import maestro.device.DeviceSpec
 
 /**
@@ -80,10 +81,13 @@ object DeviceSpecValidator {
         // 1. Exact match
         available.firstOrNull { it == os }?.let { return it }
 
-        // 2. Shorthand: bare integer → "android-<N>"
+        // 2. Shorthand: bare integer → "android-<N>" (deprecated format)
         if (os.toIntOrNull() != null) {
             val candidate = "android-$os"
-            available.firstOrNull { it == candidate }?.let { return it }
+            available.firstOrNull { it == candidate }?.let {
+                PrintUtils.warn("Numeric OS format '$os' is deprecated. Use the full format instead. Available: ${available.joinToString(", ")}")
+                return it
+            }
         }
 
         throw InvalidDeviceConfiguration(
@@ -101,10 +105,13 @@ object DeviceSpecValidator {
         // 1. Exact match
         available.firstOrNull { it == os }?.let { return it }
 
-        // 2. Bare integer major version – matches first "(iOS|tvOS|watchOS)-<N>-*"
+        // 2. Bare integer major version – matches first "(iOS|tvOS|watchOS)-<N>-*" (deprecated format)
         if (os.toIntOrNull() != null) {
             val regex = Regex("^(iOS|tvOS|watchOS)-$os-.*")
-            available.firstOrNull { regex.matches(it) }?.let { return it }
+            available.firstOrNull { regex.matches(it) }?.let {
+                PrintUtils.warn("Numeric OS format '$os' is deprecated. Use the full format instead. Available: ${available.joinToString(", ")}")
+                return it
+            }
         }
 
         // 3. Prefix without minor version "iOS-17" → "iOS-17-*"

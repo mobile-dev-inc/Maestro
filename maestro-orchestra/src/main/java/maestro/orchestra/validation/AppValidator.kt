@@ -71,7 +71,6 @@ class AppValidator(
     fun validateDeviceCompatibility(
       appFile: File?,
       deviceSpec: DeviceSpec,
-      supportedDevices: Map<String, Map<String, List<String>>>,
     ) {
         when (deviceSpec.platform) {
             Platform.IOS -> {
@@ -84,19 +83,7 @@ class AppValidator(
                     )
                 }
             }
-            Platform.ANDROID -> {
-                val allSupportedOsVersions = supportedDevices["android"]
-                    ?.values
-                    ?.flatten()
-                    ?.distinct()
-                    ?: emptyList()
-                if (deviceSpec.os !in allSupportedOsVersions) {
-                    throw AppValidationException.UnsupportedAndroidApiLevel(
-                        apiLevel = deviceSpec.osVersion,
-                        supported = allSupportedOsVersions,
-                    )
-                }
-            }
+            Platform.ANDROID -> return
             Platform.WEB -> return
         }
     }

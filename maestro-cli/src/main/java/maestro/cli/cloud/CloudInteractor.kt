@@ -195,7 +195,7 @@ class CloudInteractor(
 
             // Validate app-device compatibility
             try {
-                appValidator.validateDeviceCompatibility(appFileToSend, validatedDeviceSpec, supportedDevices)
+                appValidator.validateDeviceCompatibility(appFileToSend, validatedDeviceSpec)
             } catch (e: AppValidationException) {
                 throw CliError(e.message ?: "App-device compatibility check failed")
             }
