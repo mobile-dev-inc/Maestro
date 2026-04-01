@@ -1,0 +1,9 @@
+appId: com.twitter.android
+---
+- launchApp:
+    clearState: true
+- tapOn: New post
+- tapOn: New post
+- tapOn: What’s happening?
+- inputText: Hello World
+- tapOn: POST
