@@ -19,6 +19,7 @@ commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
 commons-io = "2.16.1"
 dadb = "1.2.10"
 datafaker = "2.5.3"
+ddPlist = "1.23"
 detekt = "1.23.8"
 googleFindbugs = "3.0.2"
 googleGson = "2.11.0"
@@ -77,6 +78,7 @@ commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "co
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
 datafaker = { module = "net.datafaker:datafaker", version.ref = "datafaker" }
+dd-plist = { module = "com.googlecode.plist:dd-plist", version.ref = "ddPlist" }
 google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "googleGson" }
 google-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "googleProtobuf" }
