@@ -1,6 +1,5 @@
 package maestro.orchestra.validation
 
-import maestro.device.AppValidationResult
 import maestro.device.Platform
 import java.io.File
 import maestro.device.DeviceSpec
@@ -16,7 +15,7 @@ import maestro.device.DeviceSpec
  * @param iosMinOSVersionProvider extracts the minimum OS version from an iOS app binary file
  */
 class AppValidator(
-    private val appFileValidator: (File) -> AppValidationResult?,
+    private val appFileValidator: (File) -> AppMetadata?,
     private val appBinaryInfoProvider: ((String) -> AppBinaryInfoResult)? = null,
     private val webManifestProvider: (() -> File?)? = null,
     private val iosMinOSVersionProvider: ((File) -> IosMinOSVersion?)? = null,
@@ -30,7 +29,7 @@ class AppValidator(
 
     data class IosMinOSVersion(val major: Int, val full: String)
 
-    fun validate(appFile: File?, appBinaryId: String?): AppValidationResult {
+    fun validate(appFile: File?, appBinaryId: String?): AppMetadata {
         return when {
             appFile != null -> validateLocalAppFile(appFile)
             appBinaryId != null -> validateAppBinaryId(appBinaryId)
@@ -39,12 +38,12 @@ class AppValidator(
         }
     }
 
-    private fun validateLocalAppFile(appFile: File): AppValidationResult {
+    private fun validateLocalAppFile(appFile: File): AppMetadata {
         return appFileValidator(appFile)
             ?: throw AppValidationException.UnrecognizedAppFile()
     }
 
-    private fun validateAppBinaryId(appBinaryId: String): AppValidationResult {
+    private fun validateAppBinaryId(appBinaryId: String): AppMetadata {
         val provider = appBinaryInfoProvider
             ?: throw AppValidationException.MissingAppSource()
 
@@ -56,13 +55,14 @@ class AppValidator(
             throw AppValidationException.UnsupportedPlatform(info.platform)
         }
 
-        return AppValidationResult(
-            platform = platform,
-            appIdentifier = info.appId,
+        return AppBinaryResponse(
+            appBinaryId = appBinaryId,
+            appId = info.appId,
+            remotePlatform = platform,
         )
     }
 
-    private fun validateWebManifest(): AppValidationResult {
+    private fun validateWebManifest(): AppMetadata {
         val manifest = webManifestProvider?.invoke()
         return manifest?.let { appFileValidator(it) }
             ?: throw AppValidationException.UnrecognizedAppFile()
@@ -88,3 +88,15 @@ class AppValidator(
         }
     }
 }
+
+data class AppBinaryResponse(
+    val appBinaryId: String,
+    val appId: String,
+    val remotePlatform: Platform,
+) : AppMetadata(
+    name = appId,
+    appIdentifier = appId,
+    platform = remotePlatform,
+    internalVersion = "",
+    version = "",
+)

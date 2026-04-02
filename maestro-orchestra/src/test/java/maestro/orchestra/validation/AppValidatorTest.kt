@@ -1,19 +1,34 @@
 package maestro.orchestra.validation
 
 import com.google.common.truth.Truth.assertThat
-import maestro.device.AppValidationResult
 import maestro.device.DeviceSpec
 import maestro.device.DeviceSpecRequest
 import maestro.device.Platform
+import maestro.orchestra.validation.AndroidAppMetadata
+import maestro.orchestra.validation.IosAppMetadata
+import maestro.orchestra.validation.WebAppMetadata
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.File
 
 class AppValidatorTest {
 
-    private val androidResult = AppValidationResult(Platform.ANDROID, "com.example.app")
-    private val iosResult = AppValidationResult(Platform.IOS, "com.example.ios")
-    private val webResult = AppValidationResult(Platform.WEB, "https://example.com")
+    private val androidResult = AndroidAppMetadata(
+        name = "Example",
+        packageId = "com.example.app",
+        supportedArchitectures = listOf("arm64-v8a"),
+        versionName = "1.0",
+        versionCode = 1L,
+    )
+    private val iosResult = IosAppMetadata(
+        name = "Example iOS",
+        bundleId = "com.example.ios",
+        platformName = "iphonesimulator",
+        minimumOSVersion = "16.0",
+        appVersion = "1.0",
+        bundleVersion = "1",
+    )
+    private val webResult = WebAppMetadata(url = "https://example.com")
 
     @Test
     fun `validates local app file successfully`() {
