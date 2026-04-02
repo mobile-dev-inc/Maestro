@@ -222,4 +222,62 @@ class EnvFileParserTest {
         val result = EnvFileParser.parseEnvFile(file)
         assertTrue(result.isEmpty())
     }
+
+    @Test
+    fun `strip inline comments from unquoted values`() {
+        val file = createEnvFile(
+            """
+            APP_ID=com.example.app # inline comment
+            PORT=8080 #no space
+            """.trimIndent()
+        )
+
+        val result = EnvFileParser.parseEnvFile(file)
+
+        assertEquals("com.example.app", result["APP_ID"])
+        assertEquals("8080", result["PORT"])
+    }
+
+    @Test
+    fun `preserve hash inside double-quoted values`() {
+        val file = createEnvFile(
+            """
+            COLOR="# red"
+            CHANNEL="test #general"
+            """.trimIndent()
+        )
+
+        val result = EnvFileParser.parseEnvFile(file)
+
+        assertEquals("# red", result["COLOR"])
+        assertEquals("test #general", result["CHANNEL"])
+    }
+
+    @Test
+    fun `preserve hash inside single-quoted values`() {
+        val file = createEnvFile(
+            """
+            COLOR='# blue'
+            CHANNEL='test #random'
+            """.trimIndent()
+        )
+
+        val result = EnvFileParser.parseEnvFile(file)
+
+        assertEquals("# blue", result["COLOR"])
+        assertEquals("test #random", result["CHANNEL"])
+    }
+
+    @Test
+    fun `unquoted value with hash but no preceding space is not a comment`() {
+        val file = createEnvFile(
+            """
+            COLOR=#FF0000
+            """.trimIndent()
+        )
+
+        val result = EnvFileParser.parseEnvFile(file)
+
+        assertEquals("#FF0000", result["COLOR"])
+    }
 }

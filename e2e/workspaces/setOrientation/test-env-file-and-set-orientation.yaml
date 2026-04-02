@@ -3,9 +3,9 @@ tags:
   - android
   - env-file-orientation
 ---
-# This flow tests loading environment variables from a .environment file and using them with setOrientation.
+# This flow tests loading environment variables from a .env file and using them with setOrientation.
 # Usage:
-#   maestro test e2e/workspaces/setOrientation/test-env-file-and-set-orientation.yaml --env-file e2e/workspaces/setOrientation/.environment
+# maestro test e2e/workspaces/setOrientation/test-env-file-and-set-orientation.yaml --env-file e2e/workspaces/setOrientation/.env
 
 - launchApp
 - setOrientation: ${orientationLandscapeLeft}

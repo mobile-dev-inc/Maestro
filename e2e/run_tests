@@ -97,7 +97,7 @@ else
 
 		maestro --verbose --platform "$platform" test \
 			--include-tags env-file-orientation \
-			--env-file ./workspaces/setOrientation/.environment \
+			--env-file ./workspaces/setOrientation/.env \
 			./workspaces/setOrientation/ 1>pipe 2>&1 \
 			|| { _h2 "setOrientation" "FAIL! --env-file test failed"; ALL_PASS=false; }
 	fi

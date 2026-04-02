@@ -14,6 +14,7 @@ object EnvFileParser {
      * - KEY=VALUE
      * - KEY="VALUE"
      * - KEY='VALUE'
+     * - KEY=VALUE # inline comment (stripped for unquoted values)
      *
      * @param file The .env file to parse.
      * @return A map of environment variables defined in the file.
@@ -71,6 +72,11 @@ object EnvFileParser {
                 (trimmed.startsWith('\'') && trimmed.endsWith('\''))) {
                 return trimmed.substring(1, trimmed.length - 1)
             }
+        }
+        // Strip inline comments for unquoted values: "value # comment" → "value"
+        val commentIndex = trimmed.indexOf(" #")
+        if (commentIndex >= 0) {
+            return trimmed.substring(0, commentIndex).trimEnd()
         }
         return trimmed
     }
