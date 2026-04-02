@@ -42,6 +42,7 @@ object TestDebugReporter {
     private val logger = LogManager.getLogger(TestDebugReporter::class.java)
     private val mapper = jacksonObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY).writerWithDefaultPrettyPrinter()
+    private val folderNameFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss")
 
     private var debugOutputPath: Path? = null
     private var debugOutputPathAsString: String? = null
@@ -168,7 +169,7 @@ object TestDebugReporter {
     fun install(debugOutputPathAsString: String? = null, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
         this.debugOutputPathAsString = debugOutputPathAsString
         this.flattenDebugOutput = flattenDebugOutput
-        this.sessionFolderName = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+        this.sessionFolderName = folderNameFormatter.format(LocalDateTime.now())
         val path = getDebugOutputPath()
         LogConfig.configure(logFileName = path.absolutePathString() + "/maestro.log", printToConsole = printToConsole)
         logSystemInfo()
@@ -198,7 +199,7 @@ object TestDebugReporter {
 
     private fun buildDefaultDebugOutputPath(customRootPath: String? = null): Path {
         val foldername = sessionFolderName
-            ?: DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+            ?: folderNameFormatter.format(LocalDateTime.now())
         return when {
             testOutputDir != null -> testOutputDir!!.resolve(foldername)
             customRootPath != null -> Paths.get(customRootPath, ".maestro", "tests", foldername)
