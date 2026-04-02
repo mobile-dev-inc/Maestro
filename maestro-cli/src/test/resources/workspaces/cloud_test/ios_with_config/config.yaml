@@ -1,0 +1,4 @@
+platform:
+  ios:
+    disableAnimations: false
+    snapshotKeyHonorModalViews: false

@@ -72,6 +72,7 @@ class CloudInteractor(
     private val failOnTimeout: Boolean = true,
 ) {
 
+    @Deprecated("Use uploadV2")
     fun upload(
         flowFile: File,
         appFile: File?,
@@ -292,6 +293,237 @@ class CloudInteractor(
 
             Analytics.flush()
             
+            return when (uploadResponse.status) {
+                UploadStatus.Status.SUCCESS -> 0
+                UploadStatus.Status.ERROR -> 1
+                UploadStatus.Status.CANCELED -> if (failOnCancellation) 1 else 0
+                UploadStatus.Status.STOPPED -> 1
+                else -> 1
+            }
+        }
+    }
+
+    fun uploadV2(
+        flowFile: File,
+        appFile: File?,
+        async: Boolean,
+        mapping: File? = null,
+        apiKey: String? = null,
+        uploadName: String? = null,
+        repoOwner: String? = null,
+        repoName: String? = null,
+        branch: String? = null,
+        commitSha: String? = null,
+        pullRequestId: String? = null,
+        env: Map<String, String> = emptyMap(),
+        androidApiLevel: Int? = null,
+        iOSVersion: String? = null,
+        appBinaryId: String? = null,
+        failOnCancellation: Boolean = false,
+        includeTags: List<String> = emptyList(),
+        excludeTags: List<String> = emptyList(),
+        reportFormat: ReportFormat = ReportFormat.NOOP,
+        reportOutput: File? = null,
+        testSuiteName: String? = null,
+        disableNotifications: Boolean = false,
+        deviceLocale: String? = null,
+        projectId: String? = null,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+    ): Int {
+        // 1. Input guards
+        if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
+        if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
+        if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
+
+        // 2. Auth + project selection
+        val authToken: String = auth.getAuthToken(apiKey, triggerSignIn = false) ?:
+          selectOrganization(auth.getAuthToken(apiKey, triggerSignIn = true) ?:
+          throw CliError("Failed to get authentication token"))
+
+        val selectedProjectId = projectId ?: selectProject(authToken)
+
+        PromotionStateManager().recordCloudCommandUsage()
+
+        Analytics.trackEvent(CloudUploadTriggeredEvent(
+            projectId = selectedProjectId,
+            platform = if (flowFile.isWebFlow()) "web" else "unknown",
+            isBinaryUpload = appBinaryId != null,
+            usesEnvironment = env.isNotEmpty(),
+            deviceModel = deviceModel,
+            deviceOs = deviceOs
+        ))
+
+        PrintUtils.message("Uploading Flow(s)...")
+
+        TemporaryDirectory.use { tmpDir ->
+            // 3. Create workspace zip
+            val workspaceZip = tmpDir.resolve("workspace.zip")
+            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
+            val progressBar = ProgressBar(20)
+
+            // 4. Get app file
+            val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
+
+            // 5. Validate app and resolve platform
+            val appValidator = AppValidator(
+                appFileValidator = appFileValidator,
+                appBinaryInfoProvider = { binaryId ->
+                    try {
+                        val info = client.getAppBinaryInfo(authToken, binaryId)
+                        AppValidator.AppBinaryInfoResult(info.appBinaryId, info.platform, info.appId)
+                    } catch (e: ApiClient.ApiException) {
+                        if (e.statusCode == 404) throw AppValidationException.AppBinaryNotFound(binaryId)
+                        throw AppValidationException.AppBinaryFetchError(e.statusCode)
+                    }
+                },
+                webManifestProvider = webManifestProvider,
+                iosMinOSVersionProvider = { file ->
+                    val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
+                    val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
+                    AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
+                },
+            )
+            val resolvedAppValidation = try {
+                appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId)
+            } catch (e: AppValidationException) {
+                throw CliError(e.message ?: "App validation failed")
+            }
+            val inferredPlatform = resolvedAppValidation.platform
+
+            // 6. Validate workspace BEFORE DeviceSpec construction
+            val workspaceValidationResult = try {
+                workspaceValidator.validate(
+                    workspace = workspaceZip.toFile(),
+                    appId = resolvedAppValidation.appIdentifier,
+                    env = env,
+                    includeTags = includeTags,
+                    excludeTags = excludeTags,
+                )
+            } catch (e: WorkspaceValidationException) {
+                throw CliError(e.message ?: "Workspace validation failed")
+            }
+
+            val workspaceConfig = workspaceValidationResult.workspaceConfig
+
+            // 7. Build DeviceSpecRequest with CLI flags + workspace config values
+            val deviceSpec: DeviceSpec = when (inferredPlatform) {
+                Platform.ANDROID -> DeviceSpec.fromRequest(DeviceSpecRequest.Android(
+                    model = deviceModel,
+                    os = deviceOs ?: androidApiLevel?.let { "android-$it" },
+                    locale = deviceLocale,
+                    disableAnimations = workspaceConfig.platform?.android?.disableAnimations,
+                ))
+                Platform.IOS -> DeviceSpec.fromRequest(DeviceSpecRequest.Ios(
+                    model = deviceModel,
+                    os = deviceOs ?: iOSVersion?.let { "iOS-${it.replace('.', '-')}" },
+                    locale = deviceLocale,
+                    disableAnimations = workspaceConfig.platform?.ios?.disableAnimations,
+                    snapshotKeyHonorModalViews = workspaceConfig.platform?.ios?.snapshotKeyHonorModalViews,
+                ))
+                Platform.WEB -> DeviceSpec.fromRequest(DeviceSpecRequest.Web(
+                    model = deviceModel,
+                    os = deviceOs,
+                    locale = deviceLocale,
+                ))
+            }
+
+            // 8. Fetch supported devices and validate device spec
+            val supportedDevices = try {
+                client.listCloudDevices()
+            } catch (e: ApiClient.ApiException) {
+                throw CliError("Failed to fetch supported devices. Status code: ${e.statusCode}")
+            }
+
+            val validatedDeviceSpec = try {
+                DeviceSpecValidator.validate(deviceSpec, supportedDevices)
+            } catch (e: DeviceSpecValidator.InvalidDeviceConfiguration) {
+                throw CliError(e.message ?: "Invalid device configuration")
+            }
+
+            // 9. Validate app-device compatibility
+            try {
+                appValidator.validateDeviceCompatibility(appFileToSend, validatedDeviceSpec)
+            } catch (e: AppValidationException) {
+                throw CliError(e.message ?: "App-device compatibility check failed")
+            }
+
+            Analytics.trackEvent(CloudUploadStartedEvent(
+                projectId = selectedProjectId,
+                platform = inferredPlatform.name.lowercase(),
+                isBinaryUpload = appBinaryId != null,
+                usesEnvironment = env.isNotEmpty(),
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
+            ))
+
+            // 10. Call uploadV2 with validated device spec
+            val response = client.uploadV2(
+                authToken = authToken,
+                appFile = appFileToSend?.toPath(),
+                workspaceZip = workspaceZip,
+                deviceSpec = validatedDeviceSpec,
+                uploadName = uploadName,
+                mappingFile = mapping?.toPath(),
+                repoOwner = repoOwner,
+                repoName = repoName,
+                branch = branch,
+                commitSha = commitSha,
+                pullRequestId = pullRequestId,
+                env = env,
+                appBinaryId = appBinaryId,
+                includeTags = includeTags,
+                excludeTags = excludeTags,
+                disableNotifications = disableNotifications,
+                projectId = requireNotNull(selectedProjectId),
+                progressListener = { totalBytes, bytesWritten ->
+                    progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
+                },
+            )
+
+            // 11. Handle response, return exit code
+            val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
+            Analytics.trackEvent(CloudUploadSucceededEvent(
+                projectId = selectedProjectId,
+                platform = platform,
+                isBinaryUpload = appBinaryId != null,
+                usesEnvironment = env.isNotEmpty(),
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
+            ))
+
+            val project = requireNotNull(selectedProjectId)
+            val appId = response.appId
+            val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
+            val deviceMessage =
+                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+
+            val uploadResponse = printMaestroCloudResponse(
+                async,
+                authToken,
+                failOnCancellation,
+                reportFormat,
+                reportOutput,
+                testSuiteName,
+                uploadUrl,
+                deviceMessage,
+                appId,
+                response.appBinaryId,
+                response.uploadId,
+                selectedProjectId,
+            )
+
+            Analytics.trackEvent(CloudRunFinishedEvent(
+                projectId = selectedProjectId,
+                totalFlows = uploadResponse.flows.size,
+                totalPassedFlows = uploadResponse.flows.count { it.status == FlowStatus.SUCCESS },
+                totalFailedFlows = uploadResponse.flows.count { it.status == FlowStatus.ERROR },
+                appPackageId = uploadResponse.appPackageId ?: "",
+                wasAppLaunched = uploadResponse.wasAppLaunched
+            ))
+
+            Analytics.flush()
+
             return when (uploadResponse.status) {
                 UploadStatus.Status.SUCCESS -> 0
                 UploadStatus.Status.ERROR -> 1
