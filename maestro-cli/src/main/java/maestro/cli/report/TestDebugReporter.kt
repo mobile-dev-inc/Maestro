@@ -182,10 +182,10 @@ object TestDebugReporter {
     fun getDebugOutputPath(): Path {
         if (debugOutputPath != null) return debugOutputPath as Path
 
-        val debugRootPath =
-            if (debugOutputPathAsString != null) debugOutputPathAsString!! else System.getProperty("user.home")
-        val debugOutput =
-            if (flattenDebugOutput) Paths.get(debugRootPath) else buildDefaultDebugOutputPath(debugRootPath)
+        val debugOutput = when {
+            flattenDebugOutput -> Paths.get(debugOutputPathAsString ?: System.getProperty("user.home"))
+            else -> buildDefaultDebugOutputPath(debugOutputPathAsString)
+        }
 
         if (!debugOutput.exists()) {
             Files.createDirectories(debugOutput)
@@ -194,15 +194,12 @@ object TestDebugReporter {
         return debugOutput
     }
 
-    private fun buildDefaultDebugOutputPath(debugRootPath: String): Path {
-        // If testOutputDir is configured, use it as the base path instead of ~/.maestro/tests
-        return if (testOutputDir != null) {
-            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
-            testOutputDir!!.resolve(foldername)
-        } else {
-            val preamble = arrayOf(".maestro", "tests")
-            val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
-            Paths.get(debugRootPath, *preamble, foldername)
+    private fun buildDefaultDebugOutputPath(customRootPath: String? = null): Path {
+        val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+        return when {
+            testOutputDir != null -> testOutputDir!!.resolve(foldername)
+            customRootPath != null -> Paths.get(customRootPath, ".maestro", "tests", foldername)
+            else -> EnvUtils.xdgStateHome().resolve("tests").resolve(foldername)
         }
     }
 }
