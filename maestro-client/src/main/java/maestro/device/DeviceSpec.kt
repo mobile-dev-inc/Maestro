@@ -84,16 +84,16 @@ sealed class DeviceSpec {
                     os = request.os ?: "android-33",
                     locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.ANDROID),
                     orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
-                    disableAnimations = request.disableAnimations ?: false,
+                    disableAnimations = request.disableAnimations ?: true,
                     cpuArchitecture = request.cpuArchitecture ?: CPU_ARCHITECTURE.ARM64,
                 )
                 is DeviceSpecRequest.Ios -> Ios(
                     model = request.model ?: "iPhone-11",
-                    os = request.os ?: "iOS-18-2",
+                    os = request.os ?: "iOS-17-5",
                     locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.IOS),
                     orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
-                    disableAnimations = request.disableAnimations ?: false,
-                    snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
+                    disableAnimations = request.disableAnimations ?: true,
+                    snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: true,
                 )
                 is DeviceSpecRequest.Web -> Web(
                     model = request.model ?: "chromium",

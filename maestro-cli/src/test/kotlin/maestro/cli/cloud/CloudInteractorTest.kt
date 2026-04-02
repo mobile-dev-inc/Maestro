@@ -90,11 +90,11 @@ class CloudInteractorTest {
                 authToken = any(), appFile = any(), workspaceZip = any(),
                 uploadName = any(), mappingFile = any(), repoOwner = any(),
                 repoName = any(), branch = any(), commitSha = any(),
-                pullRequestId = any(), env = any(), androidApiLevel = any(),
-                iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
+                androidApiLevel = any(), iOSVersion = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -166,8 +166,6 @@ class CloudInteractorTest {
             commitSha = any(),
             pullRequestId = any(),
             env = any(),
-            androidApiLevel = any(),
-            iOSVersion = any(),
             appBinaryId = isNull(),
             includeTags = any(),
             excludeTags = any(),
@@ -177,6 +175,8 @@ class CloudInteractorTest {
             projectId = "proj_1",
             deviceModel = any(),
             deviceOs = any(),
+            androidApiLevel = any(),
+            iOSVersion = any(),
         ) }
     }
 
@@ -335,11 +335,11 @@ class CloudInteractorTest {
             authToken = any(), appFile = any(), workspaceZip = any(),
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
-            pullRequestId = any(), env = any(), androidApiLevel = any(),
-            iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = eq("fr_FR"), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
@@ -361,12 +361,12 @@ class CloudInteractorTest {
             authToken = any(), appFile = any(), workspaceZip = any(),
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
-            pullRequestId = any(), env = any(), androidApiLevel = any(),
-            iOSVersion = any(), appBinaryId = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(),
             includeTags = eq(listOf("smoke")),
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
@@ -417,11 +417,11 @@ class CloudInteractorTest {
             repoOwner = eq("acme"), repoName = eq("app"),
             branch = eq("feature/x"), commitSha = eq("abc123"),
             pullRequestId = eq("42"),
-            env = any(), androidApiLevel = any(),
-            iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+            env = any(), appBinaryId = any(), includeTags = any(),
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
@@ -444,48 +444,13 @@ class CloudInteractorTest {
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
             pullRequestId = any(),
-            env = eq(mapOf("API_KEY" to "secret")),
-            androidApiLevel = any(), iOSVersion = any(), appBinaryId = any(),
+            env = eq(mapOf("API_KEY" to "secret")), appBinaryId = any(),
             includeTags = any(), excludeTags = any(),
             disableNotifications = any(), deviceLocale = any(),
             progressListener = any(), projectId = any(),
             deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
-    }
-
-    // ---- 14. Device model not supported ----
-
-    @Test
-    fun `upload throws CliError when device model is not supported`() {
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = iosFlowFile(),
-                appFile = iosApp(),
-                async = true,
-                projectId = "proj_1",
-                deviceModel = "galaxy_s21",
-            )
-        }
-
-        assertThat(error.message).contains("not supported")
-        assertThat(error.message).contains("galaxy_s21")
-    }
-
-    // ---- 15. OS version not supported for device ----
-
-    @Test
-    fun `upload throws CliError when OS version is not supported for device`() {
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = iosFlowFile(),
-                appFile = iosApp(),
-                async = true,
-                projectId = "proj_1",
-                deviceOs = "iOS-15-0",
-            )
-        }
-
-        assertThat(error.message).contains("not supported")
     }
 
     // ---- 16. Valid device config and compatible app succeeds ----

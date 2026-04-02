@@ -2,7 +2,6 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
-import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
@@ -58,7 +57,7 @@ import kotlin.String
 import kotlin.io.path.absolute
 import kotlin.time.Duration.Companion.milliseconds
 
-val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
+val terminalStatuses = listOf(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
 
 class CloudInteractor(
     private val client: ApiClient,
@@ -85,8 +84,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -99,6 +96,8 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidApiLevel: Int? = null,
+        iOSVersion: String? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -118,7 +117,6 @@ class CloudInteractor(
         // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = if (flowFile.isWebFlow()) "web" else "unknown",
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
@@ -159,45 +157,12 @@ class CloudInteractor(
             } catch (e: AppValidationException) {
                 throw CliError(e.message ?: "App validation failed")
             }
-            val inferredPlatform = resolvedAppValidation.platform
-
-            // Construct DeviceSpec from resolved platform + CLI flags
-            val deviceSpec: DeviceSpec = when (inferredPlatform) {
-                Platform.ANDROID -> DeviceSpec.fromRequest(DeviceSpecRequest.Android(
-                    model = deviceModel,
-                    os = deviceOs ?: androidApiLevel?.let { "android-$it" },
-                    locale = deviceLocale,
-                ))
-                Platform.IOS -> DeviceSpec.fromRequest(DeviceSpecRequest.Ios(
-                    model = deviceModel,
-                    os = deviceOs ?: iOSVersion?.let { "iOS-${it.replace('.', '-')}" },
-                    locale = deviceLocale,
-                ))
-                Platform.WEB -> DeviceSpec.fromRequest(DeviceSpecRequest.Web(
-                    model = deviceModel,
-                    os = deviceOs,
-                    locale = deviceLocale,
-                ))
-            }
 
             // Fetch supported devices and validate device spec
             val supportedDevices = try {
                 client.listCloudDevices()
             } catch (e: ApiClient.ApiException) {
                 throw CliError("Failed to fetch supported devices. Status code: ${e.statusCode}")
-            }
-
-            val validatedDeviceSpec = try {
-                DeviceSpecValidator.validate(deviceSpec, supportedDevices)
-            } catch (e: DeviceSpecValidator.InvalidDeviceConfiguration) {
-                throw CliError(e.message ?: "Invalid device configuration")
-            }
-
-            // Validate app-device compatibility
-            try {
-                appValidator.validateDeviceCompatibility(appFileToSend, validatedDeviceSpec)
-            } catch (e: AppValidationException) {
-                throw CliError(e.message ?: "App-device compatibility check failed")
             }
 
             // Validate workspace against appId before uploading to catch errors early
@@ -213,15 +178,6 @@ class CloudInteractor(
                 throw CliError(e.message ?: "Workspace validation failed")
             }
 
-            Analytics.trackEvent(CloudUploadStartedEvent(
-                projectId = selectedProjectId,
-                platform = inferredPlatform.name.lowercase(),
-                isBinaryUpload = appBinaryId != null,
-                usesEnvironment = env.isNotEmpty(),
-                deviceModel = deviceModel,
-                deviceOs = deviceOs
-            ))
-
             val response = client.upload(
                 authToken = authToken,
                 appFile = appFileToSend?.toPath(),
@@ -234,19 +190,19 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
-                deviceLocale = deviceLocale,
                 projectId = selectedProjectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
+                deviceLocale = deviceLocale,
                 deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceOs = deviceOs,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
             )
 
             // Track finish after upload completion
