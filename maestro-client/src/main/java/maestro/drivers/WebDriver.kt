@@ -737,7 +737,7 @@ class WebDriver(
                 catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
             }
         } else {
-            val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
+            val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
             val element = driver.findElement(By.ByXPath(xPath))
             action(element)
         }
