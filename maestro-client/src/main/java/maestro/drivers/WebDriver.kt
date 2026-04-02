@@ -365,7 +365,7 @@ class WebDriver(
         executeJS("window.maestro.tapOnSyntheticElement(${point.x}, ${point.y})")
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, durationMs: Long) {
         val driver = ensureOpen()
 
         val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
@@ -373,7 +373,7 @@ class WebDriver(
             .addAction(mouse.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), point.x, point.y))
         (driver as RemoteWebDriver).perform(listOf(actions))
 
-        Actions(driver).clickAndHold().pause(3000L).release().build().perform()
+        Actions(driver).clickAndHold().pause(durationMs).release().build().perform()
     }
 
     override fun pressKey(code: KeyCode) {
