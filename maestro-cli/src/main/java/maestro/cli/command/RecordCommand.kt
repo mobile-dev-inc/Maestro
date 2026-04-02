@@ -96,7 +96,7 @@ class RecordCommand : Callable<Int> {
     private var debugOutput: String? = null
 
     override fun call(): Int {
-        env = EnvFileParser.resolveEnv(envFile, env)
+        env = EnvFileParser.resolveEnv(envFile = envFile, envMap = env)
 
         // Track record start
         val startTime = System.currentTimeMillis()

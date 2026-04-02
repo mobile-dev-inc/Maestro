@@ -251,7 +251,7 @@ class TestCommand : Callable<Int> {
     }
   
     override fun call(): Int {
-        env = EnvFileParser.resolveEnv(envFile, env)
+        env = EnvFileParser.resolveEnv(envFile = envFile, envMap = env)
 
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,

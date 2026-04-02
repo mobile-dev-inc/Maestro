@@ -14,6 +14,9 @@ object EnvFileParser {
      * - KEY=VALUE
      * - KEY="VALUE"
      * - KEY='VALUE'
+     *
+     * @param file The .env file to parse.
+     * @return A map of environment variables defined in the file.
      */
     fun parseEnvFile(file: File): Map<String, String> {
         if (!file.exists()) {
@@ -30,20 +33,17 @@ object EnvFileParser {
             // Skip blank lines and comments
             if (line.isEmpty() || line.startsWith("#")) return@forEachIndexed
 
-            // Skip lines starting with "export " (common in shell env files) and strip the prefix
-            val effectiveLine = if (line.startsWith("export ")) line.removePrefix("export ").trim() else line
-
-            val eqIndex = effectiveLine.indexOf('=')
+            val eqIndex = line.indexOf('=')
             if (eqIndex <= 0) {
                 throw CliError("Malformed line ${index + 1} in env file ${file.name}: $rawLine")
             }
 
-            val key = effectiveLine.substring(0, eqIndex).trim()
+            val key = line.substring(0, eqIndex).trim()
             if (!key.matches(VALID_KEY_REGEX)) {
                 throw CliError("Invalid variable name '${key}' at line ${index + 1} in env file ${file.name}")
             }
 
-            val rawValue = effectiveLine.substring(eqIndex + 1)
+            val rawValue = line.substring(eqIndex + 1)
             val value = unquote(rawValue)
             result[key] = value
         }
@@ -53,11 +53,15 @@ object EnvFileParser {
     /**
      * Resolves the final environment map by merging env file values with
      * explicitly provided -e values. Explicit -e values take precedence.
+     *
+     * @param envFile The .env file to parse, or null if not provided.
+     * @param envMap The map of environment variables provided via -e options.
+     * @return A merged map of environment variables.
      */
-    fun resolveEnv(envFile: File?, env: Map<String, String>): Map<String, String> {
-        if (envFile == null) return env
-        val fromFile = parseEnvFile(envFile)
-        return fromFile + env // env (from -e) overrides file values
+    fun resolveEnv(envFile: File?, envMap: Map<String, String>): Map<String, String> {
+        if (envFile == null) return envMap
+        val fromFile = parseEnvFile(file = envFile)
+        return fromFile + envMap // envMap (from -e) overrides file values
     }
 
     private fun unquote(raw: String): String {

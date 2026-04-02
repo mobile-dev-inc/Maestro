@@ -183,7 +183,7 @@ class CloudCommand : Callable<Int> {
     private val parent: App? = null
 
     override fun call(): Int {
-        env = EnvFileParser.resolveEnv(envFile, env)
+        env = EnvFileParser.resolveEnv(envFile = envFile, envMap = env)
 
         TestDebugReporter.install(
             debugOutputPathAsString = null,
