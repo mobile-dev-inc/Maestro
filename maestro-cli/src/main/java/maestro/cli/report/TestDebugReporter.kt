@@ -47,6 +47,7 @@ object TestDebugReporter {
     private var debugOutputPathAsString: String? = null
     private var flattenDebugOutput: Boolean = false
     private var testOutputDir: Path? = null
+    private var sessionFolderName: String? = null
 
     // AI outputs must be saved separately at the end of the flow.
     fun saveSuggestions(outputs: List<FlowAIOutput>, path: Path) {
@@ -170,6 +171,7 @@ object TestDebugReporter {
     fun install(debugOutputPathAsString: String? = null, flattenDebugOutput: Boolean = false, printToConsole: Boolean) {
         this.debugOutputPathAsString = debugOutputPathAsString
         this.flattenDebugOutput = flattenDebugOutput
+        this.sessionFolderName = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
         val path = getDebugOutputPath()
         LogConfig.configure(logFileName = path.absolutePathString() + "/maestro.log", printToConsole = printToConsole)
         logSystemInfo()
@@ -198,7 +200,8 @@ object TestDebugReporter {
     }
 
     private fun buildDefaultDebugOutputPath(customRootPath: String? = null): Path {
-        val foldername = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
+        val foldername = sessionFolderName
+            ?: DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").format(LocalDateTime.now())
         return when {
             testOutputDir != null -> testOutputDir!!.resolve(foldername)
             customRootPath != null -> Paths.get(customRootPath, ".maestro", "tests", foldername)
