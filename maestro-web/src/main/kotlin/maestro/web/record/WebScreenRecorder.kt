@@ -3,7 +3,7 @@ package maestro.web.record
 import okio.Sink
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v141.page.Page
+import org.openqa.selenium.devtools.v144.page.Page
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors

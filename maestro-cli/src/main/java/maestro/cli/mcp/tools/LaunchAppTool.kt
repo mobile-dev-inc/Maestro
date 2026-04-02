@@ -61,7 +61,7 @@ object LaunchAppTool {
                     
                     val orchestra = Orchestra(session.maestro)
                     runBlocking {
-                        orchestra.executeCommands(listOf(MaestroCommand(command = command)))
+                        orchestra.runFlow(listOf(MaestroCommand(command = command)))
                     }
                     
                     buildJsonObject {

@@ -156,6 +156,8 @@ dependencies {
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-ios-driver"))
     implementation(project(":maestro-studio:server"))
+    implementation(libs.apk.parser)
+    implementation(libs.dd.plist)
     implementation(libs.posthog)
     implementation(libs.dadb)
     implementation(libs.picocli)
@@ -202,6 +204,10 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }
 
 java {
@@ -336,18 +342,5 @@ jreleaser {
                 dependency("openjdk", "17+")
             }
         }
-    }
-}
-
-tasks.register<Test>("integrationTest") {
-    group = "verification"
-    useJUnitPlatform {
-        includeTags("IntegrationTest")
-    }
-}
-
-tasks.named<Test>("test") {
-    useJUnitPlatform {
-        excludeTags("IntegrationTest")
     }
 }

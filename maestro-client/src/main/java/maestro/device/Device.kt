@@ -3,7 +3,8 @@ package maestro.device
 sealed class Device(
     open val description: String,
     open val platform: Platform,
-    open val deviceType: DeviceType
+    open val deviceType: DeviceType,
+    open val deviceSpec: DeviceSpec
 ) {
 
     enum class DeviceType {
@@ -15,18 +16,18 @@ sealed class Device(
 
     data class Connected(
         val instanceId: String,
+        override val deviceSpec: DeviceSpec,
         override val description: String,
         override val platform: Platform,
         override val deviceType: DeviceType,
-    ) : Device(description, platform, deviceType)
+    ) : Device(description, platform, deviceType, deviceSpec)
 
     data class AvailableForLaunch(
         val modelId: String,
-        val language: String?,
-        val country: String?,
+        override val deviceSpec: DeviceSpec,
         override val description: String,
         override val platform: Platform,
         override val deviceType: DeviceType,
-    ) : Device(description, platform, deviceType)
+    ) : Device(description, platform, deviceType, deviceSpec)
 
 }

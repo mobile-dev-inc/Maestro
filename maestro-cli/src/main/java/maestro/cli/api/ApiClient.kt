@@ -238,8 +238,6 @@ class ApiClient(
         commitSha: String?,
         pullRequestId: String?,
         env: Map<String, String>? = null,
-        androidApiLevel: Int?,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
@@ -251,6 +249,8 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidApiLevel: Int?,
+        iOSVersion: String? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -267,8 +267,6 @@ class ApiClient(
         pullRequestId?.let { requestPart["pullRequestId"] = it }
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
-        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
-        iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
         requestPart["projectId"] = projectId
@@ -326,8 +324,6 @@ class ApiClient(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 maxRetryCount = maxRetryCount,
@@ -337,6 +333,10 @@ class ApiClient(
                 disableNotifications = disableNotifications,
                 deviceLocale = deviceLocale,
                 projectId = projectId,
+                deviceModel = deviceModel,
+                deviceOs = deviceOs,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
             )
         }
 
@@ -389,8 +389,6 @@ class ApiClient(
                                 commitSha = commitSha,
                                 pullRequestId = pullRequestId,
                                 env = env,
-                                androidApiLevel = androidApiLevel,
-                                iOSVersion = iOSVersion,
                                 includeTags = includeTags,
                                 excludeTags = excludeTags,
                                 maxRetryCount = maxRetryCount,
@@ -399,7 +397,11 @@ class ApiClient(
                                 appBinaryId = appBinaryId,
                                 disableNotifications = disableNotifications,
                                 deviceLocale = deviceLocale,
-                                projectId = projectId
+                                projectId = projectId,
+                                deviceModel = deviceModel,
+                                deviceOs = deviceOs,
+                                androidApiLevel = androidApiLevel,
+                                iOSVersion = iOSVersion,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -557,6 +559,24 @@ class ApiClient(
             val parsed = JSON.readValue(response.body?.bytes(), AnalyzeResponse::class.java)
 
             return parsed;
+        }
+    }
+
+    fun listCloudDevices(): Map<String, Map<String, List<String>>> {
+        val request = Request.Builder()
+            .url("$baseUrl/v2/device/list")
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) throw ApiException(statusCode = response.code)
+            return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         }
     }
 
@@ -753,6 +773,27 @@ class ApiClient(
         }
     }
 
+    fun getAppBinaryInfo(authToken: String, appBinaryId: String): AppBinaryInfo {
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url("$baseUrl/v2/maestro-studio/app-binary/$appBinaryId")
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(statusCode = response.code)
+            }
+            return JSON.readValue(response.body?.bytes(), AppBinaryInfo::class.java)
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -770,6 +811,12 @@ data class UploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
+)
+
+data class AppBinaryInfo(
+    val appBinaryId: String,
+    val platform: String,
+    val appId: String,
 )
 
 data class DeviceConfiguration(

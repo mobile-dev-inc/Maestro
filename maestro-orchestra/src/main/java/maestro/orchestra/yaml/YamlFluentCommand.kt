@@ -21,7 +21,7 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonLocation
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
@@ -232,7 +232,8 @@ data class YamlFluentCommand(
                         thresholdPercentage = assertScreenshot.thresholdPercentage,
                         cropOn = assertScreenshot.cropOn?.let { toElementSelector(it) },
                         optional = assertScreenshot.optional,
-                        label = assertScreenshot.label
+                        label = assertScreenshot.label,
+                        flowPath = flowPath.parent,
                     )
                 )
             )
@@ -319,7 +320,8 @@ data class YamlFluentCommand(
                     TakeScreenshotCommand(
                         path = takeScreenshot.path,
                         label = takeScreenshot.label,
-                        optional = takeScreenshot.optional
+                        optional = takeScreenshot.optional,
+                        cropOn = takeScreenshot.cropOn?.let { toElementSelector(selectorUnion = it) },
                     )
                 )
             )
@@ -370,7 +372,8 @@ data class YamlFluentCommand(
             setOrientation != null -> listOf(
                 MaestroCommand(
                     SetOrientationCommand(
-                        orientation = DeviceOrientation.getByName(setOrientation.orientation) ?: throw SyntaxError("Unknown orientation: $setOrientation"),
+                        orientation = DeviceOrientation.getByName(setOrientation.orientation)?.name
+                            ?: setOrientation.orientation,
                         label = setOrientation.label,
                         optional = setOrientation.optional,
                     )

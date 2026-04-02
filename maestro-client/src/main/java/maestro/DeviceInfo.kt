@@ -19,6 +19,8 @@
 
 package maestro
 
+import maestro.device.Platform
+
 data class DeviceInfo(
     val platform: Platform,
     val widthPixels: Int,

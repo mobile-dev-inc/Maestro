@@ -13,7 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -32,6 +32,8 @@ import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.js.JsEngine
+import maestro.js.GraalJsEngine
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
@@ -51,6 +53,7 @@ import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
+import javax.imageio.ImageIO
 
 class IntegrationTest {
 
@@ -71,6 +74,7 @@ class IntegrationTest {
         File("135_recordings").delete()
         File("135_recordings/filename.mp4").delete()
         File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
+        File("138_take_cropped_screenshot_with_filename.png").delete()
     }
 
     @Test
@@ -3897,9 +3901,32 @@ class IntegrationTest {
         // No test failure
     }
 
+    @Test
     fun `Case 126 - Set orientation`() {
         // Given
-        val commands = readCommands("120_set_orientation")
+        val commands = readCommands("126_set_orientation")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.PORTRAIT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_LEFT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
+    }
+
+    @Test
+    fun `Case 126 - Set orientation with env variables`() {
+        // Given
+        val commands = readCommands("126_set_orientation_with_env")
 
         val driver = driver {
         }
@@ -4227,6 +4254,39 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 138 - Take cropped screenshot`() {
+        // Given
+        val commands = readCommands("138_take_cropped_screenshot")
+        val boundHeight = 100
+        val boundWidth = 100
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, boundHeight, boundWidth)
+            }
+        }
+
+        val device = driver.deviceInfo()
+        val dpr = device.heightPixels / device.heightGrid
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - takeScreenshot with bounds crops by bounds (grid) and outputs pixel dimensions (bounds * dpr)
+        driver.assertEvents(listOf(Event.TakeScreenshot))
+        val file = File("138_take_cropped_screenshot_with_filename.png")
+        val image = ImageIO.read(file)
+        assert(file.exists())
+        assert(image.width == (boundWidth * dpr))
+        assert(image.height == (boundHeight * dpr))
+    }
+
+    @Test
     fun `Case 137 - Shard and device env vars`() {
         // Given
         // Use the proper API parameters (deviceId, shardIndex) instead of manually setting
@@ -4504,6 +4564,38 @@ class IntegrationTest {
         driver.setLayout(FakeLayoutElement().apply { builder() })
         driver.open()
         return driver
+    }
+
+    @Test
+    fun `jsEngine is closed after runFlow completes`() {
+        // Given
+        val driver = driver {}
+        var closeCalled = false
+
+        Maestro(driver).use { maestro ->
+            val orchestra = Orchestra(
+                maestro,
+                lookupTimeoutMs = 0L,
+                optionalLookupTimeoutMs = 0L,
+                jsEngineFactory = { config ->
+                    val real = GraalJsEngine(platform = "android")
+                    object : JsEngine by real {
+                        override fun close() {
+                            closeCalled = true
+                            real.close()
+                        }
+                    }
+                },
+            )
+
+            // When
+            runBlocking {
+                orchestra.runFlow(listOf(MaestroCommand(BackPressCommand())))
+            }
+        }
+
+        // Then
+        assertThat(closeCalled).isTrue()
     }
 
     private fun readCommands(

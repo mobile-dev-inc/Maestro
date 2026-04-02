@@ -201,6 +201,7 @@ class TestSuiteInteractor(
 
         val flowTimeMillis = measureTimeMillis {
             try {
+                var commandSequenceNumber = 0
                 val orchestra = Orchestra(
                     maestro = maestro,
                     screenshotsDir = testOutputDir?.resolve("screenshots"),
@@ -208,7 +209,8 @@ class TestSuiteInteractor(
                         logger.info("${shardPrefix}${command.description()} RUNNING")
                         debugOutput.commands[command] = CommandDebugMetadata(
                             timestamp = System.currentTimeMillis(),
-                            status = CommandStatus.RUNNING
+                            status = CommandStatus.RUNNING,
+                            sequenceNumber = commandSequenceNumber++
                         )
                     },
                     onCommandComplete = { _, command ->
@@ -362,6 +364,7 @@ class TestSuiteInteractor(
                 } else null,
                 duration = flowDuration,
                 properties = maestroConfig?.properties,
+                tags = maestroConfig?.tags,
                 steps = steps,
             ),
             second = aiOutput,

@@ -19,7 +19,7 @@
 
 package maestro.orchestra
 
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -28,6 +28,7 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import com.fasterxml.jackson.annotation.JsonIgnore
+import java.nio.file.Path
 import net.datafaker.Faker
 
 sealed interface Command {
@@ -481,6 +482,7 @@ data class AssertScreenshotCommand(
     val cropOn: ElementSelector? = null,
     override val optional: Boolean = false,
     override val label: String? = null,
+    @field:JsonIgnore val flowPath: Path? = null,
 ) : Command {
     override val originalDescription: String
         get() {
@@ -651,6 +653,7 @@ data class EraseTextCommand(
 
 data class TakeScreenshotCommand(
     val path: String,
+    val cropOn: ElementSelector? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -658,9 +661,18 @@ data class TakeScreenshotCommand(
     override val originalDescription: String
         get() = "Take screenshot $path"
 
+    override fun description(): String {
+        return label ?: if (cropOn != null) {
+            "Take screenshot $path, cropped to ${cropOn.description()}"
+        } else {
+            "Take screenshot $path"
+        }
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            cropOn = cropOn?.evaluateScripts(jsEngine),
         )
     }
 }
@@ -765,7 +777,7 @@ data class InputRandomCommand(
             InputRandomType.NUMBER -> faker.number().randomNumber(finalLength).toString()
             InputRandomType.TEXT -> faker.text().text(finalLength)
             InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
-            InputRandomType.TEXT_PERSON_NAME -> faker.name().name()
+            InputRandomType.TEXT_PERSON_NAME -> faker.name().firstName() + ' ' + faker.name().lastName()
             InputRandomType.TEXT_CITY_NAME -> faker.address().cityName()
             InputRandomType.TEXT_COUNTRY_NAME -> faker.address().country()
             InputRandomType.TEXT_COLOR -> faker.color().name()
@@ -842,10 +854,20 @@ data class SetLocationCommand(
 }
 
 data class SetOrientationCommand(
-    val orientation: DeviceOrientation,
+    val orientation: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    constructor(
+        orientation: DeviceOrientation,
+        label: String? = null,
+        optional: Boolean = false,
+    ) : this(
+        orientation = orientation.name,
+        label = label,
+        optional = optional
+    )
 
     override val originalDescription: String
         get() = "Set orientation ${orientation}"
@@ -854,8 +876,23 @@ data class SetOrientationCommand(
         return label ?: "Set orientation ${orientation}"
     }
 
+    fun resolvedOrientation(): DeviceOrientation {
+        return DeviceOrientation.getByName(orientation)
+            ?: error("Unknown orientation: $orientation")
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
-        return this
+        val evaluatedOrientation = orientation.evaluateScripts(jsEngine)
+        val validOrientations = DeviceOrientation.entries
+        val resolved = DeviceOrientation.getByName(evaluatedOrientation)
+            ?: error(
+                "Unknown orientation: $evaluatedOrientation. Valid orientations are: $validOrientations \n" +
+                    "(case insensitive, underscores optional, e.g 'landscape_left', 'landscapeLeft', and 'LANDSCAPE_LEFT' are all valid)"
+            )
+        return copy(
+            orientation = resolved.name,
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 

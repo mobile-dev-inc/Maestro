@@ -30,6 +30,19 @@ class JUnitTestSuiteReporter(
         tests = suite.flows.size,
         testCases = suite.flows
             .map { flow ->
+                // Combine flow properties and tags into a single properties list
+                val allProperties = mutableListOf<TestCaseProperty>()
+                
+                // Add custom properties
+                flow.properties?.forEach { (key, value) ->
+                    allProperties.add(TestCaseProperty(key, value))
+                }
+                
+                // Add tags as a comma-separated property
+                flow.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
+                    allProperties.add(TestCaseProperty("tags", tags.joinToString(", ")))
+                }
+                
                 TestCase(
                     id = flow.name,
                     name = flow.name,
@@ -42,7 +55,7 @@ class JUnitTestSuiteReporter(
                     time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
                     timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it) },
                     status = flow.status,
-                    properties = flow.properties?.map { TestCaseProperty(it.key, it.value) }
+                    properties = allProperties.takeIf { it.isNotEmpty() }
                 )
             }
     )
