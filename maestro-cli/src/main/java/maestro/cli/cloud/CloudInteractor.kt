@@ -58,7 +58,7 @@ import kotlin.String
 import kotlin.io.path.absolute
 import kotlin.time.Duration.Companion.milliseconds
 
-val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
+val terminalStatuses = listOf(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
 
 class CloudInteractor(
     private val client: ApiClient,
@@ -85,8 +85,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -215,7 +213,6 @@ class CloudInteractor(
 
             Analytics.trackEvent(CloudUploadStartedEvent(
                 projectId = selectedProjectId,
-                platform = inferredPlatform.name.lowercase(),
                 isBinaryUpload = appBinaryId != null,
                 usesEnvironment = env.isNotEmpty(),
                 deviceModel = deviceModel,
@@ -234,8 +231,6 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
