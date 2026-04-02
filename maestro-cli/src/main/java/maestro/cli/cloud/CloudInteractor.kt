@@ -36,8 +36,8 @@ import maestro.cli.view.cyan
 import maestro.cli.view.render
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.validation.AppMetadataAnalyzer
+import maestro.orchestra.validation.AppMetadata
 import maestro.cli.web.WebInteractor
-import maestro.device.AppValidationResult
 import maestro.orchestra.validation.AppValidationException
 import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
@@ -62,7 +62,7 @@ val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPE
 
 class CloudInteractor(
     private val client: ApiClient,
-    private val appFileValidator: (File) -> AppValidationResult?,
+    private val appFileValidator: (File) -> AppMetadata?,
     private val workspaceValidator: WorkspaceValidator,
     private val webManifestProvider: (() -> File?)? = null,
     private val auth: Auth = Auth(client),
