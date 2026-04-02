@@ -245,6 +245,7 @@ data class CloudUploadStartedEvent(
     val projectId: String,
     val isBinaryUpload: Boolean = false,
     val usesEnvironment: Boolean = false,
+    val platform: String,
     val deviceModel: String? = null,
     val deviceOs: String? = null
 ) : CloudUploadEvent

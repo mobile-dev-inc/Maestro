@@ -89,11 +89,11 @@ sealed class DeviceSpec {
                 )
                 is DeviceSpecRequest.Ios -> Ios(
                     model = request.model ?: "iPhone-11",
-                    os = request.os ?: "iOS-18-2",
+                    os = request.os ?: "iOS-17-5",
                     locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.IOS),
                     orientation = request.orientation ?: DeviceOrientation.PORTRAIT,
                     disableAnimations = request.disableAnimations ?: false,
-                    snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: false,
+                    snapshotKeyHonorModalViews = request.snapshotKeyHonorModalViews ?: true,
                 )
                 is DeviceSpecRequest.Web -> Web(
                     model = request.model ?: "chromium",

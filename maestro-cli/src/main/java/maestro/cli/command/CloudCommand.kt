@@ -239,9 +239,9 @@ class CloudCommand : Callable<Int> {
             deviceLocale = deviceLocale,
             projectId = projectId,
             deviceModel = deviceModel,
-            deviceOs = deviceOs
-              ?: androidApiLevel?.toString()
-              ?: iOSVersion,
+            deviceOs = deviceOs,
+            androidApiLevel = androidApiLevel,
+            iOSVersion = iOSVersion
         )
     }
 
