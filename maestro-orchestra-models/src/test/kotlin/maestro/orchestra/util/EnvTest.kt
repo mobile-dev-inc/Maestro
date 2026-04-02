@@ -121,13 +121,33 @@ class EnvTest {
     }
 
     @Test
-    fun `withEnv prepends DefineVariable command`() {
+    fun `withEnv appends DefineVariable command`() {
         val env = mapOf("MY_ENV_VAR" to "1234")
         val applyConfig = MaestroCommand(ApplyConfigurationCommand(MaestroConfig()))
         val defineVariables = MaestroCommand(DefineVariablesCommand(env))
 
         val withEnv = listOf(applyConfig).withEnv(env)
 
-        assertThat(withEnv).containsExactly(defineVariables, applyConfig)
+        assertThat(withEnv).containsExactly(applyConfig, defineVariables)
+    }
+
+    @Test
+    fun `external env overrides YAML env when both use withEnv`() {
+        // Simulates: YAML env block sets MY_VAR=yaml_default, then Studio env overrides to studio_value
+        val yamlEnv = mapOf("MY_VAR" to "yaml_default", "YAML_ONLY" to "yaml_val")
+        val studioEnv = mapOf("MY_VAR" to "studio_value", "STUDIO_ONLY" to "studio_val")
+
+        val commands = emptyList<MaestroCommand>()
+            .withEnv(yamlEnv)   // First call (from parseFlow) — sets defaults
+            .withEnv(studioEnv) // Second call (from FlowExecutor) — should override
+
+        val defineVarsCommands = commands.filterIsInstance<MaestroCommand>()
+            .filter { it.asCommand() is DefineVariablesCommand }
+            .map { (it.asCommand() as DefineVariablesCommand).env }
+
+        // YAML env should be first (set as defaults), Studio env should be last (overrides)
+        assertThat(defineVarsCommands).hasSize(2)
+        assertThat(defineVarsCommands[0]).isEqualTo(yamlEnv)
+        assertThat(defineVarsCommands[1]).isEqualTo(studioEnv)
     }
 }

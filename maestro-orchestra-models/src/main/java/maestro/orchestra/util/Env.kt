@@ -27,7 +27,7 @@ object Env {
 
     fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> =
         if (env.isEmpty()) this
-        else listOf(MaestroCommand(DefineVariablesCommand(env))) + this
+        else this + listOf(MaestroCommand(DefineVariablesCommand(env)))
 
     /**
      * Reserved internal env vars that are controlled exclusively by Maestro.
