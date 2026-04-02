@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `sendBroadcast` command for sending Android broadcast intents
+
 ## 2.3.0
 
 - Add web support for `clearState` command
