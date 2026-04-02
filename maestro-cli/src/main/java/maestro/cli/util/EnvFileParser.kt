@@ -5,6 +5,8 @@ import java.io.File
 
 object EnvFileParser {
 
+    private val VALID_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
+
     /**
      * Parses a .env file into a map of key-value pairs.
      *
@@ -37,7 +39,7 @@ object EnvFileParser {
             }
 
             val key = effectiveLine.substring(0, eqIndex).trim()
-            if (!key.matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))) {
+            if (!key.matches(VALID_KEY_REGEX)) {
                 throw CliError("Invalid variable name '${key}' at line ${index + 1} in env file ${file.name}")
             }
 

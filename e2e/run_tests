@@ -83,6 +83,24 @@ else
 		maestro --verbose --platform "$platform" test --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
 	done
+
+	###
+	### Run --env-file test (loads env vars from file, then uses them with setOrientation)
+	###
+	if [ "$platform" = "android" ]; then
+		_h1 "run --env-file test"
+		_h2 "setOrientation" "run env-file test with .environment"
+
+		while IFS= read -r line; do
+			_h3 "setOrientation" "env-file" "$line"
+		done < pipe &
+
+		maestro --verbose --platform "$platform" test \
+			--include-tags env-file-orientation \
+			--env-file ./workspaces/setOrientation/.environment \
+			./workspaces/setOrientation/ 1>pipe 2>&1 \
+			|| { _h2 "setOrientation" "FAIL! --env-file test failed"; ALL_PASS=false; }
+	fi
 fi
 
 if [ "$ALL_PASS" = "false" ]; then

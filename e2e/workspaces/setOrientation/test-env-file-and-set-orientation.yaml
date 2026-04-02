@@ -1,0 +1,24 @@
+appId: com.example.maestro.orientation
+tags:
+  - android
+  - env-file-orientation
+---
+# This flow tests loading environment variables from a .environment file and using them with setOrientation.
+# Usage:
+#   maestro test e2e/workspaces/setOrientation/test-env-file-and-set-orientation.yaml --env-file e2e/workspaces/setOrientation/.environment
+
+- launchApp
+- setOrientation: ${orientationLandscapeLeft}
+- assertVisible: "LANDSCAPE_LEFT"
+- setOrientation: ${orientationLandscapeRight}
+- assertVisible: "LANDSCAPE_RIGHT"
+- setOrientation: ${orientationUpsideDown}
+- assertVisible: "UPSIDE_DOWN"
+- setOrientation: ${orientationPortrait}
+- assertVisible: "PORTRAIT"
+
+- evalScript: ${console.log('APP_ID = ' + APP_ID)}
+- evalScript: ${console.log('TEST_MESSAGE = ' + TEST_MESSAGE)}
+- evalScript: ${console.log('TEST_URL = ' + TEST_URL)}
+- evalScript: ${console.log('TEST_QUOTE_1 = ' + TEST_QUOTE_1)}
+- evalScript: ${console.log('TEST_QUOTE_2 = ' + TEST_QUOTE_2)}
