@@ -116,7 +116,6 @@ class CloudInteractor(
         // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = if (flowFile.isWebFlow()) "web" else "unknown",
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
@@ -163,12 +162,12 @@ class CloudInteractor(
             val deviceSpec: DeviceSpec = when (inferredPlatform) {
                 Platform.ANDROID -> DeviceSpec.fromRequest(DeviceSpecRequest.Android(
                     model = deviceModel,
-                    os = deviceOs ?: androidApiLevel?.let { "android-$it" },
+                    os = deviceOs,
                     locale = deviceLocale,
                 ))
                 Platform.IOS -> DeviceSpec.fromRequest(DeviceSpecRequest.Ios(
                     model = deviceModel,
-                    os = deviceOs ?: iOSVersion?.let { "iOS-${it.replace('.', '-')}" },
+                    os = deviceOs,
                     locale = deviceLocale,
                 ))
                 Platform.WEB -> DeviceSpec.fromRequest(DeviceSpecRequest.Web(
