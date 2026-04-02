@@ -8,6 +8,8 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import maestro.cli.CliError
+import maestro.device.DeviceSpec
+import maestro.device.serialization.DeviceSpecModule
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.TrialStartedEvent
 import maestro.cli.analytics.TrialStartFailedEvent
@@ -226,6 +228,7 @@ class ApiClient(
         return response.copy(downloadUrl = downloadUrl)
     }
 
+    @Deprecated("Use uploadV2 which sends DeviceSpec object to /run-maestro-test endpoint")
     fun upload(
         authToken: String,
         appFile: Path?,
@@ -495,6 +498,166 @@ class ApiClient(
         )
     }
 
+
+    fun uploadV2(
+        authToken: String,
+        appFile: Path?,
+        workspaceZip: Path,
+        deviceSpec: DeviceSpec,
+        uploadName: String?,
+        mappingFile: Path?,
+        repoOwner: String?,
+        repoName: String?,
+        branch: String?,
+        commitSha: String?,
+        pullRequestId: String?,
+        env: Map<String, String>?,
+        appBinaryId: String?,
+        includeTags: List<String>,
+        excludeTags: List<String>,
+        disableNotifications: Boolean,
+        projectId: String,
+        maxRetryCount: Int = 3,
+        completedRetries: Int = 0,
+        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
+    ): UploadResponse {
+        if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
+        if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
+        if (!workspaceZip.exists()) throw CliError("Workspace zip does not exist: ${workspaceZip.absolutePathString()}")
+
+        val requestPart = mutableMapOf<String, Any>()
+        requestPart["deviceSpec"] = deviceSpec
+        if (uploadName != null) {
+            requestPart["benchmarkName"] = uploadName
+        }
+        repoOwner?.let { requestPart["repoOwner"] = it }
+        repoName?.let { requestPart["repoName"] = it }
+        branch?.let { requestPart["branch"] = it }
+        commitSha?.let { requestPart["commitSha"] = it }
+        pullRequestId?.let { requestPart["pullRequestId"] = it }
+        env?.let { requestPart["env"] = it }
+        appBinaryId?.let { requestPart["appBinaryId"] = it }
+        if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
+        if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
+        if (disableNotifications) requestPart["disableNotifications"] = true
+
+        val bodyBuilder = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "workspace",
+                "workspace.zip",
+                workspaceZip.toFile().asRequestBody("application/zip".toMediaType())
+            )
+            .addFormDataPart("request", JSON_V2.writeValueAsString(requestPart))
+
+        if (appFile != null) {
+            bodyBuilder.addFormDataPart(
+                "app_binary",
+                "app.zip",
+                appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
+            )
+        }
+
+        if (mappingFile != null) {
+            bodyBuilder.addFormDataPart(
+                "mapping",
+                "mapping.txt",
+                mappingFile.toFile().asRequestBody("text/plain".toMediaType())
+            )
+        }
+
+        val body = bodyBuilder.build()
+
+        fun retry(message: String, e: Throwable? = null): UploadResponse {
+            if (completedRetries >= maxRetryCount) {
+                e?.printStackTrace()
+                throw CliError(message)
+            }
+
+            PrintUtils.message("$message, retrying (${completedRetries + 1}/$maxRetryCount)...")
+            Thread.sleep(BASE_RETRY_DELAY_MS + (2000 * completedRetries))
+
+            return uploadV2(
+                authToken = authToken,
+                appFile = appFile,
+                workspaceZip = workspaceZip,
+                deviceSpec = deviceSpec,
+                uploadName = uploadName,
+                mappingFile = mappingFile,
+                repoOwner = repoOwner,
+                repoName = repoName,
+                branch = branch,
+                commitSha = commitSha,
+                pullRequestId = pullRequestId,
+                env = env,
+                appBinaryId = appBinaryId,
+                includeTags = includeTags,
+                excludeTags = excludeTags,
+                disableNotifications = disableNotifications,
+                projectId = projectId,
+                maxRetryCount = maxRetryCount,
+                completedRetries = completedRetries + 1,
+                progressListener = progressListener,
+            )
+        }
+
+        val url = "$baseUrl/v2/project/$projectId/run-maestro-test"
+
+        val response = try {
+            val request = Request.Builder()
+                .header("Authorization", "Bearer $authToken")
+                .url(url)
+                .post(body)
+                .build()
+
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            return retry("Upload failed due to socket exception", e)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
+
+                if (response.code >= 500) {
+                    return retry("Upload failed with status code ${response.code}: $errorMessage")
+                } else {
+                    throw CliError("Upload request failed (${response.code}): $errorMessage")
+                }
+            }
+
+            val responseBody = JSON_V2.readValue(response.body?.bytes(), Map::class.java)
+
+            return parseUploadResponseV2(responseBody)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun parseUploadResponseV2(responseBody: Map<*, *>): UploadResponse {
+        val orgId = responseBody["orgId"] as String
+        val uploadId = responseBody["uploadId"] as String
+        val appId = responseBody["appId"] as String
+        val appBinaryId = responseBody["appBinaryId"] as String
+
+        val deviceSpecMap = responseBody["deviceSpec"] as Map<String, Any>
+        val platform = deviceSpecMap["platform"].toString().uppercase()
+        val deviceConfiguration = DeviceConfiguration(
+            platform = platform,
+            deviceName = deviceSpecMap["model"] as String,
+            orientation = (deviceSpecMap["orientation"] as? String) ?: "PORTRAIT",
+            osVersion = deviceSpecMap["osVersion"].toString(),
+            displayInfo = deviceSpecMap["deviceName"] as String,
+            deviceLocale = (deviceSpecMap["locale"] as? Map<String, Any>)?.get("code") as? String,
+        )
+
+        return UploadResponse(
+            orgId = orgId,
+            uploadId = uploadId,
+            deviceConfiguration = deviceConfiguration,
+            appId = appId,
+            appBinaryId = appBinaryId,
+        )
+    }
 
     private inline fun <reified T> post(path: String, body: Any): Result<T, Response> {
         val bodyBytes = JSON.writeValueAsBytes(body)
@@ -803,6 +966,9 @@ class ApiClient(
     companion object {
         private const val BASE_RETRY_DELAY_MS = 3000L
         private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        private val JSON_V2 = jacksonObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .registerModule(DeviceSpecModule())
     }
 }
 
