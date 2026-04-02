@@ -3920,9 +3920,32 @@ class IntegrationTest {
         // No test failure
     }
 
+    @Test
     fun `Case 126 - Set orientation`() {
         // Given
-        val commands = readCommands("120_set_orientation")
+        val commands = readCommands("126_set_orientation")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.PORTRAIT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_LEFT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.LANDSCAPE_RIGHT))
+        driver.assertHasEvent(Event.SetOrientation(DeviceOrientation.UPSIDE_DOWN))
+    }
+
+    @Test
+    fun `Case 126 - Set orientation with env variables`() {
+        // Given
+        val commands = readCommands("126_set_orientation_with_env")
 
         val driver = driver {
         }

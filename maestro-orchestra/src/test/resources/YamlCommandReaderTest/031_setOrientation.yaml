@@ -1,0 +1,6 @@
+appId: com.example.app
+env:
+  orientation_portrait: PORTRAIT
+---
+- setOrientation: ${orientation_portrait}
+- setOrientation: LANDSCAPE_LEFT
