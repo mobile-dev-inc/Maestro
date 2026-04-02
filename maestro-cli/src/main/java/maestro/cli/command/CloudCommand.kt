@@ -205,7 +205,7 @@ class CloudCommand : Callable<Int> {
             webManifestProvider = webManifestProvider,
             failOnTimeout = failOnTimeout,
             waitTimeoutMs = TimeUnit.MINUTES.toMillis(resultWaitTimeout.toLong())
-        ).upload(
+        ).uploadV2(
             async = async,
             flowFile = flowsFile,
             appFile = appFile,
