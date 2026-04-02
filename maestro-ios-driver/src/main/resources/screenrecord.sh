@@ -10,16 +10,27 @@
 # Also not that the backend currently does not support hvec. That is why the
 # codec is set to h264.
 
-echo "Start recording"
-xcrun simctl io "$DEVICE_ID" recordVideo --force --codec h264 "$RECORDING_PATH" &
+xcrun simctl io "$DEVICE_ID" recordVideo --force --codec h264 "$RECORDING_PATH" >"${RECORDING_PATH}.out" 2>"${RECORDING_PATH}.err" &
 simctlpid=$!
 
-echo "Simctl pid $simctlpid"
+# Wait briefly for simctl to either fail fast or create the file
+sleep 2
+
+if ! kill -0 "$simctlpid" 2>/dev/null; then
+    wait $simctlpid
+    exit_code=$?
+    out_msg=$(cat "${RECORDING_PATH}.out" 2>/dev/null)
+    err_msg=$(cat "${RECORDING_PATH}.err" 2>/dev/null)
+    rm -f "${RECORDING_PATH}.out" "${RECORDING_PATH}.err"
+    echo "RECORDING_FAILED exit_code=$exit_code stdout=[$out_msg] stderr=[$err_msg]"
+    exit 1
+fi
+
+rm -f "${RECORDING_PATH}.out" "${RECORDING_PATH}.err"
+echo "RECORDING_STARTED"
 
 # Wait for STDIN to close
 cat
-
-echo "Received request to stop recording"
 
 kill -SIGINT "$simctlpid"
 wait $simctlpid
