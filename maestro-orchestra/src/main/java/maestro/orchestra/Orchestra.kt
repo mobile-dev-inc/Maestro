@@ -39,6 +39,7 @@ import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
+import maestro.ai.claudecode.ClaudeCodePredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.js.RhinoJsEngine
@@ -138,7 +139,9 @@ class Orchestra(
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
     private val apiKey: String? = null,
-    private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
+    private val AIPredictionEngine: AIPredictionEngine? =
+        if (ClaudeCodePredictionEngine.isAvailable()) ClaudeCodePredictionEngine()
+        else apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
     internal val jsEngineFactory: (MaestroConfig?) -> JsEngine = { config ->
         val isRhino = config?.ext?.get("jsEngine") == "rhino"
@@ -445,7 +448,7 @@ class Orchestra(
         maestroCommand: MaestroCommand
     ): Boolean {
         if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+            throw MaestroException.CloudApiKeyNotAvailable("No AI provider available. Install Claude Code CLI (`claude`) or export MAESTRO_CLOUD_API_KEY.")
         }
 
         val metadata = getMetadata(maestroCommand)
@@ -482,7 +485,7 @@ class Orchestra(
 
     private suspend fun assertWithAICommand(command: AssertWithAICommand, maestroCommand: MaestroCommand): Boolean {
         if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+            throw MaestroException.CloudApiKeyNotAvailable("No AI provider available. Install Claude Code CLI (`claude`) or export MAESTRO_CLOUD_API_KEY.")
         }
 
         val metadata = getMetadata(maestroCommand)
@@ -516,7 +519,7 @@ class Orchestra(
         maestroCommand: MaestroCommand
     ): Boolean {
         if (AIPredictionEngine == null) {
-            throw MaestroException.CloudApiKeyNotAvailable("`MAESTRO_CLOUD_API_KEY` is not available. Did you export MAESTRO_CLOUD_API_KEY?")
+            throw MaestroException.CloudApiKeyNotAvailable("No AI provider available. Install Claude Code CLI (`claude`) or export MAESTRO_CLOUD_API_KEY.")
         }
 
         val metadata = getMetadata(maestroCommand)
