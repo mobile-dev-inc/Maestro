@@ -662,7 +662,17 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             val recordingProcess = processBuilder
                 .redirectInput(PIPE)
+                .redirectErrorStream(true)
                 .start()
+
+            val firstLine = recordingProcess.inputStream.bufferedReader().readLine()
+
+            if (firstLine == null || !firstLine.startsWith("RECORDING_STARTED")) {
+                recordingProcess.waitFor()
+                throw SimctlError(
+                    "Screen recording failed to start: ${firstLine ?: "no output from recording process"}"
+                )
+            }
 
             return ScreenRecording(
                 recordingProcess,
