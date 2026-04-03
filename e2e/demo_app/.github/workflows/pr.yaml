@@ -1,0 +1,68 @@
+name: Build & Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/pr.yaml'
+      - 'analysis_options.yaml'
+      - 'android/**'
+      - 'ios/**'
+      - 'lib/**'
+      - 'pubspec.lock'
+      - 'pubspec.yaml'
+      - 'test/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+
+      - name: Run lints
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - name: Build Android app
+        run: flutter build apk
+
+      - name: Build iOS app
+        run: flutter build ios --simulator
+
+      - name: Upload Android app
+        uses: actions/upload-artifact@v7
+        if: success() || failure()
+        with:
+          name: demo_app.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload iOS app
+        uses: actions/upload-artifact@v7
+        if: success() || failure()
+        with:
+          name: demo_app.app
+          path: build/ios/iphonesimulator/Runner.app
+          if-no-files-found: error
+          retention-days: 7
