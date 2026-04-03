@@ -114,14 +114,25 @@ object TapOnTool {
                     )
                     
                     val orchestra = Orchestra(session.maestro)
-                    runBlocking {
+                    val flowResult = runBlocking {
                         orchestra.runFlow(listOf(MaestroCommand(command = command)))
                     }
-                    
+
+                    val element = flowResult.commandResults.firstOrNull()?.element
+
                     buildJsonObject {
                         put("success", true)
                         put("device_id", deviceId)
                         put("message", "Tap executed successfully")
+                        element?.bounds?.let { b ->
+                            putJsonArray("bounds") {
+                                add(b.x); add(b.y)
+                                add(b.x + b.width); add(b.y + b.height)
+                            }
+                            putJsonArray("center") {
+                                add(b.x + b.width / 2); add(b.y + b.height / 2)
+                            }
+                        }
                     }.toString()
                 }
                 

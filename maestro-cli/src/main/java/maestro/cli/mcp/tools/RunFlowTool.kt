@@ -111,16 +111,39 @@ object RunFlowTool {
                         val commandsWithEnv = commands.withEnv(finalEnv)
                         
                         val orchestra = Orchestra(session.maestro)
-                        
-                        runBlocking {
+
+                        val flowResult = runBlocking {
                             orchestra.runFlow(commandsWithEnv)
                         }
-                        
+
                         buildJsonObject {
-                            put("success", true)
+                            put("success", flowResult.success)
                             put("device_id", deviceId)
                             put("commands_executed", commands.size)
                             put("message", "Flow executed successfully")
+                            if (flowResult.commandResults.isNotEmpty()) {
+                                putJsonArray("command_results") {
+                                    flowResult.commandResults.forEach { cr ->
+                                        addJsonObject {
+                                            cr.element?.bounds?.let { b ->
+                                                putJsonArray("bounds") {
+                                                    add(b.x); add(b.y)
+                                                    add(b.x + b.width); add(b.y + b.height)
+                                                }
+                                                putJsonArray("center") {
+                                                    add(b.x + b.width / 2); add(b.y + b.height / 2)
+                                                }
+                                            }
+                                            cr.startPoint?.let { p ->
+                                                putJsonArray("start_point") { add(p.x); add(p.y) }
+                                            }
+                                            cr.endPoint?.let { p ->
+                                                putJsonArray("end_point") { add(p.x); add(p.y) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             if (finalEnv.isNotEmpty()) {
                                 putJsonObject("env_vars") {
                                     finalEnv.forEach { (key, value) ->

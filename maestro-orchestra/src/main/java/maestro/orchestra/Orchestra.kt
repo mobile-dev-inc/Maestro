@@ -82,6 +82,25 @@ import javax.imageio.ImageIO
 //  Idea:
 //    Orchestra should expose a callback like "onResourceRequested: (Command, CommandOutputType)"
 
+/**
+ * Represents metadata captured during a single command execution.
+ * Populated for commands that resolve UI elements (e.g. tap, swipe).
+ */
+data class CommandResult(
+    val element: UiElement? = null,
+    val startPoint: Point? = null,
+    val endPoint: Point? = null,
+)
+
+/**
+ * Result of [Orchestra.runFlow], containing both the overall success status
+ * and per-command metadata (e.g. resolved element bounds).
+ */
+data class FlowResult(
+    val success: Boolean,
+    val commandResults: List<CommandResult> = emptyList(),
+)
+
 interface FlowController {
     suspend fun waitIfPaused()
     fun pause()
@@ -161,7 +180,10 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
+    private val _commandResults = mutableListOf<CommandResult>()
+
+    suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
+        _commandResults.clear()
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -211,7 +233,10 @@ class Orchestra(
 
             exception?.let { throw it }
 
-            return onCompleteSuccess && flowSuccess
+            return FlowResult(
+                success = onCompleteSuccess && flowSuccess,
+                commandResults = _commandResults.toList(),
+            )
         }
     }
 
@@ -1209,8 +1234,8 @@ class Orchestra(
         // Handle element-relative tap if specified
         val relativePoint = command.relativePoint
         if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
-                  
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
+
             maestro.tap(
                 x = tapPoint.x,
                 y = tapPoint.y,
@@ -1232,6 +1257,8 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
             )
         }
+
+        _commandResults.add(CommandResult(element = result.element))
 
         return true
     }
