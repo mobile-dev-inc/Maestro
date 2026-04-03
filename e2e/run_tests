@@ -89,7 +89,7 @@ else
 	###
 	if [ "$platform" = "android" ]; then
 		_h1 "run --env-file test"
-		_h2 "setOrientation" "run env-file test with .environment"
+		_h2 "setOrientation" "run env-file test with .env"
 
 		while IFS= read -r line; do
 			_h3 "setOrientation" "env-file" "$line"

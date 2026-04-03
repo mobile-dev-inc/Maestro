@@ -1,4 +1,4 @@
-appId: com.example.maestro.orientation
+appId: ${APP_ID}
 tags:
   - android
   - env-file-orientation
