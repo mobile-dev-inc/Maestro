@@ -3,6 +3,7 @@ package maestro.cli.report
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -30,6 +31,27 @@ class TestDebugReporterTest {
         TestDebugReporter.deleteOldFiles()
         assertThat(Files.exists(oldDir)).isFalse() // Verify that the old directory was deleted
         assertThat(TestDebugReporter.getDebugOutputPath().exists()).isTrue() // Verify that the logs from this run still exist
+    }
+
+    @Test
+    fun `saveSuggestions should not write ai files when flow has no ai outputs`() {
+        val outputDir = Files.createDirectories(tempDir.resolve("debug-output"))
+
+        val outputs = listOf(
+            FlowAIOutput(
+                flowName = "login_test",
+                flowFile = File("flows/login_test.yaml"),
+            ),
+            FlowAIOutput(
+                flowName = "signup_test",
+                flowFile = File("flows/signup_test.yaml"),
+            ),
+        )
+
+        TestDebugReporter.saveSuggestions(outputs, outputDir)
+
+        val files = outputDir.toFile().listFiles()?.map { it.name } ?: emptyList()
+        assertThat(files.filter { it.startsWith("ai-") }).isEmpty()
     }
 
 }
