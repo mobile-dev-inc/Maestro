@@ -57,11 +57,6 @@ jobs:
       - name: Clone repository (only needed for the e2e directory)
         uses: actions/checkout@v6
 
-      - name: Set up demo_app workspace
-        run: |
-          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
-          mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
-          cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -88,7 +83,7 @@ jobs:
         run: |
           maestro --help
           maestro --version
-          
+
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
         timeout-minutes: 20
@@ -126,17 +121,26 @@ jobs:
       - name: Clone repository (only needed for the e2e directory)
         uses: actions/checkout@v6
 
-      - name: Set up demo_app workspace
-        run: |
-          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
-          mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
-          cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: zulu
-          java-version: 17
+          java-version: 21
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: e2e/demo_app/pubspec.yaml
+
+      - name: Build demo_app APK
+        working-directory: ${{ github.workspace }}/e2e/demo_app
+        run: |
+          flutter pub get
+          flutter build apk
+          mkdir -p ${{ github.workspace }}/e2e/apps
+          cp build/app/outputs/flutter-apk/app-release.apk ${{ github.workspace }}/e2e/apps/demo_app.apk
 
       - name: Download Maestro build from previous job
         uses: actions/download-artifact@v7
@@ -282,17 +286,26 @@ jobs:
       - name: Clone repository (only needed for the e2e directory)
         uses: actions/checkout@v6
 
-      - name: Set up demo_app workspace
-        run: |
-          git clone --depth 1 https://github.com/mobile-dev-inc/demo_app /tmp/demo_app
-          mkdir -p ${{ github.workspace }}/e2e/workspaces/demo_app
-          cp -r /tmp/demo_app/.maestro/. ${{ github.workspace }}/e2e/workspaces/demo_app/
 
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: 17
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: e2e/demo_app/pubspec.yaml
+
+      - name: Build demo_app for iOS Simulator
+        working-directory: ${{ github.workspace }}/e2e/demo_app
+        run: |
+          flutter pub get
+          flutter build ios --simulator
+          mkdir -p ${{ github.workspace }}/e2e/apps
+          cp -r build/ios/iphonesimulator/Runner.app ${{ github.workspace }}/e2e/apps/demo_app.app
 
       - name: Download artifacts
         uses: actions/download-artifact@v7
