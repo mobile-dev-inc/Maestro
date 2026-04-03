@@ -20,11 +20,13 @@ import maestro.web.selenium.ChromeSeleniumFactory
 import maestro.web.selenium.SeleniumFactory
 import okio.Sink
 import okio.buffer
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
 import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
+import org.openqa.selenium.WebElement
 import org.openqa.selenium.devtools.HasDevTools
 import org.openqa.selenium.devtools.v144.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
@@ -238,7 +240,9 @@ class WebDriver(
             }
         }
 
-        val root = parseDomAsTreeNodes(contentDesc as Map<String, Any>)
+        val rawMap = contentDesc as Map<String, Any>
+        val enrichedMap = injectCrossOriginIframes(rawMap)
+        val root = parseDomAsTreeNodes(enrichedMap)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
         }
@@ -377,12 +381,8 @@ class WebDriver(
     }
 
     override fun pressKey(code: KeyCode) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
         val key = mapToSeleniumKey(code)
-        element.sendKeys(key)
+        withActiveElement { element -> element.sendKeys(key) }
     }
 
     private fun mapToSeleniumKey(code: KeyCode): Keys {
@@ -485,13 +485,11 @@ class WebDriver(
     }
 
     override fun inputText(text: String) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
-        for (c in text.toCharArray()) {
-            element.sendKeys("$c")
-            sleep(random(20, 100).toLong())
+        withActiveElement { element ->
+            for (c in text.toCharArray()) {
+                element.sendKeys("$c")
+                sleep(random(20, 100).toLong())
+            }
         }
     }
 
@@ -551,15 +549,12 @@ class WebDriver(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
-        for (i in 0 until charactersToErase) {
-            element.sendKeys(Keys.BACK_SPACE)
-            sleep(random(20, 50).toLong())
+        withActiveElement { element ->
+            for (i in 0 until charactersToErase) {
+                element.sendKeys(Keys.BACK_SPACE)
+                sleep(random(20, 50).toLong())
+            }
         }
-
         sleep(1000)
     }
 
@@ -633,6 +628,118 @@ class WebDriver(
         } else {
             LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
             return emptyList()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun injectCrossOriginIframes(node: Map<String, Any>): Map<String, Any> {
+        val attrs = node["attributes"] as Map<String, Any>
+        val iframeSrc = attrs["__crossOriginIframe"] as? String
+
+        if (iframeSrc != null) {
+            val iframeContent = fetchCrossOriginIframeContent(iframeSrc)
+            if (iframeContent != null) return iframeContent
+            val cleanAttrs = attrs - "__crossOriginIframe"
+            return mapOf("attributes" to cleanAttrs, "children" to emptyList<Any>())
+        }
+
+        val children = (node["children"] as List<Map<String, Any>>)
+            .map { injectCrossOriginIframes(it) }
+        return mapOf("attributes" to attrs, "children" to children)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun fetchCrossOriginIframeContent(iframeSrc: String): Map<String, Any>? {
+        val driver = seleniumDriver ?: return null
+        val jsExecutor = driver as? JavascriptExecutor ?: return null
+
+        // Find the iframe element by its resolved src property (absolute URL)
+        val iframeElement = try {
+            jsExecutor.executeScript(
+                "return [...document.querySelectorAll('iframe')].find(f => f.src === arguments[0]);",
+                iframeSrc
+            ) as? WebElement
+        } catch (e: Exception) {
+            LOGGER.warn("Could not find iframe element with src $iframeSrc", e)
+            return null
+        } ?: run {
+            LOGGER.warn("No iframe element found with src $iframeSrc")
+            return null
+        }
+
+        // Get the iframe's scaled viewport params (accounts for parent viewportWidth/Height scaling)
+        val paramsJson = try {
+            jsExecutor.executeScript(
+                "return JSON.stringify(window.maestro.getIframeViewportParams(arguments[0]));",
+                iframeSrc
+            ) as? String
+        } catch (e: Exception) {
+            LOGGER.warn("Could not get viewport params for iframe $iframeSrc", e)
+            return null
+        } ?: return null
+
+        val params = jacksonObjectMapper().readValue(paramsJson, Map::class.java) as Map<String, Any>
+        val iframeX = (params["viewportX"]      as? Number)?.toDouble() ?: 0.0
+        val iframeY = (params["viewportY"]      as? Number)?.toDouble() ?: 0.0
+        val iframeW = (params["viewportWidth"]  as? Number)?.toDouble() ?: 0.0
+        val iframeH = (params["viewportHeight"] as? Number)?.toDouble() ?: 0.0
+
+        // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame()
+        driver.switchTo().frame(iframeElement)
+        return try {
+            val resultJson = jsExecutor.executeScript("""
+                $maestroWebScript
+                window.maestro.viewportX = $iframeX;
+                window.maestro.viewportY = $iframeY;
+                window.maestro.viewportWidth = $iframeW;
+                window.maestro.viewportHeight = $iframeH;
+                return JSON.stringify(window.maestro.getContentDescription());
+            """.trimIndent()) as? String ?: return null
+            jacksonObjectMapper().readValue(resultJson, Map::class.java) as? Map<String, Any>
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to get content description from cross-origin iframe $iframeSrc", e)
+            null
+        } finally {
+            try { driver.switchTo().defaultContent() }
+            catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+        }
+    }
+
+    /**
+     * Locates the truly focused element, even when it lives inside a cross-origin iframe.
+     *
+     * When the user taps inside a cross-origin iframe the main frame's
+     * `document.activeElement` is the `<iframe>` element itself.  This helper
+     * detects that case, switches Selenium into the iframe, resolves the real
+     * active element there, runs [action], and switches back to the default
+     * content so subsequent commands target the main frame again.
+     */
+    private fun withActiveElement(action: (WebElement) -> Unit) {
+        val driver = ensureOpen()
+        val jsExecutor = driver as JavascriptExecutor
+
+        val isIframeFocused = jsExecutor.executeScript(
+            "return document.activeElement && document.activeElement.tagName.toLowerCase() === 'iframe'"
+        ) as? Boolean ?: false
+
+        if (isIframeFocused) {
+            val iframe = jsExecutor.executeScript("return document.activeElement") as WebElement
+            driver.switchTo().frame(iframe)
+            try {
+                jsExecutor.executeScript("$maestroWebScript")
+                val xPath = jsExecutor.executeScript(
+                    "return window.maestro.createXPathFromElement(document.activeElement)"
+                ) as String
+                val element = driver.findElement(By.ByXPath(xPath))
+                action(element)
+            } finally {
+                try { driver.switchTo().defaultContent() }
+                catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+            }
+        } else {
+            val xPath = executeJS("return window.maestro.createXPathFromElement(document.activeElement)") as String
+            val element = driver.findElement(By.ByXPath(xPath))
+            action(element)
         }
     }
 
