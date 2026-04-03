@@ -31,9 +31,9 @@ class LocalXCTestInstaller(
     private val httpClient: OkHttpClient = HttpClient.build(
         name = "XCUITestDriverStatusCheck",
         connectTimeout = 1.seconds,
-        readTimeout = 100.seconds,
+        readTimeout = 3.seconds,
     ),
-    val reinstallDriver: Boolean = true,
+    val reinstallDriver: Boolean = false,
     private val iOSDriverConfig: IOSDriverConfig,
     private val deviceController: IOSDevice,
     private val tempFileHandler: TempFileHandler = TempFileHandler()
@@ -49,10 +49,10 @@ class LocalXCTestInstaller(
      * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
-    private val tempDir = tempFileHandler.createTempDirectory(deviceId)
+    private val buildProductsDir = File(System.getProperty("user.home"), ".maestro/build-products/$deviceId").also { it.mkdirs() }
     private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
     private val iosBuildProductsExtractor = IOSBuildProductsExtractor(
-        target = tempDir.toPath(),
+        target = buildProductsDir.toPath(),
         context = iOSDriverConfig.context,
         deviceType = deviceType,
     )
