@@ -59,6 +59,7 @@ class LocalXCTestInstaller(
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
 
     private var xcTestProcess: Process? = null
+    private val runningHashFile = File(buildProductsDir, ".running-hash")
 
     override fun uninstall(): Boolean {
         return metrics.measured("operation", mapOf("command" to "uninstall")) {
@@ -125,7 +126,13 @@ class LocalXCTestInstaller(
 
             while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
                 runCatching {
-                    if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
+                    if (isChannelAlive()) {
+                        // Record which version is running so isVersionMatch() can check later
+                        iosBuildProductsExtractor.sourceHash(iOSDriverConfig.sourceDirectory)?.let {
+                            runningHashFile.writeText(it)
+                        }
+                        return@measured XCTestClient(host, defaultPort)
+                    }
                 }
                 Thread.sleep(500)
             }
@@ -144,6 +151,12 @@ class LocalXCTestInstaller(
         return metrics.measured("operation", mapOf("command" to "isChannelAlive")) {
         return@measured xcTestDriverStatusCheck()
         }
+    }
+
+    override fun isVersionMatch(): Boolean {
+        val expectedHash = iosBuildProductsExtractor.sourceHash(iOSDriverConfig.sourceDirectory) ?: return false
+        val runningHash = if (runningHashFile.exists()) runningHashFile.readText() else return false
+        return expectedHash == runningHash
     }
 
     private fun ensureOpen(): Boolean {

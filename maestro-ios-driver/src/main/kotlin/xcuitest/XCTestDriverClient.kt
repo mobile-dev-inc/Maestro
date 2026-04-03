@@ -39,8 +39,8 @@ class XCTestDriverClient(
             return
         }
 
-        if (installer.isChannelAlive()) {
-            logger.trace("XCTest Runner already running and ready, reusing existing session")
+        if (installer.isChannelAlive() && installer.isVersionMatch()) {
+            logger.trace("XCTest Runner already running and version matches, reusing existing session")
             return
         }
 

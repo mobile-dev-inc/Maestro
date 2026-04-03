@@ -35,6 +35,8 @@ class IOSBuildProductsExtractor(
         private val LOGGER = LoggerFactory.getLogger(IOSBuildProductsExtractor::class.java)
     }
 
+    fun sourceHash(sourceDirectory: String): String? = computeSourceHash(sourceDirectory)
+
     fun extract(sourceDirectory: String): BuildProducts {
         val targetFile = target.toFile()
         val hashFile = File(targetFile, ".source-hash")
