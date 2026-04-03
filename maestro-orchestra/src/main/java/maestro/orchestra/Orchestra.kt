@@ -87,7 +87,7 @@ import javax.imageio.ImageIO
  * Populated for commands that resolve UI elements (e.g. tap, swipe).
  */
 data class CommandResult(
-    val element: UiElement? = null,
+    val bounds: Bounds? = null,
     val startPoint: Point? = null,
     val endPoint: Point? = null,
 )
@@ -1258,7 +1258,7 @@ class Orchestra(
             )
         }
 
-        _commandResults.add(CommandResult(element = result.element))
+        _commandResults.add(CommandResult(bounds = result.element.bounds))
 
         return true
     }
@@ -1569,6 +1569,7 @@ class Orchestra(
                     command.duration,
                     waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
                 )
+                _commandResults.add(CommandResult(bounds = uiElement.element.bounds))
             }
 
             startRelative != null && endRelative != null -> {
@@ -1586,12 +1587,15 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
-            start != null && end != null -> maestro.swipe(
-                startPoint = start,
-                endPoint = end,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
+            start != null && end != null -> {
+                maestro.swipe(
+                    startPoint = start,
+                    endPoint = end,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
+                _commandResults.add(CommandResult(startPoint = start, endPoint = end))
+            }
 
             else -> error("Illegal arguments for swiping")
         }

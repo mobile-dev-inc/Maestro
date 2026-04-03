@@ -8,6 +8,7 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.MaestroCommand
+import maestro.cli.mcp.tools.addBoundsTo
 import kotlinx.coroutines.runBlocking
 
 object TapOnTool {
@@ -118,21 +119,11 @@ object TapOnTool {
                         orchestra.runFlow(listOf(MaestroCommand(command = command)))
                     }
 
-                    val element = flowResult.commandResults.firstOrNull()?.element
-
                     buildJsonObject {
-                        put("success", true)
+                        put("success", flowResult.success)
                         put("device_id", deviceId)
                         put("message", "Tap executed successfully")
-                        element?.bounds?.let { b ->
-                            putJsonArray("bounds") {
-                                add(b.x); add(b.y)
-                                add(b.x + b.width); add(b.y + b.height)
-                            }
-                            putJsonArray("center") {
-                                add(b.x + b.width / 2); add(b.y + b.height / 2)
-                            }
-                        }
+                        flowResult.commandResults.firstOrNull()?.addBoundsTo(this)
                     }.toString()
                 }
                 

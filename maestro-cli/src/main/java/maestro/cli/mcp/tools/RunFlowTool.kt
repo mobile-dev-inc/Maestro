@@ -5,6 +5,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.Orchestra
+import maestro.cli.mcp.tools.addBoundsTo
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -124,23 +125,7 @@ object RunFlowTool {
                             if (flowResult.commandResults.isNotEmpty()) {
                                 putJsonArray("command_results") {
                                     flowResult.commandResults.forEach { cr ->
-                                        addJsonObject {
-                                            cr.element?.bounds?.let { b ->
-                                                putJsonArray("bounds") {
-                                                    add(b.x); add(b.y)
-                                                    add(b.x + b.width); add(b.y + b.height)
-                                                }
-                                                putJsonArray("center") {
-                                                    add(b.x + b.width / 2); add(b.y + b.height / 2)
-                                                }
-                                            }
-                                            cr.startPoint?.let { p ->
-                                                putJsonArray("start_point") { add(p.x); add(p.y) }
-                                            }
-                                            cr.endPoint?.let { p ->
-                                                putJsonArray("end_point") { add(p.x); add(p.y) }
-                                            }
-                                        }
+                                        addJsonObject { cr.addBoundsTo(this) }
                                     }
                                 }
                             }
