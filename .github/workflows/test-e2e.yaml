@@ -126,6 +126,27 @@ jobs:
           distribution: zulu
           java-version: 21
 
+      - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
+        run: |
+          git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
+          echo "$HOME/scripts/bin" >> $GITHUB_PATH
+
+      - name: Set up Android Command-line Tools
+        run: |
+          # v13 - see https://stackoverflow.com/a/78890086/7009800
+          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
+
+      - name: Set up Android SDK components
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install emulator
+          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
+          sdkmanager --install "platform-tools"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          sdkmanager --install "$ANDROID_PLATFORM"
+          sdkmanager --install "$ANDROID_OS_IMAGE"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -154,27 +175,6 @@ jobs:
         run: |
           maestro --help
           maestro --version
-
-      - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
-        run: |
-          git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
-          echo "$HOME/scripts/bin" >> $GITHUB_PATH
-
-      - name: Set up Android Command-line Tools
-        run: |
-          # v13 - see https://stackoverflow.com/a/78890086/7009800
-          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
-
-      - name: Set up Android SDK components
-        run: |
-          yes | sdkmanager --licenses
-          sdkmanager --install emulator
-          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
-          sdkmanager --install "platform-tools"
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          sdkmanager --install "$ANDROID_PLATFORM"
-          sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Create AVD
         run: |
