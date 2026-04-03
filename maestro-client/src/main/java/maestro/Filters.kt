@@ -193,6 +193,15 @@ object Filters {
         }
     }
 
+    fun containsChild(childFilter: ElementFilter): ElementFilter {
+        return { nodes ->
+            val matchingChildren = childFilter(nodes).toSet()
+            nodes.filter { node ->
+                node.children.any { child -> matchingChildren.contains(child) }
+            }
+        }
+    }
+
     fun containsDescendants(filters: List<ElementFilter>): ElementFilter {
         fun ElementFilter.matches(node: TreeNode): Boolean {
             return invoke(listOf(node)).isNotEmpty() || node.children.any { matches(it) }
