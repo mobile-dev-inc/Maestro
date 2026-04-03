@@ -5,7 +5,6 @@ import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.Orchestra
-import maestro.cli.mcp.tools.addBoundsTo
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withInjectedShellEnvVars

@@ -8,7 +8,6 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.MaestroCommand
-import maestro.cli.mcp.tools.addBoundsTo
 import kotlinx.coroutines.runBlocking
 
 object TapOnTool {

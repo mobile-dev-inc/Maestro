@@ -15,8 +15,9 @@ fun CommandResult.addBoundsTo(builder: JsonObjectBuilder) {
             add(b.x); add(b.y)
             add(b.x + b.width); add(b.y + b.height)
         }
+        val c = b.center()
         builder.putJsonArray("center") {
-            add(b.x + b.width / 2); add(b.y + b.height / 2)
+            add(c.x); add(c.y)
         }
     }
     startPoint?.let { p ->
