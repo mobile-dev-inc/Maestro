@@ -1,0 +1,11 @@
+appId: com.example.example
+tags:
+  - failing
+---
+- launchApp
+- tapOn: "Cropped Screenshot Test"
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/fail_assertScreenshot.png
+    cropOn:
+      id: "testContainer"

@@ -1,0 +1,11 @@
+# Why doesn't this stop our demo app? adb command behind killApp doesn't work either.
+appId: com.example.example
+tags:
+  - passing
+  - android
+---
+
+- launchApp
+- assertVisible: 'Form Test'
+- killApp
+- assertNotVisible: 'Form Test'

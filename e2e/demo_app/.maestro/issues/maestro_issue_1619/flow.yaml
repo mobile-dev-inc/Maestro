@@ -1,0 +1,14 @@
+appId: com.example.example
+---
+- launchApp
+- tapOn: issue 1619 repro
+- runScript:
+    when:
+      visible:
+        text: First|Second
+    file: script.js
+- runScript:
+    when:
+      visible:
+        id: first|second
+    file: script.js
