@@ -16,6 +16,23 @@ else
 	BUILD_OUTPUT_DIR="Debug-iphoneos"
 fi
 
+# Check if source has changed since last build by comparing checksums
+RESOURCES_DIR="./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR"
+CHECKSUM_FILE="$RESOURCES_DIR/.source-checksum"
+CURRENT_CHECKSUM=$(find ./maestro-ios-xctest-runner -type f \
+  \( -name "*.swift" -o -name "*.h" -o -name "*.m" -o -name "*.plist" -o -name "*.pbxproj" -o -name "*.xcscheme" \) \
+  -not -path "*/build/*" | sort | xargs cat | shasum -a 256 | awk '{print $1}')
+
+if [[ -f "$CHECKSUM_FILE" ]] && [[ -f "$RESOURCES_DIR/maestro-driver-ios.zip" ]] && [[ -f "$RESOURCES_DIR/maestro-driver-iosUITests-Runner.zip" ]]; then
+  PREVIOUS_CHECKSUM=$(cat "$CHECKSUM_FILE")
+  if [[ "$CURRENT_CHECKSUM" == "$PREVIOUS_CHECKSUM" ]]; then
+    echo "iOS driver source unchanged (checksum: ${CURRENT_CHECKSUM:0:12}...), skipping build."
+    exit 0
+  fi
+fi
+
+echo "iOS driver source changed, rebuilding..."
+
 if [[ "$DESTINATION" == *"iOS Simulator"* ]]; then
   DEVELOPMENT_TEAM_OPT=""
 else
@@ -66,6 +83,9 @@ OUTPUT_DIR=./$DERIVED_DATA_PATH/Build/Products/$BUILD_OUTPUT_DIR
 cd $OUTPUT_DIR
 zip -r "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR/maestro-driver-iosUITests-Runner.zip" "./maestro-driver-iosUITests-Runner.app"
 zip -r "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR/maestro-driver-ios.zip" "./maestro-driver-ios.app"
+
+# Save checksum so future builds can skip if source is unchanged
+echo "$CURRENT_CHECKSUM" > "$WORKING_DIR/maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR/.source-checksum"
 
 # Clean up
 cd $WORKING_DIR
