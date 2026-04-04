@@ -13,3 +13,11 @@ tags:
     timeout: 100
     notVisible:
       text: 'Non Existent Text'
+
+- tapOn: "Animation Test"
+- tapOn: 
+    text: "Animate (4s)"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible: "0.0s"
+    timeout: 5000

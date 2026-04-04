@@ -3,19 +3,8 @@ tags:
   - passing
 ---
 - launchApp:
-    appId: com.example.example
     clearState: true
-    clearKeychain: true
-    stopApp: true
-    permissions:
-      all: allow
-- assertVisible: 'Form Test'
 
-- stopApp
-- launchApp
-- assertVisible: 'Form Test'
-
-# clearState
 - tapOn: "Input/Keyboard"
 - tapOn: "Test Input Field"
 - inputText: "potato"
@@ -25,7 +14,8 @@ tags:
 - tapOn: "Input/Keyboard"
 - assertVisible: "potato"
 
-- launchApp:
-    clearState: true
+- stopApp
+- clearState
+- launchApp
 - tapOn: "Input/Keyboard"
 - assertNotVisible: "potato"
