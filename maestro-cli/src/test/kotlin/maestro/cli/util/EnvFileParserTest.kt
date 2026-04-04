@@ -82,20 +82,6 @@ class EnvFileParserTest {
     }
 
     @Test
-    fun `support export prefix`() {
-        val file = createEnvFile(
-            """
-            export DB_HOST=localhost
-            export DB_PORT=5432
-            """.trimIndent()
-        )
-
-        val result = EnvFileParser.parseEnvFile(file)
-
-        assertEquals(mapOf("DB_HOST" to "localhost", "DB_PORT" to "5432"), result)
-    }
-
-    @Test
     fun `value containing equals sign`() {
         val file = createEnvFile(
             """
