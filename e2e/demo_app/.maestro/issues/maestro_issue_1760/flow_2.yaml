@@ -1,0 +1,4 @@
+appId: com.example.example
+---
+- launchApp
+- runScript: script.js
