@@ -5,4 +5,16 @@ tags:
   - web
 ---
 - launchApp
+
+# Assert visibility of elements inside the iframe
 - assertVisible: Hello from inside the iframe
+- tapOn: Type here...
+
+# Assert interaction with elements inside the iframe
+- inputText: Potato
+- assertNotVisible: Type here... # Placeholder no longer visible
+- assertVisible: Potato 
+- tapOn: Echo
+- tapOn:
+    id: echo-output
+    text: Potato
