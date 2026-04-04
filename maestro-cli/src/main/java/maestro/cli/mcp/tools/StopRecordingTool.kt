@@ -9,7 +9,7 @@ object StopRecordingTool {
         return RegisteredTool(
             Tool(
                 name = "stop_recording",
-                description = "Stop an active screen recording and return the video file path.",
+                description = "Stop an active iOS Simulator screen recording and return the video file path.",
                 inputSchema = Tool.Input(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {

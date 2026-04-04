@@ -23,6 +23,10 @@ class RecordingManager(
     private val activeRecordings = ConcurrentHashMap<String, RecordingState>()
 
     fun startRecording(deviceId: String, outputPath: String?): RecordingState {
+        if (activeRecordings.containsKey(deviceId)) {
+            throw IllegalStateException("Recording already active for device $deviceId")
+        }
+
         val screenRecording = localSimulatorUtils.startScreenRecording(deviceId)
         val recordingId = UUID.randomUUID().toString()
         val state = RecordingState(
@@ -46,21 +50,23 @@ class RecordingManager(
             throw IllegalArgumentException("Recording ID mismatch: expected ${state.recordingId}, got $recordingId")
         }
 
-        val videoFile = localSimulatorUtils.stopScreenRecording(state.screenRecording)
+        try {
+            val videoFile = localSimulatorUtils.stopScreenRecording(state.screenRecording)
 
-        val finalPath = if (state.outputPath != null) {
-            val dest = File(state.outputPath)
-            dest.parentFile?.mkdirs()
-            videoFile.copyTo(dest, overwrite = true)
-            videoFile.delete()
-            dest.absolutePath
-        } else {
-            videoFile.absolutePath
+            val finalPath = if (state.outputPath != null) {
+                val dest = File(state.outputPath)
+                dest.parentFile?.mkdirs()
+                videoFile.copyTo(dest, overwrite = true)
+                videoFile.delete()
+                dest.absolutePath
+            } else {
+                videoFile.absolutePath
+            }
+
+            return StopRecordingResult(videoPath = finalPath)
+        } finally {
+            activeRecordings.remove(deviceId)
         }
-
-        activeRecordings.remove(deviceId)
-
-        return StopRecordingResult(videoPath = finalPath)
     }
 
     fun shutdown() {
