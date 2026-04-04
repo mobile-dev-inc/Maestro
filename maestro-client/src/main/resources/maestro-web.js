@@ -93,7 +93,17 @@
                   );
               }
           } catch (e) {
-              // Cross-origin — cannot access content
+              // Cross-origin — emit a marker so the CDP driver can inject content from the iframe target
+              try {
+                  return {
+                      attributes: {
+                          text: '',
+                          bounds: getNodeBounds(node, iframeOffsetX, iframeOffsetY),
+                          '__crossOriginIframe': node.src,
+                      },
+                      children: []
+                  };
+              } catch (e2) { return null; }
           }
           return null;
       }
@@ -212,6 +222,26 @@
         }
         return segs.length ? '/' + segs.join('/') : null;
     }
+
+    // -------------- Cross-origin iframe viewport params --------------
+
+    maestro.getIframeViewportParams = (iframeSrc) => {
+        const iframe = [...document.querySelectorAll('iframe')].find(f => f.src === iframeSrc);
+        if (!iframe) return null;
+        const rect = iframe.getBoundingClientRect();
+        const vpx = maestro.viewportX || 0;
+        const vpy = maestro.viewportY || 0;
+        const vpw = maestro.viewportWidth || window.innerWidth;
+        const vph = maestro.viewportHeight || window.innerHeight;
+        const scaleX = vpw / window.innerWidth;
+        const scaleY = vph / window.innerHeight;
+        return {
+            viewportX: rect.x * scaleX + vpx,
+            viewportY: rect.y * scaleY + vpy,
+            viewportWidth: rect.width * scaleX,
+            viewportHeight: rect.height * scaleY,
+        };
+    };
 
     // -------------- Flutter Web Scrolling Support --------------
     
