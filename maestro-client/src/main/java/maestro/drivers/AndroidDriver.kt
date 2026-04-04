@@ -67,7 +67,7 @@ class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
-    private val reinstallDriver: Boolean = true,
+    private val reinstallDriver: Boolean = false,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
     private var portForwarder: AutoCloseable? = null
