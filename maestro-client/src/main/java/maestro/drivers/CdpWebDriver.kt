@@ -50,7 +50,8 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 class CdpWebDriver(
     val isStudio: Boolean,
     private val isHeadless: Boolean = false,
-    private val screenSize: String?
+    private val screenSize: String?,
+    private val extensionPaths: List<String>? = null,
 ) : Driver {
 
     private lateinit var cdpClient: CdpClient
@@ -118,6 +119,10 @@ class CdpWebDriver(
                     "profile.password_manager_leak_detection" to false   // important one
                 )
                 setExperimentalOption("prefs", chromePrefs)
+
+                extensionPaths?.forEach { path ->
+                    addArguments("--load-extension=$path")
+                }
 
                 setExperimentalOption("detach", true)
 
@@ -509,7 +514,12 @@ class CdpWebDriver(
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         val driver = ensureOpen()
 
-        driver.get(if (link.startsWith("http")) link else "https://$link")
+        val url = when {
+            link.startsWith("chrome-extension://") -> link
+            link.startsWith("http") -> link
+            else -> "https://$link"
+        }
+        driver.get(url)
     }
 
     override fun hideKeyboard() {
@@ -767,7 +777,7 @@ class CdpWebDriver(
 }
 
 fun main() {
-    val driver = CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null)
+    val driver = CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null, extensionPaths = null)
     driver.open()
 
     try {
