@@ -17,5 +17,3 @@ maestro-orchestra/src/test/resources/media/assets/*
 # Local files
 local/
 
-# iOS driver build checksum
-.source-checksum

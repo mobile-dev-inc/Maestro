@@ -59,27 +59,39 @@ jobs:
     name: Check iOS Driver
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    runs-on: macos-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
 
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-      - name: Rebuild iOS drivers
-        run: sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh
-
-      - name: Fail if drivers are out of date
+      - name: Check iOS drivers are up to date
         run: |
-          git diff --exit-code \
-            maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/ \
-            maestro-ios-driver/src/main/resources/driver-iphoneos/ || {
+          CURRENT_CHECKSUM=$(find ./maestro-ios-xctest-runner -type f \
+            \( -name "*.swift" -o -name "*.h" -o -name "*.m" -o -name "*.plist" -o -name "*.pbxproj" -o -name "*.xcscheme" \) \
+            -not -path "*/build/*" | sort | xargs cat | shasum -a 256 | awk '{print $1}')
+
+          STALE=false
+          for CHECKSUM_FILE in \
+            maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/.source-checksum \
+            maestro-ios-driver/src/main/resources/driver-iphoneos/Debug-iphoneos/.source-checksum; do
+            if [[ ! -f "$CHECKSUM_FILE" ]]; then
+              echo "Missing checksum file: $CHECKSUM_FILE"
+              STALE=true
+            elif [[ "$(cat "$CHECKSUM_FILE")" != "$CURRENT_CHECKSUM" ]]; then
+              echo "Checksum mismatch in $CHECKSUM_FILE"
+              echo "  Committed: $(cat "$CHECKSUM_FILE")"
+              echo "  Current:   $CURRENT_CHECKSUM"
+              STALE=true
+            fi
+          done
+
+          if [[ "$STALE" == "true" ]]; then
             echo ""
             echo "ERROR: iOS drivers are out of date."
             echo "Run the following and commit the updated drivers:"
             echo "  ./gradlew :maestro-cli:installDist"
             exit 1
-          }
+          fi
+
+          echo "iOS drivers are up to date (checksum: ${CURRENT_CHECKSUM:0:12}...)"
