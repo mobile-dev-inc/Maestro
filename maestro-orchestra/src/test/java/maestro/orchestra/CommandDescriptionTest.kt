@@ -99,6 +99,25 @@ internal class CommandDescriptionTest {
     }
 
     @Test
+    fun `assertVisible description includes visibilityPercentage when set`() {
+        val condition = Condition(
+            visible = ElementSelector(textRegex = "Carousel Item"),
+            visibilityPercentage = 50,
+        )
+        assertThat(condition.description())
+            .isEqualTo("\"Carousel Item\" is visible (at least 50% visible)")
+    }
+
+    @Test
+    fun `assertVisible description omits percentage when not set`() {
+        val condition = Condition(
+            visible = ElementSelector(textRegex = "Carousel Item"),
+        )
+        assertThat(condition.description())
+            .isEqualTo("\"Carousel Item\" is visible")
+    }
+
+    @Test
     fun `TapOnElementCommand description includes relativePoint when provided`() {
         // given
         val command = TapOnElementCommand(
