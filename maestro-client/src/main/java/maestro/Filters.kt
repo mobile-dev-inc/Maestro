@@ -54,10 +54,6 @@ object Filters {
         nodes.filter { this(it) }
     }
 
-    fun nonClickable(): ElementFilter {
-        return { nodes -> nodes.filter { it.clickable == false } }
-    }
-
     fun textMatches(regex: Regex): ElementFilter {
         return { nodes ->
             val textMatches = nodes.filter {
@@ -182,14 +178,6 @@ object Filters {
                 }
                 .sortedBy { (_, distance) -> distance }
                 .map { (element, _) -> element.treeNode }
-        }
-    }
-
-    fun containsChild(other: UiElement): ElementLookupPredicate {
-        val otherNode = other.treeNode
-        return {
-            it.children
-                .any { child -> child == otherNode }
         }
     }
 
