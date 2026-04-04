@@ -39,7 +39,7 @@ class ListDevicesCommand : Callable<Int> {
             Platform.fromString(input)
         }
 
-        println("Showing local devices. Use 'maestro list-cloud-device' to list devices available on Maestro Cloud.".faint())
+        println("Showing local devices. Use 'maestro list-cloud-devices' to list devices available on Maestro Cloud.".faint())
         println()
 
         PrintUtils.info("Local Devices", bold = true)
