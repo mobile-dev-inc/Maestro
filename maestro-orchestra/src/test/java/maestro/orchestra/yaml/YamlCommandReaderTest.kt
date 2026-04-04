@@ -826,6 +826,26 @@ internal class YamlCommandReaderTest {
     }
 
 
+    @Test
+    fun `swipe with script variables defers coordinate parsing`(
+        @YamlFile("031_swipe_with_script_variables.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            SwipeCommand(
+                startPointStr = "\${output.startPoint}",
+                endPointStr = "50%,12%",
+                duration = 3000L
+            ),
+            SwipeCommand(
+                startPointStr = "\${output.startPoint}",
+                endPointStr = "\${output.endPoint}",
+            )
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }
