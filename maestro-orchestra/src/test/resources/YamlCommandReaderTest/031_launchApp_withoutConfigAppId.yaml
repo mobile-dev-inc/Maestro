@@ -1,0 +1,3 @@
+name: No appId flow
+---
+- launchApp: com.other.app
