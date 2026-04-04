@@ -393,4 +393,200 @@ object ViewHierarchyFormatters {
         
         return result
     }
+    
+    // ============================================================================
+    // LLM-Optimized Output Format (Grouped by Package)
+    // ============================================================================
+    
+    /**
+     * LLM-optimized output format designed for AI/LLM consumption.
+     * Features:
+     * - Grouped by package to avoid repetition
+     * - Resolution at top for coordinate calculation
+     * - pos field for tap coordinates
+     * - bounds as [left, top, right, bottom]
+     * - props string for boolean flags
+     * - Optional filtering by package and app exclusion
+     */
+    fun extractLLMOutput(
+        node: TreeNode?,
+        screenWidth: Int,
+        screenHeight: Int,
+        appFilter: String? = null,
+        excludeApps: Set<String> = emptySet(),
+        clickableOnly: Boolean = false,
+        prettyPrint: Boolean = false,
+        withId: Boolean = false
+    ): String {
+        val mapper = jacksonObjectMapper()
+
+        if (node == null) {
+            val empty = mapOf(
+                "resolution" to "${screenWidth}x${screenHeight}",
+                "hierarchies" to emptyList<Any>()
+            )
+            return if (prettyPrint) {
+                mapper.writerWithDefaultPrettyPrinter().writeValueAsString(empty)
+            } else {
+                mapper.writeValueAsString(empty)
+            }
+        }
+        
+        // Collect all nodes grouped by package
+        val nodesByPackage = mutableMapOf<String, MutableList<Map<String, Any?>>>()
+        var idCounter = 0
+        
+        // Recursive function to process nodes
+        fun processNode(treeNode: TreeNode, depth: Int, parentId: Int?) {
+            val pkg = treeNode.attributes["package"] ?: ""
+            
+            // Apply package filter
+            if (appFilter != null && pkg.isNotEmpty() && !pkg.contains(appFilter, ignoreCase = true)) {
+                // Skip this node but check children (increment depth?) - strictly speaking if parent is filtered, children might be too, 
+                // but for simple filtering we just traverse. To maintain correct tree structure parent/depth relations might be tricky if intermediate nodes are skipped.
+                // However, "flattened" list approach in extractLLMOutput doesn't strictly depend on parent-child connectivity in the output list itself, 
+                // except for the explicit parent field. 
+                // If we skip a node, its children become orphans or need reparenting.
+                // For this simple implementation, we just continue traversal without emitting.
+                // But the ID counter continues? 
+                // The prompt implies we want structure. If we skip, we skip.
+                treeNode.children.forEach { child -> processNode(child, depth + 1, parentId) } // Pass original parentId? Or effectively skip implies structure loss?
+                // If we filter by package, we usually want to see elements IN that package.
+                // So we just recurse.
+                return
+            }
+            
+            // Exclude specified apps if requested
+            if (excludeApps.isNotEmpty() && excludeApps.any { pkg.startsWith(it) }) {
+                treeNode.children.forEach { child -> processNode(child, depth + 1, parentId) }
+                return
+            }
+            
+            // Parse bounds
+            val boundsStr = treeNode.attributes["bounds"] ?: "[0,0][0,0]"
+            val boundsMatch = Regex("\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]").find(boundsStr)
+            val (x1, y1, x2, y2) = if (boundsMatch != null) {
+                val (a, b, c, d) = boundsMatch.destructured
+                listOf(a.toInt(), b.toInt(), c.toInt(), d.toInt())
+            } else {
+                listOf(0, 0, 0, 0)
+            }
+            
+            // Skip zero-size elements
+            if (x2 - x1 == 0 || y2 - y1 == 0) {
+                treeNode.children.forEach { child -> processNode(child, depth + 1, parentId) }
+                return
+            }
+            
+            // Check clickable filter
+            val isClickable = treeNode.clickable == true
+            val isFocusable = treeNode.attributes["focusable"] == "true"
+            val isLongClickable = treeNode.attributes["long-clickable"] == "true"
+            
+            if (clickableOnly && !isClickable && !isLongClickable) {
+                treeNode.children.forEach { child -> processNode(child, depth + 1, parentId) }
+                return
+            }
+            
+            val currentId = idCounter++
+            
+            // Calculate center point (pos)
+            val posX = (x1 + x2) / 2
+            val posY = (y1 + y2) / 2
+            
+            // Build element map - use ordered map to control field order
+            val element = java.util.LinkedHashMap<String, Any?>()
+            
+            // Add class name (abbreviated)
+            val cls = treeNode.attributes["class"] ?: ""
+            if (cls.isNotEmpty()) {
+                element["cls"] = cls
+                    .removePrefix("android.widget.")
+                    .removePrefix("android.view.")
+                    .removePrefix("androidx.recyclerview.widget.")
+                    .removePrefix("androidx.viewpager2.widget.")
+            }
+            
+            // Add resource-id (strip package prefix for Maestro tap compatibility)
+            val rid = treeNode.attributes["resource-id"] ?: ""
+            if (rid.isNotEmpty()) {
+                element["rid"] = rid.substringAfter(":id/", rid)
+            }
+            
+            // Add text
+            val text = treeNode.attributes["text"] ?: ""
+            if (text.isNotEmpty()) element["text"] = text
+            
+            // Add content-desc (accessibility text)
+            // Maestro maps Android content-desc to "accessibilityText" attribute
+            val contentDesc = treeNode.attributes["accessibilityText"] ?: ""
+            if (contentDesc.isNotEmpty()) element["desc"] = contentDesc
+            
+            // Add hint text
+            val hint = treeNode.attributes["hintText"] ?: ""
+            if (hint.isNotEmpty()) element["hint"] = hint
+            
+            // Add bounds as array [left, top, right, bottom]
+            element["bounds"] = listOf(x1, y1, x2, y2)
+            
+            // Add pos (tap position)
+            element["pos"] = listOf(posX, posY)
+            
+            // Add id, depth, parent info if requested (compact array format)
+            if (withId) {
+                element["e_num,depth,p_num"] = listOf(currentId, depth, parentId)
+            }
+
+            // Build props string for boolean flags
+            val props = mutableListOf<String>()
+            if (isClickable) props.add("clickable")
+            if (isFocusable) props.add("focusable")
+            if (isLongClickable) props.add("long-clickable")
+            if (treeNode.attributes["scrollable"] == "true") props.add("scrollable")
+            if (treeNode.focused == true) props.add("focused")
+            if (treeNode.selected == true) props.add("selected")
+            if (treeNode.checked == true) props.add("checked")
+            if (treeNode.enabled == false) props.add("disabled")
+            if (cls.contains("EditText", ignoreCase = true)) props.add("editable")
+            
+            if (props.isNotEmpty()) {
+                element["props"] = props.joinToString(" ")
+            }
+            
+            // Group by package
+            val pkgKey = if (pkg.isEmpty()) "_unknown_" else pkg
+            nodesByPackage.getOrPut(pkgKey) { mutableListOf() }.add(element)
+            
+            // Process children
+            treeNode.children.forEach { child -> processNode(child, depth + 1, currentId) }
+        }
+        
+        // Start processing from root
+        processNode(node, 0, null)
+        
+        // Build hierarchies list (grouped by package)
+        val hierarchies = nodesByPackage.map { (pkg, nodes) ->
+            mutableMapOf<String, Any?>(
+                "pkg" to pkg,
+                "nodes" to nodes
+            )
+        }.sortedByDescending { (it["nodes"] as List<*>).size } // Put largest package first
+        
+        // Build final output
+        val output = mutableMapOf<String, Any?>(
+            "resolution" to "${screenWidth}x${screenHeight}",
+            "hierarchies" to hierarchies
+        )
+        
+        return if (prettyPrint) {
+            mapper
+                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                .writerWithDefaultPrettyPrinter()
+                .writeValueAsString(output)
+        } else {
+            mapper
+                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                .writeValueAsString(output)
+        }
+    }
 }
