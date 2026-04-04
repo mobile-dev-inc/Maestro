@@ -64,12 +64,12 @@ class PrintHierarchyCommand : Runnable {
 
     @CommandLine.Option(
         names = ["--reinstall-driver"],
-        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
+        description = ["Force reinstall of the driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. By default, reuses an existing healthy driver."],
         negatable = true,
-        defaultValue = "true",
-        fallbackValue = "true"        
+        defaultValue = "false",
+        fallbackValue = "true"
     )
-    private var reinstallDriver: Boolean = true
+    private var reinstallDriver: Boolean = false
 
     @Option(
         names = ["--apple-team-id"],
@@ -108,7 +108,7 @@ class PrintHierarchyCommand : Runnable {
         MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = null,
+            driverHostPort = parent?.driverHostPort,
             teamId = appleTeamId,
             deviceId = parent?.deviceId,
             platform = parent?.platform,

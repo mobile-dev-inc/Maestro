@@ -67,7 +67,7 @@ class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
-    private val reinstallDriver: Boolean = true,
+    private val reinstallDriver: Boolean = false,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
     private var portForwarder: AutoCloseable? = null
@@ -1114,7 +1114,7 @@ class AndroidDriver(
         metrics.measured("operation", mapOf("command" to "installMaestroDriverApp")) {
             if (reinstallDriver) {
                 uninstallMaestroDriverApp()
-            } else if (isPackageInstalled("dev.mobile.maestro")) {
+            } else if (isPackageInstalled("dev.mobile.maestro") && isDriverVersionCurrent()) {
                 return@measured
             }
 
@@ -1137,7 +1137,7 @@ class AndroidDriver(
     private fun installMaestroServerApp() {
         if (reinstallDriver) {
             uninstallMaestroServerApp()
-        } else if (isPackageInstalled("dev.mobile.maestro.test")) {
+        } else if (isPackageInstalled("dev.mobile.maestro.test") && isDriverVersionCurrent()) {
             return
         }
 
@@ -1159,6 +1159,43 @@ class AndroidDriver(
     private fun installMaestroApks() {
         installMaestroDriverApp()
         installMaestroServerApp()
+        saveDriverVersionHash()
+    }
+
+    private val driverHashFile = File(System.getProperty("user.home"), ".maestro/android-driver-hash")
+
+    private fun isDriverVersionCurrent(): Boolean {
+        return try {
+            if (!driverHashFile.exists()) return false
+            val savedHash = driverHashFile.readText()
+            val currentHash = computeDriverHash()
+            savedHash == currentHash
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun saveDriverVersionHash() {
+        try {
+            driverHashFile.parentFile.mkdirs()
+            driverHashFile.writeText(computeDriverHash())
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to save driver version hash", e)
+        }
+    }
+
+    private fun computeDriverHash(): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        listOf("/maestro-app.apk", "/maestro-server.apk").forEach { resource ->
+            Maestro::class.java.getResourceAsStream(resource)?.use { stream ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (stream.read(buffer).also { bytesRead = it } != -1) {
+                    digest.update(buffer, 0, bytesRead)
+                }
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     fun uninstallMaestroDriverApp() {
