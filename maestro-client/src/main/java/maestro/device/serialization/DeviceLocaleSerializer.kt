@@ -23,7 +23,11 @@ class DeviceLocaleDeserializer : StdDeserializer<DeviceLocale>(DeviceLocale::cla
   override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DeviceLocale {
     val node = p.codec.readTree<JsonNode>(p)
     val code = node.get("code").asText()
-    val platform = Platform.valueOf(node.get("platform").asText())
-    return DeviceLocale.fromString(code, platform)
+    val parsedPlatform = try { Platform.valueOf(node.get("platform").asText()) } catch (_: Exception) { Platform.ANDROID }
+    return try {
+      DeviceLocale.fromString(code, parsedPlatform)
+    } catch (_: Exception) {
+      DeviceLocale.getDefault(parsedPlatform)
+    }
   }
 }
