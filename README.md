@@ -18,7 +18,7 @@
 
 ---
 
-## Table of Contents
+## Table of Contents 
 
 - [Why Maestro?](#why-maestro)
 - [Getting Started](#getting-started)
