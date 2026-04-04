@@ -23,10 +23,6 @@ class RecordingManager(
     private val activeRecordings = ConcurrentHashMap<String, RecordingState>()
 
     fun startRecording(deviceId: String, outputPath: String?): RecordingState {
-        if (activeRecordings.containsKey(deviceId)) {
-            throw IllegalStateException("Recording already active for device $deviceId")
-        }
-
         val screenRecording = localSimulatorUtils.startScreenRecording(deviceId)
         val recordingId = UUID.randomUUID().toString()
         val state = RecordingState(
