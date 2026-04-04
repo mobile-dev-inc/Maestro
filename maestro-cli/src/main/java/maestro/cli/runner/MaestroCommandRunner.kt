@@ -198,7 +198,7 @@ object MaestroCommandRunner {
             apiKey = apiKey,    
         )
 
-        val flowSuccess = orchestra.runFlow(commands)
+        val flowSuccess = orchestra.runFlow(commands).success
 
         // Warn users about deprecated Rhino JS engine
         val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
