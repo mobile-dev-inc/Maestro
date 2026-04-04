@@ -5,7 +5,6 @@ import util.LocalSimulatorUtils
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 data class RecordingState(
     val recordingId: String,
@@ -67,11 +66,7 @@ class RecordingManager(
     fun shutdown() {
         activeRecordings.values.forEach { state ->
             try {
-                state.screenRecording.process.outputStream.close()
-                state.screenRecording.process.waitFor(5, TimeUnit.SECONDS)
-                if (state.screenRecording.process.isAlive) {
-                    state.screenRecording.process.destroyForcibly()
-                }
+                localSimulatorUtils.stopScreenRecording(state.screenRecording)
             } catch (_: Exception) {}
         }
     }
