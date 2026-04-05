@@ -11,6 +11,15 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
+
+    override fun getInitialRoute(): String? {
+        val uri = intent?.data
+        if (uri != null && uri.path != null && uri.path!!.isNotEmpty()) {
+            return uri.path
+        }
+        return super.getInitialRoute()
+    }
+
     private val CHANNEL = "com.example.example/sensors"
     private val BAROMETER_CHANNEL = "com.example.example/barometer"
     private val LIGHT_CHANNEL = "com.example.example/light"

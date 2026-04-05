@@ -2,11 +2,10 @@ appId: com.example.example
 tags:
   - passing
 ---
-- launchApp
 
 # Deeplink
 - stopApp
-- openLink: "example://form"
+- openLink: "example://app/form"
 - runFlow:
     when:
         platform: iOS
