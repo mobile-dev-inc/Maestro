@@ -31,7 +31,10 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      routes: {
+        '/': (_) => const MyHomePage(title: 'Flutter Demo Home Page'),
+        '/form': (_) => const FormScreen(),
+      },
     );
   }
 }
