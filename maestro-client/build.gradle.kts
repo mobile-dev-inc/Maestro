@@ -43,6 +43,7 @@ tasks.named("processResources") {
 tasks.whenTaskAdded {
     if (name == "sourcesJar" && this is Jar) {
         dependsOn(":maestro-android:copyMaestroAndroid")
+        dependsOn(":maestro-android:copyMaestroServer")
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }
