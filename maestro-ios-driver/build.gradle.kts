@@ -78,3 +78,10 @@ tasks.register<Exec>("buildIosDriver") {
 tasks.named("processResources") {
     dependsOn("buildIosDriver")
 }
+
+tasks.whenTaskAdded {
+    if (name == "sourcesJar" && this is Jar) {
+        dependsOn("buildIosDriver")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+}
