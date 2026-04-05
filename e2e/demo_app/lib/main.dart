@@ -32,9 +32,12 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
-      routes: {
-        '/': (_) => const MyHomePage(title: 'Flutter Demo Home Page'),
-        '/form': (_) => const FormScreen(),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/form') {
+          return MaterialPageRoute(builder: (_) => const FormScreen());
+        }
+        return null;
       },
     );
   }
@@ -92,6 +95,13 @@ class _MyHomePageState extends State<MyHomePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              const Text(
+                'You have pushed the button this many times',
+              ),
+              Text(
+                '$_counter',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
               if (!kIsWeb)
                 ElevatedButton(
                   onPressed: () {
@@ -211,13 +221,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                 },
                 child: const Text('Connectivity Test'),
-              ),
-              const Text(
-                'You have pushed the button this many times',
-              ),
-              Text(
-                '$_counter',
-                style: Theme.of(context).textTheme.headlineMedium,
               ),
             ],
           ),

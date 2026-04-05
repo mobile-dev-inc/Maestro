@@ -16,6 +16,9 @@ class MainActivity: FlutterActivity() {
     override fun getInitialRoute(): String? {
         val uri = intent?.data
         if (uri != null && uri.path != null && uri.path!!.isNotEmpty()) {
+            // Clear the intent data so subsequent launches (e.g. from Maestro's
+            // launchApp) don't re-navigate to the deeplink route.
+            intent.data = null
             return uri.path
         }
         return super.getInitialRoute()
