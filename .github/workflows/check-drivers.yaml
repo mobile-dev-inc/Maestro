@@ -1,0 +1,85 @@
+name: Check Drivers Up-to-Date
+
+on:
+  pull_request:
+    paths:
+      - 'maestro-android/**'
+      - 'maestro-ios-xctest-runner/**'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            android:
+              - 'maestro-android/**'
+            ios:
+              - 'maestro-ios-xctest-runner/**'
+
+  check-android-driver:
+    name: Check Android Driver
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Rebuild Android drivers
+        run: ./gradlew :maestro-android:copyMaestroAndroid :maestro-android:copyMaestroServer
+
+      - name: Fail if drivers are out of date
+        run: |
+          git diff --exit-code \
+            maestro-client/src/main/resources/maestro-app.apk \
+            maestro-client/src/main/resources/maestro-server.apk || {
+            echo ""
+            echo "ERROR: Android drivers are out of date."
+            echo "Run the following and commit the updated APKs:"
+            echo "  ./gradlew :maestro-cli:installDist"
+            exit 1
+          }
+
+  check-ios-driver:
+    name: Check iOS Driver
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Rebuild iOS drivers
+        run: sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh
+
+      - name: Fail if drivers are out of date
+        run: |
+          git diff --exit-code \
+            maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/ \
+            maestro-ios-driver/src/main/resources/driver-iphoneos/ || {
+            echo ""
+            echo "ERROR: iOS drivers are out of date."
+            echo "Run the following and commit the updated drivers:"
+            echo "  ./gradlew :maestro-cli:installDist"
+            exit 1
+          }
