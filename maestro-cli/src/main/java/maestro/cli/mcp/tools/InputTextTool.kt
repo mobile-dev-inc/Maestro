@@ -46,7 +46,8 @@ object InputTextTool {
                     port = null,
                     driverHostPort = null,
                     deviceId = deviceId,
-                    platform = null
+                    platform = null,
+                    closeOnCompletion = false
                 ) { session ->
                     val command = InputTextCommand(
                         text = text,
