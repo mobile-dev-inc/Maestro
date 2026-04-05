@@ -8,16 +8,16 @@ class OrientationScreen extends StatefulWidget {
   State<OrientationScreen> createState() => _OrientationScreenState();
 }
 
-class _OrientationScreenState extends State<OrientationScreen> with WidgetsBindingObserver {
-  static const _channel = MethodChannel('com.example.example/rotation');
-
-  String _label = 'Portrait';
+class _OrientationScreenState extends State<OrientationScreen>
+    with WidgetsBindingObserver {
+  static const _channel = MethodChannel('com.example.demo_app/orientation');
+  String _orientation = 'Unknown';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _updateRotation();
+    _fetchOrientation();
   }
 
   @override
@@ -28,31 +28,29 @@ class _OrientationScreenState extends State<OrientationScreen> with WidgetsBindi
 
   @override
   void didChangeMetrics() {
-    _updateRotation();
+    _fetchOrientation();
   }
 
-  Future<void> _updateRotation() async {
-    final rotation = await _channel.invokeMethod<int>('getRotation');
-    final label = switch (rotation) {
-      0 => 'Portrait',
-      1 => 'Landscape Left',
-      2 => 'Portrait Upside Down',
-      3 => 'Landscape Right',
-      _ => 'Unknown',
-    };
-    if (mounted) {
-      setState(() => _label = label);
+  Future<void> _fetchOrientation() async {
+    final result = await _channel.invokeMethod<String>('getOrientation');
+    if (result != null && mounted) {
+      setState(() => _orientation = result);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Orientation Test')),
+      appBar: AppBar(
+        title: const Text('Orientation Test'),
+      ),
       body: Center(
-        child: Text(
-          _label,
-          style: Theme.of(context).textTheme.headlineMedium,
+        child: Semantics(
+          identifier: 'orientationLabel',
+          child: Text(
+            _orientation,
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
         ),
       ),
     );

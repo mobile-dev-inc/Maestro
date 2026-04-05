@@ -13,16 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
 
-    override fun getInitialRoute(): String? {
-        val uri = intent?.data
-        if (uri != null && uri.path != null && uri.path!!.isNotEmpty()) {
-            return uri.path
-        }
-        return super.getInitialRoute()
-    }
-
     private val CHANNEL = "com.example.example/sensors"
-    private val ROTATION_CHANNEL = "com.example.example/rotation"
     private val BAROMETER_CHANNEL = "com.example.example/barometer"
     private val LIGHT_CHANNEL = "com.example.example/light"
     private val PROXIMITY_CHANNEL = "com.example.example/proximity"
@@ -36,15 +27,20 @@ class MainActivity: FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
-        // Method channel to get display rotation
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ROTATION_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getRotation" -> {
-                    @Suppress("DEPRECATION")
-                    val rotation = windowManager.defaultDisplay.rotation
-                    result.success(rotation)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.demo_app/orientation").setMethodCallHandler { call, result ->
+            if (call.method == "getOrientation") {
+                @Suppress("DEPRECATION")
+                val rotation = windowManager.defaultDisplay.rotation
+                val label = when (rotation) {
+                    Surface.ROTATION_0   -> "Portrait"
+                    Surface.ROTATION_90  -> "Landscape Left"
+                    Surface.ROTATION_180 -> "Portrait Upside Down"
+                    Surface.ROTATION_270 -> "Landscape Right"
+                    else                 -> "Unknown"
                 }
-                else -> result.notImplemented()
+                result.success(label)
+            } else {
+                result.notImplemented()
             }
         }
 

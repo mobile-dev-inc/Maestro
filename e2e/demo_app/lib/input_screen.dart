@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InputScreen extends StatefulWidget {
   const InputScreen({super.key});
@@ -15,6 +16,10 @@ class _InputScreenState extends State<InputScreen> {
   void initState() {
     super.initState();
     _focusNode = FocusNode();
+    SharedPreferences.getInstance().then((prefs) {
+      final saved = prefs.getString('input_screen_text');
+      if (saved != null) _inputController.text = saved;
+    });
   }
 
   @override
@@ -48,6 +53,14 @@ class _InputScreenState extends State<InputScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('input_screen_text', _inputController.text);
+                },
+                child: const Text('Save'),
               ),
             ],
           ),

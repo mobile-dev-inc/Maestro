@@ -5,7 +5,7 @@ tags:
 
 # Deeplink
 - stopApp
-- openLink: "example://app/form"
+- openLink: "example://form"
 - runFlow:
     when:
         platform: iOS
