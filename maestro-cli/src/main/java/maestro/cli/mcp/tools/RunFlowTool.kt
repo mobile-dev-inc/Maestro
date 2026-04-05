@@ -96,7 +96,8 @@ object RunFlowTool {
                     port = null,
                     driverHostPort = null,
                     deviceId = deviceId,
-                    platform = null
+                    platform = null,
+                    closeOnCompletion = false
                 ) { session ->
                     // Create a temporary file with the YAML content
                     val tempFile = Files.createTempFile("maestro-flow", ".yaml").toFile()

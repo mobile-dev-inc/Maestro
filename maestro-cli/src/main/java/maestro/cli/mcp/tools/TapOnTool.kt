@@ -90,7 +90,8 @@ object TapOnTool {
                     port = null,
                     driverHostPort = null,
                     deviceId = deviceId,
-                    platform = null
+                    platform = null,
+                    closeOnCompletion = false
                 ) { session ->
                     // Escape special regex characters to prevent regex injection issues
                     fun escapeRegex(input: String): String {

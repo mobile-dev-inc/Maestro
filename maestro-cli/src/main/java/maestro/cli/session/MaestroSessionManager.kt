@@ -51,6 +51,8 @@ import java.nio.file.Paths
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.io.path.pathString
 
@@ -61,6 +63,7 @@ object MaestroSessionManager {
 
     private val executor = Executors.newScheduledThreadPool(1)
     private val logger = LoggerFactory.getLogger(MaestroSessionManager::class.java)
+    private val persistentSessions = ConcurrentHashMap<PersistentSessionKey, ManagedSession>()
 
 
     fun <T> newSession(
@@ -74,6 +77,7 @@ object MaestroSessionManager {
         isHeadless: Boolean = false,
         screenSize: String? = null,
         reinstallDriver: Boolean = true,
+        closeOnCompletion: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
         block: (MaestroSession) -> T,
@@ -87,8 +91,80 @@ object MaestroSessionManager {
             platform = if(!platform.isNullOrEmpty()) Platform.fromString(platform) else null,
             deviceIndex = deviceIndex,
         )
-        val sessionId = UUID.randomUUID().toString()
+        if (!closeOnCompletion) {
+            val sessionKey = PersistentSessionKey(
+                platform = selectedDevice.platform,
+                deviceRef = selectedDevice.device?.instanceId ?: selectedDevice.deviceId ?: "default",
+                host = selectedDevice.host,
+                port = selectedDevice.port,
+                driverHostPort = driverHostPort,
+                isHeadless = isHeadless,
+                screenSize = screenSize,
+                reinstallDriver = reinstallDriver
+            )
 
+            val managedSession = synchronized(persistentSessions) {
+                val existingSession = persistentSessions[sessionKey]
+                if (existingSession != null) {
+                    val stillOpen = runCatching { !existingSession.session.maestro.isShutDown() }
+                        .getOrElse { false }
+
+                    if (stillOpen) {
+                        return@synchronized existingSession
+                    }
+
+                    persistentSessions.remove(sessionKey, existingSession)
+                    existingSession.cleanup(true, false)
+                }
+
+                createManagedSession(
+                    selectedDevice = selectedDevice,
+                    isStudio = isStudio,
+                    isHeadless = isHeadless,
+                    screenSize = screenSize,
+                    driverHostPort = driverHostPort,
+                    reinstallDriver = reinstallDriver,
+                    executionPlan = executionPlan
+                ).also { created ->
+                    persistentSessions[sessionKey] = created
+                }
+            }
+
+            return block(managedSession.session)
+        }
+
+        val managedSession = createManagedSession(
+            selectedDevice = selectedDevice,
+            isStudio = isStudio,
+            isHeadless = isHeadless,
+            screenSize = screenSize,
+            driverHostPort = driverHostPort,
+            reinstallDriver = reinstallDriver,
+            executionPlan = executionPlan
+        )
+
+        var blockFailure: Throwable? = null
+
+        return try {
+            block(managedSession.session)
+        } catch (e: Throwable) {
+            blockFailure = e
+            throw e
+        } finally {
+            managedSession.cleanup(true, blockFailure == null)
+        }
+    }
+
+    private fun createManagedSession(
+        selectedDevice: SelectedDevice,
+        isStudio: Boolean,
+        isHeadless: Boolean,
+        screenSize: String?,
+        driverHostPort: Int?,
+        reinstallDriver: Boolean,
+        executionPlan: WorkspaceExecutionPlanner.ExecutionPlan?,
+    ): ManagedSession {
+        val sessionId = UUID.randomUUID().toString()
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
                 try {
@@ -120,16 +196,35 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
             platformConfiguration = executionPlan?.workspaceConfig?.platform
         )
-        Runtime.getRuntime().addShutdownHook(thread(start = false) {
+
+        val isCleanedUp = AtomicBoolean(false)
+        val cleanupSession = cleanupSession@{ closeSession: Boolean, throwOnCloseFailure: Boolean ->
+            if (!isCleanedUp.compareAndSet(false, true)) {
+                return@cleanupSession
+            }
+
             heartbeatFuture.cancel(true)
             SessionStore.delete(sessionId, selectedDevice.platform)
             runCatching { ScreenReporter.reportMaxDepth() }
-            if (SessionStore.activeSessions().isEmpty()) {
-                session.close()
+
+            if (closeSession || SessionStore.activeSessions().isEmpty()) {
+                runCatching {
+                    session.close()
+                }.onFailure { closeError ->
+                    if (throwOnCloseFailure) {
+                        throw closeError
+                    } else {
+                        logger.warn("Failed to close session during cleanup", closeError)
+                    }
+                }
             }
+        }
+
+        Runtime.getRuntime().addShutdownHook(thread(start = false) {
+            cleanupSession(true, false)
         })
 
-        return block(session)
+        return ManagedSession(session = session, cleanup = cleanupSession)
     }
 
     private fun selectDevice(
@@ -456,6 +551,22 @@ object MaestroSessionManager {
         val port: Int? = null,
         val deviceId: String? = null,
         val deviceType: Device.DeviceType,
+    )
+
+    private data class PersistentSessionKey(
+        val platform: Platform,
+        val deviceRef: String,
+        val host: String?,
+        val port: Int?,
+        val driverHostPort: Int?,
+        val isHeadless: Boolean,
+        val screenSize: String?,
+        val reinstallDriver: Boolean,
+    )
+
+    private data class ManagedSession(
+        val session: MaestroSession,
+        val cleanup: (closeSession: Boolean, throwOnCloseFailure: Boolean) -> Unit
     )
 
     data class MaestroSession(
