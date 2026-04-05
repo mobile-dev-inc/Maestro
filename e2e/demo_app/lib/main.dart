@@ -8,6 +8,7 @@ import 'package:demo_app/issue_1619_repro.dart';
 import 'package:demo_app/issue_1677_repro.dart';
 import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
+import 'package:demo_app/orientation_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
 import 'package:demo_app/webview.dart';
@@ -107,6 +108,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                 },
                 child: const Text('Location Test'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const OrientationScreen()),
+                  );
+                },
+                child: const Text('Orientation Test'),
               ),
               ElevatedButton(
                 onPressed: () {
