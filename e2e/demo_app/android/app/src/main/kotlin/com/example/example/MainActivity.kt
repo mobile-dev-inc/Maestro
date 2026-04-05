@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.view.Surface
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -21,6 +22,7 @@ class MainActivity: FlutterActivity() {
     }
 
     private val CHANNEL = "com.example.example/sensors"
+    private val ROTATION_CHANNEL = "com.example.example/rotation"
     private val BAROMETER_CHANNEL = "com.example.example/barometer"
     private val LIGHT_CHANNEL = "com.example.example/light"
     private val PROXIMITY_CHANNEL = "com.example.example/proximity"
@@ -33,6 +35,18 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        // Method channel to get display rotation
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ROTATION_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getRotation" -> {
+                    @Suppress("DEPRECATION")
+                    val rotation = windowManager.defaultDisplay.rotation
+                    result.success(rotation)
+                }
+                else -> result.notImplemented()
+            }
+        }
 
         // Method channel to check sensor availability
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
