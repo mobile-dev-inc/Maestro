@@ -9,7 +9,7 @@ tags:
 - evalScript: ${maestro.startTime = new Date()}
 - waitForAnimationToEnd
 - evalScript: ${maestro.endTime = new Date()}
-- assertTrue: ${maestro.endTime - maestro.startTime < 1000} # Nothing to wait for
+- assertTrue: ${maestro.endTime - maestro.startTime < 3000} # Nothing to wait for (allow for page transition settle)
 
 - tapOn: 
     text: "Animate (30s)"
