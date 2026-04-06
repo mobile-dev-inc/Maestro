@@ -1,0 +1,9 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp
+- assertVisible: 'Form Test'
+
+- stopApp
+- assertNotVisible: 'Form Test'
