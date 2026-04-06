@@ -1,0 +1,16 @@
+# Verifies software keyboard shows even with hardware keyboard attached
+#
+#   adb shell settings put secure show_ime_with_hard_keyboard 1
+
+appId: com.android.chrome
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    text: ^Search or type.*
+- tapOn:
+    text: ^Search or type.*
+- assertVisible:
+    id: input_method_nav_back

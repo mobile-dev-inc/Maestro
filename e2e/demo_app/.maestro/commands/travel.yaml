@@ -1,0 +1,37 @@
+appId: com.example.example
+tags:
+  - passing
+---
+# Test that the travel command moves the device GPS position along a route and
+# that the app reflects the final destination after travel completes.
+#
+# Route: Eiffel Tower (Paris) → Lyon → Leaning Tower (Pisa) → Colosseum (Rome)
+
+- launchApp:
+    clearState: true
+- tapOn: Location Test
+
+# Establish a known starting position
+- setLocation:
+    latitude: 48.857807
+    longitude: 2.295188
+
+# Wait for the screen to show the initial fix before travelling
+- extendedWaitUntil:
+    visible: "Latitude: 48.857807"
+    timeout: 15000
+
+# Travel through France and Italy to Rome at high speed (km/h)
+- travel:
+    points:
+      - 48.857807, 2.295188
+      - 46.2276, 5.9900
+      - 43.7230, 10.3966
+      - 41.8902, 12.4922
+    speed: 1000
+
+# Assert the device is now at the Colosseum, Rome
+- assertVisible:
+    text: "Latitude: 41.890200"
+- assertVisible:
+    text: "Longitude: 12.492200"
