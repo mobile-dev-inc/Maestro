@@ -124,7 +124,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: zulu
-          java-version: 21
+          java-version: 17
 
       - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
         run: |
@@ -196,21 +196,21 @@ jobs:
           echo "HOME=$HOME"
           
           cat << EOF >> ~/.config/.android/avd/MyAVD.avd/config.ini
-          hw.cpu.ncore=2
+          hw.cpu.ncore=4
           hw.gpu.enabled=yes
           hw.gpu.mode=swiftshader_indirect
-          hw.ramSize=3072
-          disk.dataPartition.size=4G
-          vm.heapSize=576
-          hw.lcd.density=440
-          hw.lcd.height=2220
-          hw.lcd.width=1080
+          hw.ramSize=4192
+          disk.dataPartition.size=6442450944
+          vm.heapSize=112M
+          hw.lcd.density=240
+          hw.lcd.height=1280
+          hw.lcd.width=606
           EOF
 
       - name: Run AVD
         run: |
           emulator @MyAVD \
-            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -camera-back none -qemu -m 3072 \
+            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -no-metrics -camera-back emulated \
             >~/emulator_stdout.log \
             2>~/emulator_stderr.log &
 
