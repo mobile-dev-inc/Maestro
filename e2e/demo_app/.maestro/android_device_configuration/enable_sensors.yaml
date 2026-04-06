@@ -1,0 +1,35 @@
+# Verifies all device sensors are available
+#
+# Configuration: AVD hardware settings
+# Uses demo app to check sensor availability
+#
+# Expected sensors:
+#   - Accelerometer
+#   - User Accelerometer
+#   - Gyroscope
+#   - Compass
+#   - Magnetometer
+#   - Barometer
+#   - Light Sensor
+#   - Proximity Sensor
+#   - GPS
+
+appId: com.example.example
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    clearState: true
+- tapOn: Sensors
+- assertVisible: Accelerometer Available
+- assertVisible: User Accelerometer Available
+- assertVisible: Gyroscope Available
+- scroll
+- assertVisible: Compass Available
+- assertVisible: Magnetometer Available
+- scroll
+- assertVisible: Barometer Available
+- assertVisible: Light Sensor Available
+- assertVisible: Proximity Sensor Available
+- scroll
+- assertVisible: GPS Available

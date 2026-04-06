@@ -1,0 +1,17 @@
+url: https://www.saucedemo.com/
+name: Scroll should reveal content below the fold
+tags:
+  - passing
+  - web
+---
+- launchApp
+- tapOn: Username
+- inputText: standard_user
+- tapOn: Password
+- inputText: secret_sauce
+- tapOn: Login
+
+- assertVisible: Products
+
+- scroll
+- assertVisible: '.*Add to cart.*'

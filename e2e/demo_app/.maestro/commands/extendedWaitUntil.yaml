@@ -1,0 +1,23 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp # For idempotence of sections
+
+- extendedWaitUntil:
+    timeout: 10000
+    visible:
+      text: 'Gesture Tester'
+
+- extendedWaitUntil:
+    timeout: 100
+    notVisible:
+      text: 'Non Existent Text'
+
+- tapOn: "Animation Test"
+- tapOn: 
+    text: "Animate (4s)"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible: "0.0s"
+    timeout: 5000
