@@ -41,7 +41,7 @@ if [ "$platform" = "web" ]; then
 		_h3 "$app_name" "web" "$line"
 	done < pipe &
 
-	maestro --verbose --platform "$platform" test --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/web" --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
 else
 	for workspace_dir in ./demo_app/.maestro ./workspaces/*; do
@@ -67,7 +67,7 @@ else
 			_h3 "$app_name" "passing" "$line"
 		done < pipe &
 
-		maestro --verbose --platform "$platform" test --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/passing" --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
 
 		###
@@ -83,7 +83,7 @@ else
 			_h3 "$app_name" "failing" "$line"
 		done < pipe &
 
-		maestro --verbose --platform "$platform" test --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
 	done
 fi

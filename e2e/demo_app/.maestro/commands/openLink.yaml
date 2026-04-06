@@ -2,7 +2,6 @@ appId: com.example.example
 tags:
   - passing
 ---
-- launchApp
 
 # Deeplink
 - stopApp

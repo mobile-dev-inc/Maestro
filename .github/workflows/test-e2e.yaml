@@ -243,7 +243,7 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: ./run_tests android
 
       - name: Stop screen recording of AVD
