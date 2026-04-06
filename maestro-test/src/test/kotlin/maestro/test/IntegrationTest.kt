@@ -18,6 +18,7 @@ import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
+import maestro.ScrollDirection
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
@@ -30,6 +31,7 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
+import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.js.JsEngine
@@ -4587,6 +4589,70 @@ class IntegrationTest {
                 events.add(CallbackEvent("onCommandSkipped", uniqueIndex, getSequence()))
             },
         )
+    }
+
+    @Test
+    fun `Case 140 - scrollUntilVisible respects coroutine cancellation mid-scroll`() {
+        // Given: element is never visible on screen, so scrollUntilVisible will loop indefinitely
+        // until its own timeout (set very high). We cancel via coroutine withTimeout instead.
+        val driver = driver {
+            // No elements — forces scrollUntilVisible to keep scrolling and never find the target
+        }
+
+        var completed = 0
+        var skipped = 0
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+                try {
+                    withTimeout(2000) {
+                        val orchestra = Orchestra(
+                            maestro = maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandComplete = { _, _ ->
+                                completed += 1
+                            },
+                            onCommandSkipped = { _, _ ->
+                                skipped += 1
+                            },
+                        )
+
+                        // scrollUntilVisible has a 60s internal timeout — it should NOT
+                        // run that long. withTimeout will cancel the coroutine after 2s,
+                        // and scrollUntilVisible's loop should notice isActive=false
+                        // and exit early via CommandSkipped.
+                        orchestra.runFlow(
+                            listOf(
+                                MaestroCommand(
+                                    scrollUntilVisible = ScrollUntilVisibleCommand(
+                                        selector = ElementSelector(textRegex = "NonExistentElement"),
+                                        direction = ScrollDirection.DOWN,
+                                        timeout = "60000",
+                                        visibilityPercentage = 100,
+                                        centerElement = false,
+                                    )
+                                )
+                            )
+                        )
+                    }
+                } finally {
+                    scope.coroutineContext[Job]?.cancel()
+                }
+            }
+        }
+
+        // The scrollUntilVisible command should not have completed successfully
+        assertThat(completed).isEqualTo(0)
+
+        // It should have been routed through onCommandSkipped (via CommandSkipped),
+        // not onCommandFailed — consistent with how repeatCommand handles cancellation.
+        assertThat(skipped).isEqualTo(1)
+
+        // Verify that swipes did happen — the loop was actively scrolling before cancellation
+        driver.assertAnyEvent { it is Event.SwipeElementWithDirection }
     }
 
     private fun orchestra(

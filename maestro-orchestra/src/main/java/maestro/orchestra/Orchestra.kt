@@ -27,6 +27,7 @@ import maestro.Filters
 import com.github.romankh3.image.comparison.ImageComparison
 import com.github.romankh3.image.comparison.model.ImageComparisonState
 import io.grpc.Status
+import kotlinx.coroutines.currentCoroutineContext
 import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
@@ -709,7 +710,7 @@ class Orchestra(
         return true
     }
 
-    private fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
+    private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
         val endTime = System.currentTimeMillis() + command.timeout.toLong()
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
@@ -744,7 +745,14 @@ class Orchestra(
                 durationMs = command.scrollDuration.toLong(),
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
-        } while (System.currentTimeMillis() < endTime)
+        } while (System.currentTimeMillis() < endTime && currentCoroutineContext().isActive)
+
+        // If the loop exited due to coroutine cancellation, treat the command as
+        // skipped (consistent with repeatCommand) instead of falling through to
+        // ElementNotFound (which would route through onCommandFailed).
+        if (!currentCoroutineContext().isActive) {
+            throw CommandSkipped
+        }
 
         val debugMessage = buildString {
             appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
