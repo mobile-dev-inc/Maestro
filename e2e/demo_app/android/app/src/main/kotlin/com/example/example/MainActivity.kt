@@ -5,12 +5,14 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.view.Surface
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
+
     private val CHANNEL = "com.example.example/sensors"
     private val BAROMETER_CHANNEL = "com.example.example/barometer"
     private val LIGHT_CHANNEL = "com.example.example/light"
@@ -24,6 +26,23 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.demo_app/orientation").setMethodCallHandler { call, result ->
+            if (call.method == "getOrientation") {
+                @Suppress("DEPRECATION")
+                val rotation = windowManager.defaultDisplay.rotation
+                val label = when (rotation) {
+                    Surface.ROTATION_0   -> "Portrait"
+                    Surface.ROTATION_90  -> "Landscape Left"
+                    Surface.ROTATION_180 -> "Portrait Upside Down"
+                    Surface.ROTATION_270 -> "Landscape Right"
+                    else                 -> "Unknown"
+                }
+                result.success(label)
+            } else {
+                result.notImplemented()
+            }
+        }
 
         // Method channel to check sensor availability
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->

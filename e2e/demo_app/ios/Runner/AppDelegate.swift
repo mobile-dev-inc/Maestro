@@ -25,6 +25,27 @@ import UIKit
       }
     }
 
+    let orientationChannel = FlutterMethodChannel(
+      name: "com.example.demo_app/orientation",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+
+    orientationChannel.setMethodCallHandler { (call, result) in
+      if call.method == "getOrientation" {
+        switch UIDevice.current.orientation {
+        case .portrait:             result("Portrait")
+        case .portraitUpsideDown:   result("Portrait Upside Down")
+        case .landscapeLeft:        result("Landscape Left")
+        case .landscapeRight:       result("Landscape Right")
+        default:                    result("Unknown")
+        }
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

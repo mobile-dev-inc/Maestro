@@ -21,6 +21,8 @@ dependencies:
   sensors_plus: ^4.0.2
   geolocator: ^13.0.1
   connectivity_plus: ^7.0.0
+  app_links: ^6.4.1
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_lints: ^6.0.0

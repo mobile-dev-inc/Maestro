@@ -1,11 +1,14 @@
-# Why doesn't this stop our demo app? adb command behind killApp doesn't work either.
 appId: com.example.example
 tags:
   - passing
   - android
 ---
-
 - launchApp
-- assertVisible: 'Form Test'
+- tapOn:
+    id: "fabAddIcon"
+- assertVisible: "1"
+- pressKey: Home
 - killApp
-- assertNotVisible: 'Form Test'
+- launchApp:
+    stopApp: false    # just brings app to foreground, no force-stop
+- assertVisible: "0"  # process was killed, counter reset
