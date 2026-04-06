@@ -1,0 +1,10 @@
+# Verifies Android device boots and Settings app launches
+#
+# Basic health check - no specific configuration required
+
+appId: com.android.settings
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    appId: com.android.settings

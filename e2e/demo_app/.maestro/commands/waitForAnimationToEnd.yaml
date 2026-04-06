@@ -1,0 +1,29 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp
+
+- tapOn: "Animation Test"
+
+- evalScript: ${maestro.startTime = new Date()}
+- waitForAnimationToEnd
+- evalScript: ${maestro.endTime = new Date()}
+- assertTrue: ${maestro.endTime - maestro.startTime < 3000} # Nothing to wait for (allow for page transition settle)
+
+- tapOn: 
+    text: "Animate (30s)"
+    waitToSettleTimeoutMs: 100
+
+- evalScript: ${maestro.startTime = new Date()}
+- waitForAnimationToEnd:
+    timeout: 1000
+- evalScript: ${maestro.endTime = new Date()}
+- assertTrue: ${maestro.endTime - maestro.startTime > 1000}
+- assertTrue: ${maestro.endTime - maestro.startTime < 4000} # Some allowance for slow runners
+
+
+- evalScript: ${maestro.startTime = new Date()}
+- waitForAnimationToEnd
+- evalScript: ${maestro.endTime = new Date()}
+- assertTrue: ${maestro.endTime - maestro.startTime > 4000} # waitForAnimationToEnd waits for its default timeout or for the animation to actually stop

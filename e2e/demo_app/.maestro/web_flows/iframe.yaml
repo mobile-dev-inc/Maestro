@@ -1,0 +1,20 @@
+url: https://automationui.pages.dev/iframe
+name: Iframe test # https://github.com/mobile-dev-inc/maestro/issues/3009
+tags:
+  - passing
+  - web
+---
+- launchApp
+
+# Assert visibility of elements inside the iframe
+- assertVisible: Hello from inside the iframe
+- tapOn: Type here...
+
+# Assert interaction with elements inside the iframe
+- inputText: Potato
+- assertNotVisible: Type here... # Placeholder no longer visible
+- assertVisible: Potato 
+- tapOn: Echo
+- tapOn:
+    id: echo-output
+    text: Potato

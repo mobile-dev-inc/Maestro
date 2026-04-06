@@ -54,10 +54,6 @@ object Filters {
         nodes.filter { this(it) }
     }
 
-    fun nonClickable(): ElementFilter {
-        return { nodes -> nodes.filter { it.clickable == false } }
-    }
-
     fun textMatches(regex: Regex): ElementFilter {
         return { nodes ->
             val textMatches = nodes.filter {
@@ -185,11 +181,12 @@ object Filters {
         }
     }
 
-    fun containsChild(other: UiElement): ElementLookupPredicate {
-        val otherNode = other.treeNode
-        return {
-            it.children
-                .any { child -> child == otherNode }
+    fun containsChild(childFilter: ElementFilter): ElementFilter {
+        return { nodes ->
+            val matchingChildren = childFilter(nodes).toSet()
+            nodes.filter { node ->
+                node.children.any { child -> matchingChildren.contains(child) }
+            }
         }
     }
 

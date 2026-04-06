@@ -1,0 +1,35 @@
+appId: com.example.example
+tags:
+  - passing
+---
+
+# Deeplink
+- stopApp
+- openLink: "example://form"
+- runFlow:
+    when:
+        platform: iOS
+        visible: "Open in \u201cDemo App\u201d?"
+    commands: 
+        - tapOn: "Open"
+- assertVisible: "Password"
+
+# Web link
+- stopApp
+- openLink: "https://www.saucedemo.com/"
+- runFlow:
+    label: Check Chrome first use
+    when:
+      platform: Android
+    commands: 
+      - runFlow:
+          when:
+              visible: "Welcome to Chrome"
+          commands: 
+              - tapOn: "Use without an account"
+      - runFlow:
+          when:
+              visible: "Chrome notifications make things easier"
+          commands: 
+              - tapOn: "No thanks"
+- assertVisible: "Swag Labs"

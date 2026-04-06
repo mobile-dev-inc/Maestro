@@ -590,6 +590,64 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 139 - containsChild with relative selectors and transient hierarchy changes`() {
+        // Given: a nested layout with containsChild + relative selectors (below, above)
+        // A mutating text sibling inside level-1 simulates transient Android accessibility
+        // attribute changes between hierarchy fetches (e.g. focused state, drawingOrder, etc.)
+        val commands = readCommands("139_contains_child_with_relative_position")
+
+        var callCount = 0
+        val driver = driver {
+            // Reference element for "below" check
+            element {
+                text = "top side"
+                bounds = Bounds(100, 50, 200, 80)
+            }
+            // Reference element for "above" check
+            element {
+                text = "bottom side"
+                bounds = Bounds(100, 500, 200, 530)
+            }
+            // level-0 container
+            element {
+                id = "level-0"
+                bounds = Bounds(50, 100, 300, 450)
+
+                // level-1 container: below "top side" (y=120 > y=50) and above "bottom side" (y=120 < y=500)
+                element {
+                    id = "level-1"
+                    bounds = Bounds(70, 120, 280, 430)
+
+                    // level-2 (stable — no mutating attributes)
+                    element {
+                        id = "level-2"
+                        bounds = Bounds(90, 140, 260, 410)
+                    }
+
+                    // Sibling with transient text — simulates real Android hierarchy
+                    // where attributes like focused/drawingOrder change between dumps.
+                    // This causes level-1's TreeNode subtree to differ across hierarchy
+                    // fetches, breaking containsChild's cross-hierarchy equality check.
+                    element {
+                        mutatingText = { "transient_${callCount++}" }
+                        bounds = Bounds(90, 140, 200, 170)
+                    }
+                }
+            }
+        }
+
+        // When / Then: This SHOULD pass — all elements exist, all position checks are valid.
+        // The bug: containsChild eagerly captures a TreeNode from one hierarchy fetch, then
+        // compares it via data class equals against nodes from a later fetch. The mutating
+        // sibling changes level-1's subtree, so the deep structural equality fails.
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
     fun `Case 019 - Do not wait until visible`() {
         // Given
         val commands = readCommands("019_dont_wait_for_visibility")

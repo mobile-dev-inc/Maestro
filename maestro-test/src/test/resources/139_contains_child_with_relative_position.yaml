@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- assertVisible:
+    id: level-0
+    containsChild:
+      id: level-1
+      containsChild:
+        id: level-2
+      below: top side
+      above: bottom side

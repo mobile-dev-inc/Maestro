@@ -1,0 +1,32 @@
+appId: com.example.example
+---
+- launchApp
+
+- tapOn:
+    id: fabAddIcon
+
+- assertVisible:
+    text: '1'
+    below: 'You have pushed the button this many times'
+
+- launchApp:
+    arguments:
+      initialCounter: 5
+
+- assertVisible:
+    text: '5'
+    below: 'You have pushed the button this many times'
+
+- launchApp:
+    arguments:
+      delay: 5
+
+- tapOn:
+    id: fabAddIcon
+
+- assertVisible:
+    text: '1'
+    below: 'You have pushed the button this many times'
+- assertNotVisible:
+    text: '2'
+    below: 'You have pushed the button this many times'

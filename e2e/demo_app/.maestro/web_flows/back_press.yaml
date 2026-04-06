@@ -1,0 +1,21 @@
+url: https://www.saucedemo.com/
+name: Back press should navigate to previous page
+tags:
+  - passing
+  - web
+---
+- launchApp
+- tapOn: Username
+- inputText: standard_user
+- tapOn: Password
+- inputText: secret_sauce
+- tapOn: Login
+
+- assertVisible: Products
+
+- tapOn: Sauce Labs Backpack
+- assertNotVisible: Products
+- assertVisible: '.*sleek.*'
+
+- back
+- assertVisible: Products

@@ -50,8 +50,11 @@ object TestDebugReporter {
 
     // AI outputs must be saved separately at the end of the flow.
     fun saveSuggestions(outputs: List<FlowAIOutput>, path: Path) {
+        val outputsWithContent = outputs.filter { it.screenOutputs.isNotEmpty() }
+        if (outputsWithContent.isEmpty()) return
+
         // This mutates the output.
-        outputs.forEach { output ->
+        outputsWithContent.forEach { output ->
             // Write AI screenshots. Paths need to be changed to the final ones.
             val updatedOutputs = output.screenOutputs.map { newOutput ->
                 val screenshotFilename = newOutput.screenshotPath.name
@@ -69,7 +72,7 @@ object TestDebugReporter {
             mapper.writeValue(jsonFile, output)
         }
 
-        HtmlAITestSuiteReporter().report(outputs, path.toFile())
+        HtmlAITestSuiteReporter().report(outputsWithContent, path.toFile())
     }
 
     /**

@@ -1,0 +1,6 @@
+flows:
+  - "*"
+  - "ios_device_configuration/*"
+  - "android_device_configuration/*"
+  - "commands/*"
+  - "web_flows/*"

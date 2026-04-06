@@ -1,0 +1,35 @@
+appId: com.example.example
+name: Keyboard autocorrect is disabled
+tags:
+  - ios_device_configuration
+---
+# Verifies keyboard autocorrect is disabled
+#
+# This test types "teh " (common autocorrect trigger) and asserts
+# it stays "teh " instead of being corrected to "the ".
+#
+
+- launchApp:
+    clearState: true
+
+# Navigate to a text input field
+- scrollUntilVisible:
+    element: "Input/Keyboard"
+    direction: DOWN
+
+- tapOn: "Input/Keyboard"
+
+# Tap on the text field to focus it
+- tapOn:
+    text: "Test Input Field"
+
+# Type a word that triggers autocorrect
+# "teh " is commonly autocorrected to "the "
+- tapOn: "t"
+- tapOn: "e"
+- tapOn: "h"
+- tapOn: "space"
+
+# Assert the text was NOT autocorrected
+# If autocorrect is ON, this will be "the " and the test FAILs
+- assertVisible: "teh "

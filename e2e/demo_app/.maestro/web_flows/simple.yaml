@@ -1,0 +1,19 @@
+url: https://www.saucedemo.com/
+tags:
+    - passing
+    - web
+---
+- launchApp
+- tapOn: Username
+- inputText: standard_user
+- tapOn: Password
+- inputText: secret_sauce
+- tapOn: Login
+
+- assertVisible: Products
+- assertVisible: Sauce Labs Backpack
+- assertVisible: Sauce Labs Bike Light
+
+- tapOn: Sauce Labs Backpack
+- assertNotVisible: Sauce Labs Bike Light
+- assertVisible: '.*sleek.*'

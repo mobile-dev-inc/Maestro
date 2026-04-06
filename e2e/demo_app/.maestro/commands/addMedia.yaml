@@ -1,0 +1,20 @@
+appId: com.google.android.documentsui
+tags:
+  - passing
+  - android # TODO: How do we prove this works on iOS?
+---
+
+- addMedia:
+  - ../assets/image.png
+   
+- launchApp: com.google.android.documentsui # Files app
+
+- tapOn: Show roots
+- tapOn: Images
+- tapOn: Pictures
+- assertVisible: image.png
+- longPressOn: image.png
+- tapOn: Search # The picture of the bin...
+- tapOn: OK
+- assertNotVisible: image.png
+

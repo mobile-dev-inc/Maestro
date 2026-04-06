@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-# Runs all tests in the workspaces directory.
+# Runs all tests in demo_app/.maestro and the workspaces directory.
 
 command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 
@@ -31,7 +31,7 @@ if [ "$platform" = "web" ]; then
 	###
 	### Web: run web-tagged tests for demo_app only
 	###
-	workspace_dir="./workspaces/demo_app"
+	workspace_dir="./demo_app/.maestro"
 	app_name="demo_app"
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
@@ -41,11 +41,14 @@ if [ "$platform" = "web" ]; then
 		_h3 "$app_name" "web" "$line"
 	done < pipe &
 
-	maestro --verbose --platform "$platform" test --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/web" --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
 else
-	for workspace_dir in ./workspaces/*; do
-		app_name="$(basename "$workspace_dir")"
+	for workspace_dir in ./demo_app/.maestro ./workspaces/*; do
+		case "$workspace_dir" in
+			./demo_app/.maestro) app_name="demo_app" ;;
+			*) app_name="$(basename "$workspace_dir")" ;;
+		esac
 
 		case $app_name in
 			# demo_app has OOM issues on GHA
@@ -64,7 +67,7 @@ else
 			_h3 "$app_name" "passing" "$line"
 		done < pipe &
 
-		maestro --verbose --platform "$platform" test --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/passing" --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
 
 		###
@@ -80,7 +83,7 @@ else
 			_h3 "$app_name" "failing" "$line"
 		done < pipe &
 
-		maestro --verbose --platform "$platform" test --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
 	done
 fi

@@ -1,0 +1,25 @@
+appId: com.example.example
+tags:
+    - passing
+---
+- launchApp
+
+- tapOn: "Scrollable List"
+- scrollUntilVisible: 
+    element: Item 20
+- assertVisible: Item 20
+- assertNotVisible: Item 1
+
+- scrollUntilVisible:
+    element: "Item 1"
+    direction: UP
+- assertVisible: Item 1
+- assertNotVisible: Item 20
+
+- evalScript: ${maestro.startTime = new Date()}
+- scrollUntilVisible:
+    element: Item 1000
+    timeout: 1000
+    optional: true
+- evalScript: ${maestro.endTime = new Date()}
+- assertTrue: ${maestro.endTime - maestro.startTime < 12000} # Far less than the 20000 default, but enough to allow for processing time

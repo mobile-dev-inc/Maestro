@@ -1,0 +1,6 @@
+appId: com.example.example
+---
+- launchApp
+- evalScript: ${console.log('Hello!')}
+- evalScript: ${console.log('Hello money! $')}
+- evalScript: ${console.log('$')}

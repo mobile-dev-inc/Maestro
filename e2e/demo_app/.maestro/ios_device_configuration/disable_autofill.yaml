@@ -1,0 +1,32 @@
+appId: com.example.example
+name: Autofill password is disabled
+tags:
+  - ios_device_configuration
+---
+# Verifies password autofill is disabled on iOS
+#
+# This test taps a password field and asserts that the "Passwords"
+# autofill option does NOT appear above the keyboard.
+#
+
+- launchApp:
+    clearState: false
+
+# Navigate to the Password autofill Test section
+- scrollUntilVisible:
+    element: "Password autofill Test"
+    direction: DOWN
+
+- tapOn: "Password autofill Test"
+
+# Tap on the password field to bring up keyboard
+- tapOn:
+    text: "Password"
+
+# Assert that the keyboard "Passwords" autofill option is NOT visible
+# If autofill is enabled, this option appears above the keyboard and the test FAILs
+- assertNotVisible:
+    text: "Passwords"
+    above:
+      id: "Return"
+    below: "Password"

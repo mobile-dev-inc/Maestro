@@ -1,0 +1,5 @@
+appId: com.example.example
+---
+- runFlow: "myFlow.yaml"
+- runScript:
+    file: ./script.js

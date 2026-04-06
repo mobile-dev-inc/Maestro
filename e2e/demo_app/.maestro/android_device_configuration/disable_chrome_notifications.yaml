@@ -1,0 +1,11 @@
+# Verifies Chrome notifications popup is disabled
+#
+#   adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS
+#   adb shell appops set com.android.chrome POST_NOTIFICATION deny
+
+appId: com.android.chrome
+tags:
+  - android_device_configuration
+---
+- tapOn: Chrome
+- assertNotVisible: Chrome notifications make things easier

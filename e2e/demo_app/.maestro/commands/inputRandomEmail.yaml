@@ -1,0 +1,11 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp # For idempotence of sections
+
+- tapOn: 'Input/Keyboard'
+- tapOn:
+    id: 'textInput'
+- inputRandomEmail
+- assertVisible: '.+@.+'
