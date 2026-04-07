@@ -12,5 +12,6 @@ fun isFlowFile(path: Path, config: Path?): Boolean {
     val extension = path.extension
     if (extension != "yaml" && extension != "yml") return false // Not YAML
     if (path.nameWithoutExtension == "config") return false // Config file
+    if (path.nameWithoutExtension.endsWith("config")) return false // Additional config file (e.g. regression_config.yaml, ci-config.yaml)
     return true
 }
