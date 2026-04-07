@@ -147,6 +147,27 @@ jobs:
           sdkmanager --install "$ANDROID_PLATFORM"
           sdkmanager --install "$ANDROID_OS_IMAGE"
 
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            e2e/demo_app/.dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('e2e/demo_app/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            e2e/demo_app/android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('e2e/demo_app/android/**/*.gradle*', 'e2e/demo_app/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
