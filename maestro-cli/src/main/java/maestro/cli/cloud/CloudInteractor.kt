@@ -437,7 +437,7 @@ class CloudInteractor(
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
         return lines.joinToString("\n").render().box()
