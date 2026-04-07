@@ -1,0 +1,12 @@
+appId: com.example.example
+name: Issue 1821
+---
+- launchApp:
+    clearState: true
+- addMedia:
+  - assets/image.png
+- launchApp: com.android.documentsui
+
+# Files app ID is:
+# "com.android.documentsui" for API 29 and below
+# "com.google.android.documentsui" for API 30 and above

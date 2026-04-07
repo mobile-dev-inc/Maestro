@@ -1,0 +1,15 @@
+appId: com.example.example
+tags:
+  - passing
+---
+
+- launchApp # For idempotence of sections
+
+- assertNotVisible: 'kwyjibo'
+
+- assertNotVisible:
+    text: 'kwyjibo'
+
+- assertNotVisible:
+    text: 'Form Test'
+    enabled: false

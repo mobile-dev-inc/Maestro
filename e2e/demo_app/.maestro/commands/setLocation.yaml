@@ -1,0 +1,30 @@
+appId: com.example.example
+tags:
+  - passing
+---
+# Test that setLocation command correctly updates the device GPS position.
+# Navigates to the Location Test screen and verifies the displayed coordinates
+# after each setLocation call.
+
+- launchApp:
+    clearState: true
+
+- tapOn: Location Test
+
+# --- First location: Eiffel Tower, Paris ---
+- setLocation:
+    latitude: 48.857807
+    longitude: 2.295188
+- assertVisible:
+    text: "Latitude: 48.857807"
+- assertVisible:
+    text: "Longitude: 2.295188"
+
+# --- Second location: Leaning Tower of Pisa ---
+- setLocation:
+    latitude: 43.723000
+    longitude: 10.396600
+- assertVisible:
+    text: "Latitude: 43.723000"
+- assertVisible:
+    text: "Longitude: 10.396600"

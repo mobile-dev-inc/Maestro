@@ -773,27 +773,6 @@ class ApiClient(
         }
     }
 
-    fun getAppBinaryInfo(authToken: String, appBinaryId: String): AppBinaryInfo {
-        val request = Request.Builder()
-            .header("Authorization", "Bearer $authToken")
-            .url("$baseUrl/v2/maestro-studio/app-binary/$appBinaryId")
-            .get()
-            .build()
-
-        val response = try {
-            client.newCall(request).execute()
-        } catch (e: IOException) {
-            throw ApiException(statusCode = null)
-        }
-
-        response.use {
-            if (!response.isSuccessful) {
-                throw ApiException(statusCode = response.code)
-            }
-            return JSON.readValue(response.body?.bytes(), AppBinaryInfo::class.java)
-        }
-    }
-
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")

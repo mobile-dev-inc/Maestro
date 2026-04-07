@@ -1,0 +1,14 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp
+- tapOn: "Nesting Test"
+- waitForAnimationToEnd
+
+- takeScreenshot:
+    path: workspaces/demo_app/screenshots/e2e_take_then_assert_full_screen
+
+- assertScreenshot:
+    path: workspaces/demo_app/screenshots/e2e_take_then_assert_full_screen.png
+    thresholdPercentage: 95
