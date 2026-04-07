@@ -28,6 +28,20 @@ class WorkspaceValidatorTest {
         return zip
     }
 
+    private fun zipWorkspaceResource(resourcePath: String): File {
+        val resourceDir = File(javaClass.getResource(resourcePath)!!.toURI())
+        val zip = File(tempDir, "workspace_${System.nanoTime()}.zip")
+        ZipOutputStream(zip.outputStream()).use { zos ->
+            resourceDir.walkTopDown().filter { it.isFile }.forEach { file ->
+                val entryName = file.relativeTo(resourceDir).path
+                zos.putNextEntry(ZipEntry(entryName))
+                file.inputStream().use { it.copyTo(zos) }
+                zos.closeEntry()
+            }
+        }
+        return zip
+    }
+
     private fun flowWithName(name: String): String {
         return baseFlowContent.replace("appId:", "name: $name\nappId:")
     }
@@ -314,5 +328,49 @@ class WorkspaceValidatorTest {
 
         assertThat(result.isOk).isTrue()
         assertThat(result.value.flows).hasSize(2)
+    }
+
+    @Test
+    fun `validate produces normalized addMedia paths for relative references`() {
+        val workspace = zipWorkspaceResource("/workspaces/016_normalized_media_paths")
+
+        val result = WorkspaceValidator.validate(
+            workspace = workspace,
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        val commands = result.value.flows.first().commands
+        val addMediaCmd = commands.mapNotNull { it.addMediaCommand }.first()
+        addMediaCmd.mediaPaths.forEach { path ->
+            assertThat(path).doesNotContain("..")
+        }
+    }
+
+    @Test
+    fun `validate produces normalized addMedia paths in subflows referenced via relative runFlow`() {
+        val workspace = zipWorkspaceResource("/workspaces/017_normalized_media_paths_subflow")
+
+        val result = WorkspaceValidator.validate(
+            workspace = workspace,
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        val mainFlowResult = result.value.flows.first { it.name == "test" }
+        val addMediaCmd = mainFlowResult.commands
+            .mapNotNull { it.runFlowCommand }
+            .flatMap { it.commands }
+            .mapNotNull { it.addMediaCommand }
+            .first()
+        addMediaCmd.mediaPaths.forEach { path ->
+            assertThat(path).doesNotContain("..")
+        }
     }
 }
