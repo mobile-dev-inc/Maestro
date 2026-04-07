@@ -6,7 +6,6 @@ import maestro.cli.api.CliVersion
 import maestro.cli.update.Updates
 import maestro.cli.view.red
 import maestro.device.CPU_ARCHITECTURE
-import java.io.File
 import java.io.IOException
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -33,13 +32,6 @@ object EnvUtils {
 
     val BASE_API_URL: String
         get() = System.getenv("MAESTRO_API_URL") ?: PROD_API_URL
-
-    /**
-     * Where Maestro config and state files were located before v1.37.0.
-     */
-    fun legacyMaestroHome(): Path {
-        return Paths.get(System.getProperty("user.home"), ".maestro")
-    }
 
     fun xdgStateHome(): Path {
         if (System.getenv("XDG_STATE_HOME") != null) {
