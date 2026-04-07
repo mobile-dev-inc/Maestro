@@ -11,11 +11,29 @@ import kotlin.io.path.readText
 
 class WorkspaceUtilsTest {
 
+    private fun readZipEntryNames(zipPath: Path): List<String> {
+        val zipUri = URI.create("jar:${zipPath.toUri()}")
+        return FileSystems.newFileSystem(zipUri, emptyMap<String, Any>()).use { fs ->
+            Files.walk(fs.getPath("/")).use { paths ->
+                paths.filter { Files.isRegularFile(it) }
+                    .map { it.toString().removePrefix("/") }
+                    .toList()
+            }
+        }
+    }
+
+    private fun readZipEntry(zipPath: Path, entryName: String): String {
+        val zipUri = URI.create("jar:${zipPath.toUri()}")
+        return FileSystems.newFileSystem(zipUri, emptyMap<String, Any>()).use { fs ->
+            fs.getPath(entryName).readText()
+        }
+    }
+
     @Test
-    fun `includes files outside workspace directory using path traversal`(@TempDir tempDir: Path) {
+    fun `zip entries have no path traversal segments for dependencies outside flow parent`(@TempDir tempDir: Path) {
         // Layout:
         // tempDir/
-        //   flows/main.yaml
+        //   flows/main.yaml        (references ../scripts/outside.js)
         //   scripts/outside.js
         val flowsDir = tempDir.resolve("flows").toFile()
         flowsDir.mkdirs()
@@ -35,30 +53,66 @@ class WorkspaceUtilsTest {
             """.trimIndent()
         )
 
-        // Create ZIP
         val outZip = tempDir.resolve("workspace.zip")
         WorkspaceUtils.createWorkspaceZip(mainFlow, outZip)
 
-        // Open ZIP FS and collect entry names
-        val zipUri = URI.create("jar:${outZip.toUri()}")
-        val entryNames = mutableListOf<String>()
-        FileSystems.newFileSystem(zipUri, emptyMap<String, Any>()).use { fs ->
-            Files.walk(fs.getPath("/")).use { paths ->
-                paths.filter { Files.isRegularFile(it) }
-                    .forEach { entryNames.add(it.toString().removePrefix("/")) }
-            }
-        }
+        val entryNames = readZipEntryNames(outZip)
 
-        // Current behavior: Path traversal entries are NOT rejected
-        // The script is outside the flows/ directory, so relativize produces "../scripts/outside.js"
-        // This entry IS created in the ZIP (no validation/rejection happens)
-        val hasTraversalEntry = entryNames.any { it.contains("..") && it.contains("scripts/outside.js") }
-        val hasScriptEntry = entryNames.any { it.endsWith("outside.js") || it.endsWith("scripts/outside.js") }
-        
-        // Either the traversal path is preserved OR normalization resolves it - both are acceptable
-        // The key point: NO rejection happens, the ZIP is created successfully
-        assertThat(hasTraversalEntry || hasScriptEntry).isTrue()
-        assertThat(entryNames.size).isAtLeast(2) // Should have at least main.yaml and the script
+        // ZIP entries must not contain ".." or "./" segments
+        entryNames.forEach { entry ->
+            assertThat(entry).doesNotContain("..")
+            assertThat(entry).doesNotContain("./")
+        }
+        assertThat(entryNames.size).isAtLeast(2)
+        assertThat(entryNames.any { it.endsWith("main.yaml") }).isTrue()
+        assertThat(entryNames.any { it.endsWith("outside.js") }).isTrue()
+        // Entries should be relativized from common ancestor (tempDir), so they include directory names
+        assertThat(entryNames.any { it == "flows/main.yaml" }).isTrue()
+        assertThat(entryNames.any { it == "scripts/outside.js" }).isTrue()
+    }
+
+    @Test
+    fun `zip entries are normalized for deeply nested cross-directory runFlow references`(@TempDir tempDir: Path) {
+        // Layout:
+        // tempDir/
+        //   tests/core/main_flow.yaml    (references ../../shared/setup.yaml)
+        //   shared/setup.yaml
+        Files.createDirectories(tempDir.resolve("tests/core"))
+        Files.createDirectories(tempDir.resolve("shared"))
+
+        val setupFlow = tempDir.resolve("shared/setup.yaml")
+        Files.writeString(
+            setupFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val mainFlow = tempDir.resolve("tests/core/main_flow.yaml")
+        Files.writeString(
+            mainFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            - runFlow:
+                file: ../../shared/setup.yaml
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(mainFlow, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+
+        // No ".." or "./" in any entry
+        entryNames.forEach { entry ->
+            assertThat(entry).doesNotContain("..")
+            assertThat(entry).doesNotContain("./")
+        }
+        assertThat(entryNames).containsExactly("tests/core/main_flow.yaml", "shared/setup.yaml", "config.yaml")
     }
 
     @Test
@@ -193,6 +247,131 @@ class WorkspaceUtilsTest {
 
         assertThat(entryNames.size).isAtLeast(2)
         assertThat(entryNames.any { it.endsWith("empty.js") }).isTrue()
+    }
+
+    @Test
+    fun `single flow file with external dependencies gets synthetic config yaml`(@TempDir tempDir: Path) {
+        // Layout:
+        // tempDir/
+        //   flows/main.yaml        (references ../shared/helper.yaml)
+        //   shared/helper.yaml
+        //   flows/sibling.yaml     (should NOT be executed)
+        Files.createDirectories(tempDir.resolve("flows"))
+        Files.createDirectories(tempDir.resolve("shared"))
+
+        val helperFlow = tempDir.resolve("shared/helper.yaml")
+        Files.writeString(
+            helperFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val siblingFlow = tempDir.resolve("flows/sibling.yaml")
+        Files.writeString(
+            siblingFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val mainFlow = tempDir.resolve("flows/main.yaml")
+        Files.writeString(
+            mainFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            - runFlow:
+                file: ../shared/helper.yaml
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(mainFlow, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+
+        // config.yaml should be present
+        assertThat(entryNames).contains("config.yaml")
+
+        // config.yaml should restrict execution to only the requested flow
+        val configContent = readZipEntry(outZip, "config.yaml")
+        assertThat(configContent).contains("flows:")
+        assertThat(configContent).contains("flows/main.yaml")
+        // Should NOT reference sibling or helper
+        assertThat(configContent).doesNotContain("sibling.yaml")
+        assertThat(configContent).doesNotContain("helper.yaml")
+    }
+
+    @Test
+    fun `single flow file without external dependencies gets synthetic config yaml`(@TempDir tempDir: Path) {
+        // Layout:
+        // tempDir/
+        //   main.yaml  (no external deps)
+        val mainFlow = tempDir.resolve("main.yaml")
+        Files.writeString(
+            mainFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(mainFlow, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+
+        // config.yaml should still be injected for single-file uploads
+        assertThat(entryNames).contains("config.yaml")
+
+        val configContent = readZipEntry(outZip, "config.yaml")
+        assertThat(configContent).contains("flows:")
+        assertThat(configContent).contains("main.yaml")
+    }
+
+    @Test
+    fun `directory upload does not get synthetic config yaml`(@TempDir tempDir: Path) {
+        // Layout:
+        // tempDir/workspace/
+        //   flow_a.yaml
+        //   flow_b.yaml
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir)
+
+        Files.writeString(
+            workspaceDir.resolve("flow_a.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+        Files.writeString(
+            workspaceDir.resolve("flow_b.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+
+        // No synthetic config.yaml for directory uploads
+        assertThat(entryNames).doesNotContain("config.yaml")
+        // But the flow files should be there
+        assertThat(entryNames).contains("flow_a.yaml")
+        assertThat(entryNames).contains("flow_b.yaml")
     }
 }
 

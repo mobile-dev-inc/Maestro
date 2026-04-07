@@ -16,14 +16,71 @@ object WorkspaceUtils {
     fun createWorkspaceZip(file: Path, out: Path) {
         if (!file.exists()) throw FileNotFoundException(file.absolutePathString())
         if (out.exists()) throw FileAlreadyExistsException(out.toFile())
-        
+
         val filesToInclude = if (!file.isDirectory()) {
             DependencyResolver.discoverAllDependencies(file)
         } else {
             Files.walk(file).filter { !it.isDirectory() }.toList()
         }
-        val relativeTo = if (file.isDirectory()) file else file.parent
+        val relativeTo = if (file.isDirectory()) file else findCommonAncestor(filesToInclude)
         createWorkspaceZipFromFiles(filesToInclude, relativeTo, out)
+
+        // For single-file uploads, inject a synthetic config.yaml that restricts
+        // execution to only the requested flow. Without this, the worker would
+        // discover and run sibling flow files that ended up in the ZIP due to
+        // the common ancestor being higher than the flow's parent directory.
+        if (!file.isDirectory()) {
+            val flowRelativePath = relativeTo.relativize(file.toAbsolutePath().normalize()).toString()
+            injectConfigYaml(out, flowRelativePath)
+        }
+    }
+
+    /**
+     * Opens an existing ZIP and writes a synthetic config.yaml at the root
+     * that limits execution to only the specified flow file.
+     */
+    private fun injectConfigYaml(zipPath: Path, flowRelativePath: String) {
+        val zipUri = URI.create("jar:${zipPath.toUri()}")
+        FileSystems.newFileSystem(zipUri, mapOf("create" to "false")).use { fs ->
+            val configEntry = fs.getPath("config.yaml")
+            val content = "flows:\n  - \"$flowRelativePath\"\n"
+            Files.writeString(configEntry, content)
+        }
+    }
+
+    /**
+     * Finds the deepest common ancestor directory of all given paths.
+     * This ensures that ZIP entries never contain "../" segments when
+     * dependencies live outside the flow file's immediate parent directory.
+     */
+    internal fun findCommonAncestor(paths: List<Path>): Path {
+        if (paths.isEmpty()) throw IllegalArgumentException("paths must not be empty")
+        if (paths.size == 1) return paths.first().toAbsolutePath().normalize().parent
+
+        val normalizedPaths = paths.map { it.toAbsolutePath().normalize() }
+        var ancestor = normalizedPaths.first().parent
+
+        for (path in normalizedPaths.drop(1)) {
+            ancestor = commonPrefix(ancestor, path.parent)
+        }
+
+        return ancestor
+    }
+
+    private fun commonPrefix(a: Path, b: Path): Path {
+        val aRoot = a.root ?: throw IllegalArgumentException("Path must be absolute: $a")
+        val bRoot = b.root ?: throw IllegalArgumentException("Path must be absolute: $b")
+        if (aRoot != bRoot) return aRoot
+
+        val aParts = (0 until a.nameCount).map { a.getName(it) }
+        val bParts = (0 until b.nameCount).map { b.getName(it) }
+
+        var commonCount = 0
+        for (i in 0 until minOf(aParts.size, bParts.size)) {
+            if (aParts[i] == bParts[i]) commonCount++ else break
+        }
+
+        return if (commonCount == 0) aRoot else aRoot.resolve(aParts.subList(0, commonCount).joinToString(a.fileSystem.separator))
     }
     
     fun createWorkspaceZipFromFiles(files: List<Path>, relativeTo: Path, out: Path) {
