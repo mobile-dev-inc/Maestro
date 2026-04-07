@@ -1,9 +1,7 @@
 package maestro.orchestra.workspace
 
 import maestro.orchestra.MaestroCommand
-import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
-import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.ExecutionOrderPlanner.getFlowsToRunInSequence
 import maestro.orchestra.yaml.YamlCommandReader
@@ -98,25 +96,14 @@ object WorkspaceExecutionPlanner {
 
         // Filter flows based on tags
 
-        val configPerFlowFile = mutableMapOf<Path, MaestroConfig?>()
-        val filteredFlowFiles = unsortedFlowFiles.filter { path ->
-            try {
-                val commands = validateFlowFile(path)
-                configPerFlowFile[path] = YamlCommandReader.getConfig(commands)
-                true
-            } catch (e: SyntaxError) {
-                if (isWorkspaceConfig(path)) {
-                    logger.info("Skipping {} (detected as workspace config file, not a flow)", path)
-                    false
-                } else {
-                    throw e
-                }
-            }
+        val configPerFlowFile = unsortedFlowFiles.associateWith {
+            val commands = validateFlowFile(it)
+            YamlCommandReader.getConfig(commands)
         }
 
         val allIncludeTags = includeTags + (workspaceConfig.includeTags?.toList() ?: emptyList())
         val allExcludeTags = excludeTags + (workspaceConfig.excludeTags?.toList() ?: emptyList())
-        val allFlows = filteredFlowFiles.filter {
+        val allFlows = unsortedFlowFiles.filter {
             val config = configPerFlowFile[it]
             val tags = config?.tags ?: emptyList()
 
@@ -173,15 +160,6 @@ object WorkspaceExecutionPlanner {
 
     private fun validateFlowFile(topLevelFlowPath: Path): List<MaestroCommand> {
         return YamlCommandReader.readCommands(topLevelFlowPath)
-    }
-
-    private fun isWorkspaceConfig(path: Path): Boolean {
-        return try {
-            YamlCommandReader.readWorkspaceConfig(path.absolute())
-            true
-        } catch (_: Exception) {
-            false
-        }
     }
 
     private fun findConfigFile(input: Path): Path? {
