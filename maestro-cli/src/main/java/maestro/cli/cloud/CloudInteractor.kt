@@ -432,12 +432,12 @@ class CloudInteractor(
         val version = deviceConfiguration.osVersion
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
-            "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
+            "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
         return lines.joinToString("\n").render().box()

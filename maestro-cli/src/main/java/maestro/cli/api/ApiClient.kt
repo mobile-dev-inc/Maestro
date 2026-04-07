@@ -272,6 +272,8 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
+        iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
