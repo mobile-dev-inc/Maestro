@@ -369,12 +369,13 @@ internal class WorkspaceExecutionPlannerTest {
             config = null,
         )
 
-        // Then - regression_config.yaml should be excluded, only flow files should be included
+        // Then - regression_config.yaml and platform_settings.yaml should be excluded, only flow files should be included
         assertThat(plan.flowsToRun).containsExactly(
             path("/workspaces/018_additional_config_files/flowA.yaml"),
             path("/workspaces/018_additional_config_files/flowB.yaml"),
         )
     }
+
 
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
