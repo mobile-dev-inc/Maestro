@@ -4,6 +4,7 @@ import java.io.FileNotFoundException
 import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.copyTo
@@ -30,7 +31,7 @@ object WorkspaceUtils {
         // discover and run sibling flow files that ended up in the ZIP due to
         // the common ancestor being higher than the flow's parent directory.
         if (!file.isDirectory()) {
-            val flowRelativePath = relativeTo.relativize(file.toAbsolutePath().normalize()).toString()
+            val flowRelativePath = relativeTo.relativize(normalizePath(file)).toString()
             injectConfigYaml(out, flowRelativePath)
         }
     }
@@ -53,11 +54,19 @@ object WorkspaceUtils {
      * This ensures that ZIP entries never contain "../" segments when
      * dependencies live outside the flow file's immediate parent directory.
      */
+    private fun normalizePath(path: Path): Path {
+        return try {
+            path.toRealPath(LinkOption.NOFOLLOW_LINKS)
+        } catch (e: Exception) {
+            path.toAbsolutePath().normalize()
+        }
+    }
+
     internal fun findCommonAncestor(paths: List<Path>): Path {
         if (paths.isEmpty()) throw IllegalArgumentException("paths must not be empty")
-        if (paths.size == 1) return paths.first().toAbsolutePath().normalize().parent
+        if (paths.size == 1) return normalizePath(paths.first()).parent
 
-        val normalizedPaths = paths.map { it.toAbsolutePath().normalize() }
+        val normalizedPaths = paths.map { normalizePath(it) }
         var ancestor = normalizedPaths.first().parent
 
         for (path in normalizedPaths.drop(1)) {

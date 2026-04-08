@@ -7,9 +7,17 @@ import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.LinkOption
 import kotlin.io.path.readText
 
 class WorkspaceUtilsTest {
+
+    /** Normalize the same way as production code: toRealPath without following symlinks */
+    private fun normalize(path: Path): Path = try {
+        path.toRealPath(LinkOption.NOFOLLOW_LINKS)
+    } catch (e: Exception) {
+        path.toAbsolutePath().normalize()
+    }
 
     private fun readZipEntryNames(zipPath: Path): List<String> {
         val zipUri = URI.create("jar:${zipPath.toUri()}")
@@ -28,6 +36,99 @@ class WorkspaceUtilsTest {
             fs.getPath(entryName).readText()
         }
     }
+
+    // --- findCommonAncestor unit tests ---
+
+    @Test
+    fun `findCommonAncestor with single path returns its parent`(@TempDir tempDir: Path) {
+        val file = tempDir.resolve("flows/main.yaml")
+        Files.createDirectories(file.parent)
+        Files.writeString(file, "")
+
+        val result = WorkspaceUtils.findCommonAncestor(listOf(file))
+        assertThat(result.toString()).isEqualTo(normalize(file).parent.toString())
+    }
+
+    @Test
+    fun `findCommonAncestor with two paths in same directory returns that directory`(@TempDir tempDir: Path) {
+        val dir = tempDir.resolve("flows")
+        Files.createDirectories(dir)
+        val a = dir.resolve("a.yaml")
+        val b = dir.resolve("b.yaml")
+        Files.writeString(a, "")
+        Files.writeString(b, "")
+
+        val result = WorkspaceUtils.findCommonAncestor(listOf(a, b))
+        assertThat(result.toString()).isEqualTo(normalize(dir).toString())
+    }
+
+    @Test
+    fun `findCommonAncestor with sibling directories returns their parent`(@TempDir tempDir: Path) {
+        Files.createDirectories(tempDir.resolve("flows"))
+        Files.createDirectories(tempDir.resolve("scripts"))
+        val flow = tempDir.resolve("flows/main.yaml")
+        val script = tempDir.resolve("scripts/helper.js")
+        Files.writeString(flow, "")
+        Files.writeString(script, "")
+
+        val result = WorkspaceUtils.findCommonAncestor(listOf(flow, script))
+        assertThat(result.toString()).isEqualTo(normalize(tempDir).toString())
+    }
+
+    @Test
+    fun `findCommonAncestor with deeply nested paths finds correct ancestor`(@TempDir tempDir: Path) {
+        Files.createDirectories(tempDir.resolve("a/b/c/d"))
+        Files.createDirectories(tempDir.resolve("a/b/e/f"))
+        val deep1 = tempDir.resolve("a/b/c/d/file1.yaml")
+        val deep2 = tempDir.resolve("a/b/e/f/file2.yaml")
+        Files.writeString(deep1, "")
+        Files.writeString(deep2, "")
+
+        val result = WorkspaceUtils.findCommonAncestor(listOf(deep1, deep2))
+        assertThat(result.toString()).isEqualTo(normalize(tempDir.resolve("a/b")).toString())
+    }
+
+    @Test
+    fun `findCommonAncestor with paths sharing only root returns root-level dir`(@TempDir tempDir: Path) {
+        // Two paths whose only shared component is tempDir itself
+        Files.createDirectories(tempDir.resolve("alpha/nested"))
+        Files.createDirectories(tempDir.resolve("beta/nested"))
+        val a = tempDir.resolve("alpha/nested/a.yaml")
+        val b = tempDir.resolve("beta/nested/b.yaml")
+        Files.writeString(a, "")
+        Files.writeString(b, "")
+
+        val result = WorkspaceUtils.findCommonAncestor(listOf(a, b))
+        assertThat(result.toString()).isEqualTo(normalize(tempDir).toString())
+    }
+
+    @Test
+    fun `findCommonAncestor with three paths finds correct ancestor`(@TempDir tempDir: Path) {
+        Files.createDirectories(tempDir.resolve("a/x"))
+        Files.createDirectories(tempDir.resolve("a/y"))
+        Files.createDirectories(tempDir.resolve("a/z"))
+        val f1 = tempDir.resolve("a/x/f1.yaml")
+        val f2 = tempDir.resolve("a/y/f2.yaml")
+        val f3 = tempDir.resolve("a/z/f3.yaml")
+        Files.writeString(f1, "")
+        Files.writeString(f2, "")
+        Files.writeString(f3, "")
+
+        val result = WorkspaceUtils.findCommonAncestor(listOf(f1, f2, f3))
+        assertThat(result.toString()).isEqualTo(normalize(tempDir.resolve("a")).toString())
+    }
+
+    @Test
+    fun `findCommonAncestor throws on empty list`() {
+        try {
+            WorkspaceUtils.findCommonAncestor(emptyList())
+            assertThat(false).isTrue() // should not reach here
+        } catch (e: IllegalArgumentException) {
+            assertThat(e.message).contains("paths must not be empty")
+        }
+    }
+
+    // --- createWorkspaceZip integration tests ---
 
     @Test
     fun `zip entries have no path traversal segments for dependencies outside flow parent`(@TempDir tempDir: Path) {
