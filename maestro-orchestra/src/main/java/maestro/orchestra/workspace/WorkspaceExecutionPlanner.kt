@@ -68,12 +68,18 @@ object WorkspaceExecutionPlanner {
 
         val globs = workspaceConfig.flows ?: listOf("*")
 
-        val matchers = globs.flatMap { glob ->
+        val positiveGlobs = globs.filter { !it.startsWith("!") }
+        val negativeGlobs = globs.filter { it.startsWith("!") }.map { it.removePrefix("!") }
+
+        val positiveMatchers = positiveGlobs.flatMap { glob ->
+            directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
+        }
+        val negativeMatchers = negativeGlobs.flatMap { glob ->
             directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
         }
 
         val unsortedFlowFiles = flowFiles + flowFilesInDirs.filter { path ->
-            matchers.any { matcher -> matcher.matches(path) }
+            positiveMatchers.any { it.matches(path) } && negativeMatchers.none { it.matches(path) }
         }.toList()
 
         if (unsortedFlowFiles.isEmpty()) {

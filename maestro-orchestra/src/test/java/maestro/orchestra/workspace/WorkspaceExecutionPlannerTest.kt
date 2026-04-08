@@ -375,6 +375,51 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `016 - Negation pattern excludes a single file`() {
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/016_negation_exclude_single_file"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/016_negation_exclude_single_file/flowA.yaml"),
+            path("/workspaces/016_negation_exclude_single_file/flowB.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `017 - Negation pattern excludes a subdirectory`() {
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/017_negation_exclude_directory"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/017_negation_exclude_directory/featureA/flowA.yaml"),
+            path("/workspaces/017_negation_exclude_directory/featureB/flowB.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `018 - Negation combined with specific positive patterns`() {
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/018_negation_with_specific_positive"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/018_negation_with_specific_positive/featureA/flowA.yaml"),
+            path("/workspaces/018_negation_with_specific_positive/featureB/flowB.yaml"),
+        )
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()
