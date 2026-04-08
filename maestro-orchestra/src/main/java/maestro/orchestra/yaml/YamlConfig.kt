@@ -2,19 +2,12 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonAnySetter
-import com.fasterxml.jackson.core.JsonLocation
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
 import java.nio.file.Path
-
-// Exception for config field validation errors
-class ConfigParseError(
-    val errorType: String,
-    val location: JsonLocation? = null
-) : RuntimeException("Config validation error: $errorType")
 
 data class YamlConfig(
     val name: String?,
@@ -31,14 +24,7 @@ data class YamlConfig(
 
     // Computed appId: uses url for web flows, _appId for mobile apps
     // Preserving both fields allows detecting web vs app configuration contexts
-    val appId: String
-
-    init {
-        if (url == null && _appId == null) {
-            throw ConfigParseError("missing_app_target")
-        }
-        appId = url ?: _appId!!
-    }
+    val appId: String? = url ?: _appId
 
     @JsonAnySetter
     fun setOtherField(key: String, other: Any?) {

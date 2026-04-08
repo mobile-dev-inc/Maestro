@@ -4656,6 +4656,31 @@ class IntegrationTest {
         assertThat(closeCalled).isTrue()
     }
 
+    @Test
+    fun `Case 139 - Launch app without config appId`() {
+        // Given
+        val commands = readCommands("139_launchApp_withoutConfigAppId")
+
+        val driver = driver {
+        }
+        driver.addInstalledApp("com.example.app")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                Event.StopApp("com.example.app"),
+                Event.LaunchApp("com.example.app")
+            )
+        )
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,
