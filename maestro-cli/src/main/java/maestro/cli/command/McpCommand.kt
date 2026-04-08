@@ -20,6 +20,7 @@ class McpCommand : Callable<Int> {
     private var workingDir: File? = null
 
     override fun call(): Int {
+        KillCommand.killOtherMaestroProcesses()
         if (workingDir != null) {
             WorkingDirectory.baseDir = workingDir!!.absoluteFile
         }

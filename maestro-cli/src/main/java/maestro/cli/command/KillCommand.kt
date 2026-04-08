@@ -19,35 +19,41 @@ class KillCommand : Callable<Int> {
     var showHelpMixin: ShowHelpMixin? = null
 
     override fun call(): Int {
-        val myPid = ProcessHandle.current().pid()
-
-        val maestroProcesses = ProcessHandle.allProcesses()
-            .filter { it.isAlive }
-            .filter { it.pid() != myPid }
-            .filter { handle ->
-                val cmdLine = handle.info().commandLine().orElse("")
-                cmdLine.contains("maestro.cli.AppKt")
-            }
-            .toList()
-
-        if (maestroProcesses.isEmpty()) {
-            message("No other Maestro processes found.")
-            return 0
-        }
-
-        var killed = 0
-        for (handle in maestroProcesses) {
-            val pid = handle.pid()
-            val destroyed = handle.destroyForcibly()
-            if (destroyed) {
-                message("Killed Maestro process (PID $pid)")
-                killed++
-            } else {
-                message("Failed to kill process (PID $pid)")
-            }
-        }
-
-        message("Killed $killed Maestro process(es).")
+        killOtherMaestroProcesses()
         return 0
+    }
+
+    companion object {
+        fun killOtherMaestroProcesses() {
+            val myPid = ProcessHandle.current().pid()
+
+            val maestroProcesses = ProcessHandle.allProcesses()
+                .filter { it.isAlive }
+                .filter { it.pid() != myPid }
+                .filter { handle ->
+                    val cmdLine = handle.info().commandLine().orElse("")
+                    cmdLine.contains("maestro.cli.AppKt")
+                }
+                .toList()
+
+            if (maestroProcesses.isEmpty()) {
+                message("No other Maestro processes found.")
+                return
+            }
+
+            var killed = 0
+            for (handle in maestroProcesses) {
+                val pid = handle.pid()
+                val destroyed = handle.destroyForcibly()
+                if (destroyed) {
+                    message("Killed Maestro process (PID $pid)")
+                    killed++
+                } else {
+                    message("Failed to kill process (PID $pid)")
+                }
+            }
+
+            message("Killed $killed Maestro process(es).")
+        }
     }
 }
