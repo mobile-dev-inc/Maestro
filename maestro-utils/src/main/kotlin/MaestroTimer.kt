@@ -23,6 +23,20 @@ object MaestroTimer {
         return null
     }
 
+    suspend fun <T> withTimeoutSuspend(timeoutMs: Long, block: suspend () -> T?): T? {
+        val endTime = System.currentTimeMillis() + timeoutMs
+
+        do {
+            val result = block()
+
+            if (result != null) {
+                return result
+            }
+        } while (System.currentTimeMillis() < endTime)
+
+        return null
+    }
+
     fun retryUntilTrue(
         timeoutMs: Long,
         delayMs: Long? = null,

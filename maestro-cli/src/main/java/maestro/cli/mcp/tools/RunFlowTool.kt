@@ -4,6 +4,7 @@ import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.util.Env.withEnv
@@ -110,7 +111,7 @@ object RunFlowTool {
                             .withDefaultEnvVars(tempFile, deviceId)
                         val commandsWithEnv = commands.withEnv(finalEnv)
                         
-                        val orchestra = Orchestra(session.maestro)
+                        val orchestra = Orchestra(SuspendingMaestro(session.maestro))
                         
                         runBlocking {
                             orchestra.runFlow(commandsWithEnv)

@@ -13,6 +13,7 @@ import maestro.ElementFilter
 import maestro.Filters
 import maestro.Maestro
 import maestro.TreeNode
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
@@ -111,7 +112,7 @@ object DeviceService {
     private fun executeCommands(maestro: Maestro, commands: List<MaestroCommand>) {
         runBlocking {
             var failure: Throwable? = null
-            val result = Orchestra(maestro, onCommandFailed = { _, _, throwable ->
+            val result = Orchestra(SuspendingMaestro(maestro), onCommandFailed = { _, _, throwable ->
                 failure = throwable
                 Orchestra.ErrorResolution.FAIL
             }).runFlow(commands)

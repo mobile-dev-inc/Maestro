@@ -5,6 +5,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.StopAppCommand
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 import maestro.orchestra.MaestroCommand
 import kotlinx.coroutines.runBlocking
@@ -54,7 +55,7 @@ object StopAppTool {
                         optional = false
                     )
                     
-                    val orchestra = Orchestra(session.maestro)
+                    val orchestra = Orchestra(SuspendingMaestro(session.maestro))
                     runBlocking {
                         orchestra.runFlow(listOf(MaestroCommand(command = command)))
                     }

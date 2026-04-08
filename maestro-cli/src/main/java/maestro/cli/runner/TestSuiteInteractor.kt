@@ -17,6 +17,7 @@ import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -183,7 +184,7 @@ class TestSuiteInteractor(
             try {
                 var commandSequenceNumber = 0
                 val orchestra = Orchestra(
-                    maestro = maestro,
+                    maestro = SuspendingMaestro(maestro),
                     screenshotsDir = testOutputDir?.resolve("screenshots"),
                     onCommandStart = { _, command ->
                         logger.info("${shardPrefix}${command.description()} RUNNING")

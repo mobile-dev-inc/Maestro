@@ -32,6 +32,7 @@ import maestro.cli.util.PrintUtils
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 
 import maestro.orchestra.yaml.YamlCommandReader
@@ -104,7 +105,7 @@ object MaestroCommandRunner {
         var commandSequenceNumber = 0
 
         val orchestra = Orchestra(
-            maestro = maestro,
+            maestro = SuspendingMaestro(maestro),
             screenshotsDir = testOutputDir?.resolve("screenshots"),
             insights = CliInsights,
             onCommandStart = { _, command ->

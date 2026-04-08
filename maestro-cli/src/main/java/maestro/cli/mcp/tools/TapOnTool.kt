@@ -6,6 +6,7 @@ import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.TapOnElementCommand
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 import maestro.orchestra.MaestroCommand
 import kotlinx.coroutines.runBlocking
@@ -113,7 +114,7 @@ object TapOnTool {
                         waitUntilVisible = true
                     )
                     
-                    val orchestra = Orchestra(session.maestro)
+                    val orchestra = Orchestra(SuspendingMaestro(session.maestro))
                     runBlocking {
                         orchestra.runFlow(listOf(MaestroCommand(command = command)))
                     }

@@ -5,6 +5,7 @@ import dadb.Dadb
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.drivers.AndroidDriver
+import maestro.SuspendingMaestro
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import org.junit.jupiter.api.Disabled
@@ -28,7 +29,7 @@ class AndroidMediaStoreTest {
             val maestroCommands = YamlCommandReader.readCommands(Paths.get(mediaFlow))
 
             // when
-            Orchestra(maestro).runFlow(maestroCommands)
+            Orchestra(SuspendingMaestro(maestro)).runFlow(maestroCommands)
 
             // then
             val exists = dadb.fileExists(expectedMediaPath)
@@ -46,7 +47,7 @@ class AndroidMediaStoreTest {
             val maestroCommands = YamlCommandReader.readCommands(flowPath)
 
             // when
-            Orchestra(maestro).runFlow(maestroCommands)
+            Orchestra(SuspendingMaestro(maestro)).runFlow(maestroCommands)
 
             // then
             val pngExists = dadb.fileExists("/sdcard/Pictures/android.png")
