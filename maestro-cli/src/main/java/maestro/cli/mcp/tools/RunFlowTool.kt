@@ -3,18 +3,17 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
-import maestro.cli.session.MaestroSessionManager
+import maestro.Maestro
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import kotlinx.coroutines.runBlocking
-import java.io.File
 import java.nio.file.Files
 
 object RunFlowTool {
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    fun create(maestro: Maestro): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "run_flow",
@@ -56,10 +55,6 @@ object RunFlowTool {
                 """.trimIndent(),
                 inputSchema = Tool.Input(
                     properties = buildJsonObject {
-                        putJsonObject("device_id") {
-                            put("type", "string")
-                            put("description", "The ID of the device to run the flow on")
-                        }
                         putJsonObject("flow_yaml") {
                             put("type", "string")
                             put("description", "YAML-formatted Maestro flow content to execute")
@@ -72,70 +67,59 @@ object RunFlowTool {
                             }
                         }
                     },
-                    required = listOf("device_id", "flow_yaml")
+                    required = listOf("flow_yaml")
                 )
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
                 val flowYaml = request.arguments["flow_yaml"]?.jsonPrimitive?.content
                 val envParam = request.arguments["env"]?.jsonObject
-                
-                if (deviceId == null || flowYaml == null) {
+
+                if (flowYaml == null) {
                     return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("Both device_id and flow_yaml are required")),
+                        content = listOf(TextContent("flow_yaml is required")),
                         isError = true
                     )
                 }
-                
+
                 // Parse environment variables from JSON object
                 val env = envParam?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
-                
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
-                    deviceId = deviceId,
-                    platform = null
-                ) { session ->
-                    // Create a temporary file with the YAML content
-                    val tempFile = Files.createTempFile("maestro-flow", ".yaml").toFile()
-                    try {
-                        tempFile.writeText(flowYaml)
-                        
-                        // Parse and execute the flow with environment variables
-                        val commands = YamlCommandReader.readCommands(tempFile.toPath())
-                        val finalEnv = env
-                            .withInjectedShellEnvVars()
-                            .withDefaultEnvVars(tempFile, deviceId)
-                        val commandsWithEnv = commands.withEnv(finalEnv)
-                        
-                        val orchestra = Orchestra(session.maestro)
-                        
-                        runBlocking {
-                            orchestra.runFlow(commandsWithEnv)
-                        }
-                        
-                        buildJsonObject {
-                            put("success", true)
-                            put("device_id", deviceId)
-                            put("commands_executed", commands.size)
-                            put("message", "Flow executed successfully")
-                            if (finalEnv.isNotEmpty()) {
-                                putJsonObject("env_vars") {
-                                    finalEnv.forEach { (key, value) ->
-                                        put(key, value)
-                                    }
+
+                // Create a temporary file with the YAML content
+                val tempFile = Files.createTempFile("maestro-flow", ".yaml").toFile()
+                try {
+                    tempFile.writeText(flowYaml)
+
+                    // Parse and execute the flow with environment variables
+                    val commands = YamlCommandReader.readCommands(tempFile.toPath())
+                    val finalEnv = env
+                        .withInjectedShellEnvVars()
+                        .withDefaultEnvVars(tempFile, null)
+                    val commandsWithEnv = commands.withEnv(finalEnv)
+
+                    val orchestra = Orchestra(maestro)
+
+                    runBlocking {
+                        orchestra.runFlow(commandsWithEnv)
+                    }
+
+                    val result = buildJsonObject {
+                        put("success", true)
+                        put("commands_executed", commands.size)
+                        put("message", "Flow executed successfully")
+                        if (finalEnv.isNotEmpty()) {
+                            putJsonObject("env_vars") {
+                                finalEnv.forEach { (key, value) ->
+                                    put(key, value)
                                 }
                             }
-                        }.toString()
-                    } finally {
-                        // Clean up the temporary file
-                        tempFile.delete()
-                    }
+                        }
+                    }.toString()
+
+                    CallToolResult(content = listOf(TextContent(result)))
+                } finally {
+                    tempFile.delete()
                 }
-                
-                CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(
                     content = listOf(TextContent("Failed to run flow: ${e.message}")),

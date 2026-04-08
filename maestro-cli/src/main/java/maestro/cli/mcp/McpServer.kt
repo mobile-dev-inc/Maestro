@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import kotlinx.io.*
+import maestro.Maestro
 import maestro.cli.session.MaestroSessionManager
 import maestro.debuglog.LogConfig
 import maestro.cli.mcp.tools.TakeScreenshotTool
@@ -22,8 +23,20 @@ import maestro.cli.util.WorkingDirectory
 fun runMaestroMcpServer() {
     // Disable all console logging to prevent interference with JSON-RPC communication
     LogConfig.configure(logFileName = null, printToConsole = false)
-    
-    val sessionManager = MaestroSessionManager
+
+    // Connect to an available Android device at startup
+    System.err.println("MCP Server: Connecting to Android device...")
+    val session = MaestroSessionManager.newSession(
+        host = null,
+        port = null,
+        driverHostPort = null,
+        deviceId = null,
+        platform = "android"
+    ) { it }
+    val maestro = session.maestro
+    System.err.println("MCP Server: Connected to Android device.")
+
+    Runtime.getRuntime().addShutdownHook(Thread { session.close() })
 
     // Create the MCP Server instance with Maestro implementation
     val server = Server(
@@ -38,15 +51,14 @@ fun runMaestroMcpServer() {
         )
     )
 
-    // Register tools
+    // Register tools — all use the shared Maestro instance
     server.addTools(listOf(
-        TakeScreenshotTool.create(sessionManager),
-        RunFlowTool.create(sessionManager),
-        InspectViewHierarchyTool.create(sessionManager),
+        TakeScreenshotTool.create(maestro),
+        RunFlowTool.create(maestro),
+        InspectViewHierarchyTool.create(maestro),
         CheatSheetTool.create(),
         QueryDocsTool.create()
     ))
-
 
     // Create a transport using standard IO for server communication
     val transport = StdioServerTransport(
