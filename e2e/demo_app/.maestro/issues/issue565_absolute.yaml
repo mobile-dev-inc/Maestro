@@ -1,0 +1,15 @@
+appId: com.example.example
+name: Issue 565 (absolute)
+---
+- launchApp:
+    clearState: false
+- longPressOn:
+    point: 100, 100
+- longPressOn:
+    point: 200, 150
+- longPressOn:
+    point: 300, 200
+- longPressOn:
+    point: 400, 250
+- longPressOn:
+    point: 500, 300

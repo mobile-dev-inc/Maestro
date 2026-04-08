@@ -154,8 +154,8 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
         )
         ws.send(message)
         val response = try {
-            future.get(5000, TimeUnit.SECONDS)
-        } catch (e: TimeoutException) {
+            future.get(5, TimeUnit.SECONDS)
+        } catch (_: TimeoutException) {
             throw TimeoutException("Timed out waiting for websocket response")
         } catch (e: ExecutionException) {
             throw e.cause ?: e

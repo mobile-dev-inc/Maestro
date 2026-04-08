@@ -192,7 +192,7 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
+    override fun startScreenRecording(out: Sink): IOSScreenRecording {
         error("Not supported")
     }
 

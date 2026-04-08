@@ -1,0 +1,15 @@
+appId: com.example.example
+name: Issue 565 (relative)
+---
+- launchApp:
+    clearState: false
+- longPressOn:
+    point: 10%, 15%
+- longPressOn:
+    point: 25%, 15%
+- longPressOn:
+    point: 50%, 15%
+- longPressOn:
+    point: 75%, 15%
+- longPressOn:
+    point: 90%, 15%
