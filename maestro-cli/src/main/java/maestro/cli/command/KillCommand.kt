@@ -37,7 +37,7 @@ class KillCommand : Callable<Int> {
                 .toList()
 
             if (maestroProcesses.isEmpty()) {
-                message("No other Maestro processes found.")
+                System.err.println("No other Maestro processes found.")
                 return
             }
 
@@ -46,14 +46,14 @@ class KillCommand : Callable<Int> {
                 val pid = handle.pid()
                 val destroyed = handle.destroyForcibly()
                 if (destroyed) {
-                    message("Killed Maestro process (PID $pid)")
+                    System.err.println("Killed Maestro process (PID $pid)")
                     killed++
                 } else {
-                    message("Failed to kill process (PID $pid)")
+                    System.err.println("Failed to kill process (PID $pid)")
                 }
             }
 
-            message("Killed $killed Maestro process(es).")
+            System.err.println("Killed $killed Maestro process(es).")
         }
     }
 }
