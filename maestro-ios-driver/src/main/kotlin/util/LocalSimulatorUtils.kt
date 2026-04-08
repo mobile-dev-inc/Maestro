@@ -3,6 +3,7 @@ package util
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
+import maestro.utils.TempFileHandler
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
@@ -15,13 +16,15 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
-import kotlin.io.path.createTempDirectory
 
-object LocalSimulatorUtils {
+class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
-    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+    companion object {
+        private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+    }
+
     private val homedir = System.getProperty("user.home")
     private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
     private val date = dateFormatter.format(LocalDateTime.now())
@@ -256,7 +259,7 @@ object LocalSimulatorUtils {
 
         val pathToBinary = Path(appBinaryPath)
         if (Files.isDirectory(pathToBinary)) {
-            val tmpDir = createTempDirectory()
+            val tmpDir = tempFileHandler.createTempDirectory().toPath()
             val tmpBundlePath = tmpDir.resolve("$bundleId-${System.currentTimeMillis()}.app")
 
             logger.info("Copying app binary from $pathToBinary to $tmpBundlePath")
@@ -419,19 +422,28 @@ object LocalSimulatorUtils {
 
     fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
+        val effectivePermissionsMap = mutableMapOf<String, String>()
+
         if (permissionsMap.containsKey("all")) {
             val value = permissionsMap.remove("all")
             allPermissions.forEach {
                 when (value) {
-                    "allow" -> permissionsMap.putIfAbsent(it, allowValueForPermission(it))
-                    "deny" -> permissionsMap.putIfAbsent(it, denyValueForPermission(it))
-                    "unset" -> permissionsMap.putIfAbsent(it, "unset")
+                    "allow" -> effectivePermissionsMap.putIfAbsent(it, allowValueForPermission(it))
+                    "deny" -> effectivePermissionsMap.putIfAbsent(it, denyValueForPermission(it))
+                    "unset" -> effectivePermissionsMap.putIfAbsent(it, "unset")
                     else -> throw IllegalArgumentException("Permission 'all' can be set to 'allow', 'deny' or 'unset', not '$value'")
                 }
             }
         }
 
-        val permissionsArgument = permissionsMap
+        // Write the explicit permissions, potentially overriding the 'all' permissions
+        permissionsMap.forEach {
+            if (allPermissions.contains(it.key)) {
+                effectivePermissionsMap[it.key] = it.value
+            }
+        }
+
+        val permissionsArgument = effectivePermissionsMap
             .filter { allPermissions.contains(it.key) }
             .map { "${it.key}=${translatePermissionValue(it.value)}" }
             .joinToString(",")
@@ -472,6 +484,7 @@ object LocalSimulatorUtils {
 
     fun setSimctlPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
+        val effectivePermissionsMap = mutableMapOf<String, String>()
 
         permissionsMap.remove("all")?.let { value ->
             val transformedPermissions = simctlPermissions.associateWith { permission ->
@@ -484,11 +497,17 @@ object LocalSimulatorUtils {
                 newValue
             }
 
-            permissionsMap.putAll(transformedPermissions)
+            effectivePermissionsMap.putAll(transformedPermissions)
         }
 
+        // Write the explicit permissions, potentially overriding the 'all' permissions
+        permissionsMap.forEach {
+            if (simctlPermissions.contains(it.key)) {
+                effectivePermissionsMap[it.key] = it.value
+            }
+        }
 
-        permissionsMap
+        effectivePermissionsMap
             .forEach {
                 if (simctlPermissions.contains(it.key)) {
                     when (it.key) {
@@ -598,8 +617,7 @@ object LocalSimulatorUtils {
     }
 
     fun install(deviceId: String, stream: InputStream) {
-        val temp = createTempDirectory()
-        val extractDir = temp.toFile()
+        val extractDir = tempFileHandler.createTempDirectory()
 
         ArchiverFactory
             .createArchiver(ArchiveFormat.ZIP)
@@ -626,10 +644,10 @@ object LocalSimulatorUtils {
     )
 
     fun startScreenRecording(deviceId: String): ScreenRecording {
-        val tempDir = createTempDirectory()
+        val tempDir = tempFileHandler.createTempDirectory()
         val inputStream = LocalSimulatorUtils::class.java.getResourceAsStream("/screenrecord.sh")
         if (inputStream != null) {
-            val recording = File(tempDir.toFile(), "screenrecording.mov")
+            val recording = File(tempDir, "screenrecording.mov")
 
             val processBuilder = ProcessBuilder(
                 listOf(
@@ -644,7 +662,17 @@ object LocalSimulatorUtils {
 
             val recordingProcess = processBuilder
                 .redirectInput(PIPE)
+                .redirectErrorStream(true)
                 .start()
+
+            val firstLine = recordingProcess.inputStream.bufferedReader().readLine()
+
+            if (firstLine == null || !firstLine.startsWith("RECORDING_STARTED")) {
+                recordingProcess.waitFor()
+                throw SimctlError(
+                    "Screen recording failed to start: ${firstLine ?: "no output from recording process"}"
+                )
+            }
 
             return ScreenRecording(
                 recordingProcess,

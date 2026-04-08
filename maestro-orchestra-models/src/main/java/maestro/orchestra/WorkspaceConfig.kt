@@ -7,7 +7,6 @@ data class WorkspaceConfig(
     val flows: StringList? = null,
     val includeTags: StringList? = null,
     val excludeTags: StringList? = null,
-    val local: Local? = null,
     val executionOrder: ExecutionOrder? = null,
     val baselineBranch: String? = null,
     val notifications: MaestroNotificationConfiguration? = null,
@@ -55,11 +54,6 @@ data class WorkspaceConfig(
     fun setOtherField(key: String, other: Any?) {
         // Do nothing
     }
-
-    @Deprecated("Use ExecutionOrder instead")
-    data class Local(
-        val deterministicOrder: Boolean? = null,
-    )
 
     data class ExecutionOrder(
         val continueOnFailure: Boolean? = true,

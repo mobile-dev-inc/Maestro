@@ -12,6 +12,12 @@ import org.mozilla.javascript.Undefined
 class JsHttp(
     private val httpClient: OkHttpClient
 ) : ScriptableObject() {
+    @Volatile
+    private var currentScriptDir: java.io.File? = null
+
+    fun setCurrentScriptDir(scriptPath: String?) {
+      currentScriptDir = scriptPath?.let { java.io.File(it).parentFile }
+    }
 
     fun get(
         url: String,
@@ -85,7 +91,7 @@ class JsHttp(
         if (multipartForm == null) {
             requestBuilder.method(method, body?.toRequestBody())
         } else {
-            requestBuilder.method(method, multipartForm.toMultipartBody())
+            requestBuilder.method(method, multipartForm.toMultipartBody(currentScriptDir))
         }
 
         params

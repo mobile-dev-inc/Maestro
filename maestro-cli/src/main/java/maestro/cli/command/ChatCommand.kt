@@ -31,7 +31,7 @@ class ChatCommand : Callable<Int> {
     private var ask: String? = null
 
     private val auth by lazy {
-        Auth(ApiClient("$apiUrl/v2"))
+        Auth(ApiClient(apiUrl))
     }
 
     override fun call(): Int {

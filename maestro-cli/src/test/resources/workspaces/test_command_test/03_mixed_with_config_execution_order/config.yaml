@@ -1,0 +1,12 @@
+flows:
+  - 'subFolder/*'
+includeTags:
+  - tagNameToInclude
+excludeTags:
+  - tagNameToExclude
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - mobileflow
+    - mobileflow2
+    - webflow

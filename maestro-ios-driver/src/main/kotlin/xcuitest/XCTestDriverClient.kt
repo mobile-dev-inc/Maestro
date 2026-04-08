@@ -18,7 +18,8 @@ class XCTestDriverClient(
     private val okHttpClient: OkHttpClient = HttpClient.build(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
-        connectTimeout = 1.seconds
+        connectTimeout = 1.seconds,
+        callTimeout = 200.seconds
     ),
     private val reinstallDriver: Boolean = true,
 ) {
@@ -28,14 +29,6 @@ class XCTestDriverClient(
 
     constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = true): this(installer, reinstallDriver = reinstallDriver) {
         this.client = client
-    }
-
-    private var isShuttingDown = false
-
-    init {
-        Runtime.getRuntime().addShutdownHook(Thread {
-            isShuttingDown = true
-        })
     }
 
     fun restartXCTestRunner() {

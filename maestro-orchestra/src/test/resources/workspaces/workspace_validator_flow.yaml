@@ -1,0 +1,3 @@
+appId: ${APP_ID}
+---
+- launchApp

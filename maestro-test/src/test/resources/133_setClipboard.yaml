@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- setClipboard: "Hello, Maestro!"
+- pasteText

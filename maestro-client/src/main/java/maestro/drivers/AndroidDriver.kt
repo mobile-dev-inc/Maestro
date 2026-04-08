@@ -26,6 +26,7 @@ import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import maestro.*
@@ -35,6 +36,8 @@ import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.device.DeviceOrientation
+import maestro.device.Platform
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
@@ -49,7 +52,6 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -65,8 +67,10 @@ class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
+    private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
+    private var portForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -74,6 +78,9 @@ class AndroidDriver(
 
     private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .keepAliveTime(2, TimeUnit.MINUTES)
+        .keepAliveTimeout(20, TimeUnit.SECONDS)
+        .keepAliveWithoutCalls(true)
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
@@ -84,7 +91,6 @@ class AndroidDriver(
 
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
-    private var closed = false
 
     private var isLocationMocked = false
     private var chromeDevToolsEnabled = false
@@ -143,16 +149,12 @@ class AndroidDriver(
 
 
     private fun allocateForwarder() {
-        PORT_TO_FORWARDER[hostPort]?.close()
-        PORT_TO_ALLOCATION_POINT[hostPort]?.let {
-            LOGGER.warn("Port $hostPort was already allocated. Allocation point: $it")
-        }
+        portForwarder?.close()
 
-        PORT_TO_FORWARDER[hostPort] = dadb.tcpForward(
+        portForwarder = dadb.tcpForward(
             hostPort,
             hostPort
         )
-        PORT_TO_ALLOCATION_POINT[hostPort] = Exception().stackTraceToString()
     }
 
     private fun awaitLaunch() {
@@ -170,7 +172,6 @@ class AndroidDriver(
     }
 
     override fun close() {
-        if (closed) return
         if (proxySet) {
             resetProxy()
         }
@@ -180,19 +181,16 @@ class AndroidDriver(
         }
 
         LOGGER.info("[Start] close port forwarder")
-        PORT_TO_FORWARDER[hostPort]?.close()
+        portForwarder?.close()
         LOGGER.info("[Done] close port forwarder")
 
-        LOGGER.info("[Start] Remove host port from port forwarder map")
-        PORT_TO_FORWARDER.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port forwarder map")
-
-        LOGGER.info("[Start] Remove host port from port to allocation map")
-        PORT_TO_ALLOCATION_POINT.remove(hostPort)
-        LOGGER.info("[Done] Remove host port from port to allocation map")
-
         LOGGER.info("[Start] Uninstall driver from device")
-        uninstallMaestroApks()
+        if (reinstallDriver) {
+            uninstallMaestroDriverApp()
+        }
+        if (reinstallDriver) {
+            uninstallMaestroServerApp()
+        }
         LOGGER.info("[Done] Uninstall driver from device")
 
         LOGGER.info("[Start] Close instrumentation session")
@@ -212,7 +210,7 @@ class AndroidDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
-        return runDeviceCall {
+        return runDeviceCall("deviceInfo") {
             val response = blockingStubWithTimeout.deviceInfo(deviceInfoRequest {})
 
             DeviceInfo(
@@ -238,7 +236,7 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            runDeviceCall {
+            runDeviceCall("launchApp") {
                 blockingStubWithTimeout.launchApp(
                     launchAppRequest {
                         this.packageName = appId
@@ -279,7 +277,7 @@ class AndroidDriver(
 
     override fun tap(point: Point) {
         metrics.measured("operation", mapOf("command" to "tap")) {
-            runDeviceCall {
+            runDeviceCall("tap") {
                 blockingStubWithTimeout.tap(
                     tapRequest {
                         x = point.x
@@ -384,13 +382,11 @@ class AndroidDriver(
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
                     LOGGER.error("Timeout while fetching view hierarchy")
-                    closed = true
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                        closed = true
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
                     }
@@ -541,7 +537,7 @@ class AndroidDriver(
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
         metrics.measured("operation", mapOf("command" to "takeScreenshot", "compressed" to compressed.toString())) {
-            runDeviceCall {
+            runDeviceCall("takeScreenshot") {
                 val response = blockingStubWithTimeout.screenshot(screenshotRequest {})
                 out.buffer().use {
                     it.write(response.bytes.toByteArray())
@@ -581,7 +577,7 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            runDeviceCall {
+            runDeviceCall("inputText") {
                 blockingStubWithTimeout.inputText(inputTextRequest {
                     this.text = text
                 }) ?: throw IllegalStateException("Input Response can't be null")
@@ -684,7 +680,7 @@ class AndroidDriver(
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
                 shell("appops set dev.mobile.maestro android:mock_location allow")
-                runDeviceCall {
+                runDeviceCall("enableMockLocationProviders") {
                     blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
                 }
                 LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
@@ -692,7 +688,7 @@ class AndroidDriver(
                 isLocationMocked = true
             }
 
-            runDeviceCall {
+            runDeviceCall("setLocation") {
                 blockingStubWithTimeout.setLocation(
                     setLocationRequest {
                         this.latitude = latitude
@@ -717,7 +713,7 @@ class AndroidDriver(
 
     override fun eraseText(charactersToErase: Int) {
         metrics.measured("operation", mapOf("command" to "eraseText", "charactersToErase" to charactersToErase.toString())) {
-            runDeviceCall {
+            runDeviceCall("eraseText") {
                 blockingStubWithTimeout.eraseAllText(
                     eraseAllTextRequest {
                         this.charactersToErase = charactersToErase
@@ -768,7 +764,7 @@ class AndroidDriver(
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
         var hierarchy: ViewHierarchy? = null
         do {
-            runDeviceCall {
+            runDeviceCall("isWindowUpdating") {
                 val windowUpdating = blockingStubWithTimeout.isWindowUpdating(checkWindowUpdatingRequest {
                     this.appId = appId
                 }).isWindowUpdating
@@ -939,9 +935,15 @@ class AndroidDriver(
 
     private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
         try {
-            dadb.shell("pm $permissionValue $appId $permission")
+            shell("pm $permissionValue $appId $permission")
         } catch (exception: Exception) {
-            /* no-op */
+            // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
+            if (exception.message?.contains("is not a changeable permission type") == false) {
+                // Debug level is fine.
+                // We don't need to be loud about this. IOExceptions were already caught in shell(..)
+                // Remaining issues are likely due to "all" containing permissions that the app doesn't support.
+                logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
+            }
         }
     }
 
@@ -1072,6 +1074,14 @@ class AndroidDriver(
                 attributesBuilder["class"] = node.getAttribute("class")
             }
 
+            if (node.hasAttribute("important-for-accessibility")) {
+                attributesBuilder["important-for-accessibility"] = node.getAttribute("important-for-accessibility")
+            }
+
+            if (node.hasAttribute("error")) {
+                attributesBuilder["error"] = node.getAttribute("error")
+            }
+
             attributesBuilder
         } else {
             emptyMap()
@@ -1102,7 +1112,11 @@ class AndroidDriver(
 
     fun installMaestroDriverApp() {
         metrics.measured("operation", mapOf("command" to "installMaestroDriverApp")) {
-            uninstallMaestroDriverApp()
+            if (reinstallDriver) {
+                uninstallMaestroDriverApp()
+            } else if (isPackageInstalled("dev.mobile.maestro")) {
+                return@measured
+            }
 
             val maestroAppApk = File.createTempFile("maestro-app", ".apk")
 
@@ -1121,7 +1135,11 @@ class AndroidDriver(
     }
 
     private fun installMaestroServerApp() {
-        uninstallMaestroServerApp()
+        if (reinstallDriver) {
+            uninstallMaestroServerApp()
+        } else if (isPackageInstalled("dev.mobile.maestro.test")) {
+            return
+        }
 
         val maestroServerApk = File.createTempFile("maestro-server", ".apk")
 
@@ -1242,29 +1260,35 @@ class AndroidDriver(
         }
     }
 
-    private fun <T> runDeviceCall(call: () -> T): T {
+    private fun <T> runDeviceCall(callName: String, call: () -> T): T {
         return try {
             call()
         } catch (throwable: StatusRuntimeException) {
             val status = Status.fromThrowable(throwable)
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
-                    LOGGER.error("Device call failed on android with $status", throwable)
-                    closed = true
-                    throw MaestroException.DriverTimeout("Android driver unreachable")
+                    LOGGER.error("$callName call failed on android with $status", throwable)
+                    throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while doing android device call")
-                        closed = true
+                        LOGGER.error("Not able to reach the gRPC server while processing $callName command")
                         throw throwable
                     } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while doing android device call", throwable)
+                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
                         throw throwable
                     }
                 }
+                Status.Code.INTERNAL -> {
+                    val trailers = Status.trailersFromThrowable(throwable)
+                    val errorType = trailers?.get(ERROR_TYPE_KEY)
+                    val errorMsg = trailers?.get(ERROR_MSG_KEY)
+                    val errorCause = trailers?.get(ERROR_CAUSE_KEY)
+                    LOGGER.error("$callName call failed: type=$errorType, message=$errorMsg, cause=$errorCause", throwable)
+                    throw throwable.cause ?: throwable
+                }
                 else -> {
-                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message} and cause ${throwable.cause} while doing android device call", throwable)
+                    LOGGER.error("Unexpected error during $callName: ${status.code} - ${throwable.message} and cause ${throwable.cause}", throwable)
                     throw throwable
                 }
             }
@@ -1280,11 +1304,16 @@ class AndroidDriver(
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
+        private val ERROR_TYPE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_MSG_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-message", Metadata.ASCII_STRING_MARSHALLER)
+        private val ERROR_CAUSE_KEY: Metadata.Key<String> =
+            Metadata.Key.of("error-cause", Metadata.ASCII_STRING_MARSHALLER)
+
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
-        private val PORT_TO_FORWARDER = mutableMapOf<Int, AutoCloseable>()
-        private val PORT_TO_ALLOCATION_POINT = mutableMapOf<Int, String>()
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }

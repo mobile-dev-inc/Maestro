@@ -21,12 +21,15 @@ package maestro.cli
 
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.CliCommandRunEvent
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.DriverCommand
+import maestro.cli.command.ListCloudDevicesCommand
+import maestro.cli.command.ListDevicesCommand
 import maestro.cli.command.LoginCommand
 import maestro.cli.command.LogoutCommand
 import maestro.cli.command.McpCommand
@@ -36,7 +39,6 @@ import maestro.cli.command.RecordCommand
 import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
-import maestro.cli.command.UploadCommand
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.update.Updates
 import maestro.cli.util.ChangeLogUtils
@@ -56,7 +58,6 @@ import kotlin.system.exitProcess
         TestCommand::class,
         CloudCommand::class,
         RecordCommand::class,
-        UploadCommand::class,
         PrintHierarchyCommand::class,
         QueryCommand::class,
         DownloadSamplesCommand::class,
@@ -65,6 +66,8 @@ import kotlin.system.exitProcess
         BugReportCommand::class,
         StudioCommand::class,
         StartDeviceCommand::class,
+        ListDevicesCommand::class,
+        ListCloudDevicesCommand::class,
         GenerateCompletion::class,
         ChatCommand::class,
         CheckSyntaxCommand::class,
@@ -114,8 +117,7 @@ fun main(args: Array<String>) {
     // https://stackoverflow.com/a/17544259
     try {
         System.setProperty("apple.awt.UIElement", "true")
-
-        Analytics.maybeAskToEnableAnalytics()
+        Analytics.warnAndEnableAnalyticsIfNotDisable()
 
         Dependencies.install()
         Updates.fetchUpdatesAsync()
@@ -149,7 +151,9 @@ fun main(args: Array<String>) {
                 1
             }
 
-        Analytics.maybeUploadAnalyticsAsync(args[0])
+        // Track CLI run
+        if (args.isNotEmpty())
+            Analytics.trackEvent(CliCommandRunEvent(command = args[0]))
 
         val generateCompletionCommand = commandLine.subcommands["generate-completion"]
         generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)
@@ -180,11 +184,14 @@ fun main(args: Array<String>) {
 
         if (commandLine.isVersionHelpRequested) {
             printVersion()
+            Analytics.close()
             exitProcess(0)
         }
 
-        exitProcess(exitCode)
-    } finally {
         Analytics.close()
+        exitProcess(exitCode)
+    } catch (e: Throwable) {
+        Analytics.close()
+        throw e
     }
 }

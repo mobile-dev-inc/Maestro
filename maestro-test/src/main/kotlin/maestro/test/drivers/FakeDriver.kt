@@ -23,17 +23,17 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.Capability
 import maestro.DeviceInfo
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
 import maestro.OnDeviceElementQuery
-import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
 import okio.Sink
 import okio.buffer
@@ -54,6 +54,9 @@ class FakeDriver : Driver {
     private var currentText: String = ""
 
     private var airplaneMode: Boolean = false
+
+    // If true, keyboard will remain visible even after hideKeyboard() is called.
+    var keyboardRemainsVisible: Boolean = false
 
     override fun name(): String {
         return "Fake Device"
@@ -181,6 +184,10 @@ class FakeDriver : Driver {
 
     override fun isKeyboardVisible(): Boolean {
         ensureOpen()
+
+        if (keyboardRemainsVisible) {
+            return true
+        }
 
         return !events.contains(Event.HideKeyboard)
     }
@@ -383,9 +390,7 @@ class FakeDriver : Driver {
     }
 
     override fun capabilities(): List<Capability> {
-        return listOf(
-            Capability.FAST_HIERARCHY
-        )
+        return emptyList()
     }
 
     override fun setPermissions(appId: String, permissions: Map<String, String>) {

@@ -2,6 +2,8 @@ package maestro.cli.command
 
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.UserLoggedOutEvent
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import java.nio.file.Path
@@ -28,6 +30,9 @@ class LogoutCommand : Callable<Int> {
     private val cachedAuthTokenFile: Path = Paths.get(System.getProperty("user.home"), ".mobiledev", "authtoken")
 
     override fun call(): Int {
+        // Track logout event before deleting the token
+        Analytics.trackEvent(UserLoggedOutEvent())
+        
         cachedAuthTokenFile.deleteIfExists()
 
         message("Logged out.")

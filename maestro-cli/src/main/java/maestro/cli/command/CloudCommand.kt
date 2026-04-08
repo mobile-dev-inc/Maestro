@@ -26,6 +26,8 @@ import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
+import maestro.orchestra.validation.AppMetadataAnalyzer
+import maestro.cli.web.WebInteractor
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
@@ -41,7 +43,7 @@ import maestro.orchestra.util.Env.withDefaultEnvVars
 @CommandLine.Command(
     name = "cloud",
     description = [
-        "Test a Flow or set of Flows in the cloud (https://app.maestro.dev)",
+        "Upload your flows on Cloud by using @|yellow `maestro cloud sample/app.apk flows_folder/`|@ (@|cyan https://app.maestro.dev|@)",
         "Provide your application file and a folder with Maestro flows to run them in parallel on multiple devices in the cloud",
         "By default, the command will block until all analyses have completed. You can use the --async flag to run the command asynchronously and exit immediately.",
     ]
@@ -105,7 +107,8 @@ class CloudCommand : Callable<Int> {
     @Option(order = 11, names = ["--async"], description = ["Run the upload asynchronously"])
     private var async: Boolean = false
 
-    @Option(order = 12, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
+    @Deprecated("Use --device-os instead")
+    @Option(order = 12, hidden = true, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
     @Option(
@@ -144,7 +147,8 @@ class CloudCommand : Callable<Int> {
     )
     private var output: File? = null
 
-    @Option(order = 17, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
+    @Deprecated("Use --device-os instead")
+    @Option(order = 17, hidden = true, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
     private var iOSVersion: String? = null
 
     @Option(order = 18, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
@@ -153,10 +157,18 @@ class CloudCommand : Callable<Int> {
     @Option(order = 19, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
     private var deviceLocale: String? = null
 
-    @Option(order = 20, names = ["--device-model"], description = ["Device model to run your flow against. Supported values include iPhone-11, etc. Only supported for iOS at the moment."])
+    @Option(order = 20, names = ["--device-model"], description = [
+      "Device model to run your flow against. " +
+              "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: maestro list-cloud-devices" +
+              "Android: pixel_6, etc. Run command: maestro list-cloud-devices"
+    ])
     private var deviceModel: String? = null
 
-    @Option(order = 21, names = ["--device-os"], description = ["OS version to run your flow against. Supported values include iOS-16-4, iOS-17-5, iOS-18-2, etc. Only supported for iOS at the moment."])
+    @Option(order = 21, names = ["--device-os"], description = [
+      "OS version to run your flow against. " +
+              "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. maestro list-devices" +
+              "Android: android-33, android-34, etc. maestro list-cloud-devices"
+    ])
     private var deviceOs: String? = null
 
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
@@ -191,8 +203,16 @@ class CloudCommand : Callable<Int> {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowsFile)
 
+        val apiClient = ApiClient(apiUrl)
+        val webManifestProvider = if (flowsFile.isWebFlow()) {
+            { WebInteractor.createManifestFromWorkspace(flowsFile) }
+        } else null
+
         return CloudInteractor(
-            client = ApiClient(apiUrl),
+            client = apiClient,
+            appFileValidator = { AppMetadataAnalyzer.validateAppFile(it) },
+            workspaceValidator = maestro.orchestra.validation.WorkspaceValidator(),
+            webManifestProvider = webManifestProvider,
             failOnTimeout = failOnTimeout,
             waitTimeoutMs = TimeUnit.MINUTES.toMillis(resultWaitTimeout.toLong())
         ).upload(
@@ -208,8 +228,6 @@ class CloudCommand : Callable<Int> {
             commitSha = commitSha,
             pullRequestId = pullRequestId,
             apiKey = apiKey,
-            androidApiLevel = androidApiLevel,
-            iOSVersion = iOSVersion,
             appBinaryId = appBinaryId,
             includeTags = includeTags,
             excludeTags = excludeTags,
@@ -221,13 +239,15 @@ class CloudCommand : Callable<Int> {
             deviceLocale = deviceLocale,
             projectId = projectId,
             deviceModel = deviceModel,
-            deviceOs = deviceOs
+            deviceOs = deviceOs,
+            androidApiLevel = androidApiLevel,
+            iOSVersion = iOSVersion
         )
     }
 
     private fun validateWorkSpace() {
         try {
-            PrintUtils.message("Evaluating workspace...")
+            PrintUtils.message("Evaluating flow(s)...")
             WorkspaceExecutionPlanner
                 .plan(
                     input = setOf(flowsFile.toPath().toAbsolutePath()),
@@ -236,7 +256,7 @@ class CloudCommand : Callable<Int> {
                     config = configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
-            throw CliError("Upload aborted. Received error when evaluating workspace:\n\n${e.message}")
+            throw CliError("Upload aborted. Received error when evaluating flow(s):\n\n${e.message}")
         }
     }
 

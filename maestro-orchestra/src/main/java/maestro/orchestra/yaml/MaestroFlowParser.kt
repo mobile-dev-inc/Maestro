@@ -201,6 +201,41 @@ private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Pat
             docs = e.docs
         )
     }
+    findException<ConfigParseError>(error)?.let { e ->
+        return when (e.errorType) {
+            "missing_app_target" -> FlowParseException(
+                location = e.location ?: parser.currentLocation(),
+                contentPath = contentPath,
+                content = content,
+                title = "Config Field Required",
+                errorMessage = """
+                    |Either 'url' or 'appId' must be specified in the config section.
+                    |
+                    |For mobile apps, use:
+                    |```yaml
+                    |appId: com.example.app
+                    |---
+                    |- launchApp
+                    |```
+                    |
+                    |For web apps, use:
+                    |```yaml
+                    |url: https://example.com
+                    |---
+                    |- launchApp
+                    |```
+                """.trimMargin("|"),
+                docs = DOCS_FIRST_FLOW,
+            )
+            else -> FlowParseException(
+                location = e.location ?: parser.currentLocation(),
+                contentPath = contentPath,
+                content = content,
+                title = "Config Parse Error",
+                errorMessage = "Unknown config validation error: ${e.errorType}",
+            )
+        }
+    }
     findException<MissingKotlinParameterException>(error)?.let { e ->
         return FlowParseException(
             location = e.location ?: parser.currentLocation(),
@@ -383,9 +418,9 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
 
     private fun suggestCommandMessage(invalidCommand: String): String {
         val prefixCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.startsWith(invalidCommand) || invalidCommand.startsWith(it) }
-        val substringCommmands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
+        val substringCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
         val similarCommands = invalidCommand.findSimilar(allCommands, threshold = 3)
-        val suggestions = (prefixCommands + similarCommands + substringCommmands).distinct()
+        val suggestions = (prefixCommands + similarCommands + substringCommands).distinct()
         return when {
             suggestions.isEmpty() -> ""
             suggestions.size == 1 -> "Did you mean `${suggestions.first()}`?"

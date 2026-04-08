@@ -6,8 +6,11 @@ enum class Platform(val description: String) {
     WEB("Web");
 
     companion object {
-        fun fromString(p: String?): Platform? {
-            return values().firstOrNull { it.description.lowercase() == p?.lowercase() }
+        fun fromString(p: String): Platform {
+            return entries.firstOrNull { it.description.equals(p, ignoreCase = true) }
+                ?: throw IllegalArgumentException(
+                    "Unknown platform: '$p'. Must be one of: ${entries.joinToString { it.description }}"
+                )
         }
     }
 }

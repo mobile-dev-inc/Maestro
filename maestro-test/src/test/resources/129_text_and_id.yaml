@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- assertVisible:
+    id: "some_id"
+    text: "some_text"

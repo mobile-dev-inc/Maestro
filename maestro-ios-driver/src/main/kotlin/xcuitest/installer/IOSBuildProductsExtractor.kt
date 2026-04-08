@@ -1,5 +1,6 @@
 package xcuitest.installer
 
+import maestro.utils.TempFileHandler
 import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
@@ -26,7 +27,7 @@ enum class Context {
 class IOSBuildProductsExtractor(
     private val target: Path,
     private val context: Context,
-    private val deviceType: IOSDeviceType
+    private val deviceType: IOSDeviceType,
 ) {
 
     companion object {

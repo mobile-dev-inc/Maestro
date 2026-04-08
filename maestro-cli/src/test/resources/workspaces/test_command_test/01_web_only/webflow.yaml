@@ -1,0 +1,5 @@
+appId: com.example.webapp
+url: https://example.com
+---
+- launchApp
+- tapOn: 'Button'

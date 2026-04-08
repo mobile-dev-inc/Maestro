@@ -118,7 +118,7 @@ interface IOSDevice : AutoCloseable {
      *
      * @param out - output sink
      */
-    fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable>
+    fun startScreenRecording(out: Sink): IOSScreenRecording
 
     /**
      * Sets the geolocation

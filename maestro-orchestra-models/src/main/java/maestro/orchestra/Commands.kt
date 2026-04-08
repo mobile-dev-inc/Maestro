@@ -19,7 +19,7 @@
 
 package maestro.orchestra
 
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -27,8 +27,9 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
-import maestro.orchestra.util.InputRandomTextHelper
 import com.fasterxml.jackson.annotation.JsonIgnore
+import java.nio.file.Path
+import net.datafaker.Faker
 
 sealed interface Command {
 
@@ -86,7 +87,8 @@ data class SwipeCommand(
         return copy(
             elementSelector = elementSelector?.evaluateScripts(jsEngine),
             startRelative = startRelative?.evaluateScripts(jsEngine),
-            endRelative = endRelative?.evaluateScripts(jsEngine)
+            endRelative = endRelative?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -150,6 +152,7 @@ data class ScrollUntilVisibleCommand(
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -161,7 +164,7 @@ data class ScrollUntilVisibleCommand(
     }
 }
 
-class ScrollCommand(
+data class ScrollCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -184,11 +187,13 @@ class ScrollCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
-class BackPressCommand(
+data class BackPressCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -211,11 +216,13 @@ class BackPressCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): BackPressCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
-class HideKeyboardCommand(
+data class HideKeyboardCommand(
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -238,7 +245,9 @@ class HideKeyboardCommand(
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): HideKeyboardCommand {
-        return this
+        return copy(
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
@@ -253,7 +262,25 @@ data class CopyTextFromCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): CopyTextFromCommand {
         return copy(
-            selector = selector.evaluateScripts(jsEngine)
+            selector = selector.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+}
+
+data class SetClipboardCommand(
+    val text: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Set Maestro clipboard to $text"
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetClipboardCommand {
+        return copy(
+            text = text.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -278,6 +305,7 @@ data class TapOnElementCommand(
     val longPress: Boolean? = null,
     val repeat: TapRepeat? = null,
     val waitToSettleTimeoutMs: Int? = null,
+    val relativePoint: String? = null, // New parameter for element-relative coordinates
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -285,12 +313,14 @@ data class TapOnElementCommand(
     override val originalDescription: String
         get() {
             val optional = if (optional || selector.optional) "(Optional) " else ""
-            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}"
+            val pointInfo = relativePoint?.let { " at $it" } ?: ""
+            return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}$pointInfo"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
         return copy(
             selector = selector.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -336,6 +366,7 @@ data class TapOnPointV2Command(
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
         return copy(
             point = point.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -363,6 +394,7 @@ data class AssertCommand(
         return copy(
             visible = visible?.evaluateScripts(jsEngine),
             notVisible = notVisible?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -397,7 +429,8 @@ data class AssertConditionCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             condition = condition.evaluateScripts(jsEngine),
-            timeout = timeout?.evaluateScripts(jsEngine)
+            timeout = timeout?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -439,6 +472,28 @@ data class ExtractTextWithAICommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             query = query.evaluateScripts(jsEngine),
+        )
+    }
+}
+
+data class AssertScreenshotCommand(
+    val path: String,
+    val thresholdPercentage: Double,
+    val cropOn: ElementSelector? = null,
+    override val optional: Boolean = false,
+    override val label: String? = null,
+    @field:JsonIgnore val flowPath: Path? = null,
+) : Command {
+    override val originalDescription: String
+        get() {
+            val cropInfo = cropOn?.let { " (cropped on ${it.description()})" } ?: ""
+            return "Assert screenshot matches $path (threshold: $thresholdPercentage%)$cropInfo"
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return copy(
+            path = path.evaluateScripts(jsEngine),
+            cropOn = cropOn?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -499,7 +554,26 @@ data class LaunchAppCommand(
             launchArguments = launchArguments?.entries?.associate {
                 val value = it.value
                 it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
+        )
+    }
+}
+
+data class SetPermissionsCommand(
+    val appId: String,
+    var permissions: Map<String, String>,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = "Set permissions"
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
+        return copy(
+            appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -516,6 +590,7 @@ data class ApplyConfigurationCommand(
     override fun evaluateScripts(jsEngine: JsEngine): ApplyConfigurationCommand {
         return copy(
             config = config.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -539,6 +614,7 @@ data class OpenLinkCommand(
     override fun evaluateScripts(jsEngine: JsEngine): OpenLinkCommand {
         return copy(
             link = link.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -577,6 +653,7 @@ data class EraseTextCommand(
 
 data class TakeScreenshotCommand(
     val path: String,
+    val cropOn: ElementSelector? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -584,9 +661,18 @@ data class TakeScreenshotCommand(
     override val originalDescription: String
         get() = "Take screenshot $path"
 
+    override fun description(): String {
+        return label ?: if (cropOn != null) {
+            "Take screenshot $path, cropped to ${cropOn.description()}"
+        } else {
+            "Take screenshot $path"
+        }
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): TakeScreenshotCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            cropOn = cropOn?.evaluateScripts(jsEngine),
         )
     }
 }
@@ -603,6 +689,7 @@ data class StopAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -619,6 +706,7 @@ data class KillAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -635,6 +723,7 @@ data class ClearStateCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -663,7 +752,13 @@ class ClearKeychainCommand(
 }
 
 enum class InputRandomType {
-    NUMBER, TEXT, TEXT_EMAIL_ADDRESS, TEXT_PERSON_NAME,
+    NUMBER,
+    TEXT,
+    TEXT_EMAIL_ADDRESS,
+    TEXT_PERSON_NAME,
+    TEXT_CITY_NAME,
+    TEXT_COUNTRY_NAME,
+    TEXT_COLOR,
 }
 
 data class InputRandomCommand(
@@ -674,15 +769,19 @@ data class InputRandomCommand(
 ) : Command {
 
     fun genRandomString(): String {
+        val faker = Faker()
         val lengthNonNull = length ?: 8
         val finalLength = if (lengthNonNull <= 0) 8 else lengthNonNull
 
         return when (inputType) {
-            InputRandomType.NUMBER -> InputRandomTextHelper.getRandomNumber(finalLength)
-            InputRandomType.TEXT -> InputRandomTextHelper.getRandomText(finalLength)
-            InputRandomType.TEXT_EMAIL_ADDRESS -> InputRandomTextHelper.randomEmail()
-            InputRandomType.TEXT_PERSON_NAME -> InputRandomTextHelper.randomPersonName()
-            else -> InputRandomTextHelper.getRandomText(finalLength)
+            InputRandomType.NUMBER -> faker.number().randomNumber(finalLength).toString()
+            InputRandomType.TEXT -> faker.text().text(finalLength)
+            InputRandomType.TEXT_EMAIL_ADDRESS -> faker.internet().emailAddress()
+            InputRandomType.TEXT_PERSON_NAME -> faker.name().firstName() + ' ' + faker.name().lastName()
+            InputRandomType.TEXT_CITY_NAME -> faker.address().cityName()
+            InputRandomType.TEXT_COUNTRY_NAME -> faker.address().country()
+            InputRandomType.TEXT_COLOR -> faker.color().name()
+            else -> faker.text().text(finalLength)
         }
     }
 
@@ -730,6 +829,7 @@ data class RunFlowCommand(
         return copy(
             condition = condition?.evaluateScripts(jsEngine),
             config = config?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -748,15 +848,26 @@ data class SetLocationCommand(
         return copy(
             latitude = latitude.evaluateScripts(jsEngine),
             longitude = longitude.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
 
 data class SetOrientationCommand(
-    val orientation: DeviceOrientation,
+    val orientation: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    constructor(
+        orientation: DeviceOrientation,
+        label: String? = null,
+        optional: Boolean = false,
+    ) : this(
+        orientation = orientation.name,
+        label = label,
+        optional = optional
+    )
 
     override val originalDescription: String
         get() = "Set orientation ${orientation}"
@@ -765,8 +876,23 @@ data class SetOrientationCommand(
         return label ?: "Set orientation ${orientation}"
     }
 
+    fun resolvedOrientation(): DeviceOrientation {
+        return DeviceOrientation.getByName(orientation)
+            ?: error("Unknown orientation: $orientation")
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
-        return this
+        val evaluatedOrientation = orientation.evaluateScripts(jsEngine)
+        val validOrientations = DeviceOrientation.entries
+        val resolved = DeviceOrientation.getByName(evaluatedOrientation)
+            ?: error(
+                "Unknown orientation: $evaluatedOrientation. Valid orientations are: $validOrientations \n" +
+                    "(case insensitive, underscores optional, e.g 'landscape_left', 'landscapeLeft', and 'LANDSCAPE_LEFT' are all valid)"
+            )
+        return copy(
+            orientation = resolved.name,
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
@@ -805,6 +931,7 @@ data class RepeatCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             times = times?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -814,6 +941,7 @@ data class RetryCommand(
     val maxRetries: String? = null,
     val commands: List<MaestroCommand>,
     val config: MaestroConfig?,
+    val sourceDescription: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
@@ -829,12 +957,18 @@ data class RetryCommand(
     override val originalDescription: String
         get() {
             val maxAttempts = maxRetries?.toIntOrNull() ?: 1
-            return "Retry $maxAttempts times"
+            val baseDescription = if (sourceDescription != null) {
+                "Retry $sourceDescription"
+            } else {
+                "Retry"
+            }
+            return "$baseDescription $maxAttempts times"
         }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             maxRetries = maxRetries?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -853,7 +987,8 @@ data class DefineVariablesCommand(
         return copy(
             env = env.mapValues { (_, value) ->
                 value.evaluateScripts(jsEngine)
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -882,6 +1017,7 @@ data class RunScriptCommand(
                 value.evaluateScripts(jsEngine)
             },
             condition = condition?.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -960,7 +1096,8 @@ data class TravelCommand(
                     latitude = it.latitude.evaluateScripts(jsEngine),
                     longitude = it.longitude.evaluateScripts(jsEngine)
                 )
-            }
+            },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 
@@ -978,6 +1115,7 @@ data class StartRecordingCommand(
     override fun evaluateScripts(jsEngine: JsEngine): StartRecordingCommand {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }
@@ -993,7 +1131,8 @@ data class AddMediaCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) }
+            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) },
+            label = label?.evaluateScripts(jsEngine)
         )
     }
 }

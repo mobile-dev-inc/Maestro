@@ -65,16 +65,19 @@ object HttpClient {
         connectTimeout: Duration = 10.seconds,
         readTimeout: Duration = 10.seconds,
         writeTimeout: Duration = 10.seconds,
+        callTimeout: Duration? = null,
         interceptors: List<Interceptor> = emptyList(),
         networkInterceptors: List<Interceptor> = emptyList(),
         protocols: List<Protocol> = listOf(Protocol.HTTP_1_1),
         metrics: Metrics = MetricsProvider.getInstance()
     ): OkHttpClient {
+        val effectiveCallTimeout = callTimeout ?: maxOf(60.seconds, readTimeout)
         var b = OkHttpClient.Builder()
             .eventListenerFactory(MetricsEventListener.Factory(metrics, name))
             .connectTimeout(connectTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             .readTimeout(readTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             .writeTimeout(writeTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+            .callTimeout(effectiveCallTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             .addNetworkInterceptor(Interceptor { chain ->
                 val start = System.currentTimeMillis()
                 val response = chain.proceed(chain.request())

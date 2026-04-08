@@ -19,23 +19,24 @@
 
 package maestro.orchestra
 
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.runBlocking
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
+import com.github.romankh3.image.comparison.ImageComparison
+import com.github.romankh3.image.comparison.model.ImageComparisonState
+import io.grpc.Status
+import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.Point
 import maestro.ScreenRecording
+import maestro.UiElement
 import maestro.ViewHierarchy
-import maestro.ai.AI
-import maestro.ai.AI.Companion.AI_KEY_ENV_VAR
-import maestro.ai.anthropic.Claude
 import maestro.ai.cloud.Defect
-import maestro.ai.openai.OpenAI
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
@@ -45,6 +46,7 @@ import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
+import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -55,14 +57,23 @@ import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
+import okio.BufferedSink
 import okio.Sink
 import okio.buffer
 import okio.sink
 import org.slf4j.LoggerFactory
+import java.awt.image.BufferedImage
 import java.io.File
+import java.io.IOException
 import java.lang.Long.max
 import java.nio.file.Path
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.util.logging.Filter
 import kotlin.coroutines.coroutineContext
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import javax.imageio.ImageIO
 
 // TODO(bartkepacia): Use this in onCommandGeneratedOutput.
 //  Caveat:
@@ -70,11 +81,6 @@ import kotlin.coroutines.coroutineContext
 //    that is streamed to disk.
 //  Idea:
 //    Orchestra should expose a callback like "onResourceRequested: (Command, CommandOutputType)"
-sealed class CommandOutput {
-    data class Screenshot(val screenshot: Buffer) : CommandOutput()
-    data class ScreenRecording(val screenRecording: Buffer) : CommandOutput()
-    data class AIDefects(val defects: List<Defect>, val screenshot: Buffer) : CommandOutput()
-}
 
 interface FlowController {
     suspend fun waitIfPaused()
@@ -88,7 +94,7 @@ class DefaultFlowController : FlowController {
 
     override suspend fun waitIfPaused() {
         while (_isPaused) {
-            if (!coroutineContext.isActive) {
+            if (!currentCoroutineContext().isActive) {
                 break
             }
             Thread.sleep(500)
@@ -134,6 +140,15 @@ class Orchestra(
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
+    internal val jsEngineFactory: (MaestroConfig?) -> JsEngine = { config ->
+        val isRhino = config?.ext?.get("jsEngine") == "rhino"
+        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
+        if (isRhino) {
+            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
+        } else {
+            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        }
+    },
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -192,13 +207,15 @@ class Orchestra(
                 )
             } ?: true
 
+            jsEngine.close()
+
             exception?.let { throw it }
 
             return onCompleteSuccess && flowSuccess
         }
     }
 
-    suspend fun executeCommands(
+    private suspend fun executeCommands(
         commands: List<MaestroCommand>,
         config: MaestroConfig? = null,
         shouldReinitJsEngine: Boolean = true,
@@ -207,7 +224,7 @@ class Orchestra(
             initJsEngine(config)
         }
 
-        if (!coroutineContext.isActive) {
+        if (!currentCoroutineContext().isActive) {
             logger.info("Flow cancelled, skipping initAndroidChromeDevTools...")
         } else {
             initAndroidChromeDevTools(config)
@@ -215,8 +232,8 @@ class Orchestra(
 
         commands
             .forEachIndexed { index, command ->
-                if (!coroutineContext.isActive) {
-                    logger.info("[Command execution] Command skipped due to cancellation: ${command}")
+                if (!currentCoroutineContext().isActive) {
+                    logger.info("[Command execution] Command skipped due to cancellation: $command")
                     onCommandSkipped(index, command)
                     return@forEachIndexed
                 }
@@ -290,14 +307,7 @@ class Orchestra(
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        val shouldUseGraalJs =
-            config?.ext?.get("jsEngine") == "graaljs" || System.getenv("MAESTRO_USE_GRAALJS") == "true"
-        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        jsEngine = if (shouldUseGraalJs) {
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
-        } else {
-            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
-        }
+        jsEngine = jsEngineFactory(config)
     }
 
     private fun initAndroidChromeDevTools(config: MaestroConfig?) {
@@ -312,7 +322,7 @@ class Orchestra(
     private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
 
-        if (!coroutineContext.isActive) {
+        if (!currentCoroutineContext().isActive) {
             throw CommandSkipped
         }
 
@@ -334,10 +344,12 @@ class Orchestra(
             is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
+            is SetClipboardCommand -> setClipboardCommand(command)
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
             is AssertCommand -> assertCommand(command)
+            is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
@@ -345,6 +357,7 @@ class Orchestra(
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
+            is SetPermissionsCommand -> setPermissionsCommand(command)
             is OpenLinkCommand -> openLinkCommand(command, config)
             is PressKeyCommand -> pressKeyCommand(command)
             is EraseTextCommand -> eraseTextCommand(command)
@@ -525,6 +538,102 @@ class Orchestra(
         return false
     }
 
+    private fun normalizeScreenshotPath(path: String): String {
+        val imageExtensions = listOf(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".wbmp", ".heic", ".heif")
+        return if (imageExtensions.any { path.endsWith(it, ignoreCase = true) }) path else "$path.png"
+    }
+
+    private fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+        val path = normalizeScreenshotPath(command.path)
+        val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
+
+        val candidates = buildList {
+            command.flowPath?.let { add(it.resolve(path).toFile()) }
+            screenshotsDir?.let { add(it.resolve(path).toFile()) }
+            add(File(path))
+        }.distinctBy { it.canonicalPath }
+
+        val expectedFile = candidates.firstOrNull { it.exists() }
+            ?: throw MaestroException.AssertionFailure(
+                message = "Screenshot file not found: $path. Searched in:\n" +
+                    candidates.joinToString("\n") { "  - ${it.absolutePath}" },
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
+                    "Create it at one of the searched locations above."
+            )
+
+        expectedFile.parentFile?.mkdirs()
+
+        // Temp file is always PNG since maestro.takeScreenshot produces PNG
+        val actualScreenshotFile = File
+            .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
+            .also { it.deleteOnExit() }
+
+        val cropOn = command.cropOn
+        if (cropOn != null) {
+            val elementResult = findElement(cropOn, optional = command.optional)
+            val bounds = elementResult.element.bounds
+            if (bounds.width <= 0 || bounds.height <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+                )
+            }
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
+        } else {
+            maestro.takeScreenshot(actualScreenshotFile.sink(), false)
+        }
+
+        val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
+
+        val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
+            message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
+            hierarchyRoot = maestro.viewHierarchy().root,
+            debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
+        )
+
+        val baseName = if (path.contains('.')) {
+            path.substringBeforeLast('.')
+        } else {
+            path
+        }
+        val diffFileName = "${baseName}_diff.png"
+        val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
+
+        val comparison =
+            ImageComparison(expectedImage, actualImage, diffFile)
+
+        comparison.apply {
+            allowingPercentOfDifferentPixels = thresholdDifferencePercentage
+            rectangleLineWidth = 10
+            pixelToleranceLevel = 0.1 
+            minimalRectangleSize = 40
+        }
+
+        val comparisonState = comparison.compareImages()
+
+        when (comparisonState.imageComparisonState) {
+            ImageComparisonState.MATCH -> return true
+            ImageComparisonState.SIZE_MISMATCH -> throw MaestroException.AssertionFailure(
+                message = "Screenshot size mismatch: ${command.description()} - expected ${expectedImage.width}x${expectedImage.height}, actual ${actualImage.width}x${actualImage.height}. Screenshots must have the same dimensions to compare.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${expectedImage.width}x${expectedImage.height}, got: ${actualImage.width}x${actualImage.height}. Use the same device/emulator or cropOn to align dimensions."
+            )
+            ImageComparisonState.MISMATCH -> throw MaestroException.AssertionFailure(
+                message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
+            )
+            else -> throw MaestroException.AssertionFailure(
+                message = "Screenshot comparison failed: ${command.description()} - unexpected comparison state ${comparisonState.imageComparisonState}.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot command encountered an unexpected result from the image comparison. State: ${comparisonState.imageComparisonState}"
+            )
+        }
+    }
+
+
     private fun evalScriptCommand(command: EvalScriptCommand): Boolean {
         command.scriptString.evaluateScripts(jsEngine)
 
@@ -569,7 +678,7 @@ class Orchestra(
     }
 
     private fun setOrientationCommand(command: SetOrientationCommand): Boolean {
-        maestro.setOrientation(command.orientation)
+        maestro.setOrientation(command.resolvedOrientation())
 
         return true
     }
@@ -615,7 +724,7 @@ class Orchestra(
 
                 logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
                 logger.info("Element bounds: ${element.bounds}")
-                logger.info("Visibility Percent: $retryCenterCount")
+                logger.info("Visibility Percent: $visibility")
                 logger.info("Command centerElement: $command.centerElement")
                 logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
 
@@ -628,7 +737,7 @@ class Orchestra(
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
-                logger.error("Error: $ignored")
+                logger.warn("Error: $ignored")
             }
             maestro.swipeFromCenter(
                 direction,
@@ -676,6 +785,20 @@ class Orchestra(
 
     private fun hideKeyboardCommand(): Boolean {
         maestro.hideKeyboard()
+
+        // Throw error in case keyboard is still visible
+        if (maestro.isKeyboardVisible()) {
+            throw MaestroException.HideKeyboardFailure(
+                "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
+                debugMessage = """
+                    Instead of hideKeyboard, try tapping on non-interactive element to hide keyboard. Example:
+ 
+                    - tapOn: 
+                        text: 'Static Text on your screen'
+                """.trimIndent()
+            )
+        }
+
         return true
     }
 
@@ -693,7 +816,7 @@ class Orchestra(
             numberOfRuns = 0,
         )
 
-        var mutatiing = false
+        var mutating = false
 
         val checkCondition: () -> Boolean = {
             command.condition
@@ -701,13 +824,13 @@ class Orchestra(
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
         }
 
-        while (checkCondition() && counter < maxRuns) {
+        while (checkCondition() && counter < maxRuns && currentCoroutineContext().isActive) {
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
             }
 
             val mutated = runSubFlow(command.commands, config, null)
-            mutatiing = mutatiing || mutated
+            mutating = mutating || mutated
             counter++
 
             metadata = metadata.copy(
@@ -720,7 +843,7 @@ class Orchestra(
             throw CommandSkipped
         }
 
-        return mutatiing
+        return mutating
     }
 
     private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
@@ -789,6 +912,30 @@ class Orchestra(
             }
         }
 
+        condition.scriptCondition?.let { value ->
+            // Note that script should have been already evaluated by this point
+
+            if (value.isBlank()) {
+                return false
+            }
+
+            if (value.equals("false", ignoreCase = true)) {
+                return false
+            }
+
+            if (value == "undefined") {
+                return false
+            }
+
+            if (value == "null") {
+                return false
+            }
+
+            if (value.toDoubleOrNull() == 0.0) {
+                return false
+            }
+        }
+
         condition.visible?.let {
             try {
                 findElement(
@@ -796,7 +943,7 @@ class Orchestra(
                     timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
                     optional = commandOptional,
                 )
-            } catch (ignored: MaestroException.ElementNotFound) {
+            } catch (_: MaestroException.ElementNotFound) {
                 return false
             }
         }
@@ -821,30 +968,6 @@ class Orchestra(
 
             // Element was actually visible
             if (result != true) {
-                return false
-            }
-        }
-
-        condition.scriptCondition?.let { value ->
-            // Note that script should have been already evaluated by this point
-
-            if (value.isBlank()) {
-                return false
-            }
-
-            if (value.equals("false", ignoreCase = true)) {
-                return false
-            }
-
-            if (value == "undefined") {
-                return false
-            }
-
-            if (value == "null") {
-                return false
-            }
-
-            if (value.toDoubleOrNull() == 0.0) {
                 return false
             }
         }
@@ -911,47 +1034,62 @@ class Orchestra(
         config: MaestroConfig?,
         subflowConfig: MaestroConfig?,
     ): Boolean {
-        executeDefineVariablesCommands(commands, config)
-        // filter out DefineVariablesCommand to not execute it twice
-        val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
+        // Enter environment scope to isolate environment variables for this subflow
+        jsEngine.enterEnvScope()
+        return try {
+            executeDefineVariablesCommands(commands, config)
+            // filter out DefineVariablesCommand to not execute it twice
+            val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
-        var flowSuccess = false
-        val onCompleteSuccess: Boolean
-        try {
-            val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
-                executeSubflowCommands(it, config)
-            } ?: true
+            var flowSuccess = false
+            val onCompleteSuccess: Boolean
+            try {
+                val onStartSuccess = subflowConfig?.onFlowStart?.commands?.let {
+                    executeSubflowCommands(it, config)
+                } ?: true
 
-            if (onStartSuccess) {
-                flowSuccess = executeSubflowCommands(filteredCommands, config)
+                if (onStartSuccess) {
+                    flowSuccess = executeSubflowCommands(filteredCommands, config)
+                }
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
+                    executeSubflowCommands(it, config)
+                } ?: true
             }
-        } catch (e: Throwable) {
-            throw e
+            onCompleteSuccess && flowSuccess
         } finally {
-            onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
-                executeSubflowCommands(it, config)
-            } ?: true
+            jsEngine.leaveEnvScope()
         }
-        return onCompleteSuccess && flowSuccess
     }
 
     private fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = command.path + ".png"
-        val file = screenshotsDir
-            ?.let { it.resolve(pathStr).toFile() }
-            ?: File(pathStr)
+        val fileSink = getFileSink(screenshotsDir, pathStr)
 
-        maestro.takeScreenshot(file, false)
-
+        val cropOn = command.cropOn
+        if (cropOn == null) {
+            maestro.takeScreenshot(fileSink, false)
+        } else {
+            val elementResult = findElement(cropOn, optional = command.optional)
+            val bounds = elementResult.element.bounds
+            if (bounds.width <= 0 || bounds.height <= 0) {
+                throw MaestroException.AssertionFailure(
+                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+                )
+            }
+            maestro.takeScreenshot(fileSink, false, bounds)
+        }
         return false
     }
 
     private fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = command.path + ".mp4"
-        val file = screenshotsDir
-            ?.let { it.resolve(pathStr).toFile() }
-            ?: File(pathStr)
-        screenRecording = maestro.startScreenRecording(file.sink().buffer())
+        val fileSink = getFileSink(screenshotsDir, pathStr)
+        screenRecording = maestro.startScreenRecording(fileSink)
         return false
     }
 
@@ -988,13 +1126,18 @@ class Orchestra(
             if (command.clearState == true) {
                 maestro.clearAppState(command.appId)
             }
+        } catch (e: Exception) {
+            logger.error("Failed to clear state", e)
+            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+        }
 
+        try {
             // For testing convenience, default to allow all on app launch
             val permissions = command.permissions ?: mapOf("all" to "allow")
             maestro.setPermissions(command.appId, permissions)
-
-        } catch (e: Exception) { 
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+        } catch (e: Exception) {
+            logger.error("Failed to set permissions", e)
+            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
         }
 
         try {
@@ -1004,7 +1147,18 @@ class Orchestra(
                 stopIfRunning = command.stopApp ?: true
             )
         } catch (e: Exception) {
-            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}: ${e.message}", e)
+            logger.error("Failed to launch app", e)
+            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}", cause = e)
+        }
+
+        return true
+    }
+
+    private fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
+        try {
+            maestro.setPermissions(command.appId, command.permissions)
+        } catch (e: Exception) {
+            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
         }
 
         return true
@@ -1051,16 +1205,33 @@ class Orchestra(
     ): Boolean {
         val result = findElement(command.selector, optional = command.optional)
 
-        maestro.tap(
-            element = result.element,
-            initialHierarchy = result.hierarchy,
-            retryIfNoChange = retryIfNoChange,
-            waitUntilVisible = waitUntilVisible,
-            longPress = command.longPress ?: false,
-            appId = config?.appId,
-            tapRepeat = command.repeat,
-            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-        )
+
+        // Handle element-relative tap if specified
+        val relativePoint = command.relativePoint
+        if (relativePoint != null) {
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
+                  
+            maestro.tap(
+                x = tapPoint.x,
+                y = tapPoint.y,
+                retryIfNoChange = retryIfNoChange,
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        } else {
+            // Default behavior: tap at element center
+            maestro.tap(
+                element = result.element,
+                initialHierarchy = result.hierarchy,
+                retryIfNoChange = retryIfNoChange,
+                waitUntilVisible = waitUntilVisible,
+                longPress = command.longPress ?: false,
+                appId = config?.appId,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        }
 
         return true
     }
@@ -1121,6 +1292,7 @@ class Orchestra(
 
         return true
     }
+
 
     private fun findElement(
         selector: ElementSelector,
@@ -1208,29 +1380,25 @@ class Orchestra(
     private fun buildFilter(
         selector: ElementSelector,
     ): FilterWithDescription {
-        val filters = mutableListOf<ElementFilter>()
+        val basicFilters = mutableListOf<ElementFilter>()
+        val relativeFilters = mutableListOf<ElementFilter>()
         val descriptions = mutableListOf<String>()
 
         selector.textRegex
             ?.let {
                 descriptions += "Text matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                basicFilters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
 
         selector.idRegex
             ?.let {
                 descriptions += "Id matching regex: $it"
-                filters += Filters.deepestMatchingElement(
-                    Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-                )
+                basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
             }
-
         selector.size
             ?.let {
                 descriptions += "Size: $it"
-                filters += Filters.sizeMatches(
+                basicFilters += Filters.sizeMatches(
                     width = it.width,
                     height = it.height,
                     tolerance = it.tolerance,
@@ -1240,38 +1408,38 @@ class Orchestra(
         selector.below
             ?.let {
                 descriptions += "Below: ${it.description()}"
-                filters += Filters.below(buildFilter(it).filterFunc)
+                relativeFilters += Filters.below(buildFilter(it).filterFunc)
             }
 
         selector.above
             ?.let {
                 descriptions += "Above: ${it.description()}"
-                filters += Filters.above(buildFilter(it).filterFunc)
+                relativeFilters += Filters.above(buildFilter(it).filterFunc)
             }
 
         selector.leftOf
             ?.let {
                 descriptions += "Left of: ${it.description()}"
-                filters += Filters.leftOf(buildFilter(it).filterFunc)
+                relativeFilters += Filters.leftOf(buildFilter(it).filterFunc)
             }
 
         selector.rightOf
             ?.let {
                 descriptions += "Right of: ${it.description()}"
-                filters += Filters.rightOf(buildFilter(it).filterFunc)
+                relativeFilters += Filters.rightOf(buildFilter(it).filterFunc)
             }
 
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                filters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
+                relativeFilters += Filters.containsChild(buildFilter(it).filterFunc)
             }
 
         selector.containsDescendants
             ?.let { descendantSelectors ->
                 val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
                 descriptions += "Contains descendants: $descendantDescriptions"
-                filters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
+                relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
         selector.traits
@@ -1280,7 +1448,7 @@ class Orchestra(
             }
             ?.forEach { (description, filter) ->
                 descriptions += description
-                filters += filter
+                basicFilters += filter
             }
 
         selector.enabled
@@ -1290,7 +1458,7 @@ class Orchestra(
                 } else {
                     "Disabled"
                 }
-                filters += Filters.enabled(it)
+                basicFilters += Filters.enabled(it)
             }
 
         selector.selected
@@ -1300,7 +1468,7 @@ class Orchestra(
                 } else {
                     "Not selected"
                 }
-                filters += Filters.selected(it)
+                basicFilters += Filters.selected(it)
             }
 
         selector.checked
@@ -1310,7 +1478,7 @@ class Orchestra(
                 } else {
                     "Not checked"
                 }
-                filters += Filters.checked(it)
+                basicFilters += Filters.checked(it)
             }
 
         selector.focused
@@ -1320,16 +1488,25 @@ class Orchestra(
                 } else {
                     "Not focused"
                 }
-                filters += Filters.focused(it)
+                basicFilters += Filters.focused(it)
             }
 
         selector.css
             ?.let {
                 descriptions += "CSS: $it"
-                filters += Filters.css(maestro, it)
+                basicFilters += Filters.css(maestro, it)
             }
 
-        var resultFilter = Filters.intersect(filters)
+        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
+        val basicFilter = if (basicFilters.isNotEmpty()) {
+            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
+        } else {
+            { nodes -> nodes } // Identity filter if no basic filters
+        }
+        
+        val allFilters = listOf(basicFilter) + relativeFilters
+        var resultFilter = Filters.intersect(allFilters)
+
         resultFilter = selector.index
             ?.toDouble()
             ?.toInt()
@@ -1409,6 +1586,13 @@ class Orchestra(
         return true
     }
 
+    private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
+        copiedText = command.text
+        jsEngine.setCopiedText(copiedText)
+
+        return true
+    }
+
     private fun resolveText(attributes: MutableMap<String, String>): String? {
         return if (!attributes["text"].isNullOrEmpty()) {
             attributes["text"]
@@ -1422,6 +1606,22 @@ class Orchestra(
     private fun pasteText(): Boolean {
         copiedText?.let { maestro.inputText(it) }
         return true
+    }
+
+    private fun getFileSink(parentPath: Path?, filePathStr: String): BufferedSink {
+        // Work out relative v absolute input
+        val resolvedFile = parentPath?.resolve(filePathStr)?.toFile() ?: File(filePathStr)
+        val absoluteFile = resolvedFile.absoluteFile
+
+        if(absoluteFile.parentFile.exists() || absoluteFile.parentFile.mkdirs()) {
+            return resolvedFile
+                .sink()
+                .buffer()
+        } else {
+            throw MaestroException.DestinationIsNotWritable(
+                "Unable to create directory for file: ${absoluteFile.parentFile.absolutePath}"
+            )
+        }
     }
 
     private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {

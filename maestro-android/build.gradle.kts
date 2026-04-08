@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.config.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -69,15 +71,15 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
-    packagingOptions {
+    packaging {
         resources {
             excludes += listOf("META-INF/INDEX.LIST", "META-INF/io.netty.versions.properties")
         }
@@ -85,6 +87,8 @@ android {
 }
 
 tasks.register<Copy>("copyMaestroAndroid") {
+    dependsOn("assembleDebug")
+
     val maestroAndroidApkPath = "outputs/apk/debug/maestro-android-debug.apk"
     val maestroAndroidApkDest = "../../maestro-client/src/main/resources"
     val maestroAndroidApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug.apk"
@@ -102,6 +106,8 @@ tasks.register<Copy>("copyMaestroAndroid") {
 }
 
 tasks.register<Copy>("copyMaestroServer") {
+    dependsOn("assembleAndroidTest")
+
     val maestroServerApkPath = "outputs/apk/androidTest/debug/maestro-android-debug-androidTest.apk"
     val maestroServerApkDest = "../../maestro-client/src/main/resources"
     val maestroServerApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug-androidTest.apk"
@@ -166,4 +172,5 @@ dependencies {
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.uiautomator)
+    androidTestImplementation(libs.kotlin.retry)
 }

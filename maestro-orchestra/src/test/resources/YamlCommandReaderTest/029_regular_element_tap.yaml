@@ -1,0 +1,4 @@
+appId: com.example.test
+---
+- tapOn:
+    text: Submit

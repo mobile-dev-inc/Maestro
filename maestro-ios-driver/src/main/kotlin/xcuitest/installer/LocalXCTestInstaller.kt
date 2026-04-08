@@ -5,6 +5,7 @@ import maestro.utils.HttpClient
 import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
+import maestro.utils.TempFileHandler
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,6 +36,7 @@ class LocalXCTestInstaller(
     val reinstallDriver: Boolean = true,
     private val iOSDriverConfig: IOSDriverConfig,
     private val deviceController: IOSDevice,
+    private val tempFileHandler: TempFileHandler = TempFileHandler()
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -47,12 +49,14 @@ class LocalXCTestInstaller(
      * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
-    private val tempDir = Files.createTempDirectory(deviceId)
+    private val tempDir = tempFileHandler.createTempDirectory(deviceId)
+    private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
     private val iosBuildProductsExtractor = IOSBuildProductsExtractor(
-        target = tempDir,
+        target = tempDir.toPath(),
         context = iOSDriverConfig.context,
         deviceType = deviceType,
     )
+    private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
 
     private var xcTestProcess: Process? = null
 
@@ -77,7 +81,7 @@ class LocalXCTestInstaller(
                 }
                 xcTestProcess = null
 
-                val pid = XCRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
+                val pid = xcRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
                 if (pid != null) {
                     logger.trace("Killing XCTest Runner process with the `kill` command")
                     ProcessBuilder(listOf("kill", pid.toString()))
@@ -200,7 +204,7 @@ class LocalXCTestInstaller(
         } else {
             logger.info("Installing driver with xcodebuild")
             logger.info("[Start] Running XcUITest with `xcodebuild test-without-building` with $defaultPort and config: $iOSDriverConfig")
-            xcTestProcess = XCRunnerCLIUtils.runXcTestWithoutBuild(
+            xcTestProcess = xcRunnerCLIUtils.runXcTestWithoutBuild(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
                 port = defaultPort,
@@ -222,8 +226,8 @@ class LocalXCTestInstaller(
                 )
             }
             IOSDeviceType.SIMULATOR -> {
-                LocalSimulatorUtils.install(deviceId, bundlePath.toPath())
-                LocalSimulatorUtils.launchUITestRunner(
+                localSimulatorUtils.install(deviceId, bundlePath.toPath())
+                localSimulatorUtils.launchUITestRunner(
                     deviceId = deviceId,
                     port = defaultPort,
                     snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
@@ -239,7 +243,7 @@ class LocalXCTestInstaller(
         }
 
         logger.info("[Start] Cleaning up the ui test runner files")
-        tempDir.deleteRecursively()
+        tempFileHandler.close()
         if(reinstallDriver) {
             uninstall()
             deviceController.close()

@@ -36,12 +36,14 @@ data class MaestroCommand(
     val backPressCommand: BackPressCommand? = null,
     @Deprecated("Use assertConditionCommand") val assertCommand: AssertCommand? = null,
     val assertConditionCommand: AssertConditionCommand? = null,
+    val assertScreenshotCommand: AssertScreenshotCommand? = null,
     val assertNoDefectsWithAICommand: AssertNoDefectsWithAICommand? = null,
     val assertWithAICommand: AssertWithAICommand? = null,
     val extractTextWithAICommand: ExtractTextWithAICommand? = null,
     val inputTextCommand: InputTextCommand? = null,
     val inputRandomTextCommand: InputRandomCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
+    val setPermissionsCommand: SetPermissionsCommand? = null,
     val applyConfigurationCommand: ApplyConfigurationCommand? = null,
     val openLinkCommand: OpenLinkCommand? = null,
     val pressKeyCommand: PressKeyCommand? = null,
@@ -57,6 +59,7 @@ data class MaestroCommand(
     var setOrientationCommand: SetOrientationCommand? = null,
     val repeatCommand: RepeatCommand? = null,
     val copyTextCommand: CopyTextFromCommand? = null,
+    val setClipboardCommand: SetClipboardCommand? = null,
     val pasteTextCommand: PasteTextCommand? = null,
     val defineVariablesCommand: DefineVariablesCommand? = null,
     val runScriptCommand: RunScriptCommand? = null,
@@ -86,7 +89,9 @@ data class MaestroCommand(
         extractTextWithAICommand = command as? ExtractTextWithAICommand,
         inputTextCommand = command as? InputTextCommand,
         inputRandomTextCommand = command as? InputRandomCommand,
+        assertScreenshotCommand = command as? AssertScreenshotCommand,
         launchAppCommand = command as? LaunchAppCommand,
+        setPermissionsCommand = command as? SetPermissionsCommand,
         applyConfigurationCommand = command as? ApplyConfigurationCommand,
         openLinkCommand = command as? OpenLinkCommand,
         pressKeyCommand = command as? PressKeyCommand,
@@ -102,6 +107,7 @@ data class MaestroCommand(
         setOrientationCommand = command as? SetOrientationCommand,
         repeatCommand = command as? RepeatCommand,
         copyTextCommand = command as? CopyTextFromCommand,
+        setClipboardCommand = command as? SetClipboardCommand,
         pasteTextCommand = command as? PasteTextCommand,
         defineVariablesCommand = command as? DefineVariablesCommand,
         runScriptCommand = command as? RunScriptCommand,
@@ -132,6 +138,7 @@ data class MaestroCommand(
         inputTextCommand != null -> inputTextCommand
         inputRandomTextCommand != null -> inputRandomTextCommand
         launchAppCommand != null -> launchAppCommand
+        setPermissionsCommand != null -> setPermissionsCommand
         applyConfigurationCommand != null -> applyConfigurationCommand
         openLinkCommand != null -> openLinkCommand
         pressKeyCommand != null -> pressKeyCommand
@@ -145,8 +152,10 @@ data class MaestroCommand(
         runFlowCommand != null -> runFlowCommand
         setLocationCommand != null -> setLocationCommand
         setOrientationCommand != null -> setOrientationCommand
+        assertScreenshotCommand != null -> assertScreenshotCommand
         repeatCommand != null -> repeatCommand
         copyTextCommand != null -> copyTextCommand
+        setClipboardCommand != null -> setClipboardCommand
         pasteTextCommand != null -> pasteTextCommand
         defineVariablesCommand != null -> defineVariablesCommand
         runScriptCommand != null -> runScriptCommand

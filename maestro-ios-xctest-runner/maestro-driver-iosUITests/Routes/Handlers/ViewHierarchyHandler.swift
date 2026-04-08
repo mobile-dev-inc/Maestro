@@ -1,6 +1,7 @@
 import FlyingFox
 import XCTest
 import os
+import MaestroDriverLib
 
 @MainActor
 struct ViewHierarchyHandler: HTTPHandler {
@@ -28,9 +29,7 @@ struct ViewHierarchyHandler: HTTPHandler {
                 return HTTPResponse(statusCode: .ok, body: body)
             }
             NSLog("[Start] View hierarchy snapshot for \(foregroundApp)")
-            let appViewHierarchy = try logger.measure(message: "View hierarchy snapshot for \(foregroundApp)") {
-                try getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
-            }
+            let appViewHierarchy = try await getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
             let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
             
             NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
@@ -45,14 +44,18 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) throws -> AXElement {
-        SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(foregroundApp: foregroundApp)
+    func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) async throws -> AXElement {
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
+        await SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(appHierarchy: appHierarchy, foregroundApp: foregroundApp)
                 
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
             fullStatusBars(springboardApplication)
         } ?? []
-
+        
+        // Fetch Safari WebView hierarchy for iOS 26+ (runs in separate SafariViewService process)
+        let safariWebViewHierarchy = logger.measure(message: "Fetch Safari WebView hierarchy") {
+            getSafariWebViewHierarchy()
+        }
 
         let deviceFrame = springboardApplication.frame
         let deviceAxFrame = [
@@ -70,20 +73,34 @@ struct ViewHierarchyHandler: HTTPHandler {
                 let appWidth = appFrame["Width"], appWidth > 0,
                 let appHeight = appFrame["Height"], appHeight > 0
             else {
-                return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
             }
-            
+
+            // Springboard always reports its frame in portrait dimensions (e.g. 1024×1366),
+            // while a landscape app reports them swapped (1366×1024). Without this guard,
+            // the difference would be misinterpreted as a window offset, shifting every
+            // element's coordinates by hundreds of points in the wrong direction.
+            let isSameAreaDifferentOrientation =
+                abs(deviceWidth * deviceHeight - appWidth * appHeight) < 1.0
+                && abs(deviceWidth - appHeight) < 1.0
+                && abs(deviceHeight - appWidth) < 1.0
+
+            if isSameAreaDifferentOrientation {
+                NSLog("Skipping offset adjustment: device and app frames are same size but different orientation")
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            }
+
             let offsetX = deviceWidth - appWidth
             let offsetY = deviceHeight - appHeight
             let offset = WindowOffset(offsetX: offsetX, offsetY: offsetY)
-            
+
             NSLog("Adjusting view hierarchy with offset: \(offset)")
-            
+
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
-            
-            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+
+            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
         } else {
-            return AXElement(children: [appHierarchy, AXElement(children: statusBars)].compactMap { $0 })
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
         }
     }
     
@@ -228,6 +245,40 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
         
         return snapshots
+    }
+    
+    /// Fetches the Safari WebView hierarchy for iOS 26+ where SFSafariViewController
+    /// runs in a separate process (com.apple.SafariViewService).
+    /// Returns nil if not on iOS 26+, Safari service is not running, or no webviews exist.
+    private func getSafariWebViewHierarchy() -> AXElement? {
+        let systemVersion = ProcessInfo.processInfo.operatingSystemVersion
+        guard systemVersion.majorVersion >= 26 else {
+            return nil
+        }
+        
+        let safariWebService = XCUIApplication(bundleIdentifier: "com.apple.SafariViewService")
+        
+        let isRunning = safariWebService.state == .runningForeground || safariWebService.state == .runningBackground
+        guard isRunning else {
+            return nil
+        }
+        
+        let webViewCount = safariWebService.webViews.count
+        guard webViewCount > 0 else {
+            return nil
+        }
+        
+        NSLog("[Start] Fetching Safari WebView hierarchy (\(webViewCount) webview(s) detected)")
+        
+        do {
+            AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
+            let safariHierarchy = try elementHierarchy(xcuiElement: safariWebService)
+            NSLog("[Done] Safari WebView hierarchy fetched successfully")
+            return safariHierarchy
+        } catch {
+            NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func findRecoveryElement(_ element: XCUIElement) throws -> XCUIElement {

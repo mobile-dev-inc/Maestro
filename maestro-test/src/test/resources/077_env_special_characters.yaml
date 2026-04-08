@@ -1,6 +1,6 @@
 appId: com.example.app
 env:
-    INNER: |
+    INNER: |-
         !@#$&*()_+{}|:"<>?[]\\;',./
 ---
 - inputText: ${OUTER}

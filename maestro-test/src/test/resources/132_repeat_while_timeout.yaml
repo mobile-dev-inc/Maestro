@@ -1,0 +1,12 @@
+appId: com.example.app
+---
+- runFlow:
+    commands:
+      - repeat:
+          label: "Tap button while Value 0 is visible (with timeout)"
+          while:
+            visible:
+              text: "Value 0"
+          commands:
+            - tapOn:
+                text: "Button"

@@ -1,9 +1,12 @@
 package maestro.cli.cloud
 
 import maestro.cli.CliError
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
-import maestro.cli.api.DeviceInfo
+import maestro.cli.api.OrgResponse
+import maestro.cli.api.ProjectResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -15,18 +18,31 @@ import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
-import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.TimeUtils
 import maestro.cli.util.WorkspaceUtils
 import maestro.cli.view.ProgressBar
+import com.github.ajalt.mordant.terminal.Terminal
+import com.github.ajalt.mordant.input.interactiveSelectList
+import maestro.cli.analytics.CloudRunFinishedEvent
+import maestro.cli.analytics.CloudUploadSucceededEvent
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
+import maestro.cli.view.cyan
+import maestro.cli.view.render
+import maestro.cli.promotion.PromotionStateManager
+import maestro.orchestra.validation.AppMetadataAnalyzer
+import maestro.orchestra.validation.AppMetadata
 import maestro.cli.web.WebInteractor
+import maestro.orchestra.validation.AppValidationException
+import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.WorkspaceValidationException
+import maestro.orchestra.validation.WorkspaceValidator
+import maestro.device.DeviceSpec
+import maestro.device.DeviceSpecRequest
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -37,10 +53,17 @@ import java.io.File
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.String
 import kotlin.io.path.absolute
+import kotlin.time.Duration.Companion.milliseconds
+
+val terminalStatuses = listOf(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
 
 class CloudInteractor(
     private val client: ApiClient,
+    private val appFileValidator: (File) -> AppMetadata?,
+    private val workspaceValidator: WorkspaceValidator,
+    private val webManifestProvider: (() -> File?)? = null,
     private val auth: Auth = Auth(client),
     private val waitTimeoutMs: Long = TimeUnit.MINUTES.toMillis(30),
     private val minPollIntervalMs: Long = TimeUnit.SECONDS.toMillis(10),
@@ -61,8 +84,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -75,16 +96,33 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidApiLevel: Int? = null,
+        iOSVersion: String? = null,
     ): Int {
-        if (projectId == null) throw CliError("Missing required parameter '--project-id'")
-        if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
 
-        val authToken = auth.getAuthToken(apiKey)
-        if (authToken == null) throw CliError("Failed to get authentication token")
+        // In case apiKey is provided use that, else fallback to signIn and org Selection
+        val authToken: String = auth.getAuthToken(apiKey, triggerSignIn = false) ?:
+          selectOrganization(auth.getAuthToken(apiKey, triggerSignIn = true) ?:
+          throw CliError("Failed to get authentication token"))
 
+        // Fetch and select project if not provided
+        val selectedProjectId = projectId ?: selectProject(authToken)
+
+        // Record cloud command usage for promotion message suppression
+        PromotionStateManager().recordCloudCommandUsage()
+
+        // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
+        Analytics.trackEvent(CloudUploadTriggeredEvent(
+            projectId = selectedProjectId,
+            isBinaryUpload = appBinaryId != null,
+            usesEnvironment = env.isNotEmpty(),
+            deviceModel = deviceModel,
+            deviceOs = deviceOs
+        ))
+      
         PrintUtils.message("Uploading Flow(s)...")
 
         TemporaryDirectory.use { tmpDir ->
@@ -94,6 +132,38 @@ class CloudInteractor(
 
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
+
+            // Validate app and resolve platform
+            // When appBinaryId is provided, skip CLI-side validation — the server validates
+            if (appBinaryId == null) {
+                val appValidator = AppValidator(
+                    appFileValidator = appFileValidator,
+                    webManifestProvider = webManifestProvider,
+                    iosMinOSVersionProvider = { file ->
+                        val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
+                        val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
+                        AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
+                    },
+                )
+                val resolvedAppValidation = try {
+                    appValidator.validate(appFile = appFileToSend, appBinaryId = null)
+                } catch (e: AppValidationException) {
+                    throw CliError(e.message ?: "App validation failed")
+                }
+
+                // Validate workspace against appId before uploading to catch errors early
+                try {
+                    workspaceValidator.validate(
+                        workspace = workspaceZip.toFile(),
+                        appId = resolvedAppValidation.appIdentifier,
+                        env = env,
+                        includeTags = includeTags,
+                        excludeTags = excludeTags,
+                    )
+                } catch (e: WorkspaceValidationException) {
+                    throw CliError(e.message ?: "Workspace validation failed")
+                }
+            }
 
             val response = client.upload(
                 authToken = authToken,
@@ -107,27 +177,39 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
-                deviceLocale = deviceLocale,
-                projectId = projectId,
+                projectId = selectedProjectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
+                deviceLocale = deviceLocale,
                 deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceOs = deviceOs,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
             )
 
-            val project = requireNotNull(projectId)
+            // Track finish after upload completion
+            val platform = response.deviceConfiguration?.platform?.lowercase() ?: "unknown"
+            Analytics.trackEvent(CloudUploadSucceededEvent(
+                projectId = selectedProjectId,
+                platform = platform,
+                isBinaryUpload = appBinaryId != null,
+                usesEnvironment = env.isNotEmpty(),
+                deviceModel = deviceModel,
+                deviceOs = deviceOs
+            ))
+
+            val project = requireNotNull(selectedProjectId)
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
                 if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
-            return printMaestroCloudResponse(
+
+            val uploadResponse = printMaestroCloudResponse(
                 async,
                 authToken,
                 failOnCancellation,
@@ -139,9 +221,121 @@ class CloudInteractor(
                 appId,
                 response.appBinaryId,
                 response.uploadId,
-                projectId,
+                selectedProjectId,
             )
+
+            Analytics.trackEvent(CloudRunFinishedEvent(
+                projectId = selectedProjectId,
+                totalFlows = uploadResponse.flows.size,
+                totalPassedFlows = uploadResponse.flows.count { it.status == FlowStatus.SUCCESS },
+                totalFailedFlows = uploadResponse.flows.count { it.status == FlowStatus.ERROR },
+                appPackageId = uploadResponse.appPackageId ?: "",
+                wasAppLaunched = uploadResponse.wasAppLaunched
+            ))
+
+            Analytics.flush()
+            
+            return when (uploadResponse.status) {
+                UploadStatus.Status.SUCCESS -> 0
+                UploadStatus.Status.ERROR -> 1
+                UploadStatus.Status.CANCELED -> if (failOnCancellation) 1 else 0
+                UploadStatus.Status.STOPPED -> 1
+                else -> 1
+            }
         }
+    }
+
+    private fun selectProject(authToken: String): String {
+        val projects = try {
+            client.getProjects(authToken)
+        } catch (e: ApiClient.ApiException) {
+            throw CliError("Failed to fetch projects. Status code: ${e.statusCode}")
+        } catch (e: Exception) {
+            throw CliError("Failed to fetch projects: ${e.message}")
+        }
+
+        if (projects.isEmpty()) {
+            throw CliError("No projects found. Please create a project first at https://console.mobile.dev")
+        }
+
+        return when (projects.size) {
+            1 -> {
+                val project = projects.first()
+                PrintUtils.info("Using project: ${project.name} (${project.id})")
+                project.id
+            }
+            else -> {
+                val selectedProject = pickProject(projects)
+                PrintUtils.info("Selected project: ${selectedProject.name} (${selectedProject.id})")
+                selectedProject.id
+            }
+        }
+    }
+
+    fun pickProject(projects: List<ProjectResponse>): ProjectResponse {
+        val terminal = Terminal()
+        val choices = projects.map { "${it.name} (${it.id})" }
+        
+        val selection = terminal.interactiveSelectList(
+            choices,
+            title = "Multiple projects found. Please select one (Bypass this prompt by using --project-id=<>):"
+        )
+        
+        if (selection == null) {
+            terminal.println("No project selected")
+            throw CliError("Project selection was cancelled")
+        }
+        
+        val selectedIndex = choices.indexOf(selection)
+        return projects[selectedIndex]
+    }
+
+    private fun selectOrganization(authToken: String): String {
+        val orgs = try {
+            client.getOrgs(authToken)
+        } catch (e: ApiClient.ApiException) {
+            throw CliError("Failed to fetch organizations. Status code: ${e.statusCode}")
+        } catch (e: Exception) {
+            throw CliError("Failed to fetch organizations: ${e.message}")
+        }
+
+        return when (orgs.size) {
+            1 -> {
+                val org = orgs.first()
+                PrintUtils.message("Using organization: ${org.name} (${org.id})")
+                authToken
+            }
+            else -> {
+                val selectedOrg = pickOrganization(orgs)
+                PrintUtils.info("Selected organization: ${selectedOrg.name} (${selectedOrg.id})")
+                // Switch to the selected organization to get org-scoped token
+                try {
+                    client.switchOrg(authToken, selectedOrg.id)
+                } catch (e: ApiClient.ApiException) {
+                    throw CliError("Failed to switch to organization. Status code: ${e.statusCode}")
+                } catch (e: Exception) {
+                    throw CliError("Failed to switch to organization: ${e.message}")
+                }
+            }
+        }
+    }
+
+    fun pickOrganization(orgs: List<OrgResponse>): OrgResponse {
+        val terminal = Terminal()
+        val choices = orgs.map { "${it.name} (${it.id})" }
+        
+        val selection = terminal.interactiveSelectList(
+            choices,
+            title = "Multiple organizations found. Please select one (Bypass this prompt by using --api-key=<>):",
+        )
+        
+        if (selection == null) {
+            terminal.println("No organization selected")
+            throw CliError("Organization selection was cancelled")
+        }
+        
+        val selectedIndex = choices.indexOf(selection)
+        return orgs[selectedIndex]
     }
 
     private fun getAppFile(
@@ -184,29 +378,38 @@ class CloudInteractor(
         appBinaryIdResponse: String?,
         uploadId: String,
         projectId: String
-    ): Int {
+    ): UploadStatus {
         if (async) {
             PrintUtils.message("✅ Upload successful!")
 
             println(deviceInfoMessage)
-            PrintUtils.message("View the results of your upload below:")
-            PrintUtils.message(uploadUrl)
+            PrintUtils.info("View the results of your upload below:")
+            PrintUtils.info(uploadUrl.cyan())
 
-            if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
+            if (appBinaryIdResponse != null) PrintUtils.info("App binary id: ${appBinaryIdResponse.cyan()}\n")
 
-            return 0
-        } else {
-
-            println(deviceInfoMessage)
-
-            PrintUtils.message(
-                "Visit the web console for more details about the upload: $uploadUrl"
+            // Return a simple UploadStatus for async case
+            return UploadStatus(
+                uploadId = uploadId,
+                status = UploadStatus.Status.SUCCESS,
+                completed = true,
+                totalTime = null,
+                startTime = null,
+                flows = emptyList(),
+                appPackageId = null,
+                wasAppLaunched = false,
             )
-
-            if (appBinaryIdResponse != null) PrintUtils.message("App binary id: $appBinaryIdResponse")
-
-            PrintUtils.message("Waiting for analyses to complete...")
+        } else {
+            println(deviceInfoMessage)
+            
+            // Print the upload URL
+            PrintUtils.info("Visit Maestro Cloud for more details about this upload:")
+            PrintUtils.info(uploadUrl.cyan())
             println()
+
+            if (appBinaryIdResponse != null) PrintUtils.info("App binary id: ${appBinaryIdResponse.cyan()}\n")
+
+            PrintUtils.info("Waiting for runs to be completed...")
 
             return waitForCompletion(
                 authToken = authToken,
@@ -224,23 +427,24 @@ class CloudInteractor(
 
     private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
+        PrintUtils.info("\n")
 
         val version = deviceConfiguration.osVersion
         val lines = listOf(
-            "Maestro cloud device specs:\n* ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}",
-            "To change OS version use this option: ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}",
-            "To change devices use this option: --device-model=<device_model>",
-            "To change device locale use this option: --device-locale=<device_locale>",
-            "To create a similar device locally, run: `maestro start-device --platform=${
+            "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
+            "To change OS version use this option: @|magenta --device-os=<version>|@",
+            "To change devices use this option: @|magenta --device-model=<device_model>|@",
+            "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
+            "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
-        return lines.joinToString("\n\n").box()
+        return lines.joinToString("\n").render().box()
     }
 
 
-    private fun waitForCompletion(
+    internal fun waitForCompletion(
         authToken: String,
         uploadId: String,
         appId: String,
@@ -250,15 +454,15 @@ class CloudInteractor(
         testSuiteName: String?,
         uploadUrl: String,
         projectId: String?
-    ): Int {
+    ): UploadStatus {
         val startTime = System.currentTimeMillis()
-
-        val runningFlows = RunningFlows()
 
         var pollingInterval = minPollIntervalMs
         var retryCounter = 0
+        val printedFlows = mutableSetOf<UploadStatus.FlowResult>()
+
         do {
-            val upload = try {
+            val upload: UploadStatus = try {
                 client.uploadStatus(authToken, uploadId, projectId)
             } catch (e: ApiClient.ApiException) {
                 if (e.statusCode == 429) {
@@ -279,44 +483,28 @@ class CloudInteractor(
                 throw CliError("Failed to fetch the status of an upload $uploadId. Status code = ${e.statusCode}")
             }
 
-            val flows = upload.flows
-            for (uploadFlowResult in flows) {
-                if (runningFlows.flows.none { it.name == uploadFlowResult.name }) {
-                    runningFlows.flows.add(RunningFlow(name = uploadFlowResult.name))
-                }
-                val runningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name } ?: continue
-                runningFlow.status = uploadFlowResult.status
-                when (runningFlow.status) {
-                    FlowStatus.PENDING -> { /* do nothing */
-                    }
+            for (uploadFlowResult in upload.flows) {
+                if(printedFlows.contains(uploadFlowResult)) { continue }
+                if(!terminalStatuses.contains(uploadFlowResult.status)) { continue }
 
-                    FlowStatus.RUNNING -> {
-                        if (runningFlow.startTime == null) {
-                            runningFlow.startTime = System.currentTimeMillis()
-                        }
-                    }
-
-                    else -> {
-                        if (runningFlow.duration == null) {
-                            runningFlow.duration = TimeUtils.durationInSeconds(
-                                startTimeInMillis = runningFlow.startTime,
-                                endTimeInMillis = System.currentTimeMillis()
-                            )
-                        }
-                        if (!runningFlow.reported) {
-                            TestSuiteStatusView.showFlowCompletion(
-                                uploadFlowResult.toViewModel(runningFlow.duration)
-                            )
-                            runningFlow.reported = true
-                        }
-                    }
-                }
+                printedFlows.add(uploadFlowResult);
+                TestSuiteStatusView.showFlowCompletion(
+                  uploadFlowResult.toViewModel()
+                )
             }
 
             if (upload.completed) {
-                runningFlows.duration = TimeUtils.durationInSeconds(
-                    startTimeInMillis = startTime,
-                    endTimeInMillis = System.currentTimeMillis()
+                val runningFlows = RunningFlows(
+                    flows = upload.flows.map { flowResult ->
+                        RunningFlow(
+                            flowResult.name,
+                            flowResult.status,
+                            duration = flowResult.totalTime?.milliseconds,
+                            startTime = flowResult.startTime
+                        )
+                    },
+                    duration = upload.totalTime?.milliseconds,
+                    startTime = upload.startTime
                 )
                 return handleSyncUploadCompletion(
                     upload = upload,
@@ -340,17 +528,29 @@ class CloudInteractor(
 
         PrintUtils.warn("* Follow the results of your upload here:\n$uploadUrl")
 
-
-        return if (failOnTimeout) {
+        if (failOnTimeout) {
             PrintUtils.message("Process will exit with code 1 (FAIL)")
             PrintUtils.message("* To change exit code on Timeout, run maestro with this option: `maestro cloud --fail-on-timeout=<true|false>`")
-
-            1
         } else {
             PrintUtils.message("Process will exit with code 0 (SUCCESS)")
             PrintUtils.message("* To change exit code on Timeout, run maestro with this option: `maestro cloud --fail-on-timeout=<true|false>`")
+        }
 
-            0
+        // Fetch the latest upload status before returning
+        return try {
+            client.uploadStatus(authToken, uploadId, projectId)
+        } catch (e: Exception) {
+            // If we can't fetch the latest status, return a timeout status
+            UploadStatus(
+                uploadId = uploadId,
+                status = UploadStatus.Status.ERROR,
+                completed = false,
+                totalTime = null,
+                startTime = null,
+                flows = emptyList(),
+                appPackageId = null,
+                wasAppLaunched = false,
+            )
         }
     }
 
@@ -363,7 +563,7 @@ class CloudInteractor(
         reportOutput: File?,
         testSuiteName: String?,
         uploadUrl: String,
-    ): Int {
+    ): UploadStatus {
         TestSuiteStatusView.showSuiteResult(
             upload.toViewModel(
                 TestSuiteStatusView.TestSuiteViewModel.UploadDetails(
@@ -400,19 +600,19 @@ class CloudInteractor(
         }
 
 
-        return if (!failed) {
+        if (!failed) {
             PrintUtils.message("Process will exit with code 0 (SUCCESS)")
             if (isCancelled) {
                 PrintUtils.message("* To change exit code on Cancellation, run maestro with this option: `maestro cloud --fail-on-cancellation=<true|false>`")
             }
-            0
         } else {
             PrintUtils.message("Process will exit with code 1 (FAIL)")
             if (isCancelled && !containsFailure) {
                 PrintUtils.message("* To change exit code on cancellation, run maestro with this option: `maestro cloud --fail-on-cancellation=<true|false>`")
             }
-            1
         }
+
+        return upload
     }
 
     private fun saveReport(
@@ -441,15 +641,18 @@ class CloudInteractor(
             passed = passed,
             flows = upload.flows.map { uploadFlowResult ->
                 val failure = uploadFlowResult.errors.firstOrNull()
+                val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
                     status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
-                    duration = runningFlows.flows.find { it.name == uploadFlowResult.name }?.duration
+                    duration = currentRunningFlow?.duration,
+                    startTime = currentRunningFlow?.startTime
                 )
             },
-            duration = runningFlows.duration
+            duration = runningFlows.duration,
+            startTime = runningFlows.startTime
         )
     }
 

@@ -5,48 +5,52 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
 import maestro.DeviceInfo
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.OnDeviceElementQuery
-import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
+import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
 import org.openqa.selenium.WebDriver
+import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeDriverService
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v130.emulation.Emulation
+import org.openqa.selenium.devtools.v144.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.interactions.Sequence
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
 import java.time.Duration
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
 
 
-private const val SYNTHETHIC_COORDINATE_SPACE_OFFSET = 100000
+private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 
 class CdpWebDriver(
     val isStudio: Boolean,
-    private val isHeadless: Boolean = false
+    private val isHeadless: Boolean = false,
+    private val screenSize: String?
 ) : Driver {
 
     private lateinit var cdpClient: CdpClient
@@ -105,10 +109,26 @@ class CdpWebDriver(
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
+
+                // Disable password management
+                addArguments("--password-store=basic")
+                val chromePrefs = hashMapOf<String, Any>(
+                    "credentials_enable_service" to false,
+                    "profile.password_manager_enabled" to false,
+                    "profile.password_manager_leak_detection" to false   // important one
+                )
+                setExperimentalOption("prefs", chromePrefs)
+
+                setExperimentalOption("detach", true)
+
                 if (isHeadless) {
                     addArguments("--headless=new")
-                    addArguments("--window-size=1024,768")
-                    setExperimentalOption("detach", true)
+                    if(screenSize != null){
+                        addArguments("--window-size=" + screenSize.replace('x',','))
+                    }
+                    else{
+                        addArguments("--window-size=1024,768")
+                    }
                 }
             }
         )
@@ -252,7 +272,9 @@ class CdpWebDriver(
             }
         }
 
-        val root = parseDomAsTreeNodes(contentDesc as Map<String, Any>)
+        val rawMap = contentDesc as Map<String, Any>
+        val enrichedMap = injectCrossOriginIframes(rawMap)
+        val root = parseDomAsTreeNodes(enrichedMap)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
         }
@@ -304,7 +326,34 @@ class CdpWebDriver(
     }
 
     override fun clearAppState(appId: String) {
-        // Do nothing
+        ensureOpen()
+
+        val origin = try {
+            val uri = URI(appId)
+            if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+                null
+            } else if (uri.port == -1) {
+                "${uri.scheme}://${uri.host}"
+            } else {
+                "${uri.scheme}://${uri.host}:${uri.port}"
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to parse origin from $appId", e)
+            null
+        }
+
+        if (origin == null) {
+            return
+        }
+
+        try {
+            runBlocking {
+                val target = cdpClient.listTargets().first()
+                cdpClient.clearDataForOrigin(origin, "all", target)
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to clear browser data for $origin", e)
+        }
     }
 
     override fun clearKeychain() {
@@ -314,7 +363,7 @@ class CdpWebDriver(
     override fun tap(point: Point) {
         val driver = ensureOpen()
 
-        if (point.x >= SYNTHETHIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETHIC_COORDINATE_SPACE_OFFSET) {
+        if (point.x >= SYNTHETIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETIC_COORDINATE_SPACE_OFFSET) {
             tapOnSyntheticCoordinateSpace(point)
             return
         }
@@ -366,12 +415,8 @@ class CdpWebDriver(
     }
 
     override fun pressKey(code: KeyCode) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
         val key = mapToSeleniumKey(code)
-        element.sendKeys(key)
+        withActiveElement { it.sendKeys(key) }
     }
 
     private fun mapToSeleniumKey(code: KeyCode): Keys {
@@ -383,7 +428,16 @@ class CdpWebDriver(
     }
 
     override fun scrollVertical() {
-        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        // Check if this is a Flutter web app
+        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Use Flutter-specific smooth animated scrolling
+            executeJS("window.maestro.smoothScrollFlutter('UP', 500)")
+        } else {
+            // Use standard scroll for regular web pages
+            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -417,11 +471,19 @@ class CdpWebDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        when (swipeDirection) {
-            SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-            SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Use smooth animated scrolling with easing
+            executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
+        } else {
+            // HTML web: Use standard window scrolling
+            when (swipeDirection) {
+                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+            }
         }
     }
 
@@ -436,13 +498,11 @@ class CdpWebDriver(
     }
 
     override fun inputText(text: String) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
-        for (c in text.toCharArray()) {
-            element.sendKeys("$c")
-            sleep(random(20, 100).toLong())
+        withActiveElement { element ->
+            for (c in text.toCharArray()) {
+                element.sendKeys("$c")
+                sleep(random(20, 100).toLong())
+            }
         }
     }
 
@@ -490,7 +550,11 @@ class CdpWebDriver(
             Emulation.setGeolocationOverride(
                 Optional.of(latitude),
                 Optional.of(longitude),
-                Optional.of(0.0)
+                Optional.of(0.0),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty()
             )
         )
     }
@@ -500,15 +564,12 @@ class CdpWebDriver(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        val driver = ensureOpen()
-
-        val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
-        val element = driver.findElement(By.ByXPath(xPath))
-        for (i in 0 until charactersToErase) {
-            element.sendKeys(Keys.BACK_SPACE)
-            sleep(random(20, 50).toLong())
+        withActiveElement { element ->
+            for (i in 0 until charactersToErase) {
+                element.sendKeys(Keys.BACK_SPACE)
+                sleep(random(20, 50).toLong())
+            }
         }
-
         sleep(1000)
     }
 
@@ -585,6 +646,118 @@ class CdpWebDriver(
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun injectCrossOriginIframes(node: Map<String, Any>): Map<String, Any> {
+        val attrs = node["attributes"] as Map<String, Any>
+        val iframeSrc = attrs["__crossOriginIframe"] as? String
+
+        if (iframeSrc != null) {
+            val iframeContent = fetchCrossOriginIframeContent(iframeSrc)
+            if (iframeContent != null) return iframeContent
+            val cleanAttrs = attrs - "__crossOriginIframe"
+            return mapOf("attributes" to cleanAttrs, "children" to emptyList<Any>())
+        }
+
+        val children = (node["children"] as List<Map<String, Any>>)
+            .map { injectCrossOriginIframes(it) }
+        return mapOf("attributes" to attrs, "children" to children)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun fetchCrossOriginIframeContent(iframeSrc: String): Map<String, Any>? {
+        val driver = seleniumDriver ?: return null
+        val jsExecutor = driver as? JavascriptExecutor ?: return null
+
+        // Find the iframe element by its resolved src property (absolute URL)
+        val iframeElement = try {
+            jsExecutor.executeScript(
+                "return [...document.querySelectorAll('iframe')].find(f => f.src === arguments[0]);",
+                iframeSrc
+            ) as? WebElement
+        } catch (e: Exception) {
+            LOGGER.warn("Could not find iframe element with src $iframeSrc", e)
+            return null
+        } ?: run {
+            LOGGER.warn("No iframe element found with src $iframeSrc")
+            return null
+        }
+
+        // Get the iframe's scaled viewport params (accounts for parent viewportWidth/Height scaling)
+        val paramsJson = try {
+            jsExecutor.executeScript(
+                "return JSON.stringify(window.maestro.getIframeViewportParams(arguments[0]));",
+                iframeSrc
+            ) as? String
+        } catch (e: Exception) {
+            LOGGER.warn("Could not get viewport params for iframe $iframeSrc", e)
+            return null
+        } ?: return null
+
+        val params = jacksonObjectMapper().readValue(paramsJson, Map::class.java) as Map<String, Any>
+        val iframeX = (params["viewportX"]      as? Number)?.toDouble() ?: 0.0
+        val iframeY = (params["viewportY"]      as? Number)?.toDouble() ?: 0.0
+        val iframeW = (params["viewportWidth"]  as? Number)?.toDouble() ?: 0.0
+        val iframeH = (params["viewportHeight"] as? Number)?.toDouble() ?: 0.0
+
+        // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame()
+        driver.switchTo().frame(iframeElement)
+        return try {
+            val resultJson = jsExecutor.executeScript("""
+                $maestroWebScript
+                window.maestro.viewportX = $iframeX;
+                window.maestro.viewportY = $iframeY;
+                window.maestro.viewportWidth = $iframeW;
+                window.maestro.viewportHeight = $iframeH;
+                return JSON.stringify(window.maestro.getContentDescription());
+            """.trimIndent()) as? String ?: return null
+            jacksonObjectMapper().readValue(resultJson, Map::class.java) as? Map<String, Any>
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to get content description from cross-origin iframe $iframeSrc", e)
+            null
+        } finally {
+            try { driver.switchTo().defaultContent() }
+            catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+        }
+    }
+
+    /**
+     * Locates the truly focused element, even when it lives inside a cross-origin iframe.
+     *
+     * When the user taps inside a cross-origin iframe the main frame's
+     * `document.activeElement` is the `<iframe>` element itself.  This helper
+     * detects that case, switches Selenium into the iframe, resolves the real
+     * active element there, runs [action], and switches back to the default
+     * content so subsequent commands target the main frame again.
+     */
+    private fun withActiveElement(action: (WebElement) -> Unit) {
+        val driver = ensureOpen()
+        val jsExecutor = driver as JavascriptExecutor
+
+        val isIframeFocused = jsExecutor.executeScript(
+            "return document.activeElement && document.activeElement.tagName.toLowerCase() === 'iframe'"
+        ) as? Boolean ?: false
+
+        if (isIframeFocused) {
+            val iframe = jsExecutor.executeScript("return document.activeElement") as WebElement
+            driver.switchTo().frame(iframe)
+            try {
+                jsExecutor.executeScript("$maestroWebScript")
+                val xPath = jsExecutor.executeScript(
+                    "return window.maestro.createXPathFromElement(document.activeElement)"
+                ) as String
+                val element = driver.findElement(By.ByXPath(xPath))
+                action(element)
+            } finally {
+                try { driver.switchTo().defaultContent() }
+                catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+            }
+        } else {
+            val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
+            val element = driver.findElement(By.ByXPath(xPath))
+            action(element)
+        }
+    }
+
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
@@ -594,7 +767,7 @@ class CdpWebDriver(
 }
 
 fun main() {
-    val driver = CdpWebDriver(isStudio = false)
+    val driver = CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null)
     driver.open()
 
     try {

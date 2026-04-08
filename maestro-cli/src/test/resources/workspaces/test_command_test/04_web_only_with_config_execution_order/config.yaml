@@ -1,0 +1,9 @@
+flows:
+  - 'subFolder/*'
+excludeTags:
+  - tagNameToExclude
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - mobileflow
+    - mobileflow2

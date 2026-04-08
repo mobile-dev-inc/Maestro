@@ -1,0 +1,6 @@
+appId: com.example.test
+---
+- tapOn:
+    width: 200
+    height: 50
+    point: 50%, 50%

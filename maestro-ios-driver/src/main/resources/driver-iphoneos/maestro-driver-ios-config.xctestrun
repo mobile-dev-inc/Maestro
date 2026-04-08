@@ -43,8 +43,18 @@
 		<dict>
 			<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
 			<string>com.apple.AppStore</string>
+			<key>DYLD_INSERT_LIBRARIES</key>
+			<string>/usr/lib/libRPAC.dylib</string>
 			<key>OS_ACTIVITY_DT_MODE</key>
 			<string>YES</string>
+			<key>PERFC_ENABLE_EXTENDED_DIAGNOSTIC_FORMAT</key>
+			<string>1</string>
+			<key>PERFC_ENABLE_PROFILE_MODE</key>
+			<string>1</string>
+			<key>PERFC_RESET_INSERT_LIBRARIES</key>
+			<string>1</string>
+			<key>PERFC_SUPPRESS_SYSTEM_REPORTS</key>
+			<string>1</string>
 			<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
 			<string>1</string>
 			<key>TERM</key>
@@ -63,7 +73,7 @@
 		<key>SkipTestIdentifiers</key>
 		<array>
 			<string>ViewHierarchyHandlerTests</string>
-			<string>ViewHierarchyHandlerTests/testViewHierarchyHandlerReturnsNonEmptyHierarchy</string>
+			<string>ViewHierarchyHandlerTests/testViewHierarchyHandlerReturnsNonEmptyHierarchy()</string>
 		</array>
 		<key>SystemAttachmentLifetime</key>
 		<string>deleteOnSuccess</string>
@@ -80,7 +90,14 @@
 		<key>TestTimeoutsEnabled</key>
 		<false/>
 		<key>TestingEnvironmentVariables</key>
-		<dict/>
+		<dict>
+			<key>DYLD_INSERT_LIBRARIES</key>
+			<string>/usr/lib/libRPAC.dylib</string>
+			<key>PERFC_SUPPRESS_SYSTEM_REPORTS</key>
+			<string>1</string>
+			<key>XCODE_SCHEME_NAME</key>
+			<string>maestro-driver-ios</string>
+		</dict>
 		<key>ToolchainsSettingValue</key>
 		<array/>
 		<key>UITargetAppCommandLineArguments</key>
@@ -89,9 +106,13 @@
 		<dict>
 			<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
 			<string>com.apple.AppStore</string>
+			<key>XCODE_SCHEME_NAME</key>
+			<string>maestro-driver-ios</string>
 		</dict>
 		<key>UITargetAppPath</key>
 		<string>__TESTROOT__/Debug-iphoneos/maestro-driver-ios.app</string>
+		<key>UITargetAppPerformanceAntipatternCheckerEnabled</key>
+		<true/>
 		<key>UserAttachmentLifetime</key>
 		<string>deleteOnSuccess</string>
 	</dict>

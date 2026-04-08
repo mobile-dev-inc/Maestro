@@ -28,10 +28,12 @@ import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.FlowDebugOutput
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
+import maestro.cli.util.PrintUtils
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
 import org.slf4j.LoggerFactory
@@ -94,9 +96,12 @@ object MaestroCommandRunner {
         }
 
         refreshUi()
+
         if (analyze) {
             ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
         }
+
+        var commandSequenceNumber = 0
 
         val orchestra = Orchestra(
             maestro = maestro,
@@ -107,7 +112,8 @@ object MaestroCommandRunner {
                 commandStatuses[command] = CommandStatus.RUNNING
                 debugOutput.commands[command] = CommandDebugMetadata(
                     timestamp = System.currentTimeMillis(),
-                    status = CommandStatus.RUNNING
+                    status = CommandStatus.RUNNING,
+                    sequenceNumber = commandSequenceNumber++
                 )
 
                 refreshUi()
@@ -175,6 +181,8 @@ object MaestroCommandRunner {
             onCommandMetadataUpdate = { command, metadata ->
                 logger.info("${command.description()} metadata $metadata")
                 commandMetadata[command] = metadata
+                // Update debug output with evaluated command for interpolated labels
+                debugOutput.commands[command]?.evaluatedCommand = metadata.evaluatedCommand
                 refreshUi()
             },
             onCommandGeneratedOutput = { command, defects, screenshot ->
@@ -191,6 +199,13 @@ object MaestroCommandRunner {
         )
 
         val flowSuccess = orchestra.runFlow(commands)
+
+        // Warn users about deprecated Rhino JS engine
+        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
+        if (isRhinoExplicitlyRequested) {
+          PrintUtils.warn("⚠️  The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility. This warning will be removed in a future version.")
+        }        
+
         return flowSuccess
     }
 

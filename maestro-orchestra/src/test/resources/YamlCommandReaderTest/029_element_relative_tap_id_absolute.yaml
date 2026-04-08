@@ -1,0 +1,5 @@
+appId: com.example.test
+---
+- tapOn:
+    id: submit-btn
+    point: 25, 75

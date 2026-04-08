@@ -3,6 +3,8 @@ package maestro.cli.command
 import maestro.auth.ApiKey
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.UserLoggedOutEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import maestro.cli.util.PrintUtils.message
@@ -31,19 +33,13 @@ class LoginCommand : Callable<Int> {
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
     private val auth by lazy {
-        Auth(ApiClient("$apiUrl/v2"))
+        Auth(ApiClient(apiUrl))
     }
 
     override fun call(): Int {
+        Analytics.trackEvent(UserLoggedOutEvent())
+
         LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
-
-        val existingToken = ApiKey.getToken()
-
-        if (existingToken != null) {
-            message("Already logged in. Run \"maestro logout\" to logout.")
-            return 0
-        }
-
         val token = auth.triggerSignInFlow()
         println(token)
 

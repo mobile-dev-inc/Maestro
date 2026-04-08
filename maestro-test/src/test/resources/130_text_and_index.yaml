@@ -1,0 +1,5 @@
+appId: com.example.app
+---
+- assertNotVisible:
+    text: 'some_text'
+    index: 2

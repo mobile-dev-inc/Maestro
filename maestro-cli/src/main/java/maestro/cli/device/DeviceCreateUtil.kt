@@ -3,120 +3,103 @@ package maestro.cli.device
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
-
 import maestro.cli.CliError
 import maestro.cli.util.*
-import maestro.device.util.AvdDevice
+import maestro.device.DeviceSpec
 
 object DeviceCreateUtil {
 
     fun getOrCreateDevice(
-        platform: Platform,
-        osVersion: Int? = null,
-        language: String? = null,
-        country: String? = null,
+        deviceSpec: DeviceSpec,
         forceCreate: Boolean = false,
         shardIndex: Int? = null,
-    ): Device.AvailableForLaunch = when (platform) {
-        Platform.ANDROID -> getOrCreateAndroidDevice(osVersion, language, country, forceCreate, shardIndex)
-        Platform.IOS -> getOrCreateIosDevice(osVersion, language, country, forceCreate, shardIndex)
-        else -> throw CliError("Unsupported platform $platform. Please specify one of: android, ios")
+    ): Device.AvailableForLaunch = when (deviceSpec) {
+        is DeviceSpec.Android -> getOrCreateAndroidDevice(deviceSpec, forceCreate, shardIndex)
+        is DeviceSpec.Ios     -> getOrCreateIosDevice(deviceSpec, forceCreate, shardIndex)
+        is DeviceSpec.Web     -> Device.AvailableForLaunch(
+            platform = Platform.WEB,
+            description = "Chromium Desktop Browser (Experimental)",
+            modelId = deviceSpec.model,
+            deviceType = Device.DeviceType.BROWSER,
+            deviceSpec = deviceSpec,
+        )
     }
 
     fun getOrCreateIosDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec.Ios, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigIos.defaultVersion
-        if (version !in DeviceConfigIos.versions) {
-            throw CliError("Provided iOS version is not supported. Please use one of ${DeviceConfigIos.versions}")
-        }
-
-        val runtime = DeviceConfigIos.runtimes[version]
-        if (runtime == null) {
-            throw CliError("Provided iOS runtime is not supported $runtime")
-        }
-
-        val deviceName = DeviceConfigIos.generateDeviceName(version) + shardIndex?.let { "_${it + 1}" }.orEmpty()
-        val device = DeviceConfigIos.device
-
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
-            throw CliError("A device with name $deviceName is already connected")
+        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.IOS) != null && shardIndex == null && !forceCreate) {
+            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
         }
 
         // check existing device
-        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.IOS)?.let {
+        val existingDeviceId = DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.IOS)?.let {
             if (forceCreate) {
                 DeviceService.deleteIosDevice(it.modelId)
                 null
             } else it.modelId
         }
 
-        if (existingDeviceId != null) PrintUtils.message("Using existing device $deviceName (${existingDeviceId}).")
-        else PrintUtils.message("Attempting to create iOS simulator: $deviceName ")
+        if (existingDeviceId != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName} (${existingDeviceId}).")
+        else PrintUtils.message("Attempting to create iOS simulator: ${deviceSpec.deviceName} ")
 
+        val deviceUUID = existingDeviceId ?: try {
+            // To find the closest matching os: "iOS-18" -> "iOS-18-2", "iOS-17" -> "iOS-17-5"
+            val closestInstalledRuntime = DeviceService.listIOSDevices().firstOrNull {
+                it.deviceSpec.os.startsWith(deviceSpec.os)
+            }?.deviceSpec?.os ?: deviceSpec.os
 
-        val deviceUUID = try {
-            existingDeviceId ?: DeviceService.createIosDevice(deviceName, device, runtime).toString()
+            //  Start the device
+            DeviceService.createIosDevice(deviceSpec.deviceName, deviceSpec.model, closestInstalledRuntime).toString()
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {
                 val msg = """
-                    Required runtime to create the simulator is not installed: $runtime
-                    
+                    Required runtime to create the simulator is not installed: ${deviceSpec.os}
+
                     To install additional iOS runtimes checkout this guide:
                     * https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
                 """.trimIndent()
                 throw CliError(msg)
+            } else if (error.contains("xcrun: error: unable to find utility \"simctl\"")) {
+                val msg = """
+                    The xcode-select CLI tools are not installed, install with xcode-select --install
+
+                    If the xcode-select CLI tools are already installed, the path may be broken. Try
+                    running sudo xcode-select -r to repair the path and re-run this command
+                """.trimIndent()
+                throw CliError(msg)
             } else if (error.contains("Invalid device type")) {
-                throw CliError("Device type $device is either not supported or not found.")
+                throw CliError("Device type ${deviceSpec.model} is either not supported or not found.")
             } else {
                 throw CliError(error)
             }
         }
 
-        if (existingDeviceId == null) PrintUtils.message("Created simulator with name $deviceName and UUID $deviceUUID")
+        if (existingDeviceId == null) PrintUtils.message("Created simulator with name ${deviceSpec.deviceName} and UUID $deviceUUID")
 
         return Device.AvailableForLaunch(
             modelId = deviceUUID,
-            description = deviceName,
+            description = deviceSpec.deviceName,
             platform = Platform.IOS,
-            language = language,
-            country = country,
-            deviceType = Device.DeviceType.SIMULATOR
+            deviceType = Device.DeviceType.SIMULATOR,
+            deviceSpec = deviceSpec,
         )
-
     }
 
     fun getOrCreateAndroidDevice(
-        version: Int?, language: String?, country: String?, forceCreate: Boolean, shardIndex: Int? = null
+        deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        @Suppress("NAME_SHADOWING") val version = version ?: DeviceConfigAndroid.defaultVersion
-        if (version !in DeviceConfigAndroid.versions) {
-            throw CliError("Provided Android version is not supported. Please use one of ${DeviceConfigAndroid.versions}")
-        }
-
-        val architecture = EnvUtils.getMacOSArchitecture()
-        val pixels = DeviceService.getAvailablePixelDevices()
-        val pixel = DeviceConfigAndroid.choosePixelDevice(pixels) ?: AvdDevice("-1", "Pixel 6", "pixel_6")
-
-        val config = try {
-            DeviceConfigAndroid.createConfig(version, pixel, architecture)
-        } catch (e: IllegalStateException) {
-            throw CliError(e.message ?: "Unable to create android device config")
-        }
-
-        val systemImage = config.systemImage
-        val deviceName = config.deviceName + shardIndex?.let { "_${it + 1}" }.orEmpty()
-
+        val systemImage = deviceSpec.emulatorImage
         // check connected device
-        if (DeviceService.isDeviceConnected(deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
-            throw CliError("A device with name $deviceName is already connected")
+        if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
+            throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
 
         // existing device
         val existingDevice =
             if (forceCreate) null
-            else DeviceService.isDeviceAvailableToLaunch(deviceName, Platform.ANDROID)?.modelId
+            else DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.ANDROID)?.modelId
 
         // dependencies
         if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {
@@ -142,32 +125,30 @@ object DeviceCreateUtil {
             }
         }
 
-        if (existingDevice != null) PrintUtils.message("Using existing device $deviceName.")
-        else PrintUtils.message("Attempting to create Android emulator: $deviceName ")
+        if (existingDevice != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName}.")
+        else PrintUtils.message("Attempting to create Android emulator: ${deviceSpec.deviceName} ")
 
         val deviceLaunchId = try {
             existingDevice ?: DeviceService.createAndroidDevice(
-                deviceName = config.deviceName,
-                device = config.device,
-                systemImage = config.systemImage,
-                tag = config.tag,
-                abi = config.abi,
+                deviceName = deviceSpec.deviceName,
+                device = deviceSpec.model,
+                systemImage = systemImage,
+                tag = deviceSpec.tag,
+                abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
-                shardIndex = shardIndex,
             )
         } catch (e: IllegalStateException) {
             throw CliError("${e.message}")
         }
 
-        if (existingDevice == null) PrintUtils.message("Created Android emulator: $deviceName ($systemImage)")
+        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} ($systemImage)")
 
         return Device.AvailableForLaunch(
             modelId = deviceLaunchId,
             description = deviceLaunchId,
             platform = Platform.ANDROID,
-            language = language,
-            country = country,
             deviceType = Device.DeviceType.EMULATOR,
+            deviceSpec = deviceSpec,
         )
     }
 }

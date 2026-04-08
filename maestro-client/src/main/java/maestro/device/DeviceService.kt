@@ -6,43 +6,48 @@ import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
-import maestro.utils.LocaleUtils
+import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
+import maestro.utils.TempFileHandler
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
 import util.DeviceCtlResponse
+import util.LocalIOSDevice
+import util.LocalSimulatorUtils
+import util.SimctlList
 import java.io.File
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
+data class AvdInfo(val name: String, val model: String, val os: String)
+
 object DeviceService {
     private val logger = LoggerFactory.getLogger(DeviceService::class.java)
+
+    private val tempFileHandler = TempFileHandler()
+    private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
 
     fun startDevice(
         device: Device.AvailableForLaunch,
         driverHostPort: Int?,
         connectedDevices: Set<String> = setOf()
     ): Device.Connected {
-        when (device.platform) {
+        when (device.deviceSpec.platform) {
             Platform.IOS -> {
+                PrintUtils.message("Launching Simulator...")
                 try {
-                    util.LocalSimulatorUtils.bootSimulator(device.modelId)
-                    if (device.language != null && device.country != null) {
-                        PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
-                        util.LocalSimulatorUtils.setDeviceLanguage(device.modelId, device.language)
-                        LocaleUtils.findIOSLocale(device.language, device.country)?.let {
-                            util.LocalSimulatorUtils.setDeviceLocale(device.modelId, it)
-                        }
-                        util.LocalSimulatorUtils.reboot(device.modelId)
-                    }
-                    util.LocalSimulatorUtils.launchSimulator(device.modelId)
-                    util.LocalSimulatorUtils.awaitLaunch(device.modelId)
-                } catch (e: util.LocalSimulatorUtils.SimctlError) {
+                    localSimulatorUtils.bootSimulator(device.modelId)
+                    PrintUtils.message("Setting the device locale to ${device.deviceSpec.locale.code}...")
+                    localSimulatorUtils.setDeviceLanguage(device.modelId, device.deviceSpec.locale.languageCode)
+                    localSimulatorUtils.setDeviceLocale(device.modelId, device.deviceSpec.locale.code)
+                    localSimulatorUtils.reboot(device.modelId)
+                    localSimulatorUtils.launchSimulator(device.modelId)
+                    localSimulatorUtils.awaitLaunch(device.modelId)
+                } catch (e: LocalSimulatorUtils.SimctlError) {
                     logger.error("Failed to launch simulator", e)
                     throw DeviceError(e.message)
-
                 }
 
                 return Device.Connected(
@@ -50,10 +55,12 @@ object DeviceService {
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
 
             Platform.ANDROID -> {
+                PrintUtils.message("Launching Emulator...")
                 val emulatorBinary = requireEmulatorBinary()
 
                 ProcessBuilder(
@@ -64,56 +71,62 @@ object DeviceService {
                     "none",
                     "-netspeed",
                     "full"
-                ).start().waitFor(10,TimeUnit.SECONDS)
+                ).start().waitFor(10, TimeUnit.SECONDS)
+
+                var lastException: Exception? = null
 
                 val dadb = MaestroTimer.withTimeout(60000) {
                     try {
-                        Dadb.list().lastOrNull{ dadb ->
+                        Dadb.list().lastOrNull { dadb ->
                             !connectedDevices.contains(dadb.toString())
                         }
                     } catch (ignored: Exception) {
                         Thread.sleep(100)
+                        lastException = ignored
                         null
                     }
-                } ?: throw DeviceError("Unable to start device: ${device.modelId}")
+                } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
 
                 PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
                 while (!bootComplete(dadb)) {
                     Thread.sleep(1000)
                 }
 
-                if (device.language != null && device.country != null) {
-                    PrintUtils.message("Setting the device locale to ${device.language}_${device.country}...")
-                    val driver = AndroidDriver(dadb, driverHostPort)
-                    driver.installMaestroDriverApp()
-                    val result = driver.setDeviceLocale(
-                        country = device.country,
-                        language = device.language
-                    )
+                PrintUtils.message("Setting the device locale to ${device.deviceSpec.locale.code}...")
+                val driver = AndroidDriver(dadb, driverHostPort)
+                driver.installMaestroDriverApp()
+                val result = driver.setDeviceLocale(
+                    country = device.deviceSpec.locale.countryCode,
+                    language = device.deviceSpec.locale.languageCode,
+                )
 
-                    when (result) {
-                        SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.language}_${device.country}")
-                        SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.language}_${device.country}, the locale is not valid for a chosen device")
-                        SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.language}_${device.country}, exception during updating configuration occurred")
-                        else -> throw IllegalStateException("Failed to set locale ${device.language}_${device.country}, unknown exception happened")
-                    }
-                    driver.uninstallMaestroDriverApp()
+                when (result) {
+                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.deviceSpec.locale.code}...")
+                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, the locale is not valid for a chosen device")
+                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, exception during updating configuration occurred")
+                    else -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, unknown exception happened")
                 }
+                driver.uninstallMaestroDriverApp()
 
                 return Device.Connected(
                     instanceId = dadb.toString(),
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
 
             Platform.WEB -> {
+                PrintUtils.message("Launching Web...")
+                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
+
                 return Device.Connected(
-                    instanceId = "",
+                    instanceId = "chromium",
                     description = "Chromium Web Browser",
                     platform = device.platform,
                     deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
                 )
             }
         }
@@ -152,15 +165,15 @@ object DeviceService {
                 platform = Platform.WEB,
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
-                deviceType = Device.DeviceType.BROWSER
+                deviceType = Device.DeviceType.BROWSER,
+                deviceSpec = DeviceSpec.fromRequest(DeviceSpecRequest.Web())
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
-                language = null,
-                country = null,
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
-                deviceType = Device.DeviceType.BROWSER
+                deviceType = Device.DeviceType.BROWSER,
+                deviceSpec = DeviceSpec.fromRequest(DeviceSpecRequest.Web())
             )
         )
     }
@@ -174,10 +187,17 @@ object DeviceService {
                     instanceId = dadb.toString(),
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = Device.DeviceType.EMULATOR
+                    deviceType = Device.DeviceType.EMULATOR,
+                    deviceSpec = DeviceSpec.fromRequest(
+                      DeviceSpecRequest.Android()
+                    )
                 )
             )
         }
+
+        // Fetch AVD info once (model + os) to avoid repeated avdmanager calls
+        val avdInfoList = fetchAndroidAvdInfo()
+
         val connected = runCatching {
             Dadb.list(host = host).map { dadb ->
                 val avdName = runCatching {
@@ -197,15 +217,19 @@ object DeviceService {
                 }.getOrNull()
 
                 val instanceId = dadb.toString()
-                val deviceType = when  {
+                val deviceType = when {
                     instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
                     else -> Device.DeviceType.REAL
                 }
+                val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName ?: "", model = "", os = "")
                 Device.Connected(
                     instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
-                    deviceType = deviceType
+                    deviceType = deviceType,
+                    deviceSpec = DeviceSpec.fromRequest(
+                        DeviceSpecRequest.Android()
+                    ),
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -220,14 +244,16 @@ object DeviceService {
                 .bufferedReader()
                 .useLines { lines ->
                     lines
-                        .map {
+                        .map { avdName ->
+                            val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName, model = "", os = "")
                             Device.AvailableForLaunch(
-                                modelId = it,
-                                description = it,
+                                modelId = avdName,
+                                description = avdName,
                                 platform = Platform.ANDROID,
-                                language = null,
-                                country = null,
-                                deviceType = Device.DeviceType.EMULATOR
+                                deviceType = Device.DeviceType.EMULATOR,
+                                deviceSpec = DeviceSpec.fromRequest(
+                                    DeviceSpecRequest.Android(avdInfo.model, avdInfo.os)
+                                )
                             )
                         }
                         .toList()
@@ -239,9 +265,73 @@ object DeviceService {
         return connected + avds
     }
 
-    private fun listIOSDevices(): List<Device> {
+    /**
+     * Runs `avdmanager list avd` and returns a list of AvdInfo
+     * - name
+     * - model: the canonical device ID from avdmanager, e.g. "pixel_6"
+     * - os: "android-XX" derived from the API level, e.g. "android-34"
+     *
+     * Falls back to config.ini for the OS if avdmanager output lacks it.
+     * Returns empty string on any failure
+     */
+    private fun fetchAndroidAvdInfo(): List<AvdInfo> {
+        return try {
+            val avd = requireAvdManagerBinary()
+            val output = ProcessBuilder(avd.absolutePath, "list", "avd")
+                .redirectErrorStream(true)
+                .start()
+                .apply { waitFor(30, TimeUnit.SECONDS) }
+                .inputStream.bufferedReader().readText()
+            parseAvdInfo(output, AndroidEnvUtils.androidAvdHome)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    internal fun parseAvdInfo(output: String, avdHome: File): List<AvdInfo> {
+        val result = mutableListOf<AvdInfo>()
+        var currentName: String? = null
+        var currentModel: String? = null
+        var currentOs: String? = null
+
+        for (line in output.lines()) {
+            val trimmed = line.trim()
+            when {
+                trimmed.startsWith("Name:") -> {
+                    // Save previous block
+                    if (currentName != null) {
+                        result += AvdInfo(name = currentName, model = currentModel ?: "", os = currentOs ?: "")
+                    }
+                    currentName = trimmed.removePrefix("Name:").trim()
+                    currentModel = null
+                    currentOs = null
+                }
+                trimmed.startsWith("Device:") -> {
+                    // "pixel_6 (Google Pixel 6)" → "pixel_6"
+                    currentModel = trimmed.removePrefix("Device:").trim().substringBefore(" ")
+                }
+                currentOs == null && currentName != null -> {
+                    // Read OS from config.ini once we have the AVD name
+                    val configFile = File(avdHome, "$currentName.avd/config.ini")
+                    if (configFile.exists()) {
+                        val sysdir = configFile.readLines()
+                            .firstOrNull { it.startsWith("image.sysdir.1=") }
+                            ?.substringAfter("=")
+                        currentOs = sysdir?.split("/")?.firstOrNull { it.startsWith("android-") }
+                    }
+                }
+            }
+        }
+        // Save last block
+        if (currentName != null) {
+            result += AvdInfo(name = currentName, model = currentModel ?: "", os = currentOs ?: "")
+        }
+        return result
+    }
+
+    fun listIOSDevices(): List<Device> {
         val simctlList = try {
-            util.LocalSimulatorUtils.list()
+            localSimulatorUtils.list()
         } catch (ignored: Exception) {
             return emptyList()
         }
@@ -260,7 +350,7 @@ object DeviceService {
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = util.LocalIOSDevice().listDeviceViaDeviceCtl()
+        val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
@@ -278,34 +368,46 @@ object DeviceService {
                 instanceId = udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.REAL
+                deviceType = Device.DeviceType.REAL,
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Ios()
+                )
             )
         }
     }
 
     private fun device(
-        runtimeNameByIdentifier: Map<String, String>,
-        runtime: Map.Entry<String, List<util.SimctlList.Device>>,
-        device: util.SimctlList.Device,
+      runtimeNameByIdentifier: Map<String, String>,
+      runtime: Map.Entry<String, List<SimctlList.Device>>,
+      device: SimctlList.Device,
     ): Device {
         val runtimeName = runtimeNameByIdentifier[runtime.key] ?: "Unknown runtime"
         val description = "${device.name} - $runtimeName - ${device.udid}"
+
+        // "com.apple.CoreSimulator.SimDeviceType.iPhone-XS" → "iPhone-XS"
+        val model = device.deviceTypeIdentifier?.substringAfterLast(".") ?: ""
+        // "com.apple.CoreSimulator.SimRuntime.iOS-17-5" → "iOS-17-5"
+        val os = runtime.key.substringAfterLast(".")
 
         return if (device.state == "Booted") {
             Device.Connected(
                 instanceId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                deviceType = Device.DeviceType.SIMULATOR
+                deviceType = Device.DeviceType.SIMULATOR,
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Ios(model, os)
+                )
             )
         } else {
             Device.AvailableForLaunch(
                 modelId = device.udid,
                 description = description,
                 platform = Platform.IOS,
-                language = null,
-                country = null,
-                deviceType =  Device.DeviceType.SIMULATOR
+                deviceType =  Device.DeviceType.SIMULATOR,
+                deviceSpec = DeviceSpec.fromRequest(
+                    DeviceSpecRequest.Ios(model, os)
+                )
             )
         }
     }
@@ -327,7 +429,10 @@ object DeviceService {
                             instanceId = output,
                             description = output,
                             platform = Platform.ANDROID,
-                            deviceType = Device.DeviceType.EMULATOR
+                            deviceType = Device.DeviceType.EMULATOR,
+                            deviceSpec = DeviceSpec.fromRequest(
+                                DeviceSpecRequest.Android()
+                            )
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
@@ -405,10 +510,9 @@ object DeviceService {
         tag: String,
         abi: String,
         force: Boolean = false,
-        shardIndex: Int? = null,
     ): String {
         val avd = requireAvdManagerBinary()
-        val name = "${deviceName}${"_${(shardIndex ?: 0) + 1}"}"
+        val name = deviceName
         val command = mutableListOf(
             avd.absolutePath,
             "create", "avd",

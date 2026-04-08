@@ -1,0 +1,4 @@
+appId: com.example.mobileapp1
+---
+- launchApp
+- tapOn: 'Button'

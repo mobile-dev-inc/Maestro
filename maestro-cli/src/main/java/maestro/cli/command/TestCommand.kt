@@ -29,6 +29,13 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.TestRunFailedEvent
+import maestro.cli.analytics.TestRunFinishedEvent
+import maestro.cli.analytics.TestRunStartedEvent
+import maestro.cli.analytics.WorkspaceRunFailedEvent
+import maestro.cli.analytics.WorkspaceRunFinishedEvent
+import maestro.cli.analytics.WorkspaceRunStartedEvent
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
@@ -40,13 +47,19 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
+import maestro.cli.view.greenBox
 import maestro.cli.view.box
+import maestro.cli.view.green
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
+import maestro.cli.model.FlowStatus
+import maestro.cli.view.cyan
+import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
@@ -57,10 +70,12 @@ import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
 import java.nio.file.Path
+import java.time.LocalDate
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
+import maestro.device.Platform
 
 @CommandLine.Command(
     name = "test",
@@ -114,6 +129,7 @@ class TestCommand : Callable<Int> {
     @Option(
         names = ["--format"],
         description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
+        converter = [ReportFormat.Converter::class]
     )
     private var format: ReportFormat = ReportFormat.NOOP
 
@@ -165,6 +181,12 @@ class TestCommand : Callable<Int> {
     private var headless: Boolean = false
 
     @Option(
+        names = ["--screen-size"],
+        description = ["(Web only) Set the size of the headless browser. Use the format {Width}x{Height}. Usage is --screen-size 1920x1080"],
+    )
+    private var screenSize: String? = null
+
+    @Option(
         names = ["--analyze"],
         description = ["[Beta] Enhance the test output analysis with AI Insights"],
     )
@@ -182,8 +204,10 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--reinstall-driver"],
-        description = ["[Beta] Reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled"],
-        hidden = true
+        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
+        negatable = true,
+        defaultValue = "true",
+        fallbackValue = "true"
     )
     private var reinstallDriver: Boolean = true
 
@@ -194,17 +218,31 @@ class TestCommand : Callable<Int> {
     )
     private var appleTeamId: String? = null
 
+    @Option(names = ["-p", "--platform"], description = ["Select a platform to run on"])
+    var platform: String? = null
+
+    @Option(
+        names = ["--device", "--udid"],
+        description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
+    )
+    var deviceId: String? = null
+    
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
-    private fun includesWebFlow(): Boolean {
-        return flowFiles.any { it.isWebFlow() }
+    internal fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
+        return plan.flowsToRun.any { it.toFile().isWebFlow() } ||
+               plan.sequence.flows.any { it.toFile().isWebFlow() }
     }
 
-
+    internal fun allFlowsAreWebFlow(plan: ExecutionPlan): Boolean {
+        if(plan.flowsToRun.isEmpty() && plan.sequence.flows.isEmpty()) return false
+        return (plan.flowsToRun.all { it.toFile().isWebFlow() } && plan.sequence.flows.all { it.toFile().isWebFlow() })
+    }
+  
     override fun call(): Int {
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
@@ -226,6 +264,10 @@ class TestCommand : Callable<Int> {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
         }
 
+        if (screenSize != null && !screenSize!!.matches(Regex("\\d+x\\d+"))) {
+            throw CliError("Invalid screen size format. Please use the format {Width}x{Height}, e.g. 1920x1080.")
+        }
+
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
                 input = flowFiles.map { it.toPath().toAbsolutePath() }.toSet(),
@@ -241,10 +283,62 @@ class TestCommand : Callable<Int> {
 
         // Update TestDebugReporter with the resolved test output directory
         TestDebugReporter.updateTestOutputDir(resolvedTestOutputDir)
-
         val debugOutputPath = TestDebugReporter.getDebugOutputPath()
 
-        return handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+        // Track test execution start
+        val flowCount = executionPlan.flowsToRun.size
+        val platform = parent?.platform ?: "unknown"
+        val deviceCount = getDeviceCount(executionPlan)
+
+        val result = try {
+            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+        } catch (e: Exception) {
+            // Track workspace failure for runtime errors
+            if (flowCount > 1) {
+                Analytics.trackEvent(WorkspaceRunFailedEvent(
+                    error = e.message ?: "Unknown error occurred during workspace execution",
+                    flowCount = flowCount,
+                    platform = platform,
+                    deviceCount = deviceCount,
+                ))
+            } else {
+                Analytics.trackEvent(TestRunFailedEvent(
+                    error = e.message ?: "Unknown error occurred during workspace execution",
+                    platform = platform,
+                ))
+            }
+            throw e
+        }
+
+        // Flush analytics events immediately after tracking the upload finished event
+        Analytics.flush()
+
+        return result
+    }
+
+    /**
+     * Get the actual number of devices that will be used for test execution
+     */
+    private fun getDeviceCount(plan: ExecutionPlan): Int {
+        val deviceIds = getDeviceIds(plan)
+        return deviceIds.size
+    }
+
+    /**
+     * Get the list of device IDs that will be used for test execution
+     */
+    private fun getDeviceIds(plan: ExecutionPlan): List<String> {
+        val includeWeb = executionPlanIncludesWebFlow(plan)
+        val connectedDevices = DeviceService.listConnectedDevices(
+            includeWeb = includeWeb,
+            host = parent?.host,
+            port = parent?.port,
+        )
+        val availableDevices = connectedDevices.map { it.instanceId }.toSet()
+        return getPassedOptionsDeviceIds(plan)
+            .filter { device -> device in availableDevices }
+            .ifEmpty { availableDevices }
+            .toList()
     }
 
     private fun resolveTestOutputDir(plan: ExecutionPlan): Path? {
@@ -265,28 +359,38 @@ class TestCommand : Callable<Int> {
         }
 
         val onlySequenceFlows = plan.sequence.flows.isNotEmpty() && plan.flowsToRun.isEmpty() // An edge case
+        val includeWeb = executionPlanIncludesWebFlow(plan);
+
+        if (includeWeb) {
+          PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
+        }
 
         val connectedDevices = DeviceService.listConnectedDevices(
-            includeWeb = includesWebFlow(),
+            includeWeb = includeWeb,
             host = parent?.host,
             port = parent?.port,
         )
-        val availableDevices = connectedDevices.map { it.instanceId }.toSet()
-        val deviceIds = getPassedOptionsDeviceIds()
+        val availableDevicesIds = connectedDevices.map { it.instanceId }.toSet()
+        val deviceIds = getPassedOptionsDeviceIds(plan)
             .filter { device ->
-                if (device !in availableDevices) {
+                if (device !in availableDevicesIds) {
                     throw CliError("Device $device was requested, but it is not connected.")
                 } else {
                     true
                 }
             }
-            .ifEmpty { availableDevices }
+            .ifEmpty {
+                val platform = platform ?: parent?.platform
+                connectedDevices
+                    .filter { platform == null || it.platform == Platform.fromString(platform) }
+                    .map { it.instanceId }.toSet()
+            }
             .toList()
 
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
-            PrintUtils.warn("Want to use ${deviceIds.size} devices, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
-            throw CliError("Not enough devices connected ($missingDevices) to run the requested number of shards ($requestedShards).")
+            PrintUtils.warn("You have ${deviceIds.size} devices connected, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
+            throw CliError("Not enough devices connected (${deviceIds.size}) to run the requested number of shards ($requestedShards).")
         }
 
         val effectiveShards = when {
@@ -321,6 +425,11 @@ class TestCommand : Callable<Int> {
         }
         message?.let { PrintUtils.info(it) }
 
+        // Show cloud promotion message if there are more than 5 tests (at most once per day)
+        if (flowCount > 5) {
+            showCloudFasterResultsPromotionMessageIfNeeded()
+        }
+
         val results = (0 until effectiveShards).map { shardIndex ->
             async(Dispatchers.IO + CoroutineName("shard-$shardIndex")) {
                 runShardSuite(
@@ -337,6 +446,11 @@ class TestCommand : Callable<Int> {
         val passed = results.sumOf { it.first ?: 0 }
         val total = results.sumOf { it.second ?: 0 }
         val suites = results.mapNotNull { it.third }
+
+        // Show cloud debug promotion message if there are failures
+        if (passed != total) {
+            showCloudDebugPromotionMessageIfNeeded()
+        }
 
         suites.mergeSummaries()?.saveReport()
 
@@ -365,8 +479,9 @@ class TestCommand : Callable<Int> {
             teamId = appleTeamId,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
-            platform = parent?.platform,
+            platform = platform ?: parent?.platform,
             isHeadless = headless,
+            screenSize = screenSize,
             reinstallDriver = reinstallDriver,
             executionPlan = executionPlan
         ) { session ->
@@ -384,7 +499,15 @@ class TestCommand : Callable<Int> {
                     )
                 }
                 runBlocking {
-                    runMultipleFlows(maestro, device, chunkPlans, shardIndex, debugOutputPath, testOutputDir)
+                    runMultipleFlows(
+                        maestro,
+                        device,
+                        chunkPlans,
+                        shardIndex,
+                        debugOutputPath,
+                        testOutputDir,
+                        deviceId,
+                    )
                 }
             } else {
                 val flowFile = flowFiles.first()
@@ -392,9 +515,18 @@ class TestCommand : Callable<Int> {
                     if (!flattenDebugOutput) {
                         TestDebugReporter.deleteOldFiles()
                     }
-                    TestRunner.runContinuous(maestro, device, flowFile, env, analyze, authToken, testOutputDir)
+                    TestRunner.runContinuous(
+                        maestro,
+                        device,
+                        flowFile,
+                        env,
+                        analyze,
+                        authToken,
+                        testOutputDir,
+                        deviceId,
+                    )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
                 }
             }
         }
@@ -412,6 +544,7 @@ class TestCommand : Callable<Int> {
         flowFile: File,
         debugOutputPath: Path,
         testOutputDir: Path?,
+        deviceId: String?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -419,6 +552,11 @@ class TestCommand : Callable<Int> {
             } else {
                 PlainTextResultView()
             }
+
+        val startTime = System.currentTimeMillis()
+        Analytics.trackEvent(TestRunStartedEvent(
+            platform = device?.platform.toString()
+        ))
 
         val resultSingle = TestRunner.runSingle(
             maestro = maestro,
@@ -430,11 +568,22 @@ class TestCommand : Callable<Int> {
             analyze = analyze,
             apiKey = authToken,
             testOutputDir = testOutputDir,
+            deviceId = deviceId,
         )
+        val duration = System.currentTimeMillis() - startTime
 
         if (resultSingle == 1) {
             printExitDebugMessage()
         }
+
+
+        Analytics.trackEvent(
+            TestRunFinishedEvent(
+                status = if (resultSingle == 0) FlowStatus.SUCCESS else FlowStatus.ERROR,
+                platform = device?.platform.toString(),
+                durationMs = duration
+            )
+        )
 
         if (!flattenDebugOutput) {
             TestDebugReporter.deleteOldFiles()
@@ -450,24 +599,47 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
-        testOutputDir: Path?
+        testOutputDir: Path?,
+        deviceId: String?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
+        val startTime = System.currentTimeMillis()
+        val totalFlowCount = chunkPlans.sumOf { it.flowsToRun.size }
+        Analytics.trackEvent(WorkspaceRunStartedEvent(
+            flowCount = totalFlowCount,
+            platform = parent?.platform.toString(),
+            deviceCount = chunkPlans.size
+        ))
+
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
+            captureSteps = format == ReportFormat.HTML_DETAILED,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
             reportOut = null,
             debugOutputPath = debugOutputPath,
-            testOutputDir = testOutputDir
+            testOutputDir = testOutputDir,
+            deviceId = deviceId,
         )
+
+        val duration = System.currentTimeMillis() - startTime
+
 
         if (!flattenDebugOutput) {
             TestDebugReporter.deleteOldFiles()
         }
+
+        Analytics.trackEvent(
+            WorkspaceRunFinishedEvent(
+                flowCount = totalFlowCount,
+                deviceCount = chunkPlans.size,
+                platform = parent?.platform.toString(),
+                durationMs = duration
+            )
+        )
         return Triple(suiteResult.passedCount, suiteResult.totalTests, suiteResult)
     }
 
@@ -487,17 +659,16 @@ class TestCommand : Callable<Int> {
             }
     }
 
-    private fun getPassedOptionsDeviceIds(): List<String> {
-        val arguments = if (includesWebFlow()) {
-            PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
-            "chromium"
-        } else parent?.deviceId
-        val deviceIds = arguments
-            .orEmpty()
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-        return deviceIds
+    private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
+      val arguments = if (allFlowsAreWebFlow(plan)) {
+        "chromium"
+      } else deviceId ?: parent?.deviceId
+      val deviceIds = arguments
+        .orEmpty()
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+      return deviceIds
     }
 
     private fun printExitDebugMessage() {
@@ -531,5 +702,55 @@ class TestCommand : Callable<Int> {
             passedCount = sumOf { it.passedCount ?: 0 },
             totalTests = sumOf { it.totalTests ?: 0 }
         )
+    }
+
+    private fun showCloudFasterResultsPromotionMessageIfNeeded() {
+        // Don't show in CI environments
+        if (CiUtils.getCiProvider() != null) {
+            return
+        }
+        
+        val promotionStateManager = PromotionStateManager()
+        val today = LocalDate.now().toString()
+        
+        // Don't show if already shown today
+        if (promotionStateManager.getLastShownDate("fasterResults") == today) {
+            return
+        }
+        
+        // Don't show if user has used cloud command within last 3 days
+        if (promotionStateManager.wasCloudCommandUsedWithinDays(3)) {
+            return
+        }
+        
+        val command = "maestro cloud app_file flows_folder/"
+        val message = "Get results faster by ${"executing flows in parallel".cyan()} on Maestro Cloud virtual devices. Run: \n${command.green()}"
+        PrintUtils.info(message.greenBox())
+        promotionStateManager.setLastShownDate("fasterResults", today)
+    }
+
+    private fun showCloudDebugPromotionMessageIfNeeded() {
+        // Don't show in CI environments
+        if (CiUtils.getCiProvider() != null) {
+            return
+        }
+        
+        val promotionStateManager = PromotionStateManager()
+        val today = LocalDate.now().toString()
+
+        // Don't show if already shown today
+        if (promotionStateManager.getLastShownDate("debug") == today) {
+          return
+        }
+
+        // Don't show if user has used cloud command within last 3 days
+        if (promotionStateManager.wasCloudCommandUsedWithinDays(3)) {
+          return
+        }
+        
+        val command = "maestro cloud app_file flows_folder/"
+        val message = "Debug tests faster by easy access to ${"test recordings, maestro logs, screenshots, and more".cyan()}.\n\nRun your flows on Maestro Cloud:\n${command.green()}"
+        PrintUtils.info(message.greenBox())
+        promotionStateManager.setLastShownDate("debug", today)
     }
 }

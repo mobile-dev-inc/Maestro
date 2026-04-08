@@ -25,6 +25,9 @@ import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.analytics.Analytics
+import maestro.cli.analytics.PrintHierarchyFinishedEvent
+import maestro.cli.analytics.PrintHierarchyStartedEvent
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.yellow
@@ -39,8 +42,7 @@ import java.lang.StringBuilder
     name = "hierarchy",
     description = [
         "Print out the view hierarchy of the connected device"
-    ],
-    hidden = true
+    ]
 )
 class PrintHierarchyCommand : Runnable {
 
@@ -62,8 +64,10 @@ class PrintHierarchyCommand : Runnable {
 
     @CommandLine.Option(
         names = ["--reinstall-driver"],
-        description = ["[Beta] Reinstalls xctestrunner driver before running the test. Set to false if the driver shouldn't be reinstalled"],
-        hidden = true
+        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
+        negatable = true,
+        defaultValue = "true",
+        fallbackValue = "true"        
     )
     private var reinstallDriver: Boolean = true
 
@@ -94,6 +98,12 @@ class PrintHierarchyCommand : Runnable {
             flattenDebugOutput = false,
             printToConsole = parent?.verbose == true,
         )
+        
+        // Track print hierarchy start
+        val platform = parent?.platform ?: "unknown"
+        val startTime = System.currentTimeMillis()
+        Analytics.trackEvent(PrintHierarchyStartedEvent(platform = platform))
+        
 
         MaestroSessionManager.newSession(
             host = parent?.host,
@@ -149,6 +159,15 @@ class PrintHierarchyCommand : Runnable {
                 println(hierarchy)
             }
         }
+        
+        // Track successful completion
+        val duration = System.currentTimeMillis() - startTime
+        Analytics.trackEvent(PrintHierarchyFinishedEvent(
+            platform = platform,
+            success = true,
+            durationMs = duration
+        ))
+        Analytics.flush()
     }
     
     private fun processTreeToCSV(
