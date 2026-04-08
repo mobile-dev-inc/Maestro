@@ -826,6 +826,28 @@ internal class YamlCommandReaderTest {
     }
 
 
+    @Test
+    fun `assertVisible with visibilityPercentage`(
+        @YamlFile("031_assertVisible_visibilityPercentage.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            AssertConditionCommand(
+                condition = Condition(
+                    visible = ElementSelector(textRegex = "Carousel Item"),
+                    visibilityPercentage = 50,
+                ),
+            ),
+            AssertConditionCommand(
+                condition = Condition(
+                    visible = ElementSelector(idRegex = "header"),
+                ),
+            ),
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }

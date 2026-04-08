@@ -4589,6 +4589,50 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 139 - Assert visible with visibilityPercentage passes when element is sufficiently visible`() {
+        // Given: element fully visible (100%), required 50%
+        val commands = readCommands("139_assertVisible_visibilityPercentage_pass")
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When & Then — should not throw
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 139 - Assert visible with visibilityPercentage fails when element is insufficiently visible`() {
+        // Given: element at x=500 with width 100 on a 540px-wide grid
+        // Only 40px of 100px is on screen = 40% visible, required 50%
+        val commands = readCommands("139_assertVisible_visibilityPercentage_pass")
+
+        val driver = driver {
+            element {
+                id = "element_id"
+                bounds = Bounds(500, 0, 100, 100)
+            }
+        }
+
+        // When & Then — should fail because visible percentage (40%) < required (50%)
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
