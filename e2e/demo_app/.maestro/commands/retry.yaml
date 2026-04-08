@@ -1,0 +1,15 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp
+
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: 'fabAddIcon'
+          retryTapIfNoChange: false
+      - waitForAnimationToEnd
+      - assertVisible: '2'
+- assertVisible: 'Flutter Demo Home Page'

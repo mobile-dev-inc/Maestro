@@ -1,0 +1,12 @@
+appId: com.apple.reminders
+name: Add reminder
+---
+- launchApp:
+    clearState: false
+- tapOn: New reminder
+- inputRandomText:
+    length: 10
+- tapOn: Notes
+- inputRandomText:
+    length: 23
+- tapOn: Add

@@ -27,7 +27,7 @@ data class CdpTarget(
     val id: String,
     val title: String,
     val url: String,
-    val webSocketDebuggerUrl: String
+    val webSocketDebuggerUrl: String? = null,
 )
 
 /**
@@ -68,7 +68,7 @@ class CdpClient(
      * @return A JSON string of the evaluated result.
      */
     suspend fun evaluate(expression: String, target: CdpTarget): String {
-        val wsUrl = target.webSocketDebuggerUrl
+        val wsUrl = target.webSocketDebuggerUrl ?: error("Target ${target.id} has no WebSocket debugger URL")
 
         // The idea here is that we return JSON object as a String. That makes it much easier to handle
         // as passing objects between JS and outside world would require many round-trips to query the values
@@ -138,7 +138,7 @@ class CdpClient(
         """.trimIndent()
 
         // Open WS, send & await
-        val wsUrl = target.webSocketDebuggerUrl
+        val wsUrl = target.webSocketDebuggerUrl ?: error("Target ${target.id} has no WebSocket debugger URL")
 
         return httpClient.webSocketSession { url(wsUrl) }
             .use { session ->
@@ -166,7 +166,7 @@ class CdpClient(
             }
         """.trimIndent()
 
-        httpClient.webSocketSession { url(target.webSocketDebuggerUrl) }
+        httpClient.webSocketSession { url(target.webSocketDebuggerUrl ?: error("Target ${target.id} has no WebSocket debugger URL")) }
             .use { session ->
                 session.send(Frame.Text(payload))
 
@@ -190,7 +190,7 @@ class CdpClient(
         """.trimIndent()
 
         evalMutex.withLock {
-            httpClient.webSocketSession { url(target.webSocketDebuggerUrl) }
+            httpClient.webSocketSession { url(target.webSocketDebuggerUrl ?: error("Target ${target.id} has no WebSocket debugger URL")) }
                 .use { session ->
                     session.send(Frame.Text(payload))
 

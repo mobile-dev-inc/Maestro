@@ -1,0 +1,64 @@
+name: demo_app
+description: A new Flutter project
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: 3.38.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_launch_arguments: ^1.0.1
+  webview_flutter: ^4.13.0
+  permission_handler: ^11.3.1
+  sensors_plus: ^4.0.2
+  geolocator: ^13.0.1
+  connectivity_plus: ^7.0.0
+  app_links: ^6.4.1
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/bunny.jpg
+  
+  
+  
+  
+
+  
+  
+
+  
+  
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
