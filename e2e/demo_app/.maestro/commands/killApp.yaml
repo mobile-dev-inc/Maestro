@@ -1,0 +1,14 @@
+appId: com.example.example
+tags:
+  - passing
+  - android
+---
+- launchApp
+- tapOn:
+    id: "fabAddIcon"
+- assertVisible: "1"
+- pressKey: Home
+- killApp
+- launchApp:
+    stopApp: false    # just brings app to foreground, no force-stop
+- assertVisible: "0"  # process was killed, counter reset

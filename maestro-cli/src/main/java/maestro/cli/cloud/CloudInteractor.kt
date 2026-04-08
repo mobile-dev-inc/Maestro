@@ -134,48 +134,35 @@ class CloudInteractor(
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
             // Validate app and resolve platform
-            val appValidator = AppValidator(
-                appFileValidator = appFileValidator,
-                appBinaryInfoProvider = { binaryId ->
-                    try {
-                        val info = client.getAppBinaryInfo(authToken, binaryId)
-                        AppValidator.AppBinaryInfoResult(info.appBinaryId, info.platform, info.appId)
-                    } catch (e: ApiClient.ApiException) {
-                        if (e.statusCode == 404) throw AppValidationException.AppBinaryNotFound(binaryId)
-                        throw AppValidationException.AppBinaryFetchError(e.statusCode)
-                    }
-                },
-                webManifestProvider = webManifestProvider,
-                iosMinOSVersionProvider = { file ->
-                    val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
-                    val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
-                    AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
-                },
-            )
-            val resolvedAppValidation = try {
-                appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId)
-            } catch (e: AppValidationException) {
-                throw CliError(e.message ?: "App validation failed")
-            }
-
-            // Fetch supported devices and validate device spec
-            val supportedDevices = try {
-                client.listCloudDevices()
-            } catch (e: ApiClient.ApiException) {
-                throw CliError("Failed to fetch supported devices. Status code: ${e.statusCode}")
-            }
-
-            // Validate workspace against appId before uploading to catch errors early
-            try {
-                workspaceValidator.validate(
-                    workspace = workspaceZip.toFile(),
-                    appId = resolvedAppValidation.appIdentifier,
-                    env = env,
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
+            // When appBinaryId is provided, skip CLI-side validation — the server validates
+            if (appBinaryId == null) {
+                val appValidator = AppValidator(
+                    appFileValidator = appFileValidator,
+                    webManifestProvider = webManifestProvider,
+                    iosMinOSVersionProvider = { file ->
+                        val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
+                        val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
+                        AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
+                    },
                 )
-            } catch (e: WorkspaceValidationException) {
-                throw CliError(e.message ?: "Workspace validation failed")
+                val resolvedAppValidation = try {
+                    appValidator.validate(appFile = appFileToSend, appBinaryId = null)
+                } catch (e: AppValidationException) {
+                    throw CliError(e.message ?: "App validation failed")
+                }
+
+                // Validate workspace against appId before uploading to catch errors early
+                try {
+                    workspaceValidator.validate(
+                        workspace = workspaceZip.toFile(),
+                        appId = resolvedAppValidation.appIdentifier,
+                        env = env,
+                        includeTags = includeTags,
+                        excludeTags = excludeTags,
+                    )
+                } catch (e: WorkspaceValidationException) {
+                    throw CliError(e.message ?: "Workspace validation failed")
+                }
             }
 
             val response = client.upload(
@@ -445,12 +432,12 @@ class CloudInteractor(
         val version = deviceConfiguration.osVersion
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
-            "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
+            "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
         return lines.joinToString("\n").render().box()

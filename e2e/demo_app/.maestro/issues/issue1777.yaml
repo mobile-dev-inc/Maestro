@@ -1,0 +1,13 @@
+appId: com.android.settings
+---
+- launchApp
+- tapOn:
+    id: "com.android.settings:id/search_action_bar"
+- inputText: "Lorem ipsum dolor sit amet"
+# Here you would do other actions and the cursor would be no longer at the end of the text
+- tapOn:
+    id: "com.google.android.settings.intelligence:id/open_search_view_edit_text"
+- eraseText
+- tapOn:
+    id: "com.google.android.settings.intelligence:id/open_search_view_edit_text"
+- eraseText

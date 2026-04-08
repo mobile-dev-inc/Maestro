@@ -272,6 +272,8 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
+        iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -770,27 +772,6 @@ class ApiClient(
             } catch (e: Exception) {
                 throw e
             }
-        }
-    }
-
-    fun getAppBinaryInfo(authToken: String, appBinaryId: String): AppBinaryInfo {
-        val request = Request.Builder()
-            .header("Authorization", "Bearer $authToken")
-            .url("$baseUrl/v2/maestro-studio/app-binary/$appBinaryId")
-            .get()
-            .build()
-
-        val response = try {
-            client.newCall(request).execute()
-        } catch (e: IOException) {
-            throw ApiException(statusCode = null)
-        }
-
-        response.use {
-            if (!response.isSuccessful) {
-                throw ApiException(statusCode = response.code)
-            }
-            return JSON.readValue(response.body?.bytes(), AppBinaryInfo::class.java)
         }
     }
 

@@ -1459,7 +1459,7 @@ class Orchestra(
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                relativeFilters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
+                relativeFilters += Filters.containsChild(buildFilter(it).filterFunc)
             }
 
         selector.containsDescendants
