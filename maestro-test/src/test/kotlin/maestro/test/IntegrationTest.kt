@@ -29,6 +29,7 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.Orchestra
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RetryCommand
@@ -4304,6 +4305,18 @@ class IntegrationTest {
 
                         orchestra.runFlow(
                             listOf(
+                                // Config with onFlowComplete — should NOT run on cancellation
+                                MaestroCommand(
+                                    applyConfigurationCommand = ApplyConfigurationCommand(
+                                        config = MaestroConfig(
+                                            onFlowComplete = MaestroOnFlowComplete(
+                                                commands = listOf(
+                                                    MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "cleanup"))),
+                                                )
+                                            )
+                                        )
+                                    )
+                                ),
                                 MaestroCommand(
                                     scrollUntilVisible = ScrollUntilVisibleCommand(
                                         selector = ElementSelector(textRegex = "Hidden"),
@@ -4324,6 +4337,8 @@ class IntegrationTest {
             }
 
             assertThat(startedAfterCancellation).isEmpty()
+            // Verify onFlowComplete commands did not execute
+            driver.assertNoEvent(Event.Tap(Point(0, 0)))
         }
     }
 
