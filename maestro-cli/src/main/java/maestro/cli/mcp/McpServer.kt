@@ -11,17 +11,8 @@ import kotlinx.serialization.json.*
 import kotlinx.io.*
 import maestro.cli.session.MaestroSessionManager
 import maestro.debuglog.LogConfig
-import maestro.cli.mcp.tools.ListDevicesTool
-import maestro.cli.mcp.tools.StartDeviceTool
-import maestro.cli.mcp.tools.LaunchAppTool
 import maestro.cli.mcp.tools.TakeScreenshotTool
-import maestro.cli.mcp.tools.TapOnTool
-import maestro.cli.mcp.tools.InputTextTool
-import maestro.cli.mcp.tools.BackTool
-import maestro.cli.mcp.tools.StopAppTool
 import maestro.cli.mcp.tools.RunFlowTool
-import maestro.cli.mcp.tools.RunFlowFilesTool
-import maestro.cli.mcp.tools.CheckFlowSyntaxTool
 import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.QueryDocsTool
@@ -49,17 +40,8 @@ fun runMaestroMcpServer() {
 
     // Register tools
     server.addTools(listOf(
-        ListDevicesTool.create(),
-        StartDeviceTool.create(),
-        LaunchAppTool.create(sessionManager),
         TakeScreenshotTool.create(sessionManager),
-        TapOnTool.create(sessionManager),
-        InputTextTool.create(sessionManager),
-        BackTool.create(sessionManager),
-        StopAppTool.create(sessionManager),
         RunFlowTool.create(sessionManager),
-        RunFlowFilesTool.create(sessionManager),
-        CheckFlowSyntaxTool.create(),
         InspectViewHierarchyTool.create(sessionManager),
         CheatSheetTool.create(),
         QueryDocsTool.create()
