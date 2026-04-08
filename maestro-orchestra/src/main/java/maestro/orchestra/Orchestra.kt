@@ -823,7 +823,7 @@ class Orchestra(
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
         }
 
-        while (checkCondition() && counter < maxRuns && currentCoroutineContext().isActive) {
+        while (checkCondition() && counter < maxRuns) {
             yield()
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
