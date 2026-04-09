@@ -73,12 +73,12 @@ object WorkspaceExecutionPlanner {
         val positiveGlobs = globs.filter { !it.startsWith("!") }
         val negativeGlobs = globs.filter { it.startsWith("!") }.map { it.removePrefix("!") }
 
-        val positiveMatchers = positiveGlobs.flatMap { glob ->
+        fun buildMatchers(patterns: List<String>) = patterns.flatMap { glob ->
             directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
         }
-        val negativeMatchers = negativeGlobs.flatMap { glob ->
-            directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
-        }
+
+        val positiveMatchers = buildMatchers(positiveGlobs)
+        val negativeMatchers = buildMatchers(negativeGlobs)
 
         val unsortedFlowFiles = flowFiles + flowFilesInDirs.filter { path ->
             positiveMatchers.any { it.matches(path) } && negativeMatchers.none { it.matches(path) }
@@ -96,7 +96,7 @@ object WorkspaceExecutionPlanner {
             } else {
                 val message = """
                     |Flow inclusion pattern(s) did not match any Flow files:
-                    |${toYamlListString(globs)}
+                    |${toYamlListString(positiveGlobs)}
                     """.trimMargin()
                 throw ValidationError(message)
             }
