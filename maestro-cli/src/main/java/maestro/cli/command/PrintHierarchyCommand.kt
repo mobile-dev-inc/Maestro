@@ -21,6 +21,7 @@ package maestro.cli.command
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import kotlinx.coroutines.runBlocking
 import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
@@ -115,7 +116,7 @@ class PrintHierarchyCommand : Runnable {
             reinstallDriver = reinstallDriver,
             deviceIndex = deviceIndex
         ) { session ->
-            session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
+            runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
             val callback: (Insight) -> Unit = {
                 val message = StringBuilder()
                 val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
@@ -129,7 +130,7 @@ class PrintHierarchyCommand : Runnable {
 
             insights.onInsightsUpdated(callback)
 
-            val tree = session.maestro.viewHierarchy().root
+            val tree = runBlocking { session.maestro.viewHierarchy() }.root
 
             insights.unregisterListener(callback)
 
