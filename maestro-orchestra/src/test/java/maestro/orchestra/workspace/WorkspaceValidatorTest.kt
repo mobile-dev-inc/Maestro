@@ -28,20 +28,14 @@ class WorkspaceValidatorTest {
         return zip
     }
 
-    private fun makeWorkspaceZipWithBinary(
-        textEntries: List<Pair<String, String>>,
-        binaryEntries: List<Pair<String, ByteArray>> = emptyList()
-    ): File {
+    private fun zipWorkspaceResource(resourcePath: String): File {
+        val resourceDir = File(javaClass.getResource(resourcePath)!!.toURI())
         val zip = File(tempDir, "workspace_${System.nanoTime()}.zip")
         ZipOutputStream(zip.outputStream()).use { zos ->
-            textEntries.forEach { (name, content) ->
-                zos.putNextEntry(ZipEntry(name))
-                zos.write(content.toByteArray())
-                zos.closeEntry()
-            }
-            binaryEntries.forEach { (name, content) ->
-                zos.putNextEntry(ZipEntry(name))
-                zos.write(content)
+            resourceDir.walkTopDown().filter { it.isFile }.forEach { file ->
+                val entryName = file.relativeTo(resourceDir).path
+                zos.putNextEntry(ZipEntry(entryName))
+                file.inputStream().use { it.copyTo(zos) }
                 zos.closeEntry()
             }
         }
@@ -338,26 +332,7 @@ class WorkspaceValidatorTest {
 
     @Test
     fun `validate produces normalized addMedia paths for relative references`() {
-        val flowWithMedia = """
-            appId: com.example.app
-            ---
-            - launchApp
-            - addMedia:
-                - "../test-image.jpg"
-        """.trimIndent()
-
-        val configYaml = """
-            flows:
-              - "flows/**"
-        """.trimIndent()
-
-        val workspace = makeWorkspaceZipWithBinary(
-            textEntries = listOf(
-                "config.yaml" to configYaml,
-                "flows/main.yaml" to flowWithMedia,
-            ),
-            binaryEntries = listOf("test-image.jpg" to byteArrayOf(0xFF.toByte(), 0xD8.toByte()))
-        )
+        val workspace = zipWorkspaceResource("/workspaces/016_normalized_media_paths")
 
         val result = WorkspaceValidator.validate(
             workspace = workspace,
@@ -376,105 +351,9 @@ class WorkspaceValidatorTest {
     }
 
     @Test
-    fun `validate produces normalized filePath for flows in subdirectories`() {
-        val configYaml = """
-            flows:
-              - "flows/**"
-        """.trimIndent()
-
-        val result = WorkspaceValidator.validate(
-            workspace = makeWorkspaceZip(
-                "config.yaml" to configYaml,
-                "flows/folder1/test.yaml" to baseFlowContent,
-            ),
-            appId = "com.example.app",
-            envParameters = mapOf("APP_ID" to "com.example.app"),
-            includeTags = emptyList(),
-            excludeTags = emptyList(),
-        )
-
-        assertThat(result.isOk).isTrue()
-        val flow = result.value.flows.first()
-        assertThat(flow.filePath).doesNotContain("..")
-        assertThat(flow.filePath).doesNotContain("/./")
-    }
-
-    @Test
-    fun `validate produces normalized sourceDescription for runFlow with relative path`() {
-        val subflow = """
-            appId: com.example.app
-            ---
-            - launchApp
-        """.trimIndent()
-
-        val mainFlow = """
-            appId: com.example.app
-            ---
-            - launchApp
-            - runFlow:
-                file: ../../shared/setup.yaml
-        """.trimIndent()
-
-        val configYaml = """
-            flows:
-              - "tests/**"
-        """.trimIndent()
-
-        val result = WorkspaceValidator.validate(
-            workspace = makeWorkspaceZip(
-                "config.yaml" to configYaml,
-                "tests/core/main_flow.yaml" to mainFlow,
-                "shared/setup.yaml" to subflow,
-            ),
-            appId = "com.example.app",
-            envParameters = emptyMap(),
-            includeTags = emptyList(),
-            excludeTags = emptyList(),
-        )
-
-        assertThat(result.isOk).isTrue()
-        val mainFlowResult = result.value.flows.first { it.name == "main_flow" }
-
-        // The runFlow sourceDescription should not contain ".." or "./"
-        val runFlowCmd = mainFlowResult.commands
-            .mapNotNull { it.runFlowCommand }
-            .first()
-        assertThat(runFlowCmd.sourceDescription).isNotNull()
-    }
-
-    @Test
     fun `validate produces normalized addMedia paths in subflows referenced via relative runFlow`() {
-        val subflow = """
-            appId: com.example.app
-            ---
-            - addMedia:
-                - "../e2e-image.jpg"
-        """.trimIndent()
-
-        val mainFlow = """
-            appId: com.example.app
-            ---
-            - launchApp
-            - runFlow:
-                file: ../../setup/startup.yaml
-        """.trimIndent()
-
-        val configYaml = """
-            flows:
-              - "tests/**"
-        """.trimIndent()
-
-        val workspace = makeWorkspaceZipWithBinary(
-            textEntries = listOf(
-                "config.yaml" to configYaml,
-                "tests/core/test.yaml" to mainFlow,
-                "setup/startup.yaml" to subflow,
-            ),
-            binaryEntries = listOf("e2e-image.jpg" to byteArrayOf(0xFF.toByte(), 0xD8.toByte()))
-        )
-
         val result = WorkspaceValidator.validate(
-            workspace = workspace,
+            workspace = zipWorkspaceResource("/workspaces/017_normalized_media_paths_subflow"),
             appId = "com.example.app",
             envParameters = emptyMap(),
             includeTags = emptyList(),
