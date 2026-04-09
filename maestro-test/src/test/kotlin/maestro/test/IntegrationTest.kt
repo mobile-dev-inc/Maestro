@@ -29,9 +29,15 @@ import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.Orchestra
 import maestro.orchestra.RunFlowCommand
+import maestro.orchestra.RetryCommand
+import maestro.orchestra.ScrollUntilVisibleCommand
+import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.error.UnicodeNotSupportedError
+import maestro.ScrollDirection
+import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
 import maestro.js.GraalJsEngine
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -3619,57 +3625,38 @@ class IntegrationTest {
 
         var skipped = 0
         var completed = 0
-        val expectedSkipped = 7
-
 
         // When
         Maestro(driver).use { maestro ->
             runBlocking {
-                // Create a job that we can cancel
                 val job = Job()
-
-                // Create a supervisor scope so our skipped counter can still update after cancellation
                 val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-                // Launch the work in our cancellable scope
-                scope.launch(job) {
-                    // Cancel the job immediately
+                val flowJob = scope.launch(job) {
+                    // Cancel the job immediately — before runFlow starts
                     coroutineContext.cancel()
 
-                    try {
-                        Orchestra(
-                            maestro,
-                            lookupTimeoutMs = 0L,
-                            optionalLookupTimeoutMs = 0L,
-                            onCommandComplete = { _, _ ->
-                                completed += 1
-                            },
-                            onCommandSkipped = { _, cmd ->
-                                skipped += 1
-                            },
-                        ).runFlow(commands)
-                    } catch (e: CancellationException) {
-                        // Expected cancellation
-                    }
+                    Orchestra(
+                        maestro,
+                        lookupTimeoutMs = 0L,
+                        optionalLookupTimeoutMs = 0L,
+                        onCommandComplete = { _, _ -> completed += 1 },
+                        onCommandSkipped = { _, _ -> skipped += 1 },
+                    ).runFlow(commands)
                 }
 
-                // Actively wait for skipped count to reach expected value or timeout
-                withTimeout(3000) {
-                    while (skipped < expectedSkipped) {
-                        yield() // Cooperatively yield to let other coroutines run
-
-                        // Check every 10ms
-                        delay(10)
-                    }
+                try {
+                    flowJob.join()
+                } catch (e: CancellationException) {
+                    // Expected
                 }
 
-                // Clean up the scope
                 scope.cancel()
             }
         }
 
-        // Then
-        assertThat(skipped).isEqualTo(7)
+        // Then — cancellation now throws immediately, no commands are skipped or completed
+        assertThat(skipped).isEqualTo(0)
         assertThat(completed).isEqualTo(0)
     }
 
@@ -3852,23 +3839,9 @@ class IntegrationTest {
                     try {
                         val orchestra = Orchestra(
                             maestro,
-                            onCommandComplete = { cmd, _ ->
-                                val isActive = coroutineContext[Job]?.isActive ?: false
-                                if (!isActive) {
-                                    skipped += 1
-                                    return@Orchestra
-                                }
-                                completed += 1
-                            },
-                            onCommandSkipped = { _, _ ->
-                                skipped += 1
-                            },
+                            onCommandComplete = { _, _ -> completed += 1 },
+                            onCommandSkipped = { _, _ -> skipped += 1 },
                             onCommandMetadataUpdate = { cmd, _ ->
-                                val isActive = coroutineContext[Job]?.isActive ?: false
-                                if (!isActive) {
-                                    return@Orchestra
-                                }
-
                                 val commandName = when {
                                     cmd.launchAppCommand != null -> "LaunchAppCommand"
                                     cmd.inputTextCommand != null -> "InputTextCommand"
@@ -3913,7 +3886,8 @@ class IntegrationTest {
 
         // Then
         assertThat(completed).isGreaterThan(0)
-        assertThat(skipped).isGreaterThan(0)
+        // Cancellation now throws immediately — no commands are "skipped"
+        assertThat(skipped).isEqualTo(0)
 
         assertThat(executedCommands).containsAtLeast(
             "LaunchAppCommand",
@@ -4170,54 +4144,202 @@ class IntegrationTest {
                 val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
                 try {
-                    val maxReasonableSkips = 1_00
-
                     withTimeout(2000) {
                         val orchestra = Orchestra(
                             maestro = maestro,
                             lookupTimeoutMs = 0L,
                             optionalLookupTimeoutMs = 0L,
-                            onCommandComplete = { index, command ->
-                                println("""
-                                    Completed command ${command.description()} at index $index.
-                                """.trimIndent()
-                                )
-
-                                completed += 1
-                            },
-                            onCommandSkipped = { index, command ->
-                                skipped += 1
-                                /**
-                                 * When this fail it means we might have entered an infinite loop.
-                                 *
-                                 * Our orchestra should not have infinite loops when timeout exceed.
-                                 */
-                                println("""
-                                        Command ${command.description()} at index $index was skipped $skipped times.
-                                """.trimIndent()
-                                )
-                                if (skipped > maxReasonableSkips) {
-                                    fail("Likely infinite loop: onCommandSkipped called $skipped times (command=$command index=$index)")
-                                }
-                            }
+                            onCommandComplete = { _, _ -> completed += 1 },
+                            onCommandSkipped = { _, _ -> skipped += 1 },
                         )
 
-                        // This should be interrupted by withTimeout if repeatWhile keeps going
                         orchestra.runFlow(commands)
                     }
+                    fail("Expected TimeoutCancellationException")
+                } catch (e: TimeoutCancellationException) {
+                    // Expected — cancellation properly propagated
                 } finally {
                     scope.coroutineContext[Job]?.cancel()
                 }
             }
         }
 
-        // Assertions
-        // Some commands actually completed before timeout.
+        // Some commands completed before timeout
         assertThat(completed).isGreaterThan(0)
 
-        // Depending on how you wire onCommandSkipped for cancellation, you may or may not
-        // see skipped > 0; keep this if you convert cancellations to "skipped".
-        assertThat(skipped).isGreaterThan(0)
+        // Cancellation now throws immediately — no commands are "skipped"
+        assertThat(skipped).isEqualTo(0)
+    }
+
+    @Test
+    fun `Case 140 - scrollUntilVisible respects coroutine cancellation`() {
+        // No matching element exists, so scrollUntilVisible loops until its 60s timeout.
+        // We cancel via withTimeout(2000) — Orchestra should stop within ~2s, not 60s.
+        val driver = driver {
+            // No elements — selector will never match, so scrollUntilVisible loops forever
+        }
+
+        var startedCommands = 0
+
+        Maestro(driver).use { maestro ->
+            val exception = assertThrows<TimeoutCancellationException> {
+                runBlocking {
+                    withTimeout(2000) {
+                        val orchestra = Orchestra(
+                            maestro = maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandStart = { _, _ -> startedCommands++ },
+                        )
+
+                        orchestra.runFlow(
+                            listOf(
+                                MaestroCommand(
+                                    scrollUntilVisible = ScrollUntilVisibleCommand(
+                                        selector = ElementSelector(textRegex = "Hidden"),
+                                        direction = ScrollDirection.DOWN,
+                                        timeout = "60000",
+                                        visibilityPercentage = 100,
+                                        centerElement = false,
+                                    )
+                                ),
+                                // This command should never start
+                                MaestroCommand(
+                                    tapOnElement = TapOnElementCommand(
+                                        selector = ElementSelector(textRegex = "Hidden"),
+                                    )
+                                ),
+                            )
+                        )
+                    }
+                }
+            }
+
+            // scrollUntilVisible started
+            assertThat(startedCommands).isEqualTo(1)
+            // Swipes happened (loop was running before cancellation)
+            driver.assertAnyEvent { it is Event.SwipeElementWithDirection }
+        }
+    }
+
+    @Test
+    fun `Case 141 - retryCommand respects coroutine cancellation`() {
+        // Retry wraps a command that always fails. maxRetries is high.
+        // withTimeout should cancel before all retries are exhausted.
+        val driver = driver {
+            // No elements — tap will always fail
+        }
+
+        var startedCommands = 0
+
+        Maestro(driver).use { maestro ->
+            assertThrows<TimeoutCancellationException> {
+                runBlocking {
+                    withTimeout(2000) {
+                        val orchestra = Orchestra(
+                            maestro = maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandStart = { _, _ -> startedCommands++ },
+                        )
+
+                        orchestra.runFlow(
+                            listOf(
+                                MaestroCommand(
+                                    retryCommand = RetryCommand(
+                                        maxRetries = "3",
+                                        commands = listOf(
+                                            MaestroCommand(
+                                                scrollUntilVisible = ScrollUntilVisibleCommand(
+                                                    selector = ElementSelector(textRegex = "NonExistent"),
+                                                    direction = ScrollDirection.DOWN,
+                                                    timeout = "60000",
+                                                    visibilityPercentage = 100,
+                                                    centerElement = false,
+                                                )
+                                            )
+                                        ),
+                                        config = null,
+                                    )
+                                ),
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Retry started (at least one onCommandStart for the retry command)
+            assertThat(startedCommands).isGreaterThan(0)
+        }
+    }
+
+    @Test
+    fun `Case 142 - no callbacks fire after cancellation`() {
+        // Flow has a slow command followed by many more commands.
+        // After cancellation, no onCommandStart should fire.
+        val driver = driver {
+            // No elements — selector will never match, so scrollUntilVisible loops forever
+        }
+
+        val startedAfterCancellation = mutableListOf<String>()
+        var cancellationDetected = false
+
+        Maestro(driver).use { maestro ->
+            assertThrows<TimeoutCancellationException> {
+                runBlocking {
+                    withTimeout(2000) {
+                        val orchestra = Orchestra(
+                            maestro = maestro,
+                            lookupTimeoutMs = 0L,
+                            optionalLookupTimeoutMs = 0L,
+                            onCommandStart = { _, cmd ->
+                                if (cancellationDetected) {
+                                    startedAfterCancellation.add(cmd.description())
+                                }
+                            },
+                            onCommandFailed = { _, _, _ ->
+                                cancellationDetected = true
+                                Orchestra.ErrorResolution.CONTINUE
+                            },
+                        )
+
+                        orchestra.runFlow(
+                            listOf(
+                                // Config with onFlowComplete — should NOT run on cancellation
+                                MaestroCommand(
+                                    applyConfigurationCommand = ApplyConfigurationCommand(
+                                        config = MaestroConfig(
+                                            onFlowComplete = MaestroOnFlowComplete(
+                                                commands = listOf(
+                                                    MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "cleanup"))),
+                                                )
+                                            )
+                                        )
+                                    )
+                                ),
+                                MaestroCommand(
+                                    scrollUntilVisible = ScrollUntilVisibleCommand(
+                                        selector = ElementSelector(textRegex = "Hidden"),
+                                        direction = ScrollDirection.DOWN,
+                                        timeout = "60000",
+                                        visibilityPercentage = 100,
+                                        centerElement = false,
+                                    )
+                                ),
+                                // These should never get onCommandStart called
+                                MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "A"))),
+                                MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "B"))),
+                                MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "C"))),
+                            )
+                        )
+                    }
+                }
+            }
+
+            assertThat(startedAfterCancellation).isEmpty()
+            // Verify onFlowComplete commands did not execute
+            driver.assertNoEvent(Event.Tap(Point(0, 0)))
+        }
     }
 
     @Test

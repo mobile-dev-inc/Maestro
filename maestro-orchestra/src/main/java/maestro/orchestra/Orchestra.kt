@@ -19,8 +19,10 @@
 
 package maestro.orchestra
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.yield
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
@@ -196,16 +198,22 @@ class Orchestra(
                     screenRecording?.close()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             exception = e
         } finally {
-            val onCompleteSuccess = config?.onFlowComplete?.commands?.let {
-                executeCommands(
-                    commands = it,
-                    config = config,
-                    shouldReinitJsEngine = false,
-                )
-            } ?: true
+            val onCompleteSuccess = if (currentCoroutineContext().isActive) {
+                config?.onFlowComplete?.commands?.let {
+                    executeCommands(
+                        commands = it,
+                        config = config,
+                        shouldReinitJsEngine = false,
+                    )
+                } ?: true
+            } else {
+                true
+            }
 
             jsEngine.close()
 
@@ -224,19 +232,12 @@ class Orchestra(
             initJsEngine(config)
         }
 
-        if (!currentCoroutineContext().isActive) {
-            logger.info("Flow cancelled, skipping initAndroidChromeDevTools...")
-        } else {
-            initAndroidChromeDevTools(config)
-        }
+        yield()
+        initAndroidChromeDevTools(config)
 
         commands
             .forEachIndexed { index, command ->
-                if (!currentCoroutineContext().isActive) {
-                    logger.info("[Command execution] Command skipped due to cancellation: $command")
-                    onCommandSkipped(index, command)
-                    return@forEachIndexed
-                }
+                yield()
 
                 // Check for pause before executing each command
                 flowController.waitIfPaused()
@@ -288,6 +289,8 @@ class Orchestra(
                     logger.info("[Command execution] CommandSkipped: ${ignored.message}")
                     // Swallow exception
                     onCommandSkipped(index, command)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
@@ -321,10 +324,6 @@ class Orchestra(
      */
     private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
-
-        if (!currentCoroutineContext().isActive) {
-            throw CommandSkipped
-        }
 
         flowController.waitIfPaused()
 
@@ -709,7 +708,7 @@ class Orchestra(
         return true
     }
 
-    private fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
+    private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
         val endTime = System.currentTimeMillis() + command.timeout.toLong()
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
@@ -718,6 +717,7 @@ class Orchestra(
         val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
 
         do {
+            yield()
             try {
                 val element = findElement(command.selector, command.optional, 500).element
                 val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
@@ -824,7 +824,8 @@ class Orchestra(
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
         }
 
-        while (checkCondition() && counter < maxRuns && currentCoroutineContext().isActive) {
+        while (checkCondition() && counter < maxRuns) {
+            yield()
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
             }
@@ -853,6 +854,8 @@ class Orchestra(
         while (attempt <= maxRetries) {
             try {
                 return runSubFlow(command.commands, config, command.config)
+            } catch (e: CancellationException) {
+                throw e
             } catch (exception: Throwable) {
                 if (attempt == maxRetries) {
                     logger.error("Max retries ($maxRetries) reached. Commands failed.", exception)
@@ -981,6 +984,7 @@ class Orchestra(
         return try {
             commands
                 .mapIndexed { index, command ->
+                    yield()
                     onCommandStart(index, command)
 
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
@@ -1013,6 +1017,8 @@ class Orchestra(
                         logger.info("[Command execution subflow] CommandSkipped: ${ignored.message}")
                         onCommandSkipped(index, command)
                         false
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Throwable) {
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
@@ -1051,12 +1057,18 @@ class Orchestra(
                 if (onStartSuccess) {
                     flowSuccess = executeSubflowCommands(filteredCommands, config)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Throwable) {
                 throw e
             } finally {
-                onCompleteSuccess = subflowConfig?.onFlowComplete?.commands?.let {
-                    executeSubflowCommands(it, config)
-                } ?: true
+                onCompleteSuccess = if (currentCoroutineContext().isActive) {
+                    subflowConfig?.onFlowComplete?.commands?.let {
+                        executeSubflowCommands(it, config)
+                    } ?: true
+                } else {
+                    true
+                }
             }
             onCompleteSuccess && flowSuccess
         } finally {
