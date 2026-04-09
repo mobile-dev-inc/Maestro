@@ -2,6 +2,7 @@ package maestro.cli.mcp.tools
 
 import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import okio.Buffer
@@ -45,7 +46,7 @@ object TakeScreenshotTool {
                     platform = null
                 ) { session ->
                     val buffer = Buffer()
-                    session.maestro.takeScreenshot(buffer, true)
+                    runBlocking { session.maestro.takeScreenshot(buffer, true) }
                     val pngBytes = buffer.readByteArray()
                     
                     // Convert PNG to JPEG

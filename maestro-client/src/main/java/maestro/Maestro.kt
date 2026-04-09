@@ -35,6 +35,10 @@ import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.yield
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -53,15 +57,15 @@ class Maestro(
     }
 
     @Deprecated("This function should be removed and its usages refactored. See issue #2031")
-    fun deviceInfo() = driver.deviceInfo()
+    suspend fun deviceInfo() = runInterruptible(Dispatchers.IO) { driver.deviceInfo() }
 
     private var screenRecordingInProgress = false
 
-    fun launchApp(
+    suspend fun launchApp(
         appId: String,
         launchArguments: Map<String, Any> = emptyMap(),
         stopIfRunning: Boolean = true
-    ) {
+    ) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Launching app $appId")
 
         if (stopIfRunning) {
@@ -71,52 +75,52 @@ class Maestro(
         driver.launchApp(appId, launchArguments)
     }
 
-    fun stopApp(appId: String) {
+    suspend fun stopApp(appId: String) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Stopping app $appId")
 
         driver.stopApp(appId)
     }
 
-    fun killApp(appId: String) {
+    suspend fun killApp(appId: String) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Killing app $appId")
 
         driver.killApp(appId)
     }
 
-    fun clearAppState(appId: String) {
+    suspend fun clearAppState(appId: String) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Clearing app state $appId")
 
         driver.clearAppState(appId)
     }
 
-    fun setPermissions(appId: String, permissions: Map<String, String>) {
+    suspend fun setPermissions(appId: String, permissions: Map<String, String>) = runInterruptible(Dispatchers.IO) {
         driver.setPermissions(appId, permissions)
     }
 
-    fun clearKeychain() {
+    suspend fun clearKeychain() = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Clearing keychain")
 
         driver.clearKeychain()
     }
 
-    fun backPress() {
+    suspend fun backPress() {
         LOGGER.info("Pressing back")
 
-        driver.backPress()
+        runInterruptible(Dispatchers.IO) { driver.backPress() }
         waitForAppToSettle()
     }
 
-    fun hideKeyboard() {
+    suspend fun hideKeyboard() = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Hiding Keyboard")
 
         driver.hideKeyboard()
     }
 
-    fun isKeyboardVisible(): Boolean {
-        return driver.isKeyboardVisible()
+    suspend fun isKeyboardVisible(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isKeyboardVisible()
     }
 
-    fun swipe(
+    suspend fun swipe(
         swipeDirection: SwipeDirection? = null,
         startPoint: Point? = null,
         endPoint: Point? = null,
@@ -127,53 +131,55 @@ class Maestro(
     ) {
         val deviceInfo = deviceInfo()
 
-        when {
-            swipeDirection != null -> driver.swipe(swipeDirection, duration)
-            startPoint != null && endPoint != null -> driver.swipe(startPoint, endPoint, duration)
-            startRelative != null && endRelative != null -> {
-                val startPoints = startRelative.replace("%", "")
-                    .split(",").map { it.trim().toInt() }
-                val startX = deviceInfo.widthGrid * startPoints[0] / 100
-                val startY = deviceInfo.heightGrid * startPoints[1] / 100
-                val start = Point(startX, startY)
+        runInterruptible(Dispatchers.IO) {
+            when {
+                swipeDirection != null -> driver.swipe(swipeDirection, duration)
+                startPoint != null && endPoint != null -> driver.swipe(startPoint, endPoint, duration)
+                startRelative != null && endRelative != null -> {
+                    val startPoints = startRelative.replace("%", "")
+                        .split(",").map { it.trim().toInt() }
+                    val startX = deviceInfo.widthGrid * startPoints[0] / 100
+                    val startY = deviceInfo.heightGrid * startPoints[1] / 100
+                    val start = Point(startX, startY)
 
-                val endPoints = endRelative.replace("%", "")
-                    .split(",").map { it.trim().toInt() }
-                val endX = deviceInfo.widthGrid * endPoints[0] / 100
-                val endY = deviceInfo.heightGrid * endPoints[1] / 100
-                val end = Point(endX, endY)
+                    val endPoints = endRelative.replace("%", "")
+                        .split(",").map { it.trim().toInt() }
+                    val endX = deviceInfo.widthGrid * endPoints[0] / 100
+                    val endY = deviceInfo.heightGrid * endPoints[1] / 100
+                    val end = Point(endX, endY)
 
-                driver.swipe(start, end, duration)
+                    driver.swipe(start, end, duration)
+                }
             }
         }
 
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+    suspend fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
-        driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs)
+        runInterruptible(Dispatchers.IO) { driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs) }
 
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+    suspend fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         val deviceInfo = deviceInfo()
 
         LOGGER.info("Swiping ${swipeDirection.name} from center")
         val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
-        driver.swipe(center, swipeDirection, durationMs)
+        runInterruptible(Dispatchers.IO) { driver.swipe(center, swipeDirection, durationMs) }
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    fun scrollVertical() {
+    suspend fun scrollVertical() {
         LOGGER.info("Scrolling vertically")
 
-        driver.scrollVertical()
+        runInterruptible(Dispatchers.IO) { driver.scrollVertical() }
         waitForAppToSettle()
     }
 
-    fun tap(
+    suspend fun tap(
         element: UiElement,
         initialHierarchy: ViewHierarchy,
         retryIfNoChange: Boolean = false,
@@ -227,7 +233,7 @@ class Maestro(
         }
     }
 
-    fun tapOnRelative(
+    suspend fun tapOnRelative(
         percentX: Int,
         percentY: Int,
         retryIfNoChange: Boolean = false,
@@ -235,7 +241,7 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        val deviceInfo = driver.deviceInfo()
+        val deviceInfo = runInterruptible(Dispatchers.IO) { driver.deviceInfo() }
         val x = deviceInfo.widthGrid * percentX / 100
         val y = deviceInfo.heightGrid * percentY / 100
         tap(
@@ -248,7 +254,7 @@ class Maestro(
         )
     }
 
-    fun tap(
+    suspend fun tap(
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = false,
@@ -266,11 +272,11 @@ class Maestro(
         )
     }
 
-    private fun getNumberOfRetries(retryIfNoChange: Boolean): Int {
+    private suspend fun getNumberOfRetries(retryIfNoChange: Boolean): Int {
         return if (retryIfNoChange) 2 else 1
     }
 
-    private fun performTap(
+    private suspend fun performTap(
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = false,
@@ -279,7 +285,7 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        val capabilities = driver.capabilities()
+        val capabilities = runInterruptible(Dispatchers.IO) { driver.capabilities() }
 
         if (Capability.FAST_HIERARCHY in capabilities) {
             hierarchyBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
@@ -288,7 +294,7 @@ class Maestro(
         }
     }
 
-    private fun hierarchyBasedTap(
+    private suspend fun hierarchyBasedTap(
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = false,
@@ -304,17 +310,21 @@ class Maestro(
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             if (longPress) {
-                driver.longPress(Point(x, y))
+                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
             } else if (tapRepeat != null) {
                 for (i in 0 until tapRepeat.repeat) {
 
                     // subtract execution duration from tap delay
-                    val duration = measureTimeMillis { driver.tap(Point(x, y)) }
-                    val delay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
+                    val duration = measureTimeMillis {
+                        runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
+                    }
+                    val tapDelay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
 
-                    if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
+                    if (tapRepeat.repeat > 1) delay(tapDelay) // do not wait for single taps
                 }
-            } else driver.tap(Point(x, y))
+            } else {
+                runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
+            }
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
             if (hierarchyAfterTap == null || hierarchyBeforeTap != hierarchyAfterTap) {
@@ -324,7 +334,7 @@ class Maestro(
         }
     }
 
-    private fun screenshotBasedTap(
+    private suspend fun screenshotBasedTap(
         x: Int,
         y: Int,
         retryIfNoChange: Boolean = false,
@@ -336,23 +346,25 @@ class Maestro(
         LOGGER.info("Try tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
-        val screenshotBeforeTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
+        val screenshotBeforeTap: BufferedImage? = runInterruptible(Dispatchers.IO) { ScreenshotUtils.tryTakingScreenshot(driver) }
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             if (longPress) {
-                driver.longPress(Point(x, y))
+                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
             } else if (tapRepeat != null) {
                 for (i in 0 until tapRepeat.repeat) {
 
                     // subtract execution duration from tap delay
-                    val duration = measureTimeMillis { driver.tap(Point(x, y)) }
-                    val delay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
+                    val duration = measureTimeMillis {
+                        runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
+                    }
+                    val tapDelay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
 
-                    if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
+                    if (tapRepeat.repeat > 1) delay(tapDelay) // do not wait for single taps
                 }
             } else {
-                driver.tap(Point(x, y))
+                runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
             }
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
@@ -363,7 +375,7 @@ class Maestro(
 
             LOGGER.info("Tapping at ($x, $y) using screenshot based logic for wait")
 
-            val screenshotAfterTap: BufferedImage? = ScreenshotUtils.tryTakingScreenshot(driver)
+            val screenshotAfterTap: BufferedImage? = runInterruptible(Dispatchers.IO) { ScreenshotUtils.tryTakingScreenshot(driver) }
             if (screenshotBeforeTap != null &&
                 screenshotAfterTap != null &&
                 screenshotBeforeTap.width == screenshotAfterTap.width &&
@@ -388,97 +400,98 @@ class Maestro(
         }
     }
 
-    private fun waitUntilVisible(element: UiElement): ViewHierarchy {
+    private suspend fun waitUntilVisible(element: UiElement): ViewHierarchy {
         var hierarchy = ViewHierarchy(TreeNode())
         repeat(10) {
+            yield() // cooperative cancellation checkpoint
             hierarchy = viewHierarchy()
-            if (!hierarchy.isVisible(element.treeNode)) {
-                LOGGER.info("Element is not visible yet. Waiting.")
-                MaestroTimer.sleep(MaestroTimer.Reason.WAIT_UNTIL_VISIBLE, 1000)
-            } else {
+            if (hierarchy.isVisible(element.treeNode)) {
                 LOGGER.info("Element became visible.")
                 return hierarchy
             }
+            LOGGER.info("Element is not visible yet. Waiting.")
+            delay(1000)
         }
-
         return hierarchy
     }
 
-    fun pressKey(code: KeyCode, waitForAppToSettle: Boolean = true) {
+    suspend fun pressKey(code: KeyCode, waitForAppToSettle: Boolean = true) {
         LOGGER.info("Pressing key $code")
 
-        driver.pressKey(code)
+        runInterruptible(Dispatchers.IO) { driver.pressKey(code) }
 
         if (waitForAppToSettle) {
             waitForAppToSettle()
         }
     }
 
-    fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy {
-        return ViewHierarchy.from(driver, excludeKeyboardElements)
+    suspend fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy = runInterruptible(Dispatchers.IO) {
+        ViewHierarchy.from(driver, excludeKeyboardElements)
     }
 
-    fun findElementWithTimeout(
+    suspend fun findElementWithTimeout(
         timeoutMs: Long,
         filter: ElementFilter,
-        viewHierarchy: ViewHierarchy? = null
+        initialHierarchy: ViewHierarchy? = null
     ): FindElementResult? {
-        var hierarchy = viewHierarchy ?: ViewHierarchy(TreeNode())
-        val element = MaestroTimer.withTimeout(timeoutMs) {
-            hierarchy = viewHierarchy ?: viewHierarchy()
-            filter(hierarchy.aggregate()).firstOrNull()
-        }?.toUiElementOrNull()
+        var hierarchy = initialHierarchy ?: ViewHierarchy(TreeNode())
 
-        return if (element == null) {
-            null
-        } else {
-            if (viewHierarchy != null) {
-                hierarchy = ViewHierarchy(element.treeNode)
+        val found = MaestroTimer.withTimeoutSuspend(timeoutMs) {
+            hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
+                ViewHierarchy.from(driver, false)
             }
-            return FindElementResult(element, hierarchy)
+            filter(hierarchy.aggregate()).firstOrNull()
         }
+
+        val uiElement = found?.toUiElementOrNull() ?: return null
+        if (initialHierarchy != null) {
+            hierarchy = ViewHierarchy(uiElement.treeNode)
+        }
+        return FindElementResult(uiElement, hierarchy)
     }
 
-    fun findElementsByOnDeviceQuery(
+    suspend fun findElementsByOnDeviceQuery(
         timeoutMs: Long,
         query: OnDeviceElementQuery
     ): OnDeviceElementQueryResult? {
-        return MaestroTimer.withTimeout(timeoutMs) {
-            val elements = driver.queryOnDeviceElements(query)
-
-            OnDeviceElementQueryResult(
-                elements = elements.mapNotNull { it.toUiElementOrNull() },
-            )
+        return MaestroTimer.withTimeoutSuspend(timeoutMs) {
+            val result = runInterruptible(Dispatchers.IO) {
+                val elements = driver.queryOnDeviceElements(query)
+                OnDeviceElementQueryResult(
+                    elements = elements.mapNotNull { it.toUiElementOrNull() },
+                )
+            }
+            if (result.elements.isNotEmpty()) result else null
         }
     }
 
-    fun allElementsMatching(filter: ElementFilter): List<TreeNode> {
+    suspend fun allElementsMatching(filter: ElementFilter): List<TreeNode> {
         return filter(viewHierarchy().aggregate())
     }
 
-    fun waitForAppToSettle(
+    suspend fun waitForAppToSettle(
         initialHierarchy: ViewHierarchy? = null,
         appId: String? = null,
         waitToSettleTimeoutMs: Int? = null
-    ): ViewHierarchy? {
-        return driver.waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
+    ): ViewHierarchy? = runInterruptible(Dispatchers.IO) {
+        driver.waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
     }
 
-    fun inputText(text: String) {
+    suspend fun inputText(text: String) {
         LOGGER.info("Inputting text: $text")
 
-        driver.inputText(text)
+        runInterruptible(Dispatchers.IO) { driver.inputText(text) }
         waitForAppToSettle()
     }
 
-    fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
+    suspend fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         LOGGER.info("Opening link $link for app: $appId with autoVerify config as $autoVerify")
 
-        driver.openLink(link, appId, autoVerify, browser)
+        runInterruptible(Dispatchers.IO) { driver.openLink(link, appId, autoVerify, browser) }
         waitForAppToSettle()
     }
 
-    fun addMedia(fileNames: List<String>) {
+    suspend fun addMedia(fileNames: List<String>) = runInterruptible(Dispatchers.IO) {
         val mediaFiles = fileNames.map { File(it) }
         driver.addMedia(mediaFiles)
     }
@@ -488,7 +501,7 @@ class Maestro(
     }
 
     @Deprecated("Use takeScreenshot(Sink, Boolean) instead")
-    fun takeScreenshot(outFile: File, compressed: Boolean) {
+    suspend fun takeScreenshot(outFile: File, compressed: Boolean) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Taking screenshot to a file: $outFile")
 
         val absoluteOutFile = outFile.absoluteFile
@@ -507,22 +520,26 @@ class Maestro(
         }
     }
 
-    fun takeScreenshot(sink: Sink, compressed: Boolean, bounds: Bounds? = null) {
+    suspend fun takeScreenshot(sink: Sink, compressed: Boolean, bounds: Bounds? = null) {
         if (bounds == null) {
             LOGGER.info("Taking screenshot")
-            sink
-                .buffer()
-                .use {
-                    ScreenshotUtils.takeScreenshot(it, compressed, driver)
-                }
+            runInterruptible(Dispatchers.IO) {
+                sink
+                    .buffer()
+                    .use {
+                        ScreenshotUtils.takeScreenshot(it, compressed, driver)
+                    }
+            }
         } else {
             LOGGER.info("Taking screenshot (cropped to bounds)")
             val (x, y, width, height) = bounds
 
-            val originalImage = Buffer().apply {
-                ScreenshotUtils.takeScreenshot(this, compressed, driver)
-            }.let { buffer ->
-                buffer.inputStream().use { ImageIO.read(it) }
+            val originalImage = runInterruptible(Dispatchers.IO) {
+                Buffer().apply {
+                    ScreenshotUtils.takeScreenshot(this, compressed, driver)
+                }.let { buffer ->
+                    buffer.inputStream().use { ImageIO.read(it) }
+                }
             }
 
             val info = cachedDeviceInfo
@@ -558,7 +575,7 @@ class Maestro(
         }
     }
 
-    fun startScreenRecording(out: Sink): ScreenRecording {
+    suspend fun startScreenRecording(out: Sink): ScreenRecording {
         LOGGER.info("Starting screen recording")
 
         if (screenRecordingInProgress) {
@@ -572,7 +589,7 @@ class Maestro(
         screenRecordingInProgress = true
 
         LOGGER.info("Starting screen recording")
-        val screenRecording = driver.startScreenRecording(out)
+        val screenRecording = runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
         val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
             override fun close() {
@@ -589,29 +606,29 @@ class Maestro(
         }
     }
 
-    fun setLocation(latitude: String, longitude: String) {
+    suspend fun setLocation(latitude: String, longitude: String) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Setting location: ($latitude, $longitude)")
 
         driver.setLocation(latitude.toDouble(), longitude.toDouble())
     }
 
-    fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean = true) {
+    suspend fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean = true) {
         LOGGER.info("Setting orientation: $orientation")
 
-        driver.setOrientation(orientation)
+        runInterruptible(Dispatchers.IO) { driver.setOrientation(orientation) }
 
         if (waitForAppToSettle) {
             waitForAppToSettle()
         }
     }
 
-    fun eraseText(charactersToErase: Int) {
+    suspend fun eraseText(charactersToErase: Int) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Erasing $charactersToErase characters")
 
         driver.eraseText(charactersToErase)
     }
 
-    fun waitForAnimationToEnd(timeout: Long?) {
+    suspend fun waitForAnimationToEnd(timeout: Long?) = runInterruptible(Dispatchers.IO) {
         @Suppress("NAME_SHADOWING")
         val timeout = timeout ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")
@@ -619,38 +636,38 @@ class Maestro(
         ScreenshotUtils.waitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD, driver)
     }
 
-    fun setProxy(
+    suspend fun setProxy(
         host: String = SocketUtils.localIp(),
         port: Int
-    ) {
+    ) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Setting proxy: $host:$port")
 
         driver.setProxy(host, port)
     }
 
-    fun resetProxy() {
+    suspend fun resetProxy() = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Resetting proxy")
 
         driver.resetProxy()
     }
 
-    fun isShutDown(): Boolean {
-        return driver.isShutdown()
+    suspend fun isShutDown(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isShutdown()
     }
 
-    fun isUnicodeInputSupported(): Boolean {
-        return driver.isUnicodeInputSupported()
+    suspend fun isUnicodeInputSupported(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isUnicodeInputSupported()
     }
 
-    fun isAirplaneModeEnabled(): Boolean {
-        return driver.isAirplaneModeEnabled()
+    suspend fun isAirplaneModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isAirplaneModeEnabled()
     }
 
-    fun setAirplaneModeState(enabled: Boolean) {
+    suspend fun setAirplaneModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setAirplaneMode(enabled)
     }
 
-    fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
+    suspend fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setAndroidChromeDevToolsEnabled(enabled)
     }
 
