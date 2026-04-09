@@ -23,7 +23,6 @@ import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
-import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
 import okio.Buffer
@@ -36,7 +35,9 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -307,19 +308,21 @@ class Maestro(
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
-            runInterruptible(Dispatchers.IO) {
-                if (longPress) {
-                    driver.longPress(Point(x, y))
-                } else if (tapRepeat != null) {
-                    for (i in 0 until tapRepeat.repeat) {
+            if (longPress) {
+                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
+            } else if (tapRepeat != null) {
+                for (i in 0 until tapRepeat.repeat) {
 
-                        // subtract execution duration from tap delay
-                        val duration = measureTimeMillis { driver.tap(Point(x, y)) }
-                        val delay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
-
-                        if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
+                    // subtract execution duration from tap delay
+                    val duration = measureTimeMillis {
+                        runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
                     }
-                } else driver.tap(Point(x, y))
+                    val tapDelay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
+
+                    if (tapRepeat.repeat > 1) delay(tapDelay) // do not wait for single taps
+                }
+            } else {
+                runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
             }
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
@@ -346,21 +349,21 @@ class Maestro(
 
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
-            runInterruptible(Dispatchers.IO) {
-                if (longPress) {
-                    driver.longPress(Point(x, y))
-                } else if (tapRepeat != null) {
-                    for (i in 0 until tapRepeat.repeat) {
+            if (longPress) {
+                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
+            } else if (tapRepeat != null) {
+                for (i in 0 until tapRepeat.repeat) {
 
-                        // subtract execution duration from tap delay
-                        val duration = measureTimeMillis { driver.tap(Point(x, y)) }
-                        val delay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
-
-                        if (tapRepeat.repeat > 1) Thread.sleep(delay) // do not wait for single taps
+                    // subtract execution duration from tap delay
+                    val duration = measureTimeMillis {
+                        runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
                     }
-                } else {
-                    driver.tap(Point(x, y))
+                    val tapDelay = if (duration >= tapRepeat.delay) 0 else tapRepeat.delay - duration
+
+                    if (tapRepeat.repeat > 1) delay(tapDelay) // do not wait for single taps
                 }
+            } else {
+                runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
             }
             val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
 
@@ -400,15 +403,13 @@ class Maestro(
         var hierarchy = ViewHierarchy(TreeNode())
         repeat(10) {
             hierarchy = viewHierarchy()
-            if (!hierarchy.isVisible(element.treeNode)) {
-                LOGGER.info("Element is not visible yet. Waiting.")
-                MaestroTimer.sleep(MaestroTimer.Reason.WAIT_UNTIL_VISIBLE, 1000)
-            } else {
+            if (hierarchy.isVisible(element.treeNode)) {
                 LOGGER.info("Element became visible.")
                 return hierarchy
             }
+            LOGGER.info("Element is not visible yet. Waiting.")
+            delay(1000)
         }
-
         return hierarchy
     }
 
@@ -429,18 +430,25 @@ class Maestro(
     suspend fun findElementWithTimeout(
         timeoutMs: Long,
         filter: ElementFilter,
-        viewHierarchy: ViewHierarchy? = null
-    ): FindElementResult? = runInterruptible(Dispatchers.IO) {
-        var hierarchy = viewHierarchy ?: ViewHierarchy(TreeNode())
-        val element = MaestroTimer.withTimeout(timeoutMs) {
-            hierarchy = viewHierarchy ?: ViewHierarchy.from(driver, excludeKeyboardElements = false)
-            filter(hierarchy.aggregate()).firstOrNull()
+        initialHierarchy: ViewHierarchy? = null
+    ): FindElementResult? {
+        var hierarchy = initialHierarchy ?: ViewHierarchy(TreeNode())
+        val element = withTimeoutOrNull(timeoutMs) {
+            while (true) {
+                hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
+                    ViewHierarchy.from(driver, false)
+                }
+                val found = filter(hierarchy.aggregate()).firstOrNull()
+                if (found != null) return@withTimeoutOrNull found
+                delay(100)
+            }
+            @Suppress("UNREACHABLE_CODE") null // unreachable, but needed for type inference
         }?.toUiElementOrNull()
 
-        if (element == null) {
+        return if (element == null) {
             null
         } else {
-            if (viewHierarchy != null) {
+            if (initialHierarchy != null) {
                 hierarchy = ViewHierarchy(element.treeNode)
             }
             FindElementResult(element, hierarchy)
@@ -450,13 +458,19 @@ class Maestro(
     suspend fun findElementsByOnDeviceQuery(
         timeoutMs: Long,
         query: OnDeviceElementQuery
-    ): OnDeviceElementQueryResult? = runInterruptible(Dispatchers.IO) {
-        MaestroTimer.withTimeout(timeoutMs) {
-            val elements = driver.queryOnDeviceElements(query)
-
-            OnDeviceElementQueryResult(
-                elements = elements.mapNotNull { it.toUiElementOrNull() },
-            )
+    ): OnDeviceElementQueryResult? {
+        return withTimeoutOrNull(timeoutMs) {
+            while (true) {
+                val result = runInterruptible(Dispatchers.IO) {
+                    val elements = driver.queryOnDeviceElements(query)
+                    OnDeviceElementQueryResult(
+                        elements = elements.mapNotNull { it.toUiElementOrNull() },
+                    )
+                }
+                if (result.elements.isNotEmpty()) return@withTimeoutOrNull result
+                delay(100)
+            }
+            @Suppress("UNREACHABLE_CODE") null // unreachable, but needed for type inference
         }
     }
 
