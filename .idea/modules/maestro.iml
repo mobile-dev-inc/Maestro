@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module version="4">
+  <component name="AdditionalModuleElements">
+    <content url="file://$MODULE_DIR$/../.." dumb="true">
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/app_links/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/app_links/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/app_links/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/app_links/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/app_links/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/app_links/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/connectivity_plus/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/connectivity_plus/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/connectivity_plus/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/connectivity_plus/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/connectivity_plus/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/connectivity_plus/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/flutter_launch_arguments/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/flutter_launch_arguments/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/flutter_launch_arguments/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/flutter_launch_arguments/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/flutter_launch_arguments/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/flutter_launch_arguments/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/geolocator_apple/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/geolocator_apple/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/geolocator_apple/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/geolocator_apple/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/geolocator_apple/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/geolocator_apple/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/integration_test_macos/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/integration_test_macos/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/integration_test/integration_test_macos/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/permission_handler_apple/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/permission_handler_apple/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/permission_handler_apple/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/permission_handler_apple/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/permission_handler_apple/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/permission_handler_apple/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/sensors_plus/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/sensors_plus/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/sensors_plus/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/sensors_plus/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/sensors_plus/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/sensors_plus/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/shared_preferences_foundation/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/shared_preferences_foundation/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/shared_preferences_foundation/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/shared_preferences_foundation/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/shared_preferences_foundation/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/shared_preferences_foundation/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/webview_flutter_wkwebview/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/webview_flutter_wkwebview/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/webview_flutter_wkwebview/build" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/webview_flutter_wkwebview/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/webview_flutter_wkwebview/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/../../e2e/demo_app/ios/.symlinks/plugins/webview_flutter_wkwebview/example/build" />
+    </content>
+  </component>
+</module>
