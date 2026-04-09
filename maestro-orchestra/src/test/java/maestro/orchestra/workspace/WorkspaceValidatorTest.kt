@@ -440,8 +440,6 @@ class WorkspaceValidatorTest {
             .mapNotNull { it.runFlowCommand }
             .first()
         assertThat(runFlowCmd.sourceDescription).isNotNull()
-//        assertThat(runFlowCmd.sourceDescription).doesNotContain("..")
-//        assertThat(runFlowCmd.sourceDescription).doesNotContain("./")
     }
 
     @Test
