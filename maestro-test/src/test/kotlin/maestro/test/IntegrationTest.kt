@@ -4781,6 +4781,54 @@ class IntegrationTest {
         assertThat(closeCalled).isTrue()
     }
 
+    @Test
+    fun `Case 143 - Maestro cancellation works even when device IO blocks`() {
+        // Simulates a frozen device where contentDescriptor blocks forever.
+        // Maestro uses runInterruptible which interrupts the blocked thread
+        // on cancellation, so withTimeout returns promptly.
+        val blockingLatch = java.util.concurrent.CountDownLatch(1)
+
+        val driver = object : FakeDriver() {
+            override fun contentDescriptor(excludeKeyboardElements: Boolean): maestro.TreeNode {
+                blockingLatch.await() // blocks forever (interruptible)
+                return super.contentDescriptor(excludeKeyboardElements)
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            val elapsedMs = kotlin.system.measureTimeMillis {
+                try {
+                    runBlocking(Dispatchers.Default) {
+                        withTimeout(2000) {
+                            val orchestra = Orchestra(
+                                maestro,
+                                lookupTimeoutMs = 0L,
+                                optionalLookupTimeoutMs = 0L,
+                            )
+
+                            orchestra.runFlow(
+                                listOf(
+                                    MaestroCommand(
+                                        assertConditionCommand = AssertConditionCommand(
+                                            condition = Condition(visible = ElementSelector(textRegex = "anything")),
+                                        )
+                                    ),
+                                )
+                            )
+                        }
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    // Expected — timeout fired, runInterruptible interrupted the blocked thread
+                }
+            }
+
+            // Should complete in ~2s (timeout), not hang forever
+            assertThat(elapsedMs).isLessThan(10000)
+        }
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,

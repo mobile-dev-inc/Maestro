@@ -23,6 +23,7 @@ import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
+import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
 import okio.Buffer
@@ -434,44 +435,34 @@ class Maestro(
         initialHierarchy: ViewHierarchy? = null
     ): FindElementResult? {
         var hierarchy = initialHierarchy ?: ViewHierarchy(TreeNode())
-        val endTime = System.currentTimeMillis() + timeoutMs
 
-        do {
-            yield() // cooperative cancellation checkpoint
+        val found = MaestroTimer.withTimeoutSuspend(timeoutMs) {
             hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
                 ViewHierarchy.from(driver, false)
             }
-            val found = filter(hierarchy.aggregate()).firstOrNull()
-            if (found != null) {
-                val uiElement = found.toUiElementOrNull() ?: return null
-                if (initialHierarchy != null) {
-                    hierarchy = ViewHierarchy(uiElement.treeNode)
-                }
-                return FindElementResult(uiElement, hierarchy)
-            }
-        } while (System.currentTimeMillis() < endTime)
+            filter(hierarchy.aggregate()).firstOrNull()
+        }
 
-        return null
+        val uiElement = found?.toUiElementOrNull() ?: return null
+        if (initialHierarchy != null) {
+            hierarchy = ViewHierarchy(uiElement.treeNode)
+        }
+        return FindElementResult(uiElement, hierarchy)
     }
 
     suspend fun findElementsByOnDeviceQuery(
         timeoutMs: Long,
         query: OnDeviceElementQuery
     ): OnDeviceElementQueryResult? {
-        val endTime = System.currentTimeMillis() + timeoutMs
-
-        do {
-            yield() // cooperative cancellation checkpoint
+        return MaestroTimer.withTimeoutSuspend(timeoutMs) {
             val result = runInterruptible(Dispatchers.IO) {
                 val elements = driver.queryOnDeviceElements(query)
                 OnDeviceElementQueryResult(
                     elements = elements.mapNotNull { it.toUiElementOrNull() },
                 )
             }
-            if (result.elements.isNotEmpty()) return result
-        } while (System.currentTimeMillis() < endTime)
-
-        return null
+            if (result.elements.isNotEmpty()) result else null
+        }
     }
 
     suspend fun allElementsMatching(filter: ElementFilter): List<TreeNode> {

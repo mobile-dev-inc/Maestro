@@ -54,6 +54,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
+import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
@@ -951,27 +952,24 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
-            val endTime = System.currentTimeMillis() + adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)
-
-            do {
-                yield()
-                val gone = try {
+            val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
+                try {
                     findElement(
                         selector = it,
                         timeoutMs = 500L,
                         optional = commandOptional,
                     )
                     // Element is still visible
-                    false
+                    null
                 } catch (ignored: MaestroException.ElementNotFound) {
                     // Element was not visible, as we expected
                     true
                 }
-                if (gone) return@let
-            } while (System.currentTimeMillis() < endTime)
+            }
 
-            // Element was still visible after timeout
-            return false
+            if (disappeared != true) {
+                return false
+            }
         }
 
         return true
