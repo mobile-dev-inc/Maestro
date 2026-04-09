@@ -19,6 +19,7 @@
 
 package maestro
 
+import kotlinx.coroutines.runBlocking
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import kotlin.math.abs
@@ -284,10 +285,10 @@ object Filters {
 
     fun css(maestro: Maestro, cssSelector: String): ElementFilter {
         return { nodes ->
-            val matchingNodes = maestro.findElementsByOnDeviceQuery(
+            val matchingNodes = runBlocking { maestro.findElementsByOnDeviceQuery(
                 timeoutMs = 5000,
                 query = OnDeviceElementQuery.Css(css = cssSelector),
-            )?.elements?.map { it.treeNode } ?: emptyList()
+            ) }?.elements?.map { it.treeNode } ?: emptyList()
 
             nodes.filter { node ->
                 matchingNodes.any { it == node }
