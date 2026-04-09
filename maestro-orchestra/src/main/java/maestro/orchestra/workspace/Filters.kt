@@ -32,8 +32,9 @@ fun isFlowFile(path: Path, config: Path?): Boolean {
 private fun isWorkspaceConfigFile(path: Path): Boolean {
     return try {
         val content = path.readText()
+        if (content.contains("\n---")) return false // Flow files have a document separator
         val topLevelKeys = YAML_MAPPER.readValue(content, Map::class.java)?.keys ?: return false
-        topLevelKeys.any { it in WORKSPACE_CONFIG_KEYS }
+        topLevelKeys.all { it in WORKSPACE_CONFIG_KEYS }
     } catch (e: Exception) {
         false
     }
