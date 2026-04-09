@@ -206,7 +206,7 @@ object TestRunner {
             logger.error("Failed to run flow", e)
             val message = ErrorViewUtils.exceptionToMessage(e)
 
-            if (!maestro.isShutDown()) {
+            if (!runBlocking { maestro.isShutDown() }) {
                 view.setState(
                     UiState.Error(
                         message = message

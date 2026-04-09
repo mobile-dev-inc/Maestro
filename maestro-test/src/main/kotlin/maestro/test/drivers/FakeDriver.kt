@@ -41,7 +41,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
-class FakeDriver : Driver {
+open class FakeDriver : Driver {
 
     private var state: State = State.NOT_INITIALIZED
     private var layout: FakeLayoutElement = FakeLayoutElement()

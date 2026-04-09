@@ -20,6 +20,7 @@
 package maestro.cli.command
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import kotlinx.coroutines.runBlocking
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.cli.App
@@ -95,9 +96,11 @@ class QueryCommand : Runnable {
                 )
             }
 
-            val elements = session.maestro.allElementsMatching(
-                Filters.intersect(filters)
-            )
+            val elements = runBlocking {
+                session.maestro.allElementsMatching(
+                    Filters.intersect(filters)
+                )
+            }
 
             val mapper = jacksonObjectMapper()
                 .writerWithDefaultPrettyPrinter()

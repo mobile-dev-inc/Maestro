@@ -8,6 +8,7 @@ plugins {
 
 dependencies {
     api(libs.square.okio)
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.square.okhttp)
     implementation(libs.micrometer.core)
     implementation(libs.micrometer.observation)
