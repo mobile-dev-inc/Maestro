@@ -113,10 +113,22 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         optional: Boolean,
         waitToSettleTimeoutMs: Int?
     ): YamlSwipe {
+        val start = root.path("start").toString().replace("\"", "")
+        val end = root.path("end").toString().replace("\"", "")
+
+        // If either value contains a script variable, defer all validation to runtime.
+        val hasScriptVariable = start.contains("\${") || end.contains("\${")
+
         when {
+            hasScriptVariable -> return YamlCoordinateSwipe(
+                start,
+                end,
+                duration,
+                label,
+                optional,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs
+            )
             isRelativeSwipe(root) -> {
-                val start = root.path("start").toString().replace("\"", "")
-                val end = root.path("end").toString().replace("\"", "")
                 check(start.contains("%") && end.contains("%")) {
                     "You need to provide start and end coordinates with %, Found: (${start}, ${end})"
                 }
@@ -145,8 +157,8 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
                 )
             }
             else -> return YamlCoordinateSwipe(
-                root.path("start").toString().replace("\"", ""),
-                root.path("end").toString().replace("\"", ""),
+                start,
+                end,
                 duration,
                 label,
                 optional,
