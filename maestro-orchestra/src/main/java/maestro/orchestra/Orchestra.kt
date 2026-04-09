@@ -953,25 +953,34 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
-            val disappeared = withTimeoutOrNull(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-                while (true) {
-                    try {
-                        findElement(
-                            selector = it,
-                            timeoutMs = 500L,
-                            optional = commandOptional,
-                        )
-                        // Element is still visible — keep waiting.
-                        delay(100)
-                    } catch (ignored: MaestroException.ElementNotFound) {
-                        // Element was not visible, as we expected
-                        return@withTimeoutOrNull true
-                    }
+            // Always attempt at least once before applying the timeout,
+            // matching the old MaestroTimer.withTimeout do-while semantics.
+            suspend fun tryFindElement(): Boolean {
+                return try {
+                    findElement(
+                        selector = it,
+                        timeoutMs = 500L,
+                        optional = commandOptional,
+                    )
+                    // Element is still visible
+                    false
+                } catch (ignored: MaestroException.ElementNotFound) {
+                    // Element was not visible, as we expected
+                    true
                 }
             }
 
+            val disappearedOnFirstAttempt = tryFindElement()
+            val disappeared = disappearedOnFirstAttempt || (withTimeoutOrNull(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
+                while (true) {
+                    delay(100)
+                    if (tryFindElement()) return@withTimeoutOrNull true
+                }
+                @Suppress("UNREACHABLE_CODE") null
+            } == true)
+
             // Element was actually visible (timeout expired)
-            if (disappeared != true) {
+            if (!disappeared) {
                 return false
             }
         }

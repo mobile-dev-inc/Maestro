@@ -3839,7 +3839,14 @@ class IntegrationTest {
                     try {
                         val orchestra = Orchestra(
                             maestro,
-                            onCommandComplete = { _, _ -> completed += 1 },
+                            onCommandComplete = { _, cmd ->
+                                completed += 1
+                                // Signal cancellation after InputText completes,
+                                // so we know the driver event has been recorded.
+                                if (cmd.inputTextCommand != null && !cancellationSignal.isCompleted) {
+                                    cancellationSignal.complete(Unit)
+                                }
+                            },
                             onCommandSkipped = { _, _ -> skipped += 1 },
                             onCommandMetadataUpdate = { cmd, _ ->
                                 val commandName = when {
@@ -3852,10 +3859,6 @@ class IntegrationTest {
                                     else -> "UnknownCommand"
                                 }
                                 executedCommands.add(commandName)
-
-                                if (commandName == "InputTextCommand" && !cancellationSignal.isCompleted) {
-                                    cancellationSignal.complete(Unit)
-                                }
                             }
                         )
 

@@ -433,34 +433,52 @@ class Maestro(
         initialHierarchy: ViewHierarchy? = null
     ): FindElementResult? {
         var hierarchy = initialHierarchy ?: ViewHierarchy(TreeNode())
-        val element = withTimeoutOrNull(timeoutMs) {
+
+        // Always attempt at least once before applying the timeout, matching
+        // the old MaestroTimer.withTimeout do-while semantics.
+        fun tryFind(): TreeNode? {
+            return filter(hierarchy.aggregate()).firstOrNull()
+        }
+
+        hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
+            ViewHierarchy.from(driver, false)
+        }
+        val firstAttempt = tryFind()
+        val element = firstAttempt ?: withTimeoutOrNull(timeoutMs) {
             while (true) {
+                delay(100)
                 hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
                     ViewHierarchy.from(driver, false)
                 }
-                val found = filter(hierarchy.aggregate()).firstOrNull()
+                val found = tryFind()
                 if (found != null) return@withTimeoutOrNull found
-                delay(100)
             }
             @Suppress("UNREACHABLE_CODE") null // unreachable, but needed for type inference
-        }?.toUiElementOrNull()
-
-        return if (element == null) {
-            null
-        } else {
-            if (initialHierarchy != null) {
-                hierarchy = ViewHierarchy(element.treeNode)
-            }
-            FindElementResult(element, hierarchy)
         }
+
+        val uiElement = element?.toUiElementOrNull() ?: return null
+        if (initialHierarchy != null) {
+            hierarchy = ViewHierarchy(uiElement.treeNode)
+        }
+        return FindElementResult(uiElement, hierarchy)
     }
 
     suspend fun findElementsByOnDeviceQuery(
         timeoutMs: Long,
         query: OnDeviceElementQuery
     ): OnDeviceElementQueryResult? {
+        // Always attempt at least once before applying the timeout.
+        val firstResult = runInterruptible(Dispatchers.IO) {
+            val elements = driver.queryOnDeviceElements(query)
+            OnDeviceElementQueryResult(
+                elements = elements.mapNotNull { it.toUiElementOrNull() },
+            )
+        }
+        if (firstResult.elements.isNotEmpty()) return firstResult
+
         return withTimeoutOrNull(timeoutMs) {
             while (true) {
+                delay(100)
                 val result = runInterruptible(Dispatchers.IO) {
                     val elements = driver.queryOnDeviceElements(query)
                     OnDeviceElementQueryResult(
@@ -468,7 +486,6 @@ class Maestro(
                     )
                 }
                 if (result.elements.isNotEmpty()) return@withTimeoutOrNull result
-                delay(100)
             }
             @Suppress("UNREACHABLE_CODE") null // unreachable, but needed for type inference
         }
