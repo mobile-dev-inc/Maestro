@@ -352,8 +352,10 @@ class WorkspaceValidatorTest {
 
     @Test
     fun `validate produces normalized addMedia paths in subflows referenced via relative runFlow`() {
+        val workspace = zipWorkspaceResource("/workspaces/017_normalized_media_paths_subflow")
+
         val result = WorkspaceValidator.validate(
-            workspace = zipWorkspaceResource("/workspaces/017_normalized_media_paths_subflow"),
+            workspace = workspace,
             appId = "com.example.app",
             envParameters = emptyMap(),
             includeTags = emptyList(),
