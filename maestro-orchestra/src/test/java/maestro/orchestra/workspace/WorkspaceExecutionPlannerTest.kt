@@ -390,17 +390,34 @@ internal class WorkspaceExecutionPlannerTest {
     }
 
     @Test
-    internal fun `018 - Negation combined with specific positive patterns`() {
+    internal fun `018 - Additional config files in workspace are not treated as flows`() {
+        // When
         val plan = WorkspaceExecutionPlanner.plan(
-            input = paths("/workspaces/018_negation_with_specific_positive"),
+            input = paths("/workspaces/018_additional_config_files"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then - regression_config.yaml and platform_settings.yaml should be excluded, only flow files should be included
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/018_additional_config_files/flowA.yaml"),
+            path("/workspaces/018_additional_config_files/flowB.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `019 - Negation combined with specific positive patterns`() {
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/019_negation_with_specific_positive"),
             includeTags = listOf(),
             excludeTags = listOf(),
             config = null,
         )
 
         assertThat(plan.flowsToRun).containsExactly(
-            path("/workspaces/018_negation_with_specific_positive/featureA/flowA.yaml"),
-            path("/workspaces/018_negation_with_specific_positive/featureB/flowB.yaml"),
+            path("/workspaces/019_negation_with_specific_positive/featureA/flowA.yaml"),
+            path("/workspaces/019_negation_with_specific_positive/featureB/flowB.yaml"),
         )
     }
 

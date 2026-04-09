@@ -46,10 +46,14 @@ object WorkspaceExecutionPlanner {
 
         val (files, directories) = input.partition { it.isRegularFile() }
 
-        val flowFiles = files.filter { isFlowFile(it, config) }
+        // Resolve config path before filtering, so auto-discovered configs are also excluded
+        val resolvedConfigPath = config?.absolute()
+            ?: directories.firstNotNullOfOrNull { findConfigFile(it) }
+
+        val flowFiles = files.filter { isFlowFile(it, resolvedConfigPath) }
         val flowFilesInDirs: List<Path> = directories.flatMap { dir -> Files
             .walk(dir)
-            .filter { isFlowFile(it, config) }
+            .filter { isFlowFile(it, resolvedConfigPath) }
             .toList()
         }
         if (flowFilesInDirs.isEmpty() && flowFiles.isEmpty()) {
@@ -61,10 +65,8 @@ object WorkspaceExecutionPlanner {
         // Filter flows based on flows config
 
         val workspaceConfig =
-            if (config != null) YamlCommandReader.readWorkspaceConfig(config.absolute())
-            else directories.firstNotNullOfOrNull { findConfigFile(it) }
-                ?.let { YamlCommandReader.readWorkspaceConfig(it) }
-                ?: WorkspaceConfig()
+            if (resolvedConfigPath != null) YamlCommandReader.readWorkspaceConfig(resolvedConfigPath)
+            else WorkspaceConfig()
 
         val globs = workspaceConfig.flows ?: listOf("*")
 
