@@ -21,9 +21,7 @@ package maestro.orchestra
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import maestro.Driver
 import maestro.ElementFilter
@@ -953,10 +951,11 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
-            // Always attempt at least once before applying the timeout,
-            // matching the old MaestroTimer.withTimeout do-while semantics.
-            suspend fun tryFindElement(): Boolean {
-                return try {
+            val endTime = System.currentTimeMillis() + adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)
+
+            do {
+                yield()
+                val gone = try {
                     findElement(
                         selector = it,
                         timeoutMs = 500L,
@@ -968,21 +967,11 @@ class Orchestra(
                     // Element was not visible, as we expected
                     true
                 }
-            }
+                if (gone) return@let
+            } while (System.currentTimeMillis() < endTime)
 
-            val disappearedOnFirstAttempt = tryFindElement()
-            val disappeared = disappearedOnFirstAttempt || (withTimeoutOrNull(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-                while (true) {
-                    delay(100)
-                    if (tryFindElement()) return@withTimeoutOrNull true
-                }
-                @Suppress("UNREACHABLE_CODE") null
-            } == true)
-
-            // Element was actually visible (timeout expired)
-            if (!disappeared) {
-                return false
-            }
+            // Element was still visible after timeout
+            return false
         }
 
         return true

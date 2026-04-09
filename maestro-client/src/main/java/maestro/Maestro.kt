@@ -37,7 +37,7 @@ import javax.imageio.ImageIO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.yield
 import kotlin.system.measureTimeMillis
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -402,6 +402,7 @@ class Maestro(
     private suspend fun waitUntilVisible(element: UiElement): ViewHierarchy {
         var hierarchy = ViewHierarchy(TreeNode())
         repeat(10) {
+            yield() // cooperative cancellation checkpoint
             hierarchy = viewHierarchy()
             if (hierarchy.isVisible(element.treeNode)) {
                 LOGGER.info("Element became visible.")
@@ -433,62 +434,44 @@ class Maestro(
         initialHierarchy: ViewHierarchy? = null
     ): FindElementResult? {
         var hierarchy = initialHierarchy ?: ViewHierarchy(TreeNode())
+        val endTime = System.currentTimeMillis() + timeoutMs
 
-        // Always attempt at least once before applying the timeout, matching
-        // the old MaestroTimer.withTimeout do-while semantics.
-        fun tryFind(): TreeNode? {
-            return filter(hierarchy.aggregate()).firstOrNull()
-        }
-
-        hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
-            ViewHierarchy.from(driver, false)
-        }
-        val firstAttempt = tryFind()
-        val element = firstAttempt ?: withTimeoutOrNull(timeoutMs) {
-            while (true) {
-                delay(100)
-                hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
-                    ViewHierarchy.from(driver, false)
-                }
-                val found = tryFind()
-                if (found != null) return@withTimeoutOrNull found
+        do {
+            yield() // cooperative cancellation checkpoint
+            hierarchy = initialHierarchy ?: runInterruptible(Dispatchers.IO) {
+                ViewHierarchy.from(driver, false)
             }
-            @Suppress("UNREACHABLE_CODE") null // unreachable, but needed for type inference
-        }
+            val found = filter(hierarchy.aggregate()).firstOrNull()
+            if (found != null) {
+                val uiElement = found.toUiElementOrNull() ?: return null
+                if (initialHierarchy != null) {
+                    hierarchy = ViewHierarchy(uiElement.treeNode)
+                }
+                return FindElementResult(uiElement, hierarchy)
+            }
+        } while (System.currentTimeMillis() < endTime)
 
-        val uiElement = element?.toUiElementOrNull() ?: return null
-        if (initialHierarchy != null) {
-            hierarchy = ViewHierarchy(uiElement.treeNode)
-        }
-        return FindElementResult(uiElement, hierarchy)
+        return null
     }
 
     suspend fun findElementsByOnDeviceQuery(
         timeoutMs: Long,
         query: OnDeviceElementQuery
     ): OnDeviceElementQueryResult? {
-        // Always attempt at least once before applying the timeout.
-        val firstResult = runInterruptible(Dispatchers.IO) {
-            val elements = driver.queryOnDeviceElements(query)
-            OnDeviceElementQueryResult(
-                elements = elements.mapNotNull { it.toUiElementOrNull() },
-            )
-        }
-        if (firstResult.elements.isNotEmpty()) return firstResult
+        val endTime = System.currentTimeMillis() + timeoutMs
 
-        return withTimeoutOrNull(timeoutMs) {
-            while (true) {
-                delay(100)
-                val result = runInterruptible(Dispatchers.IO) {
-                    val elements = driver.queryOnDeviceElements(query)
-                    OnDeviceElementQueryResult(
-                        elements = elements.mapNotNull { it.toUiElementOrNull() },
-                    )
-                }
-                if (result.elements.isNotEmpty()) return@withTimeoutOrNull result
+        do {
+            yield() // cooperative cancellation checkpoint
+            val result = runInterruptible(Dispatchers.IO) {
+                val elements = driver.queryOnDeviceElements(query)
+                OnDeviceElementQueryResult(
+                    elements = elements.mapNotNull { it.toUiElementOrNull() },
+                )
             }
-            @Suppress("UNREACHABLE_CODE") null // unreachable, but needed for type inference
-        }
+            if (result.elements.isNotEmpty()) return result
+        } while (System.currentTimeMillis() < endTime)
+
+        return null
     }
 
     suspend fun allElementsMatching(filter: ElementFilter): List<TreeNode> {
