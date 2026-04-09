@@ -232,6 +232,7 @@ class Orchestra(
             initJsEngine(config)
         }
 
+        yield()
         initAndroidChromeDevTools(config)
 
         commands
