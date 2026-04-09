@@ -21,7 +21,9 @@ package maestro.orchestra
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import maestro.Driver
 import maestro.ElementFilter
@@ -54,7 +56,6 @@ import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
-import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
@@ -952,25 +953,25 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
-            val result = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-                try {
-                    findElement(
-                        selector = it,
-                        timeoutMs = 500L,
-                        optional = commandOptional,
-                    )
-
-                    // If we got to that point, the element is still visible.
-                    // Returning null to keep waiting.
-                    null
-                } catch (ignored: MaestroException.ElementNotFound) {
-                    // Element was not visible, as we expected
-                    true
+            val disappeared = withTimeoutOrNull(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
+                while (true) {
+                    try {
+                        findElement(
+                            selector = it,
+                            timeoutMs = 500L,
+                            optional = commandOptional,
+                        )
+                        // Element is still visible — keep waiting.
+                        delay(100)
+                    } catch (ignored: MaestroException.ElementNotFound) {
+                        // Element was not visible, as we expected
+                        return@withTimeoutOrNull true
+                    }
                 }
             }
 
-            // Element was actually visible
-            if (result != true) {
+            // Element was actually visible (timeout expired)
+            if (disappeared != true) {
                 return false
             }
         }
