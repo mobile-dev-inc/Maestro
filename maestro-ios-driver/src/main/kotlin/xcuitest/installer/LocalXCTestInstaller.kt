@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class LocalXCTestInstaller(
     private val deviceId: String,
-    private val host: String = "127.0.0.1",
+    private val host: String = "localhost",
     private val deviceType: IOSDeviceType,
     private val defaultPort: Int,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
@@ -174,7 +174,7 @@ class LocalXCTestInstaller(
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
-                .host("127.0.0.1")
+                .host(host)
                 .addPathSegment(pathSegment)
                 .port(defaultPort)
         }
