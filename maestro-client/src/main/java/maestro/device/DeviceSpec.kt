@@ -64,7 +64,7 @@ sealed class DeviceSpec {
     data class Ios(
         override val model: String,
         override val os: String,
-        val locale: IosLocale = IosLocale.fromString("en_US"),
+        val locale: IosLocale = IosLocale.EN_US,
         val orientation: DeviceOrientation = DeviceOrientation.PORTRAIT,
         val disableAnimations: Boolean = true,
         val snapshotKeyHonorModalViews: Boolean = true,
@@ -82,7 +82,7 @@ sealed class DeviceSpec {
     data class Web(
       override val model: String,
       override val os: String,
-      val locale: WebLocale = WebLocale.fromString("en_US"),
+      val locale: WebLocale = WebLocale.EN_US,
     ) : DeviceSpec() {
         init {
             require(model.isNotBlank()) { "DeviceSpec.Web: model cannot be blank" }
