@@ -1,12 +1,13 @@
 package maestro.orchestra.geo
 
+import kotlinx.coroutines.delay
 import maestro.Maestro
 import maestro.orchestra.TravelCommand
 import java.util.LinkedList
 
 object Traveller {
 
-    fun travel(
+    suspend fun travel(
         maestro: Maestro,
         points: List<TravelCommand.GeoPoint>,
         speedMPS: Double,
@@ -28,7 +29,7 @@ object Traveller {
         } while (pointsQueue.isNotEmpty())
     }
 
-    private fun travel(
+    private suspend fun travel(
         maestro: Maestro,
         start: TravelCommand.GeoPoint,
         end: TravelCommand.GeoPoint,
@@ -57,7 +58,7 @@ object Traveller {
             val longitude = sLon + (longitudeStep * i)
 
             maestro.setLocation(latitude.toString(), longitude.toString())
-            Thread.sleep(timeToSleep)
+            delay(timeToSleep)
         }
     }
 

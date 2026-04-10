@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import kotlinx.coroutines.runBlocking
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
@@ -81,7 +82,7 @@ class StudioCommand : Callable<Int> {
             platform = parent?.platform,
             isStudio = true,
         ) { session ->
-            session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools")
+            runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
 
             val port = getFreePort()
             MaestroStudio.start(port, session.maestro)

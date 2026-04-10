@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
-import maestro.cli.api.AppBinaryInfo
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.UploadResponse
 import maestro.cli.api.UploadStatus
@@ -90,11 +89,11 @@ class CloudInteractorTest {
                 authToken = any(), appFile = any(), workspaceZip = any(),
                 uploadName = any(), mappingFile = any(), repoOwner = any(),
                 repoName = any(), branch = any(), commitSha = any(),
-                pullRequestId = any(), env = any(), androidApiLevel = any(),
-                iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
+                androidApiLevel = any(), iOSVersion = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -140,7 +139,7 @@ class CloudInteractorTest {
         )
     }
 
-    // ---- 1. iOS .app + matching workspace (happy path) ----
+    // ---- iOS .app + matching workspace (happy path) ----
 
     @Test
     fun `upload with iOS app file and matching workspace succeeds`() {
@@ -166,8 +165,6 @@ class CloudInteractorTest {
             commitSha = any(),
             pullRequestId = any(),
             env = any(),
-            androidApiLevel = any(),
-            iOSVersion = any(),
             appBinaryId = isNull(),
             includeTags = any(),
             excludeTags = any(),
@@ -177,10 +174,12 @@ class CloudInteractorTest {
             projectId = "proj_1",
             deviceModel = any(),
             deviceOs = any(),
+            androidApiLevel = any(),
+            iOSVersion = any(),
         ) }
     }
 
-    // ---- 2. Web flow (no app file) ----
+    // ---- Web flow (no app file) ----
 
     @Test
     fun `upload with web flow and no app file succeeds`() {
@@ -196,55 +195,7 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
-    // ---- 3. --app-binary-id Android ----
-
-    @Test
-    fun `upload with Android appBinaryId resolves platform from server`() {
-        stubUploadResponse(platform = "Android", appBinaryId = "bin_android_1")
-
-        every { mockApiClient.getAppBinaryInfo("test-token", "bin_android_1") } returns AppBinaryInfo(
-            appBinaryId = "bin_android_1",
-            platform = "Android",
-            appId = "com.example.maestro.orientation",
-        )
-
-        val result = createCloudInteractor().upload(
-            flowFile = androidFlowFile(),
-            appFile = null,
-            async = true,
-            appBinaryId = "bin_android_1",
-            projectId = "proj_1",
-        )
-
-        assertThat(result).isEqualTo(0)
-        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", "bin_android_1") }
-    }
-
-    // ---- 4. --app-binary-id iOS ----
-
-    @Test
-    fun `upload with iOS appBinaryId resolves platform from server`() {
-        stubUploadResponse(platform = "IOS", appBinaryId = "bin_ios_1")
-
-        every { mockApiClient.getAppBinaryInfo("test-token", "bin_ios_1") } returns AppBinaryInfo(
-            appBinaryId = "bin_ios_1",
-            platform = "iOS",
-            appId = "com.example.SimpleWebViewApp",
-        )
-
-        val result = createCloudInteractor().upload(
-            flowFile = iosFlowFile(),
-            appFile = null,
-            async = true,
-            appBinaryId = "bin_ios_1",
-            projectId = "proj_1",
-        )
-
-        assertThat(result).isEqualTo(0)
-        verify(exactly = 1) { mockApiClient.getAppBinaryInfo("test-token", "bin_ios_1") }
-    }
-
-    // ---- 5. Missing app file + no binary ID + not web ----
+    // ---- Missing app file + no binary ID + not web ----
 
     @Test
     fun `upload throws CliError when no app file, no binary id, and not web flow`() {
@@ -260,7 +211,7 @@ class CloudInteractorTest {
         assertThat(error.message).contains("Missing required parameter")
     }
 
-    // ---- 6. Workspace with no matching flows ----
+    // ---- Workspace with no matching flows ----
 
     @Test
     fun `upload throws CliError when workspace flows do not match app id`() {
@@ -279,45 +230,7 @@ class CloudInteractorTest {
         assertThat(error.message).contains("No flows in workspace match app ID")
     }
 
-    // ---- 7. --app-binary-id not found (404) ----
-
-    @Test
-    fun `upload throws CliError when appBinaryId not found on server`() {
-        every { mockApiClient.getAppBinaryInfo("test-token", "nonexistent") } throws ApiClient.ApiException(404)
-
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = androidFlowFile(),
-                appFile = null,
-                async = true,
-                appBinaryId = "nonexistent",
-                projectId = "proj_1",
-            )
-        }
-
-        assertThat(error.message).contains("not found")
-    }
-
-    // ---- 8. --app-binary-id server error ----
-
-    @Test
-    fun `upload throws CliError when server returns error for appBinaryId`() {
-        every { mockApiClient.getAppBinaryInfo("test-token", "bin_err") } throws ApiClient.ApiException(500)
-
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = androidFlowFile(),
-                appFile = null,
-                async = true,
-                appBinaryId = "bin_err",
-                projectId = "proj_1",
-            )
-        }
-
-        assertThat(error.message).contains("Failed to fetch app binary info")
-    }
-
-    // ---- 9. --device-locale passed through ----
+    // ---- --device-locale passed through ----
 
     @Test
     fun `upload passes device locale to api client`() {
@@ -335,15 +248,15 @@ class CloudInteractorTest {
             authToken = any(), appFile = any(), workspaceZip = any(),
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
-            pullRequestId = any(), env = any(), androidApiLevel = any(),
-            iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = eq("fr_FR"), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
-    // ---- 10. --include-tags passed through ----
+    // ---- --include-tags passed through ----
 
     @Test
     fun `upload passes include tags to workspace validation and api client`() {
@@ -361,39 +274,16 @@ class CloudInteractorTest {
             authToken = any(), appFile = any(), workspaceZip = any(),
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
-            pullRequestId = any(), env = any(), androidApiLevel = any(),
-            iOSVersion = any(), appBinaryId = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(),
             includeTags = eq(listOf("smoke")),
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
-    // ---- 11. Unsupported platform from server ----
-
-    @Test
-    fun `upload throws CliError when server returns unsupported platform for appBinaryId`() {
-        every { mockApiClient.getAppBinaryInfo("test-token", "bin_symbian") } returns AppBinaryInfo(
-            appBinaryId = "bin_symbian",
-            platform = "Symbian",
-            appId = "com.example.app",
-        )
-
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = androidFlowFile(),
-                appFile = null,
-                async = true,
-                appBinaryId = "bin_symbian",
-                projectId = "proj_1",
-            )
-        }
-
-        assertThat(error.message).contains("Unsupported platform")
-    }
-
-    // ---- 12. CI metadata passed through ----
+    // ---- CI metadata passed through ----
 
     @Test
     fun `upload passes CI metadata to api client`() {
@@ -417,15 +307,15 @@ class CloudInteractorTest {
             repoOwner = eq("acme"), repoName = eq("app"),
             branch = eq("feature/x"), commitSha = eq("abc123"),
             pullRequestId = eq("42"),
-            env = any(), androidApiLevel = any(),
-            iOSVersion = any(), appBinaryId = any(), includeTags = any(),
+            env = any(), appBinaryId = any(), includeTags = any(),
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
-    // ---- 13. Env vars passed through ----
+    // ---- Env vars passed through ----
 
     @Test
     fun `upload passes env vars to api client`() {
@@ -444,51 +334,16 @@ class CloudInteractorTest {
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
             pullRequestId = any(),
-            env = eq(mapOf("API_KEY" to "secret")),
-            androidApiLevel = any(), iOSVersion = any(), appBinaryId = any(),
+            env = eq(mapOf("API_KEY" to "secret")), appBinaryId = any(),
             includeTags = any(), excludeTags = any(),
             disableNotifications = any(), deviceLocale = any(),
             progressListener = any(), projectId = any(),
             deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), iOSVersion = any(),
         ) }
     }
 
-    // ---- 14. Device model not supported ----
-
-    @Test
-    fun `upload throws CliError when device model is not supported`() {
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = iosFlowFile(),
-                appFile = iosApp(),
-                async = true,
-                projectId = "proj_1",
-                deviceModel = "galaxy_s21",
-            )
-        }
-
-        assertThat(error.message).contains("not supported")
-        assertThat(error.message).contains("galaxy_s21")
-    }
-
-    // ---- 15. OS version not supported for device ----
-
-    @Test
-    fun `upload throws CliError when OS version is not supported for device`() {
-        val error = assertThrows<CliError> {
-            createCloudInteractor().upload(
-                flowFile = iosFlowFile(),
-                appFile = iosApp(),
-                async = true,
-                projectId = "proj_1",
-                deviceOs = "iOS-15-0",
-            )
-        }
-
-        assertThat(error.message).contains("not supported")
-    }
-
-    // ---- 16. Valid device config and compatible app succeeds ----
+    // ---- Valid device config and compatible app succeeds ----
 
     @Test
     fun `upload with valid device config and compatible app succeeds`() {

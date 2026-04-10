@@ -204,6 +204,7 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
+    testImplementation(libs.system.stubs.jupiter)
 }
 
 tasks.named<Test>("test") {

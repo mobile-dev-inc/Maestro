@@ -45,7 +45,7 @@ object InspectViewHierarchyTool {
                     platform = null
                 ) { session ->
                     val maestro = session.maestro
-                    val viewHierarchy = maestro.viewHierarchy()
+                    val viewHierarchy = runBlocking { maestro.viewHierarchy() }
                     val tree = viewHierarchy.root
                     
                     // Return CSV format (original format for compatibility)

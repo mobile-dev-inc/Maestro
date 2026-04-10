@@ -2,7 +2,6 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
-import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
@@ -58,7 +57,7 @@ import kotlin.String
 import kotlin.io.path.absolute
 import kotlin.time.Duration.Companion.milliseconds
 
-val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
+val terminalStatuses = listOf(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
 
 class CloudInteractor(
     private val client: ApiClient,
@@ -85,8 +84,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -99,6 +96,8 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidApiLevel: Int? = null,
+        iOSVersion: String? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -118,7 +117,6 @@ class CloudInteractor(
         // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = if (flowFile.isWebFlow()) "web" else "unknown",
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
@@ -136,91 +134,36 @@ class CloudInteractor(
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
             // Validate app and resolve platform
-            val appValidator = AppValidator(
-                appFileValidator = appFileValidator,
-                appBinaryInfoProvider = { binaryId ->
-                    try {
-                        val info = client.getAppBinaryInfo(authToken, binaryId)
-                        AppValidator.AppBinaryInfoResult(info.appBinaryId, info.platform, info.appId)
-                    } catch (e: ApiClient.ApiException) {
-                        if (e.statusCode == 404) throw AppValidationException.AppBinaryNotFound(binaryId)
-                        throw AppValidationException.AppBinaryFetchError(e.statusCode)
-                    }
-                },
-                webManifestProvider = webManifestProvider,
-                iosMinOSVersionProvider = { file ->
-                    val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
-                    val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
-                    AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
-                },
-            )
-            val resolvedAppValidation = try {
-                appValidator.validate(appFile = appFileToSend, appBinaryId = appBinaryId)
-            } catch (e: AppValidationException) {
-                throw CliError(e.message ?: "App validation failed")
-            }
-            val inferredPlatform = resolvedAppValidation.platform
-
-            // Construct DeviceSpec from resolved platform + CLI flags
-            val deviceSpec: DeviceSpec = when (inferredPlatform) {
-                Platform.ANDROID -> DeviceSpec.fromRequest(DeviceSpecRequest.Android(
-                    model = deviceModel,
-                    os = deviceOs ?: androidApiLevel?.let { "android-$it" },
-                    locale = deviceLocale,
-                ))
-                Platform.IOS -> DeviceSpec.fromRequest(DeviceSpecRequest.Ios(
-                    model = deviceModel,
-                    os = deviceOs ?: iOSVersion?.let { "iOS-${it.replace('.', '-')}" },
-                    locale = deviceLocale,
-                ))
-                Platform.WEB -> DeviceSpec.fromRequest(DeviceSpecRequest.Web(
-                    model = deviceModel,
-                    os = deviceOs,
-                    locale = deviceLocale,
-                ))
-            }
-
-            // Fetch supported devices and validate device spec
-            val supportedDevices = try {
-                client.listCloudDevices()
-            } catch (e: ApiClient.ApiException) {
-                throw CliError("Failed to fetch supported devices. Status code: ${e.statusCode}")
-            }
-
-            val validatedDeviceSpec = try {
-                DeviceSpecValidator.validate(deviceSpec, supportedDevices)
-            } catch (e: DeviceSpecValidator.InvalidDeviceConfiguration) {
-                throw CliError(e.message ?: "Invalid device configuration")
-            }
-
-            // Validate app-device compatibility
-            try {
-                appValidator.validateDeviceCompatibility(appFileToSend, validatedDeviceSpec)
-            } catch (e: AppValidationException) {
-                throw CliError(e.message ?: "App-device compatibility check failed")
-            }
-
-            // Validate workspace against appId before uploading to catch errors early
-            try {
-                workspaceValidator.validate(
-                    workspace = workspaceZip.toFile(),
-                    appId = resolvedAppValidation.appIdentifier,
-                    env = env,
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
+            // When appBinaryId is provided, skip CLI-side validation — the server validates
+            if (appBinaryId == null) {
+                val appValidator = AppValidator(
+                    appFileValidator = appFileValidator,
+                    webManifestProvider = webManifestProvider,
+                    iosMinOSVersionProvider = { file ->
+                        val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
+                        val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
+                        AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
+                    },
                 )
-            } catch (e: WorkspaceValidationException) {
-                throw CliError(e.message ?: "Workspace validation failed")
-            }
+                val resolvedAppValidation = try {
+                    appValidator.validate(appFile = appFileToSend, appBinaryId = null)
+                } catch (e: AppValidationException) {
+                    throw CliError(e.message ?: "App validation failed")
+                }
 
-            Analytics.trackEvent(CloudUploadStartedEvent(
-                projectId = selectedProjectId,
-                platform = inferredPlatform.name.lowercase(),
-                isBinaryUpload = appBinaryId != null,
-                usesEnvironment = env.isNotEmpty(),
-                deviceModel = deviceModel,
-                deviceOs = deviceOs
-            ))
+                // Validate workspace against appId before uploading to catch errors early
+                try {
+                    workspaceValidator.validate(
+                        workspace = workspaceZip.toFile(),
+                        appId = resolvedAppValidation.appIdentifier,
+                        env = env,
+                        includeTags = includeTags,
+                        excludeTags = excludeTags,
+                    )
+                } catch (e: WorkspaceValidationException) {
+                    throw CliError(e.message ?: "Workspace validation failed")
+                }
+            }
 
             val response = client.upload(
                 authToken = authToken,
@@ -234,19 +177,19 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
-                deviceLocale = deviceLocale,
                 projectId = selectedProjectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
+                deviceLocale = deviceLocale,
                 deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceOs = deviceOs,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
             )
 
             // Track finish after upload completion
@@ -489,12 +432,12 @@ class CloudInteractor(
         val version = deviceConfiguration.osVersion
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
-            "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
+            "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
         return lines.joinToString("\n").render().box()
