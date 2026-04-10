@@ -37,8 +37,8 @@ object DeviceService {
         when (device.deviceSpec.platform) {
             Platform.IOS -> {
                 PrintUtils.message("Launching Simulator...")
-                val iosSpec = device.deviceSpec as DeviceSpec.Ios
                 try {
+                    val iosSpec = device.deviceSpec as DeviceSpec.Ios
                     localSimulatorUtils.bootSimulator(device.modelId)
                     PrintUtils.message("Setting the device locale to ${iosSpec.locale.code}...")
                     localSimulatorUtils.setDeviceLanguage(device.modelId, iosSpec.locale.languageCode)
@@ -221,7 +221,6 @@ object DeviceService {
                     instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
                     else -> Device.DeviceType.REAL
                 }
-                val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName ?: "", model = "", os = "")
                 Device.Connected(
                     instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
