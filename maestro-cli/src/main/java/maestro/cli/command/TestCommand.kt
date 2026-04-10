@@ -48,7 +48,9 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.CiUtils
+import maestro.cli.util.XCTestPortStore
 import maestro.cli.util.isPortAvailable
+import maestro.cli.util.isPortListening
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
@@ -471,8 +473,8 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
-        val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
+        val driverHostPort = selectPort(effectiveShards, deviceId)
         val executionPlan = chunkPlans[shardIndex]
 
         logger.info("[shard ${shardIndex + 1}] Selected device $deviceId using port $driverHostPort with execution plan $executionPlan")
@@ -536,7 +538,7 @@ class TestCommand : Callable<Int> {
         }
     }
 
-    private fun selectPort(effectiveShards: Int): Int {
+    private fun selectPort(effectiveShards: Int, deviceId: String? = null): Int {
         val userPort = driverHostPort ?: parent?.driverHostPort
         if (userPort != null) {
             if (!isPortAvailable(userPort)) {
@@ -544,9 +546,25 @@ class TestCommand : Callable<Int> {
             }
             return userPort
         }
-        return (7001..7128).shuffled().find { port ->
+
+        // Try to reuse the port from a previous run on this device. The XCTest
+        // runner survives across Maestro CLI invocations, so reusing its port
+        // avoids spawning a new xcodebuild and orphaning the old one.
+        if (deviceId != null) {
+            val savedPort = XCTestPortStore.read(deviceId)
+            if (savedPort != null && isPortListening(savedPort)) {
+                logger.info("[shard] Reusing XCTest runner port $savedPort for device $deviceId")
+                usedPorts.putIfAbsent(savedPort, true)
+                return savedPort
+            }
+        }
+
+        val newPort = (7001..7128).shuffled().find { port ->
             isPortAvailable(port) && usedPorts.putIfAbsent(port, true) == null
         } ?: error("No available ports found")
+
+        if (deviceId != null) XCTestPortStore.write(deviceId, newPort)
+        return newPort
     }
 
     private fun runSingleFlow(
