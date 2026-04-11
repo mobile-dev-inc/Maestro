@@ -93,10 +93,12 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val maestroDeviceConfiguration: DeviceSpec = when (parsedPlatform) {
+        val deviceSpec: DeviceSpec = when (parsedPlatform) {
             Platform.ANDROID -> DeviceSpec.Android(
                 model = deviceModel ?: "pixel_6",
+                // osVersion is nullable; ?.let prevents interpolating "android-null"
                 os = deviceOs ?: osVersion?.let { "android-$it" } ?: "android-33",
+                // AndroidLocale is a data class (no pre-defined constant); parse the default
                 locale = deviceLocale?.let { AndroidLocale.fromString(it) }
                     ?: AndroidLocale.fromString("en_US"),
                 cpuArchitecture = EnvUtils.getMacOSArchitecture(),
@@ -117,7 +119,7 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(
-            maestroDeviceConfiguration,
+            deviceSpec,
             forceCreate
         )
 
