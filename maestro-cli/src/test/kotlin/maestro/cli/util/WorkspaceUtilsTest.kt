@@ -2,6 +2,7 @@ package maestro.cli.util
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
 import java.nio.file.FileSystems
@@ -120,11 +121,10 @@ class WorkspaceUtilsTest {
 
     @Test
     fun `findCommonAncestor throws on empty list`() {
-        try {
+        assertThrows<IllegalArgumentException> {
             WorkspaceUtils.findCommonAncestor(emptyList())
-            assertThat(false).isTrue() // should not reach here
-        } catch (e: IllegalArgumentException) {
-            assertThat(e.message).contains("paths must not be empty")
+        }.also {
+            assertThat(it.message).contains("paths must not be empty")
         }
     }
 
