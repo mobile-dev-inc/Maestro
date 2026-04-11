@@ -2,7 +2,6 @@ package maestro.orchestra.validation
 
 import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceSpec
-import maestro.device.DeviceSpecRequest
 import maestro.device.Platform
 import maestro.orchestra.validation.AndroidAppMetadata
 import maestro.orchestra.validation.IosAppMetadata
@@ -145,13 +144,13 @@ class AppValidatorTest {
     // ---- validateDeviceCompatibility tests ----
 
     private fun iosDeviceSpec(os: String = "iOS-18-2"): DeviceSpec =
-        DeviceSpec.fromRequest(DeviceSpecRequest.Ios(os = os))
+        DeviceSpec.Ios(model = "iPhone-11", os = os)
 
     private fun androidDeviceSpec(os: String = "android-33"): DeviceSpec =
-        DeviceSpec.fromRequest(DeviceSpecRequest.Android(os = os))
+        DeviceSpec.Android(model = "pixel_6", os = os)
 
     private fun webDeviceSpec(): DeviceSpec =
-        DeviceSpec.fromRequest(DeviceSpecRequest.Web())
+        DeviceSpec.Web(model = "chromium", os = "default")
 
     @Test
     fun `validateDeviceCompatibility passes when iOS app min version is below device version`() {
