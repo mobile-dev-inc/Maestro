@@ -3,7 +3,6 @@ package maestro.cli.device
 import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
-import maestro.device.DeviceSpecRequest
 import maestro.device.DeviceSpec
 import maestro.device.Platform
 import org.fusesource.jansi.Ansi.ansi
@@ -30,15 +29,11 @@ object PickDeviceView {
                 Platform.fromString(it)
             } ?: throw CliError("Please specify a platform"))
 
-        val spec = DeviceSpec.fromRequest(
-            when (selectedPlatform) {
-                Platform.ANDROID -> DeviceSpecRequest.Android()
-                Platform.IOS -> DeviceSpecRequest.Ios()
-                Platform.WEB -> DeviceSpecRequest.Web()
-            }
-        )
-
-        return spec
+        return when (selectedPlatform) {
+            Platform.ANDROID -> DeviceSpec.Android(model = "pixel_6", os = "android-33")
+            Platform.IOS -> DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5")
+            Platform.WEB -> DeviceSpec.Web(model = "chromium", os = "default")
+        }
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {
