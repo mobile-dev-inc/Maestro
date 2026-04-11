@@ -1,6 +1,5 @@
 package maestro.device
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import maestro.device.locale.AndroidLocale
@@ -55,10 +54,14 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.ANDROID
-        @get:JsonIgnore val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
-        @get:JsonIgnore val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
-        @get:JsonIgnore val tag: String get() = "google_apis"
-        @get:JsonIgnore val emulatorImage: String get() = "system-images;$os;$tag;${cpuArchitecture.value}"
+        val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
+        val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
+        val tag: String get() = "google_apis"
+        val emulatorImage: String get() = "system-images;$os;$tag;${cpuArchitecture.value}"
+
+        companion object {
+            val DEFAULT: Android = Android(model = "pixel_6", os = "android-33")
+        }
     }
 
     data class Ios(
@@ -75,8 +78,12 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.IOS
-        @get:JsonIgnore val osVersion: Int get() = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
-        @get:JsonIgnore val deviceName: String get() = "Maestro_IOS_${model}_${osVersion}"
+        val osVersion: Int get() = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
+        val deviceName: String get() = "Maestro_IOS_${model}_${osVersion}"
+
+        companion object {
+            val DEFAULT: Ios = Ios(model = "iPhone-11", os = "iOS-17-5")
+        }
     }
 
     data class Web(
@@ -90,7 +97,11 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.WEB
-        @get:JsonIgnore val osVersion: Int get() = 0
-        @get:JsonIgnore val deviceName: String get() = "Maestro_WEB_${model}_${osVersion}"
+        val osVersion: Int get() = 0
+        val deviceName: String get() = "Maestro_WEB_${model}_${osVersion}"
+
+        companion object {
+            val DEFAULT: Web = Web(model = "chromium", os = "default")
+        }
     }
 }
