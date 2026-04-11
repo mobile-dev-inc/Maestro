@@ -7,9 +7,12 @@ import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
+import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
-import maestro.device.DeviceSpecRequest
 import maestro.device.Platform
+import maestro.device.locale.AndroidLocale
+import maestro.device.locale.IosLocale
+import maestro.device.locale.WebLocale
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
@@ -90,26 +93,27 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val maestroDeviceConfiguration = DeviceSpec.fromRequest(
-            when (parsedPlatform) {
-                Platform.ANDROID -> DeviceSpecRequest.Android(
-                    model = deviceModel,
-                    os = deviceOs ?: osVersion.let { "android-$it" },
-                    locale = deviceLocale,
-                    cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-                )
-                Platform.IOS -> DeviceSpecRequest.Ios(
-                    model = deviceModel,
-                    os = deviceOs ?: osVersion.let { "iOS-$it" },
-                    locale = deviceLocale,
-                )
-                Platform.WEB -> DeviceSpecRequest.Web(
-                    model = deviceModel,
-                    os = deviceOs ?: osVersion,
-                    locale = deviceLocale,
-                )
-            }
-        )
+        val maestroDeviceConfiguration: DeviceSpec = when (parsedPlatform) {
+            Platform.ANDROID -> DeviceSpec.Android(
+                model = deviceModel ?: "pixel_6",
+                os = deviceOs ?: osVersion?.let { "android-$it" } ?: "android-33",
+                locale = deviceLocale?.let { AndroidLocale.fromString(it) }
+                    ?: AndroidLocale.fromString("en_US"),
+                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+            )
+            Platform.IOS -> DeviceSpec.Ios(
+                model = deviceModel ?: "iPhone-11",
+                os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: "iOS-17-5",
+                locale = deviceLocale?.let { IosLocale.fromString(it) }
+                    ?: IosLocale.EN_US,
+            )
+            Platform.WEB -> DeviceSpec.Web(
+                model = deviceModel ?: "chromium",
+                os = deviceOs ?: osVersion ?: "default",
+                locale = deviceLocale?.let { WebLocale.fromString(it) }
+                    ?: WebLocale.EN_US,
+            )
+        }
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(
