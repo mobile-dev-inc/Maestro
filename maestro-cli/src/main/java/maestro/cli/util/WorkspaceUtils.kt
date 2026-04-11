@@ -79,7 +79,7 @@ object WorkspaceUtils {
     private fun commonPrefix(a: Path, b: Path): Path {
         val aRoot = a.root ?: throw IllegalArgumentException("Path must be absolute: $a")
         val bRoot = b.root ?: throw IllegalArgumentException("Path must be absolute: $b")
-        if (aRoot != bRoot) return aRoot
+        if (aRoot != bRoot) throw IllegalArgumentException("Paths have different roots: $a and $b")
 
         val aParts = (0 until a.nameCount).map { a.getName(it) }
         val bParts = (0 until b.nameCount).map { b.getName(it) }
