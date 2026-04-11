@@ -284,7 +284,7 @@ fun main() {
             flowName = "Flow for playing around",
             device = Device.Connected(
                 instanceId = "device",
-                deviceSpec = DeviceSpec.Android(model = "pixel_6", os = "android-34"),
+                deviceSpec = DeviceSpec.Android.DEFAULT,
                 description = "description",
                 platform = Platform.ANDROID,
                 deviceType = Device.DeviceType.EMULATOR

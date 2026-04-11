@@ -94,27 +94,33 @@ class StartDeviceCommand : Callable<Int> {
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
         val deviceSpec: DeviceSpec = when (parsedPlatform) {
-            Platform.ANDROID -> DeviceSpec.Android(
-                model = deviceModel ?: "pixel_6",
-                // osVersion is nullable; ?.let prevents interpolating "android-null"
-                os = deviceOs ?: osVersion?.let { "android-$it" } ?: "android-33",
-                // AndroidLocale is a data class (no pre-defined constant); parse the default
-                locale = deviceLocale?.let { AndroidLocale.fromString(it) }
-                    ?: AndroidLocale.fromString("en_US"),
-                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-            )
-            Platform.IOS -> DeviceSpec.Ios(
-                model = deviceModel ?: "iPhone-11",
-                os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: "iOS-17-5",
-                locale = deviceLocale?.let { IosLocale.fromString(it) }
-                    ?: IosLocale.EN_US,
-            )
-            Platform.WEB -> DeviceSpec.Web(
-                model = deviceModel ?: "chromium",
-                os = deviceOs ?: osVersion ?: "default",
-                locale = deviceLocale?.let { WebLocale.fromString(it) }
-                    ?: WebLocale.EN_US,
-            )
+            Platform.ANDROID -> {
+                val default = DeviceSpec.Android.DEFAULT
+                DeviceSpec.Android(
+                    // osVersion is nullable; ?.let prevents interpolating "android-null"
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                    // AndroidLocale is a data class (no pre-defined constant); parse the default
+                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                    cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+                )
+            }
+            Platform.IOS -> {
+                val default = DeviceSpec.Ios.DEFAULT
+                DeviceSpec.Ios(
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+                )
+            }
+            Platform.WEB -> {
+                val default = DeviceSpec.Web.DEFAULT
+                DeviceSpec.Web(
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion ?: default.os,
+                    locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
+                )
+            }
         }
 
         // Get/Create the device

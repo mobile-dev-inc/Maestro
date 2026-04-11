@@ -30,9 +30,9 @@ object PickDeviceView {
             } ?: throw CliError("Please specify a platform"))
 
         return when (selectedPlatform) {
-            Platform.ANDROID -> DeviceSpec.Android(model = "pixel_6", os = "android-33")
-            Platform.IOS -> DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5")
-            Platform.WEB -> DeviceSpec.Web(model = "chromium", os = "default")
+            Platform.ANDROID -> DeviceSpec.Android.DEFAULT
+            Platform.IOS -> DeviceSpec.Ios.DEFAULT
+            Platform.WEB -> DeviceSpec.Web.DEFAULT
         }
     }
 

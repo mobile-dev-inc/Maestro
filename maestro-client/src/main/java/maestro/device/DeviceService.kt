@@ -168,14 +168,14 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceSpec.Web(model = "chromium", os = "default")
+                deviceSpec = DeviceSpec.Web.DEFAULT
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceSpec.Web(model = "chromium", os = "default")
+                deviceSpec = DeviceSpec.Web.DEFAULT
             )
         )
     }
@@ -190,7 +190,7 @@ object DeviceService {
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = Device.DeviceType.EMULATOR,
-                    deviceSpec = DeviceSpec.Android(model = "pixel_6", os = "android-33")
+                    deviceSpec = DeviceSpec.Android.DEFAULT
                 )
             )
         }
@@ -226,7 +226,7 @@ object DeviceService {
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = deviceType,
-                    deviceSpec = DeviceSpec.Android(model = "pixel_6", os = "android-33"),
+                    deviceSpec = DeviceSpec.Android.DEFAULT,
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -248,10 +248,11 @@ object DeviceService {
                                 description = avdName,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceSpec = DeviceSpec.Android(
-                                    model = avdInfo.model.ifBlank { "pixel_6" },
-                                    os = avdInfo.os.ifBlank { "android-33" },
-                                )
+                                deviceSpec = if (avdInfo.model.isBlank() || avdInfo.os.isBlank()) {
+                                    DeviceSpec.Android.DEFAULT
+                                } else {
+                                    DeviceSpec.Android(model = avdInfo.model, os = avdInfo.os)
+                                }
                             )
                         }
                         .toList()
@@ -367,7 +368,7 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL,
-                deviceSpec = DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5")
+                deviceSpec = DeviceSpec.Ios.DEFAULT
             )
         }
     }
@@ -391,10 +392,11 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceSpec.Ios(
-                    model = model.ifBlank { "iPhone-11" },
-                    os = os.ifBlank { "iOS-17-5" },
-                )
+                deviceSpec = if (model.isBlank() || os.isBlank()) {
+                    DeviceSpec.Ios.DEFAULT
+                } else {
+                    DeviceSpec.Ios(model = model, os = os)
+                }
             )
         } else {
             Device.AvailableForLaunch(
@@ -402,10 +404,11 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType =  Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceSpec.Ios(
-                    model = model.ifBlank { "iPhone-11" },
-                    os = os.ifBlank { "iOS-17-5" },
-                )
+                deviceSpec = if (model.isBlank() || os.isBlank()) {
+                    DeviceSpec.Ios.DEFAULT
+                } else {
+                    DeviceSpec.Ios(model = model, os = os)
+                }
             )
         }
     }
@@ -428,7 +431,7 @@ object DeviceService {
                             description = output,
                             platform = Platform.ANDROID,
                             deviceType = Device.DeviceType.EMULATOR,
-                            deviceSpec = DeviceSpec.Android(model = "pixel_6", os = "android-33")
+                            deviceSpec = DeviceSpec.Android.DEFAULT
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
