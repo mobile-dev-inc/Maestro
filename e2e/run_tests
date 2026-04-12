@@ -52,8 +52,9 @@ else
 
 		case $app_name in
 			# demo_app has OOM issues on GHA
-			demo_app|setOrientation) [ "$platform" = "ios" ]     && continue ;;
+			demo_app) [ "$platform" = "ios" ]     && continue ;;
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
+			wikipedia)               [ "$platform" = "android" ] && continue ;;
 		esac
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
@@ -74,7 +75,7 @@ else
 		### Run failing tests (skip workspaces with no failing flows)
 		###
 		case $app_name in
-			wikipedia|setOrientation|simple_web_view) continue ;;
+			wikipedia|simple_web_view) continue ;;
 		esac
 
 		_h2 "$app_name" "run failing tests"
