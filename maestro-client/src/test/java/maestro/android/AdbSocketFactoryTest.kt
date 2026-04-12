@@ -12,16 +12,19 @@ class AdbSocketFactoryTest {
 
     @Test
     fun `factory creates a socket that opens an ADB stream on connect`() {
-        var openedDestination: String? = null
-        val factory = AdbSocketFactory { destination ->
-            openedDestination = destination
+        var openedHost: String? = null
+        var openedPort: Int? = null
+        val factory = AdbSocketFactory { host, port ->
+            openedHost = host
+            openedPort = port
             fakeStream()
         }
 
         val socket = factory.createSocket()
         socket.connect(InetSocketAddress("localhost", 8080))
 
-        assertThat(openedDestination).isEqualTo("tcp:8080")
+        assertThat(openedHost).isEqualTo("localhost")
+        assertThat(openedPort).isEqualTo(8080)
     }
 
     @Test
@@ -46,14 +49,14 @@ class AdbSocketFactoryTest {
 
     @Test
     fun `getInputStream throws when not connected`() {
-        val socket = AdbSocketFactory { fakeStream() }.createSocket()
+        val socket = AdbSocketFactory { _, _ -> fakeStream() }.createSocket()
 
         assertThrows<SocketException> { socket.getInputStream() }
     }
 
     @Test
     fun `getOutputStream throws when not connected`() {
-        val socket = AdbSocketFactory { fakeStream() }.createSocket()
+        val socket = AdbSocketFactory { _, _ -> fakeStream() }.createSocket()
 
         assertThrows<SocketException> { socket.getOutputStream() }
     }
@@ -68,7 +71,7 @@ class AdbSocketFactoryTest {
                 streamClosed = true
             }
         }
-        val socket = AdbSocketFactory { stream }.createSocket()
+        val socket = AdbSocketFactory { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("localhost", 8080))
 
         socket.close()
@@ -89,7 +92,7 @@ class AdbSocketFactoryTest {
 
     @Test
     fun `isConnected returns false before connect and true after`() {
-        val socket = AdbSocketFactory { fakeStream() }.createSocket()
+        val socket = AdbSocketFactory { _, _ -> fakeStream() }.createSocket()
 
         assertThat(socket.isConnected).isFalse()
 
@@ -133,7 +136,7 @@ class AdbSocketFactoryTest {
         source: Buffer = Buffer(),
         sink: Buffer = Buffer(),
     ): java.net.Socket {
-        val socket = AdbSocketFactory { fakeStream(source, sink) }.createSocket()
+        val socket = AdbSocketFactory { _, _ -> fakeStream(source, sink) }.createSocket()
         socket.connect(InetSocketAddress("localhost", 8080))
         return socket
     }

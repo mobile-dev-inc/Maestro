@@ -11,7 +11,7 @@ import java.net.SocketAddress
 import java.net.SocketException
 import javax.net.SocketFactory
 
-class AdbSocketFactory(private val opener: (destination: String) -> AdbStream) : SocketFactory() {
+class AdbSocketFactory(private val opener: (host: String, port: Int) -> AdbStream) : SocketFactory() {
 
     override fun createSocket(): Socket = AdbSocket(opener)
 
@@ -28,7 +28,7 @@ class AdbSocketFactory(private val opener: (destination: String) -> AdbStream) :
         createSocket(address, port)
 }
 
-private class AdbSocket(private val opener: (destination: String) -> AdbStream) : Socket() {
+private class AdbSocket(private val opener: (host: String, port: Int) -> AdbStream) : Socket() {
 
     private var stream: AdbStream? = null
     private var closed = false
@@ -37,8 +37,7 @@ private class AdbSocket(private val opener: (destination: String) -> AdbStream) 
     override fun connect(endpoint: SocketAddress, timeout: Int) {
         if (endpoint !is InetSocketAddress) throw UnsupportedOperationException("Endpoint must be InetSocketAddress")
         this.endpoint = endpoint
-        val destination = "tcp:${endpoint.port}"
-        stream = opener(destination)
+        stream = opener(endpoint.hostString, endpoint.port)
     }
 
     override fun connect(endpoint: SocketAddress) {
