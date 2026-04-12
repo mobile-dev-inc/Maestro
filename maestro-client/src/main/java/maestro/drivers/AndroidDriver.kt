@@ -78,7 +78,7 @@ class AndroidDriver(
 
     private val channel = OkHttpChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
-        .socketFactory(AdbSocketFactory { destination -> dadb.open(destination) })
+        .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
         .keepAliveTime(2, TimeUnit.MINUTES)
         .keepAliveTimeout(20, TimeUnit.SECONDS)
         .keepAliveWithoutCalls(true)
