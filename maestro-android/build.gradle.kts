@@ -163,7 +163,6 @@ val maestroAndroidSourceForSentinel = fileTree(projectDir) {
         "src/**/*.aidl",
         "build.gradle.kts",
         "build.gradle",
-        "proguard-rules.pro"
     )
     exclude("build/**", ".gradle/**")
 }
