@@ -21,7 +21,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: zulu
+          distribution: temurin
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
