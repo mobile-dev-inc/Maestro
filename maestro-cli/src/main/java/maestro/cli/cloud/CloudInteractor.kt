@@ -21,7 +21,7 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.WorkspaceUtils
+import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.input.interactiveSelectList
