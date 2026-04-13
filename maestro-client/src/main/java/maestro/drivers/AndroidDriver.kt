@@ -857,10 +857,14 @@ class AndroidDriver(
     }
 
     fun setDeviceLocale(country: String, language: String): Int {
+        LOGGER.info("--------- A")
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
+            LOGGER.info("--------- B")
             dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
+            LOGGER.info("--------- C")
             val response =
                 dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
+            LOGGER.info("--------- D")
             extractSetLocaleResult(response.output)
         }
     }
