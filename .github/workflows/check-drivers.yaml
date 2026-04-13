@@ -40,20 +40,8 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Rebuild Android drivers
-        run: ./gradlew :maestro-android:copyMaestroAndroid :maestro-android:copyMaestroServer
-
-      - name: Fail if drivers are out of date
-        run: |
-          git diff --exit-code \
-            maestro-client/src/main/resources/maestro-app.apk \
-            maestro-client/src/main/resources/maestro-server.apk || {
-            echo ""
-            echo "ERROR: Android drivers are out of date."
-            echo "Run the following and commit the updated APKs:"
-            echo "  ./gradlew :maestro-cli:installDist"
-            exit 1
-          }
+      - name: Check Android drivers are fresh
+        run: ./gradlew :maestro-client:checkAndroidApksFresh
 
   check-ios-driver:
     name: Check iOS Driver
