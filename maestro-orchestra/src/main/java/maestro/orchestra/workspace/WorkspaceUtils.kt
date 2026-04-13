@@ -1,4 +1,4 @@
-package maestro.cli.util
+package maestro.orchestra.workspace
 
 import java.io.FileNotFoundException
 import java.net.URI
@@ -36,10 +36,6 @@ object WorkspaceUtils {
         }
     }
 
-    /**
-     * Opens an existing ZIP and writes a synthetic config.yaml at the root
-     * that limits execution to only the specified flow file.
-     */
     private fun injectConfigYaml(zipPath: Path, flowRelativePath: String) {
         val zipUri = URI.create("jar:${zipPath.toUri()}")
         FileSystems.newFileSystem(zipUri, mapOf("create" to "false")).use { fs ->
@@ -49,11 +45,6 @@ object WorkspaceUtils {
         }
     }
 
-    /**
-     * Finds the deepest common ancestor directory of all given paths.
-     * This ensures that ZIP entries never contain "../" segments when
-     * dependencies live outside the flow file's immediate parent directory.
-     */
     private fun normalizePath(path: Path): Path {
         return try {
             path.toRealPath(LinkOption.NOFOLLOW_LINKS)
@@ -91,10 +82,10 @@ object WorkspaceUtils {
 
         return if (commonCount == 0) aRoot else aRoot.resolve(aParts.subList(0, commonCount).joinToString(a.fileSystem.separator))
     }
-    
+
     fun createWorkspaceZipFromFiles(files: List<Path>, relativeTo: Path, out: Path) {
         if (out.exists()) throw FileAlreadyExistsException(out.toFile())
-        
+
         val outUri = URI.create("jar:${out.toUri()}")
         FileSystems.newFileSystem(outUri, mapOf("create" to "true")).use { fs ->
             files.forEach {

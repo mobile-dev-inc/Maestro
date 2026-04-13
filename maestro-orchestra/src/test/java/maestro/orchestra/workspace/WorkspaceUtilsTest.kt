@@ -1,4 +1,4 @@
-package maestro.cli.util
+package maestro.orchestra.workspace
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
