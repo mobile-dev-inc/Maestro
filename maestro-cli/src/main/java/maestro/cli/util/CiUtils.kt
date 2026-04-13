@@ -15,6 +15,7 @@ object CiUtils {
         "GITLAB_CI" to "gitlab",
         "JENKINS_HOME" to "jenkins",
         "TEAMCITY_VERSION" to "teamcity", // since v1.37.4
+        "TF_BUILD" to "azure", // since v2.5.0
         "CI" to "ci"
     )
 
