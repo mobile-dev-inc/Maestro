@@ -42,7 +42,7 @@ object DependencyResolver {
                     .filter { it.exists() && !discoveredFiles.contains(it) }
                 filesToProcess.addAll(newDependencies)
 
-            } catch (e: Exception) {
+            } catch (_: Throwable) {
                 // Ignore
             }
         }
