@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+import java.security.MessageDigest
 
 plugins {
     id("maven-publish")
@@ -35,16 +36,85 @@ tasks.named("compileKotlin") {
     dependsOn("generateProto")
 }
 
-tasks.named("processResources") {
-    dependsOn(":maestro-android:copyMaestroAndroid")
-    dependsOn(":maestro-android:copyMaestroServer")
+// ----------------------------------------------------------------------------
+// Verify the committed maestro-android driver APKs are fresh relative to source
+// ----------------------------------------------------------------------------
+// Pure file I/O — no Android Gradle Plugin loaded, no ANDROID_HOME required.
+// Compares a sha256 of maestro-android source files against the sentinel that
+// was written when copyMaestroAndroid last ran. If they don't match, the build
+// fails with the exact command the contributor needs to run.
+//
+// This makes JVM-only consumers (maestro-cli, downstream worker builds, etc.)
+// build cleanly without an Android SDK, while still preventing contributors
+// from accidentally shipping stale committed APKs.
+// ----------------------------------------------------------------------------
+
+val maestroAndroidProjectDir = rootProject.file("maestro-android")
+val maestroAndroidSourceTree = fileTree(maestroAndroidProjectDir) {
+    include(
+        "src/**/*.kt",
+        "src/**/*.java",
+        "src/**/*.xml",
+        "src/**/*.aidl",
+        "build.gradle.kts",
+        "build.gradle",
+        "proguard-rules.pro"
+    )
+    exclude("build/**", ".gradle/**")
+}
+val maestroAndroidSentinel = file("src/main/resources/maestro-android-source.sha256")
+
+val checkAndroidApksFresh = tasks.register("checkAndroidApksFresh") {
+    inputs.files(maestroAndroidSourceTree).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(maestroAndroidSentinel).withPathSensitivity(PathSensitivity.NONE)
+
+    doLast {
+        if (!maestroAndroidSentinel.exists()) {
+            throw GradleException(
+                "Missing maestro-android-source.sha256 sentinel.\n" +
+                "Run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest"
+            )
+        }
+        val md = MessageDigest.getInstance("SHA-256")
+        maestroAndroidSourceTree.files
+            .sortedBy { it.relativeTo(maestroAndroidProjectDir).invariantSeparatorsPath }
+            .forEach { f ->
+                md.update(f.relativeTo(maestroAndroidProjectDir).invariantSeparatorsPath.toByteArray())
+                md.update(0)
+                md.update(f.readBytes())
+                md.update(0)
+            }
+        val bytes = md.digest()
+        val sb = StringBuilder(bytes.size * 2)
+        for (b in bytes) {
+            sb.append(String.format("%02x", b.toInt() and 0xff))
+        }
+        val computed = sb.toString()
+        val stored = maestroAndroidSentinel.readText().trim()
+        if (computed != stored) {
+            throw GradleException(
+                """
+                |maestro-android source has changed since the committed driver APKs were
+                |last regenerated.
+                |
+                |  Stored sentinel:    $stored
+                |  Current source hash: $computed
+                |
+                |Run:
+                |    ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
+                |
+                |Then commit the regenerated files (all three travel together):
+                |    maestro-client/src/main/resources/maestro-app.apk
+                |    maestro-client/src/main/resources/maestro-server.apk
+                |    maestro-client/src/main/resources/maestro-android-source.sha256
+                |""".trimMargin()
+            )
+        }
+    }
 }
 
-tasks.whenTaskAdded {
-    if (name == "sourcesJar" && this is Jar) {
-        dependsOn(":maestro-android:copyMaestroAndroid")
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
+tasks.named("processResources") {
+    dependsOn(checkAndroidApksFresh)
 }
 
 kotlin.sourceSets.all {
