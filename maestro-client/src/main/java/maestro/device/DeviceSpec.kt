@@ -44,8 +44,6 @@ sealed class DeviceSpec {
         override val model: String,
         override val os: String,
         val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
-        val orientation: DeviceOrientation = DeviceOrientation.PORTRAIT,
-        val disableAnimations: Boolean = true,
         val cpuArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
     ) : DeviceSpec() {
         init {
@@ -68,9 +66,6 @@ sealed class DeviceSpec {
         override val model: String,
         override val os: String,
         val locale: IosLocale = IosLocale.EN_US,
-        val orientation: DeviceOrientation = DeviceOrientation.PORTRAIT,
-        val disableAnimations: Boolean = true,
-        val snapshotKeyHonorModalViews: Boolean = true,
     ) : DeviceSpec() {
         init {
             require(model.isNotBlank()) { "DeviceSpec.Ios: model cannot be blank" }
