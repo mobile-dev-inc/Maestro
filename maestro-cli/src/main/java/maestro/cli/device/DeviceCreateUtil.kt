@@ -23,6 +23,13 @@ object DeviceCreateUtil {
             deviceType = Device.DeviceType.BROWSER,
             deviceSpec = deviceSpec,
         )
+        is DeviceSpec.Roku    -> Device.AvailableForLaunch(
+            platform = Platform.ROKU,
+            description = "Roku Device (${deviceSpec.host})",
+            modelId = deviceSpec.host,
+            deviceType = Device.DeviceType.STREAMING_DEVICE,
+            deviceSpec = deviceSpec,
+        )
     }
 
     fun getOrCreateIosDevice(

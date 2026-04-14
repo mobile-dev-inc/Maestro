@@ -136,6 +136,8 @@ class RecordCommand : Callable<Int> {
             teamId = appleTeamId,
             platform = parent?.platform,
             executionPlan = plan,
+            rokuHost = parent?.rokuHost,
+            rokuPassword = parent?.rokuPassword,
             block = { session ->
                 val maestro = session.maestro
                 val device = session.device

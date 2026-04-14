@@ -32,6 +32,7 @@ object PickDeviceInteractor {
                         Platform.ANDROID -> PrintUtils.message("Launching Android emulator...")
                         Platform.IOS -> PrintUtils.message("Launching iOS simulator...")
                         Platform.WEB -> PrintUtils.message("Launching ${result.description}")
+                        Platform.ROKU -> PrintUtils.message("Connecting to Roku device...")
                     }
 
                     result = DeviceService.startDevice(result, driverHostPort)

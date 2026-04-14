@@ -108,6 +108,11 @@ class StartDeviceCommand : Callable<Int> {
                     os = deviceOs ?: osVersion,
                     locale = deviceLocale,
                 )
+                Platform.ROKU -> DeviceSpecRequest.Roku(
+                    model = deviceModel,
+                    os = deviceOs ?: osVersion,
+                    locale = deviceLocale,
+                )
             }
         )
 

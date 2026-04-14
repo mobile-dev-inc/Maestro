@@ -76,6 +76,8 @@ object MaestroSessionManager {
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
+        rokuHost: String? = null,
+        rokuPassword: String? = null,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -86,6 +88,8 @@ object MaestroSessionManager {
             teamId = teamId,
             platform = if(!platform.isNullOrEmpty()) Platform.fromString(platform) else null,
             deviceIndex = deviceIndex,
+            rokuHost = rokuHost,
+            rokuPassword = rokuPassword,
         )
         val sessionId = UUID.randomUUID().toString()
 
@@ -140,7 +144,23 @@ object MaestroSessionManager {
         platform: Platform? = null,
         teamId: String? = null,
         deviceIndex: Int? = null,
+        rokuHost: String? = null,
+        rokuPassword: String? = null,
     ): SelectedDevice {
+
+        // Roku: --roku-host flag or MAESTRO_ROKU_HOST env var
+        val effectiveRokuHost = rokuHost ?: System.getenv("MAESTRO_ROKU_HOST")
+        if (effectiveRokuHost != null || platform == Platform.ROKU) {
+            val rokuDeviceHost = effectiveRokuHost
+                ?: error("Roku host not specified. Use --roku-host or set MAESTRO_ROKU_HOST environment variable.")
+            val effectivePassword = rokuPassword ?: System.getenv("MAESTRO_ROKU_PASSWORD") ?: ""
+            return SelectedDevice(
+                platform = Platform.ROKU,
+                deviceId = rokuDeviceHost,
+                deviceType = Device.DeviceType.STREAMING_DEVICE,
+                rokuPassword = effectivePassword,
+            )
+        }
 
         if (deviceId == "chromium" || platform == Platform.WEB) {
             return SelectedDevice(
@@ -221,6 +241,12 @@ object MaestroSessionManager {
                     )
 
                     Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize)
+
+                    Platform.ROKU -> createRoku(
+                        selectedDevice.device.instanceId,
+                        !connectToExistingSession,
+                        selectedDevice.rokuPassword ?: "",
+                    )
                 },
                 device = selectedDevice.device,
             )
@@ -251,6 +277,15 @@ object MaestroSessionManager {
             selectedDevice.platform == Platform.WEB -> MaestroSession(
                 maestro = pickWebDevice(isStudio, isHeadless, screenSize),
                 device = null
+            )
+
+            selectedDevice.platform == Platform.ROKU -> MaestroSession(
+                maestro = createRoku(
+                    selectedDevice.deviceId ?: error("Roku host not specified"),
+                    !connectToExistingSession,
+                    selectedDevice.rokuPassword ?: "",
+                ),
+                device = null,
             )
 
             else -> error("Unable to create Maestro session")
@@ -449,6 +484,19 @@ object MaestroSessionManager {
         return Maestro.web(isStudio, isHeadless, screenSize)
     }
 
+    private fun createRoku(
+        host: String,
+        openDriver: Boolean,
+        password: String = "",
+    ): Maestro {
+        val driver = maestro.drivers.RokuDriver(host = host, password = password)
+        // Roku has no persistent on-device driver process — always open a fresh ECP connection.
+        return Maestro.roku(
+            driver = driver,
+            openDriver = true,
+        )
+    }
+
     private data class SelectedDevice(
         val platform: Platform,
         val device: Device.Connected? = null,
@@ -456,6 +504,7 @@ object MaestroSessionManager {
         val port: Int? = null,
         val deviceId: String? = null,
         val deviceType: Device.DeviceType,
+        val rokuPassword: String? = null,
     )
 
     data class MaestroSession(

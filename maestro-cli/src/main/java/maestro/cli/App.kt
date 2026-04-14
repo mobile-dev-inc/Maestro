@@ -102,6 +102,12 @@ class App {
 
     @Option(names = ["--verbose"], description = ["Enable verbose logging"])
     var verbose: Boolean = false
+
+    @Option(names = ["--roku-host"], description = ["(Optional) Roku device IP address or hostname"])
+    var rokuHost: String? = null
+
+    @Option(names = ["--roku-password"], description = ["(Optional) Roku developer mode password (for screenshots)"])
+    var rokuPassword: String? = null
 }
 
 private fun printVersion() {

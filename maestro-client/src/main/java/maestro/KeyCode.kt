@@ -33,7 +33,10 @@ enum class KeyCode(
     TV_INPUT("TV Input"),
     TV_INPUT_HDMI_1("TV Input HDMI 1"),
     TV_INPUT_HDMI_2("TV Input HDMI 2"),
-    TV_INPUT_HDMI_3("TV Input HDMI 3");
+    TV_INPUT_HDMI_3("TV Input HDMI 3"),
+    REMOTE_INFO("Remote Info"),
+    REMOTE_REPLAY("Remote Instant Replay"),
+    REMOTE_SEARCH("Remote Search");
 
     companion object {
         fun getByName(name: String): KeyCode? {

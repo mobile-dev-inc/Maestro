@@ -327,6 +327,9 @@ class AndroidDriver(
                 KeyCode.TV_INPUT_HDMI_1 -> 243
                 KeyCode.TV_INPUT_HDMI_2 -> 244
                 KeyCode.TV_INPUT_HDMI_3 -> 245
+                KeyCode.REMOTE_INFO -> 165
+                KeyCode.REMOTE_REPLAY -> 0 // No direct Android equivalent
+                KeyCode.REMOTE_SEARCH -> 84
             }
 
             dadb.shell("input keyevent $intCode")

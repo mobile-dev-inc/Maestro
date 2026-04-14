@@ -95,6 +95,7 @@ dependencies {
 
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-web"))
+    implementation(project(":maestro-roku"))
     implementation(libs.google.findbugs)
     implementation(libs.axml)
     implementation(libs.selenium)

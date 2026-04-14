@@ -129,6 +129,20 @@ object DeviceService {
                     deviceSpec = device.deviceSpec,
                 )
             }
+
+            Platform.ROKU -> {
+                val rokuSpec = device.deviceSpec as? DeviceSpec.Roku
+                    ?: throw DeviceError("Invalid Roku device spec")
+                PrintUtils.message("Connecting to Roku device at ${rokuSpec.host}...")
+
+                return Device.Connected(
+                    instanceId = rokuSpec.host,
+                    description = "Roku Device (${rokuSpec.host})",
+                    platform = device.platform,
+                    deviceType = device.deviceType,
+                    deviceSpec = device.deviceSpec,
+                )
+            }
         }
     }
 
@@ -152,11 +166,18 @@ object DeviceService {
      fun listDevices(includeWeb: Boolean, host: String? = null, port: Int? = null): List<Device> {
         return listAndroidDevices(host, port) +
                 listIOSDevices() +
+                listRokuDevices() +
                 if (includeWeb) {
                     listWebDevices()
                 } else {
                     listOf()
                 }
+    }
+
+    fun listRokuDevices(): List<Device> {
+        // Roku devices are discovered via SSDP or manual configuration.
+        // For now, return empty list — device discovery will be populated in Phase 3.
+        return emptyList()
     }
 
     fun listWebDevices(): List<Device> {

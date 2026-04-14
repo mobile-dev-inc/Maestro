@@ -328,6 +328,12 @@ class TestCommand : Callable<Int> {
      * Get the list of device IDs that will be used for test execution
      */
     private fun getDeviceIds(plan: ExecutionPlan): List<String> {
+        // Roku devices are network-connected and don't appear in DeviceService
+        val effectiveRokuHost = parent?.rokuHost ?: System.getenv("MAESTRO_ROKU_HOST")
+        val isRokuSession = effectiveRokuHost != null ||
+            (platform ?: parent?.platform)?.let { Platform.fromString(it) } == Platform.ROKU
+        if (isRokuSession) return listOf(effectiveRokuHost ?: "roku")
+
         val includeWeb = executionPlanIncludesWebFlow(plan)
         val connectedDevices = DeviceService.listConnectedDevices(
             includeWeb = includeWeb,
@@ -365,27 +371,37 @@ class TestCommand : Callable<Int> {
           PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
         }
 
-        val connectedDevices = DeviceService.listConnectedDevices(
+        // Roku: when --roku-host is provided, bypass normal device discovery.
+        // Roku devices are network-connected and don't appear in DeviceService.
+        val effectiveRokuHost = parent?.rokuHost ?: System.getenv("MAESTRO_ROKU_HOST")
+        val isRokuSession = effectiveRokuHost != null ||
+            (platform ?: parent?.platform)?.let { Platform.fromString(it) } == Platform.ROKU
+
+        val connectedDevices = if (isRokuSession) emptyList() else DeviceService.listConnectedDevices(
             includeWeb = includeWeb,
             host = parent?.host,
             port = parent?.port,
         )
         val availableDevicesIds = connectedDevices.map { it.instanceId }.toSet()
-        val deviceIds = getPassedOptionsDeviceIds(plan)
-            .filter { device ->
-                if (device !in availableDevicesIds) {
-                    throw CliError("Device $device was requested, but it is not connected.")
-                } else {
-                    true
+        val deviceIds = if (isRokuSession) {
+            listOf(effectiveRokuHost ?: "roku")
+        } else {
+            getPassedOptionsDeviceIds(plan)
+                .filter { device ->
+                    if (device !in availableDevicesIds) {
+                        throw CliError("Device $device was requested, but it is not connected.")
+                    } else {
+                        true
+                    }
                 }
-            }
-            .ifEmpty {
-                val platform = platform ?: parent?.platform
-                connectedDevices
-                    .filter { platform == null || it.platform == Platform.fromString(platform) }
-                    .map { it.instanceId }.toSet()
-            }
-            .toList()
+                .ifEmpty {
+                    val platform = platform ?: parent?.platform
+                    connectedDevices
+                        .filter { platform == null || it.platform == Platform.fromString(platform) }
+                        .map { it.instanceId }.toSet()
+                }
+                .toList()
+        }
 
         val missingDevices = requestedShards - deviceIds.size
         if (missingDevices > 0) {
@@ -483,7 +499,9 @@ class TestCommand : Callable<Int> {
             isHeadless = headless,
             screenSize = screenSize,
             reinstallDriver = reinstallDriver,
-            executionPlan = executionPlan
+            executionPlan = executionPlan,
+            rokuHost = parent?.rokuHost,
+            rokuPassword = parent?.rokuPassword,
         ) { session ->
             val maestro = session.maestro
             val device = session.device

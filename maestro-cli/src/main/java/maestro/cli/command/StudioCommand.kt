@@ -81,6 +81,8 @@ class StudioCommand : Callable<Int> {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
             isStudio = true,
+            rokuHost = parent?.rokuHost,
+            rokuPassword = parent?.rokuPassword,
         ) { session ->
             runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
 

@@ -24,6 +24,7 @@ enum class CPU_ARCHITECTURE(val value: String) {
   JsonSubTypes.Type(DeviceSpec.Android::class, name = "ANDROID"),
   JsonSubTypes.Type(DeviceSpec.Ios::class, name = "IOS"),
   JsonSubTypes.Type(DeviceSpec.Web::class, name = "WEB"),
+  JsonSubTypes.Type(DeviceSpec.Roku::class, name = "ROKU"),
 )
 sealed class DeviceSpec {
     abstract val platform: Platform
@@ -71,6 +72,17 @@ sealed class DeviceSpec {
         override val deviceName = "Maestro_WEB_${model}_${osVersion}"
     }
 
+    data class Roku(
+      override val model: String,
+      override val os: String,
+      override val locale: DeviceLocale,
+      val host: String,
+    ) : DeviceSpec() {
+        override val platform = Platform.ROKU
+        override val osVersion: Int = os.removePrefix("roku-").toIntOrNull() ?: 0
+        override val deviceName = "Maestro_ROKU_${model}"
+    }
+
     companion object {
         /**
          * Creates a fully resolved DeviceSpec from a DeviceRequest, filling in platform-aware defaults.
@@ -99,6 +111,12 @@ sealed class DeviceSpec {
                     model = request.model ?: "chromium",
                     os = request.os ?: "default",
                     locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.WEB),
+                )
+                is DeviceSpecRequest.Roku -> Roku(
+                    model = request.model ?: "roku",
+                    os = request.os ?: "default",
+                    locale = DeviceLocale.fromString(request.locale ?: "en_US", Platform.ROKU),
+                    host = request.host ?: "",
                 )
             }
         }
@@ -139,5 +157,15 @@ sealed class DeviceSpecRequest {
         val locale: String? = null,
     ) : DeviceSpecRequest() {
         override val platform = Platform.WEB
+    }
+
+    data class Roku(
+        val model: String? = null,
+        val os: String? = null,
+        val locale: String? = null,
+        val host: String? = null,
+        val password: String? = null,
+    ) : DeviceSpecRequest() {
+        override val platform = Platform.ROKU
     }
 }
