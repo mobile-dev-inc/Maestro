@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file - https://github.com/flutter/packages/blob/main/packages/webview_flutter/webview_flutter/LICENSE
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 class WebViewExample extends StatefulWidget {
   const WebViewExample({super.key});
@@ -18,6 +20,10 @@ class _WebViewExampleState extends State<WebViewExample> {
   @override
   void initState() {
     super.initState();
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      AndroidWebViewController.enableDebugging(true);
+    }
 
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
