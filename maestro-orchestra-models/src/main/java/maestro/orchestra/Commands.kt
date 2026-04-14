@@ -28,6 +28,7 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import com.fasterxml.jackson.annotation.JsonIgnore
+import maestro.MaestroException
 import java.nio.file.Path
 import net.datafaker.Faker
 
@@ -417,7 +418,12 @@ data class AssertConditionCommand(
 ) : Command {
 
     fun timeoutMs(): Long? {
-        return timeout?.replace("_", "")?.toLong()
+        val raw = timeout?.replace("_", "") ?: return null
+        return try {
+            raw.toLong()
+        } catch (e: NumberFormatException) {
+            throw MaestroException.InvalidCommand("Invalid timeout value: '$timeout'. Timeout must be a number in milliseconds.")
+        }
     }
 
     override val originalDescription: String
