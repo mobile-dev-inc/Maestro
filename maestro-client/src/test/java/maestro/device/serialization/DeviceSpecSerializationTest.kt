@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.google.common.truth.Truth.assertThat
 import maestro.device.CPU_ARCHITECTURE
-import maestro.device.DeviceOrientation
 import maestro.device.DeviceSpec
 import maestro.device.locale.AndroidLocale
 import org.junit.jupiter.api.Test
@@ -47,8 +46,6 @@ class DeviceSpecSerializationTest {
             model = "pixel_xl",
             os = "android-34",
             locale = AndroidLocale.fromString("de_DE"),
-            orientation = DeviceOrientation.LANDSCAPE_LEFT,
-            disableAnimations = false,
             cpuArchitecture = CPU_ARCHITECTURE.X86_64,
         )
         val json = mapper.writeValueAsString(spec)
@@ -72,21 +69,6 @@ class DeviceSpecSerializationTest {
     }
 
     @Test
-    fun `Android with differing disableAnimations includes only that optional field`() {
-        val spec = DeviceSpec.Android(
-            model = "pixel_6",
-            os = "android-33",
-            disableAnimations = false,
-        )
-        val json = mapper.readTree(mapper.writeValueAsString(spec))
-
-        assertThat(json.fieldNames().asSequence().toSet()).containsExactly(
-            "platform", "model", "os", "disableAnimations"
-        )
-        assertThat(json.get("disableAnimations").asBoolean()).isFalse()
-    }
-
-    @Test
     fun `Android with differing locale includes locale as object`() {
         val spec = DeviceSpec.Android(
             model = "pixel_6",
@@ -100,6 +82,20 @@ class DeviceSpecSerializationTest {
         )
         assertThat(json.get("locale").get("code").asText()).isEqualTo("de_DE")
         assertThat(json.get("locale").get("platform").asText()).isEqualTo("ANDROID")
+    }
+
+    @Test
+    fun `Android with non-default cpuArchitecture includes that field`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-33",
+            cpuArchitecture = CPU_ARCHITECTURE.X86_64,
+        )
+        val json = mapper.readTree(mapper.writeValueAsString(spec))
+        assertThat(json.fieldNames().asSequence().toSet()).containsExactly(
+            "platform", "model", "os", "cpuArchitecture"
+        )
+        assertThat(json.get("cpuArchitecture").asText()).isEqualTo("X86_64")
     }
 
     @Test
@@ -166,7 +162,6 @@ class DeviceSpecSerializationTest {
         val spec = lenientMapper.readValue(legacyJson, DeviceSpec::class.java) as DeviceSpec.Android
         assertThat(spec.model).isEqualTo("pixel_6")
         assertThat(spec.os).isEqualTo("android-33")
-        assertThat(spec.disableAnimations).isFalse()
         assertThat(spec.osVersion).isEqualTo(33)  // computed, not from JSON
     }
 
