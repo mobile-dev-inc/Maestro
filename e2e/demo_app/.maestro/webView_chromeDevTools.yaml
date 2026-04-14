@@ -1,0 +1,13 @@
+appId: com.example.example
+androidWebViewHierarchy: devtools
+tags:
+  - passing
+  - android
+---
+
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: Webview Test
+- tapOn: Webview Test
+- assertVisible: Swag Labs
