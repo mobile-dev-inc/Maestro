@@ -3,6 +3,7 @@ package maestro.device
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import maestro.device.locale.AndroidLocale
+import maestro.device.locale.DeviceLocale
 import maestro.device.locale.IosLocale
 import maestro.device.locale.WebLocale
 
@@ -39,11 +40,14 @@ sealed class DeviceSpec {
     abstract val platform: Platform
     abstract val model: String
     abstract val os: String
+    abstract val locale: DeviceLocale
+    abstract val osVersion: Int
+    abstract val deviceName: String
 
     data class Android(
         override val model: String,
         override val os: String,
-        val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
+        override val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
         val cpuArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
     ) : DeviceSpec() {
         init {
@@ -52,8 +56,8 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.ANDROID
-        val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
-        val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
+        override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
+        override val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
         val tag: String get() = "google_apis"
         val emulatorImage: String get() = "system-images;$os;$tag;${cpuArchitecture.value}"
 
@@ -65,7 +69,7 @@ sealed class DeviceSpec {
     data class Ios(
         override val model: String,
         override val os: String,
-        val locale: IosLocale = IosLocale.EN_US,
+        override val locale: IosLocale = IosLocale.EN_US,
     ) : DeviceSpec() {
         init {
             require(model.isNotBlank()) { "DeviceSpec.Ios: model cannot be blank" }
@@ -73,8 +77,8 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.IOS
-        val osVersion: Int get() = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
-        val deviceName: String get() = "Maestro_IOS_${model}_${osVersion}"
+        override val osVersion: Int get() = os.removePrefix("iOS-").substringBefore("-").toIntOrNull() ?: 0
+        override val deviceName: String get() = "Maestro_IOS_${model}_${osVersion}"
 
         companion object {
             val DEFAULT: Ios = Ios(model = "iPhone-11", os = "iOS-17-5")
@@ -84,7 +88,7 @@ sealed class DeviceSpec {
     data class Web(
       override val model: String,
       override val os: String,
-      val locale: WebLocale = WebLocale.EN_US,
+      override val locale: WebLocale = WebLocale.EN_US,
     ) : DeviceSpec() {
         init {
             require(model.isNotBlank()) { "DeviceSpec.Web: model cannot be blank" }
@@ -92,8 +96,8 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.WEB
-        val osVersion: Int get() = 0
-        val deviceName: String get() = "Maestro_WEB_${model}_${osVersion}"
+        override val osVersion: Int get() = 0
+        override val deviceName: String get() = "Maestro_WEB_${model}_${osVersion}"
 
         companion object {
             val DEFAULT: Web = Web(model = "chromium", os = "default")
