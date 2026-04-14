@@ -1,0 +1,19 @@
+url: https://www.saucedemo.com/
+name: Erase text should clear typed input
+tags:
+  - passing
+  - web
+---
+- launchApp
+- tapOn: Username
+- inputText: wrong_user
+- eraseText: 10
+- inputText: standard_user
+
+- tapOn: Password
+- inputText: wrong_pass
+- eraseText: 10
+- inputText: secret_sauce
+
+- tapOn: Login
+- assertVisible: Products

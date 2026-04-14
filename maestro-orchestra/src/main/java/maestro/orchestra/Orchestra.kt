@@ -895,7 +895,7 @@ class Orchestra(
     }
 
     private fun setOrientationCommand(command: SetOrientationCommand): Boolean {
-        maestro.setOrientation(command.orientation)
+        maestro.setOrientation(command.resolvedOrientation())
 
         return true
     }
@@ -1717,7 +1717,7 @@ class Orchestra(
         selector.containsChild
             ?.let {
                 descriptions += "Contains child: ${it.description()}"
-                relativeFilters += Filters.containsChild(findElement(it, optional = false).element).asFilter()
+                relativeFilters += Filters.containsChild(buildFilter(it).filterFunc)
             }
 
         selector.containsDescendants

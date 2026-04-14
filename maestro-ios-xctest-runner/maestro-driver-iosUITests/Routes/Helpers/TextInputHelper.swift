@@ -14,6 +14,15 @@ struct TextInputHelper {
         static let slowInputCharactersCount = 1
     }
     
+    static func waitUntilKeyboardIsPresented() async {
+        let deadline = Date().addingTimeInterval(1.0)
+        while Date() < deadline {
+            let app = RunningApp.getForegroundApp() ?? XCUIApplication(bundleIdentifier: RunningApp.springboardBundleId)
+            if app.keyboards.firstMatch.exists { return }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+    }
+
     static func inputText(_ text: String) async throws {
         // due to different keyboard input listener events (i.e. autocorrection or hardware keyboard connection)
         // characters after the first on are often skipped, so we'll input it with lower typing frequency

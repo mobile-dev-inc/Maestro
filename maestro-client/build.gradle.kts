@@ -37,6 +37,7 @@ tasks.named("compileKotlin") {
 
 tasks.named("processResources") {
     dependsOn(":maestro-android:copyMaestroAndroid")
+    dependsOn(":maestro-android:copyMaestroServer")
 }
 
 tasks.whenTaskAdded {

@@ -1,0 +1,13 @@
+# Verifies storage size is configured correctly
+#
+# Configuration: AVD hardware settings
+# Expected: 8.0 GB total storage
+
+appId: com.android.settings
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    clearState: true
+- tapOn: Storage
+- assertVisible: 8.0 GB total
