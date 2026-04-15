@@ -42,7 +42,6 @@ import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
 import maestro.device.DeviceSpec
-import maestro.device.DeviceSpecRequest
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
