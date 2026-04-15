@@ -38,10 +38,11 @@ object DeviceService {
             Platform.IOS -> {
                 PrintUtils.message("Launching Simulator...")
                 try {
+                    val iosSpec = device.deviceSpec as DeviceSpec.Ios
                     localSimulatorUtils.bootSimulator(device.modelId)
-                    PrintUtils.message("Setting the device locale to ${device.deviceSpec.locale.code}...")
-                    localSimulatorUtils.setDeviceLanguage(device.modelId, device.deviceSpec.locale.languageCode)
-                    localSimulatorUtils.setDeviceLocale(device.modelId, device.deviceSpec.locale.code)
+                    PrintUtils.message("Setting the device locale to ${iosSpec.locale.code}...")
+                    localSimulatorUtils.setDeviceLanguage(device.modelId, iosSpec.locale.languageCode)
+                    localSimulatorUtils.setDeviceLocale(device.modelId, iosSpec.locale.code)
                     localSimulatorUtils.reboot(device.modelId)
                     localSimulatorUtils.launchSimulator(device.modelId)
                     localSimulatorUtils.awaitLaunch(device.modelId)
@@ -61,6 +62,7 @@ object DeviceService {
 
             Platform.ANDROID -> {
                 PrintUtils.message("Launching Emulator...")
+                val androidSpec = device.deviceSpec as DeviceSpec.Android
                 val emulatorBinary = requireEmulatorBinary()
 
                 ProcessBuilder(
@@ -92,19 +94,19 @@ object DeviceService {
                     Thread.sleep(1000)
                 }
 
-                PrintUtils.message("Setting the device locale to ${device.deviceSpec.locale.code}...")
+                PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
                 val driver = AndroidDriver(dadb, driverHostPort)
                 driver.installMaestroDriverApp()
                 val result = driver.setDeviceLocale(
-                    country = device.deviceSpec.locale.countryCode,
-                    language = device.deviceSpec.locale.languageCode,
+                    country = androidSpec.locale.countryCode,
+                    language = androidSpec.locale.languageCode,
                 )
 
                 when (result) {
-                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${device.deviceSpec.locale.code}...")
-                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, the locale is not valid for a chosen device")
-                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, exception during updating configuration occurred")
-                    else -> throw IllegalStateException("Failed to set locale ${device.deviceSpec.locale.code}, unknown exception happened")
+                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${androidSpec.locale.code}...")
+                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, the locale is not valid for a chosen device")
+                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, exception during updating configuration occurred")
+                    else -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, unknown exception happened")
                 }
                 driver.uninstallMaestroDriverApp()
 
@@ -166,14 +168,14 @@ object DeviceService {
                 description = "Chromium Web Browser",
                 instanceId = "chromium",
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceSpec.fromRequest(DeviceSpecRequest.Web())
+                deviceSpec = DeviceSpec.Web.DEFAULT
             ),
             Device.AvailableForLaunch(
                 modelId = "chromium",
                 description = "Chromium Web Browser",
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER,
-                deviceSpec = DeviceSpec.fromRequest(DeviceSpecRequest.Web())
+                deviceSpec = DeviceSpec.Web.DEFAULT
             )
         )
     }
@@ -188,9 +190,7 @@ object DeviceService {
                     description = dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = Device.DeviceType.EMULATOR,
-                    deviceSpec = DeviceSpec.fromRequest(
-                      DeviceSpecRequest.Android()
-                    )
+                    deviceSpec = DeviceSpec.Android.DEFAULT
                 )
             )
         }
@@ -221,15 +221,12 @@ object DeviceService {
                     instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
                     else -> Device.DeviceType.REAL
                 }
-                val avdInfo = avdInfoList.find { it.name == avdName } ?: AvdInfo(name = avdName ?: "", model = "", os = "")
                 Device.Connected(
                     instanceId = instanceId,
                     description = avdName ?: dadb.toString(),
                     platform = Platform.ANDROID,
                     deviceType = deviceType,
-                    deviceSpec = DeviceSpec.fromRequest(
-                        DeviceSpecRequest.Android()
-                    ),
+                    deviceSpec = DeviceSpec.Android.DEFAULT,
                 )
             }
         }.getOrNull() ?: emptyList()
@@ -251,9 +248,11 @@ object DeviceService {
                                 description = avdName,
                                 platform = Platform.ANDROID,
                                 deviceType = Device.DeviceType.EMULATOR,
-                                deviceSpec = DeviceSpec.fromRequest(
-                                    DeviceSpecRequest.Android(avdInfo.model, avdInfo.os)
-                                )
+                                deviceSpec = if (avdInfo.model.isBlank() || avdInfo.os.isBlank()) {
+                                    DeviceSpec.Android.DEFAULT
+                                } else {
+                                    DeviceSpec.Android(model = avdInfo.model, os = avdInfo.os)
+                                }
                             )
                         }
                         .toList()
@@ -369,9 +368,7 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.REAL,
-                deviceSpec = DeviceSpec.fromRequest(
-                    DeviceSpecRequest.Ios()
-                )
+                deviceSpec = DeviceSpec.Ios.DEFAULT
             )
         }
     }
@@ -395,9 +392,11 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType = Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceSpec.fromRequest(
-                    DeviceSpecRequest.Ios(model, os)
-                )
+                deviceSpec = if (model.isBlank() || os.isBlank()) {
+                    DeviceSpec.Ios.DEFAULT
+                } else {
+                    DeviceSpec.Ios(model = model, os = os)
+                }
             )
         } else {
             Device.AvailableForLaunch(
@@ -405,9 +404,11 @@ object DeviceService {
                 description = description,
                 platform = Platform.IOS,
                 deviceType =  Device.DeviceType.SIMULATOR,
-                deviceSpec = DeviceSpec.fromRequest(
-                    DeviceSpecRequest.Ios(model, os)
-                )
+                deviceSpec = if (model.isBlank() || os.isBlank()) {
+                    DeviceSpec.Ios.DEFAULT
+                } else {
+                    DeviceSpec.Ios(model = model, os = os)
+                }
             )
         }
     }
@@ -430,9 +431,7 @@ object DeviceService {
                             description = output,
                             platform = Platform.ANDROID,
                             deviceType = Device.DeviceType.EMULATOR,
-                            deviceSpec = DeviceSpec.fromRequest(
-                                DeviceSpecRequest.Android()
-                            )
+                            deviceSpec = DeviceSpec.Android.DEFAULT
                         )
                     }
                     .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }

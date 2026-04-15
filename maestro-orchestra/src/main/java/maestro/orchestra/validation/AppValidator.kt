@@ -76,10 +76,11 @@ class AppValidator(
             Platform.IOS -> {
                 if (appFile == null) return
                 val minOSVersion = iosMinOSVersionProvider?.invoke(appFile) ?: return
-                if (minOSVersion.major > deviceSpec.osVersion) {
+                val iosSpec = deviceSpec as DeviceSpec.Ios
+                if (minOSVersion.major > iosSpec.osVersion) {
                     throw AppValidationException.IncompatibleIOSVersion(
                         appMinVersion = minOSVersion.full,
-                        deviceOsVersion = deviceSpec.osVersion,
+                        deviceOsVersion = iosSpec.osVersion,
                     )
                 }
             }
