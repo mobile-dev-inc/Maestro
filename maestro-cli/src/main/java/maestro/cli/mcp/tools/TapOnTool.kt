@@ -24,7 +24,7 @@ object TapOnTool {
                         }
                         putJsonObject("text") {
                             put("type", "string")
-                            put("description", "Regex matching the element text (anchored/full-match; use '.*foo.*' for partial). Typically copied from the 'text' field of inspect_view_hierarchy output.")
+                            put("description", "Regex matching the element text (anchored/full-match; use '.*foo.*' for partial). Often copied from the 'text' field of inspect_view_hierarchy output, but might also be 'accessibilityText' or 'hintText'")
                         }
                         putJsonObject("id") {
                             put("type", "string")
