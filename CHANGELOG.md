@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add direct CLI commands `maestro tap-on` and `maestro take-screenshot`, bringing selected interactive CLI capabilities into closer parity with existing MCP tools
+
 ## 2.5.1
 
 - Fix `NoSuchMethodError` on Ktor server startup (login, studio, and cloud commands)
