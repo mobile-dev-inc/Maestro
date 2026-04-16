@@ -37,6 +37,7 @@ jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "2.2.0"
+mcpSdk = "0.11.1"
 kotlinRetry = "2.0.1"
 kotlinResult = "2.0.1"
 kotlinx-serialization-json = "1.5.0"
@@ -151,7 +152,7 @@ logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "lo
 logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
-mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
+mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
 
 [bundles]
 

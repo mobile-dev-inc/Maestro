@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -15,7 +15,7 @@ object StopAppTool {
             Tool(
                 name = "stop_app",
                 description = "Stop an application on the connected device",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -31,8 +31,8 @@ object StopAppTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val appId = request.arguments["appId"]?.jsonPrimitive?.content
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
+                val appId = request.arguments?.get("appId")?.jsonPrimitive?.content
                 
                 if (deviceId == null || appId == null) {
                     return@RegisteredTool CallToolResult(

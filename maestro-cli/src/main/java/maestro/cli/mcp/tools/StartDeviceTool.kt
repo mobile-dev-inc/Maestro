@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.device.DeviceService
@@ -15,7 +15,7 @@ object StartDeviceTool {
                     "You must provide either a device_id (from list_devices) or a platform (ios or android). " +
                     "If device_id is provided, starts that device. If platform is provided, starts any available device for that platform. " +
                     "If neither is provided, defaults to platform = ios.",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -31,8 +31,8 @@ object StartDeviceTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val platformStr = request.arguments["platform"]?.jsonPrimitive?.content ?: "ios"
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
+                val platformStr = request.arguments?.get("platform")?.jsonPrimitive?.content ?: "ios"
                 
                 // Get all connected and available devices
                 val availableDevices = DeviceService.listAvailableForLaunchDevices(includeWeb = true)

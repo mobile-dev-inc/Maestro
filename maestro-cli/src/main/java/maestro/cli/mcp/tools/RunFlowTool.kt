@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -54,7 +54,7 @@ object RunFlowTool {
                     # other commands here
                     ```
                 """.trimIndent(),
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -77,9 +77,9 @@ object RunFlowTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val flowYaml = request.arguments["flow_yaml"]?.jsonPrimitive?.content
-                val envParam = request.arguments["env"]?.jsonObject
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
+                val flowYaml = request.arguments?.get("flow_yaml")?.jsonPrimitive?.content
+                val envParam = request.arguments?.get("env")?.jsonObject
                 
                 if (deviceId == null || flowYaml == null) {
                     return@RegisteredTool CallToolResult(

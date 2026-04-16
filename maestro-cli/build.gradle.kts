@@ -189,10 +189,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.2.0")
     implementation(libs.mcp.kotlin.sdk) {
-        version {
-            branch = "steviec/kotlin-1.8"
-        }
         exclude(group = "org.slf4j", module = "slf4j-simple")
+        exclude(group = "io.ktor")
     }
     implementation(libs.logging.sl4j)
     implementation(libs.logging.api)

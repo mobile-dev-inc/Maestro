@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.device.DeviceService
@@ -11,7 +11,7 @@ object ListDevicesTool {
             Tool(
                 name = "list_devices",
                 description = "List all available devices that can be launched for automation.",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject { },
                     required = emptyList()
                 )

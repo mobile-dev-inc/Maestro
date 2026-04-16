@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.orchestra.yaml.YamlCommandReader
@@ -11,7 +11,7 @@ object CheckFlowSyntaxTool {
             Tool(
                 name = "check_flow_syntax",
                 description = "Validates the syntax of a block of Maestro code. Valid maestro code must be well-formatted YAML.",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("flow_yaml") {
                             put("type", "string")
@@ -23,7 +23,7 @@ object CheckFlowSyntaxTool {
             )
         ) { request ->
             try {
-                val flowYaml = request.arguments["flow_yaml"]?.jsonPrimitive?.content
+                val flowYaml = request.arguments?.get("flow_yaml")?.jsonPrimitive?.content
                 
                 if (flowYaml == null) {
                     return@RegisteredTool CallToolResult(
