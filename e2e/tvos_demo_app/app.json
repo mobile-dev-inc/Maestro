@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "plugins": [
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "appleTVImages": {
+            "icon": "./assets/images/icon-1280x768.png",
+            "iconSmall": "./assets/images/icon-400x240.png",
+            "iconSmall2x": "./assets/images/icon-800x480.png",
+            "topShelf": "./assets/images/icon-1920x720.png",
+            "topShelf2x": "./assets/images/icon-3840x1440.png",
+            "topShelfWide": "./assets/images/icon-2320x720.png",
+            "topShelfWide2x": "./assets/images/icon-4640x1440.png"
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": false
+          }
+        }
+      ]
+    ],
+    "ios": {
+      "bundleIdentifier": "dev.mobile.maestro.tvos.demo"
+    },
+    "newArchEnabled": true,
+    "name": "MaestroTVDemo",
+    "slug": "MaestroTVDemo",
+    "android": {
+      "package": "dev.mobile.maestro.tvos.demo"
+    }
+  }
+}

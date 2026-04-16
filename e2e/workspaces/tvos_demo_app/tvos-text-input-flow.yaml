@@ -1,0 +1,47 @@
+appId: dev.mobile.maestro.tvos.demo
+tags:
+  - tvos
+  - passing
+---
+- launchApp:
+    clearState: true
+
+# Navigate to Text Input Test screen
+- assertVisible: "Home"
+- pressKey: "Remote Dpad Down"
+- assertVisible:
+    text: "Text Input Test"
+    focused: true
+- pressKey: "Remote Dpad Center"
+
+- assertVisible: "Text Input Test"
+
+# Open keyboard on the text input
+- pressKey: "Remote Dpad Center"
+- waitForAnimationToEnd
+
+# Type text
+- inputText: "Maestro"
+- waitForAnimationToEnd
+
+# Dismiss keyboard to verify typed text
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+- assertVisible: "Typed: Maestro"
+
+# Reopen keyboard, erase, and retype
+- pressKey: "Remote Dpad Center"
+- waitForAnimationToEnd
+- eraseText
+- inputText: "tvOS Demo"
+- waitForAnimationToEnd
+
+# Dismiss keyboard to verify new text
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+- assertVisible: "Typed: tvOS Demo"
+
+# Go back to Home
+- pressKey: "Remote Menu"
+- waitForAnimationToEnd
+- assertVisible: "Home"

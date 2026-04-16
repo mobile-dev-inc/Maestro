@@ -52,8 +52,8 @@ else
 		esac
 
 		case $app_name in
-			tvos_settings)           [ "$platform" != "tvos" ] && continue ;;
-			*)                       [ "$platform" = "tvos" ]  && continue ;;
+			tvos_settings|tvos_demo_app) [ "$platform" != "tvos" ] && continue ;;
+			*)                          [ "$platform" = "tvos" ]  && continue ;;
 		esac
 
 		case $app_name in
@@ -81,7 +81,7 @@ else
 		### Run failing tests (skip workspaces with no failing flows)
 		###
 		case $app_name in
-			wikipedia|simple_web_view|tvos_settings) continue ;;
+			wikipedia|simple_web_view|tvos_settings|tvos_demo_app) continue ;;
 		esac
 
 		_h2 "$app_name" "run failing tests"

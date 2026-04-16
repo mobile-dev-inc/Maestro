@@ -374,7 +374,7 @@ jobs:
     name: Test on tvOS
     runs-on: macos-26
     needs: build
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
@@ -389,6 +389,34 @@ jobs:
         with:
           distribution: zulu
           java-version: 17
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: e2e/tvos_demo_app/yarn.lock
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: e2e/tvos_demo_app/ios/Pods
+          key: tvos-demo-pods-${{ runner.os }}-${{ hashFiles('e2e/tvos_demo_app/yarn.lock') }}
+
+      - name: Build tvos_demo_app
+        working-directory: ${{ github.workspace }}/e2e/tvos_demo_app
+        run: |
+          yarn install --frozen-lockfile
+          EXPO_TV=1 npx expo prebuild --clean
+          xcodebuild \
+            -workspace ios/MaestroTVDemo.xcworkspace \
+            -scheme MaestroTVDemo \
+            -configuration Release \
+            -sdk appletvsimulator \
+            -derivedDataPath build \
+            -quiet
+          mkdir -p ${{ github.workspace }}/e2e/apps
+          cp -r build/Build/Products/Release-appletvsimulator/MaestroTVDemo.app ${{ github.workspace }}/e2e/apps/tvos_demo_app.app
 
       - name: Download artifacts
         uses: actions/download-artifact@v7
@@ -411,6 +439,10 @@ jobs:
           export RUNTIME="tvOS26.1"
           export DEVICE_TYPE="Apple TV 4K (3rd generation)"
           ./.github/scripts/boot_simulator.sh
+
+      - name: Install tvOS demo app
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps tvos
 
       - name: Start screen recording
         run: |

@@ -1,0 +1,62 @@
+appId: dev.mobile.maestro.tvos.demo
+tags:
+  - tvos
+  - passing
+---
+- launchApp:
+    clearState: true
+
+# Verify Home screen loads with first button focused
+- assertVisible: "Home"
+- assertVisible:
+    text: "Navigation Test"
+    focused: true
+
+# Navigate down through menu
+- pressKey: "Remote Dpad Down"
+- assertVisible:
+    text: "Text Input Test"
+    focused: true
+
+- pressKey: "Remote Dpad Down"
+- assertVisible:
+    text: "Focus Test"
+    focused: true
+
+# Navigate back up
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- assertVisible:
+    text: "Navigation Test"
+    focused: true
+
+# Enter Navigation Test screen
+- pressKey: "Remote Dpad Center"
+- assertVisible: "Navigation Test"
+
+# Verify first button in grid is focused
+- assertVisible:
+    text: "Top Left"
+    focused: true
+
+# Navigate right
+- pressKey: "Remote Dpad Right"
+- assertVisible:
+    text: "Top Right"
+    focused: true
+
+# Navigate down
+- pressKey: "Remote Dpad Down"
+- assertVisible:
+    text: "Bottom Right"
+    focused: true
+
+# Navigate left
+- pressKey: "Remote Dpad Left"
+- assertVisible:
+    text: "Bottom Left"
+    focused: true
+
+# Go back to Home
+- pressKey: "Remote Menu"
+- assertVisible: "Home"
