@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -16,7 +16,7 @@ object TapOnTool {
             Tool(
                 name = "tap_on",
                 description = "Tap on a UI element by selector or description",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -56,14 +56,14 @@ object TapOnTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val text = request.arguments["text"]?.jsonPrimitive?.content
-                val id = request.arguments["id"]?.jsonPrimitive?.content
-                val index = request.arguments["index"]?.jsonPrimitive?.intOrNull
-                val enabled = request.arguments["enabled"]?.jsonPrimitive?.booleanOrNull
-                val checked = request.arguments["checked"]?.jsonPrimitive?.booleanOrNull
-                val focused = request.arguments["focused"]?.jsonPrimitive?.booleanOrNull
-                val selected = request.arguments["selected"]?.jsonPrimitive?.booleanOrNull
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
+                val text = request.arguments?.get("text")?.jsonPrimitive?.content
+                val id = request.arguments?.get("id")?.jsonPrimitive?.content
+                val index = request.arguments?.get("index")?.jsonPrimitive?.intOrNull
+                val enabled = request.arguments?.get("enabled")?.jsonPrimitive?.booleanOrNull
+                val checked = request.arguments?.get("checked")?.jsonPrimitive?.booleanOrNull
+                val focused = request.arguments?.get("focused")?.jsonPrimitive?.booleanOrNull
+                val selected = request.arguments?.get("selected")?.jsonPrimitive?.booleanOrNull
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(

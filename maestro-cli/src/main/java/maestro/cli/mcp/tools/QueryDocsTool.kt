@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
@@ -18,7 +18,7 @@ object QueryDocsTool {
                 description = "Query the Maestro documentation for specific information. " +
                     "Ask questions about Maestro features, commands, best practices, and troubleshooting. " +
                     "Returns relevant documentation content and examples.",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("question") {
                             put("type", "string")
@@ -30,7 +30,7 @@ object QueryDocsTool {
             )
         ) { request ->
             try {
-                val question = request.arguments["question"]?.jsonPrimitive?.content
+                val question = request.arguments?.get("question")?.jsonPrimitive?.content
                 if (question.isNullOrBlank()) {
                     return@RegisteredTool CallToolResult(
                         content = listOf(TextContent("question parameter is required")),
