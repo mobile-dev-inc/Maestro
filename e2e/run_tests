@@ -151,8 +151,8 @@ else
 		esac
 
 		case $app_name in
-			tvos_settings)           [ "$platform" != "tvos" ] && continue ;;
-			*)                       [ "$platform" = "tvos" ]  && continue ;;
+			tvos_settings|tvos_demo_app) [ "$platform" != "tvos" ] && continue ;;
+			*)                          [ "$platform" = "tvos" ]  && continue ;;
 		esac
 
 		case $app_name in
@@ -166,7 +166,7 @@ else
 		_run_passing "$app_name" "$workspace_dir"
 
 		case "$app_name" in
-			wikipedia|simple_web_view|tvos_settings) ;;
+			wikipedia|simple_web_view|tvos_settings|tvos_demo_app) ;;
 			*) _run_failing "$app_name" "$workspace_dir" ;;
 		esac
 	done
