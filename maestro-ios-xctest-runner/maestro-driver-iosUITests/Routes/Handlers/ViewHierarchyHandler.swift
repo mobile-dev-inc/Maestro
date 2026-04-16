@@ -57,6 +57,11 @@ struct ViewHierarchyHandler: HTTPHandler {
             getSafariWebViewHierarchy()
         }
 
+        // Fetch Photo Picker hierarchy for iOS 26+ (runs as out-of-process extension)
+        let photoPickerHierarchy = logger.measure(message: "Fetch Photo Picker hierarchy") {
+            getPhotoPickerHierarchy()
+        }
+
         let deviceFrame = springboardApplication.frame
         let deviceAxFrame = [
             "X": Double(deviceFrame.minX),
@@ -73,7 +78,7 @@ struct ViewHierarchyHandler: HTTPHandler {
                 let appWidth = appFrame["Width"], appWidth > 0,
                 let appHeight = appFrame["Height"], appHeight > 0
             else {
-                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy, photoPickerHierarchy].compactMap { $0 })
             }
 
             // Springboard always reports its frame in portrait dimensions (e.g. 1024×1366),
@@ -87,7 +92,7 @@ struct ViewHierarchyHandler: HTTPHandler {
 
             if isSameAreaDifferentOrientation {
                 NSLog("Skipping offset adjustment: device and app frames are same size but different orientation")
-                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy, photoPickerHierarchy].compactMap { $0 })
             }
 
             let offsetX = deviceWidth - appWidth
@@ -98,9 +103,9 @@ struct ViewHierarchyHandler: HTTPHandler {
 
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
 
-            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy, photoPickerHierarchy].compactMap { $0 })
         } else {
-            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy, photoPickerHierarchy].compactMap { $0 })
         }
     }
     
@@ -277,6 +282,35 @@ struct ViewHierarchyHandler: HTTPHandler {
             return safariHierarchy
         } catch {
             NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Fetches the Photo Picker hierarchy for iOS 26+ where the PHPicker
+    /// runs as an out-of-process extension (com.apple.mobileslideshow.photospicker).
+    /// Returns nil if not on iOS 26+, the picker extension is not running, or snapshot fails.
+    private func getPhotoPickerHierarchy() -> AXElement? {
+        let systemVersion = ProcessInfo.processInfo.operatingSystemVersion
+        guard systemVersion.majorVersion >= 26 else {
+            return nil
+        }
+
+        let photoPickerExtension = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow.photospicker")
+
+        let isRunning = photoPickerExtension.state == .runningForeground || photoPickerExtension.state == .runningBackground
+        guard isRunning else {
+            return nil
+        }
+
+        NSLog("[Start] Fetching Photo Picker hierarchy")
+
+        do {
+            AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
+            let pickerHierarchy = try elementHierarchy(xcuiElement: photoPickerExtension)
+            NSLog("[Done] Photo Picker hierarchy fetched successfully")
+            return pickerHierarchy
+        } catch {
+            NSLog("[Error] Failed to fetch Photo Picker hierarchy: \(error.localizedDescription)")
             return nil
         }
     }
