@@ -30,6 +30,6 @@ while read -r url; do
   app_file="$(curl -fsSL --output-dir ./apps --write-out "%{filename_effective}" -OJ "$url")"
   extension="${app_file##*.}"
   if [ "$extension" = "zip" ]; then
-    unzip -qq -o -d ./apps "$app_file" -x "__MACOSX/*"
+    unzip -qq -o -d ./apps "$app_file" -x "__MACOSX/*" || true
   fi
 done <manifest.txt

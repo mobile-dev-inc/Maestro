@@ -25,7 +25,7 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
-import io.grpc.ManagedChannelBuilder
+import io.grpc.okhttp.OkHttpChannelBuilder
 import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -33,6 +33,7 @@ import maestro.*
 import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
 import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
@@ -70,14 +71,14 @@ class AndroidDriver(
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
-    private var portForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
-    private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
+    private val channel = OkHttpChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
         .keepAliveTime(2, TimeUnit.MINUTES)
         .keepAliveTimeout(20, TimeUnit.SECONDS)
         .keepAliveWithoutCalls(true)
@@ -100,7 +101,6 @@ class AndroidDriver(
     }
 
     override fun open() {
-        allocateForwarder()
         installMaestroApks()
         startInstrumentationSession(hostPort)
 
@@ -148,15 +148,6 @@ class AndroidDriver(
     }
 
 
-    private fun allocateForwarder() {
-        portForwarder?.close()
-
-        portForwarder = dadb.tcpForward(
-            hostPort,
-            hostPort
-        )
-    }
-
     private fun awaitLaunch() {
         val startTime = System.currentTimeMillis()
 
@@ -179,10 +170,6 @@ class AndroidDriver(
             blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
             isLocationMocked = false
         }
-
-        LOGGER.info("[Start] close port forwarder")
-        portForwarder?.close()
-        LOGGER.info("[Done] close port forwarder")
 
         LOGGER.info("[Start] Uninstall driver from device")
         if (reinstallDriver) {

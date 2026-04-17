@@ -111,6 +111,11 @@ object YamlCommandReader {
     private fun <T> mapParsingErrors(path: Path, block: () -> T): T {
         try {
             return block()
+        } catch (e: VirtualMachineError) {
+            // Don't attempt to pretty-format — the stack is near-exhausted and
+            // would trigger kotlin.text.LinesIterator.<clinit> inside errorMessage(),
+            // permanently wedging that class for the whole JVM.
+            throw e
         } catch (e: FlowParseException) {
             val message = errorMessage(e)
             throw SyntaxError(message, e)
