@@ -2,18 +2,15 @@ package maestro.cli.report
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ai.cloud.Defect
-import maestro.orchestra.debug.CommandDebugMetadata
-import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.TestOutputWriter
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
 import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
-import maestro.orchestra.MaestroCommand
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.LoggerContext
@@ -79,44 +76,13 @@ object TestDebugReporter {
 
     /**
      * Save debug information about a single flow, after it has finished.
+     * Delegates to [maestro.orchestra.debug.TestOutputWriter] so CLI and cloud
+     * share the same on-disk output format.
      */
     fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
-        // TODO(bartekpacia): Potentially accept a single "FlowPersistentOutput" object
-        // TODO(bartekpacia: Build output incrementally, instead of single-shot on flow completion
-        //  Be aware that this goal somewhat conflicts with including links to other flows in the HTML report.
-
-        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
-        val shardLogPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
-
-        // commands
-        try {
-            val commandMetadata = debugOutput.commands
-            if (commandMetadata.isNotEmpty()) {
-                val commandsFilename = "commands-$shardPrefix(${flowName.replace("/", "_")}).json"
-                val file = File(path.absolutePathString(), commandsFilename)
-                commandMetadata.map {
-                    CommandDebugWrapper(it.key, it.value)
-                }.let {
-                    mapper.writeValue(file, it)
-                }
-            }
-        } catch (e: JsonMappingException) {
-            logger.error("${shardLogPrefix}Unable to parse commands", e)
-        }
-
-        // screenshots
-        debugOutput.screenshots.forEach {
-            val status = when (it.status) {
-                CommandStatus.COMPLETED -> "✅"
-                CommandStatus.FAILED -> "❌"
-                CommandStatus.WARNED -> "⚠️"
-                else -> "﹖"
-            }
-            val filename = "screenshot-$shardPrefix$status-${it.timestamp}-(${flowName}).png"
-            val file = File(path.absolutePathString(), filename)
-
-            it.screenshot.copyTo(file)
-        }
+        val filenamePrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
+        val logPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
+        TestOutputWriter.saveFlow(path, flowName, debugOutput, filenamePrefix, logPrefix)
     }
 
     fun deleteOldFiles(days: Long = 14) {
@@ -210,10 +176,6 @@ object TestDebugReporter {
         }
     }
 }
-
-private data class CommandDebugWrapper(
-    val command: MaestroCommand, val metadata: CommandDebugMetadata
-)
 
 data class FlowAIOutput(
     @JsonProperty("flow_name") val flowName: String,
