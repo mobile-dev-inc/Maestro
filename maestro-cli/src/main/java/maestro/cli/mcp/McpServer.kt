@@ -1,14 +1,15 @@
 package maestro.cli.mcp
 
-import io.ktor.utils.io.streams.*
-import io.modelcontextprotocol.kotlin.sdk.*
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.*
-import kotlinx.io.*
+import kotlinx.io.asSink
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import maestro.cli.session.MaestroSessionManager
 import maestro.debuglog.LogConfig
 import maestro.cli.mcp.tools.ListDevicesTool
@@ -38,11 +39,11 @@ fun runMaestroMcpServer() {
 
     // Create the MCP Server instance with Maestro implementation
     val server = Server(
-        Implementation(
+        serverInfo = Implementation(
             name = "maestro",
             version = "1.0.0"
         ),
-        ServerOptions(
+        options = ServerOptions(
             capabilities = ServerCapabilities(
                 tools = ServerCapabilities.Tools(listChanged = true)
             )
@@ -79,11 +80,9 @@ fun runMaestroMcpServer() {
     System.err.println("MCP Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")
 
     runBlocking {
-        server.connect(transport)
+        val session = server.createSession(transport)
         val done = Job()
-        server.onClose {
-            done.complete()
-        }
+        session.onClose { done.complete() }
         done.join()
     }
 }

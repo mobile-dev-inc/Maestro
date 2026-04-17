@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -16,7 +16,7 @@ object TapOnTool {
             Tool(
                 name = "tap_on",
                 description = "Tap on a UI element by selector or description",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -24,19 +24,15 @@ object TapOnTool {
                         }
                         putJsonObject("text") {
                             put("type", "string")
-                            put("description", "Text content to match (from 'text' field in inspect_ui output)")
+                            put("description", "Regex matching the element text (anchored/full-match; use '.*foo.*' for partial). Often copied from the 'text' field of inspect_view_hierarchy output, but might also be 'accessibilityText' or 'hintText'")
                         }
                         putJsonObject("id") {
                             put("type", "string")
-                            put("description", "Element ID to match (from 'id' field in inspect_ui output)")
+                            put("description", "Regex matching the element ID (anchored/full-match; use '.*foo.*' for partial). Typically copied from the 'id' field of inspect_view_hierarchy output.")
                         }
                         putJsonObject("index") {
                             put("type", "integer")
                             put("description", "0-based index if multiple elements match the same criteria")
-                        }
-                        putJsonObject("use_fuzzy_matching") {
-                            put("type", "boolean")
-                            put("description", "Whether to use fuzzy/partial text matching (true, default) or exact regex matching (false)")
                         }
                         putJsonObject("enabled") {
                             put("type", "boolean")
@@ -60,15 +56,14 @@ object TapOnTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val text = request.arguments["text"]?.jsonPrimitive?.content
-                val id = request.arguments["id"]?.jsonPrimitive?.content
-                val index = request.arguments["index"]?.jsonPrimitive?.intOrNull
-                val useFuzzyMatching = request.arguments["use_fuzzy_matching"]?.jsonPrimitive?.booleanOrNull ?: true
-                val enabled = request.arguments["enabled"]?.jsonPrimitive?.booleanOrNull
-                val checked = request.arguments["checked"]?.jsonPrimitive?.booleanOrNull
-                val focused = request.arguments["focused"]?.jsonPrimitive?.booleanOrNull
-                val selected = request.arguments["selected"]?.jsonPrimitive?.booleanOrNull
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
+                val text = request.arguments?.get("text")?.jsonPrimitive?.content
+                val id = request.arguments?.get("id")?.jsonPrimitive?.content
+                val index = request.arguments?.get("index")?.jsonPrimitive?.intOrNull
+                val enabled = request.arguments?.get("enabled")?.jsonPrimitive?.booleanOrNull
+                val checked = request.arguments?.get("checked")?.jsonPrimitive?.booleanOrNull
+                val focused = request.arguments?.get("focused")?.jsonPrimitive?.booleanOrNull
+                val selected = request.arguments?.get("selected")?.jsonPrimitive?.booleanOrNull
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -92,14 +87,9 @@ object TapOnTool {
                     deviceId = deviceId,
                     platform = null
                 ) { session ->
-                    // Escape special regex characters to prevent regex injection issues
-                    fun escapeRegex(input: String): String {
-                        return input.replace(Regex("[()\\[\\]{}+*?^$|.\\\\]")) { "\\${it.value}" }
-                    }
-                    
                     val elementSelector = ElementSelector(
-                        textRegex = if (useFuzzyMatching && text != null) ".*${escapeRegex(text)}.*" else text,
-                        idRegex = if (useFuzzyMatching && id != null) ".*${escapeRegex(id)}.*" else id,
+                        textRegex = text,
+                        idRegex = id,
                         index = index?.toString(),
                         enabled = enabled,
                         checked = checked,
