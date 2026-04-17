@@ -4,10 +4,10 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.MaestroException
-import maestro.TreeNode
 import maestro.ai.cloud.Defect
+import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
@@ -214,34 +214,6 @@ object TestDebugReporter {
 private data class CommandDebugWrapper(
     val command: MaestroCommand, val metadata: CommandDebugMetadata
 )
-
-data class CommandDebugMetadata(
-    var status: CommandStatus? = null,
-    var timestamp: Long? = null,
-    var duration: Long? = null,
-    var error: Throwable? = null,
-    var hierarchy: TreeNode? = null,
-    var sequenceNumber: Int = 0,
-    var evaluatedCommand: MaestroCommand? = null
-) {
-    fun calculateDuration() {
-        if (timestamp != null) {
-            duration = System.currentTimeMillis() - timestamp!!
-        }
-    }
-}
-
-data class FlowDebugOutput(
-    val commands: IdentityHashMap<MaestroCommand, CommandDebugMetadata> = IdentityHashMap<MaestroCommand, CommandDebugMetadata>(),
-    val screenshots: MutableList<Screenshot> = mutableListOf(),
-    var exception: MaestroException? = null,
-) {
-    data class Screenshot(
-        val screenshot: File,
-        val timestamp: Long,
-        val status: CommandStatus,
-    )
-}
 
 data class FlowAIOutput(
     @JsonProperty("flow_name") val flowName: String,

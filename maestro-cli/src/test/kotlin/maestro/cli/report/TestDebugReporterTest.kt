@@ -5,7 +5,9 @@ import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
+import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

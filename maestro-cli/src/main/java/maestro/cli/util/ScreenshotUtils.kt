@@ -3,8 +3,8 @@ package maestro.cli.util
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
-import maestro.cli.report.FlowDebugOutput
 import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 import okio.Buffer
 import okio.sink
 
