@@ -26,6 +26,8 @@ import maestro.cli.mcp.tools.CheckFlowSyntaxTool
 import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.QueryDocsTool
+import maestro.cli.mcp.tools.StartRecordingTool
+import maestro.cli.mcp.tools.StopRecordingTool
 import maestro.cli.util.WorkingDirectory
 
 // Main function to run the Maestro MCP server
@@ -63,7 +65,9 @@ fun runMaestroMcpServer() {
         CheckFlowSyntaxTool.create(),
         InspectViewHierarchyTool.create(sessionManager),
         CheatSheetTool.create(),
-        QueryDocsTool.create()
+        QueryDocsTool.create(),
+        StartRecordingTool.create(),
+        StopRecordingTool.create()
     ))
 
 
