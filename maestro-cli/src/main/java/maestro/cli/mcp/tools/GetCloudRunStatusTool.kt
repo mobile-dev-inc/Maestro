@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
@@ -12,8 +12,9 @@ object GetCloudRunStatusTool {
             Tool(
                 name = "get_cloud_run_status",
                 description = "Fetch the current status and (optionally) per-flow results of a Maestro Cloud upload. " +
-                    "Use with the upload_id and project_id returned by run_on_cloud. Requires MAESTRO_CLOUD_API_KEY.",
-                inputSchema = Tool.Input(
+                    "Use with the upload_id and project_id returned by run_on_cloud. " +
+                    "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("upload_id") {
                             put("type", "string")
@@ -35,9 +36,9 @@ object GetCloudRunStatusTool {
             val originalOut = System.out
             System.setOut(System.err)
             try {
-                val uploadId = request.arguments["upload_id"]?.jsonPrimitive?.content
-                val projectId = request.arguments["project_id"]?.jsonPrimitive?.content
-                val includeFlowResults = request.arguments["include_flow_results"]
+                val uploadId = request.arguments?.get("upload_id")?.jsonPrimitive?.content
+                val projectId = request.arguments?.get("project_id")?.jsonPrimitive?.content
+                val includeFlowResults = request.arguments?.get("include_flow_results")
                     ?.jsonPrimitive?.booleanOrNull ?: false
 
                 if (uploadId.isNullOrBlank()) {
@@ -50,8 +51,8 @@ object GetCloudRunStatusTool {
                 val apiKey = ApiKey.getToken()
                 if (apiKey.isNullOrBlank()) {
                     return@RegisteredTool errorResult(
-                        "MAESTRO_CLOUD_API_KEY environment variable is required. " +
-                            "See https://docs.maestro.dev/api-reference/configuration/workspace-configuration for setup."
+                        "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
+                            "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
                     )
                 }
 

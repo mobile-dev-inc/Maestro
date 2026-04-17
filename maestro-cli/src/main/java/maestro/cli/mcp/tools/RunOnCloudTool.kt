@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
@@ -21,8 +21,8 @@ object RunOnCloudTool {
                 name = "run_on_cloud",
                 description = "Submit a Maestro flow (or folder of flows) to Maestro Cloud for execution on cloud devices. " +
                     "Returns immediately with an upload_id and dashboard URL. Use get_cloud_run_status to poll for results. " +
-                    "Requires MAESTRO_CLOUD_API_KEY.",
-                inputSchema = Tool.Input(
+                    "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("app_file") {
                             put("type", "string")
@@ -69,18 +69,18 @@ object RunOnCloudTool {
             val originalOut = System.out
             System.setOut(System.err)
             try {
-                val appFileArg = request.arguments["app_file"]?.jsonPrimitive?.content
-                val flowsArg = request.arguments["flows"]?.jsonPrimitive?.content
-                val name = request.arguments["name"]?.jsonPrimitive?.content
-                val projectIdArg = request.arguments["project_id"]?.jsonPrimitive?.content
-                val envParam = request.arguments["env"]?.jsonObject
-                val includeTags = request.arguments["include_tags"]?.jsonArray?.mapNotNull {
+                val appFileArg = request.arguments?.get("app_file")?.jsonPrimitive?.content
+                val flowsArg = request.arguments?.get("flows")?.jsonPrimitive?.content
+                val name = request.arguments?.get("name")?.jsonPrimitive?.content
+                val projectIdArg = request.arguments?.get("project_id")?.jsonPrimitive?.content
+                val envParam = request.arguments?.get("env")?.jsonObject
+                val includeTags = request.arguments?.get("include_tags")?.jsonArray?.mapNotNull {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
-                val excludeTags = request.arguments["exclude_tags"]?.jsonArray?.mapNotNull {
+                val excludeTags = request.arguments?.get("exclude_tags")?.jsonArray?.mapNotNull {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
-                val deviceOs = request.arguments["device_os"]?.jsonPrimitive?.content
+                val deviceOs = request.arguments?.get("device_os")?.jsonPrimitive?.content
 
                 if (appFileArg.isNullOrBlank()) {
                     return@RegisteredTool errorResult("app_file is required")
@@ -92,9 +92,8 @@ object RunOnCloudTool {
                 val apiKey = ApiKey.getToken()
                 if (apiKey.isNullOrBlank()) {
                     return@RegisteredTool errorResult(
-                        "MAESTRO_CLOUD_API_KEY environment variable is required. " +
-                            "Set it via your MCP client config (env block) or export it in the shell running the MCP server. " +
-                            "See https://docs.maestro.dev/api-reference/configuration/workspace-configuration for details."
+                        "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
+                            "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
                     )
                 }
 
@@ -120,7 +119,9 @@ object RunOnCloudTool {
                     } catch (e: ApiClient.ApiException) {
                         return@RegisteredTool errorResult(
                             "Failed to list Maestro Cloud projects (HTTP ${e.statusCode}). " +
-                                "Check that MAESTRO_CLOUD_API_KEY is valid."
+                                "Project auto-pick requires a session token from `maestro login`; " +
+                                "MAESTRO_CLOUD_API_KEY is project-scoped and cannot list projects. " +
+                                "Either run `maestro login`, or pass project_id explicitly in this tool call."
                         )
                     } catch (e: Exception) {
                         return@RegisteredTool errorResult("Failed to list Maestro Cloud projects: ${e.message}")
