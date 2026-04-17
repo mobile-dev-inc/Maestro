@@ -80,9 +80,25 @@ object TestDebugReporter {
      * share the same on-disk output format.
      */
     fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
-        val filenamePrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
+        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
         val logPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
-        TestOutputWriter.saveFlow(path, flowName, debugOutput, filenamePrefix, logPrefix)
+        val cleanFlow = flowName.replace("/", "_")
+
+        TestOutputWriter.saveCommands(
+            path = path,
+            debugOutput = debugOutput,
+            commandsFilename = "commands-$shardPrefix($cleanFlow).json",
+            logPrefix = logPrefix,
+        )
+
+        val named = debugOutput.screenshots.map { shot ->
+            val emoji = TestOutputWriter.emojiFor(shot.status)
+            TestOutputWriter.NamedScreenshot(
+                source = shot.screenshot,
+                filename = "screenshot-$shardPrefix$emoji-${shot.timestamp}-($cleanFlow).png",
+            )
+        }
+        TestOutputWriter.saveScreenshots(path, named)
     }
 
     fun deleteOldFiles(days: Long = 14) {

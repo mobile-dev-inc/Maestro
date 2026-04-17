@@ -163,4 +163,17 @@ class TestDebugReporterTest {
         assertThat(names).contains("screenshot-shard-3-✅-555-(my_flow).png")
     }
 
+    @Test
+    fun `saveFlow replaces slashes in flow name with underscores in commands filename via facade`() {
+        val outputDir = Files.createDirectories(tempDir.resolve("out"))
+        val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
+        val debug = FlowDebugOutput().apply {
+            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED)
+        }
+
+        TestDebugReporter.saveFlow("feature/login", debug, outputDir)
+
+        assertThat(outputDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
+    }
+
 }
