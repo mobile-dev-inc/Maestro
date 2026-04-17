@@ -14,7 +14,8 @@ object CheatSheetTool {
             Tool(
                 name = "cheat_sheet",
                 description = "Get the Maestro cheat sheet with common commands and syntax examples. " +
-                    "Returns comprehensive documentation on Maestro flow syntax, commands, and best practices.",
+                    "Returns comprehensive documentation on Maestro flow syntax, commands, and best practices. " +
+                    "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {},
                     required = emptyList()
@@ -25,7 +26,10 @@ object CheatSheetTool {
                 val apiKey = ApiKey.getToken()
                 if (apiKey.isNullOrBlank()) {
                     return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("MAESTRO_CLOUD_API_KEY environment variable is required")),
+                        content = listOf(TextContent(
+                            "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
+                                "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
+                        )),
                         isError = true
                     )
                 }

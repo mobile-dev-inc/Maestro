@@ -15,6 +15,8 @@ tools:
     - inspect_view_hierarchy
     - cheat_sheet
     - query_docs
+    - run_on_cloud
+    - get_cloud_run_status
 
   tests:
     - name: "List available devices"
@@ -37,6 +39,26 @@ tools:
       tool: "query_docs"
       params:
         question: "How do I tap on an element?"
+      expect:
+        success: false
+        error:
+          contains: "MAESTRO_CLOUD_API_KEY"
+
+    - name: "Run on Cloud (expect API key required)"
+      tool: "run_on_cloud"
+      params:
+        app_file: "ignored.apk"
+        flows: "ignored.yaml"
+      expect:
+        success: false
+        error:
+          contains: "MAESTRO_CLOUD_API_KEY"
+
+    - name: "Get cloud run status (expect API key required)"
+      tool: "get_cloud_run_status"
+      params:
+        upload_id: "deadbeef"
+        project_id: "deadbeef"
       expect:
         success: false
         error:
