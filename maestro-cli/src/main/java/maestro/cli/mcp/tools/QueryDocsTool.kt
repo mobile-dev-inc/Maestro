@@ -17,7 +17,8 @@ object QueryDocsTool {
                 name = "query_docs",
                 description = "Query the Maestro documentation for specific information. " +
                     "Ask questions about Maestro features, commands, best practices, and troubleshooting. " +
-                    "Returns relevant documentation content and examples.",
+                    "Returns relevant documentation content and examples. " +
+                    "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("question") {
@@ -41,7 +42,10 @@ object QueryDocsTool {
                 val apiKey = ApiKey.getToken()
                 if (apiKey.isNullOrBlank()) {
                     return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent("MAESTRO_CLOUD_API_KEY environment variable is required")),
+                        content = listOf(TextContent(
+                            "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
+                                "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
+                        )),
                         isError = true
                     )
                 }
