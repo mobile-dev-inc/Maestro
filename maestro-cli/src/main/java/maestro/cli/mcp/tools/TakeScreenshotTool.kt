@@ -43,7 +43,8 @@ object TakeScreenshotTool {
                     port = null,
                     driverHostPort = null,
                     deviceId = deviceId,
-                    platform = null
+                    platform = null,
+                    closeOnCompletion = false
                 ) { session ->
                     val buffer = Buffer()
                     runBlocking { session.maestro.takeScreenshot(buffer, true) }

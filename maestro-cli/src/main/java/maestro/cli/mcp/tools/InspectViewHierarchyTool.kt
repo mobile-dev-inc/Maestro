@@ -42,7 +42,8 @@ object InspectViewHierarchyTool {
                     port = null,
                     driverHostPort = null,
                     deviceId = deviceId,
-                    platform = null
+                    platform = null,
+                    closeOnCompletion = false
                 ) { session ->
                     val maestro = session.maestro
                     val viewHierarchy = runBlocking { maestro.viewHierarchy() }

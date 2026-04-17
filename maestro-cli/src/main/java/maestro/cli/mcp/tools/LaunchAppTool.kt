@@ -46,7 +46,8 @@ object LaunchAppTool {
                     port = null,
                     driverHostPort = null,
                     deviceId = deviceId,
-                    platform = null
+                    platform = null,
+                    closeOnCompletion = false
                 ) { session ->
                     val command = LaunchAppCommand(
                         appId = appId,
