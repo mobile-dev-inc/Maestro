@@ -78,6 +78,26 @@ Host the shared types and the pure write-path function in `maestro-orchestra` (t
 
 ### Part 1 — Maestro repo (`feat/test-output-shared` branch)
 
+#### 1.0 Backfill `saveFlow` tests BEFORE moving the code
+
+`TestDebugReporterTest` has nine tests today, all focused on `install`/`getDebugOutputPath`/`deleteOldFiles`/`saveSuggestions(empty)`. `saveFlow` — the function we're about to extract — has **zero direct test coverage**. Moving it without a safety net would silently hide regressions (emoji encoding, shard-prefix math, flow-name slash replacement, exception handling).
+
+First commit on the branch adds these test cases to `TestDebugReporterTest` against the current CLI implementation:
+
+- `saveFlow writes commands-(flowName).json when commands map is non-empty`
+- `saveFlow writes no commands JSON when commands map is empty`
+- `saveFlow copies screenshots with ✅ tag for COMPLETED status`
+- `saveFlow copies screenshots with ❌ tag for FAILED status`
+- `saveFlow copies screenshots with ⚠️ tag for WARNED status`
+- `saveFlow copies screenshots with ﹖ tag for any other status`
+- `saveFlow writes no screenshot files when screenshots list is empty`
+- `saveFlow with shardIndex = 0 prefixes filenames with 'shard-1-'` (covers the n+1 translation)
+- `saveFlow with shardIndex = null does not prefix filenames`
+- `saveFlow replaces slashes in flowName with underscores in filenames`
+- `saveFlow continues writing screenshots when JsonMappingException is thrown while serializing commands`
+
+These tests must pass green on `main` before any code moves. Once the code moves to `maestro-orchestra` (step 1.2), the tests migrate alongside: they retarget `TestOutputWriter.saveFlow` directly (orchestra-side, using `filenamePrefix`/`logPrefix` params), and one small CLI-side test remains to prove the shard-index → prefix translation in the facade still produces `shard-1-…` names.
+
 #### 1.1 Relocate types into `maestro-orchestra`
 
 New package `maestro.orchestra.debug`:
@@ -282,13 +302,18 @@ Orchestra callback (per command)
 ## Testing strategy
 
 **Maestro repo (orchestra):**
-- Unit test `TestOutputWriter.saveFlow` on a synthetic `FlowDebugOutput` with mixed COMPLETED/FAILED/WARNED screenshots and non-empty commands map. Assert expected files exist with expected names.
-- Unit test that `shardIndex = 2` in the CLI facade produces `commands-shard-3-(flow).json` and `screenshot-shard-3-✅-...` — proves facade translation unchanged.
-- Unit test that `shardIndex = null` / defaults produce unprefixed filenames.
-- Unit test empty `commands` map → no JSON file written (current CLI behavior).
+- Migrated tests from step 1.0 run against `TestOutputWriter.saveFlow` directly. Coverage matrix preserved:
+  - commands JSON written / not-written
+  - all four status emoji tags (✅ / ❌ / ⚠️ / ﹖)
+  - empty screenshots list
+  - explicit `filenamePrefix` parameter produces `shard-1-...` names
+  - default `filenamePrefix = ""` produces unprefixed names
+  - slash replacement in flow name
+  - `JsonMappingException` swallowed, screenshots still written
 
 **Maestro repo (CLI):**
-- Existing CLI test suite must pass unchanged.
+- `TestDebugReporterTest.saveFlow with shardIndex translation` — single test that `shardIndex = 2` at the facade produces `commands-shard-3-(flow).json` and `screenshot-shard-3-✅-...` output. Proves the CLI-side shard-index → prefix translation is unchanged.
+- All remaining lifecycle tests (`install`, `getDebugOutputPath`, `deleteOldFiles`, `saveSuggestions` empty case) pass unchanged.
 
 **Copilot repo (worker):**
 - Unit test `WorkerOrchestraState` hooks populate `FlowDebugOutput` correctly (commands metadata per callback, screenshot only on failure).
