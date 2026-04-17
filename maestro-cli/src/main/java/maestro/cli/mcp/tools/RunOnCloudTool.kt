@@ -12,6 +12,7 @@ import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
+import java.io.ByteArrayInputStream
 import kotlin.io.path.absolute
 
 object RunOnCloudTool {
@@ -67,7 +68,15 @@ object RunOnCloudTool {
             )
         ) { request ->
             val originalOut = System.out
+            val originalIn = System.`in`
             System.setOut(System.err)
+            // Redirect stdin to an empty stream so ApiClient.upload's interactive
+            // trial-not-started Scanner branch cannot hang waiting for user input
+            // that can never arrive (stdin is the MCP JSON-RPC protocol pipe,
+            // already captured by the transport before this swap). The MCP
+            // transport keeps its own reference to the real System.in, so this
+            // does not affect the protocol channel.
+            System.setIn(ByteArrayInputStream(ByteArray(0)))
             try {
                 val appFileArg = request.arguments?.get("app_file")?.jsonPrimitive?.content
                 val flowsArg = request.arguments?.get("flows")?.jsonPrimitive?.content
@@ -186,17 +195,45 @@ object RunOnCloudTool {
 
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
-                CallToolResult(
-                    content = listOf(TextContent("Failed to submit cloud run: ${e.message ?: e.javaClass.simpleName}")),
-                    isError = true
-                )
+                classifyUploadFailure(e)
             } finally {
                 System.setOut(originalOut)
+                System.setIn(originalIn)
             }
         }
     }
 
     private fun errorResult(message: String): CallToolResult {
         return CallToolResult(content = listOf(TextContent(message)), isError = true)
+    }
+
+    /**
+     * Translate an [Exception] from `client.upload` into a user-facing error.
+     *
+     * The backend gates uploads on account subscription state and the CLI's
+     * `ApiClient.upload` surfaces those as `CliError("Upload request failed
+     * (403|402): <message>")` where the message includes phrases like "trial
+     * has not started", "trial has expired", or "payment". It also has an
+     * interactive Scanner branch for trial-not-started that cannot run under
+     * MCP; we redirect stdin to an empty stream beforehand, which makes
+     * `scanner.nextLine()` throw `NoSuchElementException`. Both paths land
+     * here and should resolve to a single clean message that points the user
+     * at `app.maestro.dev` rather than leaking the raw CLI exception text.
+     */
+    private fun classifyUploadFailure(e: Exception): CallToolResult {
+        val message = e.message.orEmpty()
+        val looksLikePlanIssue = e is java.util.NoSuchElementException ||
+            listOf("trial", "payment", "subscription", "has not started", "has expired")
+                .any { message.contains(it, ignoreCase = true) }
+        return if (looksLikePlanIssue) {
+            errorResult(
+                "Your Maestro Cloud account is not ready to run flows on cloud devices. " +
+                    "This typically means your free trial has not started (or has expired), " +
+                    "or there's a payment issue. Start your free trial or manage your " +
+                    "subscription at https://app.maestro.dev, then retry this request."
+            )
+        } else {
+            errorResult("Failed to submit cloud run: ${message.ifBlank { e.javaClass.simpleName }}")
+        }
     }
 }
