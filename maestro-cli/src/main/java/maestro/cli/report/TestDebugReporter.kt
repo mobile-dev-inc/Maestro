@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.MaestroException
 import maestro.TreeNode
 import maestro.ai.cloud.Defect
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.CommandStatus
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils

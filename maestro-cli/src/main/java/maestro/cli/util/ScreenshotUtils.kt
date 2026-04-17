@@ -4,7 +4,7 @@ import java.io.File
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.cli.report.FlowDebugOutput
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.CommandStatus
 import okio.Buffer
 import okio.sink
 

@@ -33,6 +33,7 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.debug.CommandStatus
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights

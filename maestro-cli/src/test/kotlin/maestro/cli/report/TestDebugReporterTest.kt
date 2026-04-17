@@ -5,6 +5,7 @@ import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
+import maestro.orchestra.debug.CommandStatus
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -149,7 +150,7 @@ class TestDebugReporterTest {
         val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
         val debug = FlowDebugOutput().apply {
             commands[cmd] = CommandDebugMetadata(
-                status = maestro.cli.runner.CommandStatus.COMPLETED,
+                status = CommandStatus.COMPLETED,
                 timestamp = 123L,
                 duration = 10L,
                 sequenceNumber = 0,
@@ -180,7 +181,7 @@ class TestDebugReporterTest {
         val shot = Files.createFile(tempDir.resolve("raw.png")).toFile()
         shot.writeBytes(byteArrayOf(1, 2, 3))
         val debug = FlowDebugOutput().apply {
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 999L, maestro.cli.runner.CommandStatus.COMPLETED))
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 999L, CommandStatus.COMPLETED))
         }
 
         TestDebugReporter.saveFlow("my_flow", debug, outputDir)
@@ -196,7 +197,7 @@ class TestDebugReporterTest {
         val outputDir = Files.createDirectories(tempDir.resolve("out"))
         val shot = Files.createFile(tempDir.resolve("raw.png")).toFile()
         val debug = FlowDebugOutput().apply {
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 111L, maestro.cli.runner.CommandStatus.FAILED))
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 111L, CommandStatus.FAILED))
         }
 
         TestDebugReporter.saveFlow("my_flow", debug, outputDir)
@@ -211,7 +212,7 @@ class TestDebugReporterTest {
         val outputDir = Files.createDirectories(tempDir.resolve("out"))
         val shot = Files.createFile(tempDir.resolve("raw.png")).toFile()
         val debug = FlowDebugOutput().apply {
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 222L, maestro.cli.runner.CommandStatus.WARNED))
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 222L, CommandStatus.WARNED))
         }
 
         TestDebugReporter.saveFlow("my_flow", debug, outputDir)
@@ -226,7 +227,7 @@ class TestDebugReporterTest {
         val outputDir = Files.createDirectories(tempDir.resolve("out"))
         val shot = Files.createFile(tempDir.resolve("raw.png")).toFile()
         val debug = FlowDebugOutput().apply {
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 333L, maestro.cli.runner.CommandStatus.SKIPPED))
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 333L, CommandStatus.SKIPPED))
         }
 
         TestDebugReporter.saveFlow("my_flow", debug, outputDir)
@@ -254,10 +255,10 @@ class TestDebugReporterTest {
         val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
         val debug = FlowDebugOutput().apply {
             commands[cmd] = CommandDebugMetadata(
-                status = maestro.cli.runner.CommandStatus.COMPLETED,
+                status = CommandStatus.COMPLETED,
                 timestamp = 1L,
             )
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 555L, maestro.cli.runner.CommandStatus.COMPLETED))
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 555L, CommandStatus.COMPLETED))
         }
 
         TestDebugReporter.saveFlow("my_flow", debug, outputDir, shardIndex = 0)
@@ -274,10 +275,10 @@ class TestDebugReporterTest {
         val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
         val debug = FlowDebugOutput().apply {
             commands[cmd] = CommandDebugMetadata(
-                status = maestro.cli.runner.CommandStatus.COMPLETED,
+                status = CommandStatus.COMPLETED,
                 timestamp = 1L,
             )
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 555L, maestro.cli.runner.CommandStatus.COMPLETED))
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 555L, CommandStatus.COMPLETED))
         }
 
         TestDebugReporter.saveFlow("my_flow", debug, outputDir)
@@ -292,7 +293,7 @@ class TestDebugReporterTest {
         val outputDir = Files.createDirectories(tempDir.resolve("out"))
         val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
         val debug = FlowDebugOutput().apply {
-            commands[cmd] = CommandDebugMetadata(status = maestro.cli.runner.CommandStatus.COMPLETED)
+            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED)
         }
 
         TestDebugReporter.saveFlow("feature/login", debug, outputDir)
