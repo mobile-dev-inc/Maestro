@@ -4845,8 +4845,10 @@ class IntegrationTest {
         }
 
         // Then
-        driver.assertHasEvent(Event.SetAirplaneMode(true))
-        driver.assertHasEvent(Event.SetAirplaneMode(false))
+        driver.assertEvents(listOf(
+            Event.SetAirplaneMode(true),
+            Event.SetAirplaneMode(false),
+        ))
     }
 
     private fun readCommands(
