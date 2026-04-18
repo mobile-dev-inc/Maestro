@@ -1,6 +1,5 @@
 appId: ${APP_ID}
 tags:
-  - android
   - env-file
 ---
 # This flow tests loading environment variables from a .env file.
