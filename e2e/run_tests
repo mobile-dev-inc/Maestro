@@ -89,22 +89,22 @@ else
 	done
 
 	###
-	### Run --env-file test (loads env vars from file, then uses them with setOrientation)
+	### Run --env-file test (no app required, just verifies env vars are loaded)
 	###
-	if [ "$platform" = "android" ]; then
-		_h1 "run --env-file test"
-		_h2 "setOrientation" "run env-file test with .env"
+	_h1 "run --env-file test"
+	_h2 "env_file" "run env-file test with .env"
 
-		while IFS= read -r line; do
-			_h3 "setOrientation" "env-file" "$line"
-		done < pipe &
+	while IFS= read -r line; do
+		_h3 "env_file" "env-file" "$line"
+	done < pipe &
 
-		maestro --verbose --platform "$platform" test \
-			--include-tags env-file-orientation \
-			--env-file ./workspaces/setOrientation/.env \
-			./workspaces/setOrientation/ 1>pipe 2>&1 \
-			|| { _h2 "setOrientation" "FAIL! --env-file test failed"; ALL_PASS=false; }
-	fi
+	maestro --verbose --no-ansi --platform "$platform" test \
+		--flatten-debug-output --debug-output="$HOME/.maestro/tests/env_file/env-file" \
+		--include-tags env-file \
+		--exclude-tags "$exclude_tags" \
+		--env-file ./workspaces/env_file/.env \
+		./workspaces/env_file/ 1>pipe 2>&1 \
+		|| { _h2 "env_file" "FAIL! --env-file test failed"; ALL_PASS=false; }
 fi
 
 if [ "$ALL_PASS" = "false" ]; then
