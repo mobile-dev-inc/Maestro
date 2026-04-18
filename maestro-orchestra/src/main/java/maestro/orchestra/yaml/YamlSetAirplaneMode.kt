@@ -7,18 +7,19 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.node.TextNode
 import maestro.orchestra.AirplaneValue
 
 @JsonDeserialize(using = YamlSetAirplaneModeDeserializer::class)
 data class YamlSetAirplaneMode(
-    val value: AirplaneValue,
+    val value: String,
     val label: String? = null,
     val optional: Boolean = false,
 ) {
     companion object {
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun parse(value: AirplaneValue): YamlSetAirplaneMode {
+        fun parse(value: String): YamlSetAirplaneMode {
             return YamlSetAirplaneMode(value)
         }
     }
@@ -29,44 +30,39 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
     override fun deserialize(parser: JsonParser, ctxt: DeserializationContext): YamlSetAirplaneMode {
         val mapper = (parser.codec as ObjectMapper)
         val root: TreeNode = mapper.readTree(parser)
-        val input = root.fieldNames().asSequence().toList()
-        val label = getLabel(root)
-        when {
-            input.contains("value") -> {
-                val parsedValue = root.get("value").toString().replace("\"", "")
-                val returnValue = when (parsedValue) {
-                    "enabled" -> AirplaneValue.Enable
-                    "disabled" -> AirplaneValue.Disable
-                    else -> throwInvalidInputException(input)
-                }
-                return YamlSetAirplaneMode(returnValue, label)
-            }
-            (root.isValueNode && root.toString().contains("enabled")) -> {
-                return YamlSetAirplaneMode(AirplaneValue.Enable, label)
-            }
-            (root.isValueNode && root.toString().contains("disabled")) -> {
-                return YamlSetAirplaneMode(AirplaneValue.Disable, label)
-            }
-            else -> throwInvalidInputException(input)
-        }
-    }
 
-    private fun throwInvalidInputException(input: List<String>): Nothing {
-        throw IllegalArgumentException(
-            "setAirplaneMode command takes either: \n" +
-                    "\t1. enabled: To enable airplane mode\n" +
-                    "\t2. disabled: To disable airplane mode\n" +
-                    "\t3. value: To set airplane mode to a specific value (enabled or disabled) \n" +
-                    "It seems you provided invalid input with: $input"
+        if (root.isValueNode) {
+            val value = (root as TextNode).textValue()
+            validateIfLiteral(value)
+            return YamlSetAirplaneMode(value)
+        }
+
+        val valueNode = root.get("value")
+            ?: throw IllegalArgumentException("Missing required field 'value' in setAirplaneMode action")
+
+        val value = (valueNode as TextNode).textValue()
+        validateIfLiteral(value)
+        val label = (root.get("label") as? TextNode)?.textValue()
+        val optional = root.get("optional")?.toString()?.toBoolean() ?: false
+
+        return YamlSetAirplaneMode(
+            value = value,
+            label = label,
+            optional = optional,
         )
     }
 
-    private fun getLabel(root: TreeNode): String? {
-        return if (root.path("label").isMissingNode) {
-            null
-        } else {
-            root.path("label").toString().replace("\"", "")
+    private fun validateIfLiteral(value: String) {
+        if (value.contains("\${")) {
+            return
         }
-    }
 
+        AirplaneValue.fromString(value)
+            ?: throw IllegalArgumentException(
+                "setAirplaneMode command takes either: \n" +
+                        "\t1. enabled: To enable airplane mode\n" +
+                        "\t2. disabled: To disable airplane mode\n" +
+                        "It seems you provided invalid input: $value"
+            )
+    }
 }
