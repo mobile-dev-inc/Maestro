@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import kotlinx.coroutines.runBlocking
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -158,7 +159,7 @@ class RecordCommand : Callable<Int> {
                 val resultView = AnsiResultView()
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
-                    maestro.startScreenRecording(out).use {
+                    runBlocking { maestro.startScreenRecording(out) }.use {
                         TestRunner.runSingle(
                             maestro,
                             device,

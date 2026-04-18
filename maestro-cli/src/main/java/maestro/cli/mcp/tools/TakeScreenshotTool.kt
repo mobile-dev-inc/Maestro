@@ -1,7 +1,8 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
 import okio.Buffer
@@ -16,7 +17,7 @@ object TakeScreenshotTool {
             Tool(
                 name = "take_screenshot",
                 description = "Take a screenshot of the current device screen",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -28,7 +29,7 @@ object TakeScreenshotTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -45,7 +46,7 @@ object TakeScreenshotTool {
                     platform = null
                 ) { session ->
                     val buffer = Buffer()
-                    session.maestro.takeScreenshot(buffer, true)
+                    runBlocking { session.maestro.takeScreenshot(buffer, true) }
                     val pngBytes = buffer.readByteArray()
                     
                     // Convert PNG to JPEG

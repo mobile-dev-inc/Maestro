@@ -21,7 +21,7 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.WorkspaceUtils
+import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.input.interactiveSelectList
@@ -42,7 +42,6 @@ import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
 import maestro.device.DeviceSpec
-import maestro.device.DeviceSpecRequest
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -432,12 +431,12 @@ class CloudInteractor(
         val version = deviceConfiguration.osVersion
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
-            "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
+            "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
         return lines.joinToString("\n").render().box()

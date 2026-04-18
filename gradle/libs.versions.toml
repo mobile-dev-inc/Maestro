@@ -37,6 +37,7 @@ jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "2.2.0"
+mcpSdk = "0.11.1"
 kotlinRetry = "2.0.1"
 kotlinResult = "2.0.1"
 kotlinx-serialization-json = "1.5.0"
@@ -54,6 +55,7 @@ skiko = "0.8.18"
 squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
 squareMockWebServer = "4.11.0"
+system-stubs = "2.1.7"
 wiremock = "2.35.0"
 log4j = "2.25.3"
 
@@ -143,13 +145,14 @@ square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", vers
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-okio-jvm = { module = "com.squareup.okio:okio-jvm", version.ref = "squareOkio" }
 square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
+system-stubs-jupiter = { module = "uk.org.webcompere:system-stubs-jupiter", version.ref = "system-stubs" }
 wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
 logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
 logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
 logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
-mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk" }
+mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
 
 [bundles]
 

@@ -33,7 +33,6 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-pubspec.lock
 
 # iOS
 **/ios/Pods/

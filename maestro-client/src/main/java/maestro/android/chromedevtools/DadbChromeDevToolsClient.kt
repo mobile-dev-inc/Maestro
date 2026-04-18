@@ -9,7 +9,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dadb.Dadb
 import maestro.Maestro
 import maestro.TreeNode
+import maestro.android.AdbSocketFactory
 import maestro.utils.HttpClient
+import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -68,12 +70,17 @@ private data class DevToolsResponse<T>(
     val result: T,
 )
 
+private class DummyDns : Dns {
+    override fun lookup(hostname: String) = listOf(java.net.InetAddress.getLoopbackAddress())
+}
+
 class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
-        .dadb(dadb)
+        .socketFactory(AdbSocketFactory { host, _ -> dadb.open("localabstract:$host") })
+        .dns(DummyDns())
         .build()
 
     private val script = Maestro::class.java.getResourceAsStream("/maestro-web.js")?.let {
@@ -119,7 +126,7 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
     fun <T> makeRequest(resultTypeReference: TypeReference<T>, socketName: String, webSocketDebuggerUrl: String, method: String, params: Any?): T {
         val request = json.writeValueAsString(mapOf("id" to 1, "method" to method, "params" to params))
         val url = webSocketDebuggerUrl.replace("ws", "http").toHttpUrl().newBuilder()
-            .host("localabstract.$socketName.adb")
+            .host(socketName)
             .build()
         val response = makeSingleWebsocketRequest(url, request)
         return try {
@@ -165,7 +172,7 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
     }
 
     private fun getWebViewInfos(socketName: String): List<WebViewInfo> {
-        val url = "http://localabstract.$socketName.adb/json"
+        val url = "http://$socketName/json"
 
         val call = okhttp.newCall(Request.Builder()
             .url(url)
