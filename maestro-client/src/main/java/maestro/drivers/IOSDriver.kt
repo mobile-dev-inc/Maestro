@@ -360,23 +360,41 @@ class IOSDriver(
             val width = deviceInfo.widthGrid
             val height = deviceInfo.heightGrid
 
+            val isLandscape = width > height
+
             dismissKeyboardIntroduction(heightPoints = deviceInfo.heightGrid)
 
             if (isKeyboardHidden()) return@measured
 
-            swipe(
-                start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
-                end = Point(0.5.asPercentOf(width), 0.47.asPercentOf(height)),
-                durationMs = 50,
-            )
+            if (isLandscape) {
+                swipe(
+                  start = Point(0.5.asPercentOf(width), 0.3.asPercentOf(height)),
+                  end = Point(0.5.asPercentOf(width), 0.33.asPercentOf(height)),
+                  durationMs = 50,
+                )
+            } else {
+                swipe(
+                  start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
+                  end = Point(0.5.asPercentOf(width), 0.47.asPercentOf(height)),
+                  durationMs = 50,
+                )
+            }
 
             if (isKeyboardHidden()) return@measured
 
-            swipe(
-                start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
-                end = Point(0.47.asPercentOf(width), 0.5.asPercentOf(height)),
-                durationMs = 50,
-            )
+            if (isLandscape) {
+                swipe(
+                  start = Point(0.5.asPercentOf(width), 0.3.asPercentOf(height)),
+                  end = Point(0.5.asPercentOf(width), 0.25.asPercentOf(height)),
+                  durationMs = 50,
+                )
+            } else {
+                swipe(
+                  start = Point(0.5.asPercentOf(width), 0.5.asPercentOf(height)),
+                  end = Point(0.47.asPercentOf(width), 0.5.asPercentOf(height)),
+                  durationMs = 50,
+                )
+            }
 
             waitForAppToSettle(null, null)
         }
