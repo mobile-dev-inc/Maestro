@@ -16,9 +16,8 @@ evals:
         - type: llm-judge
           criteria: >
             The assistant makes no tool calls and instead provides a list of all
-            15 available tools: list_devices, start_device, launch_app, take_screenshot,
-            tap_on, input_text, back, stop_app, run, check_flow_syntax,
-            inspect_view_hierarchy, cheat_sheet, query_docs, run_on_cloud, and
+            7 available tools: list_devices, take_screenshot, run,
+            inspect_view_hierarchy, cheat_sheet, run_on_cloud, and
             get_cloud_run_status. The response should be comprehensive and not mention
             any other tool names.
           threshold: 1.0
@@ -28,42 +27,6 @@ evals:
       expected_tool_calls:
         required:
           - list_devices
-
-    - name: Starts iOS device
-      prompt: Start an iOS device for testing
-      expected_tool_calls:
-        required:
-          - start_device
-      response_scorers:
-        - type: llm-judge
-          criteria: Did the assistant correctly start an iOS device and mention the device ID or confirm successful startup?
-
-    - name: Queries Maestro documentation
-      prompt: How do I tap on an element with specific text in Maestro?
-      expected_tool_calls:
-        required:
-          - query_docs
-        allowed:
-          - cheat_sheet
-      response_scorers:
-        - type: regex
-          pattern: '(tap|tapOn|text)'
-        - type: llm-judge
-          criteria: >
-            Did the assistant provide accurate information about tapping elements
-            with text in Maestro, including proper syntax or examples?
-          threshold: 0.8
-
-    - name: Validates flow syntax
-      prompt: 'Check if this Maestro flow syntax is valid: ''- tapOn: "Submit button"'''
-      expected_tool_calls:
-        required:
-          - check_flow_syntax
-        allowed:
-          - cheat_sheet
-      response_scorers:
-        - type: regex
-          pattern: '(valid|invalid|syntax|error)'
 
     - name: Runs flow file by description
       prompt: Please run our "launch-safari-ios" flow file in the setup/flows folder

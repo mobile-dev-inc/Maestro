@@ -15,38 +15,6 @@ tools:
       expect:
         success: true
 
-    - name: "Test launch_app"
-      tool: "launch_app"
-      params:
-        device_id: "${DEVICE_ID}"
-        appId: "com.apple.mobilesafari"
-      expect:
-        success: true
-
-    - name: "Test tap_on"
-      tool: "tap_on"
-      params:
-        device_id: "${DEVICE_ID}"
-        text: "Search"
-      expect:
-        success: true
-
-    - name: "Test input_text"
-      tool: "input_text"
-      params:
-        device_id: "${DEVICE_ID}"
-        text: "hello"
-      expect:
-        success: true
-
-    - name: "Test stop_app"
-      tool: "stop_app"
-      params:
-        device_id: "${DEVICE_ID}"
-        appId: "com.apple.mobilesafari"
-      expect:
-        success: true
-
     - name: "Test run (inline yaml)"
       tool: "run"
       params:
