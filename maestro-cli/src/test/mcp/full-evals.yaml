@@ -16,10 +16,11 @@ evals:
         - type: llm-judge
           criteria: >
             The assistant makes no tool calls and instead provides a list of all
-            14 available tools: list_devices, start_device, launch_app, take_screenshot,
-            tap_on, input_text, back, stop_app, run_flow, run_flow_files, check_flow_syntax,
-            inspect_view_hierarchy, cheat_sheet, and query_docs. The response should be
-            comprehensive and not mention any other tool names.
+            15 available tools: list_devices, start_device, launch_app, take_screenshot,
+            tap_on, input_text, back, stop_app, run, check_flow_syntax,
+            inspect_view_hierarchy, cheat_sheet, query_docs, run_on_cloud, and
+            get_cloud_run_status. The response should be comprehensive and not mention
+            any other tool names.
           threshold: 1.0
 
     - name: Lists all devices
@@ -68,4 +69,4 @@ evals:
       prompt: Please run our "launch-safari-ios" flow file in the setup/flows folder
       expected_tool_calls:
         required:
-          - run_flow_files
+          - run

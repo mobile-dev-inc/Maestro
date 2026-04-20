@@ -20,8 +20,7 @@ import maestro.cli.mcp.tools.TapOnTool
 import maestro.cli.mcp.tools.InputTextTool
 import maestro.cli.mcp.tools.BackTool
 import maestro.cli.mcp.tools.StopAppTool
-import maestro.cli.mcp.tools.RunFlowTool
-import maestro.cli.mcp.tools.RunFlowFilesTool
+import maestro.cli.mcp.tools.RunTool
 import maestro.cli.mcp.tools.CheckFlowSyntaxTool
 import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
@@ -60,8 +59,7 @@ fun runMaestroMcpServer() {
         InputTextTool.create(sessionManager),
         BackTool.create(sessionManager),
         StopAppTool.create(sessionManager),
-        RunFlowTool.create(sessionManager),
-        RunFlowFilesTool.create(sessionManager),
+        RunTool.create(sessionManager),
         CheckFlowSyntaxTool.create(),
         InspectViewHierarchyTool.create(sessionManager),
         CheatSheetTool.create(),
