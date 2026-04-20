@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-# Runs all tests in the workspaces directory.
+# Runs all tests in demo_app/.maestro and the workspaces directory.
 
 command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 
@@ -9,101 +9,85 @@ command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 
 ALL_PASS=true
 
-_h1() {
-	printf "=>\n=> %s\n=>\n" "$1"
-}
+_h1() { printf "=>\n=> %s\n=>\n" "$1"; }
+_h2() { printf "==> [%s] %s\n" "$1" "$2"; }
+_h3() { printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"; }
 
-_h2() {
-	printf "==> [%s] %s\n" "$1" "$2"
-}
-
-_h3() {
-	printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"
-}
-
+cloud="android_device_configuration,ios_device_configuration" # Maestro Cloud specific tests
 platform="${1:-}"
-if [ "$platform" = "android" ]; then
-	exclude_tags="ios,ai,web"
-elif [ "$platform" = "ios" ]; then
-	exclude_tags="android,ai,web"
-else
-	echo "usage: $0 <android|ios>"
-	exit 1 
-fi
+case "$platform" in
+	android) exclude_tags="ios,web,$cloud" ;;
+	ios)     exclude_tags="android,$cloud,web" ;;
+	web)     exclude_tags="android,ios,$cloud" ;;
+	*)       echo "usage: $0 <android|ios|web>"; exit 1 ;;
+esac
 
 mkfifo pipe
 trap 'rm -f pipe' EXIT
 
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
-for workspace_dir in ./workspaces/*; do
-
-  app_name="$(basename "$workspace_dir")"
-
-  case $app_name in
-      # Skip workspaces with no tests for iOS
-      # demo_app has OOM issues on GHA
-  		demo_app|nowinandroid|setOrientation)
-  			if [ "$platform" = "ios" ]; then
-  			  continue
-  			fi
-  			;;
-  	  # Skip workspaces with no tests for Android
-      simple_web_view)
-        if [ "$platform" = "android" ]; then
-          continue
-        fi
-        ;;
-      # Skip web-only workspaces for all mobile tests - those are run by run_tests_web
-      sauce_demo)
-        continue
-        ;;
-  esac
-
-	WORKSPACE_PASS=true
+if [ "$platform" = "web" ]; then
+	###
+	### Web: run web-tagged tests for demo_app only
+	###
+	workspace_dir="./demo_app/.maestro"
+	app_name="demo_app"
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
-
-	###
-	### Run passing tests
-	###
-	_h2 "$app_name" "run passing tests"
+	_h2 "$app_name" "run web tests"
 
 	while IFS= read -r line; do
-	    _h3 "$app_name" "passing" "$line"
+		_h3 "$app_name" "web" "$line"
 	done < pipe &
 
-	maestro --verbose --platform "$platform" test --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 || WORKSPACE_PASS=false
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/web" --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
+else
+	for workspace_dir in ./demo_app/.maestro ./workspaces/*; do
+		case "$workspace_dir" in
+			./demo_app/.maestro) app_name="demo_app" ;;
+			*) app_name="$(basename "$workspace_dir")" ;;
+		esac
 
-	if [ "$WORKSPACE_PASS" = "false" ]; then
-        _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"
-		ALL_PASS=false
-	fi
+		case $app_name in
+			# demo_app has OOM issues on GHA
+			demo_app) [ "$platform" = "ios" ]     && continue ;;
+			simple_web_view)         [ "$platform" = "android" ] && continue ;;
+			wikipedia)               [ "$platform" = "android" ] && continue ;;
+		esac
 
-	###
-	### Run failing tests
-	###
-	# edge case: some workspaces have no failing flows
-	case $app_name in
-		wikipedia|setOrientation|no-app|simple_web_view)
-			continue
-			;;
-	esac
-	
-	WORKSPACE_PASS=true # Reset for failing flows
-	_h2 "$app_name" "run failing tests"
+		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 
-	while IFS= read -r line; do
-	    _h3 "$app_name" "failing" "$line"
-	done < pipe &
+		###
+		### Run passing tests
+		###
+		_h2 "$app_name" "run passing tests"
 
-	maestro --verbose --platform "$platform" test --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 && WORKSPACE_PASS=false
+		while IFS= read -r line; do
+			_h3 "$app_name" "passing" "$line"
+		done < pipe &
 
-	if [ "$WORKSPACE_PASS" = "false" ]; then
-		_h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
-		ALL_PASS=false
-    fi
-done
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/passing" --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+			|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
+
+		###
+		### Run failing tests (skip workspaces with no failing flows)
+		###
+		case $app_name in
+			wikipedia|simple_web_view) continue ;;
+		esac
+
+		_h2 "$app_name" "run failing tests"
+
+		while IFS= read -r line; do
+			_h3 "$app_name" "failing" "$line"
+		done < pipe &
+
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
+	done
+fi
 
 if [ "$ALL_PASS" = "false" ]; then
 	_h1 "FAILURE: some tests failed!"

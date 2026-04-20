@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 2.4.0
+
+- Add new device config flags for cloud and start-device
+    - Deprecated `--ios-version`, `--android-api-level`, and `--os-version` flags. These will be removed in a future release.
+    - `--device-os` and `--device-model` replace all platform-specific device options, providing a single consistent way to specify devices across iOS, Android, and Web
+- Add `maestro list-devices` command to see locally available devices on the machine
+- Add `maestro list-cloud-devices` command to see available cloud device models and OS versions
+- Support iframes for web tests
+- Faster feedback when using Maestro Cloud - more validation is happening locally
+- Improve feedback when startRecording fails on iOS
+- Add clearState support for web tests
+- Fix inputText crashing on iOS pincode screens
+- Fix incorrect websocket timeout (5000ms, not 5000s!)
+- Add support for variables as input to setOrientation
+- Add deprecation notice to `maestro studio`
+- Improved variable isolation and reduced memory usage in JavaScript evaluations
+- Fix step ordering in the html-detailed test report
+- Improve timeouts in all API calls (especially useful for Maestro Cloud uploads)
+
+## 2.3.0
+
+- Add web support for `clearState` command
+- Fix `assertScreenshot` not failing when screenshot dimensions are mismatched
+- Make `assertScreenshot` work more like `takeScreenshot` by not requiring file extension
+- Fix path resolution for `assertScreenshot` to allow relative paths from flows for reference images
+- Fix `inputRandomPersonName` to generate a predictable "FirstName LastName" format
+- Fix iPad landscape orientation support
+- Fix specifying `--device` when also specifying `--host`
+- Fix cloud uploads to always use requested device specifications on retries
+
+Thanks to @SosenWiosen, @leggomuhgreggo and @jkronborg who contributed changes included in this release ❤️
+
 ## 2.2.0
 
 - Add `--screen-size` option to test command, to specify the headless browser window size when testing web flows

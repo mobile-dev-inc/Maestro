@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -15,7 +15,7 @@ object BackTool {
             Tool(
                 name = "back",
                 description = "Press the back button on the device",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -27,7 +27,7 @@ object BackTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -50,7 +50,7 @@ object BackTool {
                     
                     val orchestra = Orchestra(session.maestro)
                     runBlocking {
-                        orchestra.executeCommands(listOf(MaestroCommand(command = command)))
+                        orchestra.runFlow(listOf(MaestroCommand(command = command)))
                     }
                     
                     buildJsonObject {

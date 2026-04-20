@@ -1,0 +1,6 @@
+appId: com.example.example
+---
+- launchApp:
+    clearState: true
+- runScript:
+    file: ./script.js

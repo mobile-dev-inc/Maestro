@@ -23,17 +23,17 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.Capability
 import maestro.DeviceInfo
-import maestro.DeviceOrientation
+import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
 import maestro.OnDeviceElementQuery
-import maestro.Platform
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
 import okio.Sink
 import okio.buffer
@@ -41,7 +41,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
-class FakeDriver : Driver {
+open class FakeDriver : Driver {
 
     private var state: State = State.NOT_INITIALIZED
     private var layout: FakeLayoutElement = FakeLayoutElement()

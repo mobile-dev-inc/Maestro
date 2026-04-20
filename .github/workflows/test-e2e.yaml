@@ -55,6 +55,7 @@ jobs:
       - name: Clone repository (only needed for the e2e directory)
         uses: actions/checkout@v6
 
+
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
@@ -80,11 +81,11 @@ jobs:
         run: |
           maestro --help
           maestro --version
-          
+
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
         timeout-minutes: 20
-        run: ./run_tests_web
+        run: ./run_tests web
 
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v6
@@ -118,26 +119,12 @@ jobs:
       - name: Clone repository (only needed for the e2e directory)
         uses: actions/checkout@v6
 
+
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: 17
-
-      - name: Download Maestro build from previous job
-        uses: actions/download-artifact@v7
-        with:
-          name: maestro-cli-jdk17-run_id${{ github.run_id }}
-
-      - name: Add Maestro CLI executable to PATH
-        run: |
-          unzip maestro.zip -d maestro_extracted
-          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
-
-      - name: Check if Maestro CLI executable starts up
-        run: |
-          maestro --help
-          maestro --version
 
       - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
         run: |
@@ -160,6 +147,56 @@ jobs:
           sdkmanager --install "$ANDROID_PLATFORM"
           sdkmanager --install "$ANDROID_OS_IMAGE"
 
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            e2e/demo_app/.dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('e2e/demo_app/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            e2e/demo_app/android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('e2e/demo_app/android/**/*.gradle*', 'e2e/demo_app/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: e2e/demo_app/pubspec.yaml
+
+      - name: Build demo_app APK
+        working-directory: ${{ github.workspace }}/e2e/demo_app
+        run: |
+          flutter pub get
+          flutter build apk
+          mkdir -p ${{ github.workspace }}/e2e/apps
+          cp build/app/outputs/flutter-apk/app-release.apk ${{ github.workspace }}/e2e/apps/demo_app.apk
+
+      - name: Download Maestro build from previous job
+        uses: actions/download-artifact@v7
+        with:
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
       - name: Create AVD
         run: |
           avdmanager -s create avd \
@@ -180,21 +217,21 @@ jobs:
           echo "HOME=$HOME"
           
           cat << EOF >> ~/.config/.android/avd/MyAVD.avd/config.ini
-          hw.cpu.ncore=2
+          hw.cpu.ncore=4
           hw.gpu.enabled=yes
           hw.gpu.mode=swiftshader_indirect
-          hw.ramSize=3072
-          disk.dataPartition.size=4G
-          vm.heapSize=576
-          hw.lcd.density=440
-          hw.lcd.height=2220
-          hw.lcd.width=1080
+          hw.ramSize=4192
+          disk.dataPartition.size=6442450944
+          vm.heapSize=112M
+          hw.lcd.density=240
+          hw.lcd.height=1280
+          hw.lcd.width=606
           EOF
 
       - name: Run AVD
         run: |
           emulator @MyAVD \
-            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -camera-back none -qemu -m 3072 \
+            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -no-metrics -camera-back emulated \
             >~/emulator_stdout.log \
             2>~/emulator_stderr.log &
 
@@ -210,30 +247,14 @@ jobs:
             sleep 1
           done
 
-      - name: Download apps
-        working-directory: ${{ github.workspace }}/e2e
-        run: ./download_apps android
-
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps android
 
-      - name: Start screen recording of AVD
-        run: |
-          adb shell screenrecord /sdcard/screenrecord.mp4 &
-          echo $! > ~/screenrecord.pid
-
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: ./run_tests android
-
-      - name: Stop screen recording of AVD
-        if: success() || failure()
-        run: |
-          kill -SIGINT "$(cat ~/screenrecord.pid)" || echo "failed to kill screenrecord: code $?" && exit 0
-          sleep 5 # prevent video file corruption
-          adb pull /sdcard/screenrecord.mp4 ~/screenrecord.mp4
 
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v6
@@ -243,14 +264,6 @@ jobs:
           path: ~/.maestro
           retention-days: 7
           include-hidden-files: true
-
-      - name: Upload screen recording of AVD
-        uses: actions/upload-artifact@v6
-        if: success() || failure()
-        with:
-          name: maestro-screenrecord-android.mp4
-          path: ~/screenrecord.mp4
-          retention-days: 7
 
   test-ios:
     name: Test on iOS
@@ -266,11 +279,26 @@ jobs:
       - name: Clone repository (only needed for the e2e directory)
         uses: actions/checkout@v6
 
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: 17
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: e2e/demo_app/pubspec.yaml
+
+      - name: Build demo_app for iOS Simulator
+        working-directory: ${{ github.workspace }}/e2e/demo_app
+        run: |
+          flutter pub get
+          flutter build ios --simulator
+          mkdir -p ${{ github.workspace }}/e2e/apps
+          cp -r build/ios/iphonesimulator/Runner.app ${{ github.workspace }}/e2e/apps/demo_app.app
 
       - name: Download artifacts
         uses: actions/download-artifact@v7

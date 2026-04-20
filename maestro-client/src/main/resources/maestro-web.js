@@ -15,6 +15,9 @@
             case 'input':
                 return node.value || node.placeholder || node.ariaLabel || ''
 
+            case 'textarea':
+                return node.value || node.placeholder || node.ariaLabel || ''
+
             case 'select':
                 return Array.from(node.selectedOptions).map((option) => option.text).join(', ')
 
@@ -53,7 +56,7 @@
         return `[${Math.round(l)},${Math.round(t)}][${Math.round(r)},${Math.round(b)}]`
     }
 
-    const getNodeBounds = (node) => {
+    const getNodeBounds = (node, iframeOffsetX = 0, iframeOffsetY = 0) => {
         if (isSynthetic(node)) {
             return getSyntheticNodeBounds(node);
         }
@@ -66,26 +69,55 @@
 
         const scaleX = vpw / window.innerWidth;
         const scaleY = vph / window.innerHeight;
-        const l = rect.x * scaleX + vpx;
-        const t = rect.y * scaleY + vpy;
-        const r = (rect.x + rect.width) * scaleX + vpx;
-        const b = (rect.y + rect.height) * scaleY + vpy;
+        const l = (rect.x + iframeOffsetX) * scaleX + vpx;
+        const t = (rect.y + iframeOffsetY) * scaleY + vpy;
+        const r = (rect.x + rect.width + iframeOffsetX) * scaleX + vpx;
+        const b = (rect.y + rect.height + iframeOffsetY) * scaleY + vpy;
 
         return `[${Math.round(l)},${Math.round(t)}][${Math.round(r)},${Math.round(b)}]`
     }
 
     const isDocumentLoading = () => document.readyState !== 'complete'
 
-    const traverse = (node, includeChildren = true) => {
+    const traverse = (node, includeChildren = true, iframeOffsetX = 0, iframeOffsetY = 0) => {
       if (!node || isInvalidTag(node)) return null
 
+      // Traverse into same-origin iframes; skip cross-origin ones silently
+      if (node.tagName.toLowerCase() === 'iframe') {
+          try {
+              const iframeDoc = node.contentDocument || node.contentWindow?.document;
+              if (iframeDoc && iframeDoc.body) {
+                  const iframeRect = node.getBoundingClientRect();
+                  return traverse(
+                      iframeDoc.body,
+                      true,
+                      iframeOffsetX + iframeRect.x,
+                      iframeOffsetY + iframeRect.y
+                  );
+              }
+          } catch (e) {
+              // Cross-origin — emit a marker so the CDP driver can inject content from the iframe target
+              try {
+                  return {
+                      attributes: {
+                          text: '',
+                          bounds: getNodeBounds(node, iframeOffsetX, iframeOffsetY),
+                          '__crossOriginIframe': node.src,
+                      },
+                      children: []
+                  };
+              } catch (e2) { return null; }
+          }
+          return null;
+      }
+
       const children = includeChildren
-        ? [...node.children || []].map(child => traverse(child)).filter(el => !!el)
+        ? [...node.children || []].map(child => traverse(child, true, iframeOffsetX, iframeOffsetY)).filter(el => !!el)
         : []
 
       const attributes = {
           text: getNodeText(node),
-          bounds: getNodeBounds(node),
+          bounds: getNodeBounds(node, iframeOffsetX, iframeOffsetY),
       }
 
       // If this is an <option> element, we only want to include it if the parent <select> element is focused.
@@ -193,6 +225,26 @@
         }
         return segs.length ? '/' + segs.join('/') : null;
     }
+
+    // -------------- Cross-origin iframe viewport params --------------
+
+    maestro.getIframeViewportParams = (iframeSrc) => {
+        const iframe = [...document.querySelectorAll('iframe')].find(f => f.src === iframeSrc);
+        if (!iframe) return null;
+        const rect = iframe.getBoundingClientRect();
+        const vpx = maestro.viewportX || 0;
+        const vpy = maestro.viewportY || 0;
+        const vpw = maestro.viewportWidth || window.innerWidth;
+        const vph = maestro.viewportHeight || window.innerHeight;
+        const scaleX = vpw / window.innerWidth;
+        const scaleY = vph / window.innerHeight;
+        return {
+            viewportX: rect.x * scaleX + vpx,
+            viewportY: rect.y * scaleY + vpy,
+            viewportWidth: rect.width * scaleX,
+            viewportHeight: rect.height * scaleY,
+        };
+    };
 
     // -------------- Flutter Web Scrolling Support --------------
     

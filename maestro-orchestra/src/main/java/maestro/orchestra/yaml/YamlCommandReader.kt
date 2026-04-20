@@ -21,18 +21,23 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.core.JsonLocation
 import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.SyntaxError
 import maestro.utils.drawTextBox
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.readText
 
 object YamlCommandReader {
+
+    private val logger = LoggerFactory.getLogger(YamlCommandReader::class.java)
 
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
     fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors(flowPath) {
@@ -49,10 +54,38 @@ object YamlCommandReader {
         MaestroFlowParser.parseConfigOnly(flowPath, flow)
     }
 
+    private val YAML_MAPPER by lazy { ObjectMapper(YAMLFactory()) }
+
     fun readWorkspaceConfig(configPath: Path): WorkspaceConfig = mapParsingErrors(configPath) {
         val config = configPath.readText()
         if (config.isBlank()) return@mapParsingErrors WorkspaceConfig()
+        validateWorkspaceConfigKeys(configPath, config)
         MaestroFlowParser.parseWorkspaceConfig(configPath, config)
+    }
+
+    private fun validateWorkspaceConfigKeys(configPath: Path, config: String) {
+        val unknownKeys = findUnknownWorkspaceConfigKeys(config) ?: return
+        if (unknownKeys.isNotEmpty()) {
+            logger.warn(
+                "Config file '{}' contains unknown keys: {}. Valid keys are: {}",
+                configPath.absolutePathString(),
+                unknownKeys,
+                WorkspaceConfig.KNOWN_KEYS.sorted(),
+            )
+        }
+    }
+
+    /**
+     * Returns the list of top-level keys in the config that are not recognized WorkspaceConfig properties,
+     * or null if the content cannot be parsed as a YAML map.
+     */
+    internal fun findUnknownWorkspaceConfigKeys(config: String): List<Any?>? {
+        val topLevelKeys = try {
+            YAML_MAPPER.readValue(config, Map::class.java)?.keys ?: return null
+        } catch (e: Exception) {
+            return null
+        }
+        return topLevelKeys.filter { it !in WorkspaceConfig.KNOWN_KEYS }
     }
 
     // Files to watch for changes. Includes any referenced files.
@@ -78,6 +111,11 @@ object YamlCommandReader {
     private fun <T> mapParsingErrors(path: Path, block: () -> T): T {
         try {
             return block()
+        } catch (e: VirtualMachineError) {
+            // Don't attempt to pretty-format — the stack is near-exhausted and
+            // would trigger kotlin.text.LinesIterator.<clinit> inside errorMessage(),
+            // permanently wedging that class for the whole JVM.
+            throw e
         } catch (e: FlowParseException) {
             val message = errorMessage(e)
             throw SyntaxError(message, e)

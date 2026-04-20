@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -20,7 +20,7 @@ object RunFlowFilesTool {
             Tool(
                 name = "run_flow_files",
                 description = "Run one or more full Maestro test files. If no device is running, you'll need to start a device first. If the command fails using a relative path, try using an absolute path.",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -43,9 +43,9 @@ object RunFlowFilesTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
-                val flowFilesString = request.arguments["flow_files"]?.jsonPrimitive?.content
-                val envParam = request.arguments["env"]?.jsonObject
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
+                val flowFilesString = request.arguments?.get("flow_files")?.jsonPrimitive?.content
+                val envParam = request.arguments?.get("env")?.jsonObject
                 
                 if (deviceId == null || flowFilesString == null) {
                     return@RegisteredTool CallToolResult(

@@ -24,6 +24,7 @@ import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.runner.CommandState
 import maestro.cli.runner.CommandStatus
+import maestro.device.DeviceSpec
 import maestro.orchestra.AssertWithAICommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
@@ -281,7 +282,13 @@ fun main() {
     view.setState(
         UiState.Running(
             flowName = "Flow for playing around",
-            device = Device.Connected("device", "description", Platform.ANDROID, Device.DeviceType.EMULATOR),
+            device = Device.Connected(
+                instanceId = "device",
+                deviceSpec = DeviceSpec.Android.DEFAULT,
+                description = "description",
+                platform = Platform.ANDROID,
+                deviceType = Device.DeviceType.EMULATOR
+            ),
             onFlowStartCommands = listOf(),
             onFlowCompleteCommands = listOf(),
             commands = listOf(

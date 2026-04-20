@@ -1,6 +1,6 @@
 package maestro.cli.mcp.tools
 
-import io.modelcontextprotocol.kotlin.sdk.*
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.cli.session.MaestroSessionManager
@@ -16,7 +16,7 @@ object InspectViewHierarchyTool {
                     "with bounds coordinates for interaction. Use this to understand screen layout, find specific elements " +
                     "by text/id, or locate interactive components. Elements include bounds (x,y,width,height), text content, " +
                     "resource IDs, and interaction states (clickable, enabled, checked).",
-                inputSchema = Tool.Input(
+                inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
                             put("type", "string")
@@ -28,7 +28,7 @@ object InspectViewHierarchyTool {
             )
         ) { request ->
             try {
-                val deviceId = request.arguments["device_id"]?.jsonPrimitive?.content
+                val deviceId = request.arguments?.get("device_id")?.jsonPrimitive?.content
                 
                 if (deviceId == null) {
                     return@RegisteredTool CallToolResult(
@@ -45,7 +45,7 @@ object InspectViewHierarchyTool {
                     platform = null
                 ) { session ->
                     val maestro = session.maestro
-                    val viewHierarchy = maestro.viewHierarchy()
+                    val viewHierarchy = runBlocking { maestro.viewHierarchy() }
                     val tree = viewHierarchy.root
                     
                     // Return CSV format (original format for compatibility)
