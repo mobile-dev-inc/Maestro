@@ -96,12 +96,12 @@ object RunFlowFilesTool {
                                 .withDefaultEnvVars(fileObj, deviceId)
                             val commandsWithEnv = commands.withEnv(finalEnv)
                             
-                            runBlocking {
+                            val flowResult = runBlocking {
                                 orchestra.runFlow(commandsWithEnv)
                             }
                             results.add(mapOf(
                                 "file" to fileObj.absolutePath,
-                                "success" to true,
+                                "success" to flowResult.success,
                                 "commands_executed" to commands.size,
                                 "message" to "Flow executed successfully"
                             ))

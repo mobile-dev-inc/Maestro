@@ -111,16 +111,23 @@ object RunFlowTool {
                         val commandsWithEnv = commands.withEnv(finalEnv)
                         
                         val orchestra = Orchestra(session.maestro)
-                        
-                        runBlocking {
+
+                        val flowResult = runBlocking {
                             orchestra.runFlow(commandsWithEnv)
                         }
-                        
+
                         buildJsonObject {
-                            put("success", true)
+                            put("success", flowResult.success)
                             put("device_id", deviceId)
                             put("commands_executed", commands.size)
                             put("message", "Flow executed successfully")
+                            if (flowResult.commandResults.isNotEmpty()) {
+                                putJsonArray("command_results") {
+                                    flowResult.commandResults.forEach { cr ->
+                                        addJsonObject { cr.addBoundsTo(this) }
+                                    }
+                                }
+                            }
                             if (finalEnv.isNotEmpty()) {
                                 putJsonObject("env_vars") {
                                     finalEnv.forEach { (key, value) ->

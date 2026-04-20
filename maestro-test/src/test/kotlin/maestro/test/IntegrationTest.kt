@@ -2383,7 +2383,7 @@ class IntegrationTest {
         // When
         Maestro(driver).use {
             runBlocking {
-                assertThat(orchestra(it).runFlow(commands)).isTrue()
+                assertThat(orchestra(it).runFlow(commands).success).isTrue()
             }
         }
 
@@ -3248,7 +3248,7 @@ class IntegrationTest {
                 }
             }
 
-            assertThat(result).isFalse()
+            assertThat(result.success).isFalse()
         }
         assertThat(receivedLogs).containsExactly(
             "on start",
@@ -3277,7 +3277,7 @@ class IntegrationTest {
                 }
             }
 
-            assertThat(result).isFalse()
+            assertThat(result.success).isFalse()
         }
         assertThat(receivedLogs).containsExactly(
             "on start",
@@ -3337,7 +3337,7 @@ class IntegrationTest {
         // When
         Maestro(driver).use {
             runBlocking {
-                assertThat(orchestra(it).runFlow(commands)).isTrue()
+                assertThat(orchestra(it).runFlow(commands).success).isTrue()
             }
         }
 

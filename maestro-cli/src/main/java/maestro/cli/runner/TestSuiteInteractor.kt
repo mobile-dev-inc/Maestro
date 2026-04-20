@@ -242,7 +242,7 @@ class TestSuiteInteractor(
                     }
                 )
 
-                val flowSuccess = orchestra.runFlow(commands)
+                val flowSuccess = orchestra.runFlow(commands).success
                 flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
             } catch (e: Exception) {
                 logger.error("${shardPrefix}Failed to complete flow", e)
