@@ -9,8 +9,7 @@ tools:
     - input_text
     - back
     - stop_app
-    - run_flow
-    - run_flow_files
+    - run
     - check_flow_syntax
     - inspect_view_hierarchy
     - cheat_sheet
