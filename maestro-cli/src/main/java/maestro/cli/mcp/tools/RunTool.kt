@@ -23,7 +23,7 @@ object RunTool {
 
     private const val TOOL_NAME = "run"
     private const val TOOL_DESCRIPTION = """
-        Run Maestro flows against a connected device. Mirrors `maestro test` semantics.
+        Simulate user interactions with a mobile device by running raw Maestro commands or Maestro flow files.
 
         Exactly one of `yaml`, `files`, or `dir` must be provided:
 
@@ -36,7 +36,7 @@ object RunTool {
         3) Directory with optional tag filtering:
            { "device_id": "...", "dir": "tests/", "include_tags": ["smoke"], "exclude_tags": ["slow"] }
 
-        `env` is optional in all modes and behaves like `maestro test --env KEY=VALUE`.
+        `env` is optional in all modes and injects environment variables available to the flow.
 
         Syntax is validated as part of this call; no separate pre-check is needed.
 
