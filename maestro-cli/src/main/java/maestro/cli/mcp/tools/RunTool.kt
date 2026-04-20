@@ -84,8 +84,8 @@ object RunTool {
             ) { session ->
                 val orchestra = Orchestra(session.maestro)
                 when (executable) {
-                    is Executable.Inline -> runInline(orchestra, executable.yaml, args.deviceId, args.env)
-                    is Executable.Plan -> runPlan(orchestra, executable.plan, args.deviceId, args.env)
+                    is Executable.Inline -> runInline(args.deviceId, orchestra, executable.yaml, args.env)
+                    is Executable.Plan -> runPlan(args.deviceId, orchestra, executable.plan, args.env)
                 }
             }
 
@@ -115,7 +115,7 @@ object RunTool {
         properties = buildJsonObject {
             putJsonObject("device_id") {
                 put("type", "string")
-                put("description", "The ID of the device to run the flow on")
+                put("description", "The ID of the device to run the flow on. Use `list_devices` to see connected devices.")
             }
             putJsonObject("yaml") {
                 put("type", "string")
@@ -150,9 +150,9 @@ object RunTool {
     )
 
     private fun runInline(
+        deviceId: String,
         orchestra: Orchestra,
         yaml: String,
-        deviceId: String,
         env: Map<String, String>,
     ): RunResult {
         val envWithShell = env.withInjectedShellEnvVars()
@@ -178,9 +178,9 @@ object RunTool {
     }
 
     private fun runPlan(
+        deviceId: String,
         orchestra: Orchestra,
         plan: ExecutionPlan,
-        deviceId: String,
         env: Map<String, String>,
     ): RunResult {
         val envWithShell = env.withInjectedShellEnvVars()
@@ -190,13 +190,13 @@ object RunTool {
         // Abort sequence on failure unless `continueOnFailure` is set.
         val continueSequenceOnFailure = plan.sequence.continueOnFailure ?: true
         for (flow in plan.sequence.flows) {
-            val result = runSingleFlow(orchestra, flow, envWithShell, deviceId)
+            val result = runSingleFlow(deviceId, orchestra, flow, envWithShell)
             results += result
             if (result is FlowResult.Failure && !continueSequenceOnFailure) break
         }
 
         plan.flowsToRun.forEach { flow ->
-            results += runSingleFlow(orchestra, flow, envWithShell, deviceId)
+            results += runSingleFlow(deviceId, orchestra, flow, envWithShell)
         }
 
         val allOk = results.all { it is FlowResult.Success }
@@ -235,10 +235,10 @@ object RunTool {
     }
 
     private fun runSingleFlow(
+        deviceId: String,
         orchestra: Orchestra,
         flow: Path,
         envWithShell: Map<String, String>,
-        deviceId: String,
     ): FlowResult {
         val file = flow.toFile()
         return try {
