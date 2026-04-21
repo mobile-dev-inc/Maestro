@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- tapOnOcr: "Production"
+- tapOnOcr:
+    text: "Don't Allow"
+    label: "Tap the env badge"
+    optional: true

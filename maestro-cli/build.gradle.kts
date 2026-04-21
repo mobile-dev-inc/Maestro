@@ -333,12 +333,13 @@ jreleaser {
             templateDirectory.set(file("src/jreleaser/distributions/maestro/brew"))
 
             repoTap {
-                repoOwner.set("mobile-dev-inc")
+                repoOwner.set("kardelio")
                 name.set("homebrew-tap")
             }
 
             dependencies {
                 dependency("openjdk", "17+")
+                dependency("tesseract")
             }
         }
     }

@@ -381,6 +381,9 @@ class Orchestra(
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is RetryCommand -> retryCommand(command, config)
+            is TapOnOcrCommand -> tapOnOcrCommand(command)
+            is AssertVisibleOcrCommand -> assertVisibleOcrCommand(command)
+            is AssertNotVisibleOcrCommand -> assertNotVisibleOcrCommand(command)
             else -> true
         }.also { mutating ->
             if (mutating) {
@@ -1094,6 +1097,112 @@ class Orchestra(
         }
         return false
     }
+
+    private suspend fun tapOnOcrCommand(command: TapOnOcrCommand): Boolean {
+        val tmpImage = File.createTempFile("maestro_ocr_", ".png")
+        try {
+            maestro.takeScreenshot(tmpImage, false)
+            val point = ocrFindCenter(command.text, tmpImage)
+                ?: run {
+                    System.err.println("[tapOnOcr] screenshot saved for inspection: ${tmpImage.absolutePath}")
+                    throw MaestroException.ElementNotFound(
+                        message = "OCR: text not found: '${command.text}'",
+                        hierarchyRoot = maestro.viewHierarchy().root,
+                        debugMessage = "tesseract found no match for '${command.text}'",
+                    )
+                }
+            maestro.tap(x = point.x, y = point.y)
+            return true
+        } finally {
+            tmpImage.delete()
+        }
+    }
+
+    private suspend fun assertVisibleOcrCommand(command: AssertVisibleOcrCommand): Boolean {
+        val tmpImage = File.createTempFile("maestro_ocr_", ".png")
+        try {
+            maestro.takeScreenshot(tmpImage, false)
+            ocrFindCenter(command.text, tmpImage)
+                ?: throw MaestroException.ElementNotFound(
+                    message = "OCR: text not visible: '${command.text}'",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "tesseract found no match for '${command.text}'",
+                )
+            return false
+        } finally {
+            tmpImage.delete()
+        }
+    }
+
+    private suspend fun assertNotVisibleOcrCommand(command: AssertNotVisibleOcrCommand): Boolean {
+        val tmpImage = File.createTempFile("maestro_ocr_", ".png")
+        try {
+            maestro.takeScreenshot(tmpImage, false)
+            val point = ocrFindCenter(command.text, tmpImage)
+            if (point != null) {
+                throw MaestroException.AssertionFailure(
+                    message = "OCR: text is visible but expected not to be: '${command.text}'",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "tesseract found '${command.text}' at (${point.x}, ${point.y})",
+                )
+            }
+            return false
+        } finally {
+            tmpImage.delete()
+        }
+    }
+
+    private suspend fun ocrFindCenter(text: String, imageFile: File): Point? {
+        val tmpBase = File.createTempFile("maestro_ocr_tsv_", "")
+        try {
+            val proc = try {
+                ProcessBuilder("tesseract", imageFile.absolutePath, tmpBase.absolutePath, "tsv")
+                    .redirectErrorStream(true)
+                    .start()
+            } catch (e: java.io.IOException) {
+                throw MaestroException.InvalidCommand(
+                    "OCR commands require tesseract to be installed.\n" +
+                    "  macOS:  brew install tesseract\n" +
+                    "  Linux:  apt install tesseract-ocr"
+                )
+            }
+            proc.waitFor()
+
+            val tsvFile = File("${tmpBase.absolutePath}.tsv")
+            val words = mutableListOf<OcrWord>()
+            tsvFile.bufferedReader().useLines { lines ->
+                lines.drop(1).forEach { line ->
+                    val cols = line.split("\t")
+                    if (cols.size >= 12 && cols[0] == "5" && cols[11].isNotBlank()) {
+                        words += OcrWord(
+                            text = cols[11].trim(),
+                            left = cols[6].toInt(),
+                            top = cols[7].toInt(),
+                            width = cols[8].toInt(),
+                            height = cols[9].toInt(),
+                        )
+                    }
+                }
+            }
+            tsvFile.delete()
+
+            val searchWords = text.lowercase().split(" ")
+            val n = searchWords.size
+            for (i in 0..words.size - n) {
+                val window = words.subList(i, i + n)
+                if (window.map { it.text.lowercase() } == searchWords) {
+                    val cx = (window.first().left + window.last().left + window.last().width) / 2
+                    val cy = (window.minOf { it.top } + window.maxOf { it.top + it.height }) / 2
+                    return Point(cx, cy)
+                }
+            }
+            return null
+        } finally {
+            tmpBase.delete()
+        }
+    }
+
+    private data class OcrWord(val text: String, val left: Int, val top: Int, val width: Int, val height: Int)
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = command.path + ".mp4"

@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- assertNotVisibleOcr: "Staging"
+- assertNotVisibleOcr:
+    text: "Error"
+    label: "Check no error is visible"
+    optional: true

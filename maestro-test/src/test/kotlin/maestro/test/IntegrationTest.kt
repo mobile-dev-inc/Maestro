@@ -34,7 +34,11 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
+import maestro.orchestra.AssertNotVisibleOcrCommand
+import maestro.orchestra.AssertVisibleOcrCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnOcrCommand
+import okio.buffer
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
@@ -4827,6 +4831,166 @@ class IntegrationTest {
             // Should complete in ~2s (timeout), not hang forever
             assertThat(elapsedMs).isLessThan(10000)
         }
+    }
+
+    // -- tapOnOcr --
+
+    @Test
+    fun `tapOnOcr throws ElementNotFound when text is not on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping tapOnOcr test"
+        }
+
+        val commands = listOf(MaestroCommand(TapOnOcrCommand(text = "NonExistentXYZ")))
+        val driver = driver {}
+
+        assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use {
+                runBlocking { orchestra(it).runFlow(commands) }
+            }
+        }
+    }
+
+    @Test
+    fun `tapOnOcr taps element when text is found on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping tapOnOcr test"
+        }
+
+        val image = java.awt.image.BufferedImage(600, 120, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics()
+        g.color = java.awt.Color.WHITE
+        g.fillRect(0, 0, 600, 120)
+        g.color = java.awt.Color.BLACK
+        g.font = java.awt.Font("SansSerif", java.awt.Font.PLAIN, 48)
+        g.drawString("Production", 50, 80)
+        g.dispose()
+
+        var tapCalled = false
+        val driver = object : FakeDriver() {
+            override fun takeScreenshot(out: okio.Sink, compressed: Boolean) {
+                ImageIO.write(image, "png", out.buffer().outputStream())
+            }
+            override fun tap(point: maestro.Point) {
+                tapCalled = true
+                super.tap(point)
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+
+        val commands = listOf(MaestroCommand(TapOnOcrCommand(text = "Production")))
+
+        Maestro(driver).use {
+            runBlocking { orchestra(it).runFlow(commands) }
+        }
+
+        assertThat(tapCalled).isTrue()
+    }
+
+    // -- assertVisibleOcr --
+
+    @Test
+    fun `assertVisibleOcr passes when text is found on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping assertVisibleOcr test"
+        }
+
+        val image = java.awt.image.BufferedImage(600, 120, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics()
+        g.color = java.awt.Color.WHITE
+        g.fillRect(0, 0, 600, 120)
+        g.color = java.awt.Color.BLACK
+        g.font = java.awt.Font("SansSerif", java.awt.Font.PLAIN, 48)
+        g.drawString("Production", 50, 80)
+        g.dispose()
+
+        val driver = object : FakeDriver() {
+            override fun takeScreenshot(out: okio.Sink, compressed: Boolean) {
+                ImageIO.write(image, "png", out.buffer().outputStream())
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(listOf(MaestroCommand(AssertVisibleOcrCommand(text = "Production"))))
+            }
+        }
+    }
+
+    @Test
+    fun `assertVisibleOcr throws ElementNotFound when text is not on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping assertVisibleOcr test"
+        }
+
+        val commands = listOf(MaestroCommand(AssertVisibleOcrCommand(text = "NonExistentXYZ")))
+        val driver = driver {}
+
+        assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use {
+                runBlocking { orchestra(it).runFlow(commands) }
+            }
+        }
+    }
+
+    // -- assertNotVisibleOcr --
+
+    @Test
+    fun `assertNotVisibleOcr passes when text is not on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping assertNotVisibleOcr test"
+        }
+
+        val commands = listOf(MaestroCommand(AssertNotVisibleOcrCommand(text = "NonExistentXYZ")))
+        val driver = driver {}
+
+        Maestro(driver).use {
+            runBlocking { orchestra(it).runFlow(commands) }
+        }
+    }
+
+    @Test
+    fun `assertNotVisibleOcr throws AssertionFailure when text is on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping assertNotVisibleOcr test"
+        }
+
+        val image = java.awt.image.BufferedImage(600, 120, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics()
+        g.color = java.awt.Color.WHITE
+        g.fillRect(0, 0, 600, 120)
+        g.color = java.awt.Color.BLACK
+        g.font = java.awt.Font("SansSerif", java.awt.Font.PLAIN, 48)
+        g.drawString("Production", 50, 80)
+        g.dispose()
+
+        val driver = object : FakeDriver() {
+            override fun takeScreenshot(out: okio.Sink, compressed: Boolean) {
+                ImageIO.write(image, "png", out.buffer().outputStream())
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(listOf(MaestroCommand(AssertNotVisibleOcrCommand(text = "Production"))))
+                }
+            }
+        }
+    }
+
+    private fun isTesseractAvailable(): Boolean = try {
+        ProcessBuilder("tesseract", "--version")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor() == 0
+    } catch (e: Exception) {
+        false
     }
 
     private fun readCommands(

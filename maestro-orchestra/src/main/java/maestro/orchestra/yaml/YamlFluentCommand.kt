@@ -67,7 +67,10 @@ import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
+import maestro.orchestra.AssertNotVisibleOcrCommand
+import maestro.orchestra.AssertVisibleOcrCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnOcrCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
@@ -141,6 +144,9 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
+    val tapOnOcr: YamlTapOnOcr? = null,
+    val assertVisibleOcr: YamlAssertVisibleOcr? = null,
+    val assertNotVisibleOcr: YamlAssertNotVisibleOcr? = null,
     @JsonIgnore val _location: JsonLocation,
 ) {
 
@@ -478,6 +484,36 @@ data class YamlFluentCommand(
                     ToggleAirplaneModeCommand(
                         toggleAirplaneMode.label,
                         toggleAirplaneMode.optional
+                    )
+                )
+            )
+
+            tapOnOcr != null -> listOf(
+                MaestroCommand(
+                    TapOnOcrCommand(
+                        text = tapOnOcr.text,
+                        label = tapOnOcr.label,
+                        optional = tapOnOcr.optional,
+                    )
+                )
+            )
+
+            assertVisibleOcr != null -> listOf(
+                MaestroCommand(
+                    AssertVisibleOcrCommand(
+                        text = assertVisibleOcr.text,
+                        label = assertVisibleOcr.label,
+                        optional = assertVisibleOcr.optional,
+                    )
+                )
+            )
+
+            assertNotVisibleOcr != null -> listOf(
+                MaestroCommand(
+                    AssertNotVisibleOcrCommand(
+                        text = assertNotVisibleOcr.text,
+                        label = assertNotVisibleOcr.label,
+                        optional = assertNotVisibleOcr.optional,
                     )
                 )
             )

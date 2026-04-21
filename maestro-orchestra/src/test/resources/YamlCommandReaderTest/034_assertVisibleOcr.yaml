@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- assertVisibleOcr: "Production"
+- assertVisibleOcr:
+    text: "Don't Allow"
+    label: "Check env badge is visible"
+    optional: true

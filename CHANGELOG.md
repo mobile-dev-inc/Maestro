@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `tapOnOcr` command: tap on UI elements by visible text using OCR (via Tesseract), enabling interaction with elements not exposed in the accessibility tree (e.g. animated views in React Native)
+- Add `assertVisibleOcr` command: assert that text is visible on screen using OCR
+- Add `assertNotVisibleOcr` command: assert that text is not visible on screen using OCR
+
 ## 2.4.0
 
 - Add new device config flags for cloud and start-device

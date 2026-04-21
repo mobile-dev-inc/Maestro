@@ -1184,6 +1184,54 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
+data class TapOnOcrCommand(
+    val text: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Tap on OCR text '$text'"
+
+    override fun evaluateScripts(jsEngine: JsEngine): TapOnOcrCommand {
+        return copy(
+            text = text.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine),
+        )
+    }
+}
+
+data class AssertVisibleOcrCommand(
+    val text: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Assert visible via OCR: '$text'"
+
+    override fun evaluateScripts(jsEngine: JsEngine): AssertVisibleOcrCommand {
+        return copy(
+            text = text.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine),
+        )
+    }
+}
+
+data class AssertNotVisibleOcrCommand(
+    val text: String,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Assert not visible via OCR: '$text'"
+
+    override fun evaluateScripts(jsEngine: JsEngine): AssertNotVisibleOcrCommand {
+        return copy(
+            text = text.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {

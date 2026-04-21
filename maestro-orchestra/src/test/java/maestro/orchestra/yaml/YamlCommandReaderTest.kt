@@ -48,7 +48,10 @@ import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
+import maestro.orchestra.AssertNotVisibleOcrCommand
+import maestro.orchestra.AssertVisibleOcrCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnOcrCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
@@ -547,6 +550,51 @@ internal class YamlCommandReaderTest {
             )),
             KillAppCommand(
                 appId = "com.example.app"
+            ),
+        )
+    }
+
+    @Test
+    fun tapOnOcr(
+        @YamlFile("033_tapOnOcr.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(appId = "com.example.app")),
+            TapOnOcrCommand(text = "Production"),
+            TapOnOcrCommand(
+                text = "Don't Allow",
+                label = "Tap the env badge",
+                optional = true,
+            ),
+        )
+    }
+
+    @Test
+    fun assertVisibleOcr(
+        @YamlFile("034_assertVisibleOcr.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(appId = "com.example.app")),
+            AssertVisibleOcrCommand(text = "Production"),
+            AssertVisibleOcrCommand(
+                text = "Don't Allow",
+                label = "Check env badge is visible",
+                optional = true,
+            ),
+        )
+    }
+
+    @Test
+    fun assertNotVisibleOcr(
+        @YamlFile("035_assertNotVisibleOcr.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(appId = "com.example.app")),
+            AssertNotVisibleOcrCommand(text = "Staging"),
+            AssertNotVisibleOcrCommand(
+                text = "Error",
+                label = "Check no error is visible",
+                optional = true,
             ),
         )
     }
