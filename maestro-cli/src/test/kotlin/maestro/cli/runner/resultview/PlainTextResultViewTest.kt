@@ -2,7 +2,7 @@ package maestro.cli.runner.resultview
 
 import com.google.common.truth.Truth.assertThat
 import maestro.cli.runner.CommandState
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
