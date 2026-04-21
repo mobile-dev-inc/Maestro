@@ -58,9 +58,13 @@ object RunOnCloudTool {
                             put("description", "Skip flows that have any of these tags.")
                             putJsonObject("items") { put("type", "string") }
                         }
+                        putJsonObject("device_model") {
+                            put("type", "string")
+                            put("description", "Cloud device model (e.g. `iPhone-17-Pro`, `pixel_6`). Call `list_cloud_devices` for valid values.")
+                        }
                         putJsonObject("device_os") {
                             put("type", "string")
-                            put("description", "Cloud device OS target (e.g. 'ios-17-5', 'android-34'). See the output of `maestro list-cloud-devices` for valid values.")
+                            put("description", "Cloud device OS version, case-sensitive (e.g. `iOS-17-5`, `android-34`). Call `list_cloud_devices` for valid values.")
                         }
                     },
                     required = listOf("app_file", "flows")
@@ -89,6 +93,7 @@ object RunOnCloudTool {
                 val excludeTags = request.arguments?.get("exclude_tags")?.jsonArray?.mapNotNull {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
+                val deviceModel = request.arguments?.get("device_model")?.jsonPrimitive?.content
                 val deviceOs = request.arguments?.get("device_os")?.jsonPrimitive?.content
 
                 if (appFileArg.isNullOrBlank()) {
@@ -175,6 +180,7 @@ object RunOnCloudTool {
                         excludeTags = excludeTags,
                         disableNotifications = false,
                         projectId = projectId,
+                        deviceModel = deviceModel,
                         deviceOs = deviceOs,
                         androidApiLevel = null,
                     )

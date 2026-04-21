@@ -18,7 +18,7 @@ fun isFlowFile(path: Path, config: Path?): Boolean {
     return !isWorkspaceConfigFile(path)
 }
 
-private fun isWorkspaceConfigFile(path: Path): Boolean {
+fun isWorkspaceConfigFile(path: Path): Boolean {
     return try {
         val content = path.readText()
         if (content.contains("\n---")) return false // Flow files have a document separator
