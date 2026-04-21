@@ -28,7 +28,7 @@ internal val INSTRUCTIONS = """
 
     Every local tool (`take_screenshot`, `inspect_view_hierarchy`, `run`) needs a `device_id` from `list_devices` first.
 
-    Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring any flow with assertions, conditionals, or multiple screens.
+    Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring any flow with assertions, conditionals, nested properties, or multiple screens.
 
     ## Local workflow
 
@@ -44,7 +44,7 @@ internal val INSTRUCTIONS = """
 
     `list_cloud_devices` -> `run_on_cloud` -> `get_cloud_run_status` (poll).
 
-    `list_cloud_devices` returns valid `{device_model, device_os}` pairs. Pass them verbatim; never lowercase, reformat, or infer. `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 30s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING). Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
+    `list_cloud_devices` returns valid `{device_model, device_os}` pairs. Pass them verbatim; never lowercase, reformat, or infer. `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 60s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING). Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
 
     Auth: `maestro login` (or `MAESTRO_CLOUD_API_KEY` for non-interactive). Never echo the API key.
 """.trimIndent()

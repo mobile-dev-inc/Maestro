@@ -15,7 +15,10 @@ object InspectViewHierarchyTool {
                 description = "Get the nested view hierarchy of the current screen in CSV format. Returns UI elements " +
                     "with bounds coordinates for interaction. Use this to understand screen layout, find specific elements " +
                     "by text/id, or locate interactive components. Elements include bounds (x,y,width,height), text content, " +
-                    "resource IDs, and interaction states (clickable, enabled, checked).",
+                    "resource IDs, and interaction states (clickable, enabled, checked). " +
+                    "The column names in this output are NOT valid Maestro selector keys: `tapOn` / `assertVisible` / etc. " +
+                    "accept `text`, `id`, `index`, and position matchers (`below`, `above`, `leftOf`, `rightOf`). " +
+                    "Map the `accessibility` column to `text`; don't pass `accessibilityText` as a selector.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
