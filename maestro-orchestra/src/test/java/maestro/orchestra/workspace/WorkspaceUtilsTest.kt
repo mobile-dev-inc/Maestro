@@ -335,6 +335,94 @@ class WorkspaceUtilsTest {
     }
 
     @Test
+    fun `directory upload strips app binaries, archives, and OS metadata but keeps assets`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir.resolve("assets"))
+        Files.createDirectories(workspaceDir.resolve("scripts"))
+
+        Files.writeString(
+            workspaceDir.resolve("flow.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        // Junk that must not be uploaded.
+        Files.write(workspaceDir.resolve("sample.apk"), ByteArray(16) { 0x1 })
+        Files.write(workspaceDir.resolve("debug.aab"), ByteArray(16) { 0x2 })
+        Files.write(workspaceDir.resolve("legacy.ipa"), ByteArray(16) { 0x3 })
+        Files.write(workspaceDir.resolve("fixtures.zip"), ByteArray(16) { 0x4 })
+        Files.write(workspaceDir.resolve("backup.tar.gz"), ByteArray(16) { 0x5 })
+        Files.write(workspaceDir.resolve(".DS_Store"), ByteArray(16) { 0x6 })
+        Files.write(workspaceDir.resolve("assets/.DS_Store"), ByteArray(16) { 0x7 })
+
+        // Legitimate assets that must be kept.
+        Files.write(workspaceDir.resolve("assets/test.jpg"), ByteArray(32) { 0x8 })
+        Files.write(workspaceDir.resolve("assets/demo.mp4"), ByteArray(32) { 0x9 })
+        Files.writeString(workspaceDir.resolve("scripts/helper.js"), "console.log('ok');")
+        Files.writeString(workspaceDir.resolve("assets/fixture.txt"), "hello")
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+
+        assertThat(entryNames).containsAtLeast(
+            "flow.yaml",
+            "assets/test.jpg",
+            "assets/demo.mp4",
+            "assets/fixture.txt",
+            "scripts/helper.js",
+        )
+        assertThat(entryNames).containsNoneOf(
+            "sample.apk",
+            "debug.aab",
+            "legacy.ipa",
+            "fixtures.zip",
+            "backup.tar.gz",
+            ".DS_Store",
+            "assets/.DS_Store",
+        )
+    }
+
+    @Test
+    fun `directory upload drops files under VCS, IDE, and build directories`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir.resolve(".git/objects"))
+        Files.createDirectories(workspaceDir.resolve(".idea"))
+        Files.createDirectories(workspaceDir.resolve("node_modules/foo"))
+        Files.createDirectories(workspaceDir.resolve("build/reports"))
+
+        Files.writeString(workspaceDir.resolve(".git/HEAD"), "ref: refs/heads/main")
+        Files.write(workspaceDir.resolve(".git/objects/abc"), ByteArray(16))
+        Files.writeString(workspaceDir.resolve(".idea/workspace.xml"), "<xml/>")
+        Files.writeString(workspaceDir.resolve("node_modules/foo/index.js"), "exports = {};")
+        Files.writeString(workspaceDir.resolve("build/reports/report.html"), "<html/>")
+
+        Files.writeString(
+            workspaceDir.resolve("flow.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+
+        assertThat(entryNames).contains("flow.yaml")
+        assertThat(entryNames.filter { it.startsWith(".git/") }).isEmpty()
+        assertThat(entryNames.filter { it.startsWith(".idea/") }).isEmpty()
+        assertThat(entryNames.filter { it.startsWith("node_modules/") }).isEmpty()
+        assertThat(entryNames.filter { it.startsWith("build/") }).isEmpty()
+    }
+
+    @Test
     fun `createWorkspaceZip throws when configOverride does not exist`(@TempDir tempDir: Path) {
         val workspaceDir = tempDir.resolve("workspace")
         Files.createDirectories(workspaceDir)

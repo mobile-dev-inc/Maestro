@@ -33,6 +33,12 @@ object WorkspaceUtils {
      * the invariant simple for the cloud side, where [maestro.orchestra.workspace.WorkspaceValidator]
      * hardcodes its lookup to `/config.yaml` / `/config.yml` at the zip root — that
      * validator relies on this builder to guarantee there is exactly one.
+     *
+     * Obvious non-flow artifacts — app binaries (.apk/.aab/.ipa), other archives, OS
+     * metadata, and VCS/IDE directories (see [isIgnoredWorkspaceFile]) — are also
+     * stripped so a workspace with stray `sample.apk`, `wikipedia.zip`, `.DS_Store`,
+     * `.git/` files doesn't bloat the upload. Genuine assets (images, video, scripts,
+     * fixture text) pass through untouched because they can be referenced by flows.
      */
     fun createWorkspaceZip(file: Path, out: Path, configOverride: Path? = null) {
         if (!file.exists()) throw FileNotFoundException(file.absolutePathString())
@@ -41,6 +47,7 @@ object WorkspaceUtils {
             throw FileNotFoundException(configOverride.absolutePathString())
         }
 
+        val walkRoot = if (file.isDirectory()) file else file.parent
         val walkedFiles = if (!file.isDirectory()) {
             DependencyResolver.discoverAllDependencies(file)
         } else {
@@ -50,7 +57,11 @@ object WorkspaceUtils {
         // The cloud validator assumes exactly one workspace config at the zip root.
         // Strip every workspace-config-shaped YAML from the walk so we can inject a
         // single canonical /config.yaml below without ever producing a duplicate.
-        val filesToInclude = walkedFiles.filter { !isWorkspaceConfigYaml(it) }
+        // Also drop obvious non-flow artifacts (app binaries, other archives, OS /
+        // VCS metadata) so the upload doesn't carry tens of MB of junk.
+        val filesToInclude = walkedFiles
+            .filter { !isWorkspaceConfigYaml(it) }
+            .filter { !isIgnoredWorkspaceFile(it, walkRoot) }
 
         val relativeTo = if (file.isDirectory()) file else findCommonAncestor(filesToInclude)
         createWorkspaceZipFromFiles(filesToInclude, relativeTo, out)
@@ -89,6 +100,44 @@ object WorkspaceUtils {
         val ext = path.extension
         if (ext != "yaml" && ext != "yml") return false
         return isWorkspaceConfigFile(path)
+    }
+
+    // Extensions for files that are never part of a flow workspace: app binaries and
+    // arbitrary archives. Kept deliberately narrow so legitimate assets (images, video,
+    // scripts, fixtures, text payloads) still make it into the upload.
+    private val IGNORED_EXTENSIONS = setOf(
+        "apk", "aab", "ipa",           // Android / iOS app binaries
+        "zip", "tar", "gz", "tgz", "7z", "rar",  // archives
+    )
+
+    // File names that are OS / editor detritus.
+    private val IGNORED_FILE_NAMES = setOf(
+        ".DS_Store",
+        "Thumbs.db",
+    )
+
+    // Directory names that should never be uploaded in their entirety.
+    private val IGNORED_DIRECTORY_NAMES = setOf(
+        ".git", ".hg", ".svn",
+        ".idea", ".vscode",
+        ".gradle", "build", "target",
+        "node_modules",
+    )
+
+    private fun isIgnoredWorkspaceFile(path: Path, walkRoot: Path): Boolean {
+        if (path.fileName.toString() in IGNORED_FILE_NAMES) return true
+        if (path.extension.lowercase() in IGNORED_EXTENSIONS) return true
+
+        // Check each path segment between walkRoot and the file for an ignored
+        // directory name. relativize() can fail across filesystem roots, so fall
+        // back to walking the parent chain in that case.
+        val segments = try {
+            val relative = walkRoot.relativize(path)
+            (0 until relative.nameCount - 1).map { relative.getName(it).toString() }
+        } catch (e: IllegalArgumentException) {
+            generateSequence(path.parent) { it.parent }.map { it.fileName?.toString() ?: "" }.toList()
+        }
+        return segments.any { it in IGNORED_DIRECTORY_NAMES }
     }
 
     private fun injectConfigYamlContent(zipPath: Path, content: String) {
