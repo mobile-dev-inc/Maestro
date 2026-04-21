@@ -9,38 +9,92 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.copyTo
 import kotlin.io.path.exists
+import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
+import kotlin.io.path.readText
 import kotlin.streams.toList
 
 object WorkspaceUtils {
 
-    fun createWorkspaceZip(file: Path, out: Path) {
+    /**
+     * Builds a workspace zip for cloud upload. The resulting zip has exactly one
+     * workspace configuration, always at `/config.yaml`:
+     *
+     *   - If [configOverride] is non-null, its bytes are injected as `/config.yaml`.
+     *     The override may live outside [file] entirely (e.g. `--config=/some/other/path.yaml`).
+     *   - Else, if [file] is a directory and contains a root-level `config.yaml`/`config.yml`,
+     *     its bytes are injected as `/config.yaml`.
+     *   - Else, if [file] is a single flow file, a synthetic `flows: [<relative path>]`
+     *     config is injected so the worker only runs the requested flow.
+     *   - Else (directory upload with no config anywhere), no `/config.yaml` is written.
+     *
+     * Workspace-config-shaped YAMLs anywhere in [file] (detected by
+     * [isWorkspaceConfigFile]) are always stripped from the zip contents. This keeps
+     * the invariant simple for the cloud side, where [maestro.orchestra.workspace.WorkspaceValidator]
+     * hardcodes its lookup to `/config.yaml` / `/config.yml` at the zip root — that
+     * validator relies on this builder to guarantee there is exactly one.
+     */
+    fun createWorkspaceZip(file: Path, out: Path, configOverride: Path? = null) {
         if (!file.exists()) throw FileNotFoundException(file.absolutePathString())
         if (out.exists()) throw FileAlreadyExistsException(out.toFile())
+        if (configOverride != null && !configOverride.exists()) {
+            throw FileNotFoundException(configOverride.absolutePathString())
+        }
 
-        val filesToInclude = if (!file.isDirectory()) {
+        val walkedFiles = if (!file.isDirectory()) {
             DependencyResolver.discoverAllDependencies(file)
         } else {
             Files.walk(file).filter { !it.isDirectory() }.toList()
         }
+
+        // The cloud validator assumes exactly one workspace config at the zip root.
+        // Strip every workspace-config-shaped YAML from the walk so we can inject a
+        // single canonical /config.yaml below without ever producing a duplicate.
+        val filesToInclude = walkedFiles.filter { !isWorkspaceConfigYaml(it) }
+
         val relativeTo = if (file.isDirectory()) file else findCommonAncestor(filesToInclude)
         createWorkspaceZipFromFiles(filesToInclude, relativeTo, out)
 
-        // For single-file uploads, inject a synthetic config.yaml that restricts
-        // execution to only the requested flow. Without this, the worker would
-        // discover and run sibling flow files that ended up in the ZIP due to
-        // the common ancestor being higher than the flow's parent directory.
-        if (!file.isDirectory()) {
-            val flowRelativePath = relativeTo.relativize(normalizePath(file)).toString()
-            injectConfigYaml(out, flowRelativePath)
+        val injectedConfigContent: String? = when {
+            // --config=<path>: caller explicitly picked a config; use it verbatim,
+            // regardless of whether it lives inside or outside the workspace.
+            configOverride != null -> configOverride.readText()
+
+            // Directory upload: preserve the workspace's own root config.yaml / config.yml
+            // (or skip injection if the workspace doesn't define one).
+            file.isDirectory() -> findRootConfigFile(file)?.readText()
+
+            // Single-file upload: synthesize a config that restricts execution to just this
+            // flow. Without this, sibling flows pulled in via the dependency resolver would
+            // also be executed because the common ancestor sits above the flow's directory.
+            else -> syntheticSingleFlowConfig(file, relativeTo)
+        }
+
+        if (injectedConfigContent != null) {
+            injectConfigYamlContent(out, injectedConfigContent)
         }
     }
 
-    private fun injectConfigYaml(zipPath: Path, flowRelativePath: String) {
+    private fun findRootConfigFile(workspaceDir: Path): Path? {
+        return workspaceDir.resolve("config.yaml").takeIf { it.exists() }
+            ?: workspaceDir.resolve("config.yml").takeIf { it.exists() }
+    }
+
+    private fun syntheticSingleFlowConfig(flowFile: Path, relativeTo: Path): String {
+        val flowRelativePath = relativeTo.relativize(normalizePath(flowFile)).toString()
+        return "flows:\n  - \"$flowRelativePath\"\n"
+    }
+
+    private fun isWorkspaceConfigYaml(path: Path): Boolean {
+        val ext = path.extension
+        if (ext != "yaml" && ext != "yml") return false
+        return isWorkspaceConfigFile(path)
+    }
+
+    private fun injectConfigYamlContent(zipPath: Path, content: String) {
         val zipUri = URI.create("jar:${zipPath.toUri()}")
         FileSystems.newFileSystem(zipUri, mapOf("create" to "false")).use { fs ->
             val configEntry = fs.getPath("config.yaml")
-            val content = "flows:\n  - \"$flowRelativePath\"\n"
             Files.writeString(configEntry, content)
         }
     }
