@@ -12,7 +12,13 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import maestro.cli.api.ApiClient
-import maestro.cli.util.EnvUtils
+
+// Resolves the same way `run_on_cloud` does so both tools hit the same host in one
+// session; `EnvUtils.BASE_API_URL` alone ignores `MAESTRO_CLOUD_API_URL`.
+private fun cloudApiUrl(): String =
+    System.getenv("MAESTRO_CLOUD_API_URL")
+        ?: System.getenv("MAESTRO_API_URL")
+        ?: "https://api.copilot.mobile.dev"
 
 object ListCloudDevicesTool {
     fun create(): RegisteredTool {
@@ -29,7 +35,7 @@ object ListCloudDevicesTool {
             )
         ) { _ ->
             try {
-                val cloudDevices = ApiClient(EnvUtils.BASE_API_URL).listCloudDevices()
+                val cloudDevices = ApiClient(cloudApiUrl()).listCloudDevices()
 
                 val devices = buildJsonArray {
                     cloudDevices.forEach { (platform, models) ->
