@@ -10,8 +10,8 @@
 │ │ `inp` is not a valid command.                                              │ │
 │ │                                                                            │ │
 │ │ Did you mean one of: inputRandomText, inputRandomNumber, inputRandomEmail, │ │
-│ │ inputRandomPersonName, inputText, inputRandomCityName,                     │ │
-│ │ inputRandomCountryName, inputRandomColorName                               │ │
+│ │ inputRandomPersonName, inputRandomCityName, inputRandomCountryName,        │ │
+│ │ inputRandomColorName, inputText                                            │ │
 │ │                                                                            │ │
 │ │ > https://docs.maestro.dev/api-reference/commands                          │ │
 │ ╰────────────────────────────────────────────────────────────────────────────╯ │
