@@ -20,15 +20,55 @@ import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
 import maestro.cli.util.WorkingDirectory
+import java.io.PrintStream
 
-// Main function to run the Maestro MCP server
+internal val INSTRUCTIONS = """
+    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test or reproduce a bug, or when you need to self-validate a user-facing change you just built on a mobile simulator / emulator / real device or browser.
+
+    Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring non-trivial flows.
+
+    ## Local workflow
+
+    `list_devices` -> `inspect_view_hierarchy` -> `run`.
+
+    1. `list_devices`: pick a `device_id` (mobile simulator/emulator, or `chromium` for web). If empty, ask the user to boot one. Use only IDs returned.
+    2. `inspect_view_hierarchy`: fetch the view hierarchy before targeting elements. Use `take_screenshot` when a visual helps. Re-inspect after any UI change.
+    3. `run`: pass exactly one of `{ yaml }` (inline, preferred for exploration), `{ files }`, or `{ dir, include_tags, exclude_tags }`. Always include `device_id`. Pass `env` for flow variables. `run` validates syntax.
+
+    Mobile flows declare `appId` and start with `launchApp`; web flows declare `url` and start with `openLink`. Ask the user for the bundle ID or URL if unknown. `include_tags`/`exclude_tags` are bare names without `@`. Prefer one full flow over many single-command calls.
+
+    ## Cloud workflow
+
+    `run_on_cloud` -> `get_cloud_run_status` (poll).
+
+    `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 30s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING). For long-running suites, surface the dashboard URL and let the user watch there rather than polling indefinitely. Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
+
+    Auth: `maestro login` (or `MAESTRO_CLOUD_API_KEY` for non-interactive). Never echo the API key.
+""".trimIndent()
+
+// Captures the real stdout so the MCP protocol channel stays pristine even after
+// `claimMcpStdout()` routes `System.out` to stderr. Defaults to `System.out` for
+// test/dev paths that invoke `runMaestroMcpServer()` without going through main().
+private var mcpProtocolOut: PrintStream = System.out
+
+/**
+ * Must run before any MCP-adjacent class loads: static init (kotlin-logging banner,
+ * first-run analytics notice, third-party println-on-load) writes to whatever stdout
+ * is at that moment and corrupts the JSON-RPC handshake for strict clients like
+ * Claude Desktop.
+ */
+internal fun claimMcpStdout() {
+    mcpProtocolOut = System.out
+    System.setOut(System.err)
+}
+
 fun runMaestroMcpServer() {
-    // Disable all console logging to prevent interference with JSON-RPC communication
+    // LogConfig silences log4j; the stdout redirect in `claimMcpStdout` catches
+    // everything else. Keep both; they cover different noise sources.
     LogConfig.configure(logFileName = null, printToConsole = false)
-    
+
     val sessionManager = MaestroSessionManager
 
-    // Create the MCP Server instance with Maestro implementation
     val server = Server(
         serverInfo = Implementation(
             name = "maestro",
@@ -38,10 +78,10 @@ fun runMaestroMcpServer() {
             capabilities = ServerCapabilities(
                 tools = ServerCapabilities.Tools(listChanged = true)
             )
-        )
+        ),
+        instructions = INSTRUCTIONS
     )
 
-    // Register tools
     server.addTools(listOf(
         ListDevicesTool.create(),
         TakeScreenshotTool.create(sessionManager),
@@ -52,11 +92,9 @@ fun runMaestroMcpServer() {
         GetCloudRunStatusTool.create()
     ))
 
-
-    // Create a transport using standard IO for server communication
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
-        System.out.asSink().buffered()
+        mcpProtocolOut.asSink().buffered()
     )
 
     System.err.println("MCP Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")

@@ -26,4 +26,4 @@ class McpCommand : Callable<Int> {
         runMaestroMcpServer()
         return 0
     }
-} 
+}
