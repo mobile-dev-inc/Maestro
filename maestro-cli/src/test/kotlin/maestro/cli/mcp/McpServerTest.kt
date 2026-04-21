@@ -18,6 +18,7 @@ class McpServerTest {
             "run",
             "inspect_view_hierarchy",
             "cheat_sheet",
+            "list_cloud_devices",
             "run_on_cloud",
             "get_cloud_run_status",
         )
