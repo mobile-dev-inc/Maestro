@@ -40,6 +40,7 @@ import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.insights.TestAnalysisManager
+import maestro.cli.mcp.claimMcpStdout
 import maestro.cli.update.Updates
 import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ErrorReporter
@@ -113,6 +114,11 @@ private fun printVersion() {
 }
 
 fun main(args: Array<String>) {
+    // Must run before any other init: analytics notices, dependency banners, and
+    // kotlin-logging's first-load message will otherwise land on the MCP JSON-RPC
+    // channel and break the handshake for strict clients like Claude Desktop.
+    if (args.firstOrNull() == "mcp") claimMcpStdout()
+
     // Disable icon in Mac dock
     // https://stackoverflow.com/a/17544259
     try {
