@@ -13,18 +13,10 @@ import kotlinx.io.buffered
 import maestro.cli.session.MaestroSessionManager
 import maestro.debuglog.LogConfig
 import maestro.cli.mcp.tools.ListDevicesTool
-import maestro.cli.mcp.tools.StartDeviceTool
-import maestro.cli.mcp.tools.LaunchAppTool
 import maestro.cli.mcp.tools.TakeScreenshotTool
-import maestro.cli.mcp.tools.TapOnTool
-import maestro.cli.mcp.tools.InputTextTool
-import maestro.cli.mcp.tools.BackTool
-import maestro.cli.mcp.tools.StopAppTool
 import maestro.cli.mcp.tools.RunTool
-import maestro.cli.mcp.tools.CheckFlowSyntaxTool
 import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
-import maestro.cli.mcp.tools.QueryDocsTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
 import maestro.cli.util.WorkingDirectory
@@ -52,18 +44,10 @@ fun runMaestroMcpServer() {
     // Register tools
     server.addTools(listOf(
         ListDevicesTool.create(),
-        StartDeviceTool.create(),
-        LaunchAppTool.create(sessionManager),
         TakeScreenshotTool.create(sessionManager),
-        TapOnTool.create(sessionManager),
-        InputTextTool.create(sessionManager),
-        BackTool.create(sessionManager),
-        StopAppTool.create(sessionManager),
         RunTool.create(sessionManager),
-        CheckFlowSyntaxTool.create(),
         InspectViewHierarchyTool.create(sessionManager),
         CheatSheetTool.create(),
-        QueryDocsTool.create(),
         RunOnCloudTool.create(),
         GetCloudRunStatusTool.create()
     ))

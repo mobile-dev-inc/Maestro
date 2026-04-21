@@ -12,7 +12,7 @@ The MCP server is designed to be extensible, maintainable, and easy to run as pa
 
 - Exposes Maestro device and automation commands as MCP tools
 - Supports listing, launching, and interacting with devices
-- Supports running flow yaml or files and checking the flow file syntax
+- Supports running inline flow YAML, specific test files, or entire flow directories (syntax is validated on execution)
 - Easily extensible: add new tools with minimal boilerplate
 - Includes a test script and config for automated validation
 
