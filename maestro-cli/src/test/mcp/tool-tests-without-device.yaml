@@ -6,6 +6,7 @@ tools:
     - run
     - inspect_view_hierarchy
     - cheat_sheet
+    - list_cloud_devices
     - run_on_cloud
     - get_cloud_run_status
 
@@ -17,6 +18,14 @@ tools:
         success: true
         result:
           contains: "device"
+
+    - name: "List cloud devices"
+      tool: "list_cloud_devices"
+      params: {}
+      expect:
+        success: true
+        result:
+          contains: "supported_os"
 
     - name: "Get Maestro cheat sheet (expect API key required)"
       tool: "cheat_sheet"
