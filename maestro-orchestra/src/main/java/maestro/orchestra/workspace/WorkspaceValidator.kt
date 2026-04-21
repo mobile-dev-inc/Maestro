@@ -58,6 +58,10 @@ object WorkspaceValidator {
             val allFlows = mutableListOf<ValidatedFlow>()
 
             val workspaceConfig = FileSystems.newFileSystem(workspace.toPath()).use { fs ->
+                // Cloud-side contract: the workspace config, if any, lives at the zip
+                // root as /config.yaml (or /config.yml). WorkspaceUtils.createWorkspaceZip
+                // guarantees this invariant — it strips every other workspace-config-shaped
+                // YAML before zipping and injects the effective config at the root.
                 val configPath = fs.getPath("/config.yaml").takeIf { it.exists() }
                     ?: fs.getPath("/config.yml").takeIf { it.exists() }
                 WorkspaceExecutionPlanner.plan(

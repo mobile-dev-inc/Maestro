@@ -1,5 +1,6 @@
 package maestro.cli.util
 
+import maestro.orchestra.workspace.isWorkspaceConfigFile
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.StringUtils.toRegexSafe
 import java.io.File
@@ -27,11 +28,7 @@ object FileUtils {
             name.endsWith(".yaml", ignoreCase = true) ||
             name.endsWith(".yml", ignoreCase = true)
 
-        if (
-            !isYaml ||
-            name.equals("config.yaml", ignoreCase = true) ||
-            name.equals("config.yml", ignoreCase = true)
-        ) {
+        if (!isYaml || isWorkspaceConfigFile(toPath())) {
             return false
         }
 
