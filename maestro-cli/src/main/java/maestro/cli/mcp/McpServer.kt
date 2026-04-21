@@ -23,7 +23,7 @@ import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
 
 internal val INSTRUCTIONS = """
-    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test or reproduce a bug on a device or browser, or when you need to self-validate a user-facing change you just built on a mobile simulator / emulator / real device or browser.
+    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test or reproduce a bug, or when you need to self-validate a user-facing change you just built on a mobile simulator / emulator / real device or browser.
 
     Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring non-trivial flows.
 
@@ -33,7 +33,7 @@ internal val INSTRUCTIONS = """
 
     1. `list_devices`: pick a `device_id` (mobile simulator/emulator, or `chromium` for web). If empty, ask the user to boot one. Use only IDs returned.
     2. `inspect_view_hierarchy`: fetch the view hierarchy before targeting elements. Use `take_screenshot` when a visual helps. Re-inspect after any UI change.
-    3. `run`: pass exactly one of `{ yaml }` (inline, preferred for exploration), `{ files }`, or `{ dir, include_tags, exclude_tags }`. Always include `device_id`. Pass `env` (object of variable -> value) for flow variables. `run` validates syntax and returns errors without executing if invalid.
+    3. `run`: pass exactly one of `{ yaml }` (inline, preferred for exploration), `{ files }`, or `{ dir, include_tags, exclude_tags }`. Always include `device_id`. Pass `env` for flow variables. `run` validates syntax.
 
     Mobile flows declare `appId` and start with `launchApp`; web flows declare `url` and start with `openLink`. Ask the user for the bundle ID or URL if unknown. `include_tags`/`exclude_tags` are bare names without `@`. Prefer one full flow over many single-command calls.
 
