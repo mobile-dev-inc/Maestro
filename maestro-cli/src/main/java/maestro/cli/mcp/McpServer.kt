@@ -23,7 +23,7 @@ import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
 
 internal val INSTRUCTIONS = """
-    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test or reproduce a bug on a device or browser.
+    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test or reproduce a bug on a device or browser, or when you need to self-validate a user-facing change you just built on a mobile simulator / emulator / real device or browser.
 
     Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring non-trivial flows.
 
