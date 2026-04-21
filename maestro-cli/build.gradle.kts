@@ -333,7 +333,7 @@ jreleaser {
             templateDirectory.set(file("src/jreleaser/distributions/maestro/brew"))
 
             repoTap {
-                repoOwner.set("kardelio")
+                repoOwner.set("mobile-dev-inc")
                 name.set("homebrew-tap")
             }
 
