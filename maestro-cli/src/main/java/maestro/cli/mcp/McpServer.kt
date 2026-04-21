@@ -24,9 +24,11 @@ import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
 
 internal val INSTRUCTIONS = """
-    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test or reproduce a bug, or when you need to self-validate a user-facing change you just built on a mobile simulator / emulator / real device or browser.
+    Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test, reproduce a bug, or self-validate a user-facing change you just built.
 
-    Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring non-trivial flows.
+    Every local tool (`take_screenshot`, `inspect_view_hierarchy`, `run`) needs a `device_id` from `list_devices` first.
+
+    Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring any flow with assertions, conditionals, or multiple screens.
 
     ## Local workflow
 
@@ -36,13 +38,13 @@ internal val INSTRUCTIONS = """
     2. `inspect_view_hierarchy`: fetch the view hierarchy before targeting elements. Use `take_screenshot` when a visual helps. Re-inspect after any UI change.
     3. `run`: pass exactly one of `{ yaml }` (inline, preferred for exploration), `{ files }`, or `{ dir, include_tags, exclude_tags }`. Always include `device_id`. Pass `env` for flow variables. `run` validates syntax.
 
-    Mobile flows declare `appId` and start with `launchApp`; web flows declare `url` and start with `openLink`. Ask the user for the bundle ID or URL if unknown. `include_tags`/`exclude_tags` are bare names without `@`. Prefer one full flow over many single-command calls.
+    Mobile flows declare `appId` and start with `launchApp`; web flows declare `url` and start with `openLink`. `include_tags`/`exclude_tags` are bare names without `@`. Prefer one full flow over many single-command calls.
 
     ## Cloud workflow
 
     `list_cloud_devices` -> `run_on_cloud` -> `get_cloud_run_status` (poll).
 
-    `list_cloud_devices` returns valid `device_model` / `device_os` pairs (case-sensitive). `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 30s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING); for long suites, hand the user the dashboard URL instead of polling indefinitely. Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
+    `list_cloud_devices` returns valid `{device_model, device_os}` pairs. Pass them verbatim; never lowercase, reformat, or infer. `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 30s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING). Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
 
     Auth: `maestro login` (or `MAESTRO_CLOUD_API_KEY` for non-interactive). Never echo the API key.
 """.trimIndent()
