@@ -19,6 +19,7 @@ import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
+import maestro.cli.mcp.tools.ListCloudDevicesTool
 import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
 
@@ -39,9 +40,9 @@ internal val INSTRUCTIONS = """
 
     ## Cloud workflow
 
-    `run_on_cloud` -> `get_cloud_run_status` (poll).
+    `list_cloud_devices` -> `run_on_cloud` -> `get_cloud_run_status` (poll).
 
-    `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 30s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING). For long-running suites, surface the dashboard URL and let the user watch there rather than polling indefinitely. Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
+    `list_cloud_devices` returns valid `device_model` / `device_os` pairs (case-sensitive). `run_on_cloud` submits a flow or folder, returns `upload_id`, `project_id`, and a dashboard URL (async). Poll `get_cloud_run_status` every 30s until `status` is terminal (SUCCESS, ERROR, CANCELED, WARNING); for long suites, hand the user the dashboard URL instead of polling indefinitely. Tags only apply with a folder. No tool lists past runs; ask for the `upload_id` or URL for previous runs.
 
     Auth: `maestro login` (or `MAESTRO_CLOUD_API_KEY` for non-interactive). Never echo the API key.
 """.trimIndent()
@@ -88,6 +89,7 @@ fun runMaestroMcpServer() {
         RunTool.create(sessionManager),
         InspectViewHierarchyTool.create(sessionManager),
         CheatSheetTool.create(),
+        ListCloudDevicesTool.create(),
         RunOnCloudTool.create(),
         GetCloudRunStatusTool.create()
     ))
