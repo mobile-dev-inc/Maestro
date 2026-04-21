@@ -23,7 +23,7 @@ import io.ktor.util.encodeBase64
 import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.runner.CommandState
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.CommandStatus
 import maestro.device.DeviceSpec
 import maestro.orchestra.AssertWithAICommand
 import maestro.orchestra.ElementSelector

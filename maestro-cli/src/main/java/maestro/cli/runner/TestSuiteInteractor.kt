@@ -7,9 +7,7 @@ import maestro.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
-import maestro.cli.report.CommandDebugMetadata
 import maestro.cli.report.FlowAIOutput
-import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.PrintUtils
@@ -18,6 +16,9 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
+import maestro.orchestra.debug.CommandDebugMetadata
+import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader

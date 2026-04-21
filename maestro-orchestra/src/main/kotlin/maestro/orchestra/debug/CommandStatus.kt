@@ -17,7 +17,7 @@
  *
  */
 
-package maestro.cli.runner
+package maestro.orchestra.debug
 
 enum class CommandStatus {
     PENDING,

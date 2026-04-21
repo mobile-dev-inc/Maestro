@@ -5,6 +5,9 @@ import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
+import maestro.orchestra.debug.CommandDebugMetadata
+import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -141,6 +144,36 @@ class TestDebugReporterTest {
 
         val files = outputDir.toFile().listFiles()?.map { it.name } ?: emptyList()
         assertThat(files.filter { it.startsWith("ai-") }).isEmpty()
+    }
+
+    @Test
+    fun `saveFlow with shardIndex 2 produces shard-3 prefixed filenames via facade`() {
+        val outputDir = Files.createDirectories(tempDir.resolve("out"))
+        val shot = Files.createFile(tempDir.resolve("raw.png")).toFile()
+        val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
+        val debug = FlowDebugOutput().apply {
+            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED, timestamp = 1L)
+            screenshots.add(FlowDebugOutput.Screenshot(shot, 555L, CommandStatus.COMPLETED))
+        }
+
+        TestDebugReporter.saveFlow("my_flow", debug, outputDir, shardIndex = 2)
+
+        val names = outputDir.toFile().listFiles()!!.map { it.name }
+        assertThat(names).contains("commands-shard-3-(my_flow).json")
+        assertThat(names).contains("screenshot-shard-3-✅-555-(my_flow).png")
+    }
+
+    @Test
+    fun `saveFlow replaces slashes in flow name with underscores in commands filename via facade`() {
+        val outputDir = Files.createDirectories(tempDir.resolve("out"))
+        val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
+        val debug = FlowDebugOutput().apply {
+            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED)
+        }
+
+        TestDebugReporter.saveFlow("feature/login", debug, outputDir)
+
+        assertThat(outputDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
     }
 
 }
