@@ -74,6 +74,7 @@ class CloudInteractor(
         flowFile: File,
         appFile: File?,
         async: Boolean,
+        configFile: File? = null,
         mapping: File? = null,
         apiKey: String? = null,
         uploadName: String? = null,
@@ -126,7 +127,11 @@ class CloudInteractor(
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
-            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
+            WorkspaceUtils.createWorkspaceZip(
+                file = flowFile.toPath().absolute(),
+                out = workspaceZip,
+                configOverride = configFile?.toPath()?.absolute(),
+            )
             val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
