@@ -704,6 +704,6 @@ class CloudInteractor(
     }
 
     companion object {
-        private const val WORKSPACE_WARN_THRESHOLD_BYTES = 10L * 1024 * 1024
+        private const val WORKSPACE_WARN_THRESHOLD_BYTES = 50L * 1024 * 1024
     }
 }
