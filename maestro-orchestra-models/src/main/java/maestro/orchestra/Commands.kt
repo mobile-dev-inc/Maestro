@@ -1023,16 +1023,29 @@ data class RunScriptCommand(
 }
 
 data class WaitForAnimationToEndCommand(
-    val timeout: Long?,
+    val timeout: String?,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
     override val originalDescription: String
-        get() = "Wait for animation to end"
+        get() {
+            var description = "Wait for animation to end"
+            timeout?.let {
+                description += " within $it ms"
+            }
+            return description
+        }
 
+    private fun String.timeoutToMillis(): String? {
+        return if (this.toLong() < 0) {
+            null
+        } else this
+    }
     override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+        return copy(
+            timeout = timeout?.evaluateScripts(jsEngine)?.timeoutToMillis()
+        )
     }
 }
 
