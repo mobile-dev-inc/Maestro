@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression guard for the iOS XCTest UI-interruption preflight hang.
+# Regression guard for the verifying iOS XCTest UI-interruptions are disabled.
 #
 # How it works:
 #   1. Generates + builds the minimal AlertRepro SwiftUI app for iOS Simulator.

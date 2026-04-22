@@ -8,19 +8,6 @@
 
 @implementation XCUIApplication (Helper)
 
-// Suppresses Apple's XCTest UI-interruption preflight that runs before every
-// gesture ("Check for interrupting elements affecting Window"). The preflight
-// can deadlock inside Apple's accessibility resolver for ~13 min when an
-// on-screen element is classified as Alert but has no dismissal button matching
-// XCTest's built-in predicates. Maestro registers no `addUIInterruptionMonitor`
-// handlers and handles permissions via `applesimutils` + `SystemPermissionHelper`,
-// so the preflight provides no value and only adds a latent hang.
-//
-// We swizzle the `-doesNotHandleUIInterruptions` getter to always return YES
-// so XCTest short-circuits the preflight. Installed in +load so every
-// XCUIApplication — including ones created by XCTest itself — is covered from
-// the start, with no call-site changes.
-
 - (BOOL)maestro_doesNotHandleUIInterruptions
 {
     return YES;
