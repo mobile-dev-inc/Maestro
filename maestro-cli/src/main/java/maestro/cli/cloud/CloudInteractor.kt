@@ -1,4 +1,4 @@
-maestro-cli/src/main/java/maestro/cli/cloud/CloudInteractor.ktpackage maestro.cli.cloud
+package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
