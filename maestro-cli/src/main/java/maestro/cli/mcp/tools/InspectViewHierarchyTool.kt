@@ -18,7 +18,14 @@ object InspectViewHierarchyTool {
                     "the `attributes` cell holds semicolon-separated `key=value` pairs (e.g. `text=Submit; accessibilityText=Submit button; resource_id=btn_submit`). " +
                     "Those attribute keys are NOT valid Maestro selector keys. `tapOn` / `assertVisible` / etc. accept " +
                     "`text`, `id`, `index`, and position matchers (`below`, `above`, `leftOf`, `rightOf`). " +
-                    "Map `accessibilityText=Foo` to `text: Foo`; never pass `accessibilityText` as a selector.",
+                    "Map `accessibilityText=Foo` to `text: Foo`; never pass `accessibilityText` as a selector. " +
+                    "Always copy `text:` values verbatim from this output; never author them from a screenshot, " +
+                    "which is a common source of hallucinated strings (e.g. an element showing a heart icon " +
+                    "looks like a \"Favorite\" button in a screenshot but has no such text in the hierarchy). " +
+                    "Maestro's `text:` matcher is full-string regex with IGNORE_CASE, so a partial string does " +
+                    "NOT match: `text: \"RNR 352\"` will miss an element whose real text is " +
+                    "`\"RNR 352 - Expo Launch with Cedric van Putten\"`. Use the full on-screen string, or " +
+                    "anchor with a regex like `\"RNR 352.*\"`.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {
                         putJsonObject("device_id") {
