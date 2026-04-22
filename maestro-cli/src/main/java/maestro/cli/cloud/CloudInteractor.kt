@@ -1,4 +1,4 @@
-package maestro.cli.cloud
+maestro-cli/src/main/java/maestro/cli/cloud/CloudInteractor.ktpackage maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
@@ -704,6 +704,6 @@ class CloudInteractor(
     }
 
     companion object {
-        private const val WORKSPACE_WARN_THRESHOLD_BYTES = 50L * 1024 * 1024
+        private const val WORKSPACE_WARN_THRESHOLD_BYTES = 20L * 1024 * 1024
     }
 }
