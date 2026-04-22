@@ -341,10 +341,10 @@ jobs:
         run: ./run_tests ios
 
       - name: Verify iOS UI-interruption preflight is suppressed
-        # Regression guard for IOS_UI_INTERRUPTION_HANG.md. Builds a minimal
-        # SwiftUI app that presents a real UIAlertController, runs a gesture
-        # against it, and asserts Apple's preflight signature lines never
-        # appear in the xctest_runner log. Fails if the swizzle in
+        # Regression guard for the XCTest UI-interruption preflight hang.
+        # Builds a minimal SwiftUI app that presents a real UIAlertController,
+        # runs a gesture against it, and asserts Apple's preflight signature
+        # lines never appear in the xctest_runner log. Fails if the swizzle in
         # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
         # XCUIApplication+Helper.m regresses.
         run: |

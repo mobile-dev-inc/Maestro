@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Regression guard for the iOS XCTest UI-interruption preflight hang.
-# See IOS_UI_INTERRUPTION_HANG.md at the repo root for the investigation.
 #
 # How it works:
 #   1. Generates + builds the minimal AlertRepro SwiftUI app for iOS Simulator.
@@ -83,7 +82,6 @@ if [[ "$fail" -ne 0 ]]; then
     echo "Apple's XCTest UI-interruption preflight fired during a Maestro gesture."
     echo "The swizzle in maestro-ios-xctest-runner/maestro-driver-iosUITests/"
     echo "Categories/XCUIApplication+Helper.m (+load method) regressed."
-    echo "See IOS_UI_INTERRUPTION_HANG.md at the repo root."
     exit 1
 fi
 
