@@ -40,6 +40,10 @@ object RunTool {
 
         Syntax is validated as part of this call; no separate pre-check is needed.
 
+        Some commands require arguments and fail to parse when written bare. `assertScreenshot`
+        needs a name (e.g. `assertScreenshot: home_screen` or `assertScreenshot: { path: home_screen }`);
+        never emit `- assertScreenshot` on its own. When in doubt, check `cheat_sheet`.
+
         If no device is running, ask the user to start one first.
         Use `inspect_view_hierarchy` to get the current screen before guessing at commands.
         Use `cheat_sheet` for Maestro flow syntax.
