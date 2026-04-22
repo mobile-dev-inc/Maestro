@@ -137,6 +137,28 @@ class SelectorValidatorTest {
     }
 
     @Test
+    fun `matches case-insensitively (same as runner)`() {
+        val snapshot = snapshotOfAll("Favorite")
+        val yaml = """
+            - tapOn:
+                text: "favorite"
+        """.trimIndent()
+
+        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
+    }
+
+    @Test
+    fun `skips selectors containing env-var interpolation`() {
+        val snapshot = snapshotOfAll("Welcome, Pedro")
+        val yaml = """
+            - assertVisible:
+                text: "Welcome, ${'$'}{USER}"
+        """.trimIndent()
+
+        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
+    }
+
+    @Test
     fun `matches against hintText and accessibilityText the same as text`() {
         val root = TreeNode(
             children = listOf(

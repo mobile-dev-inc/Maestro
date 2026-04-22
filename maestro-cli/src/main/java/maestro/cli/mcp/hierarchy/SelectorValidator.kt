@@ -6,14 +6,18 @@ import maestro.Filters
 import maestro.TreeNode
 
 // Cross-checks `text:` selectors in a flow's YAML against the latest
-// hierarchy snapshot. Matching delegates to Filters.textMatches so the
-// validator agrees with the runner — same attributes (text / hintText /
-// accessibilityText), same full-string regex semantics.
+// hierarchy snapshot. Matching delegates to Filters.textMatches with the
+// same RegexOptions Orchestra uses (IGNORE_CASE, DOT_MATCHES_ALL,
+// MULTILINE), so a verdict here matches the runner. Selectors containing
+// ${...} env interpolation are skipped — they'll be resolved by Orchestra
+// before the real match runs.
 object SelectorValidator {
 
     sealed interface Result {
         data object Ok : Result
-        data class Miss(val findings: List<Finding>) : Result
+        data class Miss(val findings: List<Finding>) : Result {
+            init { require(findings.isNotEmpty()) { "Miss must carry at least one finding" } }
+        }
     }
 
     data class Finding(
@@ -22,7 +26,9 @@ object SelectorValidator {
     )
 
     fun validate(yaml: String, snapshot: HierarchySnapshotStore.Snapshot): Result {
-        val selectors = extractTextSelectors(yaml).distinct()
+        val selectors = extractTextSelectors(yaml)
+            .filterNot(::hasEnvInterpolation)
+            .distinct()
         if (selectors.isEmpty()) return Result.Ok
 
         val nodes = snapshot.root.aggregate()
@@ -33,12 +39,14 @@ object SelectorValidator {
         return if (findings.isEmpty()) Result.Ok else Result.Miss(findings)
     }
 
+    private fun hasEnvInterpolation(selector: String): Boolean = ENV_INTERPOLATION.containsMatchIn(selector)
+
     private fun extractTextSelectors(yaml: String): List<String> {
         val root = try {
             YAML.readTree(yaml)
         } catch (e: Exception) {
-            // Malformed YAML will surface a better error from YamlCommandReader
-            // downstream — don't second-guess it here.
+            // Malformed YAML surfaces a better error from YamlCommandReader
+            // downstream; don't second-guess it here.
             return emptyList()
         }
         val out = mutableListOf<String>()
@@ -62,12 +70,11 @@ object SelectorValidator {
 
     private fun selectorMatches(selector: String, nodes: List<TreeNode>): Boolean {
         val regex = try {
-            Regex(selector)
+            Regex(selector, REGEX_OPTIONS)
         } catch (e: Exception) {
-            // Selector isn't a valid regex. Filters.textMatches already handles
-            // this via its `regex.pattern == value` literal-equality branch, but
-            // we can't construct a Regex to hand it — fall back to a plain
-            // equality check on the same three attributes.
+            // Selector isn't a valid regex (e.g. "foo("). Filters.textMatches
+            // has a `regex.pattern == value` literal-equality branch for this,
+            // but we can't construct a Regex to hand it — mimic it directly.
             return nodes.any { node ->
                 TEXT_ATTRIBUTES.any { attr -> node.attributes[attr] == selector }
             }
@@ -84,6 +91,9 @@ object SelectorValidator {
         }
         if (candidates.isEmpty()) return emptyList()
 
+        // Cheap bidirectional substring match — catches typos like "Loign"/"Login"
+        // and truncations like "RNR 352"/"RNR 352 - Expo Launch..." without
+        // needing a Levenshtein dependency.
         val lowered = selector.lowercase()
         val partial = candidates
             .filter { it.lowercase().contains(lowered) || lowered.contains(it.lowercase()) }
@@ -94,9 +104,18 @@ object SelectorValidator {
         return candidates.take(FALLBACK_PEEK).toList()
     }
 
-    // Mirrors the attributes Filters.textMatches inspects. Keep in sync with
-    // maestro-client/Filters.kt::textMatches.
+    // Mirrors the attributes Filters.textMatches inspects in
+    // maestro-client/Filters.kt::textMatches. Keep the two in sync.
     private val TEXT_ATTRIBUTES = listOf("text", "hintText", "accessibilityText")
+
+    // Mirrors maestro-orchestra/Orchestra.kt::REGEX_OPTIONS.
+    private val REGEX_OPTIONS = setOf(
+        RegexOption.IGNORE_CASE,
+        RegexOption.DOT_MATCHES_ALL,
+        RegexOption.MULTILINE,
+    )
+
+    private val ENV_INTERPOLATION = Regex("""\$\{[^}]+}""")
 
     private const val MAX_SUGGESTIONS = 5
     private const val FALLBACK_PEEK = 10

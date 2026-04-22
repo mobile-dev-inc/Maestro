@@ -9,8 +9,7 @@ class HierarchySnapshotStore {
 
     private val snapshots = ConcurrentHashMap<String, Snapshot>()
 
-    fun record(deviceId: String, root: TreeNode?) {
-        if (root == null) return
+    fun record(deviceId: String, root: TreeNode) {
         snapshots[deviceId] = Snapshot(root)
     }
 

@@ -34,12 +34,6 @@ class HierarchySnapshotStoreTest {
         assertThat(store.get("nope")).isNull()
     }
 
-    @Test
-    fun `record ignores null root`() {
-        val store = HierarchySnapshotStore()
-        store.record("device-1", null)
-        assertThat(store.get("device-1")).isNull()
-    }
 
     private fun node(
         attributes: Map<String, String> = emptyMap(),

@@ -11,6 +11,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import maestro.TreeNode
 import maestro.cli.mcp.hierarchy.HierarchySnapshotStore
 import maestro.cli.session.MaestroSessionManager
 import org.junit.jupiter.api.Test
@@ -194,6 +195,35 @@ class RunToolTest {
             }
         )
         assertThat(args.skipSelectorValidation).isTrue()
+    }
+
+    @Test
+    fun `handle short-circuits with selector_not_on_screen when snapshot has no matching text`() {
+        val store = HierarchySnapshotStore()
+        val root = TreeNode(
+            children = listOf(TreeNode(attributes = mutableMapOf("text" to "Sign in"))),
+        )
+        store.record("device-1", root)
+
+        val result = RunTool.handle(
+            CallToolRequest(
+                CallToolRequestParams(
+                    name = "run",
+                    arguments = buildArgs {
+                        put("device_id", "device-1")
+                        put("yaml", "- tapOn:\n    text: \"Hallucinated\"")
+                    },
+                )
+            ),
+            MaestroSessionManager,
+            store,
+        )
+
+        assertThat(result.isError).isTrue()
+        val text = (result.content.single() as TextContent).text
+        assertThat(text).contains("selector_not_on_screen")
+        assertThat(text).contains("Hallucinated")
+        assertThat(text).contains("Sign in")
     }
 
     private fun expectParseSuccess(arguments: JsonObject): RunToolArgs {

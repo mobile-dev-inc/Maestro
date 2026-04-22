@@ -17,11 +17,14 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.FlowSequence
 import maestro.orchestra.yaml.YamlCommandReader
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 
 object RunTool {
+
+    private val logger = LoggerFactory.getLogger(RunTool::class.java)
 
     private const val TOOL_NAME = "run"
     private const val TOOL_DESCRIPTION = """
@@ -331,8 +334,14 @@ object RunTool {
     private fun yamlSourceForFile(path: Path): YamlSource {
         // Best-effort read. An unreadable file just skips validation for that
         // source; YamlCommandReader will produce the real error when it tries
-        // to run the flow.
-        val yaml = try { path.toFile().readText() } catch (e: Exception) { "" }
+        // to run the flow. We still log at warn so a puzzled maintainer sees
+        // why the pre-check didn't fire.
+        val yaml = try {
+            path.toFile().readText()
+        } catch (e: Exception) {
+            logger.warn("Failed to read {} for selector validation: {}", path, e.message)
+            ""
+        }
         return YamlSource(label = path.toString(), yaml = yaml)
     }
 

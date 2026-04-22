@@ -55,7 +55,7 @@ object InspectViewHierarchyTool {
                     val viewHierarchy = runBlocking { maestro.viewHierarchy() }
                     val tree = viewHierarchy.root
 
-                    snapshotStore.record(deviceId, tree)
+                    tree?.let { snapshotStore.record(deviceId, it) }
 
                     // Return CSV format (original format for compatibility)
                     ViewHierarchyFormatters.extractCsvOutput(tree)
