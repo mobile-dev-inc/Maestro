@@ -11,6 +11,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import maestro.cli.mcp.hierarchy.HierarchySnapshotStore
 import maestro.cli.session.MaestroSessionManager
 import org.junit.jupiter.api.Test
 
@@ -164,11 +165,35 @@ class RunToolTest {
         val result = RunTool.handle(
             CallToolRequest(CallToolRequestParams(name = "run", arguments = buildArgs { put("yaml", "- tapOn: x") })),
             MaestroSessionManager,
+            HierarchySnapshotStore(),
         )
 
         assertThat(result.isError).isTrue()
         val text = (result.content.single() as TextContent).text
         assertThat(text).contains("device_id")
+    }
+
+    @Test
+    fun `parse defaults skip_selector_validation to false`() {
+        val args = expectParseSuccess(
+            buildArgs {
+                put("device_id", "device-1")
+                put("yaml", "- tapOn: Search")
+            }
+        )
+        assertThat(args.skipSelectorValidation).isFalse()
+    }
+
+    @Test
+    fun `parse captures skip_selector_validation flag`() {
+        val args = expectParseSuccess(
+            buildArgs {
+                put("device_id", "device-1")
+                put("yaml", "- tapOn: Search")
+                put("skip_selector_validation", true)
+            }
+        )
+        assertThat(args.skipSelectorValidation).isTrue()
     }
 
     private fun expectParseSuccess(arguments: JsonObject): RunToolArgs {

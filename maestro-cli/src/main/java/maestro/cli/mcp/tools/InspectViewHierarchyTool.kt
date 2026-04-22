@@ -3,12 +3,16 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.hierarchy.HierarchySnapshotStore
 import maestro.cli.session.MaestroSessionManager
 import maestro.TreeNode
 import kotlinx.coroutines.runBlocking
 
 object InspectViewHierarchyTool {
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    fun create(
+        sessionManager: MaestroSessionManager,
+        snapshotStore: HierarchySnapshotStore,
+    ): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "inspect_view_hierarchy",
@@ -50,11 +54,13 @@ object InspectViewHierarchyTool {
                     val maestro = session.maestro
                     val viewHierarchy = runBlocking { maestro.viewHierarchy() }
                     val tree = viewHierarchy.root
-                    
+
+                    snapshotStore.record(deviceId, tree)
+
                     // Return CSV format (original format for compatibility)
                     ViewHierarchyFormatters.extractCsvOutput(tree)
                 }
-                
+
                 CallToolResult(content = listOf(TextContent(result)))
             } catch (e: Exception) {
                 CallToolResult(

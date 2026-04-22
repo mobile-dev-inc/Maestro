@@ -4,6 +4,8 @@ import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
+import maestro.cli.mcp.hierarchy.HierarchySnapshotStore
+import maestro.cli.mcp.hierarchy.SelectorValidator
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.WorkingDirectory
 import maestro.orchestra.Orchestra
@@ -39,13 +41,19 @@ object RunTool {
         `env` is optional in all modes and injects environment variables available to the flow.
 
         Syntax is validated as part of this call; no separate pre-check is needed.
+        `text:` selectors are also cross-checked against the latest `inspect_view_hierarchy`
+        snapshot for the target device; misses surface before Maestro parses the flow. Pass
+        `skip_selector_validation: true` to bypass (e.g. flows that target dynamically-rendered text).
 
         If no device is running, ask the user to start one first.
         Use `inspect_view_hierarchy` to get the current screen before guessing at commands.
         Use `cheat_sheet` for Maestro flow syntax.
     """
 
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    fun create(
+        sessionManager: MaestroSessionManager,
+        snapshotStore: HierarchySnapshotStore,
+    ): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = TOOL_NAME,
@@ -53,13 +61,14 @@ object RunTool {
                 inputSchema = buildInputSchema(),
             )
         ) { request ->
-            handle(request, sessionManager)
+            handle(request, sessionManager, snapshotStore)
         }
     }
 
     internal fun handle(
         request: CallToolRequest,
         sessionManager: MaestroSessionManager,
+        snapshotStore: HierarchySnapshotStore,
     ): CallToolResult {
         val args = when (val parsed = RunToolArgs.parse(request.arguments)) {
             is ParseResult.Failure -> return errorResult(parsed.message)
@@ -72,6 +81,15 @@ object RunTool {
             return errorResult(e.message ?: "Invalid input")
         } catch (e: ValidationError) {
             return errorResult(e.message ?: "Invalid workspace")
+        }
+
+        if (!args.skipSelectorValidation) {
+            val snapshot = snapshotStore.get(args.deviceId)
+            if (snapshot != null) {
+                val yamlSources = collectYamlSources(executable)
+                val miss = findFirstMiss(yamlSources, snapshot)
+                if (miss != null) return selectorValidationErrorResult(args.deviceId, miss)
+            }
         }
 
         return try {
@@ -144,6 +162,15 @@ object RunTool {
                 put("type", "object")
                 put("description", "Environment variables to inject into the flow(s).")
                 putJsonObject("additionalProperties") { put("type", "string") }
+            }
+            putJsonObject("skip_selector_validation") {
+                put("type", "boolean")
+                put(
+                    "description",
+                    "Skip cross-checking `text:` selectors against the latest hierarchy snapshot. " +
+                        "Default false. Set true when the flow targets text that renders dynamically and " +
+                        "wasn't present in the last `inspect_view_hierarchy`.",
+                )
             }
         },
         required = listOf("device_id"),
@@ -280,6 +307,66 @@ object RunTool {
     private fun errorResult(message: String): CallToolResult =
         CallToolResult(content = listOf(TextContent(message)), isError = true)
 
+    private fun collectYamlSources(executable: Executable): List<YamlSource> = when (executable) {
+        is Executable.Inline -> listOf(YamlSource(label = "inline", yaml = executable.yaml))
+        is Executable.Plan -> buildList {
+            executable.plan.sequence.flows.forEach { add(yamlSourceForFile(it)) }
+            executable.plan.flowsToRun.forEach { add(yamlSourceForFile(it)) }
+        }
+    }
+
+    private fun yamlSourceForFile(path: Path): YamlSource = YamlSource(
+        label = path.toString(),
+        yaml = try { path.toFile().readText() } catch (e: Exception) { "" },
+    )
+
+    private fun findFirstMiss(
+        sources: List<YamlSource>,
+        snapshot: HierarchySnapshotStore.Snapshot,
+    ): SelectorMiss? {
+        for (source in sources) {
+            if (source.yaml.isBlank()) continue
+            val result = SelectorValidator.validate(source.yaml, snapshot)
+            if (result is SelectorValidator.Result.Miss) {
+                return SelectorMiss(label = source.label, findings = result.findings)
+            }
+        }
+        return null
+    }
+
+    private fun selectorValidationErrorResult(deviceId: String, miss: SelectorMiss): CallToolResult {
+        val payload = buildJsonObject {
+            put("success", false)
+            put("device_id", deviceId)
+            put("error", "selector_not_on_screen")
+            put("source", miss.label)
+            put(
+                "message",
+                "One or more `text:` selectors don't appear in the latest `inspect_view_hierarchy` " +
+                    "snapshot for this device. Re-inspect the screen and use the exact text on display, " +
+                    "or pass `skip_selector_validation: true` if the text renders dynamically.",
+            )
+            putJsonArray("findings") {
+                miss.findings.forEach { finding ->
+                    addJsonObject {
+                        put("selector", finding.selector)
+                        putJsonArray("closest_texts_on_screen") {
+                            finding.suggestions.forEach { add(it) }
+                        }
+                    }
+                }
+            }
+        }
+        return CallToolResult(content = listOf(TextContent(payload.toString())), isError = true)
+    }
+
+    private data class YamlSource(val label: String, val yaml: String)
+
+    private data class SelectorMiss(
+        val label: String,
+        val findings: List<SelectorValidator.Finding>,
+    )
+
     private data class RunResult(val payload: JsonObject, val success: Boolean)
 
     private sealed interface Executable {
@@ -311,6 +398,7 @@ internal data class RunToolArgs(
     val deviceId: String,
     val input: RunInput,
     val env: Map<String, String>,
+    val skipSelectorValidation: Boolean,
 ) {
     companion object {
         fun parse(arguments: JsonObject?): ParseResult {
@@ -327,6 +415,8 @@ internal data class RunToolArgs(
                 ?: emptyList()
             val excludeTags = arguments["exclude_tags"]?.jsonArray?.map { it.jsonPrimitive.content }
                 ?: emptyList()
+            val skipSelectorValidation = arguments["skip_selector_validation"]
+                ?.jsonPrimitive?.booleanOrNull ?: false
 
             val modesProvided = listOfNotNull(
                 yaml?.let { "yaml" },
@@ -367,7 +457,14 @@ internal data class RunToolArgs(
                 ?.mapValues { it.value.jsonPrimitive.content }
                 ?: emptyMap()
 
-            return ParseResult.Success(RunToolArgs(deviceId, input, env))
+            return ParseResult.Success(
+                RunToolArgs(
+                    deviceId = deviceId,
+                    input = input,
+                    env = env,
+                    skipSelectorValidation = skipSelectorValidation,
+                )
+            )
         }
     }
 }
