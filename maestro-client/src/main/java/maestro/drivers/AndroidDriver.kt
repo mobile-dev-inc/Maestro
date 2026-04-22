@@ -53,6 +53,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -564,10 +565,14 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            runDeviceCall("inputText") {
-                blockingStubWithTimeout.inputText(inputTextRequest {
-                    this.text = text
-                }) ?: throw IllegalStateException("Input Response can't be null")
+            if (Charsets.US_ASCII.newEncoder().canEncode(text)) {
+                runDeviceCall("inputText") {
+                    blockingStubWithTimeout.inputText(inputTextRequest {
+                        this.text = text
+                    }) ?: throw IllegalStateException("Input Response can't be null")
+                }
+            } else {
+                inputUnicodeText(text)
             }
         }
     }
@@ -730,7 +735,7 @@ class AndroidDriver(
     }
 
     override fun isUnicodeInputSupported(): Boolean {
-        return false
+        return true
     }
 
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
@@ -1233,6 +1238,68 @@ class AndroidDriver(
         return response.output
     }
 
+    private fun inputUnicodeText(text: String) {
+        val originalIme = currentInputMethod().takeUnless { it.isBlank() || it == "null" }
+
+        try {
+            shell("ime enable $MAESTRO_IME_ID")
+            shell("ime set $MAESTRO_IME_ID")
+            waitForMaestroIme()
+
+            text.chunked(MAX_UNICODE_INPUT_CHUNK_SIZE).forEach { chunk ->
+                val encodedChunk = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(chunk.toByteArray(Charsets.UTF_8))
+                val output = shell(
+                    "am broadcast -a $MAESTRO_IME_COMMIT_ACTION -n $MAESTRO_IME_RECEIVER --es $MAESTRO_IME_EXTRA_TEXT '$encodedChunk'"
+                )
+
+                if (!output.contains("result=0")) {
+                    throw IOException("Unicode input failed: $output")
+                }
+            }
+
+            Thread.sleep(MAESTRO_IME_COMMIT_SETTLE_DELAY_MS)
+        } finally {
+            originalIme?.let { imeId ->
+                runCatching {
+                    shell("ime set $imeId")
+                }.onFailure { error ->
+                    logger.warn("Failed to restore original input method $imeId: ${error.message}")
+                }
+            }
+        }
+    }
+
+    private fun currentInputMethod(): String {
+        return shell("settings get secure default_input_method").trim()
+    }
+
+    private fun waitForMaestroIme() {
+        val deadline = System.currentTimeMillis() + MAESTRO_IME_READY_TIMEOUT_MS
+        var lastStatus = "Timed out waiting for Maestro IME"
+
+        while (System.currentTimeMillis() < deadline) {
+            val output = shell(
+                "am broadcast -a $MAESTRO_IME_STATUS_ACTION -n $MAESTRO_IME_RECEIVER"
+            )
+
+            if (output.contains("result=0")) {
+                return
+            }
+
+            lastStatus = output.lineSequence()
+                .firstOrNull { it.contains("data=\"") }
+                ?.substringAfter("data=\"")
+                ?.substringBeforeLast("\"")
+                ?: output.trim()
+
+            Thread.sleep(MAESTRO_IME_SWITCH_DELAY_MS)
+        }
+
+        throw IOException(lastStatus)
+    }
+
     private fun getStartupTimeout(): Long = runCatching {
         System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
     }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
@@ -1288,6 +1355,15 @@ class AndroidDriver(
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
+        private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
+        private const val MAESTRO_IME_RECEIVER = "dev.mobile.maestro/.receivers.UnicodeInputReceiver"
+        private const val MAESTRO_IME_COMMIT_ACTION = "dev.mobile.maestro.ime.commitText"
+        private const val MAESTRO_IME_STATUS_ACTION = "dev.mobile.maestro.ime.status"
+        private const val MAESTRO_IME_EXTRA_TEXT = "textBase64"
+        private const val MAESTRO_IME_SWITCH_DELAY_MS = 300L
+        private const val MAESTRO_IME_READY_TIMEOUT_MS = 5_000L
+        private const val MAESTRO_IME_COMMIT_SETTLE_DELAY_MS = 250L
+        private const val MAX_UNICODE_INPUT_CHUNK_SIZE = 1000
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
