@@ -10,24 +10,26 @@
 
 // Suppresses Apple's XCTest UI-interruption preflight that runs before every
 // gesture ("Check for interrupting elements affecting Window"). The preflight
-// occasionally deadlocks for ~13 min on certain app-side accessibility states.
+// can deadlock inside Apple's accessibility resolver for ~13 min when an
+// on-screen element is classified as Alert but has no dismissal button matching
+// XCTest's built-in predicates. Maestro registers no `addUIInterruptionMonitor`
+// handlers and handles permissions via `applesimutils` + `SystemPermissionHelper`,
+// so the preflight provides no value and only adds a latent hang.
+//
 // We swizzle the `-doesNotHandleUIInterruptions` getter to always return YES
 // so XCTest short-circuits the preflight. Installed in +load so every
 // XCUIApplication — including ones created by XCTest itself — is covered from
-// the start, with no call-site changes. See IOS_UI_INTERRUPTION_HANG.md.
+// the start, with no call-site changes.
 
-- (BOOL)fb_doesNotHandleUIInterruptions
+- (BOOL)maestro_doesNotHandleUIInterruptions
 {
     return YES;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wobjc-load-method"
-
 + (void)load
 {
     SEL originalSelector = @selector(doesNotHandleUIInterruptions);
-    SEL swizzledSelector = @selector(fb_doesNotHandleUIInterruptions);
+    SEL swizzledSelector = @selector(maestro_doesNotHandleUIInterruptions);
     Method originalMethod = class_getInstanceMethod(self.class, originalSelector);
     Method swizzledMethod = class_getInstanceMethod(self.class, swizzledSelector);
     if (originalMethod == NULL || swizzledMethod == NULL) {
@@ -47,8 +49,6 @@
         method_exchangeImplementations(originalMethod, swizzledMethod);
     }
 }
-
-#pragma clang diagnostic pop
 
 + (NSArray<NSDictionary<NSString *, id> *> *)appsInfoWithAxElements:(NSArray<id<XCAccessibilityElement>> *)axElements
 {
