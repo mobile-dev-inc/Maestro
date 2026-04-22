@@ -349,7 +349,15 @@ jobs:
         # XCUIApplication+Helper.m regresses.
         run: |
           brew install xcodegen
-          SIM_UDID=$(xcrun simctl list devices booted | grep -oE '[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}' | head -1)
+          SIM_UDID=$(xcrun simctl list devices -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for devices in data["devices"].values():
+              for d in devices:
+                  if d.get("state") == "Booted":
+                      print(d["udid"])
+                      sys.exit(0)
+          ')
           if [ -z "$SIM_UDID" ]; then
             echo "error: no booted iOS simulator found" >&2
             xcrun simctl list devices booted
