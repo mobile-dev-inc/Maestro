@@ -28,7 +28,7 @@ internal val INSTRUCTIONS = """
 
     Every local tool (`take_screenshot`, `inspect_view_hierarchy`, `run`) needs a `device_id` from `list_devices` first.
 
-    Docs: https://docs.maestro.dev/llms.txt - call `cheat_sheet` before authoring any flow with assertions, conditionals, nested properties, or multiple screens.
+    Docs: https://docs.maestro.dev/llms.txt. Call `cheat_sheet` before authoring unfamiliar commands, required args, nested properties, conditionals, or multi-screen flows.
 
     ## Local workflow
 
