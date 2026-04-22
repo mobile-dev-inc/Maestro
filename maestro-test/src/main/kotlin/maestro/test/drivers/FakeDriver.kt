@@ -331,7 +331,7 @@ open class FakeDriver : Driver {
     }
 
     override fun isUnicodeInputSupported(): Boolean {
-        return false
+        return true
     }
 
     fun setLayout(layout: FakeLayoutElement) {
