@@ -7,10 +7,12 @@ import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 
 object GetCloudRunStatusTool {
+    const val NAME = "get_cloud_run_status"
+
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "get_cloud_run_status",
+                name = NAME,
                 description = "Fetch the current status and (optionally) per-flow results of a Maestro Cloud upload. " +
                     "Use with the upload_id and project_id returned by run_on_cloud. " +
                     "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",

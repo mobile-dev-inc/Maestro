@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Maestro Stream</title>
+<style>
+  :root {
+    --bg: #111;
+    --fg: #eee;
+    --muted: #888;
+  }
+  html, body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    gap: 8px;
+    box-sizing: border-box;
+  }
+
+  /* The device column. For Android, the support-button rail lives alongside the screen. */
+  #frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+  body.android #frame { flex-direction: row; }
+
+  #screen {
+    max-height: 100%;
+    max-width: 100%;
+    min-height: 0;
+    min-width: 0;
+    background: #000;
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-drag: none;
+    display: block;
+  }
+
+  .hint { color: var(--muted); font-size: 12px; flex: 0 0 auto; }
+
+  /* ---------- iOS: dark pill toolbar above the device ---------- */
+  #ios-toolbar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: #2b2b2d;
+    color: #f5f5f7;
+    border: 1px solid #3a3a3c;
+    border-radius: 14px;
+    padding: 8px 14px;
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    min-width: 320px;
+    flex: 0 0 auto;
+  }
+  body.ios #ios-toolbar { display: flex; }
+  #ios-toolbar .ios-info { flex: 1; text-align: left; line-height: 1.15; }
+  #ios-toolbar .ios-info .name { font-weight: 600; }
+  #ios-toolbar .ios-info .sub { color: #a1a1a6; font-size: 11px; }
+  .ios-btn {
+    background: transparent;
+    color: #f5f5f7;
+    border: none;
+    border-radius: 8px;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .ios-btn:hover { background: rgba(255,255,255,0.08); }
+  .ios-btn svg { width: 18px; height: 18px; }
+
+  /* ---------- Android: vertical rail of support buttons ---------- */
+  #android-rail {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    background: #1b1b1b;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 6px;
+    align-self: center;
+    flex: 0 0 auto;
+  }
+  body.android #android-rail { display: flex; }
+  .and-btn {
+    background: #242424;
+    color: #e4e4e4;
+    border: 1px solid #333;
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .and-btn:hover { background: #2d2d2d; }
+  .and-btn:active { background: #111; }
+  .and-btn svg { width: 18px; height: 18px; }
+  .and-sep { height: 1px; background: #2e2e2e; margin: 4px 2px; }
+</style>
+</head>
+<body>
+
+  <!-- iOS toolbar (hidden until /info resolves platform=ios) -->
+  <div id="ios-toolbar" role="toolbar" aria-label="iOS controls">
+    <div class="ios-info">
+      <div class="name" id="ios-name">iOS Simulator</div>
+      <div class="sub" id="ios-sub"></div>
+    </div>
+    <button class="ios-btn" data-button="home" title="Home" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- device + (android rail) -->
+  <div id="frame">
+    <img id="screen" src="/stream.mjpeg" draggable="false">
+
+    <div id="android-rail" role="toolbar" aria-label="Android controls">
+      <button class="and-btn" data-button="power" title="Power" aria-label="Power">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v9"/>
+          <path d="M7 7a7 7 0 1 0 10 0"/>
+        </svg>
+      </button>
+      <button class="and-btn" data-button="volumeUp" title="Volume up" aria-label="Volume up">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14"/>
+          <path d="M5 12h14"/>
+        </svg>
+      </button>
+      <button class="and-btn" data-button="volumeDown" title="Volume down" aria-label="Volume down">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14"/>
+        </svg>
+      </button>
+
+      <div class="and-sep"></div>
+
+      <!-- Standard Android nav: back (triangle), home (circle), recents (square) -->
+      <button class="and-btn" data-button="back" title="Back" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M15 5 L7 12 L15 19 Z"/>
+        </svg>
+      </button>
+      <button class="and-btn" data-button="home" title="Home" aria-label="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="6"/>
+        </svg>
+      </button>
+      <button class="and-btn" data-button="appSwitch" title="Recents" aria-label="Recents">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="6" y="6" width="12" height="12" rx="1.2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="hint">Click to tap · Drag to swipe · Type to send keys</div>
+
+<script>
+const screen = document.getElementById('screen');
+let dragging = false;
+
+// Pick device chrome based on the server's /info response.
+fetch('/info').then(r => r.json()).then(info => {
+  // `android_device` gets the same rail as `android`.
+  const cls = info.platform === 'ios' ? 'ios' : 'android';
+  document.body.classList.add(cls);
+  if (info.platform === 'ios') {
+    document.getElementById('ios-sub').textContent = info.deviceId || '';
+  }
+}).catch(() => {});
+
+// Reconnect the MJPEG stream if it dies (last-frame freeze with no visible error).
+function reconnectStream() {
+  screen.src = '/stream.mjpeg?' + Date.now();
+}
+screen.addEventListener('error', () => setTimeout(reconnectStream, 1500));
+
+let pendingInput = null;
+function send(cmd) {
+  // Coalesce rapid move events so we don't flood the server and starve the stream.
+  if (cmd.kind === 'touch' && cmd.action === 'Move') {
+    pendingInput = cmd;
+    return;
+  }
+  if (pendingInput) flushInput();
+  dispatchInput(cmd);
+}
+
+function flushInput() {
+  if (!pendingInput) return;
+  const cmd = pendingInput;
+  pendingInput = null;
+  dispatchInput(cmd);
+}
+
+function dispatchInput(cmd) {
+  fetch('/input', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(cmd),
+  }).catch(() => {});
+}
+
+// Flush any pending move on the next animation frame so swipes still feel smooth.
+function scheduledFlush() {
+  flushInput();
+  requestAnimationFrame(scheduledFlush);
+}
+requestAnimationFrame(scheduledFlush);
+
+// simulator-server expects normalized coordinates in [0.0, 1.0].
+function devicePoint(e) {
+  const r = screen.getBoundingClientRect();
+  const x = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+  const y = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1);
+  return { x: x.toFixed(5), y: y.toFixed(5) };
+}
+
+screen.addEventListener('mousedown', e => {
+  dragging = true;
+  const p = devicePoint(e);
+  send({kind: 'touch', action: 'Down', x: p.x, y: p.y});
+});
+screen.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const p = devicePoint(e);
+  send({kind: 'touch', action: 'Move', x: p.x, y: p.y});
+});
+window.addEventListener('mouseup', e => {
+  if (!dragging) return;
+  dragging = false;
+  const p = devicePoint(e);
+  send({kind: 'touch', action: 'Up', x: p.x, y: p.y});
+});
+
+// ---- Keyboard: browser KeyboardEvent.code -> HID Usage ID ----
+// simulator-server expects HID Usage IDs: iOS pipes them through
+// IndigoHIDMessageForKeyboardArbitrary, Android offsets by 0x70000 before
+// handing the event to the emulator gRPC service. Reference: USB HID Usage
+// Tables §10 (Keyboard/Keypad page).
+const HID = {
+  // Letters
+  KeyA: 4, KeyB: 5, KeyC: 6, KeyD: 7, KeyE: 8, KeyF: 9,
+  KeyG: 10, KeyH: 11, KeyI: 12, KeyJ: 13, KeyK: 14, KeyL: 15,
+  KeyM: 16, KeyN: 17, KeyO: 18, KeyP: 19, KeyQ: 20, KeyR: 21,
+  KeyS: 22, KeyT: 23, KeyU: 24, KeyV: 25, KeyW: 26, KeyX: 27,
+  KeyY: 28, KeyZ: 29,
+  // Top-row digits (1..9, then 0 — that's how HID orders them)
+  Digit1: 30, Digit2: 31, Digit3: 32, Digit4: 33, Digit5: 34,
+  Digit6: 35, Digit7: 36, Digit8: 37, Digit9: 38, Digit0: 39,
+  // Control
+  Enter: 40, Escape: 41, Backspace: 42, Tab: 43, Space: 44,
+  // Punctuation
+  Minus: 45, Equal: 46, BracketLeft: 47, BracketRight: 48, Backslash: 49,
+  Semicolon: 51, Quote: 52, Backquote: 53, Comma: 54, Period: 55, Slash: 56,
+  CapsLock: 57,
+  // Function
+  F1: 58, F2: 59, F3: 60, F4: 61, F5: 62, F6: 63,
+  F7: 64, F8: 65, F9: 66, F10: 67, F11: 68, F12: 69,
+  // Nav cluster
+  Insert: 73, Home: 74, PageUp: 75, Delete: 76, End: 77, PageDown: 78,
+  ArrowRight: 79, ArrowLeft: 80, ArrowDown: 81, ArrowUp: 82,
+  // Modifiers
+  ControlLeft: 224, ShiftLeft: 225, AltLeft: 226, MetaLeft: 227,
+  ControlRight: 228, ShiftRight: 229, AltRight: 230, MetaRight: 231,
+};
+
+function sendKey(action, e) {
+  // Let the browser keep Cmd/Ctrl shortcuts (reload, devtools, copy/paste).
+  if (e.metaKey || e.ctrlKey) return false;
+  // Don't steal keys when the user is typing in the page's own inputs (if any).
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return false;
+  const hid = HID[e.code];
+  if (hid == null) return false;
+  send({kind: 'key', action, code: hid});
+  return true;
+}
+
+window.addEventListener('keydown', e => { if (sendKey('Down', e)) e.preventDefault(); });
+window.addEventListener('keyup',   e => { if (sendKey('Up',   e)) e.preventDefault(); });
+
+// Hardware buttons (Home/Back/Power/Vol±/Recents): tap = Down + short Up.
+document.querySelectorAll('[data-button]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const name = btn.dataset.button;
+    send({kind: 'button', action: 'Down', name});
+    setTimeout(() => send({kind: 'button', action: 'Up', name}), 80);
+  });
+});
+</script>
+</body>
+</html>

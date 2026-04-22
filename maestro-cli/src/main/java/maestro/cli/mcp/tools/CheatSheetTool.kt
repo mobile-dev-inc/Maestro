@@ -9,10 +9,12 @@ import okhttp3.Request
 import kotlin.time.Duration.Companion.minutes
 
 object CheatSheetTool {
+    const val NAME = "cheat_sheet"
+
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "cheat_sheet",
+                name = NAME,
                 description = "Get the Maestro cheat sheet with common commands and syntax examples. " +
                     "Returns comprehensive documentation on Maestro flow syntax, commands, and best practices. " +
                     "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",

@@ -21,7 +21,7 @@ import java.nio.file.Path
 
 object RunTool {
 
-    private const val TOOL_NAME = "run"
+    const val NAME = "run"
     private const val TOOL_DESCRIPTION = """
         Simulate user interactions with a mobile device by running raw Maestro commands or Maestro flow files.
 
@@ -52,7 +52,7 @@ object RunTool {
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = TOOL_NAME,
+                name = NAME,
                 description = TOOL_DESCRIPTION.trimIndent(),
                 inputSchema = buildInputSchema(),
             )

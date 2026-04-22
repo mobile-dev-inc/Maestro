@@ -21,10 +21,12 @@ private fun cloudApiUrl(): String =
         ?: "https://api.copilot.mobile.dev"
 
 object ListCloudDevicesTool {
+    const val NAME = "list_cloud_devices"
+
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "list_cloud_devices",
+                name = NAME,
                 description = "List device models and OS versions available on Maestro Cloud. " +
                     "Call this before `run_on_cloud` to discover valid `device_model` / `device_os` pairs. " +
                     "OS versions are returned in the exact case the cloud API expects (e.g. `iOS-17-5`, `android-34`).",

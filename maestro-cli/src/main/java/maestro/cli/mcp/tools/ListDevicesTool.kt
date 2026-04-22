@@ -6,10 +6,12 @@ import kotlinx.serialization.json.*
 import maestro.device.DeviceService
 
 object ListDevicesTool {
+    const val NAME = "list_devices"
+
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "list_devices",
+                name = NAME,
                 description = "List all available devices that can be launched for automation.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject { },
