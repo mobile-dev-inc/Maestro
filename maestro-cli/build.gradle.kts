@@ -1,6 +1,11 @@
 import org.jreleaser.model.Active.ALWAYS
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jreleaser.model.Stereotype
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.security.MessageDigest
 import java.util.Properties
 
 @Suppress("DSL_SCOPE_VIOLATION")
@@ -209,6 +214,19 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
+// The MCP SDK transitively pulls kotlinx-coroutines-bom:1.10.2, which upgrades
+// every coroutines artifact and breaks Ktor 2.3.6 at runtime (NoSuchMethodError
+// on LockFreeLinkedListHead.addLast — removed after coroutines 1.8.x). Gradle's
+// exclude rules don't strip BOM platform constraints, so we force the catalog
+// version across the coroutines artifacts Ktor reaches for.
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlinx:kotlinx-coroutines-core:${libs.versions.coroutines.get()}")
+        force("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${libs.versions.coroutines.get()}")
+        force("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${libs.versions.coroutines.get()}")
+    }
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
@@ -234,6 +252,89 @@ tasks.create("createProperties") {
             p.store(w, null)
         }
     }
+}
+
+// simulator-server bundling
+// ─────────────────────────
+// Downloads prebuilt `simulator-server` binaries from mobile-dev-inc/simulator-server-releases
+// (public) and extracts them into the CLI's resources so `Dependencies.installSimulatorServer()`
+// can unpack the right platform binary at runtime (following the `applesimutils` pattern —
+// see Unpacker.kt). SHA is pinned in gradle/libs.versions.toml; Gradle caches the extracted
+// dir keyed on the SHA, so contributors only pay the download cost when the pin changes.
+val simulatorServerSha = libs.versions.simulatorServer.get()
+val simulatorServerGeneratedDir = layout.buildDirectory.dir("generated/simulator-server")
+
+val downloadSimulatorServer = tasks.register("downloadSimulatorServer") {
+    val sha = simulatorServerSha
+    val outDir = simulatorServerGeneratedDir.get().asFile
+    inputs.property("sha", sha)
+    outputs.dir(outDir)
+
+    doLast {
+        val tag = "simulator-server-$sha"
+        val baseUrl = "https://github.com/mobile-dev-inc/simulator-server-releases/releases/download/$tag"
+        val http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
+
+        fun download(assetName: String): ByteArray {
+            val req = HttpRequest.newBuilder(URI.create("$baseUrl/$assetName"))
+                .header("User-Agent", "maestro-cli-build")
+                .GET()
+                .build()
+            val resp = http.send(req, HttpResponse.BodyHandlers.ofByteArray())
+            check(resp.statusCode() == 200) {
+                "Failed to download $assetName from simulator-server-releases (HTTP ${resp.statusCode()}). " +
+                "Check that release $tag exists with the expected assets."
+            }
+            return resp.body()
+        }
+
+        // Parse `shasum -a 256` output: "<hex>  <filename>" per line.
+        val sums = String(download("SHA256SUMS"), Charsets.UTF_8)
+            .lineSequence()
+            .mapNotNull { line ->
+                val parts = line.trim().split(Regex("\\s+"), limit = 2)
+                if (parts.size == 2 && parts[0].length == 64) parts[1] to parts[0].lowercase() else null
+            }
+            .toMap()
+
+        val platforms = listOf(
+            Triple("darwin",  "simulator-server-$sha-darwin-universal.tar.gz", "targz"),
+            Triple("linux",   "simulator-server-$sha-linux-x86_64.tar.gz",     "targz"),
+            Triple("windows", "simulator-server-$sha-windows-x86_64.zip",      "zip"),
+        )
+
+        outDir.deleteRecursively()
+        val depsRoot = outDir.resolve("deps/simulator-server").apply { mkdirs() }
+
+        platforms.forEach { (platform, assetName, kind) ->
+            val expected = sums[assetName]
+                ?: error("SHA256SUMS in release $tag has no entry for $assetName")
+            val bytes = download(assetName)
+            val actual = MessageDigest.getInstance("SHA-256")
+                .digest(bytes)
+                .joinToString("") { "%02x".format(it) }
+            check(actual == expected) {
+                "Checksum mismatch for $assetName: expected $expected, got $actual. " +
+                "The release may have been tampered with — aborting."
+            }
+
+            val archive = outDir.resolve(assetName).apply { parentFile.mkdirs() }
+            archive.writeBytes(bytes)
+
+            val platformDir = depsRoot.resolve(platform).apply { mkdirs() }
+            copy {
+                from(if (kind == "zip") zipTree(archive) else tarTree(resources.gzip(archive)))
+                into(platformDir)
+            }
+            archive.delete()
+        }
+
+        outDir.resolve("simulator-server-version.txt").writeText(sha)
+    }
+}
+
+sourceSets.named("main") {
+    resources.srcDir(downloadSimulatorServer.map { simulatorServerGeneratedDir })
 }
 
 tasks.register<Copy>("createTestResources") {

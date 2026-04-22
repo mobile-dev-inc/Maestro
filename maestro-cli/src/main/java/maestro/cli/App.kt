@@ -37,6 +37,7 @@ import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.RecordCommand
 import maestro.cli.command.StartDeviceCommand
+import maestro.cli.command.StreamCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.insights.TestAnalysisManager
@@ -66,6 +67,7 @@ import kotlin.system.exitProcess
         LogoutCommand::class,
         BugReportCommand::class,
         StudioCommand::class,
+        StreamCommand::class,
         StartDeviceCommand::class,
         ListDevicesCommand::class,
         ListCloudDevicesCommand::class,

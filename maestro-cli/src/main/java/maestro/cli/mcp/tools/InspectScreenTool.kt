@@ -7,10 +7,12 @@ import maestro.cli.session.MaestroSessionManager
 import kotlinx.coroutines.runBlocking
 
 object InspectScreenTool {
+    const val NAME = "inspect_screen"
+
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "inspect_screen",
+                name = NAME,
                 description = "Get the current screen's view hierarchy as compact JSON. " +
                     "The payload has two top-level keys: `ui_schema` (one-time abbreviations + per-attribute defaults for this platform) " +
                     "and `elements` (the tree, nested via `c` children). Keys on each element are abbreviated (e.g. `b`=bounds, `txt`=text, " +

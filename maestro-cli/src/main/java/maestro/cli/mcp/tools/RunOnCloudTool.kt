@@ -16,10 +16,12 @@ import java.io.ByteArrayInputStream
 import kotlin.io.path.absolute
 
 object RunOnCloudTool {
+    const val NAME = "run_on_cloud"
+
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "run_on_cloud",
+                name = NAME,
                 description = "Submit a Maestro flow (or folder of flows) to Maestro Cloud for execution on cloud devices. " +
                     "Returns immediately with an upload_id and dashboard URL. Use get_cloud_run_status to poll for results. " +
                     "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",

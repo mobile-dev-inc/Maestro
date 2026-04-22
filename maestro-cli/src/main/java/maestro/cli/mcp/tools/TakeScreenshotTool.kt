@@ -12,10 +12,12 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
 object TakeScreenshotTool {
+    const val NAME = "take_screenshot"
+
     fun create(sessionManager: MaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
-                name = "take_screenshot",
+                name = NAME,
                 description = "Take a screenshot of the current device screen",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {
