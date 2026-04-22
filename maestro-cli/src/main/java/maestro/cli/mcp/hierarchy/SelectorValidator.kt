@@ -5,120 +5,78 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import maestro.Filters
 import maestro.TreeNode
 
-// Cross-checks `text:` selectors in a flow's YAML against the latest
-// hierarchy snapshot. Matching delegates to Filters.textMatches with the
-// same RegexOptions Orchestra uses (IGNORE_CASE, DOT_MATCHES_ALL,
-// MULTILINE), so a verdict here matches the runner. Selectors containing
-// ${...} env interpolation are skipped — they'll be resolved by Orchestra
-// before the real match runs.
 object SelectorValidator {
 
     sealed interface Result {
         data object Ok : Result
         data class Miss(val findings: List<Finding>) : Result {
-            init { require(findings.isNotEmpty()) { "Miss must carry at least one finding" } }
+            init { require(findings.isNotEmpty()) }
         }
     }
 
-    data class Finding(
-        val selector: String,
-        val suggestions: List<String>,
-    )
+    data class Finding(val selector: String, val suggestions: List<String>)
 
     fun validate(yaml: String, snapshot: HierarchySnapshotStore.Snapshot): Result {
-        val selectors = extractTextSelectors(yaml)
-            .filterNot(::hasEnvInterpolation)
+        val selectors = textSelectorsIn(yaml)
+            .filterNot { ENV_INTERPOLATION.containsMatchIn(it) }
             .distinct()
         if (selectors.isEmpty()) return Result.Ok
 
         val nodes = snapshot.root.aggregate()
         val findings = selectors
-            .filterNot { selectorMatches(it, nodes) }
-            .map { Finding(selector = it, suggestions = suggestFor(it, nodes)) }
+            .filterNot { it.matchesAny(nodes) }
+            .map { Finding(it, it.suggestionsFrom(nodes)) }
 
         return if (findings.isEmpty()) Result.Ok else Result.Miss(findings)
     }
 
-    private fun hasEnvInterpolation(selector: String): Boolean = ENV_INTERPOLATION.containsMatchIn(selector)
-
-    private fun extractTextSelectors(yaml: String): List<String> {
-        val root = try {
-            YAML.readTree(yaml)
-        } catch (e: Exception) {
-            // Malformed YAML surfaces a better error from YamlCommandReader
-            // downstream; don't second-guess it here.
-            return emptyList()
-        }
+    private fun textSelectorsIn(yaml: String): List<String> {
+        val root = try { YAML.readTree(yaml) } catch (e: Exception) { return emptyList() }
         val out = mutableListOf<String>()
-        collect(root, out)
+        root.walkTextSelectors(out)
         return out
     }
 
-    private fun collect(node: JsonNode?, out: MutableList<String>) {
-        if (node == null || node.isNull) return
+    private fun JsonNode.walkTextSelectors(out: MutableList<String>) {
+        if (isNull) return
         when {
-            node.isObject -> node.fields().forEach { (key, value) ->
+            isObject -> fields().forEach { (key, value) ->
                 if (key == "text" && value.isTextual) {
                     value.asText().takeIf { it.isNotBlank() }?.let(out::add)
                 } else {
-                    collect(value, out)
+                    value.walkTextSelectors(out)
                 }
             }
-            node.isArray -> node.forEach { collect(it, out) }
+            isArray -> forEach { it.walkTextSelectors(out) }
         }
     }
 
-    private fun selectorMatches(selector: String, nodes: List<TreeNode>): Boolean {
+    private fun String.matchesAny(nodes: List<TreeNode>): Boolean {
         val regex = try {
-            Regex(selector, REGEX_OPTIONS)
+            Regex(this, REGEX_OPTIONS)
         } catch (e: Exception) {
-            // Selector isn't a valid regex (e.g. "foo("). Filters.textMatches
-            // has a `regex.pattern == value` literal-equality branch for this,
-            // but we can't construct a Regex to hand it — mimic it directly.
-            return nodes.any { node ->
-                TEXT_ATTRIBUTES.any { attr -> node.attributes[attr] == selector }
-            }
+            return nodes.any { n -> TEXT_ATTRIBUTES.any { n.attributes[it] == this } }
         }
         return Filters.textMatches(regex).invoke(nodes).isNotEmpty()
     }
 
-    private fun suggestFor(selector: String, nodes: List<TreeNode>): List<String> {
+    private fun String.suggestionsFrom(nodes: List<TreeNode>): List<String> {
         val candidates = linkedSetOf<String>()
-        nodes.forEach { node ->
-            TEXT_ATTRIBUTES.forEach { attr ->
-                node.attributes[attr]?.takeIf { it.isNotBlank() }?.let { candidates.add(it) }
-            }
-        }
+        nodes.forEach { n -> TEXT_ATTRIBUTES.forEach { n.attributes[it]?.takeIf(String::isNotBlank)?.let(candidates::add) } }
         if (candidates.isEmpty()) return emptyList()
 
-        // Cheap bidirectional substring match — catches typos like "Loign"/"Login"
-        // and truncations like "RNR 352"/"RNR 352 - Expo Launch..." without
-        // needing a Levenshtein dependency.
-        val lowered = selector.lowercase()
-        val partial = candidates
-            .filter { it.lowercase().contains(lowered) || lowered.contains(it.lowercase()) }
-            .take(MAX_SUGGESTIONS)
-
-        if (partial.isNotEmpty()) return partial
-
-        return candidates.take(FALLBACK_PEEK).toList()
+        val lowered = lowercase()
+        val overlap = candidates.filter { it.lowercase().contains(lowered) || lowered.contains(it.lowercase()) }
+        return (if (overlap.isNotEmpty()) overlap.take(MAX_SUGGESTIONS) else candidates.take(FALLBACK_PEEK)).toList()
     }
 
-    // Mirrors the attributes Filters.textMatches inspects in
-    // maestro-client/Filters.kt::textMatches. Keep the two in sync.
+    // Mirrors maestro-client/Filters.kt::textMatches and
+    // maestro-orchestra/Orchestra.kt::REGEX_OPTIONS — keep in sync.
     private val TEXT_ATTRIBUTES = listOf("text", "hintText", "accessibilityText")
-
-    // Mirrors maestro-orchestra/Orchestra.kt::REGEX_OPTIONS.
-    private val REGEX_OPTIONS = setOf(
-        RegexOption.IGNORE_CASE,
-        RegexOption.DOT_MATCHES_ALL,
-        RegexOption.MULTILINE,
-    )
+    private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
     private val ENV_INTERPOLATION = Regex("""\$\{[^}]+}""")
-
     private const val MAX_SUGGESTIONS = 5
     private const val FALLBACK_PEEK = 10
-
     private val YAML = YAMLMapper()
 }

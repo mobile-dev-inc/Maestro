@@ -7,36 +7,25 @@ import org.junit.jupiter.api.Test
 class HierarchySnapshotStoreTest {
 
     @Test
-    fun `stores the tree root for later matching`() {
+    fun `stores the tree root`() {
         val store = HierarchySnapshotStore()
-        val tree = node(attributes = mapOf("text" to "Sign in"))
-
+        val tree = TreeNode(attributes = mutableMapOf("text" to "Sign in"))
         store.record("device-1", tree)
-
         assertThat(store.get("device-1")?.root).isSameInstanceAs(tree)
     }
 
     @Test
     fun `last write wins per device`() {
         val store = HierarchySnapshotStore()
-        val first = node(attributes = mapOf("text" to "First"))
-        val second = node(attributes = mapOf("text" to "Second"))
-
+        val first = TreeNode(attributes = mutableMapOf("text" to "First"))
+        val second = TreeNode(attributes = mutableMapOf("text" to "Second"))
         store.record("device-1", first)
         store.record("device-1", second)
-
         assertThat(store.get("device-1")?.root).isSameInstanceAs(second)
     }
 
     @Test
-    fun `get returns null for unknown device`() {
-        val store = HierarchySnapshotStore()
-        assertThat(store.get("nope")).isNull()
+    fun `unknown device returns null`() {
+        assertThat(HierarchySnapshotStore().get("nope")).isNull()
     }
-
-
-    private fun node(
-        attributes: Map<String, String> = emptyMap(),
-        children: List<TreeNode> = emptyList(),
-    ): TreeNode = TreeNode(attributes = attributes.toMutableMap(), children = children)
 }

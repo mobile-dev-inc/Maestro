@@ -44,9 +44,8 @@ object RunTool {
         `env` is optional in all modes and injects environment variables available to the flow.
 
         Syntax is validated as part of this call; no separate pre-check is needed.
-        `text:` selectors are also cross-checked against the latest `inspect_view_hierarchy`
-        snapshot for the target device; misses surface before Maestro parses the flow. Pass
-        `skip_selector_validation: true` to bypass (e.g. flows that target dynamically-rendered text).
+        `text:` selectors are cross-checked against the latest `inspect_view_hierarchy`
+        snapshot for the device. Pass `skip_selector_validation: true` for dynamically-rendered text.
 
         If no device is running, ask the user to start one first.
         Use `inspect_view_hierarchy` to get the current screen before guessing at commands.
@@ -166,12 +165,7 @@ object RunTool {
             }
             putJsonObject("skip_selector_validation") {
                 put("type", "boolean")
-                put(
-                    "description",
-                    "Skip cross-checking `text:` selectors against the latest hierarchy snapshot. " +
-                        "Default false. Set true when the flow targets text that renders dynamically and " +
-                        "wasn't present in the last `inspect_view_hierarchy`.",
-                )
+                put("description", "Skip cross-checking `text:` selectors against the hierarchy snapshot. Default false.")
             }
         },
         required = listOf("device_id"),
@@ -313,71 +307,53 @@ object RunTool {
         executable: Executable,
         snapshot: HierarchySnapshotStore.Snapshot,
     ): CallToolResult? {
-        for (source in collectYamlSources(executable)) {
-            if (source.yaml.isBlank()) continue
-            val result = SelectorValidator.validate(source.yaml, snapshot)
-            if (result is SelectorValidator.Result.Miss) {
-                return selectorValidationError(deviceId, source.label, result.findings)
-            }
+        yamlSourcesOf(executable).forEach { (label, yaml) ->
+            if (yaml.isBlank()) return@forEach
+            val miss = SelectorValidator.validate(yaml, snapshot) as? SelectorValidator.Result.Miss ?: return@forEach
+            return selectorMissError(deviceId, label, miss.findings)
         }
         return null
     }
 
-    private fun collectYamlSources(executable: Executable): List<YamlSource> = when (executable) {
-        is Executable.Inline -> listOf(YamlSource(label = "inline", yaml = executable.yaml))
-        is Executable.Plan -> buildList {
-            executable.plan.sequence.flows.forEach { add(yamlSourceForFile(it)) }
-            executable.plan.flowsToRun.forEach { add(yamlSourceForFile(it)) }
-        }
+    private fun yamlSourcesOf(executable: Executable): List<Pair<String, String>> = when (executable) {
+        is Executable.Inline -> listOf("inline" to executable.yaml)
+        is Executable.Plan -> (executable.plan.sequence.flows + executable.plan.flowsToRun).map { it.toString() to readYaml(it) }
     }
 
-    private fun yamlSourceForFile(path: Path): YamlSource {
-        // Best-effort read. An unreadable file just skips validation for that
-        // source; YamlCommandReader will produce the real error when it tries
-        // to run the flow. We still log at warn so a puzzled maintainer sees
-        // why the pre-check didn't fire.
-        val yaml = try {
-            path.toFile().readText()
-        } catch (e: Exception) {
-            logger.warn("Failed to read {} for selector validation: {}", path, e.message)
-            ""
-        }
-        return YamlSource(label = path.toString(), yaml = yaml)
+    private fun readYaml(path: Path): String = try {
+        path.toFile().readText()
+    } catch (e: Exception) {
+        logger.warn("Failed to read {} for selector validation: {}", path, e.message)
+        ""
     }
 
-    private fun selectorValidationError(
+    private fun selectorMissError(
         deviceId: String,
-        label: String,
+        source: String,
         findings: List<SelectorValidator.Finding>,
     ): CallToolResult {
         val payload = buildJsonObject {
             put("success", false)
             put("device_id", deviceId)
-            put("error", ERROR_SELECTOR_NOT_ON_SCREEN)
-            put("source", label)
+            put("error", "selector_not_on_screen")
+            put("source", source)
             put(
                 "message",
                 "One or more `text:` selectors don't appear in the latest `inspect_view_hierarchy` " +
-                    "snapshot for this device. Re-inspect the screen and use the exact text on display, " +
-                    "or pass `skip_selector_validation: true` if the text renders dynamically.",
+                    "snapshot. Re-inspect and copy the exact on-screen text, or pass " +
+                    "`skip_selector_validation: true` if the text renders dynamically.",
             )
             putJsonArray("findings") {
                 findings.forEach { finding ->
                     addJsonObject {
                         put("selector", finding.selector)
-                        putJsonArray("closest_texts_on_screen") {
-                            finding.suggestions.forEach { add(it) }
-                        }
+                        putJsonArray("closest_texts_on_screen") { finding.suggestions.forEach { add(it) } }
                     }
                 }
             }
         }
         return CallToolResult(content = listOf(TextContent(payload.toString())), isError = true)
     }
-
-    private const val ERROR_SELECTOR_NOT_ON_SCREEN = "selector_not_on_screen"
-
-    private data class YamlSource(val label: String, val yaml: String)
 
     private data class RunResult(val payload: JsonObject, val success: Boolean)
 

@@ -7,68 +7,51 @@ import org.junit.jupiter.api.Test
 class SelectorValidatorTest {
 
     @Test
-    fun `passes when every text selector matches some on-screen text`() {
-        val snapshot = snapshotOfAll("Sign in", "Create account")
-        val yaml = """
-            - launchApp
-            - tapOn:
-                text: "Sign in"
-        """.trimIndent()
-
+    fun `passes when every text selector matches on-screen text`() {
+        val snapshot = snapshotOf("Sign in", "Create account")
+        val yaml = "- tapOn:\n    text: \"Sign in\""
         assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
     }
 
     @Test
-    fun `flags truncated text that only partially matches (matches runner's full-string semantics)`() {
-        // Matches Simon's RNR 352 failure: Maestro's text matcher uses
-        // regex.matches (full-string), so "RNR 352" does NOT hit an element
-        // whose text is "RNR 352 - Expo Launch with Cedric van Putten".
-        val snapshot = snapshotOfAll("RNR 352 - Expo Launch with Cedric van Putten")
-        val yaml = """
-            - tapOn:
-                text: "RNR 352"
-        """.trimIndent()
+    fun `flags truncated text (Maestro uses full-string regex matches)`() {
+        val snapshot = snapshotOf("RNR 352 - Expo Launch with Cedric van Putten")
+        val yaml = "- tapOn:\n    text: \"RNR 352\""
 
         val result = SelectorValidator.validate(yaml, snapshot) as SelectorValidator.Result.Miss
         assertThat(result.findings.single().selector).isEqualTo("RNR 352")
-        assertThat(result.findings.single().suggestions)
-            .contains("RNR 352 - Expo Launch with Cedric van Putten")
+        assertThat(result.findings.single().suggestions).contains("RNR 352 - Expo Launch with Cedric van Putten")
     }
 
     @Test
-    fun `flags selectors that do not appear anywhere in the snapshot`() {
-        val snapshot = snapshotOfAll("Sign in", "Create account", "Help")
-        val yaml = """
-            - tapOn:
-                text: "Favorite"
-        """.trimIndent()
+    fun `flags selectors not present in the snapshot`() {
+        val snapshot = snapshotOf("Sign in", "Create account", "Help")
+        val yaml = "- tapOn:\n    text: \"Favorite\""
 
         val result = SelectorValidator.validate(yaml, snapshot) as SelectorValidator.Result.Miss
         assertThat(result.findings.single().selector).isEqualTo("Favorite")
     }
 
     @Test
-    fun `suggests close matches via case-insensitive substring overlap`() {
-        val snapshot = snapshotOfAll(
-            "Add to favorites",
-            "Remove from favorites",
-            "Unrelated string",
-        )
-        // Capital F in selector — case-sensitive regex against lowercase
-        // "favorites" misses, so we surface substring matches.
-        val yaml = """
-            - tapOn:
-                text: "Favorite"
-        """.trimIndent()
+    fun `matches case-insensitively like the runner`() {
+        val snapshot = snapshotOf("Favorite")
+        val yaml = "- tapOn:\n    text: \"favorite\""
+        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
+    }
+
+    @Test
+    fun `suggests close matches via bidirectional substring overlap`() {
+        val snapshot = snapshotOf("Add to favorites page", "Remove from favorites", "Unrelated")
+        val yaml = "- tapOn:\n    text: \"favorite\""
 
         val result = SelectorValidator.validate(yaml, snapshot) as SelectorValidator.Result.Miss
         assertThat(result.findings.single().suggestions)
-            .containsExactly("Add to favorites", "Remove from favorites").inOrder()
+            .containsExactly("Add to favorites page", "Remove from favorites").inOrder()
     }
 
     @Test
     fun `recurses through nested selectors like below`() {
-        val snapshot = snapshotOfAll("Email", "Password")
+        val snapshot = snapshotOf("Email", "Password")
         val yaml = """
             - tapOn:
                 text: "Ghost"
@@ -82,7 +65,7 @@ class SelectorValidatorTest {
 
     @Test
     fun `deduplicates repeated selectors`() {
-        val snapshot = snapshotOfAll("Sign in")
+        val snapshot = snapshotOf("Sign in")
         val yaml = """
             - tapOn:
                 text: "Ghost"
@@ -95,92 +78,57 @@ class SelectorValidatorTest {
     }
 
     @Test
-    fun `falls back to literal equality when selector is invalid regex`() {
-        val snapshot = snapshotOfAll("Price: \$9.99")
-        val yaml = """
-            - assertVisible:
-                text: "Price: \${'$'}9.99"
-        """.trimIndent()
-
+    fun `skips selectors containing env-var interpolation`() {
+        val snapshot = snapshotOf("Welcome, Pedro")
+        val yaml = "- assertVisible:\n    text: \"Welcome, ${'$'}{USER}\""
         assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
     }
 
     @Test
-    fun `snapshot with no textual overlap surfaces a fallback peek list`() {
-        val snapshot = snapshotOfAll("One", "Two", "Three")
-        val yaml = """
-            - tapOn:
-                text: "xyz-nowhere"
-        """.trimIndent()
+    fun `falls back to literal equality when selector is invalid regex`() {
+        val snapshot = snapshotOf("Price: \$9.99")
+        val yaml = "- assertVisible:\n    text: \"Price: \${'$'}9.99\""
+        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
+    }
+
+    @Test
+    fun `peek list surfaces when selector has no textual overlap`() {
+        val snapshot = snapshotOf("One", "Two", "Three")
+        val yaml = "- tapOn:\n    text: \"xyz-nowhere\""
 
         val result = SelectorValidator.validate(yaml, snapshot) as SelectorValidator.Result.Miss
         assertThat(result.findings.single().suggestions).containsExactly("One", "Two", "Three")
     }
 
     @Test
-    fun `no text selectors in the flow is Ok`() {
-        val snapshot = snapshotOfAll("whatever")
-        val yaml = """
-            - launchApp
-            - scroll
-        """.trimIndent()
-
+    fun `flow without text selectors is Ok`() {
+        val snapshot = snapshotOf("whatever")
+        val yaml = "- launchApp\n- scroll"
         assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
     }
 
     @Test
-    fun `invalid yaml falls through cleanly instead of throwing`() {
-        val snapshot = snapshotOfAll("whatever")
-        val yaml = ": : ::"
-
-        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
+    fun `invalid yaml falls through`() {
+        assertThat(SelectorValidator.validate(": : ::", snapshotOf("x"))).isEqualTo(SelectorValidator.Result.Ok)
     }
 
     @Test
-    fun `matches case-insensitively (same as runner)`() {
-        val snapshot = snapshotOfAll("Favorite")
-        val yaml = """
-            - tapOn:
-                text: "favorite"
-        """.trimIndent()
-
-        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
-    }
-
-    @Test
-    fun `skips selectors containing env-var interpolation`() {
-        val snapshot = snapshotOfAll("Welcome, Pedro")
-        val yaml = """
-            - assertVisible:
-                text: "Welcome, ${'$'}{USER}"
-        """.trimIndent()
-
-        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
-    }
-
-    @Test
-    fun `matches against hintText and accessibilityText the same as text`() {
-        val root = TreeNode(
-            children = listOf(
-                TreeNode(attributes = mutableMapOf("hintText" to "Search here")),
-                TreeNode(attributes = mutableMapOf("accessibilityText" to "Menu button")),
-            ),
-        )
-        val snapshot = HierarchySnapshotStore.Snapshot(root)
+    fun `matches hintText and accessibilityText`() {
+        val root = TreeNode(children = listOf(
+            TreeNode(attributes = mutableMapOf("hintText" to "Search here")),
+            TreeNode(attributes = mutableMapOf("accessibilityText" to "Menu button")),
+        ))
         val yaml = """
             - tapOn:
                 text: "Search here"
             - tapOn:
                 text: "Menu button"
         """.trimIndent()
-
-        assertThat(SelectorValidator.validate(yaml, snapshot)).isEqualTo(SelectorValidator.Result.Ok)
+        assertThat(SelectorValidator.validate(yaml, HierarchySnapshotStore.Snapshot(root)))
+            .isEqualTo(SelectorValidator.Result.Ok)
     }
 
-    private fun snapshotOfAll(vararg texts: String): HierarchySnapshotStore.Snapshot {
-        val root = TreeNode(
-            children = texts.map { TreeNode(attributes = mutableMapOf("text" to it)) },
-        )
-        return HierarchySnapshotStore.Snapshot(root)
-    }
+    private fun snapshotOf(vararg texts: String) = HierarchySnapshotStore.Snapshot(
+        TreeNode(children = texts.map { TreeNode(attributes = mutableMapOf("text" to it)) }),
+    )
 }
