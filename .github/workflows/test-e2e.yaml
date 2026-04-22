@@ -340,6 +340,18 @@ jobs:
         timeout-minutes: 120
         run: ./run_tests ios
 
+      - name: Verify iOS UI-interruption preflight is suppressed
+        # Regression guard for IOS_UI_INTERRUPTION_HANG.md. Builds a minimal
+        # SwiftUI app that presents a real UIAlertController, runs a gesture
+        # against it, and asserts Apple's preflight signature lines never
+        # appear in the xctest_runner log. Fails if the swizzle in
+        # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
+        # XCUIApplication+Helper.m regresses.
+        run: |
+          brew install xcodegen
+          SIM_UDID=$(xcrun simctl list devices booted -j | python3 -c 'import json, sys; print(next(iter(json.load(sys.stdin)["devices"].values()))[0]["udid"])')
+          ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
+
       - name: Stop screen recording
         if: success() || failure()
         run: kill -SIGINT "$(cat ~/screenrecord.pid)"
