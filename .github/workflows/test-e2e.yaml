@@ -349,7 +349,13 @@ jobs:
         # XCUIApplication+Helper.m regresses.
         run: |
           brew install xcodegen
-          SIM_UDID=$(xcrun simctl list devices booted -j | python3 -c 'import json, sys; print(next(iter(json.load(sys.stdin)["devices"].values()))[0]["udid"])')
+          SIM_UDID=$(xcrun simctl list devices booted | grep -oE '[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}' | head -1)
+          if [ -z "$SIM_UDID" ]; then
+            echo "error: no booted iOS simulator found" >&2
+            xcrun simctl list devices booted
+            exit 1
+          fi
+          echo "Using booted simulator: $SIM_UDID"
           ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
 
       - name: Stop screen recording
