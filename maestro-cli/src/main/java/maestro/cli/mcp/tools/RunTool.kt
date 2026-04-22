@@ -84,11 +84,9 @@ object RunTool {
         }
 
         if (!args.skipSelectorValidation) {
-            val snapshot = snapshotStore.get(args.deviceId)
-            if (snapshot != null) {
-                val yamlSources = collectYamlSources(executable)
-                val miss = findFirstMiss(yamlSources, snapshot)
-                if (miss != null) return selectorValidationErrorResult(args.deviceId, miss)
+            snapshotStore.get(args.deviceId)?.let { snapshot ->
+                val validationError = validateSelectors(args.deviceId, executable, snapshot)
+                if (validationError != null) return validationError
             }
         }
 
@@ -307,6 +305,21 @@ object RunTool {
     private fun errorResult(message: String): CallToolResult =
         CallToolResult(content = listOf(TextContent(message)), isError = true)
 
+    private fun validateSelectors(
+        deviceId: String,
+        executable: Executable,
+        snapshot: HierarchySnapshotStore.Snapshot,
+    ): CallToolResult? {
+        for (source in collectYamlSources(executable)) {
+            if (source.yaml.isBlank()) continue
+            val result = SelectorValidator.validate(source.yaml, snapshot)
+            if (result is SelectorValidator.Result.Miss) {
+                return selectorValidationError(deviceId, source.label, result.findings)
+            }
+        }
+        return null
+    }
+
     private fun collectYamlSources(executable: Executable): List<YamlSource> = when (executable) {
         is Executable.Inline -> listOf(YamlSource(label = "inline", yaml = executable.yaml))
         is Executable.Plan -> buildList {
@@ -315,31 +328,24 @@ object RunTool {
         }
     }
 
-    private fun yamlSourceForFile(path: Path): YamlSource = YamlSource(
-        label = path.toString(),
-        yaml = try { path.toFile().readText() } catch (e: Exception) { "" },
-    )
-
-    private fun findFirstMiss(
-        sources: List<YamlSource>,
-        snapshot: HierarchySnapshotStore.Snapshot,
-    ): SelectorMiss? {
-        for (source in sources) {
-            if (source.yaml.isBlank()) continue
-            val result = SelectorValidator.validate(source.yaml, snapshot)
-            if (result is SelectorValidator.Result.Miss) {
-                return SelectorMiss(label = source.label, findings = result.findings)
-            }
-        }
-        return null
+    private fun yamlSourceForFile(path: Path): YamlSource {
+        // Best-effort read. An unreadable file just skips validation for that
+        // source; YamlCommandReader will produce the real error when it tries
+        // to run the flow.
+        val yaml = try { path.toFile().readText() } catch (e: Exception) { "" }
+        return YamlSource(label = path.toString(), yaml = yaml)
     }
 
-    private fun selectorValidationErrorResult(deviceId: String, miss: SelectorMiss): CallToolResult {
+    private fun selectorValidationError(
+        deviceId: String,
+        label: String,
+        findings: List<SelectorValidator.Finding>,
+    ): CallToolResult {
         val payload = buildJsonObject {
             put("success", false)
             put("device_id", deviceId)
-            put("error", "selector_not_on_screen")
-            put("source", miss.label)
+            put("error", ERROR_SELECTOR_NOT_ON_SCREEN)
+            put("source", label)
             put(
                 "message",
                 "One or more `text:` selectors don't appear in the latest `inspect_view_hierarchy` " +
@@ -347,7 +353,7 @@ object RunTool {
                     "or pass `skip_selector_validation: true` if the text renders dynamically.",
             )
             putJsonArray("findings") {
-                miss.findings.forEach { finding ->
+                findings.forEach { finding ->
                     addJsonObject {
                         put("selector", finding.selector)
                         putJsonArray("closest_texts_on_screen") {
@@ -360,12 +366,9 @@ object RunTool {
         return CallToolResult(content = listOf(TextContent(payload.toString())), isError = true)
     }
 
-    private data class YamlSource(val label: String, val yaml: String)
+    private const val ERROR_SELECTOR_NOT_ON_SCREEN = "selector_not_on_screen"
 
-    private data class SelectorMiss(
-        val label: String,
-        val findings: List<SelectorValidator.Finding>,
-    )
+    private data class YamlSource(val label: String, val yaml: String)
 
     private data class RunResult(val payload: JsonObject, val success: Boolean)
 

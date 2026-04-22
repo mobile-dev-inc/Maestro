@@ -7,32 +7,25 @@ import org.junit.jupiter.api.Test
 class HierarchySnapshotStoreTest {
 
     @Test
-    fun `records text-bearing attributes from the tree`() {
+    fun `stores the tree root for later matching`() {
         val store = HierarchySnapshotStore()
-        val tree = node(
-            attributes = mapOf("text" to "Sign in", "bounds" to "[0,0][100,50]"),
-            children = listOf(
-                node(attributes = mapOf("accessibilityText" to "Favorite button")),
-                node(attributes = mapOf("content-desc" to "Share", "hintText" to "Tap to share")),
-            ),
-        )
+        val tree = node(attributes = mapOf("text" to "Sign in"))
 
         store.record("device-1", tree)
 
-        val snapshot = store.get("device-1")
-        assertThat(snapshot).isNotNull()
-        assertThat(snapshot!!.texts).containsExactly(
-            "Sign in", "Favorite button", "Share", "Tap to share",
-        )
+        assertThat(store.get("device-1")?.root).isSameInstanceAs(tree)
     }
 
     @Test
     fun `last write wins per device`() {
         val store = HierarchySnapshotStore()
-        store.record("device-1", node(attributes = mapOf("text" to "First")))
-        store.record("device-1", node(attributes = mapOf("text" to "Second")))
+        val first = node(attributes = mapOf("text" to "First"))
+        val second = node(attributes = mapOf("text" to "Second"))
 
-        assertThat(store.get("device-1")!!.texts).containsExactly("Second")
+        store.record("device-1", first)
+        store.record("device-1", second)
+
+        assertThat(store.get("device-1")?.root).isSameInstanceAs(second)
     }
 
     @Test
@@ -42,10 +35,10 @@ class HierarchySnapshotStoreTest {
     }
 
     @Test
-    fun `null or empty attribute values are skipped`() {
+    fun `record ignores null root`() {
         val store = HierarchySnapshotStore()
-        store.record("device-1", node(attributes = mapOf("text" to "", "accessibilityText" to "   ")))
-        assertThat(store.get("device-1")!!.texts).isEmpty()
+        store.record("device-1", null)
+        assertThat(store.get("device-1")).isNull()
     }
 
     private fun node(
