@@ -19,7 +19,7 @@ object InspectViewHierarchyTool {
                     "Those attribute keys are NOT valid Maestro selector keys. `tapOn` / `assertVisible` / etc. accept " +
                     "`text`, `id`, `index`, and position matchers (`below`, `above`, `leftOf`, `rightOf`). " +
                     "Map `accessibilityText=Foo` to `text: Foo`; never pass `accessibilityText` as a selector. " +
-                    "Always copy `text:` values verbatim from this output — never author them from a screenshot, " +
+                    "Always copy `text:` values verbatim from this output; never author them from a screenshot, " +
                     "which is a common source of hallucinated strings (e.g. an element showing a heart icon " +
                     "looks like a \"Favorite\" button in a screenshot but has no such text in the hierarchy). " +
                     "Maestro's `text:` matcher is full-string regex with IGNORE_CASE, so a partial string does " +
