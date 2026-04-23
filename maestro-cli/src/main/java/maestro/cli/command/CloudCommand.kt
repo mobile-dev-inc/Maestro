@@ -219,6 +219,7 @@ class CloudCommand : Callable<Int> {
             async = async,
             flowFile = flowsFile,
             appFile = appFile,
+            configFile = configFile,
             mapping = mapping,
             env = env,
             uploadName = uploadName,

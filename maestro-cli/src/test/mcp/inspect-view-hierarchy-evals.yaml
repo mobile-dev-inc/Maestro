@@ -15,8 +15,7 @@ evals:
         - inspect_view_hierarchy
         allowed:
         - list_devices
-        - start_device
-        - launch_app
+        - run
       response_scorers:
       - type: llm-judge
         criteria: >

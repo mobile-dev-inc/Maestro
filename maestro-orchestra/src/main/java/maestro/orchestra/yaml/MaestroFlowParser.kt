@@ -106,6 +106,18 @@ private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
         _location = location,
         inputRandomPersonName = YamlInputRandomPersonName(),
     )},
+    "inputRandomCityName" to { location -> YamlFluentCommand(
+        _location = location,
+        inputRandomCityName = YamlInputRandomCityName(),
+    )},
+    "inputRandomCountryName" to { location -> YamlFluentCommand(
+        _location = location,
+        inputRandomCountryName = YamlInputRandomCountryName(),
+    )},
+    "inputRandomColorName" to { location -> YamlFluentCommand(
+        _location = location,
+        inputRandomColorName = YamlInputRandomColorName(),
+    )},
     "back" to { location -> YamlFluentCommand(
         _location = location,
         back = YamlActionBack(),

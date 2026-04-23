@@ -1,0 +1,14 @@
+url: https://pastebin.com
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "We value your privacy"
+- tapOn: "AGREE"
+
+- assertVisible:
+    id: "postform-text"
+- tapOn:
+    id: "postform-text"
+- inputText: Potato
+- assertVisible: Potato
