@@ -3901,8 +3901,15 @@ class IntegrationTest {
             "InputTextCommand"
         ).inOrder()
 
-        assertThat(executedCommands).doesNotContain("TapOnCommand")
-
+        // Intentionally NOT asserting `executedCommands.doesNotContain("TapOnCommand")`:
+        // `executedCommands` is populated from `onCommandMetadataUpdate`, which fires
+        // when Orchestra begins evaluating a command — before the next cancellation
+        // checkpoint. External cancellation is `Job.cancel()` on the outer thread; it
+        // only sets a flag, and cancellation lands at the next suspension point. On a
+        // slow CI the metadata update for `tap` can fire before the flag is observed,
+        // causing a flake. The deterministic check that tap never actually EXECUTED
+        // is `driver.assertEvents(...)` below — the driver only records events that
+        // reached execution, so a racing metadata update doesn't pollute it.
         driver.assertEvents(
             listOf(
                 Event.LaunchApp("com.example.app"),
