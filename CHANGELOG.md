@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 2.5.0
+
+- MCP server improvements
+    - Consolidate `run_flow` and `run_flow_files` into a single `run` tool, mirroring the shape of `maestro test`
+    - Drop 8 redundant tools (`tap_on`, `input_text`, `back`, `launch_app`, `stop_app`, `check_flow_syntax`, `start_device`, `query_docs`), shrinking the surface from 15 to 7
+    - Add native Maestro Cloud tools: `run_on_cloud` submits a flow + app binary asynchronously and returns a dashboard URL; `get_cloud_run_status` polls status and per-flow results
+    - Add `list_cloud_devices` and a `device_model` parameter on `run_on_cloud`, so agents can look up valid `{platform, model, supported_os}` triples instead of guessing
+    - Add server instructions and a clean stdout handshake - MCP startup no longer corrupts the JSON-RPC channel, fixing `Unexpected token 'k'` errors on strict clients like Claude Desktop
+    - Ground `text:` selectors in the view hierarchy, not screenshots, and clarify that `text:` is full-string regex with IGNORE_CASE
+    - Nudge the agent toward `assertScreenshot` with a required name, and broaden `cheat_sheet` guidance to cover unfamiliar commands and required args
+    - Clarify that the hierarchy's `accessibility` column maps to `text:` rather than being a selector of its own
+    - Drop `use_fuzzy_matching` from the `tap_on` schema - the flag had no YAML equivalent and produced surprising matches
+    - Upgrade MCP Kotlin SDK to the official 0.11.1
+- Fix `--config=<path>` on `maestro cloud` for any filename other than `config.yaml`/`config.yml`, and allow configs to live outside the workspace directory
+- Detect workspace config files by content (top-level YAML keys) instead of filename, so files like `platform_settings.yaml` are no longer mis-parsed as flows
+- Fix workspace ZIP path traversal for single-flow cloud uploads - zip entries are now rooted at the deepest common ancestor, eliminating broken `../` segments
+- Fix `--android-api-level` and `--ios-version` being silently ignored on cloud uploads
+- Normalize resolved workspace paths so `..` segments collapse on zip filesystems
+- Guard `WorkingDirectory.resolve(String)` against absolute paths, fixing doubled paths that broke MCP auto-run
+- Show progress for the whole multipart cloud upload (workspace zip + app binary + mapping), not just the app binary
+- Add a soft CLI warning when the workspace zip produced by `maestro cloud` exceeds 20 MB, since oversized uploads slow queue and run times across the fleet
+- Replace Android TCP port forwarding with a direct ADB socket for gRPC - around 41% faster on a simple `assertVisible` flow, and removes the flaky forwarding thread that fought with
+  Studio/CLI/MCP running side-by-side
+- Make `Maestro` methods natively `suspend` so coroutine cancellation propagates through to device IO, enabling `withTimeout { orchestra.runFlow(...) }` to actually cancel stuck gRPC calls
+- Orchestra properly respects coroutine cancellation in command, scroll, repeat, and subflow loops; previously, cancellation could scroll or retry forever
+- Allow JavaScript expressions in the `timeout` field of `waitForAnimationToEnd`
+- Add missing string-command config for `inputRandomColorName` and related random-input commands
+- Detect Azure Pipelines as a CI provider (via `TF_BUILD`), so promotional messages are suppressed
+- Populate the `text` attribute for `<textarea>` elements in the view hierarchy (web)
+- Remove CLI-side `--app-binary-id` validation - server-side already handles it
+- Remove the unmaintained `recipes/` folder; examples now live at https://docs.maestro.dev/examples
+- Fix log folder name generation where outputs were being split across two similarly-timestamped directories, and extend `XDG_STATE_HOME` support to log outputs
+- Fix `ToastAccessibilityListener` crashing with `NoSuchElementException` on notification events with an empty text list (Android 11+)
+
+Thanks to @jkronborg, @dineshv87, and @HarlonWang who contributed changes included in this release ❤️
+
 ## 2.4.0
 
 - Add new device config flags for cloud and start-device
