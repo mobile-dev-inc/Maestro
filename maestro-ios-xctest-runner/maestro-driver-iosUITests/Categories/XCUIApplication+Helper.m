@@ -4,8 +4,38 @@
 #import "XCTestDaemonsProxy.h"
 #import "XCAccessibilityElement.h"
 #import "XCTestManager_ManagerInterface-Protocol.h"
+#import <objc/runtime.h>
 
 @implementation XCUIApplication (Helper)
+
+- (BOOL)maestro_doesNotHandleUIInterruptions
+{
+    return YES;
+}
+
++ (void)load
+{
+    SEL originalSelector = @selector(doesNotHandleUIInterruptions);
+    SEL swizzledSelector = @selector(maestro_doesNotHandleUIInterruptions);
+    Method originalMethod = class_getInstanceMethod(self.class, originalSelector);
+    Method swizzledMethod = class_getInstanceMethod(self.class, swizzledSelector);
+    if (originalMethod == NULL || swizzledMethod == NULL) {
+        [FBLogger log:@"Cannot swizzle -[XCUIApplication doesNotHandleUIInterruptions]: method not found"];
+        return;
+    }
+    BOOL didAddMethod = class_addMethod(self.class,
+                                        originalSelector,
+                                        method_getImplementation(swizzledMethod),
+                                        method_getTypeEncoding(swizzledMethod));
+    if (didAddMethod) {
+        class_replaceMethod(self.class,
+                            swizzledSelector,
+                            method_getImplementation(originalMethod),
+                            method_getTypeEncoding(originalMethod));
+    } else {
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    }
+}
 
 + (NSArray<NSDictionary<NSString *, id> *> *)appsInfoWithAxElements:(NSArray<id<XCAccessibilityElement>> *)axElements
 {
