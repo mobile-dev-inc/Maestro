@@ -26,6 +26,7 @@ import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
+import maestro.DeviceUnreachableException
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
@@ -67,6 +68,14 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = TempFileHandler())
+
+    // Set on the first transport-level failure (socket timeout against the XCTest runner).
+    // Subsequent runDeviceCalls fail-fast against this instead of issuing fresh HTTP requests
+    // to a runner we already know isn't answering. Volatile because runDeviceCall executes on
+    // Dispatchers.IO worker threads (via runInterruptible in maestro.Maestro) — the writer and
+    // any future reader may be different pool workers, so JMM visibility matters.
+    @Volatile
+    private var transportFailure: DeviceUnreachableException? = null
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -542,11 +551,17 @@ class IOSDriver(
     }
 
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
+        transportFailure?.let { throw it }
         return try {
             call()
         } catch (socketTimeoutException: SocketTimeoutException) {
-            LOGGER.error("Got socket timeout processing $callName command", socketTimeoutException)
-            throw socketTimeoutException
+            val tripped = DeviceUnreachableException(callName, socketTimeoutException)
+            transportFailure = tripped
+            LOGGER.error(
+                "Got socket timeout processing $callName command, marking driver unreachable",
+                socketTimeoutException
+            )
+            throw tripped
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
