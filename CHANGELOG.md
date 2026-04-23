@@ -6,13 +6,10 @@
 
 - MCP server improvements
     - Consolidate `run_flow` and `run_flow_files` into a single `run` tool, mirroring the shape of `maestro test`
-    - Drop 8 redundant tools (`tap_on`, `input_text`, `back`, `launch_app`, `stop_app`, `check_flow_syntax`, `start_device`, `query_docs`), shrinking the surface from 15 to 7
+    - Drop 8 redundant tools (`tap_on`, `input_text`, `back`, `launch_app`, `stop_app`, `check_flow_syntax`, `start_device`, `query_docs`), shrinking the surface from 15 to 8
     - Add native Maestro Cloud tools: `run_on_cloud` submits a flow + app binary asynchronously and returns a dashboard URL; `get_cloud_run_status` polls status and per-flow results
     - Add `list_cloud_devices` and a `device_model` parameter on `run_on_cloud`, so agents can look up valid `{platform, model, supported_os}` triples instead of guessing
     - Add server instructions and a clean stdout handshake - MCP startup no longer corrupts the JSON-RPC channel, fixing `Unexpected token 'k'` errors on strict clients like Claude Desktop
-    - Ground `text:` selectors in the view hierarchy, not screenshots, and clarify that `text:` is full-string regex with IGNORE_CASE
-    - Nudge the agent toward `assertScreenshot` with a required name, and broaden `cheat_sheet` guidance to cover unfamiliar commands and required args
-    - Clarify that the hierarchy's `accessibility` column maps to `text:` rather than being a selector of its own
     - Drop `use_fuzzy_matching` from the `tap_on` schema - the flag had no YAML equivalent and produced surprising matches
     - Upgrade MCP Kotlin SDK to the official 0.11.1
 - Fix `--config=<path>` on `maestro cloud` for any filename other than `config.yaml`/`config.yml`, and allow configs to live outside the workspace directory
