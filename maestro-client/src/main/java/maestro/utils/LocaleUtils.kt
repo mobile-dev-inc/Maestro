@@ -226,7 +226,7 @@ object LocaleUtils {
 
     private fun validateLocale(language: String, country: String, platform: Platform) {
         when (platform) {
-            Platform.IOS -> {
+            Platform.IOS, Platform.TVOS -> {
                 if (findIOSLocale(language, country) == null) {
                     throw LocaleValidationIosException()
                 }

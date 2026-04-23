@@ -34,7 +34,7 @@ sealed interface DeviceLocale {
     fun fromString(localeString: String, platform: Platform): DeviceLocale {
       return when (platform) {
         Platform.ANDROID -> AndroidLocale.fromString(localeString)
-        Platform.IOS -> IosLocale.fromString(localeString)
+        Platform.IOS, Platform.TVOS -> IosLocale.fromString(localeString)
         Platform.WEB -> WebLocale.fromString(localeString)
       }
     }
@@ -57,7 +57,7 @@ sealed interface DeviceLocale {
     fun all(platform: Platform): List<DeviceLocale> {
       return when (platform) {
         Platform.ANDROID -> AndroidLocale.all
-        Platform.IOS -> IosLocale.entries
+        Platform.IOS, Platform.TVOS -> IosLocale.entries
         Platform.WEB -> WebLocale.entries
       }
     }
@@ -68,7 +68,7 @@ sealed interface DeviceLocale {
     fun allCodes(platform: Platform): Set<String> {
       return when (platform) {
         Platform.ANDROID -> AndroidLocale.allCodes
-        Platform.IOS -> IosLocale.allCodes
+        Platform.IOS, Platform.TVOS -> IosLocale.allCodes
         Platform.WEB -> WebLocale.allCodes
       }
     }
@@ -80,7 +80,7 @@ sealed interface DeviceLocale {
     fun find(languageCode: String, countryCode: String, platform: Platform): String? {
       return when (platform) {
         Platform.ANDROID -> AndroidLocale.find(languageCode, countryCode)
-        Platform.IOS -> IosLocale.find(languageCode, countryCode)
+        Platform.IOS, Platform.TVOS -> IosLocale.find(languageCode, countryCode)
         Platform.WEB -> WebLocale.find(languageCode, countryCode)
       }
     }
@@ -89,7 +89,7 @@ sealed interface DeviceLocale {
     fun getDefault(platform: Platform): DeviceLocale {
       return when(platform) {
         Platform.ANDROID -> AndroidLocale.fromString("en_US")
-        Platform.IOS -> IosLocale.fromString("en_US")
+        Platform.IOS, Platform.TVOS -> IosLocale.fromString("en_US")
         Platform.WEB -> WebLocale.fromString("en_US")
       }
     }

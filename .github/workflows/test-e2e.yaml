@@ -370,6 +370,120 @@ jobs:
           path: ~/screenrecord.mp4
           retention-days: 7
 
+  test-tvos:
+    name: Test on tvOS
+    runs-on: macos-26
+    needs: build
+    timeout-minutes: 45
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
+      MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+
+    steps:
+      - name: Clone repository (only needed for the e2e directory)
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: e2e/tvos_demo_app/yarn.lock
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: e2e/tvos_demo_app/ios/Pods
+          key: tvos-demo-pods-${{ runner.os }}-${{ hashFiles('e2e/tvos_demo_app/yarn.lock') }}
+
+      - name: Build tvos_demo_app
+        working-directory: ${{ github.workspace }}/e2e/tvos_demo_app
+        run: |
+          yarn install --frozen-lockfile
+          EXPO_TV=1 npx expo prebuild --clean
+          xcodebuild \
+            -workspace ios/MaestroTVDemo.xcworkspace \
+            -scheme MaestroTVDemo \
+            -configuration Release \
+            -sdk appletvsimulator \
+            -derivedDataPath build \
+            -quiet
+          mkdir -p ${{ github.workspace }}/e2e/apps
+          cp -r build/Build/Products/Release-appletvsimulator/MaestroTVDemo.app ${{ github.workspace }}/e2e/apps/tvos_demo_app.app
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Boot Apple TV Simulator
+        run: |
+          xcrun simctl list runtimes
+          export RUNTIME="tvOS26.1"
+          export DEVICE_TYPE="Apple TV 4K (3rd generation)"
+          ./.github/scripts/boot_simulator.sh
+
+      - name: Install tvOS demo app
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps tvos
+
+      - name: Start screen recording
+        run: |
+          xcrun simctl io booted recordVideo --codec h264 ~/screenrecord.mp4 &
+          echo $! > ~/screenrecord.pid
+
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 20
+        run: ./run_tests tvos
+
+      - name: Stop screen recording
+        if: success() || failure()
+        run: kill -SIGINT "$(cat ~/screenrecord.pid)"
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: maestro-root-dir-tvos
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload xctest runner logs
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: xctest_runner_logs_tvos
+          path: ~/Library/Logs/maestro/xctest_runner_logs
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Upload screen recording of Simulator
+        uses: actions/upload-artifact@v6
+        if: success() || failure()
+        with:
+          name: maestro-screenrecord-tvos.mp4
+          path: ~/screenrecord.mp4
+          retention-days: 7
+
   test-ios-xctest-runner:
     name: Test on iOS (XCTest Runner only)
     if: false  # Disabled: This needs be fixed, not working yet.

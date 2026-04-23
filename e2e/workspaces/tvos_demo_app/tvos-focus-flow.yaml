@@ -1,0 +1,26 @@
+appId: dev.mobile.maestro.tvos.demo
+tags:
+  - tvos
+  - passing
+---
+- launchApp:
+    clearState: true
+
+# Navigate to Focus Test screen
+- assertVisible: "Home"
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Down"
+- assertVisible:
+    text: "Focus Test"
+    focused: true
+- pressKey: "Remote Dpad Center"
+
+# Verify programmatic focus landed on Button 2 (not Button 1)
+- assertVisible: "Focus Test"
+- assertVisible:
+    text: "Button 2"
+    focused: true
+
+# Go back to Home
+- pressKey: "Remote Menu"
+- assertVisible: "Home"

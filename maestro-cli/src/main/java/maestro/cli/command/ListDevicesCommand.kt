@@ -28,7 +28,7 @@ class ListDevicesCommand : Callable<Int> {
 
     @CommandLine.Option(
         names = ["--platform"],
-        description = ["Filter by platform: android, ios, web"],
+        description = ["Filter by platform: android, ios, tvos, web"],
     )
     private var platform: String? = null
 
