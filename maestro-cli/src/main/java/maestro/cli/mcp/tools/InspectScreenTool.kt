@@ -56,10 +56,14 @@ object InspectScreenTool {
                     platform = null
                 ) { session ->
                     val maestro = session.maestro
-                    val device = session.device
-                        ?: error("Device state unavailable for $deviceId; cannot determine platform for schema")
                     val viewHierarchy = runBlocking { maestro.viewHierarchy() }
-                    val platform = device.platform.name.lowercase()
+                    // Web sessions don't populate `session.device`; chromium always means web.
+                    val device = session.device
+                    val platform = when {
+                        deviceId == "chromium" -> "web"
+                        device != null -> device.platform.name.lowercase()
+                        else -> error("Device state unavailable for $deviceId; cannot determine platform for schema")
+                    }
                     ViewHierarchyFormatters.extractCompactJsonOutput(viewHierarchy.root, platform)
                 }
 
