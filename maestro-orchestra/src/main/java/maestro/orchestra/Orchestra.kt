@@ -852,9 +852,7 @@ class Orchestra(
 
         // Retry is intended for flaky test-level failures — element not found, assertion
         // failures, etc. — which all surface as MaestroException. Anything else (driver
-        // transport failures, JS evaluation bugs, CancellationException, unexpected
-        // infrastructure errors) propagates naturally so the worker can classify at the
-        // job level instead of replaying the subflow against broken state.
+        // transport failures, JS evaluation bugs, CancellationException) propagates naturally.
         var attempt = 0
         while (attempt <= maxRetries) {
             try {
