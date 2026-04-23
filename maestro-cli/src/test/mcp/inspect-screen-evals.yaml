@@ -7,19 +7,19 @@ evals:
   timeout: 40000
   max_steps: 10
   tests:
-    - name: LLM can understand csv-based view hierarchy format
+    - name: LLM can understand compact-json view hierarchy format
       prompt: >
-        Using the inspect_view_hierarchy tool, describe the number of clickable elements and their position on the screen. Do not take a screenshot.
+        Using the inspect_screen tool, describe the number of clickable elements and their position on the screen. Do not take a screenshot.
       expected_tool_calls:
         required:
-        - inspect_view_hierarchy
+        - inspect_screen
         allowed:
         - list_devices
         - run
       response_scorers:
       - type: llm-judge
         criteria: >
-          The assistant successfully uses the inspect_view_hierarchy tool with format=csv.
+          The assistant successfully uses the inspect_screen tool and reads the compact JSON output.
           The assistant correctly identifies two buttons: "allow", and "don't allow" in the middle of the screen.
         threshold: 0.6
 
