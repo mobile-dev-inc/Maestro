@@ -45,7 +45,7 @@ object RunTool {
         never emit `- assertScreenshot` on its own. When in doubt, check `cheat_sheet`.
 
         If no device is running, ask the user to start one first.
-        Use `inspect_view_hierarchy` to get the current screen before guessing at commands.
+        Use `inspect_screen` to get the current screen before guessing at commands.
         Use `cheat_sheet` for Maestro flow syntax.
     """
 

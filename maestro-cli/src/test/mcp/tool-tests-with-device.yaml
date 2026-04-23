@@ -8,8 +8,8 @@ tools:
       expect:
         success: true
 
-    - name: "Test inspect_view_hierarchy"
-      tool: "inspect_view_hierarchy"
+    - name: "Test inspect_screen"
+      tool: "inspect_screen"
       params:
         device_id: "${DEVICE_ID}"
       expect:

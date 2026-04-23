@@ -16,7 +16,7 @@ class McpServerTest {
             "list_devices",
             "take_screenshot",
             "run",
-            "inspect_view_hierarchy",
+            "inspect_screen",
             "cheat_sheet",
             "list_cloud_devices",
             "run_on_cloud",
