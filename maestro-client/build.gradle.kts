@@ -170,6 +170,7 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.square.mock.server)
     testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.mockk)
 }
 
 java {
