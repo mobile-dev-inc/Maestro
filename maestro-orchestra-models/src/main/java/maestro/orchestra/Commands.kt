@@ -28,8 +28,17 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import com.fasterxml.jackson.annotation.JsonIgnore
+import maestro.MaestroException
 import java.nio.file.Path
 import net.datafaker.Faker
+
+internal fun parseTimeoutMs(timeout: String): Long {
+    return try {
+        timeout.replace("_", "").toLong()
+    } catch (e: NumberFormatException) {
+        throw MaestroException.InvalidCommand("Invalid timeout value: '$timeout'. Timeout must be a number in milliseconds.")
+    }
+}
 
 sealed interface Command {
 
@@ -141,7 +150,8 @@ data class ScrollUntilVisibleCommand(
     }
 
     private fun String.timeoutToMillis(): String {
-        return if (this.toLong() < 0) {
+        val millis = parseTimeoutMs(this)
+        return if (millis < 0) {
             DEFAULT_TIMEOUT_IN_MILLIS
         } else this
     }
@@ -417,7 +427,7 @@ data class AssertConditionCommand(
 ) : Command {
 
     fun timeoutMs(): Long? {
-        return timeout?.replace("_", "")?.toLong()
+        return timeout?.let { parseTimeoutMs(it) }
     }
 
     override val originalDescription: String
