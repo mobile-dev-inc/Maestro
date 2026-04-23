@@ -3556,7 +3556,10 @@ class IntegrationTest {
                 onClick = {
                     counter++
                     if (counter == 1) {
-                        throw RuntimeException("Exception for the first time")
+                        // A MaestroException subtype — the kind retry is actually meant to handle
+                        // (test-level flake). Retry only replays on MaestroException now; see
+                        // `retryCommand only retries on MaestroException` below.
+                        throw MaestroException.UnableToClearState("Flake on first attempt")
                     }
                     indicator.text = counter.toString()
                 }
@@ -4274,6 +4277,102 @@ class IntegrationTest {
             // Retry started (at least one onCommandStart for the retry command)
             assertThat(startedCommands).isGreaterThan(0)
         }
+    }
+
+    @Test
+    fun `retryCommand only retries on MaestroException, propagates other throwables without retrying`() {
+        // Retry is intended for flaky test-level failures (element not found, assertion
+        // failures, etc.) — all of which surface as MaestroException. Infrastructure
+        // failures (driver stopped responding, network errors, JS evaluation bugs)
+        // should NOT be replayed against the same broken state; they should surface
+        // immediately so the worker can classify and retry the whole job.
+
+        var tapCount = 0
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                    tapCount++
+                    throw RuntimeException("infra failure — not a MaestroException")
+                }
+            }
+        }
+
+        val thrown = assertThrows<RuntimeException> {
+            Maestro(driver).use { maestro ->
+                runBlocking {
+                    orchestra(maestro).runFlow(
+                        listOf(
+                            MaestroCommand(
+                                retryCommand = RetryCommand(
+                                    maxRetries = "3",
+                                    commands = listOf(
+                                        MaestroCommand(
+                                            tapOnElement = TapOnElementCommand(
+                                                selector = ElementSelector(textRegex = "Button"),
+                                            ),
+                                        ),
+                                    ),
+                                    config = null,
+                                ),
+                            ),
+                        )
+                    )
+                }
+            }
+        }
+
+        // The original non-MaestroException propagated without being wrapped or swallowed
+        assertThat(thrown.message).isEqualTo("infra failure — not a MaestroException")
+        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+
+        // The inner tap ran exactly once — no retries were attempted
+        assertThat(tapCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `retryCommand retries on MaestroException until success`() {
+        // Positive path: retry does its job on test-level flake (MaestroException subtype).
+
+        var tapCount = 0
+        val driver = driver {
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+                onClick = {
+                    tapCount++
+                    if (tapCount == 1) {
+                        throw MaestroException.UnableToClearState("flake on first attempt")
+                    }
+                }
+            }
+        }
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro).runFlow(
+                    listOf(
+                        MaestroCommand(
+                            retryCommand = RetryCommand(
+                                maxRetries = "3",
+                                commands = listOf(
+                                    MaestroCommand(
+                                        tapOnElement = TapOnElementCommand(
+                                            selector = ElementSelector(textRegex = "Button"),
+                                        ),
+                                    ),
+                                ),
+                                config = null,
+                            ),
+                        ),
+                    )
+                )
+            }
+        }
+
+        // Attempt 1 threw MaestroException, attempt 2 succeeded
+        assertThat(tapCount).isEqualTo(2)
     }
 
     @Test
