@@ -47,6 +47,20 @@ class WorkspaceValidatorTest {
     }
 
     @Test
+    fun `validate strips yml extension from flow name`() {
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("my_flow.yml" to baseFlowContent),
+            appId = "com.example.app",
+            envParameters = mapOf("APP_ID" to "com.example.app"),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows.first().name).isEqualTo("my_flow")
+    }
+
+    @Test
     fun `validate returns workspaceConfig and matching flows for appId`() {
         val result = WorkspaceValidator.validate(
             workspace = makeWorkspaceZip("flow.yaml" to baseFlowContent),
