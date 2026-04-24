@@ -485,10 +485,23 @@ class IOSDriver(
 
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId.toString(), "timeoutMs" to timeoutMs.toString())) {
-            LOGGER.info("Waiting for animation to end with timeout $SCREEN_SETTLE_TIMEOUT_MS")
-            val didFinishOnTime = waitUntilScreenIsStatic(SCREEN_SETTLE_TIMEOUT_MS)
+            val totalTimeout = timeoutMs?.toLong() ?: SCREEN_SETTLE_TIMEOUT_MS
+            val startTime = System.currentTimeMillis()
+            LOGGER.info("Waiting for animation to end with timeout ${totalTimeout}ms")
+            val didFinishOnTime = waitUntilScreenIsStatic(totalTimeout)
 
-            if (didFinishOnTime) null else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
+            if (didFinishOnTime) {
+                null
+            } else {
+                // Use remaining time budget for hierarchy-based fallback
+                val elapsed = System.currentTimeMillis() - startTime
+                val remainingMs = (totalTimeout - elapsed).coerceAtLeast(0)
+                if (remainingMs > 0) {
+                    ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, remainingMs.toInt())
+                } else {
+                    initialHierarchy ?: ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, 0)
+                }
+            }
         }
     }
 
