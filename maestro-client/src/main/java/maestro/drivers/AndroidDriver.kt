@@ -787,9 +787,8 @@ class AndroidDriver(
             }
 
             mutable.forEach { permission ->
-                val permissionValue = translatePermissionValue(permission.value)
                 translatePermissionName(permission.key).forEach { permissionName ->
-                    setPermissionInternal(appId, permissionName, permissionValue)
+                    setPermissionInternal(appId, permissionName, permission.value)
                 }
             }
         }
@@ -914,7 +913,7 @@ class AndroidDriver(
         if (permissionsResult.isSuccess) {
             permissionsResult.getOrNull()?.let {
                 it.forEach { permission ->
-                    setPermissionInternal(appId, permission, translatePermissionValue(permissionValue))
+                    setPermissionInternal(appId, permission, permissionValue)
                 }
             }
         }
@@ -924,12 +923,12 @@ class AndroidDriver(
         "android.permission.MANAGE_EXTERNAL_STORAGE"
     )
 
-    private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
+    private fun setPermissionInternal(appId: String, permission: String, rawValue: String) {
         try {
             if (permission in appOpsPermissions) {
-                setAppOp(appId, permission, permissionValue)
+                setAppOp(appId, permission, rawValue)
             } else {
-                shell("pm $permissionValue $appId $permission")
+                shell("pm ${translatePermissionValue(rawValue)} $appId $permission")
             }
         } catch (exception: Exception) {
             // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
@@ -942,12 +941,15 @@ class AndroidDriver(
         }
     }
 
-    private fun setAppOp(appId: String, op: String, permissionValue: String) {
+    private fun setAppOp(appId: String, op: String, rawValue: String) {
         // appops uses the bare operation name (e.g. MANAGE_EXTERNAL_STORAGE), not the full permission string
         val opName = op.removePrefix("android.permission.")
 
-        // appops set expects "allow"/"deny"; permissionValue has already been translated to "grant"/"revoke"
-        val appOpsValue = if (permissionValue == "grant") "allow" else "deny"
+        val appOpsValue = when (rawValue) {
+            "allow" -> "allow"
+            "deny" -> "deny"
+            else -> "default" // "unset" resets to system default
+        }
 
         shell("appops set --uid $appId $opName $appOpsValue")
     }
