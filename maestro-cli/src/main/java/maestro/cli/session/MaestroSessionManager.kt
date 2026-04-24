@@ -56,7 +56,9 @@ import kotlin.io.path.pathString
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
-    private const val defaultXctestHost = "127.0.0.1"
+    // Use localhost (not 127.0.0.1) so name resolution can fall back to IPv6
+    // when the XCTest runner happens to bind to ::1 only. See #1299.
+    private const val defaultXctestHost = "localhost"
     private const val defaultXcTestPort = 22087
 
     private val executor = Executors.newScheduledThreadPool(1)
@@ -73,7 +75,7 @@ object MaestroSessionManager {
         isStudio: Boolean = false,
         isHeadless: Boolean = false,
         screenSize: String? = null,
-        reinstallDriver: Boolean = true,
+        reinstallDriver: Boolean = false,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
         block: (MaestroSession) -> T,
@@ -88,12 +90,12 @@ object MaestroSessionManager {
             deviceIndex = deviceIndex,
         )
         val sessionId = UUID.randomUUID().toString()
+        val effectiveDeviceId = selectedDevice.device?.instanceId ?: selectedDevice.deviceId
 
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
                 try {
-                    Thread.sleep(1000) // Add a 1-second delay here for fixing race condition
-                    SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                    SessionStore.default.heartbeat(sessionId, selectedDevice.platform, effectiveDeviceId)
                 } catch (e: Exception) {
                     logger.error("Failed to record heartbeat", e)
                 }
@@ -108,9 +110,10 @@ object MaestroSessionManager {
             connectToExistingSession = if (isStudio) {
                 false
             } else {
-                SessionStore.hasActiveSessions(
+                SessionStore.default.hasActiveSessionForDevice(
                     sessionId,
-                    selectedDevice.platform
+                    selectedDevice.platform,
+                    effectiveDeviceId
                 )
             },
             isStudio = isStudio,
@@ -122,9 +125,9 @@ object MaestroSessionManager {
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
-            SessionStore.delete(sessionId, selectedDevice.platform)
+            SessionStore.default.delete(sessionId, selectedDevice.platform, effectiveDeviceId)
             runCatching { ScreenReporter.reportMaxDepth() }
-            if (SessionStore.activeSessions().isEmpty()) {
+            if (SessionStore.default.shouldCloseSession(selectedDevice.platform, effectiveDeviceId)) {
                 session.close()
             }
         })

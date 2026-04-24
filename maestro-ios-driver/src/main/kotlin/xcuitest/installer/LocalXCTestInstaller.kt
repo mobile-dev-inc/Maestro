@@ -24,16 +24,16 @@ import kotlin.time.Duration.Companion.seconds
 
 class LocalXCTestInstaller(
     private val deviceId: String,
-    private val host: String = "127.0.0.1",
+    private val host: String = "localhost",
     private val deviceType: IOSDeviceType,
     private val defaultPort: Int,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     private val httpClient: OkHttpClient = HttpClient.build(
         name = "XCUITestDriverStatusCheck",
         connectTimeout = 1.seconds,
-        readTimeout = 100.seconds,
+        readTimeout = 3.seconds,
     ),
-    val reinstallDriver: Boolean = true,
+    val reinstallDriver: Boolean = false,
     private val iOSDriverConfig: IOSDriverConfig,
     private val deviceController: IOSDevice,
     private val tempFileHandler: TempFileHandler = TempFileHandler()
@@ -49,16 +49,17 @@ class LocalXCTestInstaller(
      * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
      */
     private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
-    private val tempDir = tempFileHandler.createTempDirectory(deviceId)
+    private val buildProductsDir = File(System.getProperty("user.home"), ".maestro/build-products/$deviceId").also { it.mkdirs() }
     private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
     private val iosBuildProductsExtractor = IOSBuildProductsExtractor(
-        target = tempDir.toPath(),
+        target = buildProductsDir.toPath(),
         context = iOSDriverConfig.context,
         deviceType = deviceType,
     )
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
 
     private var xcTestProcess: Process? = null
+    private val runningHashFile = File(buildProductsDir, ".running-hash")
 
     override fun uninstall(): Boolean {
         return metrics.measured("operation", mapOf("command" to "uninstall")) {
@@ -125,7 +126,13 @@ class LocalXCTestInstaller(
 
             while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
                 runCatching {
-                    if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
+                    if (isChannelAlive()) {
+                        // Record which version is running so isVersionMatch() can check later
+                        iosBuildProductsExtractor.sourceHash(iOSDriverConfig.sourceDirectory)?.let {
+                            runningHashFile.writeText(it)
+                        }
+                        return@measured XCTestClient(host, defaultPort)
+                    }
                 }
                 Thread.sleep(500)
             }
@@ -146,6 +153,12 @@ class LocalXCTestInstaller(
         }
     }
 
+    override fun isVersionMatch(): Boolean {
+        val expectedHash = iosBuildProductsExtractor.sourceHash(iOSDriverConfig.sourceDirectory) ?: return false
+        val runningHash = if (runningHashFile.exists()) runningHashFile.readText() else return false
+        return expectedHash == runningHash
+    }
+
     private fun ensureOpen(): Boolean {
         val timeout = 120_000L
         logger.info("ensureOpen(): Will spend $timeout ms waiting for the channel to become alive")
@@ -161,7 +174,7 @@ class LocalXCTestInstaller(
         fun xctestAPIBuilder(pathSegment: String): HttpUrl.Builder {
             return HttpUrl.Builder()
                 .scheme("http")
-                .host("127.0.0.1")
+                .host(host)
                 .addPathSegment(pathSegment)
                 .port(defaultPort)
         }
