@@ -48,9 +48,9 @@ tags:
 # Launch app should grant all by default
 - launchApp
 
-- launchApp: 
-    appId: com.android.settings
-    stopApp: false
+- launchApp: com.android.settings
+- tapOn: Search settings
+- inputText: "all files access"
 - tapOn: "Apps > Special app access"
 - tapOn: "All files access"
 - assertVisible: "demo_app"
