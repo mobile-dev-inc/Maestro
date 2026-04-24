@@ -5090,6 +5090,43 @@ class IntegrationTest {
         }
     }
 
+    @Test
+    fun `tapOnOcr with psm taps element when text is found on screen`() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(isTesseractAvailable()) {
+            "tesseract not installed — skipping tapOnOcr test"
+        }
+
+        val image = java.awt.image.BufferedImage(600, 120, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics()
+        g.color = java.awt.Color.WHITE
+        g.fillRect(0, 0, 600, 120)
+        g.color = java.awt.Color.BLACK
+        g.font = java.awt.Font("SansSerif", java.awt.Font.PLAIN, 48)
+        g.drawString("Production", 50, 80)
+        g.dispose()
+
+        var tapCalled = false
+        val driver = object : FakeDriver() {
+            override fun takeScreenshot(out: okio.Sink, compressed: Boolean) {
+                ImageIO.write(image, "png", out.buffer().outputStream())
+            }
+            override fun tap(point: maestro.Point) {
+                tapCalled = true
+                super.tap(point)
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+
+        val commands = listOf(MaestroCommand(TapOnOcrCommand(text = "Production", psm = 6)))
+
+        Maestro(driver).use {
+            runBlocking { orchestra(it).runFlow(commands) }
+        }
+
+        assertThat(tapCalled).isTrue()
+    }
+
     private fun isTesseractAvailable(): Boolean = try {
         ProcessBuilder("tesseract", "--version")
             .redirectErrorStream(true)

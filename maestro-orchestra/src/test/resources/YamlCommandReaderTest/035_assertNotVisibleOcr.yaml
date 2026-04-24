@@ -5,3 +5,6 @@ appId: com.example.app
     text: "Error"
     label: "Check no error is visible"
     optional: true
+- assertNotVisibleOcr:
+    text: "Loading"
+    psm: 11

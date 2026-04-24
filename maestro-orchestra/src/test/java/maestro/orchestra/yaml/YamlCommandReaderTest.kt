@@ -566,6 +566,10 @@ internal class YamlCommandReaderTest {
                 label = "Tap the env badge",
                 optional = true,
             ),
+            TapOnOcrCommand(
+                text = "Submit",
+                psm = 6,
+            ),
         )
     }
 
@@ -581,6 +585,10 @@ internal class YamlCommandReaderTest {
                 label = "Check env badge is visible",
                 optional = true,
             ),
+            AssertVisibleOcrCommand(
+                text = "Submit",
+                psm = 6,
+            ),
         )
     }
 
@@ -595,6 +603,10 @@ internal class YamlCommandReaderTest {
                 text = "Error",
                 label = "Check no error is visible",
                 optional = true,
+            ),
+            AssertNotVisibleOcrCommand(
+                text = "Loading",
+                psm = 11,
             ),
         )
     }

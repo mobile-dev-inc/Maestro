@@ -494,6 +494,7 @@ data class YamlFluentCommand(
                         text = tapOnOcr.text,
                         label = tapOnOcr.label,
                         optional = tapOnOcr.optional,
+                        psm = tapOnOcr.psm,
                     )
                 )
             )
@@ -504,6 +505,7 @@ data class YamlFluentCommand(
                         text = assertVisibleOcr.text,
                         label = assertVisibleOcr.label,
                         optional = assertVisibleOcr.optional,
+                        psm = assertVisibleOcr.psm,
                     )
                 )
             )
@@ -514,6 +516,7 @@ data class YamlFluentCommand(
                         text = assertNotVisibleOcr.text,
                         label = assertNotVisibleOcr.label,
                         optional = assertNotVisibleOcr.optional,
+                        psm = assertNotVisibleOcr.psm,
                     )
                 )
             )

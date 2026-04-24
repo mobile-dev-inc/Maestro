@@ -5,6 +5,7 @@
 - Add `tapOnOcr` command: tap on UI elements by visible text using OCR (via Tesseract), enabling interaction with elements not exposed in the accessibility tree (e.g. animated views in React Native)
 - Add `assertVisibleOcr` command: assert that text is visible on screen using OCR
 - Add `assertNotVisibleOcr` command: assert that text is not visible on screen using OCR
+- Add `psm` parameter to all OCR commands (`tapOnOcr`, `assertVisibleOcr`, `assertNotVisibleOcr`): pass a Tesseract Page Segmentation Mode value (0–13) to tune recognition for different screen layouts (e.g. `psm: 6` for uniform text blocks, `psm: 11` for sparse text)
 
 ## 2.4.0
 

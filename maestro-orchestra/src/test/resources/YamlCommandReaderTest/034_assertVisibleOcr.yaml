@@ -5,3 +5,6 @@ appId: com.example.app
     text: "Don't Allow"
     label: "Check env badge is visible"
     optional: true
+- assertVisibleOcr:
+    text: "Submit"
+    psm: 6

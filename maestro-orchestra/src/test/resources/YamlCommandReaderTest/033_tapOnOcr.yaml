@@ -5,3 +5,6 @@ appId: com.example.app
     text: "Don't Allow"
     label: "Tap the env badge"
     optional: true
+- tapOnOcr:
+    text: "Submit"
+    psm: 6
