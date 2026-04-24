@@ -48,6 +48,7 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.CiUtils
+import maestro.cli.util.isPortAvailable
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
@@ -204,12 +205,12 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--reinstall-driver"],
-        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
+        description = ["Force reinstall of the driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. By default, reuses an existing healthy driver."],
         negatable = true,
-        defaultValue = "true",
+        defaultValue = "false",
         fallbackValue = "true"
     )
-    private var reinstallDriver: Boolean = true
+    private var reinstallDriver: Boolean = false
 
     @Option(
         names = ["--apple-team-id"],
@@ -226,7 +227,10 @@ class TestCommand : Callable<Int> {
         description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
     )
     var deviceId: String? = null
-    
+
+    @Option(names = ["--driver-host-port"], hidden = true)
+    var driverHostPort: Int? = null
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
@@ -532,11 +536,18 @@ class TestCommand : Callable<Int> {
         }
     }
 
-    private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) 7001
-        else (7001..7128).shuffled().find { port ->
-            usedPorts.putIfAbsent(port, true) == null
+    private fun selectPort(effectiveShards: Int): Int {
+        val userPort = driverHostPort ?: parent?.driverHostPort
+        if (userPort != null) {
+            if (!isPortAvailable(userPort)) {
+                throw CliError("Requested driver host port $userPort is not available")
+            }
+            return userPort
+        }
+        return (7001..7128).shuffled().find { port ->
+            isPortAvailable(port) && usedPorts.putIfAbsent(port, true) == null
         } ?: error("No available ports found")
+    }
 
     private fun runSingleFlow(
         maestro: Maestro,
