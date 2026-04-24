@@ -984,7 +984,7 @@ class AndroidDriver(
                 "android.permission.READ_EXTERNAL_STORAGE"
             )
 
-            "allFiles" -> listOf("android.permission.MANAGE_EXTERNAL_STORAGE")
+            "externalstorage" -> listOf("android.permission.MANAGE_EXTERNAL_STORAGE")
 
             "notifications" -> listOf(
                 "android.permission.POST_NOTIFICATIONS"

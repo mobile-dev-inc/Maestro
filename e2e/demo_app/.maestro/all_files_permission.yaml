@@ -6,7 +6,7 @@ tags:
 - launchApp:
     clearState: true
     permissions:
-      allFiles: allow
+      externalstorage: allow
 
 # Verify the permission is granted via the Settings app
 - launchApp: com.android.settings
