@@ -973,8 +973,6 @@ class AndroidDriver(
                 "android.permission.WRITE_CONTACTS"
             )
 
-            "externalstorage" -> listOf("android.permission.MANAGE_EXTERNAL_STORAGE")
-
             "location" -> listOf(
                 "android.permission.ACCESS_FINE_LOCATION",
                 "android.permission.ACCESS_COARSE_LOCATION",

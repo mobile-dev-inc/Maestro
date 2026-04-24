@@ -6,7 +6,7 @@ tags:
 - launchApp:
     clearState: true
     permissions:
-      externalstorage: allow
+      android.permission.MANAGE_EXTERNAL_STORAGE: allow
 
 # Verify the permission is granted via the Settings app
 - launchApp: com.android.settings
@@ -38,7 +38,7 @@ tags:
 # SetPermissions command should revoke the permission explicitly
 - setPermissions:
     permissions:
-      externalstorage: deny
+      android.permission.MANAGE_EXTERNAL_STORAGE: deny
 
 - tapOn: "Navigate up"
 - tapOn: "All files access"
