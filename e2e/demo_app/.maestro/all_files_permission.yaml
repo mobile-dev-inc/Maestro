@@ -20,10 +20,38 @@ tags:
 # Clear state should revoke the permission
 - clearState: com.example.example
 
-- launchApp: com.android.settings
-- tapOn: Search settings
-- inputText: "all files access"
-- tapOn: "Apps > Special app access"
+- tapOn: "Navigate up"
 - tapOn: "All files access"
 - assertVisible: "demo_app"
 - assertVisible: "Not allowed"
+
+# SetPermissions command should set the permission via 'all'
+- setPermissions:
+    permissions:
+      all: allow
+
+- tapOn: "Navigate up"
+- tapOn: "All files access"
+- assertVisible: "demo_app"
+- assertVisible: "Allowed"
+
+# SetPermissions command should revoke the permission explicitly
+- setPermissions:
+    permissions:
+      externalstorage: deny
+
+- tapOn: "Navigate up"
+- tapOn: "All files access"
+- assertVisible: "demo_app"
+- assertVisible: "Not allowed"
+
+# Launch app should grant all by default
+- launchApp
+
+- launchApp: 
+    appId: com.android.settings
+    stopApp: false
+- tapOn: "Apps > Special app access"
+- tapOn: "All files access"
+- assertVisible: "demo_app"
+- assertVisible: "Allowed"
