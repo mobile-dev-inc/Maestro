@@ -5,21 +5,12 @@ import maestro.device.Platform
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 
-object SessionStore {
+class SessionStore(private val keyValueStore: KeyValueStore) {
 
-    private val keyValueStore by lazy {
-        KeyValueStore(
-            dbFile = Paths
-                .get(System.getProperty("user.home"), ".maestro", "sessions")
-                .toFile()
-                .also { it.parentFile.mkdirs() }
-        )
-    }
-
-    fun heartbeat(sessionId: String, platform: Platform) {
+    fun heartbeat(sessionId: String, platform: Platform, deviceId: String? = null) {
         synchronized(keyValueStore) {
             keyValueStore.set(
-                key = key(sessionId, platform),
+                key = key(sessionId, platform, deviceId),
                 value = System.currentTimeMillis().toString(),
             )
 
@@ -37,10 +28,10 @@ object SessionStore {
             }
     }
 
-    fun delete(sessionId: String, platform: Platform) {
+    fun delete(sessionId: String, platform: Platform, deviceId: String? = null) {
         synchronized(keyValueStore) {
             keyValueStore.delete(
-                key(sessionId, platform)
+                key(sessionId, platform, deviceId)
             )
         }
     }
@@ -56,18 +47,44 @@ object SessionStore {
         }
     }
 
-    fun hasActiveSessions(
-        sessionId: String,
-        platform: Platform
-    ): Boolean {
+    fun shouldCloseSession(platform: Platform, deviceId: String? = null): Boolean {
+        return activeSessionsForDevice(platform, deviceId).isEmpty()
+    }
+
+    fun activeSessionsForDevice(platform: Platform, deviceId: String? = null): List<String> {
+        val devicePrefix = "${platform}_${deviceId ?: "unknown"}_"
         synchronized(keyValueStore) {
-            return activeSessions()
-                .any { it != key(sessionId, platform) }
+            return activeSessions().filter { it.startsWith(devicePrefix) }
         }
     }
 
-    private fun key(sessionId: String, platform: Platform): String {
-        return "${platform}_$sessionId"
+    fun hasActiveSessionForDevice(
+        sessionId: String,
+        platform: Platform,
+        deviceId: String? = null
+    ): Boolean {
+        val currentKey = key(sessionId, platform, deviceId)
+        val devicePrefix = "${platform}_${deviceId ?: "unknown"}_"
+        synchronized(keyValueStore) {
+            return activeSessions()
+                .any { it.startsWith(devicePrefix) && it != currentKey }
+        }
     }
 
+    private fun key(sessionId: String, platform: Platform, deviceId: String? = null): String {
+        return "${platform}_${deviceId ?: "unknown"}_$sessionId"
+    }
+
+    companion object {
+        val default by lazy {
+            SessionStore(
+                KeyValueStore(
+                    dbFile = Paths
+                        .get(System.getProperty("user.home"), ".maestro", "sessions")
+                        .toFile()
+                        .also { it.parentFile.mkdirs() }
+                )
+            )
+        }
+    }
 }
