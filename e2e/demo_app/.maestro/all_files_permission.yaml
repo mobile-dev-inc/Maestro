@@ -1,0 +1,29 @@
+appId: com.example.example
+tags:
+  - passing
+  - android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      allFiles: allow
+
+# Verify the permission is granted via the Settings app
+- launchApp: com.android.settings
+- tapOn: Search settings
+- inputText: "all files access"
+- tapOn: "Apps > Special app access"
+- tapOn: "All files access"
+- assertVisible: "demo_app"
+- assertVisible: "Allowed"
+
+# Clear state should revoke the permission
+- clearState: com.example.example
+
+- launchApp: com.android.settings
+- tapOn: Search settings
+- inputText: "all files access"
+- tapOn: "Apps > Special app access"
+- tapOn: "All files access"
+- assertVisible: "demo_app"
+- assertVisible: "Not allowed"

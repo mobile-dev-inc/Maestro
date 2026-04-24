@@ -920,9 +920,17 @@ class AndroidDriver(
         }
     }
 
+    private val appOpsPermissions = setOf(
+        "android.permission.MANAGE_EXTERNAL_STORAGE"
+    )
+
     private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
         try {
-            shell("pm $permissionValue $appId $permission")
+            if (permission in appOpsPermissions) {
+                setAppOp(appId, permission, permissionValue)
+            } else {
+                shell("pm $permissionValue $appId $permission")
+            }
         } catch (exception: Exception) {
             // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
             if (exception.message?.contains("is not a changeable permission type") == false) {
@@ -932,6 +940,16 @@ class AndroidDriver(
                 logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
             }
         }
+    }
+
+    private fun setAppOp(appId: String, op: String, permissionValue: String) {
+        // appops uses the bare operation name (e.g. MANAGE_EXTERNAL_STORAGE), not the full permission string
+        val opName = op.removePrefix("android.permission.")
+
+        // appops set expects "allow"/"deny"; permissionValue has already been translated to "grant"/"revoke"
+        val appOpsValue = if (permissionValue == "grant") "allow" else "deny"
+
+        shell("appops set --uid $appId $opName $appOpsValue")
     }
 
     private fun translatePermissionName(name: String): List<String> {
@@ -965,6 +983,8 @@ class AndroidDriver(
                 "android.permission.WRITE_EXTERNAL_STORAGE",
                 "android.permission.READ_EXTERNAL_STORAGE"
             )
+
+            "allFiles" -> listOf("android.permission.MANAGE_EXTERNAL_STORAGE")
 
             "notifications" -> listOf(
                 "android.permission.POST_NOTIFICATIONS"
