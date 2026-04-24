@@ -954,40 +954,28 @@ class AndroidDriver(
 
     private fun translatePermissionName(name: String): List<String> {
         return when (name) {
-            "location" -> listOf(
-                "android.permission.ACCESS_FINE_LOCATION",
-                "android.permission.ACCESS_COARSE_LOCATION",
-            )
-
-            "camera" -> listOf("android.permission.CAMERA")
-            "contacts" -> listOf(
-                "android.permission.READ_CONTACTS",
-                "android.permission.WRITE_CONTACTS"
-            )
-
-            "phone" -> listOf(
-                "android.permission.CALL_PHONE",
-                "android.permission.ANSWER_PHONE_CALLS",
-            )
-
-            "microphone" -> listOf(
-                "android.permission.RECORD_AUDIO"
-            )
-
             "bluetooth" -> listOf(
                 "android.permission.BLUETOOTH_CONNECT",
                 "android.permission.BLUETOOTH_SCAN",
             )
 
-            "storage" -> listOf(
-                "android.permission.WRITE_EXTERNAL_STORAGE",
-                "android.permission.READ_EXTERNAL_STORAGE"
+            "calendar" -> listOf(
+                "android.permission.WRITE_CALENDAR",
+                "android.permission.READ_CALENDAR"
+            )
+
+            "camera" -> listOf("android.permission.CAMERA")
+
+            "contacts" -> listOf(
+                "android.permission.READ_CONTACTS",
+                "android.permission.WRITE_CONTACTS"
             )
 
             "externalstorage" -> listOf("android.permission.MANAGE_EXTERNAL_STORAGE")
 
-            "notifications" -> listOf(
-                "android.permission.POST_NOTIFICATIONS"
+            "location" -> listOf(
+                "android.permission.ACCESS_FINE_LOCATION",
+                "android.permission.ACCESS_COARSE_LOCATION",
             )
 
             "medialibrary" -> listOf(
@@ -998,15 +986,28 @@ class AndroidDriver(
                 "android.permission.READ_MEDIA_VIDEO"
             )
 
-            "calendar" -> listOf(
-                "android.permission.WRITE_CALENDAR",
-                "android.permission.READ_CALENDAR"
+            "microphone" -> listOf(
+                "android.permission.RECORD_AUDIO"
+            )
+
+            "notifications" -> listOf(
+                "android.permission.POST_NOTIFICATIONS"
+            )
+
+            "phone" -> listOf(
+                "android.permission.CALL_PHONE",
+                "android.permission.ANSWER_PHONE_CALLS",
             )
 
             "sms" -> listOf(
                 "android.permission.READ_SMS",
                 "android.permission.RECEIVE_SMS",
                 "android.permission.SEND_SMS"
+            )
+
+            "storage" -> listOf(
+                "android.permission.WRITE_EXTERNAL_STORAGE",
+                "android.permission.READ_EXTERNAL_STORAGE"
             )
 
             else -> listOf(name.replace("[^A-Za-z0-9._]+".toRegex(), ""))
