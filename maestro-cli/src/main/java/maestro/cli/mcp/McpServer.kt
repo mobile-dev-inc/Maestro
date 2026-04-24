@@ -15,7 +15,7 @@ import maestro.debuglog.LogConfig
 import maestro.cli.mcp.tools.ListDevicesTool
 import maestro.cli.mcp.tools.TakeScreenshotTool
 import maestro.cli.mcp.tools.RunTool
-import maestro.cli.mcp.tools.InspectViewHierarchyTool
+import maestro.cli.mcp.tools.InspectScreenTool
 import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
@@ -26,16 +26,16 @@ import java.io.PrintStream
 internal val INSTRUCTIONS = """
     Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test, reproduce a bug, or self-validate a user-facing change you just built.
 
-    Every local tool (`take_screenshot`, `inspect_view_hierarchy`, `run`) needs a `device_id` from `list_devices` first.
+    Every local tool (`take_screenshot`, `inspect_screen`, `run`) needs a `device_id` from `list_devices` first.
 
     Docs: https://docs.maestro.dev/llms.txt. Call `cheat_sheet` before authoring unfamiliar commands, required args, nested properties, conditionals, or multi-screen flows.
 
     ## Local workflow
 
-    `list_devices` -> `inspect_view_hierarchy` -> `run`.
+    `list_devices` -> `inspect_screen` -> `run`.
 
     1. `list_devices`: pick a `device_id` (mobile simulator/emulator, or `chromium` for web). If empty, ask the user to boot one. Use only IDs returned.
-    2. `inspect_view_hierarchy`: fetch the view hierarchy before targeting elements. Use `take_screenshot` when a visual helps. Re-inspect after any UI change.
+    2. `inspect_screen`: fetch the current screen's view hierarchy before targeting elements. Use `take_screenshot` when a visual helps. Re-inspect after any UI change.
     3. `run`: pass exactly one of `{ yaml }` (inline, preferred for exploration), `{ files }`, or `{ dir, include_tags, exclude_tags }`. Always include `device_id`. Pass `env` for flow variables. `run` validates syntax.
 
     Mobile flows declare `appId` and start with `launchApp`; web flows declare `url` and start with `openLink`. `include_tags`/`exclude_tags` are bare names without `@`. Prefer one full flow over many single-command calls.
@@ -89,7 +89,7 @@ fun runMaestroMcpServer() {
         ListDevicesTool.create(),
         TakeScreenshotTool.create(sessionManager),
         RunTool.create(sessionManager),
-        InspectViewHierarchyTool.create(sessionManager),
+        InspectScreenTool.create(sessionManager),
         CheatSheetTool.create(),
         ListCloudDevicesTool.create(),
         RunOnCloudTool.create(),
