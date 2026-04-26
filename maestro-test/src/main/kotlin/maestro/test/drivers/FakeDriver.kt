@@ -154,10 +154,10 @@ open class FakeDriver : Driver {
         events += Event.Tap(point)
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, durationMs: Long) {
         ensureOpen()
 
-        events += Event.LongPress(point)
+        events += Event.LongPress(point, durationMs)
     }
 
     override fun pressKey(code: KeyCode) {
@@ -442,7 +442,8 @@ open class FakeDriver : Driver {
         ) : Event(), UserInteraction
 
         data class LongPress(
-            val point: Point
+            val point: Point,
+            val durationMs: Long = 3000L
         ) : Event(), UserInteraction
 
         object Scroll : Event(), UserInteraction

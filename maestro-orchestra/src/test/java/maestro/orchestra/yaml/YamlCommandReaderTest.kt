@@ -825,6 +825,35 @@ internal class YamlCommandReaderTest {
         assertThat(error).hasMessageThat().contains("Unknown orientation: \${orientation}")
     }
 
+    @Test
+    fun `longPressOn with custom duration should parse duration into command`(
+        @YamlFile("033_longPressOn_withDuration.yaml") commands: List<Command>
+    ) {
+        // Long press with custom duration on element by text
+        val longPressByText = commands[1] as TapOnElementCommand
+        assertThat(longPressByText.selector.textRegex).isEqualTo("Hold me")
+        assertThat(longPressByText.longPress).isTrue()
+        assertThat(longPressByText.duration).isEqualTo(5000L)
+
+        // Long press with custom duration on element by id
+        val longPressById = commands[2] as TapOnElementCommand
+        assertThat(longPressById.selector.idRegex).isEqualTo("some_button")
+        assertThat(longPressById.longPress).isTrue()
+        assertThat(longPressById.duration).isEqualTo(10000L)
+
+        // Long press with default duration (no duration specified → null)
+        val longPressDefault = commands[3] as TapOnElementCommand
+        assertThat(longPressDefault.selector.idRegex).isEqualTo("default_button")
+        assertThat(longPressDefault.longPress).isTrue()
+        assertThat(longPressDefault.duration).isNull()
+
+        // Long press with custom duration on a screen point
+        val longPressPoint = commands[4] as TapOnPointV2Command
+        assertThat(longPressPoint.point).isEqualTo("50%,50%")
+        assertThat(longPressPoint.longPress).isTrue()
+        assertThat(longPressPoint.duration).isEqualTo(2000L)
+    }
+
 
     @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {

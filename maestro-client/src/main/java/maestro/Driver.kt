@@ -48,7 +48,7 @@ interface Driver {
 
     fun tap(point: Point)
 
-    fun longPress(point: Point)
+    fun longPress(point: Point, durationMs: Long = 3000L)
 
     fun pressKey(code: KeyCode)
 
