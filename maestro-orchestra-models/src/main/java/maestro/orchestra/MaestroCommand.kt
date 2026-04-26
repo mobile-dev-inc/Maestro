@@ -73,6 +73,9 @@ data class MaestroCommand(
     val setAirplaneModeCommand: SetAirplaneModeCommand? = null,
     val toggleAirplaneModeCommand: ToggleAirplaneModeCommand? = null,
     val retryCommand: RetryCommand? = null,
+    val tapOnOcrCommand: TapOnOcrCommand? = null,
+    val assertVisibleOcrCommand: AssertVisibleOcrCommand? = null,
+    val assertNotVisibleOcrCommand: AssertNotVisibleOcrCommand? = null,
 ) {
 
     constructor(command: Command) : this(
@@ -120,7 +123,10 @@ data class MaestroCommand(
         addMediaCommand = command as? AddMediaCommand,
         setAirplaneModeCommand = command as? SetAirplaneModeCommand,
         toggleAirplaneModeCommand = command as? ToggleAirplaneModeCommand,
-        retryCommand = command as? RetryCommand
+        retryCommand = command as? RetryCommand,
+        tapOnOcrCommand = command as? TapOnOcrCommand,
+        assertVisibleOcrCommand = command as? AssertVisibleOcrCommand,
+        assertNotVisibleOcrCommand = command as? AssertNotVisibleOcrCommand,
     )
 
     fun asCommand(): Command? = when {
@@ -169,6 +175,9 @@ data class MaestroCommand(
         setAirplaneModeCommand != null -> setAirplaneModeCommand
         toggleAirplaneModeCommand != null -> toggleAirplaneModeCommand
         retryCommand != null -> retryCommand
+        tapOnOcrCommand != null -> tapOnOcrCommand
+        assertVisibleOcrCommand != null -> assertVisibleOcrCommand
+        assertNotVisibleOcrCommand != null -> assertNotVisibleOcrCommand
         else -> null
     }
 

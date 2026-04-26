@@ -339,6 +339,7 @@ jreleaser {
 
             dependencies {
                 dependency("openjdk", "17+")
+                dependency("tesseract")
             }
         }
     }
