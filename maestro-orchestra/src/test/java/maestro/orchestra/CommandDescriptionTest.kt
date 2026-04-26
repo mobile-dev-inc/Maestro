@@ -221,4 +221,23 @@ internal class CommandDescriptionTest {
 
         jsEngine.close()
     }
+
+    @Test
+    fun `setAirplaneMode description evaluates script values`() {
+        // given
+        val jsEngine = GraalJsEngine(platform = "android")
+        jsEngine.putEnv("airplane", "enabled")
+
+        val command = SetAirplaneModeCommand(
+            value = "\${airplane}"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo("Set airplane mode \${airplane}")
+        val evaluatedCommand = command.evaluateScripts(jsEngine)
+        assertThat(evaluatedCommand.description()).isEqualTo("Set airplane mode enabled")
+        assertThat(evaluatedCommand.originalDescription).isEqualTo("Set airplane mode enabled")
+
+        jsEngine.close()
+    }
 }

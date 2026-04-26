@@ -1,4 +1,7 @@
 appId: com.example.example
+env:
+  airplaneOn: enabled
+  airplaneOff: disabled
 tags:
   - passing
   - android
@@ -12,3 +15,10 @@ tags:
 
 - setAirplaneMode: disabled
 - assertVisible: 'Online'
+
+- setAirplaneMode: ${airplaneOn}
+- assertVisible: 'Offline'
+
+- setAirplaneMode: ${airplaneOff}
+- assertVisible: 'Online'
+
