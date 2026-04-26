@@ -4608,7 +4608,7 @@ class IntegrationTest {
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
     }
 
-    
+
     @Test
     fun `hideKeyboard succeeds when keyboard becomes hidden`() {
         // Given
@@ -4710,7 +4710,7 @@ class IntegrationTest {
 
         // When
         runBlocking {
-          orchestra.runFlow(commands)
+            orchestra.runFlow(commands)
         }
 
         // Then
@@ -4759,6 +4759,52 @@ class IntegrationTest {
             "onCommandMetadataUpdate",
             "onCommandFailed"
         ).inOrder()
+    }
+
+    @Test
+    fun `Random text should be stored in JS variable - Graal`() {
+        // Given
+        val commands = readCommands("131_randomText_jsVar_graaljs")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertAllEvent(condition = {
+            ((it as? Event.InputText?)?.text?.length ?: -1) >= 5
+        })
+
+        driver.assertCurrentTextInputMatches(Regex("(.+)\\1(.+)\\2(.+)\\3(.+)\\4(.+)\\5(.+)\\6")) // 6 pairs of repeated strings
+    }
+
+    @Test
+    fun `Random text should be stored in JS variable - Rhino`() {
+        // Given
+        val commands = readCommands("131_randomText_jsVar_rhinojs")
+
+        val driver = driver {}
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure
+        driver.assertAllEvent(condition = {
+            ((it as? Event.InputText?)?.text?.length ?: -1) >= 5
+        })
+
+        driver.assertCurrentTextInputMatches(Regex("(.+)\\1(.+)\\2(.+)\\3(.+)\\4(.+)\\5(.+)\\6")) // 6 pairs of repeated strings
     }
 
     private data class CallbackEvent(
