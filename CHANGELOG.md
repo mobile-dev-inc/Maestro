@@ -18,7 +18,7 @@
 - Fix `--android-api-level` and `--ios-version` being silently ignored on cloud uploads
 - Normalize resolved workspace paths so `..` segments collapse on zip filesystems
 - Guard `WorkingDirectory.resolve(String)` against absolute paths, fixing doubled paths that broke MCP auto-run
-- Show progress for the whole multipart cloud upload (workspace zip + app binary + mapping), not just the app binary
+- Show upload progress in `maestro cloud` CLI output for the whole upload (workspace zip + app binary + mapping), not just the app binary
 - Add a CLI warning when the workspace zip produced for `maestro cloud` exceeds 20 MB, since oversized uploads slow queue and run times across the fleet
 - Replace Android TCP port forwarding with a direct ADB socket for gRPC - around 41% faster on a simple `assertVisible` flow, and removes the flaky forwarding thread that fought with Studio/CLI/MCP running side-by-side
 - Fixes to cancelling flow execution when inside a long-running command
