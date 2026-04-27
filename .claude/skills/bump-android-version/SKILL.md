@@ -102,7 +102,9 @@ When the subagent returns:
 - `maestro-client/**`, `maestro-orchestra/**`, etc. — host-side Kotlin.
 - `e2e/demo_app/**` — the demo_app fixture's Android manifest, `build.gradle.kts`, or `.maestro/` flow YAML (only when the failure is a fixture issue, not a driver issue).
 
-The only valid edits to `test-e2e.yaml` during this loop are workflow-shape changes (matrix, retention, dispatch inputs) — never driver-behaviour workarounds. If the subagent proposes a workflow patch, push back: ask it (or yourself) where the same fix would live in `maestro-android/` or `maestro-client/` so users on the new API level inherit it automatically.
+Valid edits to `test-e2e.yaml` during this loop are workflow-shape changes (matrix, retention, dispatch inputs) — and the narrow exception below. Anything else (e.g. extra `adb shell settings put …` to mask a Maestro driver gap) is off-limits. If the subagent proposes a workflow patch, push back: ask it (or yourself) where the same fix would live in `maestro-android/` or `maestro-client/` so users on the new API level inherit it automatically.
+
+**Exception — third-party app first-run UI not triggered by a Maestro API.** A pre-installed app's own onboarding (Chrome Welcome / "Make Chrome your own", browser default-app picker, Play Protect prompts that fire at app launch) is environment-harness state, not driver behaviour. Maestro doesn't expose a public API that triggers them — they're side effects of the OS image we picked. These may be pre-disabled in the AVD setup step (typical knobs: `setprop debug.chrome.command_line`, `settings put global …` flags). Test: *if Maestro called nothing related to this dialog, would it still appear?* If yes → CI workaround is fair game. If no (e.g. `setLocation` triggers GMS Location Accuracy via `FusedLocationProviderClient` inside the driver) → fix the driver instead.
 
 1. For each root cause in its report, present the proposed diff to the user (file path + one-line summary + diff + side effects). Reject any proposal that targets `test-e2e.yaml` for driver-behaviour reasons before showing it — re-scope to Maestro source first.
 2. **Ask consent explicitly per fix:**
