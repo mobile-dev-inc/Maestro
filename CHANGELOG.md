@@ -22,8 +22,7 @@
 - Add a soft CLI warning when the workspace zip produced by `maestro cloud` exceeds 20 MB, since oversized uploads slow queue and run times across the fleet
 - Replace Android TCP port forwarding with a direct ADB socket for gRPC - around 41% faster on a simple `assertVisible` flow, and removes the flaky forwarding thread that fought with
   Studio/CLI/MCP running side-by-side
-- Make `Maestro` methods natively `suspend` so coroutine cancellation propagates through to device IO, enabling `withTimeout { orchestra.runFlow(...) }` to actually cancel stuck gRPC calls
-- Orchestra properly respects coroutine cancellation in command, scroll, repeat, and subflow loops; previously, cancellation could scroll or retry forever
+- Fixes to cancelling flow execution when inside a long-running command
 - Allow JavaScript expressions in the `timeout` field of `waitForAnimationToEnd`
 - Add missing string-command config for `inputRandomColorName` and related random-input commands
 - Detect Azure Pipelines as a CI provider (via `TF_BUILD`), so promotional messages are suppressed
