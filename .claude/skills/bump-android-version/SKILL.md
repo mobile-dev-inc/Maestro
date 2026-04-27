@@ -96,7 +96,15 @@ Dispatch the **`diagnose-maestro-failure`** subagent with the artifact directory
 
 When the subagent returns:
 
-1. For each root cause in its report, present the proposed diff to the user (file path + one-line summary + diff + side effects).
+**Fixes go in Maestro source — not in `.github/workflows/test-e2e.yaml`.** A failing flow on a new API level reflects a behaviour Maestro users will also hit on their own machines/CI, not just ours. Patching the GHA workflow (e.g. extra `adb shell settings put …`, command-line tweaks, AVD setup steps) hides the regression from real users and ships a Maestro that's only green inside our CI. Acceptable fix targets:
+
+- `maestro-android/**` — on-device driver Kotlin (rebuild driver APKs after editing).
+- `maestro-client/**`, `maestro-orchestra/**`, etc. — host-side Kotlin.
+- `e2e/demo_app/**` — the demo_app fixture's Android manifest, `build.gradle.kts`, or `.maestro/` flow YAML (only when the failure is a fixture issue, not a driver issue).
+
+The only valid edits to `test-e2e.yaml` during this loop are workflow-shape changes (matrix, retention, dispatch inputs) — never driver-behaviour workarounds. If the subagent proposes a workflow patch, push back: ask it (or yourself) where the same fix would live in `maestro-android/` or `maestro-client/` so users on the new API level inherit it automatically.
+
+1. For each root cause in its report, present the proposed diff to the user (file path + one-line summary + diff + side effects). Reject any proposal that targets `test-e2e.yaml` for driver-behaviour reasons before showing it — re-scope to Maestro source first.
 2. **Ask consent explicitly per fix:**
    > Proposed fix for `<root cause>`: `<one-liner>`. Apply?
 3. On approval: edit, commit with a focused message — don't bundle unrelated fixes.
@@ -133,6 +141,7 @@ If the loop has gone three iterations without progress (same flow keeps failing 
 - **Bundling gradle + APK rebuild into one commit** — kills bisectability. Always two commits.
 - **Dispatching with default inputs** — hits the old API. Always pass both `-f` flags.
 - **Auto-applying Maestro source fixes without consent** — every Kotlin patch needs explicit user approval first.
+- **Patching `.github/workflows/test-e2e.yaml` to mask a driver behaviour gap** — workflow band-aids hide the regression from users running Maestro outside our CI. Fix `maestro-android/` or `e2e/demo_app/` instead so the fix ships with the driver APKs.
 - **Treating `failing/` artifacts as regressions** — that suite is expected to fail.
 - **Committing on `main`** — always work on the bump branch. Verify with `git status` before every commit.
 - **Skipping the screenshot read** — the screenshot tells you what `maestro.log` and the JSON cannot. It's the highest-signal artifact. Always read it.
