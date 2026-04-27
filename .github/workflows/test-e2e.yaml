@@ -106,8 +106,8 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
-      ANDROID_PLATFORM: platforms;android-34
+      ANDROID_OS_IMAGE: system-images;android-36;google_apis;x86_64
+      ANDROID_PLATFORM: platforms;android-36
 
     steps:
       - name: Enable KVM group perms
