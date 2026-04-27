@@ -667,6 +667,12 @@ class AndroidDriver(
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
                 shell("appops set dev.mobile.maestro android:mock_location allow")
+                // Pre-consent GMS "Location Accuracy" dialog (Android 35+ Google APIs image).
+                // FusedLocationProviderClient triggers it the first time mock providers are enabled;
+                // the dialog persists across flows because clearAppState/launchApp do not dismiss
+                // system overlays. Settings are scoped to the device under test.
+                shell("settings put secure use_location_for_services 1")
+                shell("settings put secure network_location_opt_in 1")
                 runDeviceCall("enableMockLocationProviders") {
                     blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
                 }
