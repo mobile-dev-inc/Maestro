@@ -20,8 +20,7 @@
 - Guard `WorkingDirectory.resolve(String)` against absolute paths, fixing doubled paths that broke MCP auto-run
 - Show progress for the whole multipart cloud upload (workspace zip + app binary + mapping), not just the app binary
 - Add a soft CLI warning when the workspace zip produced by `maestro cloud` exceeds 20 MB, since oversized uploads slow queue and run times across the fleet
-- Replace Android TCP port forwarding with a direct ADB socket for gRPC - around 41% faster on a simple `assertVisible` flow, and removes the flaky forwarding thread that fought with
-  Studio/CLI/MCP running side-by-side
+- Replace Android TCP port forwarding with a direct ADB socket for gRPC - around 41% faster on a simple `assertVisible` flow, and removes the flaky forwarding thread that fought with Studio/CLI/MCP running side-by-side
 - Fixes to cancelling flow execution when inside a long-running command
 - Allow JavaScript expressions in the `timeout` field of `waitForAnimationToEnd`
 - Add missing string-command config for `inputRandomColorName` and related random-input commands
