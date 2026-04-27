@@ -562,6 +562,18 @@ class IOSDriver(
                 socketTimeoutException
             )
             throw tripped
+        } catch (unreachable: maestro.utils.network.XCUITestServerError.Unreachable) {
+            // The transport-layer latch in XCTestDriverClient now traps SocketTimeoutException
+            // closer to OkHttp and surfaces it as Unreachable. Mirror it into the driver-level
+            // DeviceUnreachableException so callers see one shape. Will be replaced by an
+            // IOSDeviceErrors.Unreachable catch once XCTestIOSDevice does the translation.
+            val tripped = DeviceUnreachableException(unreachable.callName, unreachable)
+            transportFailure = tripped
+            LOGGER.error(
+                "Transport unreachable while processing ${unreachable.callName}, marking driver unreachable",
+                unreachable
+            )
+            throw tripped
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
