@@ -670,8 +670,9 @@ class AndroidDriver(
                 // Pre-consent the GMS "Location Accuracy" dialog that FusedLocationProviderClient
                 // surfaces the first time mock providers are enabled on google_apis images. The
                 // dialog is gated by GMS-internal flags in the gservices provider — Settings.Secure
-                // and AppOpsManager grants are both no-ops here. GSERVICES_OVERRIDE flips them; the
-                // force-stop afterwards makes GMS re-read them before setMockMode(true) is invoked.
+                // and AppOpsManager grants are both no-ops here. GSERVICES_OVERRIDE flips them and
+                // GMS picks them up on the next read; do NOT force-stop GMS, that disconnects the
+                // FusedLocationProviderClient maestro-server is about to use and breaks setMockMode.
                 shell("settings put secure location_mode 3")
                 shell("cmd location set-location-enabled true")
                 shell(
@@ -680,7 +681,6 @@ class AndroidDriver(
                         "-e use_location_for_services 1 " +
                         "-e location_collection 1"
                 )
-                shell("am force-stop com.google.android.gms")
                 runDeviceCall("enableMockLocationProviders") {
                     blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
                 }
