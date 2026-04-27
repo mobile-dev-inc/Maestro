@@ -344,6 +344,15 @@ jobs:
             sleep 1
           done
 
+          # Skip Chrome first-run experience (Welcome / "Make Chrome your own" sign-in card
+          # surfaced on Android 35+). This is Chrome's own UI on launch, not a Maestro behaviour
+          # — Maestro just dispatches the VIEW intent in openLink. The setprop trick is userdebug-
+          # only, so it lives here in the AVD setup rather than in the maestro-client driver.
+          # Ref: https://stackoverflow.com/questions/33408138
+          adb shell 'echo "chrome --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+          adb shell setprop debug.chrome.command_line /data/local/tmp/chrome-command-line
+          adb shell am force-stop com.android.chrome || true
+
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps android
