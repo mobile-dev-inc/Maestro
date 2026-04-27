@@ -29,7 +29,7 @@
 - Remove CLI-side `--app-binary-id` validation - server-side already handles it
 - Remove the unmaintained `recipes/` folder; examples now live at https://docs.maestro.dev/examples
 - Fix log folder name generation where outputs were being split across two similarly-timestamped directories, and extend `XDG_STATE_HOME` support to log outputs
-- Fix `ToastAccessibilityListener` crashing with `NoSuchElementException` on notification events with an empty text list (Android 11+)
+- Fix `ToastAccessibilityListener` crashing Maestro when toast nodes have no text (Android)
 
 Thanks to @jkronborg, @dineshv87, and @HarlonWang who contributed changes included in this release ❤️
 
