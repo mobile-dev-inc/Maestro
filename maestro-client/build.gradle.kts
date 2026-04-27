@@ -122,18 +122,6 @@ kotlin.sourceSets.all {
     languageSettings.optIn("kotlin.RequiresOptIn")
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs(
-                "build/generated/source/proto/main/grpc",
-                "build/generated/source/proto/main/java",
-                "build/generated/source/proto/main/kotlin"
-            )
-        }
-    }
-}
-
 dependencies {
     protobuf(project(":maestro-proto"))
     implementation(project(":maestro-utils"))
