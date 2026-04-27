@@ -2,6 +2,17 @@ name: Test E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      android_os_image:
+        description: 'Android system image (sdkmanager package)'
+        required: false
+        type: string
+        default: 'system-images;android-32;google_apis;x86_64'
+      android_platform:
+        description: 'Android platform package'
+        required: false
+        type: string
+        default: 'platforms;android-34'
   pull_request:
 
 jobs:
@@ -106,8 +117,8 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
-      ANDROID_PLATFORM: platforms;android-34
+      ANDROID_OS_IMAGE: ${{ inputs.android_os_image || 'system-images;android-32;google_apis;x86_64' }}
+      ANDROID_PLATFORM: ${{ inputs.android_platform || 'platforms;android-34' }}
 
     steps:
       - name: Enable KVM group perms
