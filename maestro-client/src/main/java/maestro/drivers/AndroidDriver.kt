@@ -667,6 +667,12 @@ class AndroidDriver(
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
                 shell("appops set dev.mobile.maestro android:mock_location allow")
+
+                // Pre-consent so Play Services doesn't show its "Location Accuracy"
+                // dialog when FusedLocationProviderClient is constructed below.
+                shell("settings put secure location_mode 3")
+                shell("settings put secure network_location_opt_in 1")
+
                 runDeviceCall("enableMockLocationProviders") {
                     blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
                 }
