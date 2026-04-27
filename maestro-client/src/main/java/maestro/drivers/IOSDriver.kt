@@ -54,7 +54,6 @@ import okio.source
 import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
-import java.net.SocketTimeoutException
 import kotlin.collections.set
 
 class IOSDriver(
@@ -68,14 +67,6 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = TempFileHandler())
-
-    // Set on the first transport-level failure (socket timeout against the XCTest runner).
-    // Subsequent runDeviceCalls fail-fast against this instead of issuing fresh HTTP requests
-    // to a runner we already know isn't answering. Volatile because runDeviceCall executes on
-    // Dispatchers.IO worker threads (via runInterruptible in maestro.Maestro) — the writer and
-    // any future reader may be different pool workers, so JMM visibility matters.
-    @Volatile
-    private var transportFailure: DeviceUnreachableException? = null
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -551,29 +542,11 @@ class IOSDriver(
     }
 
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
-        transportFailure?.let { throw it }
         return try {
             call()
-        } catch (socketTimeoutException: SocketTimeoutException) {
-            val tripped = DeviceUnreachableException(callName, socketTimeoutException)
-            transportFailure = tripped
-            LOGGER.error(
-                "Got socket timeout processing $callName command, marking driver unreachable",
-                socketTimeoutException
-            )
-            throw tripped
-        } catch (unreachable: maestro.utils.network.XCUITestServerError.Unreachable) {
-            // The transport-layer latch in XCTestDriverClient now traps SocketTimeoutException
-            // closer to OkHttp and surfaces it as Unreachable. Mirror it into the driver-level
-            // DeviceUnreachableException so callers see one shape. Will be replaced by an
-            // IOSDeviceErrors.Unreachable catch once XCTestIOSDevice does the translation.
-            val tripped = DeviceUnreachableException(unreachable.callName, unreachable)
-            transportFailure = tripped
-            LOGGER.error(
-                "Transport unreachable while processing ${unreachable.callName}, marking driver unreachable",
-                unreachable
-            )
-            throw tripped
+        } catch (unreachable: IOSDeviceErrors.Unreachable) {
+            LOGGER.error("Device unreachable while processing $callName command", unreachable)
+            throw DeviceUnreachableException(unreachable.callName, unreachable)
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)
