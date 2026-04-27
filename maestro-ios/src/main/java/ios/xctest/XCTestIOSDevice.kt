@@ -237,6 +237,8 @@ class XCTestIOSDevice(
             )
         } catch (timeout: XCUITestServerError.OperationTimeout) {
             throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
+        } catch (unreachable: XCUITestServerError.Unreachable) {
+            throw IOSDeviceErrors.Unreachable(unreachable.callName, unreachable)
         }
     }
 
