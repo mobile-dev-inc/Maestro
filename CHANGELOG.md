@@ -11,6 +11,7 @@
     - Add `list_cloud_devices` and a `device_model` parameter on `run_on_cloud`, so agents can look up valid `{platform, model, supported_os}` triples instead of guessing
     - Add server instructions and a clean stdout handshake - MCP startup no longer corrupts the JSON-RPC channel, fixing `Unexpected token 'k'` errors on strict clients like Claude Desktop
     - Drop `use_fuzzy_matching` from the `tap_on` schema - the flag had no YAML equivalent and produced surprising matches
+    - A compact JSON output by default
     - Upgrade MCP Kotlin SDK to the official 0.11.1
 - Fix `--config=<path>` on `maestro cloud` for any filename other than `config.yaml`/`config.yml`, and allow configs to live outside the workspace directory
 - Detect workspace config files by content (top-level YAML keys) instead of filename, so files like `platform_settings.yaml` are no longer mis-parsed as flows
@@ -30,6 +31,9 @@
 - Remove the unmaintained `recipes/` folder; examples now live at https://docs.maestro.dev/examples
 - Fix log folder name generation where outputs were being split across two similarly-timestamped directories, and extend `XDG_STATE_HOME` support to log outputs
 - Fix `ToastAccessibilityListener` crashing Maestro when toast nodes have no text (Android)
+- Add support for the `MANAGE_EXTERNAL_STORAGE` permission on Android
+- Fix XCTest UI-interruption preflight hang in the iOS runner, where alerts shown during app launch could freeze the test
+- `retryCommand` now only retries on `MaestroException` and propagates other exceptions, instead of swallowing unrelated errors
 
 Thanks to @jkronborg, @dineshv87, and @HarlonWang who contributed changes included in this release ❤️
 
