@@ -247,6 +247,16 @@ jobs:
             sleep 1
           done
 
+      - name: Bypass Chrome first-run experience
+        # Chrome's FRE blocks web-link flows on a fresh emulator. The command-line
+        # file is honored because of `am set-debug-app` on userdebug builds.
+        # https://stackoverflow.com/q/33408138
+        run: |
+          adb shell 'echo "chrome --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+          adb shell chmod 644 /data/local/tmp/chrome-command-line
+          adb shell am set-debug-app --persistent com.android.chrome
+          adb shell am force-stop com.android.chrome
+
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps android
