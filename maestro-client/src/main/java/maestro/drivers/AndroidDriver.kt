@@ -255,17 +255,6 @@ class AndroidDriver(
             }
 
             shell("pm clear $appId")
-            // pm clear wipes app data and revokes runtime permissions, but does NOT touch the
-            // appops table. Reset known appops-gated special permissions (e.g.
-            // MANAGE_EXTERNAL_STORAGE) so clearState is a consistent "back to first-install"
-            // for callers — otherwise these grants persist across clearState and surprise users.
-            appOpsPermissions.forEach { permission ->
-                try {
-                    setAppOp(appId, permission, "unset")
-                } catch (exception: Exception) {
-                    logger.debug("Failed to reset appop $permission for $appId on clearState: ${exception.message}")
-                }
-            }
         }
     }
 
@@ -967,7 +956,7 @@ class AndroidDriver(
         // a Uid-level layer that survives pm clear and disagrees with this codebase's reset path),
         // others reject it. The positional form sets the per-package layer consistently and is
         // cleared by `appops set <pkg> <op> default` symmetrically.
-        shell("appops set $appId $opName $appOpsValue")
+        shell("appops set --uid $appId $opName $appOpsValue")
     }
 
     private fun translatePermissionName(name: String): List<String> {
