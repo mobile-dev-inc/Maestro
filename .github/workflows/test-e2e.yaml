@@ -23,6 +23,13 @@ on:
         default: ''
   pull_request:
 
+# Cancel an in-progress run when a new one starts on the same ref + same trigger + same dispatch
+# inputs. PR pushes cancel earlier PR runs on the same branch; manual dispatches with different
+# android_version / app / flow stay independent so we can validate multiple API levels in parallel.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}
+  cancel-in-progress: true
+
 jobs:
   validate-inputs:
     name: Validate workflow inputs
