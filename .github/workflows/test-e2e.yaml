@@ -353,6 +353,21 @@ jobs:
           adb shell setprop debug.chrome.command_line /data/local/tmp/chrome-command-line
           adb shell am force-stop com.android.chrome || true
 
+          # Pre-grant GMS "Google Location Accuracy" consent so FusedLocationProviderClient.setMockMode(true)
+          # in maestro-server doesn't trigger a system overlay during setLocation flows on the
+          # Android 14+ google_apis image. The flag lives in GMS's private content provider
+          # (content://com.google.settings/partner) which only `system` uid can write to —
+          # `adb root` (userdebug emulator only) gives us that. Real users on production-build
+          # phones can't root and will hit the dialog separately; that's a driver-side fix.
+          adb root
+          adb wait-for-device
+          adb shell content insert \
+            --uri content://com.google.settings/partner \
+            --bind name:s:network_location_opt_in --bind value:s:1 || true
+          adb shell content insert \
+            --uri content://com.google.settings/partner \
+            --bind name:s:use_location_for_services --bind value:s:1 || true
+
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps android
