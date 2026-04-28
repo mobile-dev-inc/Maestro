@@ -7,8 +7,9 @@ on:
         description: 'Android API level to test against'
         required: false
         type: choice
-        default: 'android-34'
+        default: 'android-32'
         options:
+          - 'android-32'
           - 'android-34'
           - 'android-35'
           - 'android-36'
@@ -195,7 +196,7 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-34' }};google_apis;x86_64
+      ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-32' }};google_apis;x86_64
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
