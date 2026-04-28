@@ -962,7 +962,12 @@ class AndroidDriver(
             else -> "default" // "unset" resets to system default
         }
 
-        shell("appops set --uid $appId $opName $appOpsValue")
+        // Use positional <package> form, NOT --uid <package>. The --uid flag expects a numeric UID;
+        // passing a package name is undefined behaviour — some Android builds resolve it (writing to
+        // a Uid-level layer that survives pm clear and disagrees with this codebase's reset path),
+        // others reject it. The positional form sets the per-package layer consistently and is
+        // cleared by `appops set <pkg> <op> default` symmetrically.
+        shell("appops set $appId $opName $appOpsValue")
     }
 
     private fun translatePermissionName(name: String): List<String> {
