@@ -35,12 +35,22 @@ cd <artifact_root>/tests/demo_app/passing
 grep -l '"FAILED"' commands-*.json
 ```
 
+The status field lives at `.[].metadata.status`. Possible values: `COMPLETED` (success) and `FAILED` (terminal failure). `commands-*.json` is the **only** authoritative source — `screenshot-❌-*.png` is not.
+
+**`commands-(retry).json` is the canonical example.** This flow exercises the `retryCommand` directive: a tap fails, Maestro retries it, the retry succeeds, and the flow passes. In the artifact:
+
+- All entries (including the recovered `tapOnElement`) have `metadata.status = "COMPLETED"` — Maestro writes only the final outcome of a recovered command, not the failed attempt.
+- A `screenshot-❌-<ts>-(retry).png` still exists, captured at the moment of the failed attempt before the retry succeeded.
+- The grep above does **not** match this file (no `"FAILED"` string anywhere), so the agent never investigates it. This is correct behaviour.
+
+The risk is treating the `❌` screenshot as evidence of failure on its own. Don't. Trust the candidates from grep — they are the flows whose JSON contains a terminal `FAILED`. Any other `❌` screenshot in `passing/` is from a recovered retry and is irrelevant.
+
 ## Per-Flow Investigation
 
-For each passing flow with a FAILED command:
+For each candidate flow returned by the grep above:
 
-1. **Open `commands-(<flow>).json`.** Locate the `"status": "FAILED"` entry. Record: command type, error message, `timestamp` (ms epoch), `sequenceNumber`, `duration` (≈17000 ms = default-wait timeout, indicating UI-blocked, not crash).
-2. **Open the screenshot `screenshot-❌-<timestamp>-(<flow>).png`.** This is the highest-signal artifact — JSON and logs alone misclassify when a system dialog is invisible to them. Always read it.
+1. **Open `commands-(<flow>).json`.** Locate the entry whose `metadata.status == "FAILED"` — that's the terminal failure. Record: command type (the single key under `command`), error message, `metadata.timestamp` (ms epoch), `metadata.sequenceNumber`, `metadata.duration` (≈17000 ms = default-wait timeout, indicating UI-blocked, not crash).
+2. **Open the screenshot `screenshot-❌-<timestamp>-(<flow>).png` whose timestamp matches the FAILED entry.** This is the highest-signal artifact — JSON and logs alone misclassify when a system dialog is invisible to them. Always read it. Ignore `❌` screenshots from other timestamps in the same file — those are recovered retries.
 3. **Grep `maestro.log`** for the flow name and the timestamp window for surrounding driver activity, gRPC errors, and stack traces.
 
 ## Classification
@@ -99,6 +109,7 @@ Return this structure verbatim — the caller parses it:
 - Do NOT propose a separate fix for each member of a cascade group.
 - Do NOT guess at Kotlin line numbers — verify via Explore subagent first.
 - Do NOT report `failing/` flows as failures.
+- Do NOT trust `❌` screenshots on their own. The grep filter (`grep -l '"FAILED"' commands-*.json`) is the source of truth for which flows had a terminal failure. A `❌` screenshot inside a flow whose JSON has zero `FAILED` entries is from a recovered retry and is not evidence of regression. `commands-(retry).json` is the canonical example — see "Where to Look" for details.
 - Always read the screenshot, even when JSON+log seem to point clearly at a cause — the screenshot is what reveals system overlays.
 
 ## When to Stop and Hand Back

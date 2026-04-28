@@ -146,5 +146,6 @@ If the loop has gone three iterations without progress (same flow keeps failing 
 - **Auto-applying Maestro source fixes without consent** — every Kotlin patch needs explicit user approval first.
 - **Patching `.github/workflows/test-e2e.yaml` to mask a driver behaviour gap** — workflow band-aids hide the regression from users running Maestro outside our CI. Fix `maestro-android/` or `e2e/demo_app/` instead so the fix ships with the driver APKs.
 - **Treating `failing/` artifacts as regressions** — that suite is expected to fail.
+- **Treating `❌` screenshots in `passing/` as regressions on their own** — when `retryCommand` recovers a failed attempt, Maestro writes only the final `COMPLETED` entry to `commands-(<flow>).json` but leaves the `❌` screenshot from the failed attempt on disk (e.g. `screenshot-❌-<ts>-(retry).png` for the `retry` flow itself). The diagnose agent uses `commands-*.json` containing a terminal `FAILED` entry as the source of truth — orphan `❌` screenshots without a matching FAILED entry are noise.
 - **Committing on `main`** — always work on the bump branch. Verify with `git status` before every commit.
 - **Skipping the screenshot read** — the screenshot tells you what `maestro.log` and the JSON cannot. It's the highest-signal artifact. Always read it.
