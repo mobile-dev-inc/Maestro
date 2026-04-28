@@ -66,8 +66,13 @@ _run_failing() {
 		_h3 "$app_name" "failing" "$line"
 	done < pipe &
 
-	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1 \
-		&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
+	# Inverted polarity: maestro is EXPECTED to exit non-zero. We use `if maestro …` so that
+	# (a) set -e doesn't abort the script when maestro correctly fails, and
+	# (b) we record FAIL only when maestro succeeds (i.e. failing flows unexpectedly passed).
+	if maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1; then
+		_h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
+		ALL_PASS=false
+	fi
 }
 
 _run_single_flow() {
@@ -177,8 +182,11 @@ else
 			_h3 "$app_name" "failing" "$line"
 		done < pipe &
 
-		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
-			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
+		# See _run_failing for the rationale on `if maestro …` vs `&& { … }`.
+		if maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1; then
+			_h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
+			ALL_PASS=false
+		fi
 	done
 fi
 
