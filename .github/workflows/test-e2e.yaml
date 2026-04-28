@@ -196,7 +196,6 @@ jobs:
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
       ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-34' }};google_apis;x86_64
-      ANDROID_PLATFORM: platforms;${{ inputs.android_version || 'android-34' }}
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
@@ -235,7 +234,6 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
           sdkmanager --install "platform-tools"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          sdkmanager --install "$ANDROID_PLATFORM"
           sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Cache pub
