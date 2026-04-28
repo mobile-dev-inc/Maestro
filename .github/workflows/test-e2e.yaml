@@ -7,11 +7,11 @@ on:
         description: 'Android API level to test against'
         required: false
         type: choice
-        default: '34'
+        default: 'android-34'
         options:
-          - '34'
-          - '35'
-          - '36'
+          - 'android-34'
+          - 'android-35'
+          - 'android-36'
   pull_request:
 
 jobs:
@@ -116,9 +116,8 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_VERSION: ${{ inputs.android_version || '34' }}
-      ANDROID_OS_IMAGE: system-images;android-${{ inputs.android_version || '34' }};google_apis;x86_64
-      ANDROID_PLATFORM: platforms;android-${{ inputs.android_version || '34' }}
+      ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-34' }};google_apis;x86_64
+      ANDROID_PLATFORM: platforms;${{ inputs.android_version || 'android-34' }}
 
     steps:
       - name: Enable KVM group perms
