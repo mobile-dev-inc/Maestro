@@ -99,11 +99,9 @@ Dispatch the **`diagnose-maestro-failure`** subagent with the artifact directory
 
 When the subagent returns:
 
-**Fixes go in Maestro source — not in `.github/workflows/test-e2e.yaml`.** A failing flow on a new API level reflects a behaviour Maestro users will also hit on their own machines/CI, not just ours. Patching the GHA workflow (e.g. extra `adb shell settings put …`, command-line tweaks, AVD setup steps) hides the regression from real users and ships a Maestro that's only green inside our CI. Acceptable fix targets:
+**Fixes go in Maestro source — not in `.github/workflows/test-e2e.yaml`.** A failing flow on a new API level reflects a behaviour Maestro users will also hit on their own machines/CI, not just ours. Patching the GHA workflow (e.g. extra `adb shell settings put …`, command-line tweaks, AVD setup steps) hides the regression from real users and ships a Maestro that's only green inside our CI.
 
-- `maestro-android/**` — on-device driver Kotlin (rebuild driver APKs after editing).
-- `maestro-client/**`, `maestro-orchestra/**`, etc. — host-side Kotlin.
-- `e2e/demo_app/**` — the demo_app fixture's Android manifest, `build.gradle.kts`, or `.maestro/` flow YAML (only when the failure is a fixture issue, not a driver issue).
+Acceptable fix targets and their roles are documented in [`AGENTS.md`](../../../AGENTS.md) (modules `maestro-android/`, `maestro-client/`, `maestro-orchestra/`, `e2e/demo_app/`). Driver-behaviour fixes belong in `maestro-android/` or `maestro-client/`; fixture-only issues belong in `e2e/demo_app/`. Editing the driver source means rebuilding the driver APKs (`./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest`) before re-dispatching.
 
 Valid edits to `test-e2e.yaml` during this loop are workflow-shape changes (matrix, retention, dispatch inputs) — and the narrow exception below. Anything else (e.g. extra `adb shell settings put …` to mask a Maestro driver gap) is off-limits. If the subagent proposes a workflow patch, push back: ask it (or yourself) where the same fix would live in `maestro-android/` or `maestro-client/` so users on the new API level inherit it automatically.
 
