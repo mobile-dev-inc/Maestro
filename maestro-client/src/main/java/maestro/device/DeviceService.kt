@@ -608,11 +608,7 @@ object DeviceService {
                 throw TimeoutException()
             }
 
-            if (process.exitValue() == 0) {
-                val output = String(process.inputStream.readBytes()).trim()
-
-                return output.contains(image)
-            }
+            return process.exitValue() == 0 && isAndroidSystemImageInstalled(image)
         } catch (e: Exception) {
             logger.error("Unable to install if SDK package is installed", e)
         }
