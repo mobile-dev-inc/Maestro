@@ -10,6 +10,7 @@ on:
         default: 'android-32'
         options:
           - 'android-32'
+          - 'android-33'
           - 'android-34'
           - 'android-35'
           - 'android-36'
