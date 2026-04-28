@@ -92,8 +92,11 @@ jobs:
             exit 1
           fi
 
-          echo "Resolved: $matches"
-          echo "flow_path=$matches" >> "$GITHUB_OUTPUT"
+          # run_tests runs with working-directory: ${{ github.workspace }}/e2e, so strip the
+          # leading e2e/ to make the path resolve relative to that working directory.
+          relative_path="${matches#e2e/}"
+          echo "Resolved: $matches (relative to e2e/: $relative_path)"
+          echo "flow_path=$relative_path" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build on Java ${{ matrix.java-version }}
