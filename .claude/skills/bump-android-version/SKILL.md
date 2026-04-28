@@ -20,7 +20,9 @@ One commit per logical step. Don't bundle the gradle bump and the APK rebuild �
 
 - Working tree clean (`git status`).
 - `main` up to date: `git fetch origin && git checkout main && git pull --ff-only origin main`.
-- The workflow's `workflow_dispatch` inputs `android_os_image` / `android_platform` must exist on the branch. If `android-version-launch` is merged into main, branching off main is fine. If not, branch off `origin/android-version-launch` instead.
+- The workflow's `workflow_dispatch` inputs `android_version` (and optional `app` / `flow`) must exist on the branch. 
+- `android_version` is a `choice` input — its options live in `.github/workflows/test-e2e.yaml`. If `<new>` isn't already listed (e.g. bumping to API 37), add it to the `options:` list in a separate commit before dispatching, otherwise the workflow rejects the input.
+- The `validate-inputs` job rejects `android_version <= android-29`. Bumps below API 29 aren't supported.
 - Branch name: `bump-android-api-<old>-<new>` (e.g. `bump-android-api-34-36`).
 
 ```bash
@@ -55,7 +57,7 @@ git add maestro-client/src/main/resources/maestro-app.apk \
 git commit -m "chore(android): rebuild driver APKs against API <new>"
 ```
 
-If `assemble` itself fails (deprecated APIs, dependency mismatch on the new SDK): that's a real Maestro gap — fix it as an additional commit before pushing.
+If `assemble` fails, **stop and surface the failure to the user** with the gradle error and a suggested fix. Do not proceed without rebuilt driver APKs. Once we have assemble fixed and new drivers are commited, we can proceed to the next step.
 
 ## Step 3: push draft PR + dispatch
 
@@ -66,15 +68,14 @@ gh pr create --draft \
   --body "Validates Maestro against API <new>. Driver APKs rebuilt. Test-e2e dispatched with system-images;android-<new>;google_apis;x86_64."
 
 gh workflow run test-e2e.yaml --ref bump-android-api-<old>-<new> \
-  -f android_os_image="system-images;android-<new>;google_apis;x86_64" \
-  -f android_platform="platforms;android-<new>"
+  -f android_version="android-<new>"
 
 # capture the run id
 sleep 3
 gh run list --workflow test-e2e.yaml --branch bump-android-api-<old>-<new> --limit 1 --json databaseId,status
 ```
 
-Always pass *both* `-f` flags. Defaults still point at the old API.
+Always pass `-f android_version=android-<new>` — the default is `android-32` and would silently re-test the old API. The workflow constructs the full `system-images;...` string internally. `app` and `flow` are optional narrowing knobs (defaults: `demo_app`, all flows); leave them off for the full bump-validation run.
 
 ## Step 4: watch the test-android job
 
@@ -122,8 +123,7 @@ After all approved fixes for this iteration are committed:
   ```bash
   git push
   gh workflow run test-e2e.yaml --ref bump-android-api-<old>-<new> \
-    -f android_os_image="system-images;android-<new>;google_apis;x86_64" \
-    -f android_platform="platforms;android-<new>"
+    -f android_version="android-<new>"
   ```
 
 - **If no fixes were applied** (everything was out-of-scope, or the user rejected every proposal): pause and ask the user how to proceed. Do not keep dispatching.
@@ -141,7 +141,8 @@ If the loop has gone three iterations without progress (same flow keeps failing 
 ## Anti-patterns
 
 - **Bundling gradle + APK rebuild into one commit** — kills bisectability. Always two commits.
-- **Dispatching with default inputs** — hits the old API. Always pass both `-f` flags.
+- **Dispatching with default inputs** — `android_version` defaults to `android-32` and hits the old API. Always pass `-f android_version=android-<new>`.
+- **Forgetting to extend the `android_version` choice enum** — the workflow rejects API levels not listed in `options:`. Add `<new>` to the enum in a separate commit before the first dispatch.
 - **Auto-applying Maestro source fixes without consent** — every Kotlin patch needs explicit user approval first.
 - **Patching `.github/workflows/test-e2e.yaml` to mask a driver behaviour gap** — workflow band-aids hide the regression from users running Maestro outside our CI. Fix `maestro-android/` or `e2e/demo_app/` instead so the fix ships with the driver APKs.
 - **Treating `failing/` artifacts as regressions** — that suite is expected to fail.
