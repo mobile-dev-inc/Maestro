@@ -12,11 +12,85 @@ on:
           - 'android-34'
           - 'android-35'
           - 'android-36'
+      app:
+        description: 'App workspace to test (e.g. demo_app, simple_web_view). Empty = all apps.'
+        type: string
+        default: 'demo_app'
+      flow:
+        description: 'Optional: flow name within the chosen app (e.g. setLocation). Empty = all flows.'
+        type: string
+        default: ''
   pull_request:
 
 jobs:
+  validate-inputs:
+    name: Validate workflow inputs
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      flow_path: ${{ steps.resolve.outputs.flow_path }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate android_version
+        run: |
+          version="${{ inputs.android_version }}"
+          suffix="${version#android-}"
+          if ! printf '%s' "$suffix" | grep -qE '^[0-9]+$'; then
+            echo "::error::android_version malformed: '$version'"
+            exit 1
+          fi
+          if [ "$suffix" -le 29 ]; then
+            echo "::error::android_version must be > android-29 (got: $version)"
+            exit 1
+          fi
+
+      - name: Validate app
+        if: inputs.app != ''
+        run: |
+          app="${{ inputs.app }}"
+          if [ "$app" != "demo_app" ] && [ ! -d "e2e/workspaces/$app" ]; then
+            echo "::error::Unknown app: '$app'. Available:"
+            echo "  demo_app"
+            for d in e2e/workspaces/*/; do [ -d "$d" ] && echo "  $(basename "$d")"; done
+            exit 1
+          fi
+
+      - name: Resolve flow
+        id: resolve
+        if: inputs.flow != ''
+        run: |
+          app="${{ inputs.app }}"
+          [ -z "$app" ] && app="demo_app"
+          if [ "$app" = "demo_app" ]; then
+            workspace_dir="e2e/demo_app/.maestro"
+          else
+            workspace_dir="e2e/workspaces/$app"
+          fi
+
+          name="${{ inputs.flow }}"
+          name="${name%.yaml}"
+          matches=$(find "$workspace_dir" -type f -name "${name}.yaml")
+          count=$(printf "%s\n" "$matches" | grep -cv '^$' || true)
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No flow '$name' under $workspace_dir. Available:"
+            find "$workspace_dir" -type f -name "*.yaml" | xargs -n1 basename | sed 's/\.yaml$//' | sort -u
+            exit 1
+          fi
+          if [ "$count" -gt 1 ]; then
+            echo "::error::Multiple matches for '$name':"
+            printf "%s\n" "$matches"
+            exit 1
+          fi
+
+          echo "Resolved: $matches"
+          echo "flow_path=$matches" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build on Java ${{ matrix.java-version }}
+    needs: validate-inputs
+    if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
     runs-on: macos-latest
     timeout-minutes: 20
 
@@ -59,7 +133,11 @@ jobs:
   test-web:
     name: Test on Web
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && inputs.flow == '' }}
+
+    env:
+      MAESTRO_APP: ${{ inputs.app }}
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
@@ -109,7 +187,8 @@ jobs:
   test-android:
     name: Test on Android
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
     timeout-minutes: 60
 
     env:
@@ -118,6 +197,8 @@ jobs:
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
       ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-34' }};google_apis;x86_64
       ANDROID_PLATFORM: platforms;${{ inputs.android_version || 'android-34' }}
+      MAESTRO_APP: ${{ inputs.app }}
+      MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
     steps:
       - name: Enable KVM group perms
@@ -278,12 +359,14 @@ jobs:
   test-ios:
     name: Test on iOS
     runs-on: macos-26
-    needs: build
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && inputs.flow == '' }}
     timeout-minutes: 120
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
       MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+      MAESTRO_APP: ${{ inputs.app }}
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
