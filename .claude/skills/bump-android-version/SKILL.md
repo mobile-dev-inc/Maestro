@@ -16,6 +16,8 @@ Drive an Android-version bump in Maestro commit-by-commit on a single feature br
 
 One commit per logical step. Don't bundle the gradle bump and the APK rebuild — they need to be separately revertible. After a failing run, fixes are committed and the workflow re-dispatched. Loop until green; do not stop on the first re-dispatch.
 
+**The loop only acts on `passing/` failures.** `tests/demo_app/passing/` is the regression-detection suite — its flows are expected to pass, so a failure there is a real signal. `tests/demo_app/failing/` is the negative-path suite (its flows are *expected* to fail) and is ignored end-to-end. The diagnose agent rejects `failing/` artifacts and rejects retry-recovered flows in `passing/` (see [`.claude/agents/diagnose-maestro-failure.md`](../../agents/diagnose-maestro-failure.md)). If the run is otherwise green except for `failing/`, that's a green run.
+
 ## Pre-flight
 
 - Working tree clean (`git status`).
@@ -83,7 +85,7 @@ Always pass `-f android_version=android-<new>` — the default is `android-32` a
 gh run watch <run_id>
 ```
 
-Block in the foreground; the run is the bottleneck. On green: update PR from draft → ready, done.
+Block in the foreground; the run is the bottleneck. **Green here means every `passing/` flow passed (terminally — retry-recovered counts as passed). `failing/` outcomes do not affect the verdict.** On green: update PR from draft → ready, done.
 
 On red, download artifacts:
 
