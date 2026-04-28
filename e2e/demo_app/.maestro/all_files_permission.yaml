@@ -12,8 +12,8 @@ tags:
 - assertVisible: "Allowed"
 
 # Verify clearState revokes the permission
-- clearState: com.example.example
-- launchApp
+- launchApp:
+    clearState: true
 - tapOn: "All Files Access"
 - assertVisible: "Not allowed"
 
