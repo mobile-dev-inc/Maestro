@@ -101,7 +101,6 @@ class AndroidDriver(
     }
 
     override fun open() {
-        prepareLocationServicesForSession()
         installMaestroApks()
         startInstrumentationSession(hostPort)
 
@@ -110,29 +109,6 @@ class AndroidDriver(
         } catch (ignored: InterruptedException) {
             instrumentationSession?.close()
             return
-        }
-    }
-
-    // Pre-conditions GMS so the first FusedLocationProviderClient.setMockMode(true) call inside
-    // maestro-server does not surface the "Google Location Accuracy" consent dialog (Android 14+
-    // Google APIs images). The gservices override writes GMS's persistent consent flags; the
-    // force-stop is required because GMS only re-reads them at process start. Doing this at
-    // driver open is safe because no FusedLocationProviderClient exists yet — that client is
-    // created lazily on the first setLocation flow — and GMS has the full session-warmup window
-    // (APK install + instrumentation startup) to come back online before any flow runs.
-    private fun prepareLocationServicesForSession() {
-        try {
-            shell("settings put secure location_mode 3")
-            shell("cmd location set-location-enabled true")
-            shell(
-                "am broadcast -a com.google.gservices.intent.action.GSERVICES_OVERRIDE " +
-                    "-e network_location_opt_in 1 " +
-                    "-e use_location_for_services 1 " +
-                    "-e location_collection 1"
-            )
-            shell("am force-stop com.google.android.gms")
-        } catch (e: Throwable) {
-            LOGGER.warn("Could not pre-condition GMS for mock location; setLocation flows may stall on the consent dialog", e)
         }
     }
 
