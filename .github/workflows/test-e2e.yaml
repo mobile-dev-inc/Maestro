@@ -368,6 +368,11 @@ jobs:
             --uri content://com.google.settings/partner \
             --bind name:s:use_location_for_services --bind value:s:1 || true
 
+          # Drop back to shell uid so subsequent steps (install_apps, run_tests, maestro driver
+          # via dadb) exercise the same code path real users hit on production-build devices.
+          adb unroot
+          adb wait-for-device
+
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps android
