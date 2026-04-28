@@ -158,16 +158,16 @@ class CloudCommand : Callable<Int> {
     private var deviceLocale: String? = null
 
     @Option(order = 20, names = ["--device-model"], description = [
-      "Device model to run your flow against. " +
-              "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: maestro list-cloud-devices" +
-              "Android: pixel_6, etc. Run command: maestro list-cloud-devices"
+      "Device model to run your flow against.",
+      "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-cloud-devices",
+      "  Android: pixel_6, pixel_7, etc. Run command: maestro list-cloud-devices"
     ])
     private var deviceModel: String? = null
 
     @Option(order = 21, names = ["--device-os"], description = [
-      "OS version to run your flow against. " +
-              "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. maestro list-devices" +
-              "Android: android-33, android-34, etc. maestro list-cloud-devices"
+      "OS version to run your flow against.",
+      "  iOS: iOS-18-2, iOS-26-2, etc. maestro list-cloud-devices",
+      "  Android: android-33, android-34, etc. maestro list-cloud-devices"
     ])
     private var deviceOs: String? = null
 
