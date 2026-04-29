@@ -44,9 +44,9 @@ class JUnitTestSuiteReporter(
                 }
                 
                 TestCase(
-                    id = flow.name,
+                    id = flow.id ?: flow.name,
                     name = flow.name,
-                    classname = flow.name,
+                    classname = flow.classname ?: flow.name,
                     failure = flow.failure?.let { failure ->
                         Failure(
                             message = failure.message,

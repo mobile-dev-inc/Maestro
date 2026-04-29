@@ -23,6 +23,8 @@ data class TestExecutionSummary(
 
     data class FlowResult(
         val name: String,
+        val id: String? = null,
+        val classname: String? = null,
         val fileName: String?,
         val status: FlowStatus,
         val failure: Failure? = null,

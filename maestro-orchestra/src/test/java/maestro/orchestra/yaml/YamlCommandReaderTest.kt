@@ -168,6 +168,23 @@ internal class YamlCommandReaderTest {
         )
     }
 
+    @Test
+    fun config_id_classname(
+        @YamlFile("033_config_id_classname.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+                name = "Login Test",
+                id = "TC-LOGIN-001",
+                classname = "com.example.tests.LoginTest"
+            )),
+            LaunchAppCommand(
+                appId = "com.example.app"
+            ),
+        )
+    }
+
     // Misc. tests
 
     @Test

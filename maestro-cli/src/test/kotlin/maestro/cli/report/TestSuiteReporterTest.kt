@@ -193,4 +193,33 @@ abstract class TestSuiteReporterTest {
             )
         )
     )
+
+    val testWithCustomIdAndClassname = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Login Flow",
+                        id = "TC-LOGIN-001",
+                        classname = "com.example.tests.LoginTest",
+                        fileName = "login_flow",
+                        status = FlowStatus.SUCCESS,
+                        duration = 2500.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli()
+                    ),
+                    TestExecutionSummary.FlowResult(
+                        name = "Checkout Flow",
+                        fileName = "checkout_flow",
+                        status = FlowStatus.SUCCESS,
+                        duration = 3500.milliseconds,
+                        startTime = nowPlus2.toInstant().toEpochMilli()
+                    ),
+                ),
+                duration = 6000.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
 }

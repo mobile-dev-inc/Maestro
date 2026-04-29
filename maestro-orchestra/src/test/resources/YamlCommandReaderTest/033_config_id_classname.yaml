@@ -1,0 +1,6 @@
+name: Login Test
+id: TC-LOGIN-001
+classname: com.example.tests.LoginTest
+appId: com.example.app
+---
+- launchApp
