@@ -37,6 +37,7 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -1325,19 +1326,18 @@ class Orchestra(
             - This could be a real regression that needs to be addressed.
         """.trimIndent()
         if (selector.childOf != null) {
-            val parentViewHierarchy = findElementViewHierarchy(
-                selector.childOf,
-                timeout
-            )
-            return maestro.findElementWithTimeout(
-                timeout,
-                filterFunc,
-                parentViewHierarchy
-            ) ?: throw MaestroException.ElementNotFound(
+            var fullHierarchy = ViewHierarchy(TreeNode())
+            val found = MaestroTimer.withTimeoutSuspend(timeout) {
+                fullHierarchy = maestro.viewHierarchy()
+                val parentHierarchy = resolveParentHierarchy(selector.childOf, fullHierarchy)
+                parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
+            }
+            val uiElement = found ?: throw MaestroException.ElementNotFound(
                 "Element not found: $description",
-                parentViewHierarchy.root,
+                fullHierarchy.root,
                 debugMessage = debugMessage
             )
+            return FindElementResult(uiElement, ViewHierarchy(uiElement.treeNode))
         }
 
 
@@ -1359,32 +1359,15 @@ class Orchestra(
         )
     }
 
-    private suspend fun findElementViewHierarchy(
+    private fun resolveParentHierarchy(
         selector: ElementSelector?,
-        timeout: Long
-    ): ViewHierarchy {
-        if (selector == null) {
-            return maestro.viewHierarchy()
-        }
-        val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout)
-        val (description, filterFunc) = buildFilter(selector = selector)
-        val debugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeout,
-            filterFunc,
-            parentViewHierarchy
-        )?.hierarchy ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            parentViewHierarchy.root,
-            debugMessage = debugMessage
-        )
+        hierarchy: ViewHierarchy,
+    ): ViewHierarchy? {
+        if (selector == null) return hierarchy
+        val grandparentHierarchy = resolveParentHierarchy(selector.childOf, hierarchy) ?: return null
+        val (_, parentFilter) = buildFilter(selector)
+        return parentFilter(grandparentHierarchy.aggregate()).firstOrNull()
+            ?.let { ViewHierarchy(it) }
     }
 
     private fun buildFilter(
