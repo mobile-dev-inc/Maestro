@@ -10,6 +10,7 @@ on:
         default: 'android-32'
         options:
           - 'android-32'
+          - 'android-33'
           - 'android-34'
           - 'android-35'
           - 'android-36'
@@ -335,17 +336,8 @@ jobs:
             >~/emulator_stdout.log \
             2>~/emulator_stderr.log &
 
-      - name: Wait for AVD to start up
-        run: |
-          adb wait-for-device && echo 'Emulator device online'
-          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && echo 'Emulator booted'
-
-          # This is also a prerequiste
-          while true; do
-            adb shell service list | grep 'package' && echo 'service "package" is active!' && break
-            echo 'waiting for service "package" to start'
-            sleep 1
-          done
+      - name: Wait for AVD to start up and configure CI pre-conditions
+        run: bash .github/scripts/setup_android_device.sh
 
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e

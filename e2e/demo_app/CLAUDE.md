@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Flutter demo app used as the target app for end-to-end testing of the [Maestro](https://github.com/mobile-dev-inc/maestro) mobile UI testing framework. It is not a production app — its screens exist to exercise specific Maestro features and reproduce specific bugs.
 
-The built binaries are uploaded to a GCS bucket and downloaded by Maestro's E2E pipeline at test time. When new screens or behaviors are needed to test a Maestro feature, they are added here.
+When new screens or behaviors are needed to test a Maestro feature, they are added here.
 
 ## Build Commands
 
