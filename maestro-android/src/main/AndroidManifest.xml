@@ -20,5 +20,21 @@
         <receiver android:name=".receivers.LocaleSettingReceiver"
             android:exported="true"
             tools:ignore="ExportedReceiver" />
+        <receiver
+            android:name=".receivers.UnicodeInputReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver" />
+        <service
+            android:name=".input.MaestroInputMethodService"
+            android:exported="true"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/maestro_input_method" />
+        </service>
     </application>
 </manifest>
