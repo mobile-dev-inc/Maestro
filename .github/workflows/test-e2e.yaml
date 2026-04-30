@@ -19,16 +19,24 @@ on:
         type: string
         default: 'demo_app'
       flow:
-        description: 'Optional: flow name within the chosen app (e.g. setLocation). Empty = all flows.'
+        description: 'Optional: flow filename within the chosen app (e.g. setLocation). Empty = all flows. Single-flow mode runs Android only.'
         type: string
         default: ''
+      platform:
+        description: 'Platform to test against (workflow_dispatch only; pull_request runs all three).'
+        type: choice
+        default: 'android'
+        options:
+          - 'android'
+          - 'ios'
+          - 'web'
   pull_request:
 
 # Cancel an in-progress run when a new one starts on the same ref + same trigger + same dispatch
 # inputs. PR pushes cancel earlier PR runs on the same branch; manual dispatches with different
-# android_version / app / flow stay independent so we can validate multiple API levels in parallel.
+# android_version / platform / app / flow stay independent so we can validate combinations in parallel.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.platform || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -146,7 +154,7 @@ jobs:
     name: Test on Web
     runs-on: ubuntu-latest
     needs: [build, validate-inputs]
-    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && inputs.flow == '' }}
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'web') && inputs.flow == '' }}
 
     env:
       MAESTRO_APP: ${{ inputs.app }}
@@ -200,7 +208,7 @@ jobs:
     name: Test on Android
     runs-on: ubuntu-latest
     needs: [build, validate-inputs]
-    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'android') }}
     timeout-minutes: 60
 
     env:
@@ -361,7 +369,7 @@ jobs:
     name: Test on iOS
     runs-on: macos-26
     needs: [build, validate-inputs]
-    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && inputs.flow == '' }}
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'ios') && inputs.flow == '' }}
     timeout-minutes: 120
 
     env:
