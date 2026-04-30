@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+tags:
+  - env-file
+---
+# This flow tests loading environment variables from a .env file.
+# No app is required.
+
+- assertTrue:
+    condition: ${APP_ID === 'com.example.app'}
+- assertTrue:
+    condition: ${TEST_MESSAGE === 'Hello from environment file!'}
+- assertTrue:
+    condition: ${TEST_URL === 'https://api.example.com'}
+- assertTrue:
+    condition: ${TEST_QUOTE_1 === 'Quote 1'}
+- assertTrue:
+    condition: ${TEST_QUOTE_2 === 'Quote 2'}

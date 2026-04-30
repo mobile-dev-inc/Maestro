@@ -55,6 +55,7 @@ else
 			demo_app) [ "$platform" = "ios" ]     && continue ;;
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
 			wikipedia)               [ "$platform" = "android" ] && continue ;;
+			env_file)                continue ;;  # handled separately with --env-file flag
 		esac
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
@@ -75,7 +76,7 @@ else
 		### Run failing tests (skip workspaces with no failing flows)
 		###
 		case $app_name in
-			wikipedia|simple_web_view) continue ;;
+			wikipedia|simple_web_view|env_file) continue ;;
 		esac
 
 		_h2 "$app_name" "run failing tests"
@@ -87,6 +88,24 @@ else
 		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
 	done
+
+	###
+	### Run --env-file test (no app required, just verifies env vars are loaded)
+	###
+	_h1 "run --env-file test"
+	_h2 "env_file" "run env-file test with .env"
+
+	while IFS= read -r line; do
+		_h3 "env_file" "env-file" "$line"
+	done < pipe &
+
+	maestro --verbose --no-ansi --platform "$platform" test \
+		--flatten-debug-output --debug-output="$HOME/.maestro/tests/env_file/env-file" \
+		--include-tags env-file \
+		--exclude-tags "$exclude_tags" \
+		--env-file ./workspaces/env_file/.env \
+		./workspaces/env_file/ 1>pipe 2>&1 \
+		|| { _h2 "env_file" "FAIL! --env-file test failed"; ALL_PASS=false; }
 fi
 
 if [ "$ALL_PASS" = "false" ]; then
