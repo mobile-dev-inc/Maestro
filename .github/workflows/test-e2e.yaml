@@ -33,14 +33,14 @@ jobs:
         run: ./gradlew :maestro-cli:distZip
 
       - name: Upload zipped Maestro CLI artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
       - name: Upload build/Products to artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build__Products-jdk${{ matrix.java-version }}
           path: build/Products
@@ -68,7 +68,7 @@ jobs:
           chrome-version: 142
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -88,7 +88,7 @@ jobs:
         run: ./run_tests web
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-web
@@ -148,7 +148,7 @@ jobs:
           sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Cache pub
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.pub-cache
@@ -158,7 +158,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -183,7 +183,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk ${{ github.workspace }}/e2e/apps/demo_app.apk
 
       - name: Download Maestro build from previous job
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -257,7 +257,7 @@ jobs:
         run: ./run_tests android
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-android
@@ -301,7 +301,7 @@ jobs:
           cp -r build/ios/iphonesimulator/Runner.app ${{ github.workspace }}/e2e/apps/demo_app.app
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -359,7 +359,7 @@ jobs:
         run: kill -SIGINT "$(cat ~/screenrecord.pid)"
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-ios
@@ -368,7 +368,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload xctest runner logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: xctest_runner_logs
@@ -377,7 +377,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload screen recording of Simulator
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-screenrecord-ios.mp4
@@ -402,12 +402,12 @@ jobs:
           java-version: 17
 
       - name: Download Maestro artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Download build/Products artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: build__Products-jdk17
           path: build/Products
@@ -430,7 +430,7 @@ jobs:
         run: ./maestro-ios-xctest-runner/test-maestro-ios-runner.sh
 
       - name: Upload xc test runner logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: test-ios-xctest-runner__xctest_runner_logs
