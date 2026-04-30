@@ -33,14 +33,14 @@ jobs:
         run: ./gradlew :maestro-cli:distZip
 
       - name: Upload zipped Maestro CLI artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
       - name: Upload build/Products to artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build__Products-jdk${{ matrix.java-version }}
           path: build/Products
@@ -67,7 +67,7 @@ jobs:
           java-version: 17
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -111,7 +111,7 @@ jobs:
         run: kill -SIGINT "$(cat ~/screenrecord.pid)"
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-ios
@@ -120,7 +120,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload xctest runner logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: xctest_runner_logs
@@ -129,7 +129,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload screen recording of Simulator
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-screenrecord-ios.mp4
