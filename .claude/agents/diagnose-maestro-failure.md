@@ -73,7 +73,7 @@ A single system dialog can fail many subsequent flows because `clearState` / `la
 
 Return this structure verbatim — the caller parses it:
 
-```markdown
+````markdown
 ## Summary
 <one-line: how many flows failed, how many root causes, how many cascade groups>
 
@@ -101,7 +101,7 @@ Return this structure verbatim — the caller parses it:
 
 ## Notes
 <anything the caller should know but isn't a fix proposal>
-```
+````
 
 ## Constraints
 
