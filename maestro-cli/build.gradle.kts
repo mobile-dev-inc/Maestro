@@ -122,7 +122,8 @@ fi
 """.trimIndent()
 
 tasks.named<CreateStartScripts>("startScripts") {
-    classpath = files("${layout.buildDirectory}/libs/*")
+    doNotTrackState("classpath uses a JVM wildcard glob that cannot be statted on Windows")
+    classpath = files("${layout.buildDirectory.get().asFile}/libs/*")
     doLast {
         val minimumJavaVersion = "17"
         val unixExec = "exec \"\$JAVACMD\" \"$@\""
