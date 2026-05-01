@@ -1,5 +1,4 @@
-Invalid Command Format: tapOn
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4:11
+Invalid Command Format: tapOn at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4:11
 
        2 | ---
        3 | - tapOn: foo

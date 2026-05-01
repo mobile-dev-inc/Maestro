@@ -1,5 +1,4 @@
-Config Section Required
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:1:1
+Config Section Required at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:1:1
 
   >    1 | 
            ^

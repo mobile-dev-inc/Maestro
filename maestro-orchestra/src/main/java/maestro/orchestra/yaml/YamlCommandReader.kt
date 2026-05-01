@@ -113,29 +113,31 @@ object YamlCommandReader {
             return block()
         } catch (e: VirtualMachineError) {
             // Don't attempt to pretty-format — the stack is near-exhausted and
-            // would trigger kotlin.text.LinesIterator.<clinit> inside errorMessage(),
+            // would trigger kotlin.text.LinesIterator.<clinit> inside the renderer,
             // permanently wedging that class for the whole JVM.
             throw e
         } catch (e: FlowParseException) {
-            val message = errorMessage(e)
-            throw SyntaxError(message, e)
+            throw toSyntaxError(e)
         } catch (e: Throwable) {
             val message = fallbackErrorMessage(path, e)
             throw SyntaxError(message)
         }
     }
 
-    private fun errorMessage(e: FlowParseException): String {
-        return ParserErrorRenderer.renderPlain(
-            ParserErrorContext(
-                title = e.title,
-                filePath = e.contentPath.absolutePathString(),
-                line = e.location.lineNr,
-                column = e.location.columnNr,
-                flowSource = e.content,
-                message = e.errorMessage,
-                docs = e.docs,
-            )
+    private fun toSyntaxError(e: FlowParseException): SyntaxError {
+        val ctx = ParserErrorContext(
+            title = e.title,
+            filePath = e.contentPath.absolutePathString(),
+            line = e.location.lineNr,
+            column = e.location.columnNr,
+            flowSource = e.content,
+            message = e.errorMessage,
+            docs = e.docs,
+        )
+        return SyntaxError(
+            message = ParserErrorRenderer.renderSummary(ctx),
+            detail = ParserErrorRenderer.renderDetail(ctx),
+            cause = e,
         )
     }
 

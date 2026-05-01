@@ -1,5 +1,4 @@
-Parsing Failed
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:5:1
+Parsing Failed at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:5:1
 
        3 | - swipe:
        4 |     direction: diagonal

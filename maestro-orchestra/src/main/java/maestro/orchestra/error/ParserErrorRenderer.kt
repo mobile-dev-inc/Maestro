@@ -15,6 +15,12 @@ internal data class ParserErrorContext(
  * a `<pre>` element on the web (Studio, copilot frontend). The output uses only
  * regular ASCII spaces and `\n` line breaks — no Unicode box-drawing, no
  * non-breaking spaces, no padded carets that depend on a specific font width.
+ *
+ * The output is split into two parts:
+ *   - [renderSummary] — a single line, suitable as the [ValidationError.message]
+ *     and as a status-bar style summary on the frontend.
+ *   - [renderDetail]  — a multi-line block (snippet, caret, message, docs)
+ *     suitable as the [ValidationError.detail] and as a `<pre>` body.
  */
 internal object ParserErrorRenderer {
 
@@ -23,19 +29,19 @@ internal object ParserErrorRenderer {
     private const val LINE_NUMBER_WIDTH = 4
     private const val INDENT = "  "
 
-    fun renderPlain(ctx: ParserErrorContext): String {
+    fun renderSummary(ctx: ParserErrorContext): String =
+        "${ctx.title} at ${locationString(ctx)}"
+
+    fun renderDetail(ctx: ParserErrorContext): String {
         val sb = StringBuilder()
-        sb.appendLine(ctx.title)
-        sb.appendLine("${INDENT}at ${locationString(ctx)}")
 
         val snippet = renderSnippet(ctx)
         if (snippet.isNotEmpty()) {
-            sb.appendLine()
             sb.append(snippet)
+            sb.appendLine()
             sb.appendLine()
         }
 
-        sb.appendLine()
         ctx.message.lines().forEach { line ->
             sb.appendLine("$INDENT$line")
         }

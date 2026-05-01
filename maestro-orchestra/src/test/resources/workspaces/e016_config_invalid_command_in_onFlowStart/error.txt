@@ -1,5 +1,4 @@
-Invalid Command: inp
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:8
+Invalid Command: inp at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:8
 
        1 | appId: com.example.app
        2 | onFlowStart:

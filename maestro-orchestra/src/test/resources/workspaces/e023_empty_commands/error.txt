@@ -1,5 +1,4 @@
-Commands Section Required
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2:4
+Commands Section Required at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2:4
 
        1 | appId: com.example.app
   >    2 | ---

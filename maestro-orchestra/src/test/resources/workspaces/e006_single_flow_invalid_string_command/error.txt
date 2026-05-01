@@ -1,5 +1,4 @@
-Invalid Command: invalidCommand
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:17
+Invalid Command: invalidCommand at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:17
 
        1 | appId: com.example
        2 | ---

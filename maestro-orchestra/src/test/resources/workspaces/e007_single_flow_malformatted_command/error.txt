@@ -1,5 +1,4 @@
-Unknown Property: invalidOption
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4:24
+Unknown Property: invalidOption at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4:24
 
        2 | ---
        3 | - launchApp:

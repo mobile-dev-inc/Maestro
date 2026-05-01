@@ -1,5 +1,4 @@
-Incorrect Format: tags
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2:7
+Incorrect Format: tags at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2:7
 
        1 | appId: com.example.app
   >    2 | tags: foo, bar

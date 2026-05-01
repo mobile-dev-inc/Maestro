@@ -1,5 +1,4 @@
-Incorrect Command Format: launchApp
-  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:13
+Incorrect Command Format: launchApp at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:13
 
        1 | appId: com.example.app
        2 | ---
