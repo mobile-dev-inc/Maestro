@@ -294,7 +294,140 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
 
     private func elementHierarchy(xcuiElement: XCUIElement) throws -> AXElement {
-        let snapshotDictionary = try xcuiElement.snapshot().dictionaryRepresentation
-        return AXElement(snapshotDictionary)
+        let snapshot = try xcuiElement.snapshot()
+        return elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
+    }
+
+    /// Recursively converts an `XCUIElementSnapshot` into Maestro's `AXElement` tree.
+    ///
+    /// At each cross-process window boundary we accumulate a coordinate-system offset
+    /// (see `crossProcessWindowOffset`) and inherit it down the subtree so descendant
+    /// frames are reported in screen coordinates rather than the foreign window's
+    /// local coordinates.
+    private func elementHierarchy(
+        snapshot: XCUIElementSnapshot,
+        inheritedOffset: CGVector,
+        parentWindowContextID: Double?
+    ) -> AXElement {
+        let dictionary = snapshot.dictionaryRepresentation
+        let rawFrame = frame(dictionary)
+        let windowContextID = (dictionary[XCUIElement.AttributeName(rawValue: "windowContextID")] as? Double) ?? 0
+
+        let boundaryOffset = crossProcessWindowOffset(
+            snapshot: snapshot,
+            rawFrame: rawFrame,
+            parentWindowContextID: parentWindowContextID,
+            windowContextID: windowContextID
+        )
+        let currentOffset = CGVector(
+            dx: inheritedOffset.dx + boundaryOffset.dx,
+            dy: inheritedOffset.dy + boundaryOffset.dy
+        )
+
+        var element = AXElement(dictionary, frameOverride: offsetFrame(rawFrame, by: currentOffset))
+        element.children = snapshot.children.map { child in
+            elementHierarchy(snapshot: child, inheritedOffset: currentOffset, parentWindowContextID: windowContextID)
+        }
+        return element
+    }
+
+    /// Returns the screen-space offset that needs to be applied to descendant frames
+    /// when crossing into a cross-process window subtree. Returns `.zero` for any
+    /// boundary that does not match the cross-process pattern, even when other
+    /// signals (e.g. visibleFrame clipping) would otherwise produce a non-zero delta.
+    ///
+    /// The fix targets a specific iOS bug: when a system sheet (HealthKit, share
+    /// sheet, photo picker, etc.) is presented, XCTest stitches the foreign
+    /// process's view tree into the host application's snapshot, but the foreign
+    /// process reports frames in its own window's local coordinates rather than
+    /// screen coordinates. This shows up as:
+    ///
+    ///   - The host app's `windowContextID` differing from the descendant subtree's
+    ///   - The descendant subtree being marked `isRemote = 1`
+    ///   - `visibleFrame.origin` matching the actual on-screen position while
+    ///     `frame.origin` reports the (wrong) window-local position
+    ///
+    /// All three signals must align before we apply the correction. Requiring the
+    /// remote-subtree signal (in addition to the windowContextID transition) guards
+    /// against benign in-process boundaries (e.g. `UITextEffectsWindow`) where a
+    /// non-zero `visibleFrame` delta would represent ordinary clipping, not a
+    /// coordinate-system mismatch.
+    private func crossProcessWindowOffset(
+        snapshot: XCUIElementSnapshot,
+        rawFrame: AXFrame,
+        parentWindowContextID: Double?,
+        windowContextID: Double
+    ) -> CGVector {
+        guard isCrossWindowContextBoundary(parentWindowContextID: parentWindowContextID, windowContextID: windowContextID),
+              containsRemoteSubtree(snapshot),
+              let visibleFrame = visibleFrame(snapshot) else {
+            return .zero
+        }
+
+        return CGVector(
+            dx: visibleFrame.x - rawFrame.x,
+            dy: visibleFrame.y - rawFrame.y
+        )
+    }
+
+    private func isCrossWindowContextBoundary(parentWindowContextID: Double?, windowContextID: Double) -> Bool {
+        guard let parentWindowContextID = parentWindowContextID else {
+            return false
+        }
+        return parentWindowContextID != 0
+            && windowContextID != 0
+            && parentWindowContextID != windowContextID
+    }
+
+    private func containsRemoteSubtree(_ snapshot: XCUIElementSnapshot) -> Bool {
+        if isRemote(snapshot) { return true }
+        return snapshot.children.contains(where: isRemote)
+    }
+
+    private func isRemote(_ snapshot: XCUIElementSnapshot) -> Bool {
+        guard let snapshotObject = snapshot as? NSObject,
+              snapshotObject.responds(to: NSSelectorFromString("isRemote")) else {
+            return false
+        }
+        return (snapshotObject.value(forKey: "isRemote") as? NSNumber)?.boolValue ?? false
+    }
+
+    private func visibleFrame(_ snapshot: XCUIElementSnapshot) -> AXFrame? {
+        guard let snapshotObject = snapshot as? NSObject,
+              snapshotObject.responds(to: NSSelectorFromString("visibleFrame")),
+              let value = snapshotObject.value(forKey: "visibleFrame") as? NSValue else {
+            return nil
+        }
+
+        let rect = value.cgRectValue
+        guard rect.origin.x.isFinite,
+              rect.origin.y.isFinite,
+              rect.size.width.isFinite,
+              rect.size.height.isFinite else {
+            return nil
+        }
+
+        return [
+            "X": Double(rect.origin.x),
+            "Y": Double(rect.origin.y),
+            "Width": Double(rect.size.width),
+            "Height": Double(rect.size.height)
+        ]
+    }
+
+    private func frame(_ dictionary: [XCUIElement.AttributeName: Any]) -> AXFrame {
+        dictionary[XCUIElement.AttributeName(rawValue: "frame")] as? AXFrame ?? .zero
+    }
+
+    private func offsetFrame(_ frame: AXFrame, by offset: CGVector) -> AXFrame {
+        guard offset.dx != 0 || offset.dy != 0 else {
+            return frame
+        }
+        return [
+            "X": frame.x + Double(offset.dx),
+            "Y": frame.y + Double(offset.dy),
+            "Width": frame.width,
+            "Height": frame.height
+        ]
     }
 }

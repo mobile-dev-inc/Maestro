@@ -9,4 +9,4 @@ appId: com.example.example
 - tapOn:
     id: "UIA.Health.Allow.Button"
     enabled: true
-- assertNotVisible: "Health Access"
+- assertNotVisible: "Turn On All"

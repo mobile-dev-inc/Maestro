@@ -16,7 +16,7 @@ struct WindowOffset: Codable {
 // MARK: - XCTest-specific AXElement Extension
 
 extension AXElement {
-    init(_ dict: [XCUIElement.AttributeName: Any]) {
+    init(_ dict: [XCUIElement.AttributeName: Any], frameOverride: AXFrame? = nil) {
         func valueFor(_ name: String) -> Any {
             dict[XCUIElement.AttributeName(rawValue: name)] as Any
         }
@@ -32,7 +32,7 @@ extension AXElement {
         let hasFocus = valueFor("hasFocus") as? Bool ?? false
         let placeholderValue = valueFor("placeholderValue") as? String
         let value = valueFor("value") as? String
-        let frame = valueFor("frame") as? AXFrame ?? .zero
+        let frame = frameOverride ?? valueFor("frame") as? AXFrame ?? .zero
         let enabled = valueFor("enabled") as? Bool ?? false
         let title = valueFor("title") as? String
         let childrenDictionaries = valueFor("children") as? [[XCUIElement.AttributeName: Any]]
