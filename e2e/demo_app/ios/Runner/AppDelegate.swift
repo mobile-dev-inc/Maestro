@@ -46,6 +46,25 @@ import UIKit
       }
     }
 
+    let healthAccessChannel = FlutterMethodChannel(
+      name: "com.example.demo_app/health_access",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    healthAccessChannel.setMethodCallHandler { (call, result) in
+      if call.method == "requestHealthAccess" {
+        HealthAccessManager.requestAuthorization { success, error in
+          if let error = error {
+            result(FlutterError(code: "HEALTH_ERROR", message: error.localizedDescription, details: nil))
+          } else {
+            result(success)
+          }
+        }
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
