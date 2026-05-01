@@ -1,13 +1,10 @@
-> Missing Command Options
+Missing Command Options
+  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:8
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
-╭──────────────────────────────────────────────────────╮
-│ 1 | appId: com.example.app                           │
-│ 2 | ---                                              │
-│ 3 | - tapOn                                          │
-│            ^                                         │
-│ ╭──────────────────────────────────────────────────╮ │
-│ │ The command `tapOn` requires additional options. │ │
-│ ╰──────────────────────────────────────────────────╯ │
-│ 4 |                                                  │
-╰──────────────────────────────────────────────────────╯
+       1 | appId: com.example.app
+       2 | ---
+  >    3 | - tapOn
+                  ^
+       4 | 
+
+  The command `tapOn` requires additional options.

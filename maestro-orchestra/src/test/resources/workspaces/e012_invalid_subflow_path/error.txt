@@ -1,14 +1,9 @@
-> Invalid File Path
+Invalid File Path
+  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:3
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
-╭──────────────────────────────────────────────────────────────────────────────────╮
-│ 1 | appId: com.example                                                           │
-│ 2 | ---                                                                          │
-│ 3 | - runFlow: invalidpath.yaml                                                  │
-│       ^                                                                          │
-│ ╭──────────────────────────────────────────────────────────────────────────────╮ │
-│ │ Flow file does not exist:                                                    │ │
-│ │ file:///tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/invalidp │ │
-│ │ ath.yaml                                                                     │ │
-│ ╰──────────────────────────────────────────────────────────────────────────────╯ │
-╰──────────────────────────────────────────────────────────────────────────────────╯
+       1 | appId: com.example
+       2 | ---
+  >    3 | - runFlow: invalidpath.yaml
+             ^
+
+  Flow file does not exist: file:///tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/invalidpath.yaml

@@ -1,13 +1,10 @@
-> Incorrect Format: tags
+Incorrect Format: tags
+  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2:7
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
-╭──────────────────────────────────────╮
-│ 1 | appId: com.example.app           │
-│ 2 | tags: foo, bar                   │
-│           ^                          │
-│ ╭──────────────────────────────────╮ │
-│ │ The format for tags is incorrect │ │
-│ ╰──────────────────────────────────╯ │
-│ 3 | ---                              │
-│ 4 |                                  │
-╰──────────────────────────────────────╯
+       1 | appId: com.example.app
+  >    2 | tags: foo, bar
+                 ^
+       3 | ---
+       4 | 
+
+  The format for tags is incorrect

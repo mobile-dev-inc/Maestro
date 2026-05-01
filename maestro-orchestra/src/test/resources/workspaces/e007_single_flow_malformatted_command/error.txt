@@ -1,12 +1,9 @@
-> Unknown Property: invalidOption
+Unknown Property: invalidOption
+  at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4:24
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:4
-╭────────────────────────────────────────────────────╮
-│ 2 | ---                                            │
-│ 3 | - launchApp:                                   │
-│ 4 |     invalidOption: true                        │
-│                            ^                       │
-│ ╭────────────────────────────────────────────────╮ │
-│ │ The property `invalidOption` is not recognized │ │
-│ ╰────────────────────────────────────────────────╯ │
-╰────────────────────────────────────────────────────╯
+       2 | ---
+       3 | - launchApp:
+  >    4 |     invalidOption: true
+                                  ^
+
+  The property `invalidOption` is not recognized
