@@ -1,7 +1,4 @@
 appId: com.example.example
-tags:
-  - failing
-  - ios
 ---
 - launchApp:
     clearState: true
