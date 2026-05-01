@@ -38,11 +38,23 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
     data class NoFlowsMatchingAppId(val appId: String, val foundIds: Set<String>) :
         WorkspaceValidationError("No flows match appId=$appId; found: $foundIds")
     data class NameConflict(val name: String) : WorkspaceValidationError("Duplicate flow name: $name")
-    data class SyntaxError(val detail: String) : WorkspaceValidationError("Syntax error: $detail")
-    data class InvalidFlowFile(val detail: String) : WorkspaceValidationError(detail)
+    /**
+     * @param message Short summary line from the underlying parser
+     *   (e.g. `"Config Field Required at /flow.yaml:2:1"`).
+     * @param detail  Optional rich block (snippet + caret + human message + docs)
+     *   from the underlying parser error, suitable for a `<pre>` panel on the web.
+     */
+    data class SyntaxError(
+        override val message: String,
+        val detail: String? = null,
+    ) : WorkspaceValidationError(message)
+    data class InvalidFlowFile(override val message: String) : WorkspaceValidationError(message)
     data class MissingLaunchApp(val flowNames: List<String>) :
         WorkspaceValidationError("Flows missing launchApp: ${flowNames.joinToString(", ")}")
-    data class GenericError(val detail: String) : WorkspaceValidationError(detail)
+    data class GenericError(
+        override val message: String,
+        val detail: String? = null,
+    ) : WorkspaceValidationError(message)
 }
 
 object WorkspaceValidator {
@@ -140,7 +152,7 @@ object WorkspaceValidator {
         } catch (_: ZipError) {
             Err(WorkspaceValidationError.InvalidWorkspaceFile)
         } catch (e: OrchestraSyntaxError) {
-            Err(WorkspaceValidationError.SyntaxError(e.message ?: ""))
+            Err(WorkspaceValidationError.SyntaxError(message = e.message ?: "", detail = e.detail))
         } catch (e: maestro.orchestra.error.InvalidFlowFile) {
             Err(WorkspaceValidationError.InvalidFlowFile(e.message ?: ""))
         } catch (e: ValidationError) {
@@ -148,7 +160,7 @@ object WorkspaceValidator {
             if (e.message?.contains("do not contain any Flow files") == true) {
                 Err(WorkspaceValidationError.EmptyWorkspace)
             } else {
-                Err(WorkspaceValidationError.GenericError(e.message ?: ""))
+                Err(WorkspaceValidationError.GenericError(message = e.message ?: "", detail = e.detail))
             }
         }
     }
