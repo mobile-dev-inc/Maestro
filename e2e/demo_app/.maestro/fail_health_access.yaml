@@ -1,0 +1,15 @@
+appId: com.example.example
+tags:
+  - failing
+  - ios
+---
+- launchApp:
+    clearState: true
+- tapOn: "Health Access"
+- assertVisible: "Heart Rate"
+- assertVisible: "Sleep"
+- tapOn: "Turn On All"
+- tapOn:
+    id: "UIA.Health.Allow.Button"
+    enabled: true
+- assertNotVisible: "Health Access"
