@@ -308,7 +308,7 @@ class TestCommand : Callable<Int> {
         val deviceCount = getDeviceCount(executionPlan)
 
         val result = try {
-            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir, pluginRegistry)
         } catch (e: Exception) {
             // Track workspace failure for runtime errors
             if (flowCount > 1) {
@@ -369,7 +369,7 @@ class TestCommand : Callable<Int> {
         return null
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?): Int = runBlocking(Dispatchers.IO) {
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?, pluginRegistry: PluginRegistry?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -456,6 +456,7 @@ class TestCommand : Callable<Int> {
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
                     testOutputDir = testOutputDir,
+                    pluginRegistry = pluginRegistry,
                 )
             }
         }.awaitAll()
@@ -483,6 +484,7 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
         testOutputDir: Path?,
+        pluginRegistry: PluginRegistry?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
