@@ -2,6 +2,7 @@ package maestro.orchestra.plugin
 
 import maestro.Maestro
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import java.nio.file.Path
 
 /**
@@ -76,10 +77,10 @@ interface MaestroPlugin {
     /**
      * Called when a flow completes (success or failure).
      *
-     * @param flowName The name of the flow that completed
+     * @param config The flow configuration (contains name, tags, appId, ext, etc.). May be null if no config was provided.
      * @param success True if the flow completed successfully, false if it failed
      */
-    fun onFlowComplete(flowName: String, success: Boolean) {}
+    fun onFlowComplete(config: MaestroConfig?, success: Boolean) {}
 
     /**
      * Called when the plugin is being unloaded (e.g., CLI shutdown).

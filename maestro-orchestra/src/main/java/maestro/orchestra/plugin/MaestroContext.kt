@@ -1,6 +1,7 @@
 package maestro.orchestra.plugin
 
 import maestro.Maestro
+import maestro.orchestra.MaestroConfig
 import java.nio.file.Path
 
 /**
@@ -28,16 +29,18 @@ data class MaestroContext(
     val outputDirectory: Path,
 
     /**
-     * Plugin-specific configuration provided by the user.
+     * The flow configuration from the YAML file.
      *
-     * Configuration can come from:
-     * - Environment variables
-     * - Config files (.maestro/config.yaml)
-     * - CLI flags
+     * Contains:
+     * - appId: The application ID being tested
+     * - name: The flow name
+     * - tags: Tags for categorizing flows (e.g., ["smoke", "production"])
+     * - ext: Custom plugin-specific configuration
+     * - properties: Flow properties
      *
-     * Example: For ARIA plugin, might contain {"severity": "error", "outputFormat": "html"}
+     * May be null if no config was provided.
      */
-    val config: Map<String, Any>,
+    val config: MaestroConfig?,
 
     /**
      * Optional directory where Maestro saves screenshots.

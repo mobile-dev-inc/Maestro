@@ -1,6 +1,7 @@
 package maestro.orchestra.plugin
 
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import org.slf4j.LoggerFactory
 
 /**
@@ -119,13 +120,13 @@ class PluginRegistry {
     /**
      * Notify all plugins that a flow has completed.
      *
-     * @param flowName The name of the flow
+     * @param config The flow configuration
      * @param success Whether the flow completed successfully
      */
-    fun notifyFlowComplete(flowName: String, success: Boolean) {
+    fun notifyFlowComplete(config: MaestroConfig?, success: Boolean) {
         plugins.forEach { plugin ->
             safeExecute(plugin, "onFlowComplete") {
-                plugin.onFlowComplete(flowName, success)
+                plugin.onFlowComplete(config, success)
             }
         }
     }

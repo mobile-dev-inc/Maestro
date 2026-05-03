@@ -61,6 +61,8 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.plugin.PluginLoader
+import maestro.orchestra.plugin.PluginRegistry
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -141,6 +143,12 @@ class TestCommand : Callable<Int> {
 
     @Option(names = ["--output"])
     private var output: File? = null
+
+    @Option(
+        names = ["--plugin"],
+        description = ["Plugin(s) to load (name or path). Can be specified multiple times."],
+    )
+    private var plugins: List<String> = emptyList()
 
     @Option(
         names = ["--debug-output"],
@@ -249,6 +257,15 @@ class TestCommand : Callable<Int> {
             flattenDebugOutput = flattenDebugOutput,
             printToConsole = parent?.verbose == true,
         )
+
+        val pluginRegistry = if (plugins.isNotEmpty()) {
+            val loadedPlugins = PluginLoader.loadPlugins(plugins)
+            PluginRegistry().apply {
+                loadedPlugins.forEach { register(it) }
+            }
+        } else {
+            null
+        }
 
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
@@ -507,6 +524,7 @@ class TestCommand : Callable<Int> {
                         debugOutputPath,
                         testOutputDir,
                         deviceId,
+                        pluginRegistry,
                     )
                 }
             } else {
@@ -524,9 +542,10 @@ class TestCommand : Callable<Int> {
                         authToken,
                         testOutputDir,
                         deviceId,
+                        pluginRegistry,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId, pluginRegistry)
                 }
             }
         }
@@ -545,6 +564,7 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
         deviceId: String?,
+        pluginRegistry: PluginRegistry?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -569,6 +589,7 @@ class TestCommand : Callable<Int> {
             apiKey = authToken,
             testOutputDir = testOutputDir,
             deviceId = deviceId,
+            pluginRegistry = pluginRegistry,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -601,6 +622,7 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
         deviceId: String?,
+        pluginRegistry: PluginRegistry?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val startTime = System.currentTimeMillis()
         val totalFlowCount = chunkPlans.sumOf { it.flowsToRun.size }
@@ -623,6 +645,7 @@ class TestCommand : Callable<Int> {
             debugOutputPath = debugOutputPath,
             testOutputDir = testOutputDir,
             deviceId = deviceId,
+            pluginRegistry = pluginRegistry,
         )
 
         val duration = System.currentTimeMillis() - startTime
