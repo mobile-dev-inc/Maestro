@@ -126,7 +126,6 @@ elif [ -n "$app_filter" ]; then
 
 	# Mirror the platform skip rules from the full-suite branch.
 	case "$app_name" in
-		demo_app)        [ "$platform" = "ios" ]     && { echo "skipping $app_name on $platform"; exit 0; } ;;
 		simple_web_view) [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
 		wikipedia)       [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
 	esac
@@ -150,8 +149,6 @@ else
 		esac
 
 		case $app_name in
-			# demo_app has OOM issues on GHA
-			demo_app) [ "$platform" = "ios" ]     && continue ;;
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
 			wikipedia)               [ "$platform" = "android" ] && continue ;;
 		esac
