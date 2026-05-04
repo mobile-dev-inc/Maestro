@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 2.5.1
+
+- Fix `NoSuchMethodError` on Ktor server startup (login, studio, and cloud commands)
+- Fix emulator discovery on Windows, restoring `start-device` functionality
+- Improve Windows developer experience
+- Improve device info help in `maestro cloud --help`
+- Fix detection of successful emulator installation in `start-device`
+- Improve CLI help for the `start-device` command
+- Fail-fast on iOS transport failure instead of rethrowing raw `SocketTimeoutException`
+
 ## 2.5.0
 
 - MCP server improvements
