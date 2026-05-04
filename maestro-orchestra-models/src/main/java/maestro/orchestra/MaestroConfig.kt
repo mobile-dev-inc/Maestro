@@ -8,8 +8,6 @@ import maestro.orchestra.util.Env.evaluateScripts
 data class MaestroConfig(
     val appId: String? = null,
     val name: String? = null,
-    val id: String? = null,
-    val classname: String? = null,
     val tags: List<String>? = emptyList(),
     val ext: Map<String, Any?> = emptyMap(),
     val onFlowStart: MaestroOnFlowStart? = null,
@@ -21,8 +19,7 @@ data class MaestroConfig(
         return copy(
             appId = appId?.evaluateScripts(jsEngine),
             name = name?.evaluateScripts(jsEngine),
-            id = id?.evaluateScripts(jsEngine),
-            classname = classname?.evaluateScripts(jsEngine),
+            properties = properties.mapValues { (_, v) -> v.evaluateScripts(jsEngine) },
             onFlowComplete = onFlowComplete?.evaluateScripts(jsEngine),
             onFlowStart = onFlowStart?.evaluateScripts(jsEngine),
         )

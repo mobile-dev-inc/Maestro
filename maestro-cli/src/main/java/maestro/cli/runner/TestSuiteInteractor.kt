@@ -300,8 +300,6 @@ class TestSuiteInteractor(
         return Pair(
             first = TestExecutionSummary.FlowResult(
                 name = flowName,
-                id = maestroConfig?.id,
-                classname = maestroConfig?.classname,
                 fileName = flowFile.nameWithoutExtension,
                 status = flowStatus,
                 failure = if (flowStatus == FlowStatus.ERROR) {

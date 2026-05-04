@@ -169,15 +169,17 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun config_id_classname(
-        @YamlFile("033_config_id_classname.yaml") commands: List<Command>,
+    fun config_junit_properties(
+        @YamlFile("033_config_junit_properties.yaml") commands: List<Command>,
     ) {
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(MaestroConfig(
                 appId = "com.example.app",
                 name = "Login Test",
-                id = "TC-LOGIN-001",
-                classname = "com.example.tests.LoginTest"
+                properties = mapOf(
+                    "junitId" to "TC-LOGIN-001",
+                    "junitClassname" to "com.example.tests.LoginTest"
+                )
             )),
             LaunchAppCommand(
                 appId = "com.example.app"

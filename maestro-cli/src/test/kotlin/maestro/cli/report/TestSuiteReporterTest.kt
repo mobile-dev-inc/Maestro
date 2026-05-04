@@ -202,12 +202,14 @@ abstract class TestSuiteReporterTest {
                 flows = listOf(
                     TestExecutionSummary.FlowResult(
                         name = "Login Flow",
-                        id = "TC-LOGIN-001",
-                        classname = "com.example.tests.LoginTest",
                         fileName = "login_flow",
                         status = FlowStatus.SUCCESS,
                         duration = 2500.milliseconds,
-                        startTime = nowPlus1.toInstant().toEpochMilli()
+                        startTime = nowPlus1.toInstant().toEpochMilli(),
+                        properties = mapOf(
+                            "junitId" to "TC-LOGIN-001",
+                            "junitClassname" to "com.example.tests.LoginTest"
+                        )
                     ),
                     TestExecutionSummary.FlowResult(
                         name = "Checkout Flow",

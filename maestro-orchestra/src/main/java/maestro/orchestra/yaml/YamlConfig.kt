@@ -18,8 +18,6 @@ class ConfigParseError(
 
 data class YamlConfig(
     val name: String?,
-    val id: String?,
-    val classname: String?,
     @JsonAlias("appId") private val _appId: String?,
 
     val url: String?, // Raw url from YAML - preserved to distinguish web vs app configs
@@ -51,8 +49,6 @@ data class YamlConfig(
         val config = MaestroConfig(
             appId = appId,  // maestro-cli uses url as appId for web flows
             name = name,
-            id = id,
-            classname = classname,
             tags = tags,
             ext = ext.toMap(),
             onFlowStart = onFlowStart(flowPath),
