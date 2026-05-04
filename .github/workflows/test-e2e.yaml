@@ -2,11 +2,145 @@ name: Test E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      android_version:
+        description: 'Android API level to test against'
+        required: false
+        type: choice
+        default: 'android-32'
+        options:
+          - 'android-32'
+          - 'android-33'
+          - 'android-34'
+          - 'android-35'
+          - 'android-36'
+      app:
+        description: 'App workspace to test (e.g. demo_app, simple_web_view). Empty = all apps.'
+        type: string
+        default: 'demo_app'
+      flow:
+        description: 'Optional: flow filename within the chosen app (e.g. setLocation). Empty = all flows. Single-flow mode runs Android only.'
+        type: string
+        default: ''
+      platform:
+        description: 'Platform to test against (workflow_dispatch only; pull_request runs all three).'
+        type: choice
+        default: 'android'
+        options:
+          - 'android'
+          - 'ios'
+          - 'web'
   pull_request:
 
+# Cancel an in-progress run when a new one starts on the same ref + same trigger + same dispatch
+# inputs. PR pushes cancel earlier PR runs on the same branch; manual dispatches with different
+# android_version / platform / app / flow stay independent so we can validate combinations in parallel.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.platform || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}
+  cancel-in-progress: true
+
 jobs:
+  validate-inputs:
+    name: Validate workflow inputs
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      flow_path: ${{ steps.resolve.outputs.flow_path }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate android_version
+        run: |
+          version="${{ inputs.android_version }}"
+          suffix="${version#android-}"
+          if ! printf '%s' "$suffix" | grep -qE '^[0-9]+$'; then
+            echo "::error::android_version malformed: '$version'"
+            exit 1
+          fi
+          if [ "$suffix" -le 29 ]; then
+            echo "::error::android_version must be > android-29 (got: $version)"
+            exit 1
+          fi
+
+      - name: Validate app
+        if: inputs.app != ''
+        run: |
+          app="${{ inputs.app }}"
+          if [ "$app" != "demo_app" ] && [ ! -d "e2e/workspaces/$app" ]; then
+            echo "::error::Unknown app: '$app'. Available:"
+            echo "  demo_app"
+            for d in e2e/workspaces/*/; do [ -d "$d" ] && echo "  $(basename "$d")"; done
+            exit 1
+          fi
+
+      - name: Resolve flow
+        id: resolve
+        if: inputs.flow != ''
+        run: |
+          app="${{ inputs.app }}"
+          [ -z "$app" ] && app="demo_app"
+          if [ "$app" = "demo_app" ]; then
+            workspace_dir="e2e/demo_app/.maestro"
+          else
+            workspace_dir="e2e/workspaces/$app"
+          fi
+
+          name="${{ inputs.flow }}"
+          name="${name%.yaml}"
+          matches=$(find "$workspace_dir" -type f -name "${name}.yaml")
+          count=$(printf "%s\n" "$matches" | grep -cv '^$' || true)
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No flow '$name' under $workspace_dir. Available:"
+            find "$workspace_dir" -type f -name "*.yaml" | xargs -n1 basename | sed 's/\.yaml$//' | sort -u
+            exit 1
+          fi
+          if [ "$count" -gt 1 ]; then
+            echo "::error::Multiple matches for '$name':"
+            printf "%s\n" "$matches"
+            exit 1
+          fi
+
+          # run_tests runs with working-directory: ${{ github.workspace }}/e2e, so strip the
+          # leading e2e/ to make the path resolve relative to that working directory.
+          relative_path="${matches#e2e/}"
+          echo "Resolved: $matches (relative to e2e/: $relative_path)"
+          echo "flow_path=$relative_path" >> "$GITHUB_OUTPUT"
+          echo "abs_path=$matches" >> "$GITHUB_OUTPUT"
+
+      - name: Validate flow vs platform
+        if: inputs.flow != ''
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          FLOW_PATH: ${{ steps.resolve.outputs.abs_path }}
+          FLOW_REL: ${{ steps.resolve.outputs.flow_path }}
+        run: |
+          # Read platform tags from the flow's YAML frontmatter. We only look between
+          # `tags:` and the first `---` so we don't pick up step-level dashes.
+          flow_tags=$(awk '
+            /^tags:/ {flag=1; next}
+            /^---/   {exit}
+            flag && /^[[:space:]]*-[[:space:]]/ {gsub(/^[[:space:]]*-[[:space:]]*/, ""); print}
+          ' "$FLOW_PATH")
+          platform_tags=$(printf "%s\n" "$flow_tags" | grep -E '^(android|ios|web)$' || true)
+
+          # No platform tags = cross-platform flow, allow.
+          if [ -z "$platform_tags" ]; then
+            echo "Flow $FLOW_REL has no platform tags; allowing on platform '$PLATFORM'."
+            exit 0
+          fi
+
+          # Platform must be one of the declared tags.
+          if ! printf "%s\n" "$platform_tags" | grep -qx "$PLATFORM"; then
+            tags_csv=$(printf "%s\n" "$platform_tags" | paste -sd, -)
+            echo "::error::Flow $FLOW_REL is tagged for [$tags_csv] but you requested platform '$PLATFORM'."
+            exit 1
+          fi
+
   build:
     name: Build on Java ${{ matrix.java-version }}
+    needs: validate-inputs
+    if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
     runs-on: macos-latest
     timeout-minutes: 20
 
@@ -33,14 +167,14 @@ jobs:
         run: ./gradlew :maestro-cli:distZip
 
       - name: Upload zipped Maestro CLI artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
       - name: Upload build/Products to artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build__Products-jdk${{ matrix.java-version }}
           path: build/Products
@@ -49,7 +183,11 @@ jobs:
   test-web:
     name: Test on Web
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'web') && inputs.flow == '' }}
+
+    env:
+      MAESTRO_APP: ${{ inputs.app }}
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
@@ -68,7 +206,7 @@ jobs:
           chrome-version: 142
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -88,7 +226,7 @@ jobs:
         run: ./run_tests web
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-web
@@ -99,15 +237,17 @@ jobs:
   test-android:
     name: Test on Android
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'android') }}
     timeout-minutes: 60
 
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_OS_IMAGE: system-images;android-32;google_apis;x86_64
-      ANDROID_PLATFORM: platforms;android-34
+      ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-32' }};google_apis;x86_64
+      MAESTRO_APP: ${{ inputs.app }}
+      MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
     steps:
       - name: Enable KVM group perms
@@ -144,11 +284,10 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
           sdkmanager --install "platform-tools"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          sdkmanager --install "$ANDROID_PLATFORM"
           sdkmanager --install "$ANDROID_OS_IMAGE"
 
       - name: Cache pub
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.pub-cache
@@ -158,7 +297,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -183,7 +322,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk ${{ github.workspace }}/e2e/apps/demo_app.apk
 
       - name: Download Maestro build from previous job
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -235,17 +374,8 @@ jobs:
             >~/emulator_stdout.log \
             2>~/emulator_stderr.log &
 
-      - name: Wait for AVD to start up
-        run: |
-          adb wait-for-device && echo 'Emulator device online'
-          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && echo 'Emulator booted'
-
-          # This is also a prerequiste
-          while true; do
-            adb shell service list | grep 'package' && echo 'service "package" is active!' && break
-            echo 'waiting for service "package" to start'
-            sleep 1
-          done
+      - name: Wait for AVD to start up and configure CI pre-conditions
+        run: bash .github/scripts/setup_android_device.sh
 
       - name: Install apps
         working-directory: ${{ github.workspace }}/e2e
@@ -257,7 +387,7 @@ jobs:
         run: ./run_tests android
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-android
@@ -268,12 +398,14 @@ jobs:
   test-ios:
     name: Test on iOS
     runs-on: macos-26
-    needs: build
+    needs: [build, validate-inputs]
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'ios') && inputs.flow == '' }}
     timeout-minutes: 120
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
       MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+      MAESTRO_APP: ${{ inputs.app }}
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
@@ -301,7 +433,7 @@ jobs:
           cp -r build/ios/iphonesimulator/Runner.app ${{ github.workspace }}/e2e/apps/demo_app.app
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
@@ -359,7 +491,7 @@ jobs:
         run: kill -SIGINT "$(cat ~/screenrecord.pid)"
 
       - name: Upload ~/.maestro artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-root-dir-ios
@@ -368,7 +500,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload xctest runner logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: xctest_runner_logs
@@ -377,7 +509,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload screen recording of Simulator
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: maestro-screenrecord-ios.mp4
@@ -402,12 +534,12 @@ jobs:
           java-version: 17
 
       - name: Download Maestro artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: maestro-cli-jdk17-run_id${{ github.run_id }}
 
       - name: Download build/Products artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: build__Products-jdk17
           path: build/Products
@@ -430,7 +562,7 @@ jobs:
         run: ./maestro-ios-xctest-runner/test-maestro-ios-runner.sh
 
       - name: Upload xc test runner logs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: test-ios-xctest-runner__xctest_runner_logs
