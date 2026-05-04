@@ -1,0 +1,17 @@
+appId: com.example.example
+tags:
+  - passing
+  - ios
+---
+# Verify the native iOS PHPickerViewController opens and dismisses cleanly.
+- launchApp:
+    clearState: true
+- tapOn: "iOS Photo Picker"
+- assertVisible: "Cancel"
+- assertVisible: "Photos"
+- assertVisible: "Collections"
+# Verify selecting a photo dismisses the picker
+- tapOn:
+    text: "Photo,.*"
+    index: 0
+- assertVisible: "Flutter Demo Home Page"
