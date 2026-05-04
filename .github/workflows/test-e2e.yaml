@@ -424,6 +424,11 @@ jobs:
           channel: stable
           flutter-version-file: e2e/demo_app/pubspec.yaml
 
+      - name: Install applesimutils (PATH fallback for the pinned binary the CLI unpacks)
+        run: |
+          brew tap wix/brew
+          brew install applesimutils
+
       - name: Build demo_app for iOS Simulator
         working-directory: ${{ github.workspace }}/e2e/demo_app
         run: |
