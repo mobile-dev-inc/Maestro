@@ -125,9 +125,9 @@ class WorkspaceValidatorTest {
     }
 
     @Test
-    fun `validate resolves env variables with rhino engine when explicitly requested`() {
+    fun `validate fails with clear error when jsEngine rhino is requested`() {
         val rhinoFlow = """
-            appId: ${'$'}{APP_ID}
+            appId: com.example.app
             ext:
               jsEngine: rhino
             ---
@@ -137,14 +137,16 @@ class WorkspaceValidatorTest {
         val result = WorkspaceValidator.validate(
             workspace = makeWorkspaceZip("flow.yaml" to rhinoFlow),
             appId = "com.example.app",
-            envParameters = mapOf("APP_ID" to "com.example.app"),
+            envParameters = emptyMap(),
             includeTags = emptyList(),
             excludeTags = emptyList(),
         )
 
-        assertThat(result.isOk).isTrue()
-        assertThat(result.value.flows).hasSize(1)
-        assertThat(result.value.flows.first().appId).isEqualTo("com.example.app")
+        assertThat(result.isErr).isTrue()
+        val error = result.error
+        assertThat(error).isInstanceOf(WorkspaceValidationError.GenericError::class.java)
+        assertThat((error as WorkspaceValidationError.GenericError).detail).contains("Rhino JS engine has been removed")
+        assertThat(error.detail).contains("jsEngine: rhino")
     }
 
     @Test
