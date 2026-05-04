@@ -275,7 +275,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       MaterialPageRoute(builder: (_) => const PatientCareScreen()),
                     );
                   },
-                  child: const Text('Patient Care Alert'),
+                  child: const Text('assertScreenshot Threshold'),
                 ),
               ],
             ),

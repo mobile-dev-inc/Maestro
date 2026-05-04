@@ -4,7 +4,7 @@ name: Issue assertScreenshot Threshold
 - launchApp:
     clearState: true
 - tapOn: 
-    text: "Patient Care Alert"
+    text: "assertScreenshot Threshold"
 - waitForAnimationToEnd
 
 # - takeScreenshot: assertScreenshot_threshold
