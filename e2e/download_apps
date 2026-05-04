@@ -21,6 +21,7 @@ while read -r url; do
       ;;
     ios)
       echo "$url" | grep -qi '\.zip$' || continue # Skip if not a ZIP file
+      echo "$url" | grep -qi 'wikipedia' && continue # Skip wikipedia (not tested on iOS)
       ;;
     *)
       # No filter

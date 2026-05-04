@@ -467,11 +467,6 @@ jobs:
         working-directory: ${{ github.workspace }}/e2e
         run: ./install_apps ios
 
-      - name: Start screen recording
-        run: |
-          xcrun simctl io booted recordVideo --codec h264 ~/screenrecord.mp4 &
-          echo $! > ~/screenrecord.pid
-
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
         timeout-minutes: 120
@@ -491,10 +486,6 @@ jobs:
         # XCUIApplication+Helper.m regresses.
         run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
 
-      - name: Stop screen recording
-        if: success() || failure()
-        run: kill -SIGINT "$(cat ~/screenrecord.pid)"
-
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v7
         if: success() || failure()
@@ -503,14 +494,6 @@ jobs:
           path: ~/.maestro
           retention-days: 7
           include-hidden-files: true
-
-      - name: Upload screen recording of Simulator
-        uses: actions/upload-artifact@v7
-        if: success() || failure()
-        with:
-          name: maestro-screenrecord-ios.mp4
-          path: ~/screenrecord.mp4
-          retention-days: 7
 
   test-ios-xctest-runner:
     name: Test on iOS (XCTest Runner only)

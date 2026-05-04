@@ -127,7 +127,7 @@ elif [ -n "$app_filter" ]; then
 	# Mirror the platform skip rules from the full-suite branch.
 	case "$app_name" in
 		simple_web_view) [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
-		wikipedia)       [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
+		wikipedia)       { [ "$platform" = "android" ] || [ "$platform" = "ios" ]; } && { echo "skipping $app_name on $platform"; exit 0; } ;;
 	esac
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
@@ -150,7 +150,7 @@ else
 
 		case $app_name in
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
-			wikipedia)               [ "$platform" = "android" ] && continue ;;
+			wikipedia)               { [ "$platform" = "android" ] || [ "$platform" = "ios" ]; } && continue ;;
 		esac
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
