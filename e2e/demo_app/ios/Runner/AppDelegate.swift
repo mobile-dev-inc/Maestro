@@ -1,4 +1,5 @@
 import Flutter
+import PhotosUI
 import UIKit
 
 @main
@@ -20,6 +21,24 @@ import UIKit
       if call.method == "openPasswordTest" {
         self?.openPasswordTestScreen()
         result(nil)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    let photoPickerChannel = FlutterMethodChannel(
+      name: "com.example.demo_app/photo_picker",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    photoPickerChannel.setMethodCallHandler { [weak self] (call, result) in
+      if call.method == "openPhotoPicker" {
+        if #available(iOS 14, *) {
+          self?.openPhotoPicker()
+          result(nil)
+        } else {
+          result(FlutterError(code: "UNSUPPORTED", message: "PHPickerViewController requires iOS 14+", details: nil))
+        }
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -54,5 +73,23 @@ import UIKit
     let passwordTestVC = PasswordTestViewController()
     passwordTestVC.modalPresentationStyle = .fullScreen
     rootViewController.present(passwordTestVC, animated: true)
+  }
+
+  @available(iOS 14, *)
+  private func openPhotoPicker() {
+    guard let rootViewController = window?.rootViewController else { return }
+    var configuration = PHPickerConfiguration()
+    configuration.filter = .images
+    configuration.selectionLimit = 1
+    let picker = PHPickerViewController(configuration: configuration)
+    picker.delegate = self
+    rootViewController.present(picker, animated: true)
+  }
+}
+
+@available(iOS 14, *)
+extension AppDelegate: PHPickerViewControllerDelegate {
+  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    picker.dismiss(animated: true)
   }
 }
