@@ -11,6 +11,7 @@ import 'package:demo_app/issue_1677_repro.dart';
 import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
+import 'package:demo_app/patient_care_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/scrollable_list_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
@@ -267,6 +268,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Orientation Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PatientCareScreen()),
+                    );
+                  },
+                  child: const Text('Patient Care Alert'),
                 ),
               ],
             ),
