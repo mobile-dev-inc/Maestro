@@ -142,7 +142,6 @@ dependencies {
     api(libs.square.okio)
     api(libs.square.okio.jvm)
     api(libs.image.comparison)
-    api(libs.mozilla.rhino)
     api(libs.square.okhttp)
     api(libs.jarchivelib)
     api(libs.jackson.core.databind)
