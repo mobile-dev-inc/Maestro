@@ -209,7 +209,7 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                             )
                         }
                     }
-                    if (summary.cloudUploadUrl != null || summary.appBinaryId != null) {
+                    if (summary.cloudUploadUrl != null) {
                         div(classes = "px-3 pb-3") {
                             div(classes = "alert alert-info mb-0") {
                                 summary.cloudUploadUrl?.let { cloudUrl ->
