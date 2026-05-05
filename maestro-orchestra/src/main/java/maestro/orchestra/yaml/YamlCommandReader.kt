@@ -104,8 +104,8 @@ object YamlCommandReader {
 
     fun formatCommands(commands: List<String>): String = MaestroFlowParser.formatCommands(commands)
 
-    fun checkSyntax(maestroCode: String) = mapParsingErrors(Paths.get("/syntax-checker/")) {
-        MaestroFlowParser.checkSyntax(maestroCode)
+    fun checkSyntax(maestroCode: String, flowPath: Path?) = mapParsingErrors(flowPath ?: Paths.get("/syntax-checker/")) {
+        MaestroFlowParser.checkSyntax(maestroCode, flowPath)
     }
 
     private fun <T> mapParsingErrors(path: Path, block: () -> T): T {

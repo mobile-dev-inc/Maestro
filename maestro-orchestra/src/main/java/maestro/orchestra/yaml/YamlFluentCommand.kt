@@ -20,7 +20,6 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.core.JsonLocation
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
@@ -62,6 +61,7 @@ import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
+import maestro.orchestra.SourceInfo
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -84,7 +84,7 @@ import kotlin.io.path.readText
 
 class ToCommandsException(
     override val cause: Throwable,
-    val location: JsonLocation,
+    val sourceInfo: SourceInfo,
 ) : RuntimeException(cause)
 
 data class YamlFluentCommand(
@@ -141,14 +141,14 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
-    @JsonIgnore val _location: JsonLocation,
+    @JsonIgnore val _sourceInfo: SourceInfo,
 ) {
 
     fun toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
         return try {
-            _toCommands(flowPath, appId)
+            _toCommands(flowPath, appId).map { it.copy(sourceInfo = _sourceInfo) }
         } catch (e: Throwable) {
-            throw ToCommandsException(e, _location)
+            throw ToCommandsException(e, _sourceInfo)
         }
     }
 

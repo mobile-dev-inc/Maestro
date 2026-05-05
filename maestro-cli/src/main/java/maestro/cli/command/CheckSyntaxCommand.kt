@@ -30,7 +30,8 @@ class CheckSyntaxCommand : Callable<Int> {
         }
         if (maestroCode.isBlank()) throw CliError("Maestro code is empty.")
         try {
-            YamlCommandReader.checkSyntax(maestroCode)
+            val flowPath = if (file.path == "-") null else file.toPath()
+            YamlCommandReader.checkSyntax(maestroCode, flowPath)
             println("OK")
         } catch (e: SyntaxError) {
             throw CliError(e.message)
