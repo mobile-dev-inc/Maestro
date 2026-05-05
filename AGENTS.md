@@ -69,7 +69,7 @@ Standard per-class tests. Stack: **JUnit 5** (`junit-jupiter-api` + `-params` + 
 Cross-module tests for behaviour that does **not** require a device or simulator — JS engine integration points, command orchestration end-to-end, cancellation / coroutine semantics. Notable suites:
 
 - `IntegrationTest.kt` — full `Maestro` orchestration against an in-process `FakeDriver` (defined in `maestro-test/src/main/kotlin/maestro/test/drivers/`: `FakeDriver`, `FakeLayoutElement`, `FakeTimer`). Covers test-run cancellation (`CancellationException`, `withTimeout`, supervisor scopes) and the full command lifecycle without a real device.
-- `GraalJsEngineTest.kt` / `RhinoJsEngineTest.kt` / shared `JsEngineTest.kt` — Maestro's JS extension points (`evalScript`, JS-evaluated assertions/conditions) on both supported engines. Exercises `org.graalvm.polyglot` directly.
+- `GraalJsEngineTest.kt` / shared `JsEngineTest.kt` — Maestro's JS extension points (`evalScript`, JS-evaluated assertions/conditions). Exercises `org.graalvm.polyglot` directly.
 - `FlowControllerTest.kt`, `DeepestMatchingElementTest.kt` — orchestration and view-hierarchy logic.
 
 Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes), plus the in-house `FakeDriver` fixtures listed above. No mocks of Maestro's own classes — tests run real `Maestro` against the fakes.
