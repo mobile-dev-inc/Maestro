@@ -1,6 +1,7 @@
 appId: com.example.example
 tags:
   - passing
+  - android  # iOS uses a separate flow + baseline due to DPR rounding (assertScreenshotCroppedJPG_ios.yaml)
 ---
 - launchApp
 - tapOn: "Cropped Screenshot Test"

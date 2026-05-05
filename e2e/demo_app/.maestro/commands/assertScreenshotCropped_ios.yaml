@@ -1,14 +1,14 @@
 appId: com.example.example
 tags:
   - passing
-  - android  # iOS uses a separate flow + baseline due to DPR rounding (assertScreenshotCropped_ios.yaml)
+  - ios  # iOS-specific baseline; Android uses assertScreenshotCropped.yaml. Renders 399x321 on iPhone Pro @3x DPR vs 400x320 on Android emu @1.5x DPR.
 ---
 - launchApp
 - tapOn: "Cropped Screenshot Test"
 - waitForAnimationToEnd
 
 - assertScreenshot:
-    path: ../screenshots/assertScreenshotCropped.png
+    path: ../screenshots/assertScreenshotCropped_ios.png
     thresholdPercentage: 99.9
     cropOn:
       id: "testContainer"
