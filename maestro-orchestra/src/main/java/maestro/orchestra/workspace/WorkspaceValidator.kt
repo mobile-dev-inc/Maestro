@@ -7,7 +7,6 @@ import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
 import maestro.js.GraalJsEngine
-import maestro.js.RhinoJsEngine
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError as OrchestraSyntaxError
 import maestro.orchestra.error.ValidationError
@@ -90,12 +89,13 @@ object WorkspaceValidator {
                     val applyConfigurationCommand = commands
                         .find { it.applyConfigurationCommand != null }
                         ?.applyConfigurationCommand
-                    val isRhinoExplicitlyRequested = applyConfigurationCommand?.config?.ext?.get("jsEngine") == "rhino"
-                    val jsEngine = if (isRhinoExplicitlyRequested) {
-                        RhinoJsEngine()
-                    } else {
-                        GraalJsEngine()
-                    }.also { engine ->
+                    if (applyConfigurationCommand?.config?.ext?.get("jsEngine") == "rhino") {
+                        return Err(WorkspaceValidationError.GenericError(
+                            "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from " +
+                                "${path.name}; flows now run on GraalJS, the default engine."
+                        ))
+                    }
+                    val jsEngine = GraalJsEngine().also { engine ->
                         envParameters.forEach { (key, value) -> engine.putEnv(key, value) }
                     }
                     val config = applyConfigurationCommand
