@@ -37,12 +37,6 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
     data class NoFlowsMatchingAppId(val appId: String, val foundIds: Set<String>) :
         WorkspaceValidationError("No flows match appId=$appId; found: $foundIds")
     data class NameConflict(val name: String) : WorkspaceValidationError("Duplicate flow name: $name")
-    /**
-     * @param message Short summary line from the underlying parser
-     *   (e.g. `"Config Field Required at /flow.yaml:2:1"`).
-     * @param detail  Optional rich block (snippet + caret + human message + docs)
-     *   from the underlying parser error, suitable for a `<pre>` panel on the web.
-     */
     data class SyntaxError(
         override val message: String,
         val detail: String? = null,

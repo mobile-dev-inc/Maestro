@@ -2,12 +2,6 @@ package maestro.orchestra.validation
 
 import maestro.orchestra.workspace.WorkspaceValidationError
 
-/**
- * @param message Short summary of the validation failure, suitable for a status line.
- * @param error   The structured error variant.
- * @param detail  Optional rich block (snippet + caret + human message + docs) when the
- *   underlying error was a flow parser error. Suitable for a `<pre>` panel on the web.
- */
 class WorkspaceValidationException(
     message: String,
     val error: WorkspaceValidationError,
