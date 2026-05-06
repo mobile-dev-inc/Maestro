@@ -32,11 +32,13 @@ import maestro.MaestroException
 import java.nio.file.Path
 import net.datafaker.Faker
 
-internal fun parseTimeoutMs(timeout: String): Long {
+internal fun parseTimeoutMs(timeout: String, commandDescription: String): Long {
     return try {
         timeout.replace("_", "").toLong()
     } catch (e: NumberFormatException) {
-        throw MaestroException.InvalidCommand("Invalid timeout value: '$timeout'. Timeout must be a number in milliseconds.")
+        throw MaestroException.InvalidCommand(
+            "Invalid timeout value '$timeout' in '$commandDescription'. Timeout must be a number of milliseconds."
+        )
     }
 }
 
@@ -150,7 +152,7 @@ data class ScrollUntilVisibleCommand(
     }
 
     private fun String.timeoutToMillis(): String {
-        val millis = parseTimeoutMs(this)
+        val millis = parseTimeoutMs(this, this@ScrollUntilVisibleCommand.description())
         return if (millis < 0) {
             DEFAULT_TIMEOUT_IN_MILLIS
         } else this
@@ -427,7 +429,7 @@ data class AssertConditionCommand(
 ) : Command {
 
     fun timeoutMs(): Long? {
-        return timeout?.let { parseTimeoutMs(it) }
+        return timeout?.let { parseTimeoutMs(it, description()) }
     }
 
     override val originalDescription: String
