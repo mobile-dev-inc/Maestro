@@ -43,7 +43,6 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
-import maestro.js.RhinoJsEngine
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -143,13 +142,14 @@ class Orchestra(
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
     internal val jsEngineFactory: (MaestroConfig?) -> JsEngine = { config ->
-        val isRhino = config?.ext?.get("jsEngine") == "rhino"
-        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        if (isRhino) {
-            httpClient?.let { RhinoJsEngine(it, platform) } ?: RhinoJsEngine(platform = platform)
-        } else {
-            httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        // Defense-in-depth: WorkspaceValidator is the primary gate for `jsEngine: rhino`,
+        // but throw here too in case Orchestra is invoked outside the validation pipeline.
+        check(config?.ext?.get("jsEngine") != "rhino") {
+            "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from your config; " +
+                "flows now run on GraalJS, the default engine."
         }
+        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
+        httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
     },
 ) {
 
@@ -850,13 +850,14 @@ class Orchestra(
     private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
         val maxRetries = (command.maxRetries?.toIntOrNull() ?: 1).coerceAtMost(MAX_RETRIES_ALLOWED)
 
+        // Retry is intended for flaky test-level failures — element not found, assertion
+        // failures, etc. — which all surface as MaestroException. Anything else (driver
+        // transport failures, JS evaluation bugs, CancellationException) propagates naturally.
         var attempt = 0
         while (attempt <= maxRetries) {
             try {
                 return runSubFlow(command.commands, config, command.config)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (exception: Throwable) {
+            } catch (exception: MaestroException) {
                 if (attempt == maxRetries) {
                     logger.error("Max retries ($maxRetries) reached. Commands failed.", exception)
                     throw exception

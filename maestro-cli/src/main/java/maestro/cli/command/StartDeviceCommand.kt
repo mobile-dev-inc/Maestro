@@ -7,17 +7,19 @@ import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
+import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
-import maestro.device.DeviceSpecRequest
 import maestro.device.Platform
+import maestro.device.locale.AndroidLocale
+import maestro.device.locale.IosLocale
+import maestro.device.locale.WebLocale
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
     name = "start-device",
     description = [
-        "Starts or creates an iOS Simulator or Android Emulator similar to the ones on the cloud",
-        "Supported device types: iPhone11 (iOS), Pixel 6 (Android)",
+        "Starts or creates an iOS Simulator or Android Emulator similar to the ones in Maestro Cloud"
     ]
 )
 class StartDeviceCommand : Callable<Int> {
@@ -41,7 +43,7 @@ class StartDeviceCommand : Callable<Int> {
         order = 1,
         hidden = true,
         names = ["--os-version"],
-        description = ["OS version to use:", "iOS: 16, 17, 18", "Android: 28, 29, 30, 31, 33"],
+        description = ["OS version to use:", "iOS: 16, 17, 18, 26", "Android: 28, 29, 30, 31, 33, 34"],
     )
     private var osVersion: String? = null
 
@@ -57,8 +59,8 @@ class StartDeviceCommand : Callable<Int> {
         names = ["--device-model"],
         description = [
             "Device model to run against",
-            "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: maestro list-devices",
-            "Android: pixel_6, pixel_7, etc. Run command: maestro list-devices"
+            "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-devices",
+            "  Android: pixel_6, pixel_7, etc. Run command: maestro list-devices"
         ],
     )
     private var deviceModel: String? = null
@@ -68,8 +70,8 @@ class StartDeviceCommand : Callable<Int> {
         names = ["--device-os"],
         description = [
             "OS version to use:",
-            "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. maestro list-devices",
-            "Android: android-33, android-34, etc. maestro list-devices"
+            "  iOS: iOS-18-2, iOS-26-2 etc. maestro list-devices",
+            "  Android: android-33, android-34, etc. maestro list-devices"
         ],
     )
     private var deviceOs: String? = null
@@ -90,30 +92,39 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val maestroDeviceConfiguration = DeviceSpec.fromRequest(
-            when (parsedPlatform) {
-                Platform.ANDROID -> DeviceSpecRequest.Android(
-                    model = deviceModel,
-                    os = deviceOs ?: osVersion.let { "android-$it" },
-                    locale = deviceLocale,
+        val deviceSpec: DeviceSpec = when (parsedPlatform) {
+            Platform.ANDROID -> {
+                val default = DeviceSpec.Android.DEFAULT
+                DeviceSpec.Android(
+                    // osVersion is nullable; ?.let prevents interpolating "android-null"
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                    // AndroidLocale is a data class (no pre-defined constant); parse the default
+                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
                     cpuArchitecture = EnvUtils.getMacOSArchitecture(),
                 )
-                Platform.IOS -> DeviceSpecRequest.Ios(
-                    model = deviceModel,
-                    os = deviceOs ?: osVersion.let { "iOS-$it" },
-                    locale = deviceLocale,
-                )
-                Platform.WEB -> DeviceSpecRequest.Web(
-                    model = deviceModel,
-                    os = deviceOs ?: osVersion,
-                    locale = deviceLocale,
+            }
+            Platform.IOS -> {
+                val default = DeviceSpec.Ios.DEFAULT
+                DeviceSpec.Ios(
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
                 )
             }
-        )
+            Platform.WEB -> {
+                val default = DeviceSpec.Web.DEFAULT
+                DeviceSpec.Web(
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion ?: default.os,
+                    locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
+                )
+            }
+        }
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(
-            maestroDeviceConfiguration,
+            deviceSpec,
             forceCreate
         )
 

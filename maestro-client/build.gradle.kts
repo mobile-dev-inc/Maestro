@@ -122,18 +122,6 @@ kotlin.sourceSets.all {
     languageSettings.optIn("kotlin.RequiresOptIn")
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs(
-                "build/generated/source/proto/main/grpc",
-                "build/generated/source/proto/main/java",
-                "build/generated/source/proto/main/kotlin"
-            )
-        }
-    }
-}
-
 dependencies {
     protobuf(project(":maestro-proto"))
     implementation(project(":maestro-utils"))
@@ -154,7 +142,6 @@ dependencies {
     api(libs.square.okio)
     api(libs.square.okio.jvm)
     api(libs.image.comparison)
-    api(libs.mozilla.rhino)
     api(libs.square.okhttp)
     api(libs.jarchivelib)
     api(libs.jackson.core.databind)
@@ -182,6 +169,7 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.square.mock.server)
     testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.mockk)
 }
 
 java {

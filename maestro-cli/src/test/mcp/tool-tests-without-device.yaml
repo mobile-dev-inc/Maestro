@@ -2,19 +2,13 @@
 tools:
   expected_tool_list:
     - list_devices
-    - start_device
-    - launch_app
     - take_screenshot
-    - tap_on
-    - input_text
-    - back
-    - stop_app
-    - run_flow
-    - run_flow_files
-    - check_flow_syntax
-    - inspect_view_hierarchy
+    - run
+    - inspect_screen
     - cheat_sheet
-    - query_docs
+    - list_cloud_devices
+    - run_on_cloud
+    - get_cloud_run_status
 
   tests:
     - name: "List available devices"
@@ -25,6 +19,14 @@ tools:
         result:
           contains: "device"
 
+    - name: "List cloud devices"
+      tool: "list_cloud_devices"
+      params: {}
+      expect:
+        success: true
+        result:
+          contains: "supported_os"
+
     - name: "Get Maestro cheat sheet (expect API key required)"
       tool: "cheat_sheet"
       params: {}
@@ -33,42 +35,22 @@ tools:
         error:
           contains: "MAESTRO_CLOUD_API_KEY"
 
-    - name: "Query Maestro docs (expect API key required)"
-      tool: "query_docs"
+    - name: "Run on Cloud (expect API key required)"
+      tool: "run_on_cloud"
       params:
-        question: "How do I tap on an element?"
+        app_file: "ignored.apk"
+        flows: "ignored.yaml"
       expect:
         success: false
         error:
           contains: "MAESTRO_CLOUD_API_KEY"
 
-    - name: "Check valid flow syntax"
-      tool: "check_flow_syntax"
+    - name: "Get cloud run status (expect API key required)"
+      tool: "get_cloud_run_status"
       params:
-        flow_yaml: |
-          appId: com.apple.mobilesafari
-          ---
-          - tapOn: "Search"
-          - inputText: "hello world"
+        upload_id: "deadbeef"
+        project_id: "deadbeef"
       expect:
-        success: true
-        result:
-          contains: "valid"
-
-    - name: "Check invalid flow syntax"
-      tool: "check_flow_syntax"
-      params:
-        flow_yaml: "invalid[yaml"
-      expect:
-        success: true
-        result:
-          contains: "invalid"
-
-    - name: "Start iOS device"
-      tool: "start_device"
-      params:
-        platform: "ios"
-      expect:
-        success: true
-        result:
-          contains: "device_id"
+        success: false
+        error:
+          contains: "MAESTRO_CLOUD_API_KEY"

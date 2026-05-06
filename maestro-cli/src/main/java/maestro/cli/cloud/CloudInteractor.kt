@@ -42,7 +42,6 @@ import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
 import maestro.device.DeviceSpec
-import maestro.device.DeviceSpecRequest
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -75,6 +74,7 @@ class CloudInteractor(
         flowFile: File,
         appFile: File?,
         async: Boolean,
+        configFile: File? = null,
         mapping: File? = null,
         apiKey: String? = null,
         uploadName: String? = null,
@@ -127,7 +127,12 @@ class CloudInteractor(
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
-            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
+            WorkspaceUtils.createWorkspaceZip(
+                file = flowFile.toPath().absolute(),
+                out = workspaceZip,
+                configOverride = configFile?.toPath()?.absolute(),
+            )
+            warnIfWorkspaceIsLarge(workspaceZip.toFile().length())
             val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
@@ -243,6 +248,14 @@ class CloudInteractor(
                 else -> 1
             }
         }
+    }
+
+    private fun warnIfWorkspaceIsLarge(sizeBytes: Long) {
+        if (sizeBytes < WORKSPACE_WARN_THRESHOLD_BYTES) return
+        val sizeMb = sizeBytes / 1024 / 1024
+        PrintUtils.warn(
+            "Workspace zip is ${sizeMb} MB. Large workspaces are downloaded by every device on every run and will slow down your tests. Common causes: app binaries (.apk/.ipa/.app/.aab) bundled with flows (use --app-binary-id instead), .git directories, build outputs (build/, .gradle/, node_modules/, Pods/), test artifacts from previous runs (reports/, recordings/, artifacts/), or duplicated fixtures."
+        )
     }
 
     private fun selectProject(authToken: String): String {
@@ -688,5 +701,9 @@ class CloudInteractor(
             PrintUtils.err("Unexpected error while analyzing Flow(s): ${error.message}")
             return 1
         }
+    }
+
+    companion object {
+        private const val WORKSPACE_WARN_THRESHOLD_BYTES = 20L * 1024 * 1024
     }
 }

@@ -278,12 +278,33 @@ class ApiClient(
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
 
+        // Progress is reported across every byte-carrying part. Without this aggregation,
+        // the workspace zip uploaded silently and the progress bar only covered the app
+        // binary — a multi-minute workspace upload looked like a hang. Each part reports
+        // its own (partLen, partWritten); we translate those into (totalUploadBytes,
+        // cumulativeWritten) across workspace + app + mapping so a single bar fills once.
+        val totalUploadBytes = workspaceZip.toFile().length() +
+            (appFile?.toFile()?.length() ?: 0L) +
+            (mappingFile?.toFile()?.length() ?: 0L)
+        val cumulativeWritten = java.util.concurrent.atomic.AtomicLong(0)
+        val perPartLastReported = java.util.concurrent.ConcurrentHashMap<String, Long>()
+        fun aggregatingListener(partKey: String): (Long, Long) -> Unit = { _, partWritten ->
+            val previous = perPartLastReported.getOrDefault(partKey, 0L)
+            val delta = partWritten - previous
+            if (delta > 0L) {
+                perPartLastReported[partKey] = partWritten
+                val cumulative = cumulativeWritten.addAndGet(delta)
+                progressListener(totalUploadBytes, cumulative)
+            }
+        }
+
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
                 "workspace",
                 "workspace.zip",
                 workspaceZip.toFile().asRequestBody("application/zip".toMediaType())
+                    .observable(aggregatingListener("workspace"))
             )
             .addFormDataPart("request", JSON.writeValueAsString(requestPart))
 
@@ -291,7 +312,8 @@ class ApiClient(
             bodyBuilder.addFormDataPart(
                 "app_binary",
                 "app.zip",
-                appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
+                appFile.toFile().asRequestBody("application/zip".toMediaType())
+                    .observable(aggregatingListener("app"))
             )
         }
 
@@ -300,6 +322,7 @@ class ApiClient(
                 "mapping",
                 "mapping.txt",
                 mappingFile.toFile().asRequestBody("text/plain".toMediaType())
+                    .observable(aggregatingListener("mapping"))
             )
         }
 

@@ -2,18 +2,15 @@ package maestro.cli.report
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.MaestroException
-import maestro.TreeNode
 import maestro.ai.cloud.Defect
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.TestOutputWriter
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.IOSEnvUtils
 import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
-import maestro.orchestra.MaestroCommand
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.LoggerContext
@@ -79,44 +76,29 @@ object TestDebugReporter {
 
     /**
      * Save debug information about a single flow, after it has finished.
+     * Delegates to [maestro.orchestra.debug.TestOutputWriter] so CLI and cloud
+     * share the same on-disk output format.
      */
     fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
-        // TODO(bartekpacia): Potentially accept a single "FlowPersistentOutput" object
-        // TODO(bartekpacia: Build output incrementally, instead of single-shot on flow completion
-        //  Be aware that this goal somewhat conflicts with including links to other flows in the HTML report.
-
         val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
-        val shardLogPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
+        val logPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
+        val cleanFlow = flowName.replace("/", "_")
 
-        // commands
-        try {
-            val commandMetadata = debugOutput.commands
-            if (commandMetadata.isNotEmpty()) {
-                val commandsFilename = "commands-$shardPrefix(${flowName.replace("/", "_")}).json"
-                val file = File(path.absolutePathString(), commandsFilename)
-                commandMetadata.map {
-                    CommandDebugWrapper(it.key, it.value)
-                }.let {
-                    mapper.writeValue(file, it)
-                }
-            }
-        } catch (e: JsonMappingException) {
-            logger.error("${shardLogPrefix}Unable to parse commands", e)
+        TestOutputWriter.saveCommands(
+            path = path,
+            debugOutput = debugOutput,
+            commandsFilename = "commands-$shardPrefix($cleanFlow).json",
+            logPrefix = logPrefix,
+        )
+
+        val named = debugOutput.screenshots.map { shot ->
+            val emoji = TestOutputWriter.emojiFor(shot.status)
+            TestOutputWriter.NamedScreenshot(
+                source = shot.screenshot,
+                filename = "screenshot-$shardPrefix$emoji-${shot.timestamp}-($cleanFlow).png",
+            )
         }
-
-        // screenshots
-        debugOutput.screenshots.forEach {
-            val status = when (it.status) {
-                CommandStatus.COMPLETED -> "✅"
-                CommandStatus.FAILED -> "❌"
-                CommandStatus.WARNED -> "⚠️"
-                else -> "﹖"
-            }
-            val filename = "screenshot-$shardPrefix$status-${it.timestamp}-(${flowName}).png"
-            val file = File(path.absolutePathString(), filename)
-
-            it.screenshot.copyTo(file)
-        }
+        TestOutputWriter.saveScreenshots(path, named)
     }
 
     fun deleteOldFiles(days: Long = 14) {
@@ -209,38 +191,6 @@ object TestDebugReporter {
             else -> EnvUtils.xdgStateHome().resolve("tests").resolve(foldername)
         }
     }
-}
-
-private data class CommandDebugWrapper(
-    val command: MaestroCommand, val metadata: CommandDebugMetadata
-)
-
-data class CommandDebugMetadata(
-    var status: CommandStatus? = null,
-    var timestamp: Long? = null,
-    var duration: Long? = null,
-    var error: Throwable? = null,
-    var hierarchy: TreeNode? = null,
-    var sequenceNumber: Int = 0,
-    var evaluatedCommand: MaestroCommand? = null
-) {
-    fun calculateDuration() {
-        if (timestamp != null) {
-            duration = System.currentTimeMillis() - timestamp!!
-        }
-    }
-}
-
-data class FlowDebugOutput(
-    val commands: IdentityHashMap<MaestroCommand, CommandDebugMetadata> = IdentityHashMap<MaestroCommand, CommandDebugMetadata>(),
-    val screenshots: MutableList<Screenshot> = mutableListOf(),
-    var exception: MaestroException? = null,
-) {
-    data class Screenshot(
-        val screenshot: File,
-        val timestamp: Long,
-        val status: CommandStatus,
-    )
 }
 
 data class FlowAIOutput(
