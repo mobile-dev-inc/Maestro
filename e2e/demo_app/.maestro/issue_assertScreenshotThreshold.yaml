@@ -1,5 +1,7 @@
 appId: com.example.example
 name: Issue assertScreenshot Threshold
+tags:
+  - failing
 ---
 - launchApp:
     clearState: true
@@ -12,5 +14,5 @@ name: Issue assertScreenshot Threshold
     text: "Toggle 10px"
 - waitForAnimationToEnd
 - assertScreenshot:
-    path: ../screenshots/assertScreenshot_threshold.png
+    path: ./screenshots/assertScreenshot_threshold.png
     thresholdPercentage: 95
