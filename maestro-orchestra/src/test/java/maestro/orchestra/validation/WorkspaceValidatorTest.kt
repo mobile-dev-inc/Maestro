@@ -173,4 +173,29 @@ class WorkspaceValidatorTest {
         }
         assertThat(error.message).contains("something went wrong")
     }
+
+    @Test
+    fun `propagates detail through SyntaxError to WorkspaceValidationException detail`() {
+        val richBlock = "       1 | bad: yaml\n           ^\n\n  Boom."
+        every {
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+        } returns Err(WorkspaceValidationError.SyntaxError(message = "Invalid command at /flow.yaml:1:1", detail = richBlock))
+
+        val error = assertThrows<WorkspaceValidationException> {
+            validator.validate(dummyWorkspace, dummyAppId, dummyEnv, dummyIncludeTags, dummyExcludeTags)
+        }
+        assertThat(error.detail).isEqualTo(richBlock)
+    }
+
+    @Test
+    fun `WorkspaceValidationException detail is null for variants without richDetail`() {
+        every {
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+        } returns Err(WorkspaceValidationError.NameConflict("loginFlow"))
+
+        val error = assertThrows<WorkspaceValidationException> {
+            validator.validate(dummyWorkspace, dummyAppId, dummyEnv, dummyIncludeTags, dummyExcludeTags)
+        }
+        assertThat(error.detail).isNull()
+    }
 }
