@@ -1,17 +1,12 @@
-> Parsing Failed
+Parsing Failed at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:5:1
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:5
-╭─────────────────────────────────────────────────────────────────────────────────╮
-│ 3 | - swipe:                                                                    │
-│ 4 |     direction: diagonal                                                     │
-│ 5 |                                                                             │
-│     ^                                                                           │
-│ ╭─────────────────────────────────────────────────────────────────────────────╮ │
-│ │ Invalid direction provided to directional swipe: diagonal. Direction can be │ │
-│ │ either:                                                                     │ │
-│ │ 1. RIGHT or right                                                           │ │
-│ │ 2. LEFT or left                                                             │ │
-│ │ 3. UP or up                                                                 │ │
-│ │ 4. DOWN or down                                                             │ │
-│ ╰─────────────────────────────────────────────────────────────────────────────╯ │
-╰─────────────────────────────────────────────────────────────────────────────────╯
+       3 | - swipe:
+       4 |     direction: diagonal
+  >    5 | 
+           ^
+
+  Invalid direction provided to directional swipe: diagonal. Direction can be either:
+  1. RIGHT or right
+  2. LEFT or left
+  3. UP or up
+  4. DOWN or down
