@@ -2,18 +2,22 @@ package maestro.orchestra.validation
 
 import maestro.orchestra.workspace.WorkspaceValidationError
 
-class WorkspaceValidationException(message: String, val error: WorkspaceValidationError) : RuntimeException(message)
+class WorkspaceValidationException(
+    message: String,
+    val error: WorkspaceValidationError,
+    val detail: String? = null,
+) : RuntimeException(message)
 
-fun WorkspaceValidationError.toException(): WorkspaceValidationException = WorkspaceValidationException(
-    message = when (this) {
+fun WorkspaceValidationError.toException(): WorkspaceValidationException {
+    val message = when (this) {
         is WorkspaceValidationError.NoFlowsMatchingAppId ->
             "No flows in workspace match app ID '${appId}'. Found app IDs: ${foundIds.ifEmpty { setOf("none") }.joinToString()}"
         is WorkspaceValidationError.NameConflict ->
             "Duplicate flow name '${name}' in workspace. Each flow must have a unique name."
         is WorkspaceValidationError.SyntaxError ->
-            "Workspace syntax error: ${detail}"
+            "Workspace syntax error: ${this.message}"
         is WorkspaceValidationError.InvalidFlowFile ->
-            detail
+            this.message
         WorkspaceValidationError.EmptyWorkspace ->
             "Workspace contains no flows."
         is WorkspaceValidationError.MissingLaunchApp ->
@@ -21,7 +25,12 @@ fun WorkspaceValidationError.toException(): WorkspaceValidationException = Works
         WorkspaceValidationError.InvalidWorkspaceFile ->
             "Workspace is not a valid zip archive."
         is WorkspaceValidationError.GenericError ->
-            detail
-    },
-    error = this,
-)
+            this.message
+    }
+    val detail = when (this) {
+        is WorkspaceValidationError.SyntaxError -> detail
+        is WorkspaceValidationError.GenericError -> detail
+        else -> null
+    }
+    return WorkspaceValidationException(message = message, error = this, detail = detail)
+}

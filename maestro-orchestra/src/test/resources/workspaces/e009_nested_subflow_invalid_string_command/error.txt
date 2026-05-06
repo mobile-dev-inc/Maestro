@@ -1,14 +1,9 @@
-> Invalid Command: invalidCommand
+Invalid Command: invalidCommand at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/subflow/SubFlowB.yaml:3:3
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/subflow/SubFlowB.yaml:3
-╭───────────────────────────────────────────────────────╮
-│ 1 | appId: com.example                                │
-│ 2 | ---                                               │
-│ 3 | - invalidCommand                                  │
-│       ^                                               │
-│ ╭───────────────────────────────────────────────────╮ │
-│ │ `invalidCommand` is not a valid command.          │ │
-│ │                                                   │ │
-│ │ > https://docs.maestro.dev/api-reference/commands │ │
-│ ╰───────────────────────────────────────────────────╯ │
-╰───────────────────────────────────────────────────────╯
+       1 | appId: com.example
+       2 | ---
+  >    3 | - invalidCommand
+             ^
+
+  `invalidCommand` is not a valid command.
+  See: https://docs.maestro.dev/api-reference/commands

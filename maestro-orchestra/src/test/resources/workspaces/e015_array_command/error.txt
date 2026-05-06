@@ -1,15 +1,9 @@
-> Invalid Command
+Invalid Command at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:4
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
-╭──────────────────────────────────────────────────────────────────────────────╮
-│ 1 | appId: com.example.app                                                   │
-│ 2 | ---                                                                      │
-│ 3 | - [foo, bar, baz]                                                        │
-│        ^                                                                     │
-│ ╭──────────────────────────────────────────────────────────────────────────╮ │
-│ │ Invalid command format. Expected: "<commandName>: <options>" eg. "tapOn: │ │
-│ │ submit"                                                                  │ │
-│ │                                                                          │ │
-│ │ > https://docs.maestro.dev/api-reference/commands                        │ │
-│ ╰──────────────────────────────────────────────────────────────────────────╯ │
-╰──────────────────────────────────────────────────────────────────────────────╯
+       1 | appId: com.example.app
+       2 | ---
+  >    3 | - [foo, bar, baz]
+              ^
+
+  Invalid command format. Expected: "<commandName>: <options>" eg. "tapOn: submit"
+  See: https://docs.maestro.dev/api-reference/commands

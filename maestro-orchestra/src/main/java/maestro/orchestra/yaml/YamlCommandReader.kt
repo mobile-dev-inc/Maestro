@@ -19,7 +19,6 @@
 
 package maestro.orchestra.yaml
 
-import com.fasterxml.jackson.core.JsonLocation
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
@@ -27,8 +26,9 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.error.ParserErrorContext
+import maestro.orchestra.error.ParserErrorRenderer
 import maestro.orchestra.error.SyntaxError
-import maestro.utils.drawTextBox
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -113,52 +113,32 @@ object YamlCommandReader {
             return block()
         } catch (e: VirtualMachineError) {
             // Don't attempt to pretty-format — the stack is near-exhausted and
-            // would trigger kotlin.text.LinesIterator.<clinit> inside errorMessage(),
+            // would trigger kotlin.text.LinesIterator.<clinit> inside the renderer,
             // permanently wedging that class for the whole JVM.
             throw e
         } catch (e: FlowParseException) {
-            val message = errorMessage(e)
-            throw SyntaxError(message, e)
+            throw toSyntaxError(e)
         } catch (e: Throwable) {
             val message = fallbackErrorMessage(path, e)
             throw SyntaxError(message)
         }
     }
 
-    private fun errorMessage(e: FlowParseException): String {
-        val inlineMessage = if (e.docs == null) {
-            e.errorMessage
-        } else {
-             "${e.errorMessage}\n\n> ${e.docs}"
-        }
-        val message = """
-            ~> ${e.title}
-            ~
-            ~${e.contentPath.absolutePathString()}:${e.location.lineNr}
-            ~${inlineMessage(e.content, e.location, inlineMessage)}
-        """.trimMargin("~").trim()
-        return message
-    }
-
-    private fun inlineMessage(flow: String, jsonLocation: JsonLocation, message: String): String {
-        val lineNumber = jsonLocation.lineNr - 1
-        val columnNumber = jsonLocation.columnNr
-        val linesBefore = 2
-        val linesAfter = 2
-        val sb = StringBuilder()
-        flow.lines().forEachIndexed { index, line ->
-            val lineNumberString = (index + 1).toString().padStart(4)
-            val lineContent = line.trimEnd()
-            if (index < lineNumber - linesBefore || index > lineNumber + linesAfter) return@forEachIndexed
-            sb.append("$lineNumberString | $lineContent\n")
-            if (index == lineNumber) {
-                val caret = "\u00A0".repeat(4 + columnNumber - 1) + "^"
-                sb.appendLine(caret)
-                sb.appendLine(drawTextBox(message, 80))
-            }
-        }
-        val full = sb.toString().trim()
-        return drawTextBox(full, 100)
+    private fun toSyntaxError(e: FlowParseException): SyntaxError {
+        val ctx = ParserErrorContext(
+            title = e.title,
+            filePath = e.contentPath.absolutePathString(),
+            line = e.location.lineNr,
+            column = e.location.columnNr,
+            flowSource = e.content,
+            message = e.errorMessage,
+            docs = e.docs,
+        )
+        return SyntaxError(
+            message = ParserErrorRenderer.renderSummary(ctx),
+            detail = ParserErrorRenderer.renderDetail(ctx),
+            cause = e,
+        )
     }
 
     private fun fallbackErrorMessage(path: Path, e: Throwable): String {

@@ -1,19 +1,12 @@
-> Invalid Command: inp
+Invalid Command: inp at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3:5
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:3
-╭────────────────────────────────────────────────────────────────────────────────╮
-│ 1 | appId: com.example.app                                                     │
-│ 2 | onFlowStart:                                                               │
-│ 3 |   - inp                                                                    │
-│         ^                                                                      │
-│ ╭────────────────────────────────────────────────────────────────────────────╮ │
-│ │ `inp` is not a valid command.                                              │ │
-│ │                                                                            │ │
-│ │ Did you mean one of: inputRandomText, inputRandomNumber, inputRandomEmail, │ │
-│ │ inputRandomPersonName, inputRandomCityName, inputRandomCountryName,        │ │
-│ │ inputRandomColorName, inputText                                            │ │
-│ │                                                                            │ │
-│ │ > https://docs.maestro.dev/api-reference/commands                          │ │
-│ ╰────────────────────────────────────────────────────────────────────────────╯ │
-│ 4 | ---                                                                        │
-╰────────────────────────────────────────────────────────────────────────────────╯
+       1 | appId: com.example.app
+       2 | onFlowStart:
+  >    3 |   - inp
+               ^
+       4 | ---
+
+  `inp` is not a valid command.
+  
+  Did you mean one of: inputRandomText, inputRandomNumber, inputRandomEmail, inputRandomPersonName, inputRandomCityName, inputRandomCountryName, inputRandomColorName, inputText
+  See: https://docs.maestro.dev/api-reference/commands
