@@ -76,4 +76,41 @@ class IOSDriverTest {
 
         verify(exactly = 3) { iosDevice.deviceInfo() }
     }
+
+    @Test
+    fun `waitForAppToSettle respects user-supplied timeoutMs when device screen never settles`() {
+        /**
+         * Current commands like
+         * - swipe:
+         *     direction: LEFT
+         *     waitToSettleTimeoutMs: 500
+         * - tap:
+         *     waitToSettleTimeoutMs: 500
+         *
+         * IOSDriver simply ignored the timeout here and waited always for 3 seconds breaking the behaviour.
+         * This impacts all the element selector commands.
+         *
+         * This test just ensures that IOSDriver respects the user-supplied timeoutMs assuming the timeout is
+         * respected internally by our driver logic.
+         */
+        val userTimeoutMs = 100
+        val iosDevice = mockk<IOSDevice>(relaxed = true)
+
+        // Simulate a device that never settles: tier-1 polls forever. The small sleep keeps
+        // mockk from being invoked in a CPU-pegged tight loop (which can OOM the test JVM).
+        every { iosDevice.isScreenStatic() } answers {
+            Thread.sleep(20)
+            false
+        }
+
+        val driver = IOSDriver(iosDevice)
+
+        val startMs = System.currentTimeMillis()
+        driver.waitForAppToSettle(initialHierarchy = null, appId = null, timeoutMs = userTimeoutMs)
+        val elapsedMs = System.currentTimeMillis() - startMs
+
+        // Contract: total wall-clock must be close to user's timeoutMs (with reasonable grace).
+        // Today this fails with elapsedMs ~= 3000ms because of the hardcoded tier-1 cap.
+        assertThat(elapsedMs).isLessThan(userTimeoutMs.toLong() + 500)
+    }
 }
