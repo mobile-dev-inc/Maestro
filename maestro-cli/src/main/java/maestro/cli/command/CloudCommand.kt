@@ -193,6 +193,13 @@ class CloudCommand : Callable<Int> {
             printToConsole = parent?.verbose == true,
         )
 
+        if (androidApiLevel != null) {
+            PrintUtils.warn("--android-api-level is deprecated and will be removed in a future release. Use --device-os instead (e.g. --device-os=android-34).")
+        }
+        if (iOSVersion != null) {
+            PrintUtils.warn("--ios-version is deprecated and will be removed in a future release. Use --device-os instead (e.g. --device-os=iOS-18-2).")
+        }
+
         validateFiles()
         validateWorkSpace()
 
