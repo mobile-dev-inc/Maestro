@@ -35,6 +35,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.SourceInfo
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
@@ -53,95 +54,118 @@ import kotlin.reflect.jvm.javaType
 
 private val yamlFluentCommandConstructor = YamlFluentCommand::class.primaryConstructor!!
 private val yamlFluentCommandParameters = yamlFluentCommandConstructor.parameters
-private val yamlFluentCommandLocationParameter = yamlFluentCommandParameters.first { it.name == "_location" }
-private val objectCommands = yamlFluentCommandConstructor.parameters.map { it.name!! }
+private val yamlFluentCommandSourceInfoParameter = yamlFluentCommandParameters.first { it.name == "_sourceInfo" }
+private val objectCommands = yamlFluentCommandConstructor.parameters
+    .filter { it.name != "_sourceInfo" }
+    .map { it.name!! }
 
-private val stringCommands = mapOf<String, (JsonLocation) -> YamlFluentCommand>(
-    "launchApp" to { location -> YamlFluentCommand(
-        _location =  location,
-        launchApp = YamlLaunchApp(
-            appId = null,
-            clearState = null,
-            clearKeychain = null,
-            stopApp = null,
-            permissions = null,
-            arguments = null,
-        ),
-    )},
-    "stopApp" to { location -> YamlFluentCommand(
-        _location = location,
-        stopApp = YamlStopApp()
-    )},
-    "killApp" to { location -> YamlFluentCommand(
-        _location = location,
-        killApp = YamlKillApp()
-    )},
-    "clearState" to { location -> YamlFluentCommand(
-        _location = location,
-        clearState = YamlClearState(
-            appId = null,
-        )
-    )},
-    "clearKeychain" to { location -> YamlFluentCommand(
-        _location = location,
-        clearKeychain = YamlActionClearKeychain(),
-    )},
-    "eraseText" to { location -> YamlFluentCommand(
-        _location = location,
-        eraseText = YamlEraseText(charactersToErase = null)
-    )},
-    "inputRandomText" to { location -> YamlFluentCommand(
-        _location = location,
-        inputRandomText = YamlInputRandomText(length = 8),
-    )},
-    "inputRandomNumber" to { location -> YamlFluentCommand(
-        _location = location,
-        inputRandomNumber = YamlInputRandomNumber(length = 8),
-    )},
-    "inputRandomEmail" to { location -> YamlFluentCommand(
-        _location = location,
-        inputRandomEmail = YamlInputRandomEmail(),
-    )},
-    "inputRandomPersonName" to { location -> YamlFluentCommand(
-        _location = location,
-        inputRandomPersonName = YamlInputRandomPersonName(),
-    )},
-    "back" to { location -> YamlFluentCommand(
-        _location = location,
-        back = YamlActionBack(),
-    )},
-    "hideKeyboard" to { location -> YamlFluentCommand(
-        _location = location,
-        hideKeyboard = YamlActionHideKeyboard(),
-    )},
-    "hide keyboard" to { location -> YamlFluentCommand(
-        _location = location,
-        hideKeyboard = YamlActionHideKeyboard(),
-    )},
-    "pasteText" to { location -> YamlFluentCommand(
-        _location = location,
-        pasteText = YamlActionPasteText(),
-    )},
-    "scroll" to { location -> YamlFluentCommand(
-        _location = location,
-        scroll = YamlActionScroll(),
-    )},
-    "waitForAnimationToEnd" to { location -> YamlFluentCommand(
-        _location = location,
-        waitForAnimationToEnd = YamlWaitForAnimationToEndCommand(timeout = null)
-    )},
-    "stopRecording" to { location -> YamlFluentCommand(
-        _location = location,
-        stopRecording = YamlStopRecording()
-    )},
-    "toggleAirplaneMode" to { location -> YamlFluentCommand(
-        _location = location,
-        toggleAirplaneMode = YamlToggleAirplaneMode()
-    )},
-    "assertNoDefectsWithAI" to { location -> YamlFluentCommand(
-        _location = location,
-        assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()
-    )},
+private const val PARSE_CONTEXT_ATTR = "maestroParseContext"
+
+// Per-parse cache so per-command provenance is O(1) instead of re-tokenizing
+// the full YAML for every command. Offsets reference [source] verbatim — no
+// normalization — so SourceInfo offsets stay aligned with whatever was on disk.
+private class ParseContext(val source: String, val path: String?) {
+    val lines: List<String> = source.lines()
+    private val lineStarts: IntArray = computeLineStarts(source)
+
+    fun offsetOf(line: Int, column: Int): Int {
+        val idx = (line - 1).coerceIn(0, lineStarts.size - 1)
+        return (lineStarts[idx] + (column - 1).coerceAtLeast(0)).coerceAtMost(source.length)
+    }
+}
+
+// Returns the offset of the first character of each line, mirroring how
+// String.lines() splits on CRLF, CR, or LF. Result size always equals
+// source.lines().size, so lineStarts[i] is the offset of the i-th line.
+private fun computeLineStarts(source: String): IntArray {
+    val starts = mutableListOf(0)
+    var i = 0
+    while (i < source.length) {
+        when (source[i]) {
+            '\r' -> {
+                i++
+                if (i < source.length && source[i] == '\n') i++ // CRLF
+                starts.add(i)
+            }
+            '\n' -> {
+                i++
+                starts.add(i)
+            }
+            else -> i++
+        }
+    }
+    return starts.toIntArray()
+}
+
+private fun buildSourceInfo(ctx: ParseContext, start: JsonLocation, end: JsonLocation): SourceInfo {
+    val startLine = start.lineNr.coerceAtLeast(1)
+    val startColumn = start.columnNr.coerceAtLeast(1)
+    var endLine = end.lineNr.coerceAtLeast(startLine)
+    // YAML has no closing brace, so Jackson reports END_OBJECT on the next
+    // sibling's line. Walk back past blank lines, comments, and
+    // same-or-less-indented `- ` list items to recover the true end of this command.
+    val startIndent = ctx.lines.getOrNull(startLine - 1)?.indentWidth() ?: 0
+    while (endLine > startLine) {
+        val raw = ctx.lines.getOrNull(endLine - 1) ?: break
+        val indent = raw.indentWidth()
+        val trimmed = raw.trimStart()
+        val isBlank = trimmed.isEmpty()
+        val isOuter = indent <= startIndent
+        val isComment = isOuter && trimmed.startsWith("#")
+        val isSiblingListItem = isOuter && (trimmed.startsWith("- ") || trimmed == "-")
+        if (isBlank || isComment || isSiblingListItem) endLine-- else break
+    }
+    val endColumn = (ctx.lines.getOrNull(endLine - 1)?.length ?: 0) + 1
+    return SourceInfo(
+        source = ctx.source,
+        path = ctx.path,
+        startLine = startLine,
+        startColumn = startColumn,
+        startOffset = ctx.offsetOf(startLine, startColumn),
+        endLine = endLine,
+        endColumn = endColumn,
+        endOffset = ctx.offsetOf(endLine, endColumn),
+    )
+}
+
+private fun String.indentWidth(): Int {
+    var n = 0
+    while (n < length && this[n] == ' ') n++
+    return n
+}
+
+// Each lambda receives a YamlFluentCommand pre-populated with sourceInfo, and
+// fills in the matching command field via copy().
+private val stringCommands = mapOf<String, (YamlFluentCommand) -> YamlFluentCommand>(
+    "launchApp" to { it.copy(launchApp = YamlLaunchApp(
+        appId = null,
+        clearState = null,
+        clearKeychain = null,
+        stopApp = null,
+        permissions = null,
+        arguments = null,
+    )) },
+    "stopApp" to { it.copy(stopApp = YamlStopApp()) },
+    "killApp" to { it.copy(killApp = YamlKillApp()) },
+    "clearState" to { it.copy(clearState = YamlClearState(appId = null)) },
+    "clearKeychain" to { it.copy(clearKeychain = YamlActionClearKeychain()) },
+    "eraseText" to { it.copy(eraseText = YamlEraseText(charactersToErase = null)) },
+    "inputRandomText" to { it.copy(inputRandomText = YamlInputRandomText(length = 8)) },
+    "inputRandomNumber" to { it.copy(inputRandomNumber = YamlInputRandomNumber(length = 8)) },
+    "inputRandomEmail" to { it.copy(inputRandomEmail = YamlInputRandomEmail()) },
+    "inputRandomPersonName" to { it.copy(inputRandomPersonName = YamlInputRandomPersonName()) },
+    "inputRandomCityName" to { it.copy(inputRandomCityName = YamlInputRandomCityName()) },
+    "inputRandomCountryName" to { it.copy(inputRandomCountryName = YamlInputRandomCountryName()) },
+    "inputRandomColorName" to { it.copy(inputRandomColorName = YamlInputRandomColorName()) },
+    "back" to { it.copy(back = YamlActionBack()) },
+    "hideKeyboard" to { it.copy(hideKeyboard = YamlActionHideKeyboard()) },
+    "hide keyboard" to { it.copy(hideKeyboard = YamlActionHideKeyboard()) },
+    "pasteText" to { it.copy(pasteText = YamlActionPasteText()) },
+    "scroll" to { it.copy(scroll = YamlActionScroll()) },
+    "waitForAnimationToEnd" to { it.copy(waitForAnimationToEnd = YamlWaitForAnimationToEndCommand(timeout = null)) },
+    "stopRecording" to { it.copy(stopRecording = YamlStopRecording()) },
+    "toggleAirplaneMode" to { it.copy(toggleAirplaneMode = YamlToggleAirplaneMode()) },
+    "assertNoDefectsWithAI" to { it.copy(assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()) },
 )
 
 private val allCommands = (stringCommands.keys + objectCommands).distinct()
@@ -164,26 +188,31 @@ private fun <T : Throwable> findException(e: Throwable, type: Class<T>): T? {
     return if (type.isInstance(e)) type.cast(e) else e.cause?.let { findException(it, type) }
 }
 
+@Suppress("DEPRECATION")
+private fun SourceInfo.asJsonLocation(): JsonLocation =
+    JsonLocation(path, startOffset.toLong(), startLine, startColumn)
+
 private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Path, content: String): Exception {
     findException<FlowParseException>(error)?.let { return it }
     findException<ToCommandsException>(error)?.let { e ->
+        val location = e.sourceInfo.asJsonLocation()
         return when (e.cause) {
             is InvalidFlowFile -> FlowParseException(
-                location = e.location,
+                location = location,
                 contentPath = contentPath,
                 content = content,
                 title = "Invalid File Path",
                 errorMessage = e.cause.message,
             )
             is MediaFileNotFound -> FlowParseException(
-                location = e.location,
+                location = location,
                 contentPath = contentPath,
                 content = content,
                 title = "Media File Not Found",
                 errorMessage = e.cause.message,
             )
             else -> FlowParseException(
-                location = e.location,
+                location = location,
                 contentPath = contentPath,
                 content = content,
                 title = "Parsing Failed",
@@ -306,9 +335,12 @@ private fun String.findSimilar(others: Iterable<String>, threshold: Int) =
 private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
 
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): YamlFluentCommand {
+        val parseCtx = requireNotNull(ctxt.getAttribute(PARSE_CONTEXT_ATTR) as? ParseContext) {
+            "YamlFluentCommand must be read via an ObjectReader with $PARSE_CONTEXT_ATTR set"
+        }
         return when (p.currentToken) {
-            JsonToken.VALUE_STRING -> parseStringCommand(p)
-            JsonToken.START_OBJECT -> parseObjectCommand(p)
+            JsonToken.VALUE_STRING -> parseStringCommand(p, parseCtx)
+            JsonToken.START_OBJECT -> parseObjectCommand(p, ctxt, parseCtx)
             else -> throw ParseException(
                 location = p.currentLocation(),
                 title = "Invalid Command",
@@ -320,11 +352,18 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         }
     }
 
-    private fun parseStringCommand(parser: JsonParser): YamlFluentCommand {
-        val commandLocation = parser.currentLocation()
+    private fun parseStringCommand(parser: JsonParser, ctx: ParseContext): YamlFluentCommand {
+        // tokenLocation = start of the current token; currentLocation = position
+        // after it. For VALUE_STRING tokens these differ — using both gives the
+        // full scalar range.
+        val commandLocation = parser.currentTokenLocation()
         val commandText = parser.text
         val command = stringCommands[commandText]
-        if (command != null) return command(parser.currentLocation())
+        if (command != null) {
+            val end = parser.currentLocation()
+            val base = YamlFluentCommand(_sourceInfo = buildSourceInfo(ctx, commandLocation, end))
+            return command(base)
+        }
         if (commandText in objectCommands) {
             throw ParseException(
                 location = commandLocation,
@@ -347,8 +386,8 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         )
     }
 
-    private fun parseObjectCommand(parser: JsonParser): YamlFluentCommand {
-        val commandLocation = parser.currentLocation()
+    private fun parseObjectCommand(parser: JsonParser, ctxt: DeserializationContext, ctx: ParseContext): YamlFluentCommand {
+        val commandLocation = parser.currentTokenLocation()
         val commandName = parser.nextFieldName()
         val commandParameter = yamlFluentCommandParameters.firstOrNull { it.name == commandName }
         if (commandParameter == null) {
@@ -372,14 +411,19 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
             )
         }
         val commandType = (parser.codec as ObjectMapper).constructType(commandParameter.type.javaType)
-        val command = parser.codec.readValue<Any>(parser, commandType)
-        val fluentCommand = yamlFluentCommandConstructor.callBy(mapOf(
-            yamlFluentCommandLocationParameter to commandLocation,
-            commandParameter to command,
-        ))
+        // Use ctxt.readValue (not parser.codec.readValue) so context attributes
+        // propagate into nested YamlFluentCommand deserializations (e.g.
+        // YamlRunFlow.commands lists).
+        val command = ctxt.readValue<Any>(parser, commandType)
 
         val nextToken = parser.nextToken()
-        if (nextToken == JsonToken.END_OBJECT) return fluentCommand
+        if (nextToken == JsonToken.END_OBJECT) {
+            val endLocation = parser.currentLocation()
+            return yamlFluentCommandConstructor.callBy(mapOf(
+                yamlFluentCommandSourceInfoParameter to buildSourceInfo(ctx, commandLocation, endLocation),
+                commandParameter to command,
+            ))
+        }
 
         if (nextToken == JsonToken.FIELD_NAME) {
             val fieldName = parser.currentName()
@@ -459,10 +503,11 @@ object MaestroFlowParser {
     }
 
     fun parseFlow(flowPath: Path, flow: String): List<MaestroCommand> {
+        val ctx = parseContextFor(flow, flowPath)
         MAPPER.createParser(flow).use { parser ->
             try {
-                val config = parseConfig(parser)
-                val commands = parseCommands(parser)
+                val config = parseConfig(parser, ctx)
+                val commands = parseCommands(parser, ctx)
                 val maestroCommands = commands
                     .flatMap { it.toCommands(flowPath, config.appId) }
                     .withEnv(config.env)
@@ -474,9 +519,12 @@ object MaestroFlowParser {
     }
 
     fun parseCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> {
+        val ctx = parseContextFor(command, flowPath)
         MAPPER.createParser(command).use { parser ->
             try {
-                return parser.readValueAs(YamlFluentCommand::class.java).toCommands(flowPath, appId)
+                val reader = MAPPER.readerFor(YamlFluentCommand::class.java)
+                    .withAttribute(PARSE_CONTEXT_ATTR, ctx)
+                return reader.readValue<YamlFluentCommand>(parser).toCommands(flowPath, appId)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, flowPath, command)
             }
@@ -484,14 +532,18 @@ object MaestroFlowParser {
     }
 
     fun parseConfigOnly(flowPath: Path, flow: String): YamlConfig {
+        val ctx = parseContextFor(flow, flowPath)
         MAPPER.createParser(flow).use { parser ->
             try {
-                return parseConfig(parser)
+                return parseConfig(parser, ctx)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, flowPath, flow)
             }
         }
     }
+
+    private fun parseContextFor(source: String, path: Path?): ParseContext =
+        ParseContext(source = source, path = path?.absolute()?.toString())
 
     fun parseWorkspaceConfig(configPath: Path, workspaceConfig: String): WorkspaceConfig {
         MAPPER.createParser(workspaceConfig).use { parser ->
@@ -505,10 +557,11 @@ object MaestroFlowParser {
 
     fun parseWatchFiles(flowPath: Path): List<Path> {
         val flow = flowPath.readText()
+        val ctx = parseContextFor(flow, flowPath)
         MAPPER.createParser(flow).use { parser ->
             try {
-                parseConfig(parser)
-                val commands = parseCommands(parser)
+                parseConfig(parser, ctx)
+                val commands = parseCommands(parser, ctx)
                 val commandWatchFiles = commands.flatMap { it.getWatchFiles(flowPath) }
                 return (listOf(flowPath) + commandWatchFiles)
                     .filter { it.absolute().parent?.isDirectory() ?: false }
@@ -522,51 +575,56 @@ object MaestroFlowParser {
         return MAPPER.writeValueAsString(commands.map { MAPPER.readTree(it) })
     }
 
-    fun checkSyntax(maestroCode: String) {
+    fun checkSyntax(maestroCode: String, flowPath: Path?) {
         MAPPER.createParser(maestroCode).use { parser ->
             val node = parser.readValueAsTree<TreeNode>()
             if (node.isArray) {
-                checkCommandListSyntax(maestroCode)
+                checkCommandListSyntax(maestroCode, flowPath)
             } else if (node.isObject && parser.nextToken() != null) {
-                checkFlowSyntax(maestroCode)
+                checkFlowSyntax(maestroCode, flowPath)
             } else {
-                checkCommandSyntax(maestroCode)
+                checkCommandSyntax(maestroCode, flowPath)
             }
         }
     }
 
-    private fun checkCommandListSyntax(maestroCode: String) {
+    private fun checkCommandListSyntax(maestroCode: String, flowPath: Path?) {
+        val ctx = parseContextFor(maestroCode, flowPath)
         MAPPER.createParser(maestroCode).use { parser ->
             try {
-                parseCommands(parser)
+                parseCommands(parser, ctx)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, Paths.get("/syntax-checker"), maestroCode)
             }
         }
     }
 
-    private fun checkCommandSyntax(command: String) {
+    private fun checkCommandSyntax(command: String, flowPath: Path?) {
+        val ctx = parseContextFor(command, flowPath)
         MAPPER.createParser(command).use { parser ->
             try {
-                parser.readValueAs(YamlFluentCommand::class.java)
+                MAPPER.readerFor(YamlFluentCommand::class.java)
+                    .withAttribute(PARSE_CONTEXT_ATTR, ctx)
+                    .readValue<YamlFluentCommand>(parser)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, Paths.get("/syntax-checker"), command)
             }
         }
     }
 
-    private fun checkFlowSyntax(flow: String) {
+    private fun checkFlowSyntax(flow: String, flowPath: Path?) {
+        val ctx = parseContextFor(flow, flowPath)
         MAPPER.createParser(flow).use { parser ->
             try {
-                parseConfig(parser)
-                parseCommands(parser)
+                parseConfig(parser, ctx)
+                parseCommands(parser, ctx)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, Paths.get("/syntax-checker"), flow)
             }
         }
     }
 
-    private fun parseCommands(parser: JsonParser): List<YamlFluentCommand> {
+    private fun parseCommands(parser: JsonParser, ctx: ParseContext): List<YamlFluentCommand> {
         if (parser.nextToken() != JsonToken.START_ARRAY) {
             throw ParseException(
                 location = parser.currentLocation(),
@@ -584,15 +642,17 @@ object MaestroFlowParser {
             )
         }
 
+        val reader = (parser.codec as ObjectMapper).readerFor(YamlFluentCommand::class.java)
+            .withAttribute(PARSE_CONTEXT_ATTR, ctx)
         val commands = mutableListOf<YamlFluentCommand>()
         while (parser.nextToken() != JsonToken.END_ARRAY) {
-            val command = parser.readValueAs(YamlFluentCommand::class.java)
+            val command = reader.readValue<YamlFluentCommand>(parser)
             commands.add(command)
         }
         return commands
     }
 
-    private fun parseConfig(parser: JsonParser): YamlConfig {
+    private fun parseConfig(parser: JsonParser, ctx: ParseContext): YamlConfig {
         if (parser.nextToken() != JsonToken.START_OBJECT) {
             throw ParseException(
                 location = parser.currentLocation(),
@@ -610,6 +670,8 @@ object MaestroFlowParser {
             )
         }
 
-        return parser.readValueAs(YamlConfig::class.java)
+        val reader = (parser.codec as ObjectMapper).readerFor(YamlConfig::class.java)
+            .withAttribute(PARSE_CONTEXT_ATTR, ctx)
+        return reader.readValue<YamlConfig>(parser)
     }
 }

@@ -23,9 +23,7 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
 import maestro.cli.report.SingleScreenFlowAIOutput
-import maestro.cli.report.CommandDebugMetadata
 import maestro.cli.report.FlowAIOutput
-import maestro.cli.report.FlowDebugOutput
 import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
 import maestro.cli.util.PrintUtils
@@ -33,6 +31,9 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.debug.CommandDebugMetadata
+import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
@@ -198,15 +199,7 @@ object MaestroCommandRunner {
             apiKey = apiKey,    
         )
 
-        val flowSuccess = orchestra.runFlow(commands)
-
-        // Warn users about deprecated Rhino JS engine
-        val isRhinoExplicitlyRequested = config?.ext?.get("jsEngine") == "rhino"
-        if (isRhinoExplicitlyRequested) {
-          PrintUtils.warn("⚠️  The Rhino JS engine (jsEngine: rhino) is deprecated and will be removed in a future version. Please migrate to GraalJS (the default) for better performance and compatibility. This warning will be removed in a future version.")
-        }        
-
-        return flowSuccess
+        return orchestra.runFlow(commands)
     }
 
     private fun toCommandStates(
