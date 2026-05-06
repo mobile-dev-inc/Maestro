@@ -26,8 +26,6 @@ import kotlinx.coroutines.yield
 import maestro.Driver
 import maestro.ElementFilter
 import maestro.Filters
-import com.github.romankh3.image.comparison.ImageComparison
-import com.github.romankh3.image.comparison.model.ImageComparisonState
 import io.grpc.Status
 import maestro.*
 import maestro.Filters.asFilter
@@ -544,7 +542,6 @@ class Orchestra(
 
     private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
         val path = normalizeScreenshotPath(command.path)
-        val thresholdDifferencePercentage = (100 - command.thresholdPercentage)
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
@@ -600,34 +597,17 @@ class Orchestra(
         val diffFileName = "${baseName}_diff.png"
         val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
 
-        val comparison =
-            ImageComparison(expectedImage, actualImage, diffFile)
-
-        comparison.apply {
-            allowingPercentOfDifferentPixels = thresholdDifferencePercentage
-            rectangleLineWidth = 10
-            pixelToleranceLevel = 0.1 
-            minimalRectangleSize = 40
-        }
-
-        val comparisonState = comparison.compareImages()
-
-        when (comparisonState.imageComparisonState) {
-            ImageComparisonState.MATCH -> return true
-            ImageComparisonState.SIZE_MISMATCH -> throw MaestroException.AssertionFailure(
-                message = "Screenshot size mismatch: ${command.description()} - expected ${expectedImage.width}x${expectedImage.height}, actual ${actualImage.width}x${actualImage.height}. Screenshots must have the same dimensions to compare.",
+        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, command.thresholdPercentage, diffFile)) {
+            is ScreenshotMatch.Result.Match -> return true
+            is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
+                message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
                 hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${expectedImage.width}x${expectedImage.height}, got: ${actualImage.width}x${actualImage.height}. Use the same device/emulator or cropOn to align dimensions."
+                debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${result.expectedWidth}x${result.expectedHeight}, got: ${result.actualWidth}x${result.actualHeight}. Use the same device/emulator or cropOn to align dimensions."
             )
-            ImageComparisonState.MISMATCH -> throw MaestroException.AssertionFailure(
-                message = "Comparison error: ${command.description()} - threshold not met, current: ${100 - comparisonState.differencePercent}%",
+            is ScreenshotMatch.Result.Mismatch -> throw MaestroException.AssertionFailure(
+                message = "Comparison error: ${command.description()} - threshold not met, current: ${result.matchPercent}%",
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
-            )
-            else -> throw MaestroException.AssertionFailure(
-                message = "Screenshot comparison failed: ${command.description()} - unexpected comparison state ${comparisonState.imageComparisonState}.",
-                hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "The assertScreenshot command encountered an unexpected result from the image comparison. State: ${comparisonState.imageComparisonState}"
             )
         }
     }
