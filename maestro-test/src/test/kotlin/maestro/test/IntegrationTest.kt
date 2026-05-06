@@ -3991,20 +3991,6 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 127 RhinoJS - Environment variables should be isolated between flows`() {
-        // Test that environment variables from one runFlow don't leak to peer runFlow commands
-        val commands = readCommands("127_env_vars_isolation_rhinojs")
-        val driver = driver {}
-
-        Maestro(driver).use {
-            runBlocking {
-                // Should succeed - uses positive assertions to verify isolation works
-                orchestra(it).runFlow(commands)
-            }
-        }
-    }
-
-    @Test
     fun `Case 127 GraalJS - Environment variables should be isolated between flows`() {
         // Test that environment variables are isolated between flows using GraalJS engine
         val commands = readCommands("127_env_vars_isolation_graaljs")

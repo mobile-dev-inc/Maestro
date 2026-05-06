@@ -3,6 +3,7 @@ package maestro.orchestra.workspace
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.error.formatForTerminal
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -61,7 +62,9 @@ internal class WorkspaceExecutionPlannerErrorsTest {
                 return assertWithMessage("An exception was thrown but it was not a ValidationError. Ensure this test case triggers a ValidationError. Found: ${e::class.java.name}").fail()
             }
 
-            val actualError = e.message
+            // Snapshot the combined summary + detail — same text the CLI prints
+            // and the same text the e###/error.txt fixtures assert against.
+            val actualError = e.formatForTerminal()
 
             if (System.getenv("GENERATE_ERRORS") == "true") {
                 originalPath.resolve("error.txt").writeText(actualError)
