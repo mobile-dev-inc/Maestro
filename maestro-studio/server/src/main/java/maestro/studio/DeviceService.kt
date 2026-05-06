@@ -9,6 +9,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Maestro
@@ -52,6 +54,8 @@ object DeviceService {
     private val savedScreenshots = mutableListOf<File>()
 
     private var lastViewHierarchy: TreeNode? = null
+
+    private val screenMutex = Mutex()
 
     fun routes(routing: Routing, maestro: Maestro) {
         routing.post("/api/run-command") {
@@ -178,11 +182,11 @@ object DeviceService {
         }
     }
 
-    private fun getDeviceScreen(maestro: Maestro): String {
+    private suspend fun getDeviceScreen(maestro: Maestro): String {
         val tree: TreeNode
         val screenshotFile: File
-        synchronized(DeviceService) {
-            tree = runBlocking { maestro.viewHierarchy() }.root
+        screenMutex.withLock {
+            tree = maestro.viewHierarchy().root
             lastViewHierarchy = tree
             screenshotFile = takeScreenshot(maestro)
             savedScreenshots.add(screenshotFile)
@@ -192,7 +196,7 @@ object DeviceService {
         }
 
         @Suppress("DEPRECATION")
-        val deviceInfo = runBlocking { maestro.deviceInfo() }
+        val deviceInfo = maestro.deviceInfo()
         val deviceWidth = deviceInfo.widthGrid
         val deviceHeight = deviceInfo.heightGrid
 
@@ -226,12 +230,13 @@ object DeviceService {
         )
     }
 
-    private fun takeScreenshot(maestro: Maestro): File {
+    private suspend fun takeScreenshot(maestro: Maestro): File {
         val name = "${UUID.randomUUID()}.png"
         val screenshotFile = SCREENSHOT_DIR.resolve(name).toFile()
         screenshotFile.deleteOnExit()
         try {
-            runBlocking { maestro.takeScreenshot(screenshotFile, true) }
+            @Suppress("DEPRECATION")
+            maestro.takeScreenshot(screenshotFile, true)
         } catch (ignore: Exception) {
             // ignore intermittent screenshot errors
         }
