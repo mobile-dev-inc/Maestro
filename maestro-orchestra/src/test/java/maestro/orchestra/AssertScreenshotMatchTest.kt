@@ -61,6 +61,24 @@ class AssertScreenshotMatchTest {
     }
 
     @Test
+    fun `compare returns Mismatch for visually distinct screens of the same size`() {
+        val expected = loadResource("actual.png")
+        val actual = loadResource("saved_without_search.png")
+        val diff = diffFile()
+
+        val result = ScreenshotMatch.compare(
+            expected = expected,
+            actual = actual,
+            thresholdPercentage = 95.0,
+            diffFile = diff,
+        )
+
+        val mismatch = result as ScreenshotMatch.Result.Mismatch
+        assertThat(mismatch.matchPercent).isWithin(0.01).of(91.4724)
+        assertThat(diff.exists()).isTrue()
+    }
+
+    @Test
     fun `compare returns SizeMismatch for differently sized images`() {
         val expected = loadResource("expected.png")
         val actual = BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB)
