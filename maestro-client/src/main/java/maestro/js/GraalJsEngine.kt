@@ -135,8 +135,6 @@ class GraalJsEngine(
         return try {
             context.eval(source)
         } catch (e: PolyglotException) {
-            // Convert to a fully detached JsEvaluationException so live polyglot
-            // frames never escape the engine boundary. See JsScriptError.kt.
             throw JsEvaluationException(e.toJsScriptError())
         }
     }
@@ -213,7 +211,6 @@ class GraalJsEngine(
             """.trimIndent()
             )
         } catch (e: PolyglotException) {
-            // Boundary applies to the bootstrap script too — same reasoning as evalWithIIFE.
             throw JsEvaluationException(e.toJsScriptError())
         }
 
