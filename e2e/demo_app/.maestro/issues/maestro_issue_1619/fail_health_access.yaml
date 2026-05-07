@@ -1,0 +1,12 @@
+appId: com.example.example
+---
+- launchApp:
+    clearState: true
+- tapOn: "Health Access"
+- assertVisible: ".*would like to access and update your Health data.*"
+- tapOn: "Turn On All"
+- assertVisible: "Turn Off All"
+- tapOn:
+    id: "UIA.Health.Allow.Button"
+    enabled: true
+- assertNotVisible: ".*would like to access and update your Health data.*"

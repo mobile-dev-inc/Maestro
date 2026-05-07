@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_launch_arguments/flutter_launch_arguments.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:app_links/app_links.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
@@ -229,6 +230,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   },
                   child: const Text('Notifications Permission'),
                 ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      const channel = MethodChannel('com.example.demo_app/health_access');
+                      channel.invokeMethod('requestHealthAccess');
+                    },
+                    child: const Text('Health Access'),
+                  ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
