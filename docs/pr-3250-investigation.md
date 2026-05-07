@@ -132,47 +132,102 @@ auth sheet. The privacy filter that blocks `app.buttons["Turn On All"]` does
 | "iOS 26 redacts even snapshots, so PR #3250 might not work either" | **False.** Snapshot returns full labels including HK sheet content (Q1). |
 | "`snapshotKeyHonorModalViews=false` would fix the customer with current arch" | **False.** It fixes label discovery but the tap still misses because the frame is in foreign-window coords (Q2). |
 
-## What's true
+## What's true — with explicit source for each row
 
-| Path | Finds elements? | Tap correct? | Generalizes? |
-|---|---|---|---|
-| Stock `main`, no flag | unknown (likely no) | n/a | n/a |
-| `main` + workspace flag (today) | ✅ | ❌ pixel misses | n/a |
-| `main` + flag + PR #3250 offset math | ✅ | ✅ frame corrected | HK-specific; needs per-surface tuning for #560/#1924/#2065/#1227/#3093 |
-| `main` + flag + option B (`[element tap]` via structural path) | ✅ (snapshot) | ✅ Apple resolves screenPoint | yes — same mechanism for all cross-process surfaces |
+| # | Branch / version under test | Workspace flag set? | Tap mechanism | Finds elements? | Tap correct? | Source of result | Generalizes? |
+|---|---|---|---|---|---|---|---|
+| 1 | Stock `main` (≈ released `maestro 2.4.0`) — no code changes | no | pixel-tap (orchestrator computes from snapshot frame) | unknown — not run | n/a | extrapolation (the customer report that prompted PR #3250) | n/a |
+| 2 | Stock `main` (≈ `maestro 2.4.0`) — no code changes | **yes** (`platform.ios.snapshotKeyHonorModalViews: false` in `e2e/demo_app/.maestro/config.yaml`) | pixel-tap | ✅ "Tap on Turn On All" reported COMPLETED | ❌ next assertion `Turn Off All visible` failed — pixel landed off-button | **run today** via `maestro test e2e/demo_app/.maestro/issues/fail_health_access.yaml`, log `poc-workspace-config.log` | n/a |
+| 3 | `sg-healthkit-integration` (PR #3250: offset-math `ViewHierarchyHandler.swift` + `AXElement.swift` `frameOverride`) | yes (or implicit — PR doesn't add the flag to its own config) | pixel-tap, with cross-process boundary detection + frame correction | ✅ | ✅ for HealthKit-shaped boundaries (`windowContextID` + `isRemote`) | extrapolation — the PR's own e2e flow `fail_health_access.yaml` is reported passing on the PR author's environment; we did not re-run it ourselves | HK-specific; doesn't catch SFSafariViewController (#560 reporter diagnosed `displayID` mismatch) or other surfaces with different boundary signals |
+| 4 | `poc-elementtap-healthkit` POC v6 (path-based resolution + `[element tap]`, no offset math, no PR #3250 changes) | yes (set programmatically via `AXClientSwizzler.overwriteDefaultParameters` in test setUp) | `[element tap]` — Apple's `XCUIElementHitPointCoordinate.screenPoint` | ✅ via snapshot (snapshot has labels) | ✅ post-tap `Turn Off All` appeared, post-Allow sheet dismissed | **run today**, `xcodebuild test ... -only-testing:.../testHealthKitTapPOC`; output `[POC] *** ✓✓ FULL FLOW VALIDATED ***`; `** TEST SUCCEEDED **` | yes — same mechanism would handle SFSafariViewController + the other 4 issues |
+| 5 | `poc-elementtap-healthkit` POC v7 (strong-ref cache, lockstep `walk(snap, dict, live)`, O(N) build) | yes | `[element tap]` via cache lookup by UUID | ✅ 186 nodes indexed; 'Turn On All' present | ✅ post-tap `Turn Off All` appeared (1.5s wait); post-Allow sheet dismissed | **run today**, `** TEST SUCCEEDED **`. Measured: cache built in **117 ms** (186 nodes ≈ 0.6 ms/node), rebuilt in **51 ms** | yes — WDA's production design, validated for HealthKit on iOS 26 |
+
+**Quick legend of the branches:**
+- **`main`** — current Maestro main, no PR #3250 changes. Uses snapshot → kotlin-side pixel tap.
+- **`sg-healthkit-integration`** — Simon's PR #3250 branch. Adds `ViewHierarchyHandler` cross-process offset-math walk and `AXElement.frameOverride`.
+- **`poc-elementtap-healthkit`** — branched off `main` for this investigation. Demo-app HealthKit changes cherry-picked from PR. Driver code unchanged from main. POC test methods added in `maestro_driver_iosUITests.swift` to validate option B without shipping any of PR #3250's runner-side code.
 
 ## Why option B works without offset math
 
 Option B never sends a pixel coordinate over the wire. The driver:
 1. Builds the AXElement tree from the snapshot (same as today).
-2. Records a `(elementType, indexAmongTypeSiblings)` path per node during the
-   walk — single pass, O(N).
-3. Returns the tree to the orchestrator with each node carrying an `elementId`.
+2. **In the same pass**, walks the live tree in parallel — for each snapshot
+   node, constructs the corresponding lazy `XCUIElement` via
+   `liveParent.children(matching: type).element(boundBy: idx)` and stores it
+   in an `ElementCache` keyed by a per-node UUID. Single pass, O(N).
+3. Returns the tree to the orchestrator with each node carrying an `elementId`
+   in its `attributes` bag.
 4. On tap, orchestrator sends the `elementId` to a new `tapElement` route.
-5. Driver looks up the path, walks
-   `app.children(matching: type).element(boundBy: idx)` for each step → live
-   `XCUIElement` reference.
-6. Calls `[element tap]`. Apple's `XCUIElementHitPointCoordinate.screenPoint`
-   internally resolves the cross-process screen coordinate.
+5. Driver looks up the cached `XCUIElement` by id and calls `[element tap]`.
+   Apple's `XCUIElementHitPointCoordinate.screenPoint` internally resolves the
+   cross-process screen coordinate.
 
 The frame in the snapshot can be wrong (foreign-window coords) and Maestro
 never has to care, because the orchestrator no longer computes a pixel.
 
+This mirrors WebDriverAgent's `FBElementCache` design (in `FBElementCommands.m`):
+
+```objc
+XCUIElement *element = [elementCache elementForUUID:request.parameters[@"uuid"]
+                                     checkStaleness:YES];
+[element tap];
+```
+
+Note: `XCUIElement` is itself a lazy query wrapper, not a stable handle to a
+specific UI element. Storing one is functionally equivalent to storing the
+`(type, idx)` chain it represents — the chain is just opaque in the
+strong-reference form. We pick the WDA shape because it's simpler and the
+extra debuggability of an explicit path isn't worth the API surface.
+
+## Cross-platform impact
+
+`TreeNode.attributes` is already a `MutableMap<String, String>` populated
+per-platform. iOS's `IOSDriver.mapViewHierarchy` adds `elementId` to every
+node; Android's mapper doesn't. There's no schema to reconcile.
+
+```kotlin
+interface Driver {
+    fun tap(point: Point)
+    fun tap(element: UiElement) { tap(element.bounds.center()) }  // default — Android / Web
+}
+
+class IOSDriver(...) : Driver {
+    override fun tap(element: UiElement) {
+        val elementId = element.treeNode.attributes["elementId"]
+        if (elementId != null) {
+            runDeviceCall("tapElement") { iosDevice.tapElement(elementId) }
+        } else {
+            tap(element.bounds.center())  // older runner / unknown element — graceful fallback
+        }
+    }
+}
+```
+
+Android, Web, anything else: zero change. They pick up the default
+`tap(element:)` which falls through to the existing point-based tap.
+
 ## Performance
 
-- Hierarchy build: still **O(N)**. The path cache adds O(1) per node (UUID +
-  parent-pointer entry); no extra `dictionaryRepresentation` calls, no extra
-  AXElement allocations.
-- Tap: **O(D)** where D ≈ tree depth (~20–40). Path resolution is one
-  `children(matching:).element(boundBy:)` per step; no full-tree query.
-  Negligible compared to Apple's event synthesis (~100–300 ms).
+- Hierarchy build: **O(N)** with the strong-ref cache walker, *measured*: 186
+  nodes in 117 ms first build, 51 ms rebuild on iOS 26 simulator (POC v7).
+  That's ~0.6 ms/node — well within current Maestro's per-fetch budget.
+- Per-node work: one `UUID()`, one cache insert, one **lazy** `XCUIElement`
+  construction (no AX call until `.tap()` etc.), one `AXElement(dict, ..., skipChildrenFromDict: true)`.
+- One `dictionaryRepresentation` call at the root, walked in lockstep with the
+  snapshot tree and the live tree. Critically, **no per-node
+  `dictionaryRepresentation`** (which is what made PR #3250 O(N·D)).
+- Tap: **O(1)** — direct cache lookup, then `[element tap]` (which internally
+  resolves the lazy chain in O(D), Apple's cost). Negligible compared to event
+  synthesis (~100–300 ms).
 
 For comparison, PR #3250 as currently written has an O(N·D) (worst-case O(N²))
 hierarchy build because the new walker calls
 `snapshot.dictionaryRepresentation` on every node. Fixing that requires the
 H1+H2 changes documented in the original review (single
 `dictionaryRepresentation` at root + `skipChildrenFromDict` flag on
-`AXElement.init`).
+`AXElement.init`). The walker shape we'd ship for option B applies the same
+fix as a side-effect — it has to use the lockstep pattern to walk the live
+tree in parallel anyway.
 
 ## Open issues option B would fix
 

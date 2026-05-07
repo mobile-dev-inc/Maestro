@@ -64,6 +64,87 @@ final class maestro_driver_iosUITests: XCTestCase {
         XCTAssertTrue(healthAccessButton.waitForExistence(timeout: 5))
         healthAccessButton.tap()
         NSLog("[POC] Tapped 'Health Access' — auth sheet should now appear.")
+        Thread.sleep(forTimeInterval: 3)
+
+        // ============================================================
+        // WDA-SHAPE STRONG-REFERENCE CACHE TEST (matches what we'd ship)
+        // ============================================================
+        // O(N) hierarchy build: one dictionaryRepresentation at root,
+        // walk snapshot + dict + live in lockstep, store live XCUIElement
+        // refs in a UUID-keyed cache. Then tap by id.
+        var elementCache: [String: XCUIElement] = [:]
+        var idByLabel: [String: String] = [:]
+
+        func buildCache(app: XCUIApplication) throws -> Int {
+            elementCache.removeAll(); idByLabel.removeAll()
+            let rootSnap = try app.snapshot()
+            let rootDict = rootSnap.dictionaryRepresentation        // ONCE — O(N) total
+            walk(snap: rootSnap, dict: rootDict, live: app)
+            return elementCache.count
+        }
+
+        func walk(snap: XCUIElementSnapshot,
+                  dict: [XCUIElement.AttributeName: Any],
+                  live: XCUIElement) {
+            let id = UUID().uuidString
+            elementCache[id] = live
+            if let label = dict[XCUIElement.AttributeName(rawValue: "label")] as? String,
+               !label.isEmpty, idByLabel[label] == nil {
+                idByLabel[label] = id
+            }
+
+            let childDicts = (dict[XCUIElement.AttributeName(rawValue: "children")]
+                              as? [[XCUIElement.AttributeName: Any]]) ?? []
+            var counters: [XCUIElement.ElementType: Int] = [:]
+            for (childSnap, childDict) in zip(snap.children, childDicts) {
+                let type = childSnap.elementType
+                let idx = counters[type, default: 0]
+                counters[type] = idx + 1
+                let childLive = live.children(matching: type).element(boundBy: idx)  // lazy, O(1)
+                walk(snap: childSnap, dict: childDict, live: childLive)
+            }
+        }
+
+        let buildStart = Date()
+        let nodeCount = try buildCache(app: app)
+        let buildMs = Int(Date().timeIntervalSince(buildStart) * 1000)
+        NSLog("[POC] cache built — \(nodeCount) nodes in \(buildMs)ms; 'Turn On All' indexed: \(idByLabel["Turn On All"] != nil)")
+
+        // Tap 'Turn On All' via cache lookup
+        guard let turnOnId = idByLabel["Turn On All"], let turnOnEl = elementCache[turnOnId] else {
+            XCTFail("Cache missing 'Turn On All' — walk did not visit it"); return
+        }
+        NSLog("[POC] Tapping 'Turn On All' via cache id=\(turnOnId)")
+        turnOnEl.tap()
+        Thread.sleep(forTimeInterval: 1.5)
+
+        let postLabels = collectLabels(from: try app.snapshot().dictionaryRepresentation)
+        let flipped = postLabels.contains("Turn Off All")
+        NSLog("[POC] post-tap 'Turn Off All' present: \(flipped)")
+        XCTAssertTrue(flipped, "Cache-based tap did not flip toggle — option B WDA-shape FAILED")
+
+        // Re-build cache (simulates next hierarchy fetch), tap 'Allow'
+        let rebuildStart = Date()
+        _ = try buildCache(app: app)
+        let rebuildMs = Int(Date().timeIntervalSince(rebuildStart) * 1000)
+        NSLog("[POC] cache rebuilt in \(rebuildMs)ms; 'Allow' indexed: \(idByLabel["Allow"] != nil)")
+
+        guard let allowId = idByLabel["Allow"], let allowEl = elementCache[allowId] else {
+            XCTFail("Cache missing 'Allow' on rebuild"); return
+        }
+        NSLog("[POC] Tapping 'Allow' via cache id=\(allowId)")
+        allowEl.tap()
+        Thread.sleep(forTimeInterval: 1.5)
+
+        let stillUp = collectLabels(from: try app.snapshot().dictionaryRepresentation)
+            .contains(where: { $0.contains("would like to access") })
+        NSLog("[POC] post-Allow sheet still up: \(stillUp)")
+        XCTAssertFalse(stillUp, "Sheet did not dismiss")
+        NSLog("[POC] *** ✓✓ FULL FLOW VALIDATED via WDA-shape strong-reference cache ***")
+        return  // skip the legacy assertions below
+
+        #if false
+        // -- everything below this point is the v6 path-based flow (kept for reference) --
 
         // SNAPSHOT PROBE — does PR #3250's path see the auth sheet's labels on this iOS?
         Thread.sleep(forTimeInterval: 3)  // give the cross-process sheet time to render
@@ -177,6 +258,7 @@ final class maestro_driver_iosUITests: XCTestCase {
         XCTAssertFalse(title.waitForExistence(timeout: 3),
                        "Auth sheet did NOT dismiss — option B mechanism is INSUFFICIENT for HealthKit-class surfaces")
         NSLog("[POC] ✓ Sheet dismissed — XCUIElement.tap() handled the cross-process surface.")
+        #endif
     }
 
     /// WDA-style structural query: look for any sheet/alert/other-typed top-level container.
