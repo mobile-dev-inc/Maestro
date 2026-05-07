@@ -141,7 +141,7 @@ class EnvTest {
             "COUNTRY" to "United Kingdom",
         ) as Map<String, String>
 
-        val error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+        val error = org.junit.jupiter.api.Assertions.assertThrows(maestro.orchestra.util.Env.EnvVariableMissingValueError::class.java) {
             emptyList<MaestroCommand>().withEnv(envWithNull)
         }
         assertThat(error.message).contains("AUTOMATED_EMAIL")
@@ -153,7 +153,7 @@ class EnvTest {
         @Suppress("UNCHECKED_CAST")
         val envWithNull = mapOf("AUTOMATED_EMAIL" to null) as Map<String, String>
 
-        val error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+        val error = org.junit.jupiter.api.Assertions.assertThrows(maestro.orchestra.util.Env.EnvVariableMissingValueError::class.java) {
             emptyList<MaestroCommand>().withEnv(envWithNull)
         }
         assertThat(error.message).contains("AUTOMATED_EMAIL")
@@ -168,7 +168,7 @@ class EnvTest {
             "REGION" to null,
         ) as Map<String, String>
 
-        val error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+        val error = org.junit.jupiter.api.Assertions.assertThrows(maestro.orchestra.util.Env.EnvVariableMissingValueError::class.java) {
             emptyList<MaestroCommand>().withEnv(envWithNulls)
         }
         assertThat(error.message).contains("AUTOMATED_EMAIL")

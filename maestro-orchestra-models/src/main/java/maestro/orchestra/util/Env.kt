@@ -33,13 +33,20 @@ object Env {
         // Fail fast with the offending keys so the user knows exactly what to fix.
         @Suppress("UNCHECKED_CAST")
         val nullKeys = (env as Map<String, String?>).filterValues { it == null }.keys
-        require(nullKeys.isEmpty()) {
-            "Environment variable(s) ${nullKeys.joinToString(", ")} have no value. " +
-                "Set an explicit value (e.g. `${nullKeys.first()}: \"\"` for an empty string) " +
-                "or remove the key."
-        }
+        if (nullKeys.isNotEmpty()) throw EnvVariableMissingValueError(nullKeys)
         return listOf(MaestroCommand(DefineVariablesCommand(env))) + this
     }
+
+    /**
+     * Raised by [withEnv] when the env map carries one or more null values. Caught by
+     * `MaestroFlowParser.wrapException` so the rendered error names the missing key(s)
+     * instead of surfacing a generic "Parsing Failed" summary.
+     */
+    class EnvVariableMissingValueError(val keys: Set<String>) : IllegalArgumentException(
+        "Environment variable(s) ${keys.joinToString(", ")} have no value. " +
+            "Set an explicit value (e.g. `${keys.first()}: \"\"` for an empty string) " +
+            "or remove the key."
+    )
 
     /**
      * Reserved internal env vars that are controlled exclusively by Maestro.
