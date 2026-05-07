@@ -25,9 +25,21 @@ object Env {
             }
     }
 
-    fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> =
-        if (env.isEmpty()) this
-        else listOf(MaestroCommand(DefineVariablesCommand(env))) + this
+    fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> {
+        if (env.isEmpty()) return this
+        // Jackson's KotlinModule allows null values into Map<String, String> (generic erasure),
+        // so a YAML entry like `KEY:` with no value lands here as null and later crashes
+        // DefineVariablesCommand.evaluateScripts with an opaque Kotlin null-intrinsics error.
+        // Fail fast with the offending keys so the user knows exactly what to fix.
+        @Suppress("UNCHECKED_CAST")
+        val nullKeys = (env as Map<String, String?>).filterValues { it == null }.keys
+        require(nullKeys.isEmpty()) {
+            "Environment variable(s) ${nullKeys.joinToString(", ")} have no value. " +
+                "Set an explicit value (e.g. `${nullKeys.first()}: \"\"` for an empty string) " +
+                "or remove the key."
+        }
+        return listOf(MaestroCommand(DefineVariablesCommand(env))) + this
+    }
 
     /**
      * Reserved internal env vars that are controlled exclusively by Maestro.

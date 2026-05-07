@@ -130,4 +130,48 @@ class EnvTest {
 
         assertThat(withEnv).containsExactly(defineVariables, applyConfig)
     }
+
+    @Test
+    fun `withEnv fails with a helpful message when an env value is null`() {
+        // YAML `AUTOMATED_EMAIL:` (no value) deserializes to null inside Map<String, String>
+        // due to Kotlin generic type erasure; simulate that here with an unchecked cast.
+        @Suppress("UNCHECKED_CAST")
+        val envWithNull = mapOf(
+            "AUTOMATED_EMAIL" to null,
+            "COUNTRY" to "United Kingdom",
+        ) as Map<String, String>
+
+        val error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+            emptyList<MaestroCommand>().withEnv(envWithNull)
+        }
+        assertThat(error.message).contains("AUTOMATED_EMAIL")
+        assertThat(error.message).doesNotContain("COUNTRY")
+    }
+
+    @Test
+    fun `withEnv fails when the only env key has a null value`() {
+        @Suppress("UNCHECKED_CAST")
+        val envWithNull = mapOf("AUTOMATED_EMAIL" to null) as Map<String, String>
+
+        val error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+            emptyList<MaestroCommand>().withEnv(envWithNull)
+        }
+        assertThat(error.message).contains("AUTOMATED_EMAIL")
+    }
+
+    @Test
+    fun `withEnv lists every null env key`() {
+        @Suppress("UNCHECKED_CAST")
+        val envWithNulls = mapOf(
+            "AUTOMATED_EMAIL" to null,
+            "COUNTRY" to "United Kingdom",
+            "REGION" to null,
+        ) as Map<String, String>
+
+        val error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+            emptyList<MaestroCommand>().withEnv(envWithNulls)
+        }
+        assertThat(error.message).contains("AUTOMATED_EMAIL")
+        assertThat(error.message).contains("REGION")
+    }
 }
