@@ -176,24 +176,13 @@ class AnsiResultView(
 
         var lastIndex = 0
         regex.findAll(description).forEach { match ->
-            // Literal text before the match (safe)
-            val literalSegment = description.substring(lastIndex, match.range.first)
-            print(a(literalSegment).toString())
-
-            // Highlighted match (safe ANSI, no markup parsing)
-            print(
-                fgCyan()          // color ON
-                    .a(match.value)
-                    .reset()       // color OFF
-                    .toString()
-            )
-
+            a(description.substring(lastIndex, match.range.first))
+            fgCyan().a(match.value).reset()
             lastIndex = match.range.last + 1
         }
 
-        // Final literal tail
         if (lastIndex < description.length) {
-            print(a(description.substring(lastIndex)).toString())
+            a(description.substring(lastIndex))
         }
     }
 
@@ -205,7 +194,7 @@ class AnsiResultView(
         commandState.logMessages.forEach {
             renderLineStart(indent + 2)
             render("   ")   // Space that a status symbol would normally occupy
-            print(fgYellow().a(it).reset().toString()) // Carefully deal with potential for Jansi markdown in the log line
+            fgYellow().a(it).reset()
             render("\n")
         }
     }
