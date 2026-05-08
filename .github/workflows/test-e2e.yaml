@@ -475,7 +475,10 @@ jobs:
 
       - name: Install xcodegen
         # Required to generate the Xcode project for the SwiftUI fixture used
-        # by the preflight regression test below.
+        # by the preflight regression test below. Skipped in single-flow mode
+        # (workflow_dispatch with inputs.flow set) since the regression guard
+        # is unrelated to whichever flow the user is iterating on.
+        if: inputs.flow == ''
         run: brew install xcodegen
 
       - name: Verify iOS UI-interruption preflight is suppressed
@@ -484,7 +487,8 @@ jobs:
         # runs a gesture against it, and asserts Apple's preflight signature
         # lines never appear in the xctest_runner log. Fails if the swizzle in
         # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
-        # XCUIApplication+Helper.m regresses.
+        # XCUIApplication+Helper.m regresses. Skipped in single-flow mode.
+        if: inputs.flow == ''
         run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
 
       - name: Upload ~/.maestro artifacts
