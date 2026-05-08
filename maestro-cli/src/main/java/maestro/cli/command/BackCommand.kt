@@ -3,14 +3,11 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.interactive.DeviceControlPerformer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
-import maestro.orchestra.BackPressCommand
-import maestro.orchestra.MaestroCommand
-import maestro.orchestra.Orchestra
 import picocli.CommandLine
 import java.util.concurrent.Callable
-import kotlinx.coroutines.runBlocking
 
 @CommandLine.Command(
     name = "back",
@@ -37,15 +34,7 @@ class BackCommand : Callable<Int> {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
         ) { session ->
-            val orchestra = Orchestra(session.maestro)
-            val command = BackPressCommand(
-                label = null,
-                optional = false,
-            )
-
-            runBlocking {
-                orchestra.runFlow(listOf(MaestroCommand(command = command)))
-            }
+            DeviceControlPerformer.back(session.maestro)
         }
 
         println("Back button pressed successfully")

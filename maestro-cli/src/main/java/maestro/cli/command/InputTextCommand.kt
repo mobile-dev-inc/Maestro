@@ -4,13 +4,11 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.interactive.DeviceControlPerformer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
-import maestro.orchestra.MaestroCommand
-import maestro.orchestra.Orchestra
 import picocli.CommandLine
 import java.util.concurrent.Callable
-import kotlinx.coroutines.runBlocking
 
 @CommandLine.Command(
     name = "input-text",
@@ -46,16 +44,7 @@ class InputTextCommand : Callable<Int> {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
         ) { session ->
-            val orchestra = Orchestra(session.maestro)
-            val command = maestro.orchestra.InputTextCommand(
-                text = text,
-                label = null,
-                optional = false,
-            )
-
-            runBlocking {
-                orchestra.runFlow(listOf(MaestroCommand(command = command)))
-            }
+            DeviceControlPerformer.inputText(session.maestro, text)
         }
 
         println("Text input successful")

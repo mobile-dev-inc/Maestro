@@ -4,13 +4,11 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.interactive.DeviceControlPerformer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
-import maestro.orchestra.MaestroCommand
-import maestro.orchestra.Orchestra
 import picocli.CommandLine
 import java.util.concurrent.Callable
-import kotlinx.coroutines.runBlocking
 
 @CommandLine.Command(
     name = "stop-app",
@@ -46,16 +44,7 @@ class StopAppCommand : Callable<Int> {
             deviceId = parent?.deviceId,
             platform = parent?.platform,
         ) { session ->
-            val orchestra = Orchestra(session.maestro)
-            val command = maestro.orchestra.StopAppCommand(
-                appId = appId,
-                label = null,
-                optional = false,
-            )
-
-            runBlocking {
-                orchestra.runFlow(listOf(MaestroCommand(command = command)))
-            }
+            DeviceControlPerformer.stopApp(session.maestro, appId)
         }
 
         println("App stopped successfully: $appId")
