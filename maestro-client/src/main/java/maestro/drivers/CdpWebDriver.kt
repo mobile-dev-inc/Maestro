@@ -17,6 +17,8 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
+import maestro.web.input.inputHtmlDate
+import maestro.web.input.isHtmlDateInput
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
 import okio.Sink
@@ -499,6 +501,11 @@ class CdpWebDriver(
 
     override fun inputText(text: String) {
         withActiveElement { element ->
+            val jsExecutor = ensureOpen() as JavascriptExecutor
+            if (element.isHtmlDateInput() && jsExecutor.inputHtmlDate(element, text)) {
+                return@withActiveElement
+            }
+
             for (c in text.toCharArray()) {
                 element.sendKeys("$c")
                 sleep(random(20, 100).toLong())
