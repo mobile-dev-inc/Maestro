@@ -1,10 +1,17 @@
-name: Check Drivers Up-to-Date
+name: Update Drivers
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
-      - 'maestro-android/**'
       - 'maestro-ios-xctest-runner/**'
+      - 'maestro-android/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: update-drivers
+  cancel-in-progress: false
 
 jobs:
   changes:
@@ -23,15 +30,16 @@ jobs:
             ios:
               - 'maestro-ios-xctest-runner/**'
 
-  check-android-driver:
-    name: Check Android Driver
+  update-android-driver:
+    name: Update Android Driver
     needs: changes
-    if: needs.changes.outputs.android == 'true'
+    if: needs.changes.outputs.android == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -40,71 +48,52 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Check Android drivers are fresh
-        run: ./gradlew :maestro-client:checkAndroidApksFresh
+      - name: Build Android drivers
+        run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
 
-  check-ios-driver:
-    name: Check iOS Driver
+      - name: Commit and push updated drivers
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add \
+            maestro-client/src/main/resources/maestro-app.apk \
+            maestro-client/src/main/resources/maestro-server.apk \
+            maestro-client/src/main/resources/maestro-android-source.sha256
+          if git diff --cached --quiet; then
+            echo "Android drivers unchanged — nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore: update Android driver APKs [skip ci]"
+          git pull --rebase origin main
+          git push
+
+  update-ios-driver:
+    name: Update iOS Driver
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
+    if: needs.changes.outputs.ios == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Select Xcode 26.2
         run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
 
-      - name: Rebuild iOS drivers
+      - name: Build iOS drivers
         run: sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh
 
-      - name: Fail if drivers are out of date
+      - name: Commit and push updated drivers
         run: |
-          # Compare extracted archive contents rather than raw zip bytes.
-          # `zip -r` is not deterministic (timestamps, file ordering leak into
-          # the archive), so two builds from identical sources produce
-          # byte-different zips. We want the check to fail only on meaningful
-          # content differences.
-          fail=0
-          for rel in \
-              driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.zip \
-              driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-ios.zip \
-              driver-iPhoneSimulator/maestro-driver-ios-config.xctestrun \
-              driver-iphoneos/Debug-iphoneos/maestro-driver-iosUITests-Runner.zip \
-              driver-iphoneos/Debug-iphoneos/maestro-driver-ios.zip \
-              driver-iphoneos/maestro-driver-ios-config.xctestrun; do
-              path="maestro-ios-driver/src/main/resources/$rel"
-              [ -e "$path" ] || continue
-              if [[ "$path" == *.zip ]]; then
-                  tmp=$(mktemp -d)
-                  git show "HEAD:$path" > "$tmp/committed.zip" 2>/dev/null || {
-                      echo "NEW FILE: $rel"
-                      fail=1
-                      continue
-                  }
-                  mkdir -p "$tmp/head" "$tmp/new"
-                  unzip -q "$tmp/committed.zip" -d "$tmp/head"
-                  unzip -q "$path" -d "$tmp/new"
-                  if ! diff -qr "$tmp/head" "$tmp/new" >/dev/null; then
-                      echo "CONTENT DIFFERS: $rel"
-                      diff -r "$tmp/head" "$tmp/new" | head -30
-                      fail=1
-                  fi
-              else
-                  # plist / xctestrun — diff as text
-                  if ! git diff --exit-code -- "$path" >/dev/null; then
-                      echo "CONTENT DIFFERS: $rel"
-                      git diff --stat -- "$path"
-                      fail=1
-                  fi
-              fi
-          done
-          if [ "$fail" -ne 0 ]; then
-              echo ""
-              echo "ERROR: iOS drivers are out of date."
-              echo "Run the following and commit the updated drivers:"
-              echo "  sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh"
-              exit 1
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add maestro-ios-driver/src/main/resources/
+          if git diff --cached --quiet; then
+            echo "iOS drivers unchanged — nothing to commit"
+            exit 0
           fi
+          git commit -m "chore: update iOS driver [skip ci]"
+          git pull --rebase origin main
+          git push
