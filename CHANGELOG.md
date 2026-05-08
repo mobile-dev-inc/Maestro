@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add direct CLI commands `maestro tap-on` and `maestro take-screenshot`, bringing selected interactive CLI capabilities into closer parity with existing MCP tools
+- Add direct CLI commands `maestro tap-on`, `maestro take-screenshot`, `maestro launch-app`, `maestro stop-app`, `maestro input-text`, and `maestro back`, bringing selected interactive CLI capabilities into closer parity with existing MCP tools
 
 ## 2.5.1
 

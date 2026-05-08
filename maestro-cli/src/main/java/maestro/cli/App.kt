@@ -22,12 +22,15 @@ package maestro.cli
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.CliCommandRunEvent
+import maestro.cli.command.BackCommand
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
 import maestro.cli.command.CloudCommand
 import maestro.cli.command.DownloadSamplesCommand
 import maestro.cli.command.DriverCommand
+import maestro.cli.command.InputTextCommand
+import maestro.cli.command.LaunchAppCommand
 import maestro.cli.command.ListCloudDevicesCommand
 import maestro.cli.command.ListDevicesCommand
 import maestro.cli.command.LoginCommand
@@ -38,6 +41,7 @@ import maestro.cli.command.QueryCommand
 import maestro.cli.command.RecordCommand
 import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
+import maestro.cli.command.StopAppCommand
 import maestro.cli.command.TakeScreenshotCommand
 import maestro.cli.command.TapOnCommand
 import maestro.cli.command.TestCommand
@@ -77,6 +81,10 @@ import kotlin.system.exitProcess
         DriverCommand::class,
         TapOnCommand::class,
         TakeScreenshotCommand::class,
+        LaunchAppCommand::class,
+        StopAppCommand::class,
+        InputTextCommand::class,
+        BackCommand::class,
         McpCommand::class,
     ]
 )
