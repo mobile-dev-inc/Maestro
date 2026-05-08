@@ -415,7 +415,7 @@ object MaestroSessionManager {
             iOSDriverConfig = iOSDriverConfig,
             deviceController = deviceController,
             tempFileHandler = tempFileHandler,
-            logsDir = TestDebugReporter.getDebugOutputPath().resolve("xctest_runner_logs").toFile(),
+            logsDir = TestDebugReporter.getDebugOutputPath().toFile(),
         )
 
         val xcTestDriverClient = XCTestDriverClient(
