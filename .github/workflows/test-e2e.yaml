@@ -19,7 +19,7 @@ on:
         type: string
         default: 'demo_app'
       flow:
-        description: 'Optional: flow filename within the chosen app (e.g. setLocation). Empty = all flows. Single-flow mode runs Android only.'
+        description: 'Optional: flow filename within the chosen app (e.g. setLocation). Empty = all flows. Single-flow mode runs on android or ios depending on platform input.'
         type: string
         default: ''
       platform:
@@ -399,13 +399,14 @@ jobs:
     name: Test on iOS
     runs-on: macos-26
     needs: [build, validate-inputs]
-    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'ios') && inputs.flow == '' }}
+    if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'ios') }}
     timeout-minutes: 120
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
       MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
       MAESTRO_APP: ${{ inputs.app }}
+      MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
