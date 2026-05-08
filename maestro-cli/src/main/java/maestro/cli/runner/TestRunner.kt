@@ -11,7 +11,6 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
 import maestro.cli.report.FlowAIOutput
-import maestro.cli.report.FlowDebugOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.ResultView
@@ -20,6 +19,7 @@ import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -206,7 +206,7 @@ object TestRunner {
             logger.error("Failed to run flow", e)
             val message = ErrorViewUtils.exceptionToMessage(e)
 
-            if (!maestro.isShutDown()) {
+            if (!runBlocking { maestro.isShutDown() }) {
                 view.setState(
                     UiState.Error(
                         message = message

@@ -2,7 +2,6 @@ package maestro.cli.cloud
 
 import maestro.cli.CliError
 import maestro.cli.analytics.Analytics
-import maestro.cli.analytics.CloudUploadStartedEvent
 import maestro.cli.analytics.CloudUploadTriggeredEvent
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
@@ -22,7 +21,7 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.WorkspaceUtils
+import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.input.interactiveSelectList
@@ -34,8 +33,15 @@ import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
-import maestro.cli.web.WebInteractor
 import maestro.cli.promotion.PromotionStateManager
+import maestro.orchestra.validation.AppMetadataAnalyzer
+import maestro.orchestra.validation.AppMetadata
+import maestro.cli.web.WebInteractor
+import maestro.orchestra.validation.AppValidationException
+import maestro.orchestra.validation.AppValidator
+import maestro.orchestra.validation.WorkspaceValidationException
+import maestro.orchestra.validation.WorkspaceValidator
+import maestro.device.DeviceSpec
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -50,10 +56,13 @@ import kotlin.String
 import kotlin.io.path.absolute
 import kotlin.time.Duration.Companion.milliseconds
 
-val terminalStatuses = listOf<FlowStatus>(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
+val terminalStatuses = listOf(FlowStatus.CANCELED, FlowStatus.STOPPED, FlowStatus.SUCCESS, FlowStatus.ERROR)
 
 class CloudInteractor(
     private val client: ApiClient,
+    private val appFileValidator: (File) -> AppMetadata?,
+    private val workspaceValidator: WorkspaceValidator,
+    private val webManifestProvider: (() -> File?)? = null,
     private val auth: Auth = Auth(client),
     private val waitTimeoutMs: Long = TimeUnit.MINUTES.toMillis(30),
     private val minPollIntervalMs: Long = TimeUnit.SECONDS.toMillis(10),
@@ -65,6 +74,7 @@ class CloudInteractor(
         flowFile: File,
         appFile: File?,
         async: Boolean,
+        configFile: File? = null,
         mapping: File? = null,
         apiKey: String? = null,
         uploadName: String? = null,
@@ -74,8 +84,6 @@ class CloudInteractor(
         commitSha: String? = null,
         pullRequestId: String? = null,
         env: Map<String, String> = emptyMap(),
-        androidApiLevel: Int? = null,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
@@ -88,8 +96,9 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidApiLevel: Int? = null,
+        iOSVersion: String? = null,
     ): Int {
-        if (appBinaryId == null && appFile == null && !flowFile.isWebFlow()) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
         if (async && reportFormat != ReportFormat.NOOP) throw CliError("Cannot use --format with --async")
@@ -105,16 +114,9 @@ class CloudInteractor(
         // Record cloud command usage for promotion message suppression
         PromotionStateManager().recordCloudCommandUsage()
 
-        // Track cloud upload triggered - this fires as soon as the command is validated and ready to proceed
-        val triggeredPlatform = when {
-            androidApiLevel != null -> "android"
-            iOSVersion != null || deviceOs != null -> "ios"
-            flowFile.isWebFlow() -> "web"
-            else -> "unknown"
-        }
+        // Track cloud upload triggered before any file I/O; platform unknown until binary is analyzed
         Analytics.trackEvent(CloudUploadTriggeredEvent(
             projectId = selectedProjectId,
-            platform = triggeredPlatform,
             isBinaryUpload = appBinaryId != null,
             usesEnvironment = env.isNotEmpty(),
             deviceModel = deviceModel,
@@ -125,21 +127,48 @@ class CloudInteractor(
 
         TemporaryDirectory.use { tmpDir ->
             val workspaceZip = tmpDir.resolve("workspace.zip")
-            WorkspaceUtils.createWorkspaceZip(flowFile.toPath().absolute(), workspaceZip)
+            WorkspaceUtils.createWorkspaceZip(
+                file = flowFile.toPath().absolute(),
+                out = workspaceZip,
+                configOverride = configFile?.toPath()?.absolute(),
+            )
+            warnIfWorkspaceIsLarge(workspaceZip.toFile().length())
             val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
             val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
 
-            // Track cloud upload start after we have the response with actual platform
-            Analytics.trackEvent(CloudUploadStartedEvent(
-                projectId = selectedProjectId,
-                platform = triggeredPlatform,
-                isBinaryUpload = appBinaryId != null,
-                usesEnvironment = env.isNotEmpty(),
-                deviceModel = deviceModel,
-                deviceOs = deviceOs
-            ))
+            // Validate app and resolve platform
+            // When appBinaryId is provided, skip CLI-side validation — the server validates
+            if (appBinaryId == null) {
+                val appValidator = AppValidator(
+                    appFileValidator = appFileValidator,
+                    webManifestProvider = webManifestProvider,
+                    iosMinOSVersionProvider = { file ->
+                        val metadata = AppMetadataAnalyzer.getIosAppMetadata(file) ?: return@AppValidator null
+                        val major = metadata.minimumOSVersion.substringBefore(".").toIntOrNull() ?: return@AppValidator null
+                        AppValidator.IosMinOSVersion(major = major, full = metadata.minimumOSVersion)
+                    },
+                )
+                val resolvedAppValidation = try {
+                    appValidator.validate(appFile = appFileToSend, appBinaryId = null)
+                } catch (e: AppValidationException) {
+                    throw CliError(e.message ?: "App validation failed")
+                }
+
+                // Validate workspace against appId before uploading to catch errors early
+                try {
+                    workspaceValidator.validate(
+                        workspace = workspaceZip.toFile(),
+                        appId = resolvedAppValidation.appIdentifier,
+                        env = env,
+                        includeTags = includeTags,
+                        excludeTags = excludeTags,
+                    )
+                } catch (e: WorkspaceValidationException) {
+                    throw CliError(e.message ?: "Workspace validation failed")
+                }
+            }
 
             val response = client.upload(
                 authToken = authToken,
@@ -153,19 +182,19 @@ class CloudInteractor(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 disableNotifications = disableNotifications,
-                deviceLocale = deviceLocale,
                 projectId = selectedProjectId,
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
+                deviceLocale = deviceLocale,
                 deviceModel = deviceModel,
-                deviceOs = deviceOs
+                deviceOs = deviceOs,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
             )
 
             // Track finish after upload completion
@@ -219,6 +248,14 @@ class CloudInteractor(
                 else -> 1
             }
         }
+    }
+
+    private fun warnIfWorkspaceIsLarge(sizeBytes: Long) {
+        if (sizeBytes < WORKSPACE_WARN_THRESHOLD_BYTES) return
+        val sizeMb = sizeBytes / 1024 / 1024
+        PrintUtils.warn(
+            "Workspace zip is ${sizeMb} MB. Large workspaces are downloaded by every device on every run and will slow down your tests. Common causes: app binaries (.apk/.ipa/.app/.aab) bundled with flows (use --app-binary-id instead), .git directories, build outputs (build/, .gradle/, node_modules/, Pods/), test artifacts from previous runs (reports/, recordings/, artifacts/), or duplicated fixtures."
+        )
     }
 
     private fun selectProject(authToken: String): String {
@@ -408,12 +445,12 @@ class CloudInteractor(
         val version = deviceConfiguration.osVersion
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
-            "To change OS version use this option: @|magenta ${if (platform == Platform.IOS) "--device-os=<version>" else "--android-api-level=<version>"}|@",
+            "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
             "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
                 platform.toString().lowercase()
-            } --os-version=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
         )
 
         return lines.joinToString("\n").render().box()
@@ -664,5 +701,9 @@ class CloudInteractor(
             PrintUtils.err("Unexpected error while analyzing Flow(s): ${error.message}")
             return 1
         }
+    }
+
+    companion object {
+        private const val WORKSPACE_WARN_THRESHOLD_BYTES = 20L * 1024 * 1024
     }
 }

@@ -25,7 +25,7 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
-import io.grpc.ManagedChannelBuilder
+import io.grpc.okhttp.OkHttpChannelBuilder
 import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -33,6 +33,7 @@ import maestro.*
 import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
 import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
@@ -70,14 +71,14 @@ class AndroidDriver(
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
-    private var portForwarder: AutoCloseable? = null
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
-    private val channel = ManagedChannelBuilder.forAddress("localhost", this.hostPort)
+    private val channel = OkHttpChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
+        .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
         .keepAliveTime(2, TimeUnit.MINUTES)
         .keepAliveTimeout(20, TimeUnit.SECONDS)
         .keepAliveWithoutCalls(true)
@@ -100,7 +101,6 @@ class AndroidDriver(
     }
 
     override fun open() {
-        allocateForwarder()
         installMaestroApks()
         startInstrumentationSession(hostPort)
 
@@ -148,15 +148,6 @@ class AndroidDriver(
     }
 
 
-    private fun allocateForwarder() {
-        portForwarder?.close()
-
-        portForwarder = dadb.tcpForward(
-            hostPort,
-            hostPort
-        )
-    }
-
     private fun awaitLaunch() {
         val startTime = System.currentTimeMillis()
 
@@ -179,10 +170,6 @@ class AndroidDriver(
             blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
             isLocationMocked = false
         }
-
-        LOGGER.info("[Start] close port forwarder")
-        portForwarder?.close()
-        LOGGER.info("[Done] close port forwarder")
 
         LOGGER.info("[Start] Uninstall driver from device")
         if (reinstallDriver) {
@@ -800,9 +787,8 @@ class AndroidDriver(
             }
 
             mutable.forEach { permission ->
-                val permissionValue = translatePermissionValue(permission.value)
                 translatePermissionName(permission.key).forEach { permissionName ->
-                    setPermissionInternal(appId, permissionName, permissionValue)
+                    setPermissionInternal(appId, permissionName, permission.value)
                 }
             }
         }
@@ -927,15 +913,23 @@ class AndroidDriver(
         if (permissionsResult.isSuccess) {
             permissionsResult.getOrNull()?.let {
                 it.forEach { permission ->
-                    setPermissionInternal(appId, permission, translatePermissionValue(permissionValue))
+                    setPermissionInternal(appId, permission, permissionValue)
                 }
             }
         }
     }
 
-    private fun setPermissionInternal(appId: String, permission: String, permissionValue: String) {
+    private val appOpsPermissions = setOf(
+        "android.permission.MANAGE_EXTERNAL_STORAGE"
+    )
+
+    private fun setPermissionInternal(appId: String, permission: String, rawValue: String) {
         try {
-            shell("pm $permissionValue $appId $permission")
+            if (permission in appOpsPermissions) {
+                setAppOp(appId, permission, rawValue)
+            } else {
+                shell("pm ${translatePermissionValue(rawValue)} $appId $permission")
+            }
         } catch (exception: Exception) {
             // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
             if (exception.message?.contains("is not a changeable permission type") == false) {
@@ -947,40 +941,41 @@ class AndroidDriver(
         }
     }
 
+    private fun setAppOp(appId: String, op: String, rawValue: String) {
+        // appops uses the bare operation name (e.g. MANAGE_EXTERNAL_STORAGE), not the full permission string
+        val opName = op.removePrefix("android.permission.")
+
+        val appOpsValue = when (rawValue) {
+            "allow" -> "allow"
+            "deny" -> "deny"
+            else -> "default" // "unset" resets to system default
+        }
+
+        shell("appops set --uid $appId $opName $appOpsValue")
+    }
+
     private fun translatePermissionName(name: String): List<String> {
         return when (name) {
-            "location" -> listOf(
-                "android.permission.ACCESS_FINE_LOCATION",
-                "android.permission.ACCESS_COARSE_LOCATION",
-            )
-
-            "camera" -> listOf("android.permission.CAMERA")
-            "contacts" -> listOf(
-                "android.permission.READ_CONTACTS",
-                "android.permission.WRITE_CONTACTS"
-            )
-
-            "phone" -> listOf(
-                "android.permission.CALL_PHONE",
-                "android.permission.ANSWER_PHONE_CALLS",
-            )
-
-            "microphone" -> listOf(
-                "android.permission.RECORD_AUDIO"
-            )
-
             "bluetooth" -> listOf(
                 "android.permission.BLUETOOTH_CONNECT",
                 "android.permission.BLUETOOTH_SCAN",
             )
 
-            "storage" -> listOf(
-                "android.permission.WRITE_EXTERNAL_STORAGE",
-                "android.permission.READ_EXTERNAL_STORAGE"
+            "calendar" -> listOf(
+                "android.permission.WRITE_CALENDAR",
+                "android.permission.READ_CALENDAR"
             )
 
-            "notifications" -> listOf(
-                "android.permission.POST_NOTIFICATIONS"
+            "camera" -> listOf("android.permission.CAMERA")
+
+            "contacts" -> listOf(
+                "android.permission.READ_CONTACTS",
+                "android.permission.WRITE_CONTACTS"
+            )
+
+            "location" -> listOf(
+                "android.permission.ACCESS_FINE_LOCATION",
+                "android.permission.ACCESS_COARSE_LOCATION",
             )
 
             "medialibrary" -> listOf(
@@ -991,15 +986,28 @@ class AndroidDriver(
                 "android.permission.READ_MEDIA_VIDEO"
             )
 
-            "calendar" -> listOf(
-                "android.permission.WRITE_CALENDAR",
-                "android.permission.READ_CALENDAR"
+            "microphone" -> listOf(
+                "android.permission.RECORD_AUDIO"
+            )
+
+            "notifications" -> listOf(
+                "android.permission.POST_NOTIFICATIONS"
+            )
+
+            "phone" -> listOf(
+                "android.permission.CALL_PHONE",
+                "android.permission.ANSWER_PHONE_CALLS",
             )
 
             "sms" -> listOf(
                 "android.permission.READ_SMS",
                 "android.permission.RECEIVE_SMS",
                 "android.permission.SEND_SMS"
+            )
+
+            "storage" -> listOf(
+                "android.permission.WRITE_EXTERNAL_STORAGE",
+                "android.permission.READ_EXTERNAL_STORAGE"
             )
 
             else -> listOf(name.replace("[^A-Za-z0-9._]+".toRegex(), ""))

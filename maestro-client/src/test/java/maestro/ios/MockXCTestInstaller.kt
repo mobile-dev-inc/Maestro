@@ -6,6 +6,7 @@ import xcuitest.installer.XCTestInstaller
 
 class MockXCTestInstaller(
     private val simulator: Simulator,
+    private val port: Int = 22807,
 ) : XCTestInstaller {
 
     private var attempts = 0
@@ -16,7 +17,7 @@ class MockXCTestInstaller(
             assertThat(simulator.runningApps()).doesNotContain("dev.mobile.maestro-driver-iosUITests.xctrunner")
         }
         simulator.installXCTestDriver()
-        return XCTestClient("localhost", 22807)
+        return XCTestClient("localhost", port)
     }
 
     override fun uninstall(): Boolean {

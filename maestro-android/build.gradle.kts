@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.config.JvmTarget
+import java.security.MessageDigest
 
 plugins {
     alias(libs.plugins.android.application)
@@ -38,12 +39,12 @@ kotlin.sourceSets.configureEach {
 
 android {
     namespace = "dev.mobile.maestro"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "dev.mobile.maestro"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -87,6 +88,8 @@ android {
 }
 
 tasks.register<Copy>("copyMaestroAndroid") {
+    dependsOn("assembleDebug")
+
     val maestroAndroidApkPath = "outputs/apk/debug/maestro-android-debug.apk"
     val maestroAndroidApkDest = "../../maestro-client/src/main/resources"
     val maestroAndroidApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug.apk"
@@ -104,6 +107,8 @@ tasks.register<Copy>("copyMaestroAndroid") {
 }
 
 tasks.register<Copy>("copyMaestroServer") {
+    dependsOn("assembleAndroidTest")
+
     val maestroServerApkPath = "outputs/apk/androidTest/debug/maestro-android-debug-androidTest.apk"
     val maestroServerApkDest = "../../maestro-client/src/main/resources"
     val maestroServerApkDestPath = "../../maestro-client/src/main/resources/maestro-android-debug-androidTest.apk"
@@ -130,6 +135,72 @@ tasks.named("assembleAndroidTest") {
     // lint.enabled = false
     // lintVitalRelease.enabled = false
     finalizedBy("copyMaestroServer")
+}
+
+// ----------------------------------------------------------------------------
+// Source-content sentinel for downstream consumers (e.g. JVM-only worker builds)
+// ----------------------------------------------------------------------------
+// Without this, JVM-only consumers of maestro-client would need to install the
+// Android SDK just to evaluate processResources's dependencies (because gradle
+// has to resolve maestro-android's task graph at configuration time, which
+// loads the Android Gradle Plugin and requires ANDROID_HOME).
+//
+// Instead, we ship a sha256 of maestro-android source files alongside the
+// committed APKs at maestro-client/src/main/resources/. Consumers verify the
+// hash without needing the Android plugin loaded — pure file I/O.
+//
+// This task auto-updates the sentinel whenever copyMaestroAndroid or
+// copyMaestroServer runs, so contributors who run
+//   ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
+// get all three files (both APKs + sentinel) updated and ready to commit.
+// ----------------------------------------------------------------------------
+
+val maestroAndroidSourceForSentinel = fileTree(projectDir) {
+    include(
+        "src/**/*.kt",
+        "src/**/*.java",
+        "src/**/*.xml",
+        "src/**/*.aidl",
+        "build.gradle.kts",
+        "build.gradle",
+    )
+    exclude("build/**", ".gradle/**")
+}
+val maestroAndroidSentinelFile = rootProject.file("maestro-client/src/main/resources/maestro-android-source.sha256")
+
+tasks.register("updateMaestroAndroidSourceSentinel") {
+    inputs.files(maestroAndroidSourceForSentinel)
+        .withPropertyName("maestroAndroidSource")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.file(maestroAndroidSentinelFile)
+
+    doLast {
+        val md = MessageDigest.getInstance("SHA-256")
+        maestroAndroidSourceForSentinel.files
+            .sortedBy { it.relativeTo(projectDir).invariantSeparatorsPath }
+            .forEach { f ->
+                md.update(f.relativeTo(projectDir).invariantSeparatorsPath.toByteArray())
+                md.update(0)
+                md.update(f.readBytes())
+                md.update(0)
+            }
+        val bytes = md.digest()
+        val sb = StringBuilder(bytes.size * 2)
+        for (b in bytes) {
+            sb.append(String.format("%02x", b.toInt() and 0xff))
+        }
+        val hex = sb.toString()
+        maestroAndroidSentinelFile.parentFile.mkdirs()
+        maestroAndroidSentinelFile.writeText(hex + "\n")
+        println("[maestro-android] Updated source sentinel -> ${maestroAndroidSentinelFile.relativeTo(rootProject.projectDir)} ($hex)")
+    }
+}
+
+tasks.named("copyMaestroAndroid") {
+    finalizedBy("updateMaestroAndroidSourceSentinel")
+}
+tasks.named("copyMaestroServer") {
+    finalizedBy("updateMaestroAndroidSourceSentinel")
 }
 
 sourceSets {

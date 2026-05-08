@@ -36,12 +36,10 @@ class ListDevicesCommand : Callable<Int> {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
         val platformFilter = platform?.let { input ->
-            Platform.fromString(input) ?: throw CliError(
-                "Unknown platform: '$input'. Supported values: ${Platform.entries.joinToString { it.name.lowercase() }}"
-            )
+            Platform.fromString(input)
         }
 
-        println("Showing local devices. Use 'maestro list-cloud-device' to list devices available on Maestro Cloud.".faint())
+        println("Showing local devices. Use 'maestro list-cloud-devices' to list devices available on Maestro Cloud.".faint())
         println()
 
         PrintUtils.info("Local Devices", bold = true)

@@ -169,7 +169,7 @@ class XCTestIOSDevice(
         }
     }
 
-    override fun startScreenRecording(out: Sink): Result<IOSScreenRecording, Throwable> {
+    override fun startScreenRecording(out: Sink): IOSScreenRecording {
         error("Not supported")
     }
 
@@ -237,6 +237,8 @@ class XCTestIOSDevice(
             )
         } catch (timeout: XCUITestServerError.OperationTimeout) {
             throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
+        } catch (unreachable: XCUITestServerError.Unreachable) {
+            throw IOSDeviceErrors.Unreachable(unreachable.callName, unreachable)
         }
     }
 

@@ -1,9 +1,10 @@
 package maestro.cli.util
 
 import java.io.File
+import kotlinx.coroutines.runBlocking
 import maestro.Maestro
-import maestro.cli.report.FlowDebugOutput
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.CommandStatus
+import maestro.orchestra.debug.FlowDebugOutput
 import okio.Buffer
 import okio.sink
 
@@ -21,7 +22,7 @@ object ScreenshotUtils {
             val out = File
                 .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() } // save to another dir before exiting
-            maestro.takeScreenshot(out.sink(), false)
+            runBlocking { maestro.takeScreenshot(out.sink(), false) }
             debugOutput.screenshots.add(
                 FlowDebugOutput.Screenshot(
                     screenshot = out,
@@ -40,7 +41,7 @@ object ScreenshotUtils {
             val out = File
                 .createTempFile("screenshot-${status}-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() } // save to another dir before exiting
-            maestro.takeScreenshot(out.sink(), false)
+            runBlocking { maestro.takeScreenshot(out.sink(), false) }
             debugOutput.screenshots.add(
                 FlowDebugOutput.Screenshot(
                     screenshot = out,

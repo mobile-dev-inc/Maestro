@@ -26,6 +26,7 @@ import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
+import maestro.DeviceUnreachableException
 import maestro.Driver
 import maestro.Filters
 import maestro.KeyCode
@@ -53,7 +54,6 @@ import okio.source
 import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
-import java.net.SocketTimeoutException
 import kotlin.collections.set
 
 class IOSDriver(
@@ -419,7 +419,7 @@ class IOSDriver(
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
-            val iosScreenRecording = iosDevice.startScreenRecording(out).expect {}
+            val iosScreenRecording = iosDevice.startScreenRecording(out)
             object : ScreenRecording {
                 override fun close() = iosScreenRecording.close()
             }
@@ -544,9 +544,9 @@ class IOSDriver(
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
         return try {
             call()
-        } catch (socketTimeoutException: SocketTimeoutException) {
-            LOGGER.error("Got socket timeout processing $callName command", socketTimeoutException)
-            throw socketTimeoutException
+        } catch (unreachable: IOSDeviceErrors.Unreachable) {
+            LOGGER.error("Device unreachable while processing $callName command", unreachable)
+            throw DeviceUnreachableException(unreachable.callName, unreachable)
         } catch (appCrashException: IOSDeviceErrors.AppCrash) {
             LOGGER.error("Detected app crash during $callName command", appCrashException)
             throw MaestroException.AppCrash(appCrashException.errorMessage)

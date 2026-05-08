@@ -20,7 +20,6 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.core.JsonLocation
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
@@ -62,6 +61,7 @@ import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
+import maestro.orchestra.SourceInfo
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -84,7 +84,7 @@ import kotlin.io.path.readText
 
 class ToCommandsException(
     override val cause: Throwable,
-    val location: JsonLocation,
+    val sourceInfo: SourceInfo,
 ) : RuntimeException(cause)
 
 data class YamlFluentCommand(
@@ -141,14 +141,14 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
-    @JsonIgnore val _location: JsonLocation,
+    @JsonIgnore val _sourceInfo: SourceInfo,
 ) {
 
     fun toCommands(flowPath: Path, appId: String): List<MaestroCommand> {
         return try {
-            _toCommands(flowPath, appId)
+            _toCommands(flowPath, appId).map { it.copy(sourceInfo = _sourceInfo) }
         } catch (e: Throwable) {
-            throw ToCommandsException(e, _location)
+            throw ToCommandsException(e, _sourceInfo)
         }
     }
 
@@ -372,7 +372,8 @@ data class YamlFluentCommand(
             setOrientation != null -> listOf(
                 MaestroCommand(
                     SetOrientationCommand(
-                        orientation = DeviceOrientation.getByName(setOrientation.orientation) ?: throw SyntaxError("Unknown orientation: $setOrientation"),
+                        orientation = DeviceOrientation.getByName(setOrientation.orientation)?.name
+                            ?: setOrientation.orientation,
                         label = setOrientation.label,
                         optional = setOrientation.optional,
                     )
@@ -496,7 +497,7 @@ data class YamlFluentCommand(
             val resolvedPath = if (path.isAbsolute) {
                 path
             } else {
-                flowPath.resolveSibling(path).toAbsolutePath()
+                flowPath.resolveSibling(path).toAbsolutePath().normalize()
             }
             if (!resolvedPath.exists()) {
                 throw MediaFileNotFound("Media file at $path in flow file: $flowPath not found", path)
@@ -684,9 +685,9 @@ data class YamlFluentCommand(
         val resolvedPath = if (path.isAbsolute) {
             path
         } else {
-            flowPath.resolveSibling(path).toAbsolutePath()
+            flowPath.resolveSibling(path).toAbsolutePath().normalize()
         }
-        if (resolvedPath.equals(flowPath.toAbsolutePath())) {
+        if (resolvedPath.equals(flowPath.toAbsolutePath().normalize())) {
             throw InvalidFlowFile(
                 "Referenced Flow file can't be the same as the main Flow file: ${resolvedPath.toUri()}",
                 resolvedPath

@@ -6,6 +6,6 @@ copilot:summary
 
 <!--- Please describe how you tested your changes. -->
 
-> **Does this need e2e tests?** Please consider contributing them to the [demo app](https://github.com/mobile-dev-inc/demo_app) repository.
+> **Does this need e2e tests?** The demo app lives in [`e2e/demo_app/`](e2e/demo_app/) — add a test screen and Maestro flow in the same PR. See [`e2e/demo_app/CLAUDE.md`](e2e/demo_app/CLAUDE.md) for details.
 
 ## Issues fixed

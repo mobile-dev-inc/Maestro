@@ -1,12 +1,12 @@
 package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
-import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
 import maestro.SwipeDirection
 import maestro.TapRepeat
+import maestro.device.DeviceOrientation
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
@@ -37,11 +37,11 @@ import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RunScriptCommand
-import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
@@ -53,9 +53,9 @@ import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
-import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
+import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.FileSystems
@@ -418,7 +418,7 @@ internal class YamlCommandReaderTest {
                 label = "Run around the north pole"
             ),
             WaitForAnimationToEndCommand(
-                timeout = 4000,
+                timeout = "4000",
                 label = "Wait for the thing to stop spinning"
             ),
             SwipeCommand(
@@ -780,6 +780,86 @@ internal class YamlCommandReaderTest {
         )
     }
 
+    @Test
+    fun `setOrientation with literal and env variable value`(
+        @YamlFile("031_setOrientation.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            DefineVariablesCommand(
+                env = mapOf("orientation_portrait" to "PORTRAIT")
+            ),
+            SetOrientationCommand(
+                orientation = $$"${orientation_portrait}"
+            ),
+            SetOrientationCommand(
+                orientation = DeviceOrientation.LANDSCAPE_LEFT
+            ),
+        )
+
+        assertThat((commands[3] as SetOrientationCommand).resolvedOrientation())
+            .isEqualTo(DeviceOrientation.LANDSCAPE_LEFT)
+    }
+
+    @Test
+    fun `setOrientation with invalid env variable value`(
+        @YamlFile("032_setOrientation_error.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            DefineVariablesCommand(
+                env = mapOf("orientation" to "invalid_orientation")
+            ),
+            SetOrientationCommand(
+                orientation = $$"${orientation}"
+            )
+        )
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            (commands[2] as SetOrientationCommand).resolvedOrientation()
+        }
+        assertThat(error).hasMessageThat().contains("Unknown orientation: \${orientation}")
+    }
+
+
+    @Test
+    fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {
+        val config = """
+            flows:
+              - "*"
+            includeTags:
+              - smoke
+        """.trimIndent()
+        assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isEmpty()
+    }
+
+    @Test
+    fun `findUnknownWorkspaceConfigKeys detects unknown keys`() {
+        val config = """
+            flows:
+              - "*"
+            tapOn: some button
+            invalidKey: true
+        """.trimIndent()
+        assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config))
+            .containsExactly("tapOn", "invalidKey")
+    }
+
+    @Test
+    fun `findUnknownWorkspaceConfigKeys returns null for malformed yaml`() {
+        val config = "not: valid: yaml: ["
+        assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
+
+    @Test
+    fun `findUnknownWorkspaceConfigKeys returns null for non-map yaml`() {
+        val config = "- launchApp"
+        assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()

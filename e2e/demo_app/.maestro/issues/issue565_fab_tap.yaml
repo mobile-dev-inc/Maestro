@@ -1,0 +1,9 @@
+appId: com.example.example
+name: Issue 565 (tap on FAB)
+---
+- launchApp
+- tapOn:
+    id: fabAddIcon
+- tapOn:
+    id: fabAddIcon
+- assertVisible: 2

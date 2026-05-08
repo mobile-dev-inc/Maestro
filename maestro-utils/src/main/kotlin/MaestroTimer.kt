@@ -1,5 +1,7 @@
 package maestro.utils
 
+import kotlinx.coroutines.yield
+
 object MaestroTimer {
 
     var sleep: (Reason, Long) -> Unit = { _, ms -> Thread.sleep(ms) }
@@ -13,6 +15,26 @@ object MaestroTimer {
         val endTime = System.currentTimeMillis() + timeoutMs
 
         do {
+            val result = block()
+
+            if (result != null) {
+                return result
+            }
+        } while (System.currentTimeMillis() < endTime)
+
+        return null
+    }
+
+    /**
+     * Suspend-aware variant of [withTimeout]. Runs [block] in a do-while loop
+     * with a [kotlinx.coroutines.yield] cancellation checkpoint each iteration,
+     * preserving the same tight-poll semantics as the blocking [withTimeout].
+     */
+    suspend fun <T> withTimeoutSuspend(timeoutMs: Long, block: suspend () -> T?): T? {
+        val endTime = System.currentTimeMillis() + timeoutMs
+
+        do {
+            yield()
             val result = block()
 
             if (result != null) {

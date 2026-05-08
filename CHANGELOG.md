@@ -2,6 +2,70 @@
 
 ## Unreleased
 
+## 2.5.1
+
+- Fix `NoSuchMethodError` on Ktor server startup (login, studio, and cloud commands)
+- Fix emulator discovery on Windows, restoring `start-device` functionality
+- Improve Windows developer experience
+- Improve device info help in `maestro cloud --help`
+- Fix detection of successful emulator installation in `start-device`
+- Improve CLI help for the `start-device` command
+- Fail-fast on iOS transport failure instead of rethrowing raw `SocketTimeoutException`
+
+## 2.5.0
+
+- MCP server improvements
+    - Consolidate `run_flow` and `run_flow_files` into a single `run` tool, mirroring the shape of `maestro test`
+    - Drop 8 redundant tools (`tap_on`, `input_text`, `back`, `launch_app`, `stop_app`, `check_flow_syntax`, `start_device`, `query_docs`), shrinking the surface from 15 to 8
+    - Add native Maestro Cloud tools: `run_on_cloud` submits a flow + app binary asynchronously and returns a dashboard URL; `get_cloud_run_status` polls status and per-flow results
+    - Add `list_cloud_devices` and a `device_model` parameter on `run_on_cloud`, so agents can look up valid `{platform, model, supported_os}` triples instead of guessing
+    - Add server instructions and a clean stdout handshake - MCP startup no longer corrupts the JSON-RPC channel, fixing `Unexpected token 'k'` errors on strict clients like Claude Desktop
+    - Drop `use_fuzzy_matching` from the `tap_on` schema - the flag had no YAML equivalent and produced surprising matches
+    - A compact JSON output by default
+    - Upgrade MCP Kotlin SDK to the official 0.11.1
+- Fix `--config=<path>` on `maestro cloud` for any filename other than `config.yaml`/`config.yml`, and allow configs to live outside the workspace directory
+- Detect workspace config files by content (top-level YAML keys) instead of filename, so files like `platform_settings.yaml` are no longer mis-parsed as flows
+- Fix workspace ZIP path traversal for single-flow cloud uploads - zip entries are now rooted at the deepest common ancestor, eliminating broken `../` segments
+- Fix `--android-api-level` and `--ios-version` being silently ignored on cloud uploads
+- Normalize resolved workspace paths so `..` segments collapse on zip filesystems
+- Fix a file dependency resolution problem when users provided absolute paths
+- Show upload progress in `maestro cloud` CLI output for the whole upload (workspace zip + app binary + mapping), not just the app binary
+- Add a CLI warning when the workspace zip produced for `maestro cloud` exceeds 20 MB, since oversized uploads slow queue and run times across the fleet
+- Replace Android TCP port forwarding with a direct ADB socket for gRPC - around 41% faster on a simple `assertVisible` flow, and removes the flaky forwarding thread that fought with Studio/CLI/MCP running side-by-side
+- Fixes to cancelling flow execution when inside a long-running command
+- Allow JavaScript expressions in the `timeout` field of `waitForAnimationToEnd`
+- Add missing string-command config for `inputRandomColorName` and related random-input commands
+- Detect Azure Pipelines as a CI provider (via `TF_BUILD`), so promotional messages are suppressed
+- Populate the `text` attribute for `<textarea>` elements in the view hierarchy (web)
+- Remove CLI-side `--app-binary-id` validation - server-side already handles it
+- Remove the unmaintained `recipes/` folder; examples now live at https://docs.maestro.dev/examples
+- Fix log folder name generation where outputs were being split across two similarly-timestamped directories, and extend `XDG_STATE_HOME` support to log outputs
+- Fix `ToastAccessibilityListener` crashing Maestro when toast nodes have no text (Android)
+- Add support for the `MANAGE_EXTERNAL_STORAGE` permission on Android
+- Fix XCTest UI-interruption preflight hang in the iOS runner, where alerts shown during app launch could freeze the test
+- `retryCommand` now only retries on `MaestroException` and propagates other exceptions, instead of swallowing unrelated errors
+
+Thanks to @jkronborg, @dineshv87, and @HarlonWang who contributed changes included in this release ❤️
+
+## 2.4.0
+
+- Add new device config flags for cloud and start-device
+    - Deprecated `--ios-version`, `--android-api-level`, and `--os-version` flags. These will be removed in a future release.
+    - `--device-os` and `--device-model` replace all platform-specific device options, providing a single consistent way to specify devices across iOS, Android, and Web
+- Add `maestro list-devices` command to see locally available devices on the machine
+- Add `maestro list-cloud-devices` command to see available cloud device models and OS versions
+- Support iframes for web tests
+- Faster feedback when using Maestro Cloud - more validation is happening locally
+- Improve feedback when startRecording fails on iOS
+- Add clearState support for web tests
+- Fix inputText crashing on iOS pincode screens
+- Fix incorrect websocket timeout (5000ms, not 5000s!)
+- Add support for variables as input to setOrientation
+- Add deprecation notice to `maestro studio`
+- Improved variable isolation and reduced memory usage in JavaScript evaluations
+- Fix step ordering in the html-detailed test report
+- Improve timeouts in all API calls (especially useful for Maestro Cloud uploads)
+
 ## 2.3.0
 
 - Add web support for `clearState` command
