@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
 import java.net.SocketTimeoutException
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -82,12 +83,12 @@ class XCTestDriverClient(
         return mapper.readValue(responseString, ViewHierarchy::class.java)
     }
 
-    fun screenshot(compressed: Boolean): ByteArray {
+    fun screenshot(compressed: Boolean, callTimeoutMs: Long? = null): ByteArray {
         val url = client.xctestAPIBuilder("screenshot")
             .addQueryParameter("compressed", compressed.toString())
             .build()
 
-        return executeJsonRequest(url)
+        return executeJsonRequest(url, callTimeoutMs)
     }
 
     fun terminateApp(appId: String) {
@@ -227,7 +228,7 @@ class XCTestDriverClient(
                 .execute().use { processResponse(it, httpUrl.toString()) }
         }
 
-    private fun executeJsonRequest(httpUrl: HttpUrl): ByteArray =
+    private fun executeJsonRequest(httpUrl: HttpUrl, callTimeoutMs: Long? = null): ByteArray =
         transportCall(httpUrl.callName()) {
             val request = Request.Builder()
                 .get()
@@ -236,6 +237,7 @@ class XCTestDriverClient(
 
             okHttpClient
                 .newCall(request)
+                .apply { callTimeoutMs?.let { ms -> timeout().timeout(ms, TimeUnit.MILLISECONDS) } }
                 .execute().use {
                     val bytes = it.body?.bytes() ?: ByteArray(0)
                     if (!it.isSuccessful) {
