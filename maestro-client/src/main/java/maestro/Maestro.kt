@@ -633,7 +633,13 @@ class Maestro(
         val timeout = timeout?.toLong() ?: ANIMATION_TIMEOUT_MS
         LOGGER.info("Waiting for animation to end with timeout $timeout")
 
-        ScreenshotUtils.waitUntilScreenIsStatic(timeout, SCREENSHOT_DIFF_THRESHOLD, driver)
+        // Delegate to the platform driver's static-screen check rather than running a
+        // client-side full-resolution pixel diff in every iteration. On iOS this lands on
+        // the server-side /isScreenStatic SHA-256 hash check (single-shot per call,
+        // ~100-500 ms), avoiding a ~24s ImageComparison on full-res screenshots.
+        // Android/Web overrides delegate back into ScreenshotUtils.waitUntilScreenIsStatic,
+        // so behavior on those platforms is unchanged.
+        driver.waitUntilScreenIsStatic(timeout)
     }
 
     suspend fun setProxy(
