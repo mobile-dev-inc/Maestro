@@ -417,6 +417,12 @@ class IOSDriver(
         }
     }
 
+    override fun takeScreenshot(out: Sink, compressed: Boolean, timeoutMs: Long?) {
+        metrics.measured("operation", mapOf("command" to "takeScreenshot", "timeoutMs" to timeoutMs.toString())) {
+            runDeviceCall("takeScreenshot") { iosDevice.takeScreenshot(out, compressed, timeoutMs) }
+        }
+    }
+
     override fun startScreenRecording(out: Sink): ScreenRecording {
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
             val iosScreenRecording = iosDevice.startScreenRecording(out)

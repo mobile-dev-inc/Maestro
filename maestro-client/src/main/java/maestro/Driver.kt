@@ -74,6 +74,17 @@ interface Driver {
 
     fun takeScreenshot(out: Sink, compressed: Boolean)
 
+    /**
+     * Variant that bounds the underlying network call at [timeoutMs] when the driver
+     * supports it. Drivers without a network-bounded screenshot path fall back to the
+     * timeout-less overload.
+     *
+     * @param timeoutMs per-call HTTP timeout in milliseconds. `null` means "use driver default."
+     */
+    fun takeScreenshot(out: Sink, compressed: Boolean, timeoutMs: Long?) {
+        takeScreenshot(out, compressed)
+    }
+
     fun startScreenRecording(out: Sink): ScreenRecording
 
     fun setLocation(latitude: Double, longitude: Double)

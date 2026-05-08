@@ -35,6 +35,22 @@ class ScreenshotUtils {
             null
         }
 
+        /**
+         * Variant that bounds the underlying driver call at [callTimeoutMs] ms.
+         *
+         * On drivers that ignore the timeout (Android/web today), behavior is identical to
+         * [tryTakingScreenshot]. On iOS, the OkHttp call to XCUITest's `/screenshot`
+         * endpoint is bounded so a single slow response can't outlive the user's deadline.
+         */
+        fun tryTakingScreenshot(driver: Driver, callTimeoutMs: Long?): BufferedImage? = try {
+            val buffer = Buffer()
+            driver.takeScreenshot(buffer, true, callTimeoutMs)
+            ImageIO.read(buffer.readByteArray().inputStream())
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to take screenshot", e)
+            null
+        }
+
         fun waitForAppToSettle(
             initialHierarchy: ViewHierarchy?,
             driver: Driver,
@@ -74,9 +90,21 @@ class ScreenshotUtils {
         }
 
         fun waitUntilScreenIsStatic(timeoutMs: Long, threshold: Double, driver: Driver): Boolean {
-            return MaestroTimer.retryUntilTrue(timeoutMs) {
-                val startScreenshot: BufferedImage? = tryTakingScreenshot(driver)
-                val endScreenshot: BufferedImage? = tryTakingScreenshot(driver)
+            // Deadline-aware loop: each call to the driver receives the remaining budget so
+            // a single slow `takeScreenshot` (e.g. iOS XCUITest stalling /screenshot during
+            // an animation) cannot blow past the user-supplied [timeoutMs]. Drivers that
+            // don't honor the timeout (Android, web) will still finish in their own time,
+            // but the second screenshot is never started once the deadline has passed and
+            // the loop exits as soon as the body returns.
+            val deadline = System.currentTimeMillis() + timeoutMs
+            do {
+                val remainingForFirst = deadline - System.currentTimeMillis()
+                if (remainingForFirst <= 0) return false
+                val startScreenshot: BufferedImage? = tryTakingScreenshot(driver, remainingForFirst)
+
+                val remainingForSecond = deadline - System.currentTimeMillis()
+                if (remainingForSecond <= 0) return false
+                val endScreenshot: BufferedImage? = tryTakingScreenshot(driver, remainingForSecond)
 
                 if (startScreenshot != null &&
                     endScreenshot != null &&
@@ -88,11 +116,10 @@ class ScreenshotUtils {
                         endScreenshot
                     ).compareImages().differencePercent
 
-                    return@retryUntilTrue imageDiff <= threshold
+                    if (imageDiff <= threshold) return true
                 }
-
-                return@retryUntilTrue false
-            }
+            } while (System.currentTimeMillis() < deadline)
+            return false
         }
 
         private fun viewHierarchy(driver: Driver): ViewHierarchy {
