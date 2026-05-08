@@ -20,6 +20,8 @@ val CLI_VERSION: String by project
 application {
     applicationName = "maestro"
     mainClass.set("maestro.cli.AppKt")
+    // Required for Jansi native library loading (System.load) under Java 17+ restricted access
+    applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.named<Jar>("jar") {
