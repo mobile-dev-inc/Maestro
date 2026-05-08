@@ -141,7 +141,7 @@ jobs:
     name: Build on Java ${{ matrix.java-version }}
     needs: validate-inputs
     if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 20
 
     strategy:
