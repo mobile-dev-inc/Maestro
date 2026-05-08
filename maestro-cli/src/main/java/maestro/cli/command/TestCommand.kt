@@ -48,7 +48,6 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.CiUtils
-import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
@@ -548,7 +547,7 @@ class TestCommand : Callable<Int> {
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
-                AnsiResultView(useEmojis = !EnvUtils.isWindows())
+                AnsiResultView()
             } else {
                 PlainTextResultView()
             }
