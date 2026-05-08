@@ -1,0 +1,18 @@
+appId: com.example.example
+name: Issue assertScreenshot Threshold
+tags:
+  - failing
+---
+- launchApp:
+    clearState: true
+- tapOn: 
+    text: "assertScreenshot Threshold"
+- waitForAnimationToEnd
+
+# - takeScreenshot: assertScreenshot_threshold
+- tapOn:
+    text: "Toggle 10px"
+- waitForAnimationToEnd
+- assertScreenshot:
+    path: ./screenshots/assertScreenshot_threshold.png
+    thresholdPercentage: 95
