@@ -97,28 +97,56 @@ class ScreenshotUtils {
             // but the second screenshot is never started once the deadline has passed and
             // the loop exits as soon as the body returns.
             val deadline = System.currentTimeMillis() + timeoutMs
+            LOGGER.info("[waitUntilScreenIsStatic] entry timeoutMs=$timeoutMs threshold=$threshold")
+            var iter = 0
             do {
-                val remainingForFirst = deadline - System.currentTimeMillis()
-                if (remainingForFirst <= 0) return false
+                iter++
+                val iterStart = System.currentTimeMillis()
+                val remainingForFirst = deadline - iterStart
+                if (remainingForFirst <= 0) {
+                    LOGGER.info("[waitUntilScreenIsStatic] iter=$iter exit pre-screenshot1: deadline reached")
+                    return false
+                }
+
+                val s1Start = System.currentTimeMillis()
                 val startScreenshot: BufferedImage? = tryTakingScreenshot(driver, remainingForFirst)
+                val s1Elapsed = System.currentTimeMillis() - s1Start
+                LOGGER.info("[waitUntilScreenIsStatic] iter=$iter screenshot1 took ${s1Elapsed}ms callTimeoutMs=$remainingForFirst dims=${startScreenshot?.width}x${startScreenshot?.height}")
 
                 val remainingForSecond = deadline - System.currentTimeMillis()
-                if (remainingForSecond <= 0) return false
+                if (remainingForSecond <= 0) {
+                    LOGGER.info("[waitUntilScreenIsStatic] iter=$iter exit pre-screenshot2: deadline reached")
+                    return false
+                }
+
+                val s2Start = System.currentTimeMillis()
                 val endScreenshot: BufferedImage? = tryTakingScreenshot(driver, remainingForSecond)
+                val s2Elapsed = System.currentTimeMillis() - s2Start
+                LOGGER.info("[waitUntilScreenIsStatic] iter=$iter screenshot2 took ${s2Elapsed}ms callTimeoutMs=$remainingForSecond dims=${endScreenshot?.width}x${endScreenshot?.height}")
 
                 if (startScreenshot != null &&
                     endScreenshot != null &&
                     startScreenshot.width == endScreenshot.width &&
                     startScreenshot.height == endScreenshot.height
                 ) {
+                    val cmpStart = System.currentTimeMillis()
                     val imageDiff = ImageComparison(
                         startScreenshot,
                         endScreenshot
                     ).compareImages().differencePercent
+                    val cmpElapsed = System.currentTimeMillis() - cmpStart
+                    LOGGER.info("[waitUntilScreenIsStatic] iter=$iter ImageComparison took ${cmpElapsed}ms differencePercent=$imageDiff threshold=$threshold")
 
-                    if (imageDiff <= threshold) return true
+                    if (imageDiff <= threshold) {
+                        LOGGER.info("[waitUntilScreenIsStatic] iter=$iter screen settled, returning true after ${System.currentTimeMillis() - (deadline - timeoutMs)}ms")
+                        return true
+                    }
+                } else {
+                    LOGGER.info("[waitUntilScreenIsStatic] iter=$iter null/dim-mismatch, skipping comparison")
                 }
+                LOGGER.info("[waitUntilScreenIsStatic] iter=$iter complete totalIterMs=${System.currentTimeMillis() - iterStart} elapsedSinceEntryMs=${System.currentTimeMillis() - (deadline - timeoutMs)}")
             } while (System.currentTimeMillis() < deadline)
+            LOGGER.info("[waitUntilScreenIsStatic] exit on deadline iters=$iter elapsedMs=${System.currentTimeMillis() - (deadline - timeoutMs)}")
             return false
         }
 
