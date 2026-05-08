@@ -166,6 +166,26 @@ class SimctlIOSDevice(
     override fun setPermissions(id: String, permissions: Map<String, String>) {
         val formattedPermissions = permissions.entries.joinToString(separator = ", ") { "${it.key}=${it.value}" }
 
+        // Fast path for `permissions: { all: allow }` — by far the most common case
+        // in user flows. Collapses what would otherwise be applesimutils + simctl
+        // privacy (location) into a single `xcrun simctl privacy <udid> grant all
+        // <bundle>` call. Halves the per-launchApp permission cost and reduces our
+        // exposure to the macOS-Tahoe simctl-privacy hang we hit in CI.
+        if (permissions.size == 1 && permissions["all"] == "allow") {
+            try {
+                logger.info("[Start] Granting all permissions via single simctl privacy call")
+                localSimulatorUtils.grantAllPermissions(deviceId, id)
+                logger.info("[Done] Granting all permissions via single simctl privacy call")
+                return
+            } catch (e: Exception) {
+                logger.warn(
+                    "Single 'simctl privacy ... grant all' failed; falling back to per-permission path",
+                    e,
+                )
+                // intentional fall-through to the existing two-tool path below
+            }
+        }
+
         runCatching {
             logger.info("[Start] Setting permissions $formattedPermissions through applesimutils")
             localSimulatorUtils.setAppleSimutilsPermissions(deviceId, id, permissions)
