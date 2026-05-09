@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.protobuf) apply false
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.versionCatalogUpdate)
 }
 
 java {

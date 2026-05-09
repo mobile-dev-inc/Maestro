@@ -55,6 +55,7 @@ squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
 squareMockWebServer = "4.11.0"
 system-stubs = "2.1.7"
+versionCatalogUpdate = "1.1.0"
 wiremock = "2.35.0"
 log4j = "2.25.3"
 
@@ -164,3 +165,4 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" }
 jreleaser = { id = "org.jreleaser", version = "1.13.1" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }
+versionCatalogUpdate = { id = "nl.littlerobots.version-catalog-update", version.ref = "versionCatalogUpdate"}
