@@ -12,7 +12,6 @@ apkParser = "2.6.10"
 appdirs = "1.5.0"
 clikt = "5.1.0"
 commons-codec = "1.22.0"
-commons-io = "2.16.1"
 commons-lang3 = "3.13.0"
 coroutines = "1.8.0"
 dadb = "1.2.10"
@@ -67,7 +66,6 @@ apk-parser = { module = "net.dongliu:apk-parser", version.ref = "apkParser" }
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
-commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
 datafaker = { module = "net.datafaker:datafaker", version.ref = "datafaker" }
