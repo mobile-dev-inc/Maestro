@@ -18,6 +18,7 @@ dependencies:
   flutter_launch_arguments: ^1.0.1
   webview_flutter: ^4.13.0
   permission_handler: ^11.3.1
+  flutter_local_notifications: ^17.2.4
   sensors_plus: ^4.0.2
   geolocator: ^13.0.1
   connectivity_plus: ^7.0.0
