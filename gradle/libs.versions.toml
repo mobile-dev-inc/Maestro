@@ -55,7 +55,7 @@ squareOkhttp = "5.3.2"
 squareOkio = "3.17.0"
 system-stubs = "2.1.8"
 versionCatalogUpdate = "1.1.0"
-wiremock = "2.35.0"
+wiremock = "3.13.2"
 
 [libraries]
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }
@@ -141,7 +141,7 @@ square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", vers
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-okio-jvm = { module = "com.squareup.okio:okio-jvm", version.ref = "squareOkio" }
 system-stubs-jupiter = { module = "uk.org.webcompere:system-stubs-jupiter", version.ref = "system-stubs" }
-wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
+wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidPlugin" }

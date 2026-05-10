@@ -33,7 +33,7 @@ dependencies {
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
 
-    testImplementation(libs.wiremock.jre8)
+    testImplementation(libs.wiremock)
 }
 
 tasks.named<Test>("test") {
