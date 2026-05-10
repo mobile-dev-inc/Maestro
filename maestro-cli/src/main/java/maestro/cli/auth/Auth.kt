@@ -6,6 +6,8 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import maestro.auth.ApiKey
@@ -80,7 +82,7 @@ class Auth(
         val deferredToken = CompletableDeferred<String>()
 
         val port = getFreePort()
-        val server = embeddedServer(Netty, configure = { shutdownTimeout = 0; shutdownGracePeriod = 0 }, port = port) {
+        val server = CoroutineScope(Dispatchers.IO).embeddedServer(Netty, port = port) {
             routing {
                 get("/callback") {
                     handleCallback(call, deferredToken)
