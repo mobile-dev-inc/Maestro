@@ -53,7 +53,7 @@ skiko = "0.144.6"
 squareMockWebServer = "5.3.2"
 squareOkhttp = "5.3.2"
 squareOkio = "3.17.0"
-system-stubs = "2.1.7"
+system-stubs = "2.1.8"
 versionCatalogUpdate = "1.1.0"
 wiremock = "2.35.0"
 
