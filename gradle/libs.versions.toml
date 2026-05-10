@@ -48,6 +48,7 @@ mockk = "1.14.9"
 mordant = "3.0.2"
 picocli = "4.7.7"
 posthog = "1.0.3"
+publishPlugin = "0.35.0"
 selenium = "4.43.0"
 selenium-devtools = "4.40.0"
 skiko = "0.144.6"
@@ -151,7 +152,7 @@ jreleaser = { id = "org.jreleaser", version.ref = "jreleaser" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-mavenPublish = "com.vanniktech.maven.publish:0.33.0"
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "publishPlugin" }
 protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
 shadow = "com.github.johnrengelman.shadow:7.1.2"
 versionCatalogUpdate = { id = "nl.littlerobots.version-catalog-update", version.ref = "versionCatalogUpdate" }
