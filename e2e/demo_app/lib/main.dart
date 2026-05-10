@@ -126,6 +126,11 @@ class _MyHomePageState extends State<MyHomePage> {
             IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: false, sound: false);
 
+    await plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
     await plugin.show(
       0,
       'Maestro Local Notification',
