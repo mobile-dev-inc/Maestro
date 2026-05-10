@@ -33,6 +33,7 @@ jackson = "2.21.3"
 jansi = "2.4.1"
 jarchivelib = "1.2.0"
 jcodec = "0.2.5"
+jreleaser = "1.24.0"
 junit = "5.10.2"
 kotlin = "2.2.0"
 kotlinResult = "2.3.1"
@@ -146,7 +147,7 @@ wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidPlugin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-jreleaser = "org.jreleaser:1.13.1"
+jreleaser = { id = "org.jreleaser", version.ref = "jreleaser" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
