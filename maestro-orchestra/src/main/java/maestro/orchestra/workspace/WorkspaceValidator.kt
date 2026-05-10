@@ -18,6 +18,7 @@ import java.util.zip.ZipError
 import java.util.zip.ZipException
 import kotlin.io.path.exists
 import kotlin.io.path.name
+import kotlin.io.path.nameWithoutExtension
 
 data class ValidatedFlow(
     val filePath: String,
@@ -108,7 +109,7 @@ object WorkspaceValidator {
                     val config = applyConfigurationCommand
                         ?.evaluateScripts(jsEngine)
                         ?.config
-                    val flowName = config?.name ?: path.name.removeSuffix(".yaml")
+                    val flowName = config?.name ?: path.nameWithoutExtension
                     allFlows.add(ValidatedFlow(path.toString(), flowName, commands, config?.appId))
                 }
             }

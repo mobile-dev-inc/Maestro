@@ -558,7 +558,7 @@ class TestCommand : Callable<Int> {
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
-                AnsiResultView(useEmojis = !EnvUtils.isWindows())
+                AnsiResultView()
             } else {
                 PlainTextResultView()
             }
