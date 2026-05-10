@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_launch_arguments/flutter_launch_arguments.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 
@@ -104,6 +105,45 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _counter++;
     });
+  }
+
+  Future<void> _triggerLocalNotification() async {
+    final plugin = FlutterLocalNotificationsPlugin();
+
+    await plugin.initialize(
+      const InitializationSettings(
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+    );
+
+    await plugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: false, sound: false);
+
+    await plugin.show(
+      0,
+      'Maestro Local Notification',
+      'Hello from Maestro',
+      const NotificationDetails(
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentList: true,
+        ),
+        android: AndroidNotificationDetails(
+          'demo_app_local_notifications',
+          'Local Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+    );
   }
 
   @override
@@ -276,6 +316,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('assertScreenshot Threshold'),
+                ),
+                ElevatedButton(
+                  onPressed: _triggerLocalNotification,
+                  child: const Text('Trigger Local Notification'),
                 ),
               ],
             ),
