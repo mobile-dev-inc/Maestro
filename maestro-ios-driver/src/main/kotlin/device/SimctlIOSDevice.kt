@@ -1,7 +1,7 @@
 package device
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onErr
 import com.github.michaelbull.result.runCatching
 import hierarchy.ViewHierarchy
 import maestro.utils.TempFileHandler
@@ -167,10 +167,10 @@ class SimctlIOSDevice(
         val formattedPermissions = permissions.entries.joinToString(separator = ", ") { "${it.key}=${it.value}" }
 
         runCatching {
-            logger.info("[Start] Setting permissions $formattedPermissions through applesimutils")
-            localSimulatorUtils.setAppleSimutilsPermissions(deviceId, id, permissions)
-            logger.info("[Done] Setting permissions through applesimutils")
-        }.onFailure {
+                logger.info("[Start] Setting permissions $formattedPermissions through applesimutils")
+                localSimulatorUtils.setAppleSimutilsPermissions(deviceId, id, permissions)
+                logger.info("[Done] Setting permissions through applesimutils")
+            }.onErr {
             logger.error("Failed setting permissions $permissions via applesimutils", it)
         }
 
