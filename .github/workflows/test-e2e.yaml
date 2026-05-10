@@ -138,16 +138,21 @@ jobs:
           fi
 
   build:
-    name: Build on Java ${{ matrix.java-version }}
+    name: Build on ${{ matrix.os }}
     needs: validate-inputs
     if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         java-version: [17]
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Clone repository
@@ -161,19 +166,21 @@ jobs:
           cache: gradle
 
       - name: Build xctest-runner
+        if: runner.os == 'macOS'
         run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
 
       - name: Build Maestro CLI
         run: ./gradlew :maestro-cli:distZip
 
-      - name: Upload zipped Maestro CLI artifact
+      - name: Upload Maestro CLI artifact
         uses: actions/upload-artifact@v7
         with:
-          name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
+          name: maestro-cli-${{ matrix.os }}-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
       - name: Upload build/Products to artifacts
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
           name: build__Products-jdk${{ matrix.java-version }}
@@ -208,7 +215,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
-          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -324,7 +331,7 @@ jobs:
       - name: Download Maestro build from previous job
         uses: actions/download-artifact@v8
         with:
-          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -435,7 +442,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
-          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
 
       - name: Add Maestro CLI executable to PATH
         run: |
@@ -527,7 +534,7 @@ jobs:
       - name: Download Maestro artifact
         uses: actions/download-artifact@v8
         with:
-          name: maestro-cli-jdk17-run_id${{ github.run_id }}
+          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
 
       - name: Download build/Products artifact
         uses: actions/download-artifact@v8
@@ -560,3 +567,57 @@ jobs:
           path: ~/Library/Logs/maestro/xctest_runner_logs
           retention-days: 7
           include-hidden-files: true
+
+  test-cli:
+    name: Verify CLI version on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: build
+    if: ${{ always() && needs.build.result == 'success' }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        java-version: [17]
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java-version }}
+
+      - name: Download Maestro CLI artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: maestro-cli-${{ matrix.os }}-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI to PATH (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Add Maestro CLI to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Expand-Archive -Path maestro.zip -DestinationPath maestro_extracted
+          "$PWD\maestro_extracted\maestro\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Test CLI (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: e2e/cli/test-cli.sh
+
+      - name: Test CLI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: e2e/cli/test-cli.ps1
