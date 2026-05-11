@@ -7,14 +7,17 @@ function Check([string]$desc, [string]$cmd, [string]$assertion, [string]$expecte
         'equals'   { $actual -eq $expected }
         'includes' { $actual -like "*$expected*" }
         'excludes' { $actual -notlike "*$expected*" }
+        default    { Write-Error "unknown assertion '$assertion' (use: equals, includes, excludes)"; exit 1 }
     }
     if ($ok) {
         Write-Host "PASS: $desc"
         $script:pass++
     } else {
-        Write-Host "FAIL: $desc"
-        Write-Host "      expected ($assertion): $expected"
-        Write-Host "      got:                   $actual"
+        Write-Host ("FAIL: {0}" -f $desc)
+        Write-Host ("      {0,-11} {1}" -f "cmd:",       $cmd)
+        Write-Host ("      {0,-11} {1}" -f "assertion:", $assertion)
+        Write-Host ("      {0,-11} {1}" -f "expected:",  $expected)
+        Write-Host ("      {0,-11} {1}" -f "got:",       $actual)
         $script:fail++
     }
 }
@@ -22,7 +25,12 @@ function Check([string]$desc, [string]$cmd, [string]$assertion, [string]$expecte
 $version = (Select-String -Path 'maestro-cli/gradle.properties' -Pattern '^CLI_VERSION=').Line `
     -replace '^CLI_VERSION=', ''
 
-Check "maestro -v equals gradle.properties version" "maestro -v" "equals" $version
+# TESTS START HERE:
+
+Check "maestro -v equals gradle.properties version" `
+    "maestro -v" "equals" $version
+Check "maestro gives usage instructions when called without parameters" `
+    "maestro" "includes" "Usage: maestro"
 
 Write-Host ""
 Write-Host "$pass passed, $fail failed"
