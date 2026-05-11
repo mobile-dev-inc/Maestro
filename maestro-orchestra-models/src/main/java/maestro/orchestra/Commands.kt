@@ -1002,6 +1002,10 @@ data class RunScriptCommand(
     val condition: Condition?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    // Absolute parent directory of the script file, used by the JS engine to
+    // anchor relative file lookups (e.g. multipartForm filePath). Nullable so
+    // commands assembled outside the YAML parser keep working.
+    val scriptDir: String? = null,
 ) : Command {
 
     override val originalDescription: String
