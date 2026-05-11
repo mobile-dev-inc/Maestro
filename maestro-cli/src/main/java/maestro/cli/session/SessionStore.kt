@@ -7,13 +7,23 @@ import java.util.concurrent.TimeUnit
 
 object SessionStore {
 
-    private val keyValueStore by lazy {
+    private val defaultKeyValueStore by lazy {
         KeyValueStore(
             dbFile = Paths
                 .get(System.getProperty("user.home"), ".maestro", "sessions")
                 .toFile()
                 .also { it.parentFile.mkdirs() }
         )
+    }
+
+    @Volatile
+    private var keyValueStoreOverride: KeyValueStore? = null
+
+    private val keyValueStore: KeyValueStore
+        get() = keyValueStoreOverride ?: defaultKeyValueStore
+
+    internal fun setKeyValueStoreForTest(store: KeyValueStore?) {
+        keyValueStoreOverride = store
     }
 
     fun heartbeat(sessionId: String, platform: Platform) {
@@ -61,8 +71,10 @@ object SessionStore {
         platform: Platform
     ): Boolean {
         synchronized(keyValueStore) {
+            val currentKey = key(sessionId, platform)
+            val platformPrefix = "${platform}_"
             return activeSessions()
-                .any { it != key(sessionId, platform) }
+                .any { it != currentKey && it.startsWith(platformPrefix) }
         }
     }
 
