@@ -7,6 +7,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.HostAccess
+import org.graalvm.polyglot.PolyglotException
 import org.graalvm.polyglot.Source
 import org.graalvm.polyglot.Value
 import org.graalvm.polyglot.proxy.ProxyObject
@@ -131,7 +132,11 @@ class GraalJsEngine(
             .replace("\${", "\\\${")
         val wrappedScript = "(function(){ return eval(`$escapedScript`) })()"
         val source = Source.newBuilder("js", wrappedScript, sourceName).build()
-        return context.eval(source)
+        return try {
+            context.eval(source)
+        } catch (e: PolyglotException) {
+            throw JsEvaluationException(e.toJsScriptError())
+        }
     }
 
     /**
@@ -185,25 +190,29 @@ class GraalJsEngine(
             .allowHostAccess(hostAccess)
             .build()
 
-        context.eval(
-            "js", """
-            // Prevent a reference error on referencing undeclared variables. Enables patterns like {MY_ENV_VAR || 'default-value'}.
-            // Instead of throwing an error, undeclared variables will evaluate to undefined.
-            Object.setPrototypeOf(globalThis, new Proxy(Object.prototype, {
-                has(target, key) {
-                    return true;
+        try {
+            context.eval(
+                "js", """
+                // Prevent a reference error on referencing undeclared variables. Enables patterns like {MY_ENV_VAR || 'default-value'}.
+                // Instead of throwing an error, undeclared variables will evaluate to undefined.
+                Object.setPrototypeOf(globalThis, new Proxy(Object.prototype, {
+                    has(target, key) {
+                        return true;
+                    }
+                }))
+                function json(text) {
+                    return JSON.parse(text)
                 }
-            }))
-            function json(text) {
-                return JSON.parse(text)
-            }
-            function relativePoint(x, y) {
-                var xPercent = Math.ceil(x * 100) + '%'
-                var yPercent = Math.ceil(y * 100) + '%'
-                return xPercent + ',' + yPercent
-            }
-        """.trimIndent()
-        )
+                function relativePoint(x, y) {
+                    var xPercent = Math.ceil(x * 100) + '%'
+                    var yPercent = Math.ceil(y * 100) + '%'
+                    return xPercent + ',' + yPercent
+                }
+            """.trimIndent()
+            )
+        } catch (e: PolyglotException) {
+            throw JsEvaluationException(e.toJsScriptError())
+        }
 
         sharedContext = context
         return context
