@@ -39,6 +39,7 @@ import maestro.orchestra.SourceInfo
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
+import maestro.orchestra.util.Env.EnvVariableMissingValueError
 import maestro.orchestra.util.Env.withEnv
 import org.intellij.lang.annotations.Language
 import java.nio.file.Path
@@ -194,6 +195,16 @@ private fun SourceInfo.asJsonLocation(): JsonLocation =
 
 private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Path, content: String): Exception {
     findException<FlowParseException>(error)?.let { return it }
+    findException<EnvVariableMissingValueError>(error)?.let { e ->
+        val keys = e.keys.joinToString(", ")
+        return FlowParseException(
+            parser = parser,
+            contentPath = contentPath,
+            content = content,
+            title = "Environment variable has no value: $keys",
+            errorMessage = e.message ?: "Environment variable has no value",
+        )
+    }
     findException<ToCommandsException>(error)?.let { e ->
         val location = e.sourceInfo.asJsonLocation()
         return when (e.cause) {
